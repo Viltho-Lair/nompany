@@ -53,7 +53,6 @@ export const NODES: Record<string, Node> = {
   delivery: { label: "Delivery", sectionKey: "inventory", collection: "deliveries", permission: "inventory.stock.view" },
   overtime: { label: "Overtime", sectionKey: "projects-overtimes", collection: "overtimes", permission: "projects.overtimes.view" },
   awbShipment: { label: "AWB shipment", sectionKey: "logistics-shipments", collection: "awbShipments", permission: "logistics.shipments.view" },
-  task: { label: "Task", sectionKey: "tasks", collection: "tasks", permission: "tasks.board.view" },
 };
 
 // ---- cardinality -------------------------------------------------------------
@@ -132,7 +131,6 @@ export const EDGES = [
   edge("delivery", "project", "forward", "projectId", ONE),
   edge("overtime", "project", "forward", "projectId", ONE),
   edge("awbShipment", "project", "forward", "projectId", ONE),
-  edge("task", "project", "forward", "projectId", ONE),
   edge("materialOrder", "project", "forward", "projectId", ONE),
 
   // ---- downstream: scan the children ----
@@ -159,7 +157,6 @@ export const EDGES = [
   edge("project", "delivery", "reverse", "projectId", MANY),
   edge("project", "overtime", "reverse", "projectId", MANY),
   edge("project", "awbShipment", "reverse", "projectId", MANY),
-  edge("project", "task", "reverse", "projectId", MANY),
 ];
 
 export const edgeBetween = (from: NodeKey, to: NodeKey): Edge | null => EDGES.find((e) => e.from === from && e.to === to) || null;

@@ -176,8 +176,6 @@ const ar: SectionMap = {
   "administration-master": "البيانات الأساسية",
   "administration-settings": "إعدادات الاستوديو",
 
-  tasks: "المهام",
-  "tasks-settings": "إعدادات المهام",
   approvals: "الموافقات",
   "approvals-settings": "إعدادات الموافقات",
 };

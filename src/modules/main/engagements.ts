@@ -352,7 +352,7 @@ export async function engagementBlock(
       // (src/platform/engagement/backfill.ts) straight from the sales ticket, so
       // it carries nine fields — including contact.name and the full site
       // address — none of which the screen renders. A reader can reach this
-      // block holding engagements.view plus ANY stage right (Tasks, Finance,
+      // block holding engagements.view plus ANY stage right (Finance,
       // Projects…), not necessarily sales.tickets.view, so returning the whole
       // object hands them the client's contact and site on a screen that shows
       // neither. The spec's "a viewer who can see the ticket can already read

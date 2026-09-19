@@ -84,8 +84,8 @@ fact) goes to whoever can answer the next step, resolved from the right that ste
 - a **requisition** when it is submitted and after every signature that is not the last;
 - a **bid** after every signature that is not the last;
 - a **stock adjustment** when it is parked for approval and after every non-final signature;
-- the **quotation-approval** and **client-PO** tasks, to the people appointed to their
-  authorities in Task settings;
+- every **approval**, to the people named on each step as it opens (Approval settings), and
+  to the requester when it is approved or rejected;
 - a **payroll run** when it is prepared, to holders of `hr.payroll.approve`.
 
 Never the raiser, who knows, and never anybody who signed an earlier step — invariant 7

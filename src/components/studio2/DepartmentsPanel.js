@@ -2,7 +2,8 @@
 //
 // WHAT IT REPLACES ON SCREEN. This list used to be the product's sections: the
 // HR headcount strip showed sixteen "departments", which were the fifteen nav
-// entries plus Tasks, four of them screens that render nothing. A construction
+// entries plus a control that was not a section, four of them screens that
+// render nothing. A construction
 // company was being offered Manufacturing & Production and Reports & BI as
 // parts of its org chart. These are the studio's own rows now.
 //

@@ -2,7 +2,7 @@
 //
 // WHY THIS EXISTS. A studio's departments used to BE its sections — fifteen nav
 // entries offered as an org chart, four of which render nothing at all and one
-// of which (Tasks) is not a section. No company has that shape. A construction
+// of which (a control) is not a section. No company has that shape. A construction
 // firm has Estimation, Site Execution, QA/QC and Plant; a hospital has Nursing,
 // Pharmacy and Biomedical. So the register is the studio's own rows now, and
 // this is what it starts from.

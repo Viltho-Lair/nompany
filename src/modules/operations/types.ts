@@ -30,8 +30,8 @@ export type ShiftView = Shift & {
 };
 
 // ---- this department's context ---------------------------------------------
-// Generated from the spec in operations.ts — see the note in
-// modules/tasks/types.ts. `hrSection` is foreign and therefore nullable: a
+// Generated from the spec in operations.ts — see the note on ModuleContext in
+// ../context.ts. `hrSection` is foreign and therefore nullable: a
 // studio without HR still runs Operations, and the leave check is what silently
 // stops being asked.
 export type OperationsContext = ModuleContext & {

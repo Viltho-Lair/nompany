@@ -141,7 +141,8 @@ function stepOutcome(step: ApprovalStep, decisions: readonly Decision[]): "Appro
   const yes = new Set(mine.filter((d) => d.verdict === "Approved").map((d) => d.collaboratorId));
   // NOBODY ON THE STEP IS NEVER A YES. `[].every(...)` is true, so an empty step
   // under "all must approve" would approve itself — planFor refuses such a step,
-  // but a converted task can carry one, and it must stay unanswered.
+  // but an approval converted from the old board can carry one, and it must
+  // stay unanswered.
   if (!step.approverIds.length) return null;
   const done = step.requireAll
     ? step.approverIds.every((id) => yes.has(id))
@@ -162,7 +163,7 @@ export function overallFrom(steps: readonly ApprovalStep[], decisions: readonly 
 /**
  * EVERY STEP AND EVERY PERSON, as the Approvals page and the record show them.
  *
- * `Current` only while the approval is Pending. A converted task can be stored
+ * `Current` only while the approval is Pending. A converted one can be stored
  * Approved or Rejected with answers that do not add up to it — its board status
  * was set by hand — and the stored status is the truth, so the steps it never
  * reached read `Closed` rather than claiming somebody is still being waited on.

@@ -6,8 +6,8 @@
 // AN APPROVAL IS ONLY EVER RAISED BY A RECORD — the owner, 19/09/2026. Somebody
 // presses Request approval on a bill, a leave request, a quotation; the approval
 // is filed naming that record (`source`) and who asked. Nothing is typed in by
-// hand. The single exception is `carried`: the tasks that existed before
-// Approvals replaced them, converted once and never created again.
+// hand. The single exception is `carried`: items the old board held when
+// Approvals replaced it, converted once and never created again.
 //
 // THE STATUS LIVES HERE AND THE RECORD READS IT. A bill does not store "approved"
 // — it asks for its latest approval (`latestFor`) and shows that approval's

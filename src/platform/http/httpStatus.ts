@@ -98,14 +98,12 @@ const CONFLICT = [
   "same-signer",       // reviewer is not approver, enforced at the transition
   "clash", "overlap",  // a shift or a leave already occupies that window
   "on-leave",          // the person is away on the day you are scheduling them
-  // THESE TWO WERE IN THE 403 LIST AND BOTH ROUTES DISAGREED WITH ME. Refusing
-  // to edit a typed task, or to change the owner's row, is a rule about the
-  // RECORD rather than about the caller — no grant would make it succeed, and
-  // no amount of "you may not" explains it. The tasks route argues exactly that
-  // in its own comment; the collaborators route sends 409 too. A table written
-  // from the shape of a name rather than from what it means gets this backwards,
-  // and would have quietly downgraded both on conversion.
-  "typed-immutable", "owner-immutable",
+  // THIS WAS IN THE 403 LIST AND ITS ROUTE DISAGREED WITH ME. Refusing to change
+  // the owner's row is a rule about the RECORD rather than about the caller — no
+  // grant would make it succeed, and no amount of "you may not" explains it; the
+  // collaborators route sends 409. A table written from the shape of a name
+  // rather than from what it means gets this backwards.
+  "owner-immutable",
   // /super's console vocabulary. A chat room that has ended, an invitation the
   // other side never accepted, and a user who is already a SuperAdmin are all
   // the same shape: the request is fine and the record has moved past it.

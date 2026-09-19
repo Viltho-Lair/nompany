@@ -17,12 +17,9 @@
 // expensive-looking half of this restructure is the cheap half. The expensive
 // half is PERMISSION_KEY_MAP below.
 export const SECTION_KEY_MAP: Record<string, string> = {
-  // Main and Tasks survive the blueprint's fifteen. Main is the home surface and
-  // Tasks is a cross-cutting control (the `task` type wraps every stage), so
-  // neither is a blueprint section and neither is renamed.
+  // Main survives the blueprint's fifteen: it is the home surface, not a
+  // blueprint section, and is not renamed.
   main: "main",
-  tasks: "tasks",
-  "tasks-settings": "tasks-settings",
 
   // Sales becomes CRM & Sales and GAINS quotations (blueprint §3.1).
   sales: "crm-sales",
@@ -145,8 +142,6 @@ export const PERMISSION_KEY_MAP: Record<string, string> = {
   "finance.assets": "finance.assets",
   "finance.settings": "finance.settings",
   "finance.dashboard": "finance.dashboard",
-  "tasks.board": "tasks.board",
-  "tasks.settings": "tasks.settings",
   "people.members": "administration.members",
   "studio.settings": "administration.settings",
 };

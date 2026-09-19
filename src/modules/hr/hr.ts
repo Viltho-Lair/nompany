@@ -11,7 +11,7 @@
 //                 different ways. HR owned a departments collection; it was
 //                 replaced by "a department IS a top-level section", which made
 //                 every studio's org chart the product's fifteen nav entries
-//                 plus Tasks — a shape no company has. The register is stored
+//                 plus a control — a shape no company has. The register is stored
 //                 again, under Master data, because an org unit and a product
 //                 surface are different things and re-parenting one is an
 //                 access act. HR reads it and places people in it; see

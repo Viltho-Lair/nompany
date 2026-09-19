@@ -7,8 +7,8 @@ product's section list.
 ## Why it is not the section list
 
 It was, for a fortnight, and the screenshot that ended it showed sixteen
-"departments": the fifteen sections plus **Tasks**, which is a cross-cutting
-control and not a section at all — and four of the fifteen (Manufacturing &
+"departments": the fifteen sections plus a cross-cutting control that was not
+a section at all — and four of the fifteen (Manufacturing &
 Production, Assets & Equipment, Quality & HSE, Reports & BI) render nothing,
 because they are in `NO_SCREEN_YET`. A construction company was being offered
 Manufacturing & Production as part of its org chart.
@@ -81,7 +81,7 @@ assignment back to a screen.
 thing would be free to disagree with the first.
 
 The picker offers **top-level sections that have a screen**: not `main`, not
-`tasks`, and not the four in `NO_SCREEN_YET`. It reads that list rather than
+`approvals`, and not the four in `NO_SCREEN_YET`. It reads that list rather than
 restating it, so the day Manufacturing gets a screen it becomes assignable with
 nobody remembering this file.
 

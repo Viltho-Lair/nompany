@@ -35,9 +35,7 @@ feed and nothing precomputed.
 
 | Kind | When | Read from |
 |---|---|---|
-| `task.overdue` | a task assigned to you, past its due date | Tasks |
-| `task.approval` | a decision routed to you, undecided | Tasks |
-| `task.awaiting` | a task assigned to you, still open | Tasks |
+| `approval.awaiting` | an approval whose open step names you, unanswered | Approvals |
 | `quotation.noItems` | a Draft quotation with nothing priced under it | Technical |
 | `quotation.stale` | Sent to the client 14+ days ago with no answer | Technical |
 | `rfq.unquoted` | an RFQ 3+ days old with no quotation against it | Technical |
@@ -104,8 +102,8 @@ would be the only thing Nova ever mentioned.
 
 The shell passes the active section key down, so the ranking is about the screen: that
 section's own insights first, then its department's, then everything else by weight. Nothing
-is filtered out by the view — an invoice ninety days overdue is worth saying on the Tasks
-board too; it simply says it later.
+is filtered out by the view — an invoice ninety days overdue is worth saying on the Approvals
+page too; it simply says it later.
 
 Ranking is **pure and client-side**, and the read is cached at module scope for five minutes.
 Every studio screen is its own server render, so a fetch per mount would be thirteen

@@ -115,15 +115,12 @@ export const STAGE_REGISTRY: Record<string, StageEntry> = {
   // engagement created it, and the user's rule is explicit: a thing created
   // elsewhere survives. Each is DETACHED — its engagement state goes, so nothing
   // points at a deleted root — and the row itself is left standing.
-  //   task     raised on the task board; approval tasks live here too, and a
-  //            deleted task is a deleted decision record.
   //   expense  an ad-hoc cost may be recorded before anyone decides which deal
   //            it belongs to, and re-attributing one is an audited act (§3.6.2).
   //   bill     money owed to a SUPPLIER. The obligation survives the deal that
   //            occasioned it; writing it off is Finance's act, not a cascade's.
   //   asset    studio property. A generator bought for one project is still the
   //            studio's generator after the project is deleted.
-  task:      { type: "task", objectClass: "control",      cardinality: "many", sectionKey: "tasks",                 permission: "tasks.board.view",         unassignable: true,  collection: "tasks",          label: "Task",           onDelete: "keep" },
   expense:   { type: "expense", objectClass: "money",   cardinality: "many", sectionKey: "finance-cash",          permission: "finance.expenses.view",    unassignable: true,  collection: "expenses",       label: "Expense",        onDelete: "keep" },
   bill:      { type: "bill", objectClass: "money",      cardinality: "many", sectionKey: "finance-payables",      permission: "finance.payables.view",    unassignable: true,  collection: "bills",          label: "Bill",           onDelete: "keep" },
   asset:     { type: "asset", objectClass: "resource",     cardinality: "many", sectionKey: "finance-assets",        permission: "finance.assets.view",      unassignable: true,  collection: "fixedAssets",    label: "Fixed asset",    onDelete: "keep" },

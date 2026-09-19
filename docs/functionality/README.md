@@ -23,7 +23,7 @@ Three rules that keep this folder worth reading:
 
 | File | Covers |
 |---|---|
-| [approvals.md](approvals.md) | The Approvals page that replaces Tasks — steps of named people, who sees what — and the amount chains bills, bids, requisitions and adjustments are signed by today |
+| [approvals.md](approvals.md) | The Approvals page — steps of named people, who sees what, the records that ask — and the amount chains bills, bids, requisitions and adjustments are signed by today |
 | [barcodes.md](barcodes.md) | What a scanner reads and how many units it means: an item's barcode, its packs, and why a code is unique across the studio |
 | [bid-documents.md](bid-documents.md) | The tender pack and the clarification log: why a reissued document does not overwrite the one before it, and what tells an estimator something arrived after they priced |
 | [bid-review.md](bid-review.md) | Who signs a bid and above what value: why pricing the work and committing the company to it are different rights, and why a part-priced bill cannot be signed |

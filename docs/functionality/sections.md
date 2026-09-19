@@ -42,8 +42,8 @@ belongs in the nav rather than at the end.
 
 ## The fifteen, and the two that are not sections
 
-Main and Tasks survive alongside the blueprint's fifteen: Main is the home surface, Tasks is a
-cross-cutting control (the `task` type wraps every stage). Neither is a blueprint section.
+Main and Approvals stand beside the blueprint's sections: Main is the home surface, Approvals a
+cross-cutting control every member opens. Neither is a blueprint section.
 
 | Section | Owns | State |
 |---|---|---|
@@ -238,11 +238,11 @@ instead of overwriting. A "yes" can be narrowed to **the parts of that departmen
 the point of sale inside CRM & Sales, say). A department that another one needs stays on and says
 why (`SECTION_NEEDS`: Maintenance needs Assets; **Quotations needs CRM & Sales**, where clients
 are kept — added with this screen, and changing no trade's default because CRM & Sales was
-already universal). *Review* lists what will be on and off, and says that Main, Tasks and Settings
+already universal). *Review* lists what will be on and off, and says that Main, Approvals and Settings
 (people, roles, access) are always there and that every answer is one switch in the Sections panel.
 
 **One list for the screen and the route.** `studioSetupCatalogue()` (`modules/main/studios.ts`) is
-every product root except Main, Tasks and anything with no screen, with the parts worth offering
+every product root except Main, Approvals and anything with no screen, with the parts worth offering
 under each — never a filed-only row (another department's storage) or a settings page.
 `studioSetupScreen(locale)` turns it into the screen's payload on the account page — names in the
 reader's language, each department's needs, and every field of work's suggested answers — so the
@@ -253,7 +253,7 @@ anything is claimed. `POST /api/studios` takes `sections: { roots, offChildren }
 
 - a department not on the list, a part not offered, or a malformed body → `400 sections-invalid`;
 - no department at all → `400 sections-empty` — an empty sidebar is the shock from the other side;
-- dependencies are added, Main and Tasks are added, and parts unticked under a department that is
+- dependencies are added, Main and Approvals are added, and parts unticked under a department that is
   off are dropped rather than refused.
 
 `createStudio` then writes every row as before and switches on exactly the chosen roots, with a

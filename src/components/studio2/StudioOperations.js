@@ -55,7 +55,7 @@ const fmt = fmtDate;
 const dayName = (iso) => fmtWeekday(iso);
 
 // OPERATIONS — where the work happens, who is on site when, and the paperwork
-// that says they may be there. Discrete work items live in Tasks; this is about
+// that says they may be there. Discrete work items live elsewhere; this is about
 // coverage, which is why a shift can clash with another or with approved leave.
 // `view` is the ACTIVE SUB-SECTION key: the parent renders a dashboard and each
 // sub-section selects its screen. The remaining tabs are tabs of one screen.

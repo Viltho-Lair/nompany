@@ -937,16 +937,11 @@ export const SECTION_DEFS = [
     { key: "administration-settings", name: "Studio settings" },
   ] },
 
-  // APPROVALS — the owner, 19/09/2026. Like Tasks beside it, a control that cuts
-  // across every department rather than a department: the sidebar shows it as a
-  // mark beside the logo, and nobody puts it on an org chart. It replaces Tasks,
-  // which leaves once its rows have been carried over.
+  // APPROVALS — the owner, 19/09/2026. A control that cuts across every
+  // department rather than a department: the sidebar shows it as a
+  // mark beside the logo, and nobody puts it on an org chart.
   { key: "approvals", name: "Approvals", children: [
     { key: "approvals-settings", name: "Approval settings" },
-  ] },
-
-  { key: "tasks", name: "Tasks", children: [
-    { key: "tasks-settings", name: "Task settings" },
   ] },
 ];
 
@@ -1018,8 +1013,9 @@ export const FILED_ONLY_SECTION_KEYS = [
 export const isFiledOnlySection = (key: string): boolean =>
   (FILED_ONLY_SECTION_KEYS as readonly string[]).includes(key);
 
-// THE PRODUCT'S OWN SECTIONS — fourteen roots, plus Main and Tasks, which are
-// not sections either (Main is the home surface, Tasks a cross-cutting control).
+// THE PRODUCT'S OWN SECTIONS — the department roots, plus Main and Approvals,
+// which are not sections either (Main is the home surface, Approvals a
+// cross-cutting control).
 // Derived rather than hand-listed: a second copy would be free to disagree with
 // SECTION_DEFS the first time one of them changed, which is the failure the
 // fifteen-section restructure kept finding.
@@ -1297,8 +1293,6 @@ export const SECTION_COLLECTIONS = {
   // reaped too. That decision was made for an earlier one-store survivor and it
   // is what makes a runtime section safe to store rows under at all.
   "administration-settings": ["recordTypes"],
-  // tasks
-  tasks: ["tasks"],
   // Every approval, of every type, whatever section its record is filed under —
   // the record links back through `source`, and the approval lives here so one
   // page can list them all. Each type's steps are the settings sub-section's.

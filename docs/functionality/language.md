@@ -82,7 +82,7 @@ still Arabic on the far side of the login, where the URL can no longer say so.
 
 **What is translated: every screen a person touches.** The marketing site, the account and
 auth pages, all twelve departments and their dialogs, empty states, error messages and
-chart labels, the planner, the task board, the quality document editor and the access
+chart labels, the planner, the Approvals page, the quality document editor and the access
 grid — both languages, roughly 1,900 strings. What is not is listed at the bottom, and
 each entry says why.
 

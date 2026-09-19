@@ -43,7 +43,7 @@ ok("a department switched off is off", !on("projects"));
 ok("a part under a switched-off department is off, whatever its own flag says", !on("projects-list"));
 ok("a part switched off inside a department that is on is off", !on("crm-sales-pipeline"));
 ok("its sibling stays on", on("crm-sales-pos"));
-ok("a key with no row is on — nobody said no to it", on("main") && on("tasks"));
+ok("a key with no row is on — nobody said no to it", on("main") && on("approvals"));
 ok("no rows at all means everything is on", W.switchboard(null)("projects"));
 
 console.log("\n== may a widget be drawn");

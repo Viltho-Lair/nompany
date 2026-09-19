@@ -81,10 +81,6 @@ export const ADMIN_ROLE_ID = "role_admin";
 // module. A parent that renders anything at all needs a right, whether what it
 // renders is a summary or a screen.
 //
-// Tasks is the one parent still absent, and for a reason that does not apply to
-// the others: its parent IS the board, which is tasks.board — it already has a
-// right of its own, and a second would be two answers to one question.
-//
 // QUALITY & HSE is on this list for the same reason, arriving from the other
 // end: it has no sub-sections of its own at all now that the document register
 // has moved to Engineering & Documents too, so its parent renders the generic
@@ -692,8 +688,6 @@ const OWN_AREAS = [
   { key: "approvals.overview", group: "Approvals", label: "See every approval", verbs: ["view"] },
   { key: "approvals.settings", group: "Approvals", label: "Settings", verbs: ["view", "edit"] },
 
-  { key: "tasks.board", group: "Tasks", label: "Task board", verbs: ["view", "create", "edit", "delete"] },
-  { key: "tasks.settings", group: "Tasks", label: "Settings", verbs: ["view", "edit"] },
 
   // "PEOPLE", NOT "PEOPLE & ACCESS" ANY MORE. This area covered both screens
   // while Access had no right of its own; now that it does, a label claiming

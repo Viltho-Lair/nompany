@@ -221,16 +221,16 @@ console.log("== Law 6: money that really happened is detached, not destroyed");
 console.log("== Law 7: every cost can attach, and none sits outside the system");
 {
   const F = templateById("F");   // Logistics job file — lists bill, not expense
-  const A = templateById("A");   // Contracting — lists neither task nor expense
+  const A = templateById("A");   // Contracting — lists no expense
 
   // THE RULE A TEMPLATE READING WOULD GET WRONG. F lists `bill` and not
-  // `expense`; A lists neither. Both must still accept both, because a cost
+  // `expense`; A lists no expense at all. Both must still accept it, because a cost
   // that cannot attach is a cost outside the system, and a deal that cannot
   // attract all its costs reports a profit figure that is fiction.
   ok("an expense attaches to a deal whose template never mentions it",
     attachability("expense", F) === "universal", attachability("expense", F));
   ok("...and to one whose template mentions neither",
-    attachability("task", A) === "universal", attachability("task", A));
+    attachability("expense", A) === "universal", attachability("expense", A));
   ok("listing it only promotes it to a first-class card",
     attachability("bill", F) === "stage", attachability("bill", F));
 

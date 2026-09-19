@@ -1,7 +1,7 @@
 // WHAT INVENTORY STORES, as a schema rather than a description.
 //
 // Transcribed from the coercion that already writes it, and not parsing
-// anything yet — see modules/tasks/schema.ts.
+// anything yet — replacing the hand-rolled coercion with a parse is a behaviour change of its own.
 
 import { z } from "zod";
 import { TAX_CATEGORIES } from "@/shared/taxProfile";

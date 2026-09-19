@@ -35,8 +35,8 @@ import { invoiceTotals } from "@/modules/finance/finance";
 import { roundMoney } from "@/shared/money";
 import { expiringDocuments } from "@/modules/hr/hr";
 import { readIfVisible, type MainContext } from "./main";
-import { taskQueueFrom, taskAssigneesOf, type QueueItem } from "./awaiting";
-import type { Task } from "@/modules/tasks/types";
+import { approvalQueueFrom, type QueueItem } from "./awaiting";
+import type { Approval } from "@/modules/approvals/schema";
 import type { Permit } from "@/modules/operations/types";
 import type { Movement } from "@/modules/inventory/types";
 import type { Row } from "@/platform/db/store";
@@ -87,37 +87,15 @@ const more = (rows: unknown[]) => Math.max(0, rows.length - 1);
 // reorder level at all" and so told well-configured studios that everything
 // they owned was running out.
 
-type TaskRow = Row & { status?: string; dueDate?: string };
-
-/** Tasks and decisions waiting on this person. */
-export function taskInsights(queue: QueueItem[], todayISO: string): Insight[] {
-  const out: Insight[] = [];
-  const todo = queue.filter((q) => q.kind === "task");
-  const approvals = queue.filter((q) => q.kind === "approval");
-
-  // Overdue outranks merely waiting, and is drawn from the SAME queue rather
-  // than from a second read — the board's own due date travels on the item.
-  const overdue = todo
-    .map((q) => ({ q, days: q.dueDate ? daysSince(q.dueDate, todayISO) : null }))
-    .filter((x): x is { q: QueueItem; days: number } => x.days !== null && x.days > 0)
-    .sort((a, b) => b.days - a.days);
-
-  if (overdue.length) {
-    const top = overdue[0];
-    out.push(make("task.overdue", "urgent", "tasks", "tasks", top.q.id,
-      { title: top.q.label, days: top.days, more: overdue.length - 1 }, 40));
-  }
-  if (approvals.length) {
-    out.push(make("task.approval", "urgent", "tasks", "tasks", approvals[0].id,
-      { title: approvals[0].label, more: more(approvals) }, 20));
-  }
-  // The plain queue, minus anything already said as overdue above.
-  const plain = todo.filter((q) => !overdue.some((o) => o.q.id === q.id));
-  if (plain.length) {
-    out.push(make("task.awaiting", "warn", "tasks", "tasks", plain[0].id,
-      { title: plain[0].label, more: more(plain) }));
-  }
-  return out;
+/**
+ * THE APPROVALS WAITING ON THIS PERSON — the open step names them and they have
+ * not answered. Urgent, because the requester can do nothing until they do.
+ */
+export function approvalInsights(queue: QueueItem[]): Insight[] {
+  const waiting = queue.filter((q) => q.kind === "approval");
+  if (!waiting.length) return [];
+  return [make("approval.awaiting", "urgent", "approvals", "approvals", waiting[0].id,
+    { title: waiting[0].label, more: more(waiting) }, 20)];
 }
 
 type QuotationRow = Row & { number?: string; status?: string; items?: unknown; createdAt?: string };
@@ -421,9 +399,9 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
   const todayISO = now.toISOString().slice(0, 10);
   const meId = String(ctx.collaborator.id);
 
-  const [tasks, quotations, rfqs, tickets, projects, items, movements,
+  const [approvals, quotations, rfqs, tickets, projects, items, movements,
     invoices, bills, permits, vacations, people, notifications] = await Promise.all([
-    readIfVisible<TaskRow>(ctx, "tasks", null, "tasks"),
+    readIfVisible<Approval>(ctx, "approvals", null, "approvals"),
     readIfVisible<QuotationRow>(ctx, "crm-sales-quotations", "crm-sales", "quotations", "quotations-register"),
     readIfVisible<RfqRow>(ctx, "engineering-docs-rfq", "engineering-docs", "rfqs", "quotations-rfq"),
     readIfVisible<TicketRow>(ctx, "crm-sales-tickets", "crm-sales", "salesTickets"),
@@ -453,7 +431,7 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
 
   const out: Insight[] = [];
 
-  if (tasks) out.push(...taskInsights(taskQueueFrom(tasks as Task[], taskAssigneesOf(ctx), meId), todayISO));
+  if (approvals) out.push(...approvalInsights(approvalQueueFrom(approvals as Approval[], meId)));
   if (quotations) out.push(...quotationInsights(quotations, todayISO));
   if (rfqs) out.push(...rfqInsights(rfqs, todayISO));
   if (tickets) out.push(...ticketInsights(tickets, rfqs, todayISO));

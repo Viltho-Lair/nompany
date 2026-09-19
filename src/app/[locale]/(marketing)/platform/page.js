@@ -11,7 +11,7 @@ import { PlatformStats } from "@/components/landing/sections/PlatformStats";
 /* THE PLATFORM — the system explained on one page.
    ------------------------------------------------------------------
    THE DEPARTMENT LIST IS DERIVED, never typed. `liveDepartments` reads
-   SECTION_DEFS and drops Main, Tasks and everything in NO_SCREEN_YET,
+   SECTION_DEFS and drops Main, Approvals and everything in NO_SCREEN_YET,
    so this page cannot advertise a section that renders nothing — which
    the old landing page did, streaming sixteen names past every visitor
    including four that open onto an empty screen.

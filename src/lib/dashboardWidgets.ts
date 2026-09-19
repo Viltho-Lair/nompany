@@ -101,7 +101,7 @@ export const WIDGET_SECTIONS: { key: string; label: string }[] = [
 
 /** The departments Main's activity, trend and ribbon count — see MAIN_AGG_SOURCES. */
 export const MAIN_SOURCES: readonly string[] = [
-  "crm-sales-tickets", "quotations-register", "quotations-rfq", "projects-list", "inventory-items", "tasks",
+  "crm-sales-tickets", "quotations-register", "quotations-rfq", "projects-list", "inventory-items", "approvals",
 ];
 
 /**
@@ -128,7 +128,7 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   // restated because that module reaches the store and this one must not;
   // tests/widget-sections-model.mjs holds the two lists equal.
   { key: "main.activity", label: "Department activity", section: "main", rung: "simple", anyOf: MAIN_SOURCES },
-  { key: "main.awaiting-you", label: "Awaiting you", section: "main", rung: "simple", anyOf: ["tasks", "quotations-register"] },
+  { key: "main.awaiting-you", label: "Awaiting you", section: "main", rung: "simple", anyOf: ["approvals", "quotations-register"] },
   { key: "main.headline-trend", label: "Headline trends", section: "main", rung: "simple", anyOf: MAIN_SOURCES },
   { key: "main.event-ribbon", label: "Activity ribbon", section: "main", rung: "moderate", anyOf: MAIN_SOURCES },
   // Sales

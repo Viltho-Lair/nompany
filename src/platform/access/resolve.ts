@@ -246,8 +246,6 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   // (blueprint §3.4); Quality & HSE keeps the evidence (inspections, NCRs,
   // audits, incidents, permits), not the record itself.
   "engineering-docs-register": ["engineeringDocs.register"],
-  "tasks-settings": ["tasks.settings"],
-  tasks: ["tasks.board"],
   approvals: ["approvals.overview"],
   "approvals-settings": ["approvals.settings"],
 };

@@ -19,8 +19,8 @@ their way out. The table holds tokens (`ns1.d1.…`); a reader sees plain rows.
   `ticketRef`, `issuer` — so quotations, projects, invoices, credit notes, orders and
   tenders are covered, and so is the next record to copy one.
 - **Per collection:** a deal's `ref`, `title`, `description` and `location`
-  (`salesTickets`); an RFQ's `reference` (`rfqs`, "RFQ-ACME-001"); a task's `title` and
-  `description` (`tasks`, "Approve quotation … · ACME"); a journal entry's `memo`
+  (`salesTickets`); an RFQ's `reference` (`rfqs`, "RFQ-ACME-001"); an approval's `source`,
+  `note` and `attachment` (`approvals`, "Q-0004 · ACME" and the client's PO); a journal entry's `memo`
   ("Invoice INV-0003 — ACME").
 
 **Three client fields are clear on purpose** (18/09/2026): `phoneKey`, a keyed hash of the

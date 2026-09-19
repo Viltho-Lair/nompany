@@ -1,7 +1,7 @@
 # Approvals
 
 Two things share this file while one replaces the other. **The Approvals page** (below, 2026-09-19)
-is where every approval in the product is going, replacing the Tasks board. **The amount chains**
+is where every approval in the product is going. **The amount chains**
 (the rest of the file) are how bills, bids, requisitions and stock adjustments are signed today;
 each moves onto the page as its Request approval button is built.
 
@@ -33,7 +33,7 @@ who approve it. A quotation stored Approved before this, by that edit, stays app
 of it. While one is pending, a second is refused (`already-pending`).
 
 **Nobody named, nothing filed.** A type with no steps set up refuses the request with a sentence
-(`not-configured`) rather than filing an approval that would wait for ever — the Tasks board
+(`not-configured`) rather than filing an approval that would wait for ever — the old board
 filed those and reported them as "unrouted".
 
 **"Awaiting you" on Main** lists and counts the approvals waiting on the reader, through the
@@ -68,10 +68,10 @@ is the authority. Two rights exist, held by the owner and Admins and given to ot
 
 **Not built yet on the page:** only the two buttons above exist — Material PO, Delivery,
 Delivery return, ID update and Permit request have no record to ask from yet, and neither do the
-records the amount chains sign; the Tasks board still exists beside it and its tasks have not been
-converted, so **a quotation approved on the old board reads as not approved until the conversion
-runs** (step 6 of the build in `docs/progress.md`); Nova's bubble still speaks of tasks, not
-approvals; the amount chains above have not moved onto it; no signer PIN, no amount limits, no reminders, no delegation, and no withdrawing a
+records the amount chains sign; **the old board's items are not converted until the
+conversion runs** (`scripts/migrate/tasks-to-approvals.mjs`, then `remove-tasks.mjs` — the order
+is in `docs/progress.md`), and until then a quotation approved on the old board reads as not
+approved; Nova reads a person's approvals but cannot answer one; the amount chains above have not moved onto it; no signer PIN, no amount limits, no reminders, no delegation, and no withdrawing a
 request. **A step whose only approver leaves the studio cannot be answered by anybody**, and
 an approval waiting on it waits for ever — there is no reassigning yet.
 

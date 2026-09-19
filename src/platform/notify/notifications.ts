@@ -45,7 +45,6 @@ export const NOTIFY = {
   joinRequested: "join.requested",
   joinDecided: "join.decided",
   peopleChanged: "people.changed",
-  taskAssigned: "task.assigned",
   leaveRequested: "leave.requested",
   leaveDecided: "leave.decided",
   projectAssigned: "project.assigned",

@@ -3,8 +3,8 @@
 Multi-tenant ERP. Next.js 16 · React 19 · Postgres · Tailwind v3 + shadcn/ui + MUI v9 · Vercel.
 Three surfaces in one app: the tenant ERP at `nompany.com/<slug>/…` (rewritten by
 `src/proxy.js` → `src/app/studio`), account pages at `/{en,ar}/…`, and nompany's own
-console at `/super`. **EIGHTEEN sections**, plus Main and Tasks, which are not sections —
-Main is the home surface and Tasks is a cross-cutting control: CRM & Sales, Quotations,
+console at `/super`. **EIGHTEEN sections**, plus Main and Approvals, which are not sections —
+Main is the home surface and Approvals is a cross-cutting control: CRM & Sales, Quotations,
 Tendering & Estimating, Projects, Engineering & Documents, Procurement & Subcontracting,
 Inventory & Warehouse, Manufacturing & Production, Field Operations & Service, Logistics &
 Fleet, Assets & Equipment, Maintenance, Quality & HSE, Human Resources, Finance &
@@ -924,7 +924,7 @@ once as an HR list, and the two agreed only on the day somebody typed them —
 and the replacement was "a department IS a top-level section". That
 over-corrected: it deleted the org unit instead of giving each list its own
 job. What a studio actually saw was **sixteen departments — the fifteen
-sections plus Tasks, which is not a section — four of them (Manufacturing,
+sections plus a control that is not a section — four of them (Manufacturing,
 Assets, Quality & HSE, Reports) screens that render nothing.** A construction
 company was being offered Manufacturing & Production as part of its org chart.
 `docs/functionality/departments.md` is the file.
@@ -1554,7 +1554,7 @@ company and deciding who may do what are different acts.
 11/09/2026 (`permissionsInDepartment`, `modules/people/archetypes.ts`). Copied whole, an
 archetype put CRM, Projects and Inventory on an Estimator filed under Estimation. Now: the
 shape's named rights inside the department's sections, plus the shape's HOME level on every
-area there (never a `*.settings` area, never Administration), plus Tasks and the scoped HR
+area there (never a `*.settings` area, never Administration), plus the scoped HR
 areas (own leave). **`principal` is exempt.** `permissionsForLibraryRole` REQUIRES
 `sectionKeys` — a defaulted one would be the old bug for whoever forgot it. Roles that already
 exist keep their unconfined shape; nothing narrows them.

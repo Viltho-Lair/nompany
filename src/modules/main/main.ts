@@ -16,12 +16,10 @@ import { repo } from "@/platform/db/repo";
 import { listSections, parentKeyMap } from "@/platform/db/sections";
 import { studioContext, sectionNav, visibleSections } from "@/lib/studios";
 import { roundMoney } from "@/shared/money";
-import { sectionViewable } from "@/platform/access";
+import { sectionViewable, can } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { enrichTask, readTaskAssignees } from "@/modules/tasks/taskRouting";
-import type { Task } from "@/modules/tasks/types";
 import type { Approval } from "@/modules/approvals/schema";
-import { approvalQueueFrom } from "./awaiting";
+import { approvalQueueFrom, concernsMe } from "./awaiting";
 import type { Permit } from "@/modules/operations/types";
 // The sections' OWN definitions of "below reorder level" and "expiring", so the
 // front door cannot quietly disagree with the screen it is summarising.
@@ -161,7 +159,7 @@ export async function headlines(ctx: MainContext) {
   const meId = ctx.collaborator.id;
   const today = new Date().toISOString().slice(0, 10);
 
-  const [tickets, quotations, rfqs, projects, items, movements, tasks, invoices, permits, people, approvals] = await Promise.all([
+  const [tickets, quotations, rfqs, projects, items, movements, invoices, permits, people, approvals] = await Promise.all([
     readIfVisible(ctx, "crm-sales-tickets", "crm-sales", "salesTickets"),
     readIfVisible(ctx, "crm-sales-quotations", "crm-sales", "quotations", "quotations-register"),
     readIfVisible(ctx, "engineering-docs-rfq", "engineering-docs", "rfqs", "quotations-rfq"),
@@ -172,7 +170,6 @@ export async function headlines(ctx: MainContext) {
     // sub-section, so somebody who may see the catalogue but not the stock
     // movements gets no answer rather than a wrong one.
     readIfVisible(ctx, "inventory-stock", "inventory", "inventoryStock"),
-    readIfVisible<Task>(ctx, "tasks", null, "tasks"),
     // Stored under Cash, worked in Receivables since Finance split (18/09/2026).
     readIfVisible(ctx, "finance-cash", "finance", "invoices", "finance-receivables"),
     // Stored on the Field Operations root, worked in Quality & HSE → Permits.
@@ -184,22 +181,9 @@ export async function headlines(ctx: MainContext) {
   // Derived exactly as the Inventory screen derives it, from the same helper.
   const onHand = movements ? balances(movements as Movement[]) : null;
 
-  // Tasks waiting on THIS person, resolved through the same routing the board
-  // uses — so the number on the home page and the number on the board agree.
-  let awaitingMe: number | null = null;
-  if (tasks) {
-    const byKey = ctx.byKey;
-    const settingsSection = byKey["tasks-settings"] || byKey["tasks"];
-    const assignees = readTaskAssignees(settingsSection);
-    awaitingMe = tasks
-      .filter((t) => t.status !== "Done")
-      .map((t) => enrichTask(t, assignees, meId))
-      .filter((t) => t.assigneeCollaboratorId === meId || (t.myAuthorities || []).some((c) => !t.approvals?.[c]?.approved))
-      .length;
-  }
-  // AND THE APPROVALS WAITING ON ME, counted by the same function the "Awaiting
-  // you" list uses, so the number and the list agree.
-  if (approvals) awaitingMe = (awaitingMe || 0) + approvalQueueFrom(approvals, meId).length;
+  // THE APPROVALS WAITING ON ME, counted by the same function the "Awaiting
+  // you" list and the Approvals page use, so the three cannot disagree.
+  const awaitingMe: number | null = approvals ? approvalQueueFrom(approvals, meId).length : null;
 
   return {
     openTickets: tickets ? tickets.filter((t) => t.status !== "Closed Won" && t.status !== "Closed Lost" && t.status !== "Dropped").length : null,
@@ -235,11 +219,12 @@ export async function headlines(ctx: MainContext) {
 // The few things that changed most recently, across everything the viewer can
 // see — so the front door answers "what happened while I was away".
 export async function recent(ctx: MainContext, limit = 8) {
-  const [tickets, quotations, projects, tasks] = await Promise.all([
+  const meId = String(ctx.collaborator.id);
+  const [tickets, quotations, projects, approvals] = await Promise.all([
     readIfVisible(ctx, "crm-sales-tickets", "crm-sales", "salesTickets"),
     readIfVisible(ctx, "crm-sales-quotations", "crm-sales", "quotations", "quotations-register"),
     readIfVisible(ctx, "projects-list", "projects", "projects"),
-    readIfVisible(ctx, "tasks", null, "tasks"),
+    readIfVisible<Approval>(ctx, "approvals", null, "approvals"),
   ]);
 
   // A quotation's title is the TICKET'S and is not stored on the quotation, so
@@ -252,7 +237,12 @@ export async function recent(ctx: MainContext, limit = 8) {
     ...(tickets || []).map((t) => ({ kind: "ticket", section: "crm-sales", id: t.id, label: t.title, meta: t.clientName || "", at: t.updatedAt || t.createdAt })),
     ...(quotations || []).map((q) => ({ kind: "quotation", section: "crm-sales", id: q.id, label: q.number, meta: ticketTitle.get(q.ticketId) || q.title || "", at: q.createdAt })),
     ...(projects || []).map((p) => ({ kind: "project", section: "projects", id: p.id, label: p.title, meta: p.number || "", at: p.createdAt })),
-    ...(tasks || []).map((t) => ({ kind: "task", section: "tasks", id: t.id, label: t.title, meta: t.type || "", at: t.createdAt })),
+    // ONLY THE APPROVALS THAT CONCERN THE READER — asked, asking, or allowed to
+    // see them all — the same line the Approvals page draws. A feed listing
+    // every approval's title would show what that page withholds.
+    ...(approvals || [])
+      .filter((a) => concernsMe(a, meId) || can(ctx.access, "approvals.overview.view"))
+      .map((a) => ({ kind: "approval", section: "approvals", id: a.id, label: a.source?.ref || a.source?.title || "", meta: a.status, at: a.requestedAt })),
   ];
 
   return feed

@@ -1,8 +1,8 @@
 // WHAT SALES STORES, as a schema rather than a description.
 //
 // Transcribed from the coercion that already writes it, and not parsing
-// anything yet — see modules/tasks/schema.ts for why replacing the coercion is
-// the step after this one.
+// anything yet — replacing the coercion with a parse is a behaviour change of
+// its own, and the step after this one.
 
 import { z } from "zod";
 

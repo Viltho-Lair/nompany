@@ -63,7 +63,6 @@ export async function testEveryOldSectionKeyIsAccountedFor(t) {
     "finance", "finance-cash", "finance-ledger", "finance-payables", "finance-assets", "finance-settings",
     "operations", "operations-schedule", "operations-tracking", "operations-planner", "operations-settings",
     "quality", "quality-documents",
-    "tasks", "tasks-settings",
   ];
   for (const key of before) {
     t.equal(typeof mapSectionKey(key), "string", `${key} maps somewhere`);
@@ -226,11 +225,8 @@ const KNOWN_COLLISIONS = {
   "src/shared/marketing/enquiry.ts": [
     { value: "sales", reason: "where the mailbox code is defined and returned" },
   ],
-  "src/modules/tasks/taskRouting.ts": [
-    { value: "sales", reason: "a STORED Task-settings authority code (types.ts's TaskAssignees)" },
-  ],
   "src/modules/approvals/fromTasks.ts": [
-    { value: "sales", reason: "the same stored authority code, read once when the old board converts to approvals; leaves with that file" },
+    { value: "sales", reason: "a stored authority code of the old board, read once when it converts to approvals; leaves with that file" },
   ],
   "src/lib/dashboardWidgets.ts": [
     { value: "technical.rfq-funnel", reason: "a FROZEN per-tier dashboard-widget key (renaming one is a data migration)" },
@@ -1185,7 +1181,7 @@ export async function testEveryContextualSectionKeyLiteralExists(t) {
   // SAME map, just written without the brackets a hyphenated key would
   // actually require). Fix round 1 checked only the bracket form and missed
   // four live sites written the other way: `nav?.sales` (StudioProjects.js),
-  // `nav?.technical` (StudioTasks.js) — both retired department names, the
+  // `nav?.technical` (a screen since deleted) — both retired department names, the
   // identical defect as the bracketed literals fixed elsewhere in this same
   // task, just invisible to a check that only recognised one of the two
   // equivalent syntaxes — and `nav?.people` (StudioHr.js, two sites),
@@ -1959,7 +1955,7 @@ export async function testTheTradeOffersOnlyWhatItMayChange(t) {
     { key: "logistics", enabled: false },     // unwanted and already off: nothing
     { key: "projects", enabled: false },      // wanted and off: offered ON
     { key: "reports", enabled: false },       // wanted, but no screen: never ON
-    { key: "tasks", enabled: true },          // never gated
+    { key: "approvals", enabled: true },      // never gated
     { key: "administration", enabled: true }, // system, and required
     { key: "my-own-section", enabled: true }, // the studio's own: not the trade's to judge
   ], wanted, rules);

@@ -7,14 +7,13 @@ import { sectionName } from "@/shared/studio/sections";
 // DERIVED FROM THE SOFTWARE'S OWN LIST so the public pages cannot drift from it.
 // The hero already made that argument and then filtered one predicate short: it
 // dropped "main" and kept everything else, which streamed SIXTEEN names past
-// every visitor — Tasks, which is a cross-cutting control rather than a
-// department, and the four sections in NO_SCREEN_YET, which are declared and
+// every visitor — a cross-cutting control rather than a department, and the four sections in NO_SCREEN_YET, which are declared and
 // render nothing. Naming an empty section on a marketing page is the same class
 // of claim as a fabricated uptime figure (SEO-PLAN §2.12).
 //
 // FOUR EXCLUSIONS, EACH FOR ITS OWN REASON — they are not one rule:
 //   main          the studio's home surface, not a department.
-//   tasks         a control that cuts across departments, not one of them.
+//   approvals     a control that cuts across departments, not one of them.
 //   NO_SCREEN_YET declared, hidden from the product's own sidebar, renders
 //                 nothing. A section leaves this list the day its screen ships,
 //                 and this page gains it on the same day with no edit here.
@@ -23,7 +22,7 @@ import { sectionName } from "@/shared/studio/sections";
 // Sales; Pipeline, Tickets and Quotations are what is inside it, and belong to
 // /platform/<section> when those pages are written.
 // ADMINISTRATION & SETTINGS JOINED THE OTHER TWO. Main is the home surface and
-// Tasks is a cross-cutting control; Administration is how a studio is
+// Approvals is a cross-cutting control; Administration is how a studio is
 // ADMINISTERED — People, Access, Master data and Studio settings — rather than
 // work anybody does in it. The marketing site was listing it as one of the
 // departments a customer gets, on a marquee whose whole promise is "every one
@@ -38,7 +37,7 @@ import { sectionName } from "@/shared/studio/sections";
 // product cannot drift about what counts as a department; the key stays in the
 // set below as well, where it is redundant and harmless, so that reading either
 // one alone still gives the right answer.
-const NOT_A_DEPARTMENT = new Set<string>(["main", "tasks", "approvals", "administration"]);
+const NOT_A_DEPARTMENT = new Set<string>(["main", "approvals", "administration"]);
 
 export const LIVE_DEPARTMENT_KEYS: readonly string[] = SECTION_DEFS
   .map((d) => d.key)

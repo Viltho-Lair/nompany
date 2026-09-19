@@ -29,7 +29,7 @@ const FULL = new Set([
   "crmSales.quotations.view", "projects.list.view",
 ]);
 const cardOf = (block, type) => (block.engagement?.cards || []).find((c) => c.type === type);
-const FULL_PLUS_TASKS = new Set([...FULL, "tasks.board.view"]);
+const FULL_PLUS_EXPENSES = new Set([...FULL, "finance.expenses.view"]);
 
 // THE REGRESSION THIS WHOLE PATH EXISTS TO CLOSE.
 //
@@ -327,14 +327,14 @@ export function testEveryStageDeclaresItsDisposition() {
   // and payment is the type that separates them. It shipped as `cascade` first;
   // the blueprint's vocabulary table is what caught it.
   const kept = Object.values(STAGE_REGISTRY).filter((e) => e.onDelete === "keep").map((e) => e.type).sort();
-  assert.deepEqual(kept, ["asset", "bill", "expense", "payment", "task"],
+  assert.deepEqual(kept, ["asset", "bill", "expense", "payment"],
     "changing this list changes what a delete destroys — say so deliberately");
 
-  // The four that can be CREATED with no deal, which is the other property and
+  // The three that can be CREATED with no deal, which is the other property and
   // is what the unassigned pen holds. Pinned separately so a future change to
   // one cannot quietly move the other.
   const standalone = Object.values(STAGE_REGISTRY).filter((e) => e.unassignable).map((e) => e.type).sort();
-  assert.deepEqual(standalone, ["asset", "bill", "expense", "task"],
+  assert.deepEqual(standalone, ["asset", "bill", "expense"],
     "these are what the unassigned pen can hold — a payment cannot exist without a deal");
 }
 
@@ -392,24 +392,24 @@ export async function testASharedClientSurvivesEitherDeal() {
   assert.deepEqual(await zRange(ENG.index(s), 0, -1), [second], "only the deleted deal left the index");
 }
 
-// A KEPT RECORD IS DETACHED, NOT DELETED. A task or a bill stops pointing at a
+// A KEPT RECORD IS DETACHED, NOT DELETED. An expense or a bill stops pointing at a
 // root that no longer exists — the alternative is a record whose engagementId
 // names nothing, which is the mirror of the phantom this branch exists to remove.
 export async function testKeptRecordsAreDetachedNotDeleted() {
   const s = sid();
   const engId = await attachTicketEngagement(s, { id: "tk_k", ref: "KEEP-001" }, null);
-  await attachRecord(s, engId, "task", "task_1");
+  await attachRecord(s, engId, "expense", "exp_1");
   await attachRecord(s, engId, "bill", "bill_1");
   await setEngagementLock(s, engId, false);
 
   const done = await cascadeDeleteEngagement(s, engId);
   assert.ok(done.ok, JSON.stringify(done));
   const keptIds = done.kept.map((k) => k.id).sort();
-  assert.deepEqual(keptIds, ["bill_1", "task_1"], "both survive the deal");
-  assert.equal(await engagementOf(s, "task", "task_1"), null,
+  assert.deepEqual(keptIds, ["bill_1", "exp_1"], "both survive the deal");
+  assert.equal(await engagementOf(s, "expense", "exp_1"), null,
     "but each stops pointing at the deleted deal");
   assert.equal(await engagementOf(s, "bill", "bill_1"), null);
-  assert.ok(!(await sMembers(ENG.hasStage(s, "task"))).includes(engId),
+  assert.ok(!(await sMembers(ENG.hasStage(s, "expense"))).includes(engId),
     "and the deal leaves every has-stage index it was in");
 }
 
@@ -419,22 +419,22 @@ export async function testEngagementImpactSplitsDeletedFromSurviving() {
   const s = sid();
   const engId = await attachTicketEngagement(s, { id: "tk_i", ref: "IMPACT-001" }, null);
   await attachToTicketEngagement(s, "quotation", "quo_i2", "tk_i");
-  await attachRecord(s, engId, "task", "task_i");
+  await attachRecord(s, engId, "expense", "exp_i");
 
-  const full = await engagementImpact({ studio: { id: s }, access: FULL_PLUS_TASKS }, engId);
+  const full = await engagementImpact({ studio: { id: s }, access: FULL_PLUS_EXPENSES }, engId);
   const deletes = (full.impact?.deletes || []).map((x) => x.type).sort();
   const survives = (full.impact?.survives || []).map((x) => x.type).sort();
   assert.deepEqual(deletes, ["quotation", "ticket"], "the deal's own records go");
-  assert.deepEqual(survives, ["task"], "the task was created elsewhere and stays");
+  assert.deepEqual(survives, ["expense"], "the expense was recorded elsewhere and stays");
   assert.equal(full.impact?.locked, true, "and the answer says whether the safety is on");
 
-  // The safety property, again: a reader with no Tasks right is never told a
-  // task exists on this deal — not as a survivor, not as a count.
-  const noTasks = await engagementImpact(
+  // The safety property, again: a reader with no Expenses right is never told an
+  // expense exists on this deal — not as a survivor, not as a count.
+  const noExpenses = await engagementImpact(
     { studio: { id: s }, access: new Set(["engagements.view", "crmSales.tickets.view"]) }, engId);
-  assert.deepEqual((noTasks.impact?.survives || []).map((x) => x.type), [],
-    "no tasks right, no task named");
-  assert.deepEqual((noTasks.impact?.deletes || []).map((x) => x.type), ["ticket"],
+  assert.deepEqual((noExpenses.impact?.survives || []).map((x) => x.type), [],
+    "no expenses right, no expense named");
+  assert.deepEqual((noExpenses.impact?.deletes || []).map((x) => x.type), ["ticket"],
     "and only the stages they may see are counted");
 
   const blind = await engagementImpact({ studio: { id: s }, access: new Set([]) }, engId);

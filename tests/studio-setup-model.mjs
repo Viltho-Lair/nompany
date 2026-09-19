@@ -29,12 +29,11 @@ const cat = M.studioSetupCatalogue();
 console.log("\n== what may be asked");
 
 ok("Main is never asked about", !cat.roots.includes("main"));
-ok("Tasks is never asked about", !cat.roots.includes("tasks"));
 ok("Approvals is never asked about — every studio has it", !cat.roots.includes("approvals"));
 ok("Administration is never asked about — it is Settings, not a department",
   !cat.roots.some((k) => K.isSystemSection(k)));
-// READ FROM NEVER_GATED_KEYS, not a hand-typed ["main", "tasks"]: Approvals
-// joined that list and this copy went red for saying it should be asked about.
+// READ FROM NEVER_GATED_KEYS, never a hand-typed copy: a copy of that list went
+// red the day Approvals joined it, for saying Approvals should be asked about.
 ok("every other product department is asked about",
   K.PRODUCT_SECTION_DEFS.filter((d) => !T.NEVER_GATED_KEYS.includes(d.key)).every((d) => cat.roots.includes(d.key)));
 // POINT OF SALE IS ITS OWN DEPARTMENT since 17/09/2026: asked about as a root,
@@ -77,7 +76,7 @@ ok("a department with no needs brings nothing", T.withNeeds(["hr"]).size === 1);
 const r1 = T.resolveSectionChoice({ roots: ["maintenance", "hr"] }, cat);
 ok("a choice resolves", !r1.error, JSON.stringify(r1));
 ok("...adding what the choice needs", r1.roots?.has("assets"));
-ok("...and the two that are never off", r1.roots?.has("main") && r1.roots?.has("tasks"));
+ok("...and the two that are never off", r1.roots?.has("main") && r1.roots?.has("approvals"));
 ok("...and nothing else", r1.roots && !r1.roots.has("crm-sales") && !r1.roots.has("projects"));
 
 console.log("\n== parts inside a department");

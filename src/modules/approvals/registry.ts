@@ -8,10 +8,10 @@
 // A KEY IS STORED on every approval and every studio's settings, so renaming one
 // is a data migration, not a label edit.
 //
-// The first seven are what the Tasks board used to route by hand; each gets its
-// Request approval button, and a source record, as it is wired (step 3 of the
-// build in docs/progress.md). `carried` is not requestable: it exists only for
-// the hand-written tasks converted when Approvals replaced them.
+// Each of the first seven gets its Request approval button, and a source
+// record, as it is wired (docs/progress.md). `carried` is not requestable: it
+// holds only the hand-written items converted from the old board when
+// Approvals replaced it.
 
 export type ApprovalTypeDef = {
   readonly key: string;

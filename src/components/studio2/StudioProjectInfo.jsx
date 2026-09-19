@@ -24,8 +24,8 @@ const card = `${panel} min-h-0`;
 
 // ---- data ------------------------------------------------------------------
 // The board and the legacy profile both need the projects payload plus the two
-// live channels a project changes on (its own, and Tasks — the number arrives
-// from FINANCE on the Tasks board when they sign the PO). One hook, one fetch.
+// live channels a project changes on (its own, and Approvals — the number
+// arrives when the client's PO is approved). One hook, one fetch.
 export function useProjectData(slug) {
   const tr = projectsDict(useStudioLocale());
   const [data, setData] = useState(null);
@@ -39,7 +39,8 @@ export function useProjectData(slug) {
 
   useReload(load);
   useLiveUpdates(slug, "projects", load);
-  useLiveUpdates(slug, "tasks", load);
+  // An approved Client PO issues the project number shown here.
+  useLiveUpdates(slug, "approvals", load);
 
   return { data, error, reload: load };
 }

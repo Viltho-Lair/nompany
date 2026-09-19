@@ -71,7 +71,7 @@ const { applyDescriptor } = await import("@/platform/db/engagement");
 const NEEDED_COLLECTIONS = [
   "salesTickets", "salesClients", "rfqs", "quotations", "projects",
   "invoices", "expenses", "materialOrders", "deliveries", "awbShipments",
-  "tasks", "overtimes", "projectSheets",
+  "overtimes", "projectSheets",
 ];
 
 // The section KEY a collection lives under, read OFF SECTION_COLLECTIONS

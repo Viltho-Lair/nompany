@@ -308,8 +308,8 @@ console.log("\n== a library role starts inside its department's own sections");
     !inEstimation.some((k) => k.startsWith("crmSales.") || k.startsWith("projects.") || k.startsWith("inventory.")),
     inEstimation.join(", "));
 
-  // Tasks is not a section, so nothing on the board is another department's.
-  ok("...and keeps what belongs to no section", inEstimation.includes("tasks.board.view"));
+  // SCOPED, SO KEPT is below; what belongs to no section at all — Approvals —
+  // holds no right a library role is born with, so there is nothing to keep.
 
   // SCOPED, SO KEPT: unscoped it reaches only the holder's own records, and it
   // is the right `requestVacation` asks for. Filtering it out would leave a

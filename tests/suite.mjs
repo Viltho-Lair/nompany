@@ -36,7 +36,6 @@ import { listRoles, createRole } from "@/modules/people/roles";
 import { SESSION_COOKIE, login as identityLogin } from "@/platform/auth/identity";
 import { studioContext, canAdminister, studiosForUser } from "@/lib/studios";
 import { explain, ADMIN_ROLE_ID, ALL_PERMISSIONS, isPermission, NO_SCREEN_YET } from "@/platform/access";
-import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/modules/tasks/tasks";
 import { listForCollaborator, NOTIFY } from "@/platform/notify/notifications";
 import { approvalsContext, decideApproval, requestApproval, saveApprovalSetting } from "@/modules/approvals/approvals";
 import {
@@ -270,7 +269,7 @@ import { SERVICE_ACTIONS, FIELDS_OF_WORK, FIELD_ACTION_MATRIX, actionsForField, 
 import { nextPool, cleanNextActive } from "@/modules/studioServiceActions";
 
 const PUT_COLLABORATORS = (await import("@/app/api/studios/[slug]/collaborators/route.ts")).PUT;
-const TASKS_ROUTE = await import("@/app/api/studios/[slug]/tasks/route.ts");
+const APPROVALS_ROUTE = await import("@/app/api/studios/[slug]/approvals/route.ts");
 const EXPORT_CSV = (await import("@/app/api/super/site-analytics/export/route.ts")).GET;
 const YEAR_ROLLOVER = (await import("@/app/api/cron/year-rollover/route.ts")).GET;
 const MAIN_ROLLUP = (await import("@/app/api/cron/main-rollup/route.ts")).GET;
@@ -340,14 +339,13 @@ async function fixtureRole(name, permissions, scopes = {}) {
 await fixtureRole("Member", [
   "crmSales.tickets.view", "crmSales.tickets.create", "crmSales.tickets.edit",
   "crmSales.clients.view", "crmSales.quotations.view", "projects.list.view",
-  "tasks.board.view", "tasks.board.create", "tasks.board.edit",
   "inventory.items.view",
   "hr.vacations.view", "hr.vacations.create", "hr.vacations.edit",
 ], { "hr.vacations": "own" });
 
 await fixtureRole("Viewer", [
   "crmSales.tickets.view", "crmSales.clients.view", "crmSales.quotations.view",
-  "projects.list.view", "inventory.items.view", "tasks.board.view",
+  "projects.list.view", "inventory.items.view",
 ]);
 
 async function person(alias, roleName) {
@@ -385,116 +383,48 @@ async function approveQuotationFixture(quotationId) {
 }
 
 // ============================================================================
-console.log("== tasks: the board writes at all");
-// REGRESSION: tasksContext resolved `access` and left it out of the object it
-// returned, so requirePermission(undefined, …) refused every write in the
-// module — creating, editing, deleting, appointing — for everybody including
-// the owner. The build passed, the unit suite passed, and the board was dead.
+console.log("== approvals: the page's own routes, end to end");
+// The rules are covered purely in tests/approvals-model.mjs and the quotation
+// flow further down drives the services; this is the layer the SCREEN calls —
+// the route handlers, with a real session and the body the page sends. Everybody
+// opens the page (no right is asked), each person sees what is waiting on THEM,
+// and only somebody given every approval sees the third list.
 {
-  const ctx = await tasksContext(owner, slug);
-  ok("owner can open Tasks", !ctx.error, ctx.error);
-  ok("the context carries access", ctx.access instanceof Set);
-
-  const made = await createTask(ctx, { title: "Ship the thing", assigneeCollaboratorId: viewer.collaborator.id });
-  ok("owner can create a task", !!made.task, made.error);
-
-  // THE PRODUCER THAT HAD NEVER FIRED. NOTIFY.taskAssigned was declared from the
-  // start and nothing produced it — a task handed to somebody told them nothing.
-  // Owner assigned this to viewer above, so viewer, not owner, should hear.
-  const assignNote = (await listForCollaborator(studio.id, viewer.collaborator.id))
-    .find((n) => n.type === NOTIFY.taskAssigned);
-  ok("the assignee is told they were handed a task", Boolean(assignNote), NOTIFY.taskAssigned);
-  ok("...and the notice carries the task's title", assignNote?.body === "Ship the thing", JSON.stringify(assignNote?.body));
-  ok("...and the assigner did NOT notify themselves",
-    !(await listForCollaborator(studio.id, ctx.collaborator.id)).some((n) => n.type === NOTIFY.taskAssigned),
-    "self-assignment is not news");
-
-  const editedBefore = (await listForCollaborator(studio.id, viewer.collaborator.id))
-    .filter((n) => n.type === NOTIFY.taskAssigned).length;
-  const edited = await updateTask(ctx, made.task?.id, { title: "Ship the thing, renamed" });
-  ok("owner can edit a task", edited.task?.title === "Ship the thing, renamed", edited.error);
-  // A RENAME IS NOT A REASSIGNMENT. The assignee did not change, so no second
-  // bell — or every edit to a task spams whoever holds it.
-  const editedAfter = (await listForCollaborator(studio.id, viewer.collaborator.id))
-    .filter((n) => n.type === NOTIFY.taskAssigned).length;
-  ok("...and editing a task does not re-announce it", editedAfter === editedBefore, `${editedBefore} -> ${editedAfter}`);
-
-  // A task is assigned by somebody authorised and COMPLETED by the person it
-  // was given to — so finishing your own work cannot need a board right.
-  const viewerCtx = await tasksContext(viewer.user, slug);
-  const moved = await updateTask(viewerCtx, made.task?.id, { status: "Done" });
-  ok("the assignee can finish their own task without a board right", moved.task?.status === "Done", moved.error);
-
-  const overreach = await updateTask(viewerCtx, made.task?.id, { title: "not mine to rename" });
-  ok("...but cannot rewrite what was asked of them", overreach.error === "forbidden", JSON.stringify(overreach));
-
-  const gone = await removeTask(ctx, made.task?.id);
-  ok("owner can delete a task", gone.ok === true, gone.error);
-
-  const shut = await tasksContext(nobody.user, slug);
-  ok("somebody with no role cannot open Tasks", shut.error === "forbidden", shut.error);
-}
-
-// ============================================================================
-console.log("\n== tasks: the board's own buttons, end to end");
-// The service functions were already covered above and passed, which is exactly
-// why "I cannot edit or delete a task" needed testing ONE LAYER OUT: through the
-// route handlers the screen actually calls, with a real session, the real body
-// shape the form sends, and the real method on each button.
-{
-  await signInAs(owner.id);
   const req = (method, body) => new Request("http://localhost/test", {
-    method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    method, headers: { "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}),
   });
+  const ownerApprovals = await approvalsContext(owner, slug);
+  await saveApprovalSetting(ownerApprovals, { type: "delivery", setting: { steps: [
+    { label: "Logistics", approverIds: [member.collaborator.id] },
+  ] } });
+  const filed = await requestApproval(await salesContext(owner, slug), {
+    type: "delivery", source: { sectionKey: "crm-sales-tickets", recordId: `route-${rand()}`, ref: "DLV-1", title: "Route check" },
+  });
+  ok("a record's request files an approval", filed.approval?.status === "Pending", JSON.stringify(filed.error));
+  const id = filed.approval?.id;
 
-  const made = await TASKS_ROUTE.POST(req("POST", { title: "Wire check" }), { params: params(slug) });
-  ok("the New task button creates one", made.status === 201, `got ${made.status}`);
-  const id = (await made.json()).task?.id;
+  await signInAs(member.user.id);
+  const listed = await APPROVALS_ROUTE.GET(req("GET"), { params: params(slug) });
+  const page = await listed.json();
+  ok("a Member opens the page — no right is asked", listed.status === 200, `got ${listed.status}`);
+  ok("...and sees it waiting on them", page.waiting?.some((a) => a.id === id && a.canAnswer), JSON.stringify(page.waiting?.map((a) => a.id)));
+  ok("...but not every approval in the studio", page.all === null, JSON.stringify(page.all));
 
-  // THE FORM'S WHOLE PAYLOAD, not a minimal one — it sends every field it holds,
-  // including `type` on a task that already has one, and the route has to cope
-  // with all of them rather than with the tidy subset a unit test would send.
-  const edited = await TASKS_ROUTE.PUT(req("PUT", {
-    id, title: "Wire check, renamed", type: "", description: "why",
-    assigneeCollaboratorId: "", projectId: "", priority: "High", dueDate: "", checklist: [],
-  }), { params: params(slug) });
-  const editedBody = await edited.json();
-  ok("the Edit button saves", edited.status === 200, `got ${edited.status} ${JSON.stringify(editedBody)}`);
-  ok("...and the change really landed", editedBody.task?.title === "Wire check, renamed",
-    JSON.stringify(editedBody.task?.title));
+  const bare = await APPROVALS_ROUTE.PUT(req("PUT", { id, verdict: "Rejected" }), { params: params(slug) });
+  ok("a rejection without a reason is refused", bare.status === 400 && (await bare.json()).error === "reason-required", `got ${bare.status}`);
+  const yes = await APPROVALS_ROUTE.PUT(req("PUT", { id, verdict: "Approved" }), { params: params(slug) });
+  const yesBody = await yes.json();
+  ok("the Approve button answers it", yes.status === 200 && yesBody.approval?.status === "Approved", `got ${yes.status} ${JSON.stringify(yesBody)}`);
+  const twice = await APPROVALS_ROUTE.PUT(req("PUT", { id, verdict: "Approved" }), { params: params(slug) });
+  ok("...once — an answered approval takes no second answer", twice.status === 409, `got ${twice.status}`);
 
-  const gone = await TASKS_ROUTE.DELETE(req("DELETE", { id }), { params: params(slug) });
-  ok("the Delete button deletes", gone.status === 200, `got ${gone.status} ${JSON.stringify(await gone.json())}`);
-
-  // A TYPED TASK IS A DECISION, NOT A TO-DO. Editing one would change what the
-  // approvers think they are agreeing to — possibly after some have agreed —
-  // and deleting one destroys the record of who signed while the quotation goes
-  // on being approved. Both are refused at the service, not merely hidden.
-  const decision = await createTask(await tasksContext(owner, slug), { title: "Approve something", type: "approval" });
-  ok("a typed task can still be raised", decision.task?.type === "approval", JSON.stringify(decision.error));
-  const reword = await TASKS_ROUTE.PUT(req("PUT", { id: decision.task?.id, title: "Approve something else" }), { params: params(slug) });
-  ok("...but cannot be edited", reword.status === 409, `got ${reword.status}`);
-  const erase = await TASKS_ROUTE.DELETE(req("DELETE", { id: decision.task?.id }), { params: params(slug) });
-  ok("...nor deleted", erase.status === 409, `got ${erase.status}`);
-  // Its own verb still works: a decision is made by deciding it.
-  const signed = await decideTask(await tasksContext(owner, slug), decision.task?.id, { authority: "sales", approved: true });
-  ok("...while deciding it still works", signed.task?.approvals?.sales?.approved === true, JSON.stringify(signed.error));
-  // THE APPROVAL PRODUCER'S SELF-GUARD: owner raised this AND signed it, so the
-  // outcome is not news to them. The positive case — a raiser hearing that
-  // somebody else granted their approval — rides the same announce pattern the
-  // five producers above prove end-to-end, and Gate A block 7 guarantees the
-  // type has a producer at all.
-  const octx = await tasksContext(owner, slug);
-  ok("signing your own approval task rings no bell for you",
-    !(await listForCollaborator(studio.id, octx.collaborator.id)).some((n) => n.type === NOTIFY.approvalDecided),
-    "the signer who is also the raiser is not told");
-
-  // The Delete BUTTON asks about delete, not about "holds any write" — a Member
-  // holds tasks.board.edit and not delete, and used to be shown a button that
-  // always came back "That didn't save."
-  const board = await tasksContext(member.user, slug);
-  ok("a Member may run the board", board.canManage === true);
-  ok("...but does not hold delete", !board.access.has("tasks.board.delete"));
+  await signInAs(owner.id);
+  const ownerPage = await (await APPROVALS_ROUTE.GET(req("GET"), { params: params(slug) })).json();
+  ok("the owner sees their own request", ownerPage.requested?.some((a) => a.id === id));
+  ok("...and every approval in the studio", Array.isArray(ownerPage.all) && ownerPage.all.some((a) => a.id === id));
+  ok("the requester was told it came through",
+    (await listForCollaborator(studio.id, ownerApprovals.collaborator.id)).some((n) => n.type === NOTIFY.approvalDecided),
+    "no approval.decided notice for the requester");
   __signOut();
 }
 
@@ -601,7 +531,7 @@ console.log("\n== the handler is carried, never copied");
   // And the whole point of the button: ONE approval, answered step by step by
   // the people Approval settings name (the owner, 19/09/2026).
   //
-  // NOBODY NAMED, NOTHING FILED. The Tasks board filed an approval nobody could
+  // NOBODY NAMED, NOTHING FILED. The old board filed an approval nobody could
   // answer and reported it as "unrouted"; an approval with no approver would
   // wait for ever, so it is refused with a sentence instead.
   const unset = await sendTicketForApproval(await salesContext(owner, slug), { ticketId: made.ticket?.id });
@@ -3199,8 +3129,8 @@ console.log("\n== HR: departments are Master data's, positions are roles");
   // It read "departments come from the section list" and "identified by section
   // key, not a row id", which was true while a department WAS a top-level
   // section — and which is exactly the model that offered every studio sixteen
-  // departments, four of them screens that render nothing and one (Tasks) not a
-  // section at all. The assertions are kept rather than deleted, inverted, so
+  // departments, four of them screens that render nothing and one (a control,
+  // since replaced by Approvals) not a section at all. The assertions are kept rather than deleted, inverted, so
   // the file still says what changed and why.
   const departments = await listDepartments(hr);
   ok("a studio has departments without anybody typing one", departments.length > 0,
@@ -3212,16 +3142,16 @@ console.log("\n== HR: departments are Master data's, positions are roles");
     departments.map((d) => d.code).join(", "));
   // The sixteen-entry bug, asserted from both ends: neither is a department now.
   ok("...and Main is not one of them", !departments.some((d) => (d.sectionKeys || []).includes("main")));
-  ok("...nor is Tasks", !departments.some((d) => (d.sectionKeys || []).includes("tasks")));
+  ok("...nor is Approvals", !departments.some((d) => (d.sectionKeys || []).includes("approvals")));
   // THE REAL LIST, NOT A COPY OF IT. This held a hand-typed
-  // ["manufacturing", "assets", "reports", "quality-hse", "main", "tasks"] —
+  // list of the four screenless sections plus the two non-sections —
   // the same defect `testNoAreaExistsForASectionWithNoScreen` shipped once and
   // CLAUDE.md records. All four of those sections render now, so the copy
   // called live sections dead and this failed by being out of date rather than
-  // by finding anything. Main and Tasks stay named here because they are not
+  // by finding anything. Main and Approvals stay named here because they are not
   // sections at all (CLAUDE.md is explicit), which is a different fact from
   // "has no screen yet" and does not live in NO_SCREEN_YET.
-  const notADepartment = [...NO_SCREEN_YET, "main", "tasks"];
+  const notADepartment = [...NO_SCREEN_YET, "main", "approvals"];
   ok("a department may not claim a section that renders nothing",
     !assignableSectionKeys().some((k) => notADepartment.includes(k)),
     assignableSectionKeys().join(", "));
@@ -3561,10 +3491,10 @@ console.log("\n== the departments register refuses what would corrupt the chart"
   ok("...but a department needs no code at all", !!blank.department, JSON.stringify(blank.error));
 
   // A SECTION KEY THAT IS NOT ASSIGNABLE IS DROPPED, not stored. Writing it
-  // would put Tasks and the four screenless sections back into the org chart
+  // would put Approvals and the four screenless sections back into the org chart
   // through the API after the picker stopped offering them.
   const withDead = await editDepartment(master, blank.department.id,
-    { sectionKeys: ["projects", "tasks", "main", "not-a-section"] });
+    { sectionKeys: ["projects", "approvals", "main", "not-a-section"] });
   ok("only assignable sections are stored",
     JSON.stringify(withDead.department?.sectionKeys) === JSON.stringify(["projects"]),
     JSON.stringify(withDead.department?.sectionKeys));
@@ -3945,7 +3875,7 @@ console.log("\n== a studio that predates a section still gets it");
   const child = read.find((x) => x.key === "engineering-docs-register");
   ok("...pointing at the parent it belongs to", child?.parentId === parent?.id);
   ok("...and placed in the nav where it belongs, not at the end",
-    read.findIndex((x) => x.key === "engineering-docs") < read.findIndex((x) => x.key === "tasks"));
+    read.findIndex((x) => x.key === "engineering-docs") < read.findIndex((x) => x.key === "approvals"));
   ok("...and WROTE it, so every later reader sees it", (await readArr(key)).some((x) => x.key === "engineering-docs"));
 
   // Planting must be idempotent, or every read mints a new SectionID and the
@@ -5241,9 +5171,9 @@ console.log("\n== Main rollup: visibility survives aggregation");
 console.log("\n== Main executive: the awaiting-you queue orders by age");
 {
   const items = [
-    { kind: "task", section: "tasks", id: "t2", label: "Approve PO", at: "2026-08-20T00:00:00" },
+    { kind: "approval", section: "approvals", id: "t2", label: "Approve PO", at: "2026-08-20T00:00:00" },
     { kind: "quotation", section: "crm-sales-quotations", id: "q1", label: "Q-1001", at: "2026-08-24T00:00:00" },
-    { kind: "task", section: "tasks", id: "t1", label: "Review RFQ", at: "2026-08-10T00:00:00" },
+    { kind: "approval", section: "approvals", id: "t1", label: "Review RFQ", at: "2026-08-10T00:00:00" },
   ];
   const ranked = rankQueue(items);
   ok("oldest waiting item is first", ranked[0].id === "t1", ranked[0].id);
@@ -5906,7 +5836,7 @@ console.log("\n== what Nova volunteers, before anybody asks");
     ok("nothing is dropped by the view — only reordered",
       COPY.rankForView(rows, "crm-sales-tickets").length === rows.length);
     ok("a department is the key up to its first dash",
-      COPY.departmentOf("crm-sales-quotations") === "crm-sales" && COPY.departmentOf("tasks") === "tasks");
+      COPY.departmentOf("crm-sales-quotations") === "crm-sales" && COPY.departmentOf("approvals") === "approvals");
   }
 
   // ---- the words -----------------------------------------------------------
@@ -5944,7 +5874,7 @@ console.log("\n== what Nova volunteers, before anybody asks");
     // added to the derivations and forgotten here is a bubble that never fires,
     // which is invisible — exactly the failure this file exists to make loud.
     const EMITTED = [
-      "task.overdue", "task.approval", "task.awaiting",
+      "approval.awaiting",
       "quotation.noItems", "quotation.stale", "rfq.unquoted",
       "ticket.noRfq", "ticket.deadline",
       "project.overdue", "project.uninvoiced",

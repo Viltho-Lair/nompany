@@ -28,7 +28,7 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
   // the actual collection name in `c`.
   const memberTypes: [string, string][] = [
     ["invoice", "invoices"], ["expense", "expenses"], ["order", "materialOrders"],
-    ["delivery", "deliveries"], ["shipment", "awbShipments"], ["task", "tasks"],
+    ["delivery", "deliveries"], ["shipment", "awbShipments"],
     ["overtime", "overtimes"], ["sheet", "projectSheets"],
   ];
 

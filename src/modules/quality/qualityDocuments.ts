@@ -1,6 +1,6 @@
 // CONTROLLED DOCUMENTS — the vocabulary, and the rules that are pure functions.
 //
-// Client-safe on purpose, exactly like modules/tasks/taskRouting.js is for tasks: the
+// Client-safe on purpose, like modules/approvals/reads.ts is for approvals: the
 // register and the setup screen need the statuses, the starter pack and the
 // shape of a document code, and none of them should drag the Redis-backed store
 // into the browser bundle to get them. modules/quality/quality.js owns everything that

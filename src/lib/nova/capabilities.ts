@@ -56,10 +56,11 @@ export const NOVA_CAPABILITIES: NovaCapability[] = [
   { key: "read.projects.slas", label: "Service contracts (SLA)", department: "Maintenance", kind: "read", permissionKey: "projects.sla.view", defaultOn: true, scope: "all" },
   { key: "read.projects.overtimes", label: "Overtime", department: "Projects", kind: "read", permissionKey: "projects.overtimes.view", defaultOn: true, scope: "all" },
 
-  // ---- Tasks ----
-  { key: "read.tasks.board", label: "Task board", department: "Tasks", kind: "read", permissionKey: "tasks.board.view", defaultOn: true, scope: "all" },
-  { key: "action.tasks.advance-mine", label: "Advance my own task", department: "Tasks", kind: "action", permissionKey: null, defaultOn: true, writes: true },
-  { key: "action.tasks.create", label: "Create a task", department: "Tasks", kind: "action", permissionKey: "tasks.board.create", defaultOn: false, writes: true },
+  // ---- Approvals ----
+  // MEMBERSHIP-GATED, like the page: everybody may ask what is waiting on them
+  // and how their own requests are going, and `listApprovals` narrows to that.
+  // Nova does not ANSWER approvals — that is a person's act on the page.
+  { key: "read.approvals.mine", label: "My approvals", department: "Approvals", kind: "read", permissionKey: null, defaultOn: true, scope: "own" },
 
   // ---- Quality ----
   { key: "read.quality.docs", label: "Controlled documents", department: "Quality", kind: "read", permissionKey: "engineeringDocs.register.view", defaultOn: true, scope: "all" },

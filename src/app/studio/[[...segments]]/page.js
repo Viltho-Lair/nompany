@@ -31,7 +31,7 @@ import { log } from "@/platform/http/observability";
 // switch at the bottom picks a department. Imported statically, all twenty-odd
 // department components land in this route's client manifest — and this route
 // is EVERY route a tenant has, so somebody who only ever opens Sales was paying
-// for Projects, Inventory, Operations, HR, Finance, Tasks and the two viewers
+// for Projects, Inventory, Operations, HR, Finance, Approvals and the two viewers
 // as well. 12,600 lines of client component, and the reason the largest chunk
 // is the size it is.
 //
@@ -287,10 +287,6 @@ const StudioFinance = nextDynamic(
 );
 const StudioApprovals = nextDynamic(
   () => import("@/components/studio2/StudioApprovals"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioTasks = nextDynamic(
-  () => import("@/components/studio2/StudioTasks"),
   { loading: () => <ScreenSkeleton /> },
 );
 const StudioOperations = nextDynamic(
@@ -989,7 +985,6 @@ async function renderStudio(params) {
           ? <StudioInventory slug={studio.slug} view={active?.key} />
         : screenKey === "inventory" ? <StudioInventory slug={studio.slug} view={active?.key} />
         : screenKey === "finance" ? <StudioFinance slug={studio.slug} view={active?.key} />
-        : screenKey === "tasks" ? <StudioTasks slug={studio.slug} view={active?.key} />
         : screenKey === "approvals" ? <StudioApprovals slug={studio.slug} view={active?.key} />
         : screenKey === "field-service" ? <StudioOperations slug={studio.slug} view={active?.key} />
         : screenKey === "reports"

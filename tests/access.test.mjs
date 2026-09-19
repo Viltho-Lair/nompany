@@ -235,7 +235,7 @@ console.log("\n== enforcement coverage");
 // ---------------------------------------------------------------------------
 // WIRING. The audit above proves a permission key is enforced SOMEWHERE. It
 // cannot prove the guard was handed anything to check, and that is exactly how
-// the Tasks board came to refuse every write including the owner's: the context
+// a board once came to refuse every write including the owner's: the context
 // resolved `access`, forgot to return it, and `requirePermission(undefined, …)`
 // answered "forbidden" for everybody. The string was present, so the audit read
 // clean while the module was entirely dead.
@@ -330,7 +330,6 @@ console.log("\n== wiring");
   // The exceptions are listed with their reason rather than silently skipped;
   // an unexplained entry here is the next hole.
   const EXEMPT = {
-    decideTask: "gated on holding the authority the task routes to, from Task settings",
     decideApproval: "being named on the open step IS the authority (the owner, 19/09/2026); decisionProblem refuses everybody else by name",
     decideVacation: "cancelling your OWN pending request needs no approve right",
     requestTicketRfq: "delegates to requestRfq, which guards both doors itself",
@@ -385,7 +384,7 @@ console.log("\n== schemas: what a department says it stores");
 // The negative cases are the half that matters. A schema that accepts
 // everything would pass every positive assertion above and be worth nothing.
 {
-  const { TaskSchema } = await import("@/modules/tasks/schema");
+  const { ApprovalSchema } = await import("@/modules/approvals/schema");
   const { RoleSchema, JoinRequestSchema } = await import("@/modules/people/schema");
   const { InvoiceSchema, ExpenseSchema } = await import("@/modules/finance/schema");
   const { VacationSchema, CertificationSchema } = await import("@/modules/hr/schema");
@@ -399,15 +398,15 @@ console.log("\n== schemas: what a department says it stores");
   };
   const refuses = (label, schema, row) => ok(`  ${label}`, !schema.safeParse(row).success);
 
-  const task = {
-    id: "tas_1", studioId: "std_1", sectionId: "sec_1", title: "Fit the panel", type: "",
-    description: "", status: "To do", priority: "Normal", assigneeCollaboratorId: "",
-    projectId: "", dueDate: "", checklist: [{ id: "c1", text: "Unbox", done: false }],
-    createdByCollaboratorId: "col_1", createdAt: "2026-08-22T00:00:00.000Z", completedAt: "",
-    approvals: {}, approvalWithdrawnAt: "",
+  const approval = {
+    id: "apr_1", studioId: "std_1", sectionId: "sec_1", type: "quotation", status: "Pending",
+    source: { sectionKey: "crm-sales-quotations", recordId: "quo_1", ref: "Q-0001", title: "ACME · Panels" },
+    requestedByCollaboratorId: "col_1", requestedAt: "2026-09-19T00:00:00.000Z",
+    steps: [{ id: "s1", label: "Sales", approverIds: ["col_2"], requireAll: false }],
+    decisions: [], decidedAt: "", note: "",
   };
-  accepts("a task as createTask writes it", TaskSchema, task);
-  refuses("...and not one without a title", TaskSchema, { ...task, title: undefined });
+  accepts("an approval as requestApproval writes it", ApprovalSchema, approval);
+  refuses("...and not one with a status it does not have", ApprovalSchema, { ...approval, status: "Done" });
 
   const role = {
     id: "rol_1", studioId: "std_1", name: "Engineer", permissions: ["crmSales.tickets.view"],

@@ -75,7 +75,7 @@ builder). Sales' tickets drop it — a ticket's page is a route, and the link go
   are and what order they sit in is not — the order is the fixed `*_COLUMN_KEYS` order, and
   widths come from each column's `minWidth`/`flex`.
 - **The other nine departments still hand-roll their tables.** Finance and Inventory use
-  `StudioDataGrid` but have no filter panel or column picker; HR, Operations, Quality, Tasks,
+  `StudioDataGrid` but have no filter panel or column picker; HR, Operations, Quality, Approvals,
   People, Access and Main list rows without the grid at all. Nothing about their behaviour is
   shared with this file yet.
 - **The grid does not mirror in Arabic.** `StudioDataGrid` writes its own padding and rules

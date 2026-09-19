@@ -68,12 +68,6 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     ar: { title: "تغيرت الصلاحيات", body: "{who}" },
   },
   {
-    type: "task.assigned",
-    fields: ["title"],
-    en: { title: "You have been assigned a task", body: "{title}" },
-    ar: { title: "مهمة موكلة إليكم", body: "{title}" },
-  },
-  {
     type: "workrequest.raised",
     fields: ["reference", "title"],
     en: { title: "A fault was reported", body: "{reference} · {title}" },

@@ -5,7 +5,7 @@ import { chromeDict } from "@/shared/studio/chrome";
 
 // A row of preset buttons. `value` is one of "month" | "quarter" | "year";
 // `onChange(preset)` lifts state to the dashboard, which reads the URL query.
-// Selected-pill classes mirror the segmented control in StudioTasks.js so the
+// Selected-pill classes follow the studio's segmented controls so the
 // dashboard's filter row reads as the same control family as the rest of the
 // studio, not a one-off.
 export default function FilterBar({ value = "month", onChange }) {

@@ -745,7 +745,7 @@ export async function requestTicketRfq(ctx: SalesContext, body: Record<string, u
 // A SALES ACT ON A SALES RECORD — Sales decides a quotation is ready to go up —
 // so the right asked for is crmSales.tickets.edit, exactly as raising an RFQ is.
 // What it files is a Quotation approval (the owner, 19/09/2026: Approvals
-// replaced the Tasks board). Approval settings says who answers it, step by
+// replaced the old board). Approval settings says who answers it, step by
 // step, and the quotation reads its status back from it rather than a copy.
 export async function sendTicketForApproval(ctx: SalesContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN.

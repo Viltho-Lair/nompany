@@ -149,7 +149,7 @@ gets is two halves, both confined to the sections its department lists:
 
 - **What its shape names that falls inside those sections**, plus three kinds of
   right that are nobody's section: what belongs to no section at all (the
-  engagements view), Tasks, and the scoped HR areas — `hr.employees`,
+  engagements view), and the scoped HR areas — `hr.employees`,
   `hr.vacations`, `hr.attendance`. A scoped area only ever reaches the holder's
   own records or their department's, and `hr.vacations.create` is how anybody
   books their own leave.

@@ -6,8 +6,9 @@
 //   s:<StudioID>:sec:<SectionID>:c:permits
 //   s:<StudioID>:sec:<SectionID>:c:shifts
 //
-// This module deliberately does NOT hold a second to-do list: discrete work
-// items are Tasks. Operations answers a different question — coverage. A shift
+// This module deliberately does NOT hold a to-do list: discrete work items
+// belong to the records they are about. Operations answers a different
+// question — coverage. A shift
 // says a person is at a place for a stretch of time, which is why it can clash
 // with another shift, or with leave that HR has already approved.
 //

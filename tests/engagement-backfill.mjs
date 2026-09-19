@@ -166,7 +166,7 @@ export async function testBackfillStudio() {
 // read paths return for a full chain, not just the single-quotation/
 // single-invoice shape testBackfillStudio already covers. Two quotations
 // (different createdAt) on one ticket, a project naming both ticket and
-// quotation, two invoices and a task on that project, PLUS one orphan
+// quotation, two invoices on that project, PLUS one orphan
 // internal quotation (no ticketId) — closing the two gaps the earlier tests
 // left open: (1) which quotation becomes "approved" when there is more than
 // one (newest by createdAt), and (2) the orphan-quotation-as-its-own-
@@ -184,7 +184,6 @@ export async function testParity() {
   const quotationsSec = await getSectionByKey(sid, "crm-sales-quotations");
   const projectsSec = await getSectionByKey(sid, "projects-list");
   const cashSec = await getSectionByKey(sid, "finance-cash");
-  const tasksSec = await getSectionByKey(sid, "tasks");
 
   const client = await addRow(sid, clientsSec.id, "salesClients", { name: "Acme Parity" });
   const ticket = await addRow(sid, ticketsSec.id, "salesTickets",
@@ -194,7 +193,6 @@ export async function testParity() {
   const project = await addRow(sid, projectsSec.id, "projects", { ticketId: ticket.id, quotationId: quo2.id });
   const inv1 = await addRow(sid, cashSec.id, "invoices", { projectId: project.id });
   const inv2 = await addRow(sid, cashSec.id, "invoices", { projectId: project.id });
-  const task = await addRow(sid, tasksSec.id, "tasks", { projectId: project.id });
 
   // Orphan internal quotation: no ticket, its own client name — clusters into
   // its OWN engagement (buildEngagements' second loop), not the ticket's.
@@ -216,7 +214,6 @@ export async function testParity() {
   assert.equal(view.singletons.approvedQuotation, quo2.id, "approvedQuotation is the NEWEST quotation by createdAt");
   assert.deepEqual([...view.members.quotation].sort(), [quo1.id, quo2.id].sort(), "both quotations are members");
   assert.deepEqual([...view.members.invoice].sort(), [inv1.id, inv2.id].sort(), "both invoices are members");
-  assert.deepEqual(view.members.task, [task.id], "the task is a member");
 
   // The orphan path — its own engagement, keyed off the quotation itself.
   const orphanEngId = deterministicEngId("quotation", orphanQuo.id);
@@ -250,7 +247,7 @@ export async function testParity() {
 const ALL_MEMBER_TYPES = [
   "rfq", "quotation",                          // ticket-scoped
   "invoice", "expense", "order", "delivery",   // project-scoped
-  "shipment", "task", "overtime", "sheet",
+  "shipment", "overtime", "sheet",
 ];
 
 export async function testVocabularyParity() {
@@ -269,7 +266,6 @@ export async function testVocabularyParity() {
   const sheetsSec = await getSectionByKey(sid, "inventory-sheets");   // owns materialOrders + projectSheets
   const inventorySec = await getSectionByKey(sid, "inventory");      // owns deliveries
   const awbSec = await getSectionByKey(sid, "logistics-shipments");
-  const tasksSec = await getSectionByKey(sid, "tasks");
   const overtimesSec = await getSectionByKey(sid, "projects-overtimes");
 
   const client = await addRow(sid, clientsSec.id, "salesClients", { name: "Vocab Co" });
@@ -291,7 +287,6 @@ export async function testVocabularyParity() {
   const sheet = await addRow(sid, sheetsSec.id, "projectSheets", { projectId: project.id });
   const delivery = await addRow(sid, inventorySec.id, "deliveries", { projectId: project.id });
   const shipment = await addRow(sid, awbSec.id, "awbShipments", { projectId: project.id });
-  const task = await addRow(sid, tasksSec.id, "tasks", { projectId: project.id });
   const overtime = await addRow(sid, overtimesSec.id, "overtimes", { projectId: project.id });
 
   await backfillStudio(sid, { apply: true });
@@ -303,7 +298,7 @@ export async function testVocabularyParity() {
   const expected = {
     rfq: rfq.id, quotation: quotation.id, invoice: invoice.id, expense: expense.id,
     order: order.id, sheet: sheet.id, delivery: delivery.id, shipment: shipment.id,
-    task: task.id, overtime: overtime.id,
+    overtime: overtime.id,
   };
   for (const [type, id] of Object.entries(expected)) {
     // If buildEngagements writes this type to a ZSET readEngagementView's list

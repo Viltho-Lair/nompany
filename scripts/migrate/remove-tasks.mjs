@@ -4,9 +4,24 @@
 //
 //   node scripts/migrate/remove-tasks.mjs [--studio ID] [--apply --export FILE] [--allow-live]
 //
-// WHAT IT DELETES, per studio: every row in the `tasks` collection, then the
-// `tasks` and `tasks-settings` section rows themselves (the settings — who held
-// each authority — live on the latter's own row, so they go with it).
+// WHAT IT DELETES, per studio — everything the old board left in stored data,
+// so that no trace of it survives (the owner's rule):
+//   • every row in the `tasks` collection, each first DETACHED from the deal
+//     it was a member of (the engagement layer keeps members per type, and
+//     readers walk the registry, so a task left attached would be invisible
+//     and still stored);
+//   • the rights `tasks.*` from every role and every personal override — the
+//     catalogue no longer knows them, and cleanPermissions only drops an
+//     unknown right when a role is next saved;
+//   • every notification that announced a task or links to the board — they
+//     would open a page that no longer exists;
+//   • the `task` stage from any flow template a studio saved (Professional
+//     Services carried one) — a stage the registry no longer knows renders as
+//     nothing and fails the template's own check the next time it is saved;
+//   • the `tasks` and `tasks-settings` section rows themselves (the settings —
+//     who held each authority — live on the latter's own row, so they go with it).
+// And once, platform-wide: any switch for the old board's Nova capabilities in
+// the console's Nova config (inert once the capabilities are gone, but stored).
 //
 // INVARIANT 17, IN FULL. Nothing here runs without the owner confirming it
 // TWICE in the same exchange — the plan, then the run with its exact scope
@@ -93,6 +108,21 @@ const { listStudios } = await import("@/modules/main/studios");
 const { getSectionByKey } = await import("@/platform/db/sections");
 const { cascadeDeleteSection } = await import("@/platform/db/cascade");
 const { repo } = await import("@/platform/db/repo");
+const { readArr, editArr, getJSON, editJSON } = await import("@/platform/db/store");
+const { S, REG } = await import("@/platform/db/keys");
+const { engagementIdFor, detachRecord } = await import("@/platform/db/engagement");
+
+const isTaskRight = (k) => /^tasks\./.test(String(k || ""));
+const withoutTaskRights = (list) => (Array.isArray(list) ? list.filter((k) => !isTaskRight(k)) : list);
+const overridesHoldTaskRights = (c) => [...(c?.overrides?.allow || []), ...(c?.overrides?.deny || [])].some(isTaskRight);
+// A notice about a task, or one whose link opens the board — `tasks` or a path
+// under it. Approval notices the board raised link there too.
+const isTaskNotice = (n) => n?.type === "task.assigned" || /^tasks(\/|$)/.test(String(n?.href || ""));
+const isTaskCapability = (k) => /^(read|action)\.tasks\./.test(String(k || ""));
+const FLOW_LISTS = ["stages", "heads", "statusChain", "costDrivers"];
+const templateNamesTask = (t) => FLOW_LISTS.some((f) => Array.isArray(t?.[f]) && t[f].includes("task"));
+const withoutTaskStage = (t) => Object.fromEntries(Object.entries(t).map(([k, v]) =>
+  [k, FLOW_LISTS.includes(k) && Array.isArray(v) ? v.filter((x) => x !== "task") : v]));
 
 const OldTasks = repo("tasks");
 const Approvals = repo("approvals");
@@ -112,6 +142,10 @@ for (const studio of studios) {
   if (!tasksSection && !settingsSection) continue;
 
   const tasks = tasksSection ? await OldTasks.find({ studio: { id }, section: tasksSection }) : [];
+  const roles = (await readArr(S.roles(id))).filter((r) => (r.permissions || []).some(isTaskRight));
+  const people = (await readArr(S.collaborators(id))).filter(overridesHoldTaskRights);
+  const notices = (await readArr(S.notifications(id))).filter(isTaskNotice);
+  const templates = (await readArr(S.flowTemplates(id))).filter(templateNamesTask);
   const approvalsSection = await getSectionByKey(id, "approvals");
   const converted = approvalsSection
     ? new Set((await Approvals.find({ studio: { id }, section: approvalsSection })).map((a) => String(a.id)))
@@ -122,14 +156,23 @@ for (const studio of studios) {
     console.log(`  ${name}\n    SKIPPED — ${unconverted.length} of ${tasks.length} task(s) have no approval yet; run tasks-to-approvals.mjs first`);
     continue;
   }
-  plan.push({ id, name, tasksSection, settingsSection, tasks });
-  console.log(`  ${name}\n    ${tasks.length} task(s), every one converted; sections: ${[tasksSection && "tasks", settingsSection && "tasks-settings"].filter(Boolean).join(", ")}`);
+  plan.push({ id, name, tasksSection, settingsSection, tasks, roles, people, notices, templates });
+  console.log(`  ${name}\n    ${tasks.length} task(s), every one converted; ${roles.length} role(s) and ${people.length} person(s) holding tasks.* rights; ${notices.length} notification(s); ${templates.length} saved flow template(s) naming a task stage; sections: ${[tasksSection && "tasks", settingsSection && "tasks-settings"].filter(Boolean).join(", ")}`);
 }
 
 const taskCount = plan.reduce((n, p) => n + p.tasks.length, 0);
 console.log(`\nStudios to clear : ${plan.length}${skipped ? `  (${skipped} skipped — not fully converted)` : ""}`);
 console.log(`Tasks to delete  : ${taskCount}`);
 console.log(`Section rows     : ${plan.reduce((n, p) => n + (p.tasksSection ? 1 : 0) + (p.settingsSection ? 1 : 0), 0)}`);
+console.log(`Roles to strip   : ${plan.reduce((n, p) => n + p.roles.length, 0)}`);
+console.log(`People to strip  : ${plan.reduce((n, p) => n + p.people.length, 0)}`);
+console.log(`Notifications    : ${plan.reduce((n, p) => n + p.notices.length, 0)}`);
+console.log(`Flow templates   : ${plan.reduce((n, p) => n + p.templates.length, 0)}`);
+// PLATFORM-WIDE, and only on a full run: the Nova config is one document for
+// every studio, so a run scoped to one studio leaves it alone.
+const novaConfig = ONE_STUDIO ? null : await getJSON(REG.novaConfig);
+const novaSwitches = Object.keys(novaConfig?.enabled || {}).filter(isTaskCapability);
+console.log(`Nova switches    : ${novaSwitches.length}${ONE_STUDIO ? " (skipped — a one-studio run leaves platform config alone)" : ""}`);
 
 if (!APPLY) {
   console.log("\n(dry run — nothing exported, nothing deleted; re-run with --apply --export FILE)\n");
@@ -143,7 +186,11 @@ writeFileSync(EXPORT, JSON.stringify({
   studios: plan.map((p) => ({
     studioId: p.id, slug: p.name,
     tasksSection: p.tasksSection, settingsSection: p.settingsSection, tasks: p.tasks,
+    // The roles and people exactly as they were, so a stripped right can be
+    // read back if anybody needs to know who held it.
+    roles: p.roles, people: p.people, notices: p.notices, flowTemplates: p.templates,
   })),
+  novaSwitches: Object.fromEntries(novaSwitches.map((k) => [k, novaConfig.enabled[k]])),
 }, null, 2));
 console.log(`\nExported ${taskCount} task(s) from ${plan.length} studio(s) to ${EXPORT}`);
 
@@ -151,6 +198,11 @@ let deleted = 0;
 for (const p of plan) {
   const scope = { studio: { id: p.id }, section: p.tasksSection };
   for (const task of p.tasks) {
+    // OFF ITS DEAL FIRST, while the row still says what its lineage was.
+    const dealId = await engagementIdFor(p.id, "task", String(task.id), {
+      ticketId: task.ticketId, quotationId: task.quotationId, projectId: task.projectId,
+    });
+    if (dealId) await detachRecord(p.id, dealId, "task", String(task.id));
     if (await OldTasks.remove(scope, String(task.id))) deleted += 1;
   }
   // RE-SCAN TO PROVE IT, before the sections are touched.
@@ -159,6 +211,37 @@ for (const p of plan) {
     console.error(`  ${p.name}: ${left.length} task(s) still read back after the delete — stopping before its sections. Nothing further is touched.`);
     process.exit(1);
   }
+  // THE RIGHTS, stripped under compare-and-set (invariant 8) — the lists are
+  // re-read inside the write, so a role edited meanwhile keeps its edit.
+  if (p.roles.length) {
+    await editArr(S.roles(p.id), (rows) => ({
+      next: rows.map((r) => ((r.permissions || []).some(isTaskRight) ? { ...r, permissions: withoutTaskRights(r.permissions) } : r)),
+    }));
+  }
+  if (p.people.length) {
+    await editArr(S.collaborators(p.id), (rows) => ({
+      next: rows.map((c) => (overridesHoldTaskRights(c)
+        ? { ...c, overrides: { ...c.overrides, allow: withoutTaskRights(c.overrides?.allow || []), deny: withoutTaskRights(c.overrides?.deny || []) } }
+        : c)),
+    }));
+  }
+  if (p.notices.length) {
+    await editArr(S.notifications(p.id), (rows) => ({ next: rows.filter((n) => !isTaskNotice(n)) }));
+  }
+  if (p.templates.length) {
+    await editArr(S.flowTemplates(p.id), (rows) => ({
+      next: rows.map((t) => (templateNamesTask(t) ? withoutTaskStage(t) : t)),
+    }));
+  }
+  const rightsLeft = (await readArr(S.roles(p.id))).some((r) => (r.permissions || []).some(isTaskRight))
+    || (await readArr(S.collaborators(p.id))).some(overridesHoldTaskRights)
+    || (await readArr(S.notifications(p.id))).some(isTaskNotice)
+    || (await readArr(S.flowTemplates(p.id))).some(templateNamesTask);
+  if (rightsLeft) {
+    console.error(`  ${p.name}: a tasks.* right or a board notification still reads back — stopping before its sections.`);
+    process.exit(1);
+  }
+
   // Children first: the settings row, then the board's own (cascadeDeleteSection
   // would take the child with the parent anyway; asking for it by id first
   // covers a settings row whose parent was never there).
@@ -169,7 +252,16 @@ for (const p of plan) {
     console.error(`  ${p.name}: a tasks section row still reads back — stopping.`);
     process.exit(1);
   }
-  console.log(`  ${p.name}: ${p.tasks.length} task(s) and the board's sections removed, re-scan empty`);
+  console.log(`  ${p.name}: ${p.tasks.length} task(s) off their deals and removed, ${p.roles.length} role(s) and ${p.people.length} person(s) stripped, ${p.notices.length} notification(s) removed, sections removed — re-scan empty`);
+}
+
+if (novaSwitches.length) {
+  await editJSON(REG.novaConfig, (cfg) => {
+    if (!cfg) return { result: undefined };
+    const enabled = Object.fromEntries(Object.entries(cfg.enabled || {}).filter(([k]) => !isTaskCapability(k)));
+    return { next: { ...cfg, enabled } };
+  });
+  console.log(`\nNova config: ${novaSwitches.length} switch(es) for the old board removed`);
 }
 
 console.log(`\nDeleted ${deleted} task(s) from ${plan.length} studio(s). The export is ${EXPORT}.\n`);

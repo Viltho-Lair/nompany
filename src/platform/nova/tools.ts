@@ -24,7 +24,7 @@ import { financeContext, listInvoices, listExpenses, summarise } from "@/modules
 import { listBills } from "@/modules/finance/payables";
 import { listAssets } from "@/modules/finance/assets";
 import { hrContext, listVacations, listEmployees } from "@/modules/hr/hr";
-import { tasksContext, listTasks } from "@/modules/tasks/tasks";
+import { approvalsContext, listApprovals } from "@/modules/approvals/approvals";
 import { salesContext, listTickets, listClients } from "@/modules/sales/sales";
 import { technicalContext, listRfqs, listQuotations } from "@/modules/technical/technical";
 import { projectsContext, listProjects, listOvertimes } from "@/modules/projects/projects";
@@ -141,15 +141,13 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
       return capped(await listEmployees(ctx, ctx.collaborator.id));
     },
   },
-  "read.tasks.board": {
-    description: "The task board the user may see: tasks with title, status, priority, assignee, due date and overdue flag.",
+  "read.approvals.mine": {
+    description: "The approvals waiting on the user, and the ones they asked for, each with its status, steps and who has answered — plus every approval when the user may see them all.",
     inputSchema: NO_INPUT,
     run: async (user, slug) => {
-      const ctx = await tasksContext(user, slug);
+      const ctx = await approvalsContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
-      const denied = requirePermission(ctx.access, "tasks.board.view");
-      if (refusal(denied)) return denied;
-      return capped(await listTasks(ctx));
+      return listApprovals(ctx);
     },
   },
   "read.sales.tickets": {

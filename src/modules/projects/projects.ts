@@ -723,19 +723,18 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   return { project: { ...project, progress: 0 }, sheets };
 }
 
-// FINANCE ISSUES THE NUMBER, and this is where it happens: when the `po` task
-// for a quotation is fully approved. Called from decideTask, next to the write
+// THE NUMBER IS ISSUED when the quotation's Client PO approval is approved.
+// Called from onApproved (modules/approvals/approvals.ts), next to the write
 // that causes it — the same reasoning that puts "raising the first RFQ moves a
 // Lead to an Opportunity" inside requestRfq rather than in a screen.
 //
 // NOT GUARDED HERE, and deliberately so. This is not an action somebody takes;
-// it is the CONSEQUENCE of an authority signing, and decideTask has already
-// established that the person signing holds the authority. A permission check
-// here would ask Finance for a Projects right they have no reason to hold, and
-// the number would silently never be issued.
+// it is the CONSEQUENCE of an approval, and the approval has already
+// established that the people answering were the ones named on its steps. A
+// permission check here would ask Finance for a Projects right they have no
+// reason to hold, and the number would silently never be issued.
 //
-// Idempotent: a project that already has a number keeps it. An approval
-// withdrawn and given again must not mint a second number, because the first
+// Idempotent: a project that already has a number keeps it, because the first
 // one is on documents the client is holding.
 export async function issueProjectNumber(
   { studio, listSection }: Pick<ProjectsContext, "studio" | "listSection">,

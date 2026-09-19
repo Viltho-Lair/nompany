@@ -358,7 +358,7 @@ const en: Strings = {
     offHeading: "Switched off",
     noneOff: "Nothing — every department is on.",
     partsOff: (n) => (n === 1 ? "1 part off" : `${n} parts off`),
-    alwaysThere: "Main, Tasks and Settings — where you manage people, roles and access — are always there.",
+    alwaysThere: "Main, Approvals and Settings — where you manage people, roles and access — are always there.",
     editLater: "Nothing here is final. Any department can be switched on or off later in Settings → Studio settings → Sections.",
     sectionsInvalid: "The department list is out of date. Reload the page and try again.",
     questions: {
@@ -608,7 +608,7 @@ const ar: Strings = {
     offHeading: "متوقف",
     noneOff: "لا شيء — جميع الأقسام مفعّلة.",
     partsOff: (n) => (n === 1 ? "جزء واحد متوقف" : `${n} أجزاء متوقفة`),
-    alwaysThere: "الرئيسية والمهام والإعدادات — حيث تدير الأشخاص والأدوار والصلاحيات — متاحة دائما.",
+    alwaysThere: "الرئيسية والموافقات والإعدادات — حيث تدير الأشخاص والأدوار والصلاحيات — متاحة دائما.",
     editLater: "لا شيء هنا نهائي. يمكن تفعيل أي قسم أو إيقافه لاحقا من الإعدادات ← إعدادات الاستوديو ← الأقسام.",
     sectionsInvalid: "قائمة الأقسام قديمة. أعد تحميل الصفحة وحاول مرة أخرى.",
     questions: {

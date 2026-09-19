@@ -122,7 +122,7 @@ const BUILT_IN_TEMPLATES: readonly FlowTemplate[] = [
   {
     id: "E",
     name: "Professional Services",
-    stages: ["ticket", "quotation", "contract", "project", "task", "timesheet", "expense", "invoice", "payment"],
+    stages: ["ticket", "quotation", "contract", "project", "timesheet", "expense", "invoice", "payment"],
     heads: ["ticket", "quotation", "project"],
     statusChain: ["project", "contract", "quotation", "ticket"],
     billingTrigger: "milestone-or-time",

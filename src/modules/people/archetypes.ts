@@ -171,7 +171,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["engineeringDocs.dashboard", "view"], ["inventory.dashboard", "view"],
       ["marketing.dashboard", "view"],
       ["projects.list", "full"], ["projects.planner", "edit"], ["projects.sla", "edit"],
-      ["tasks.board", "full"], ["hr.employees", "view"], ["hr.vacations", "edit"],
+      ["hr.employees", "view"], ["hr.vacations", "edit"],
       // THEIR TEAM'S CONTRACTS AND PROBATIONS, read-only and scoped to their own
       // department — seeing that somebody's probation ends next week is part of
       // running a department; signing the contract and ending the job are not,
@@ -282,7 +282,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     note: "Project Manager, Production Manager, Engagement Manager, Rig Manager.",
     grants: [
       ["projects.list", "full"], ["projects.planner", "edit"], ["projects.sla", "edit"],
-      ["projects.overtimes", "edit"], ["tasks.board", "full"], ["inventory.sheets", "edit"],
+      ["projects.overtimes", "edit"], ["inventory.sheets", "edit"],
       ["crmSales.contracts", "edit"], ["projects.dashboard", "view"],
       // WHAT HAS TO BE MADE AND WHETHER THERE IS CAPACITY. This archetype's own
       // note names a Production Manager; the planning board is the screen that
@@ -332,7 +332,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     ],
     note: "Foreman, Supervisor, Charge Nurse, Crew Chief, Shift Leader. Assigns work by name.",
     grants: [
-      ["tasks.board", "full"], ["fieldService.schedule", "edit"], ["fieldService.tracking", "edit"],
+      ["fieldService.schedule", "edit"], ["fieldService.tracking", "edit"],
       // Permits moved to Quality & HSE with a right of their own (tier 5); the
       // lead who held them through Tracking keeps them here.
       ["qualityHse.permits", "edit"],
@@ -375,7 +375,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // through the model changing underneath it. `edit` stops short of delete on
     // every area, so this is a property of the ladder rather than of this list.
     grants: [
-      ["crmSales.tickets", "edit"], ["projects.list", "view"], ["tasks.board", "edit"],
+      ["crmSales.tickets", "edit"], ["projects.list", "view"],
       ["inventory.items", "view"], ["hr.vacations", "edit"], ["engineeringDocs.rfq", "view"],
       // A TECHNICIAN reports what they find and moves the work they are given.
       ["maintenance.requests", "edit"], ["maintenance.orders", "edit"],
@@ -658,7 +658,7 @@ for (const [sectionKey, areas] of Object.entries(SECTION_AREAS)) {
   }
 }
 
-// Main and Tasks are not sections, so no department lists them and nothing
+// Main and Approvals are not sections, so no department lists them and nothing
 // filed under them is another department's work.
 const NOT_A_SECTION = new Set<string>(NEVER_GATED_KEYS);
 

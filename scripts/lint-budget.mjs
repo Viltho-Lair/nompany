@@ -81,7 +81,10 @@ import { execFileSync } from "node:child_process";
 // added a refusal to StudioHr's `send`, which made its two useCallback
 // dependency warnings worth paying off rather than banking — `hrDict` returns a
 // module-level object, so naming `tr` costs no extra reload.
-const MAX_WARNINGS = 100;
+// 100 → 95 on 19/09/2026: the Tasks board left the product for Approvals, and
+// the warnings its screen and module carried went with them — measured 95 on
+// the tree that removed it, and the ceiling comes down to it, not banked.
+const MAX_WARNINGS = 95;
 
 let report;
 try {

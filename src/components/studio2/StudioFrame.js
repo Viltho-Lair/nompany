@@ -51,7 +51,6 @@ import DailyGreeting from "@/components/studio2/DailyGreeting";
 // artwork now and there is no PNG behind any of these names.)
 const SECTION_ICONS = {
   main: "home",
-  tasks: "tasks",
   approvals: "verified",
   "crm-sales": "sales",
   tendering: "tender",
@@ -227,7 +226,6 @@ const SECTION_ICONS = {
   "projects-settings": "gears",
   "finance-settings": "gears",
   "field-service-settings": "gears",
-  "tasks-settings": "gears",
   "approvals-settings": "gears",
 };
 
@@ -275,7 +273,6 @@ function sectionIcon(key) {
 // `text-${hue}-600` is not there to find and arrives unstyled.
 const SECTION_ACCENTS = {
   main: "text-blue-600 dark:text-blue-400",
-  tasks: "text-violet-600 dark:text-violet-400",
   approvals: "text-emerald-600 dark:text-emerald-400",
   "crm-sales": "text-sky-600 dark:text-sky-400",
   tendering: "text-purple-600 dark:text-purple-400",
@@ -509,44 +506,40 @@ export default function StudioFrame({
     .filter((s) => !s.parentId || !visibleIds.has(s.parentId))
     .map((s) => ({ ...s, children: all.filter((c) => c.parentId === s.id) }));
 
-  // TASKS AND ADMINISTRATION ARE NOT SECTIONS, AND THE LIST BELOW IS SECTIONS.
+  // APPROVALS AND ADMINISTRATION ARE NOT SECTIONS, AND THE LIST BELOW IS SECTIONS.
   //
-  // This file has said so at the top since the restructure — "plus Main and
-  // Tasks, which are not sections: Main is the home surface and Tasks is a
-  // cross-cutting control" — while rendering both of them in the same column,
-  // in the same shape, as the fifteen. Administration & Settings is the same
-  // kind of thing from the other end: People, Access, Master data and Studio
-  // settings are how the studio is ADMINISTERED, not work anybody does in it.
+  // Approvals is a control that cuts across every department — everybody asks
+  // for approvals and is asked for them (the owner, 19/09/2026). Administration
+  // & Settings is the same kind of thing from the other end: People, Access,
+  // Master data and Studio settings are how the studio is ADMINISTERED, not
+  // work anybody does in it.
   //
-  // They are marks beside the logo now, each opening its own children. What
-  // that buys is not tidiness: the sidebar is the studio's list of DEPARTMENTS,
-  // and two non-departments sitting in it taught every reader that the list is
-  // "everything", which is what made Tasks look like a sixteenth section on the
-  // org chart the departments register had to correct.
-  //
-  // APPROVALS IS THE THIRD, and the one that replaces Tasks (the owner,
-  // 19/09/2026): the same kind of control, reached the same way.
-  const HEADER_KEYS = ["approvals", "tasks", "administration"];
+  // They are marks beside the logo, each opening its own children. What that
+  // buys is not tidiness: the sidebar is the studio's list of DEPARTMENTS, and a
+  // non-department sitting in it teaches every reader that the list is
+  // "everything" — which is how a control once came to look like a sixteenth
+  // section on the org chart the departments register had to correct.
+  const HEADER_KEYS = ["approvals", "administration"];
   const tree = fullTree.filter((n) => !HEADER_KEYS.includes(n.key));
 
   // `/administration` IS A NAVIGATION NODE AND NOT A DESTINATION, so its own
   // row is left out — it exists to own four children and renders nothing worth
-  // arriving at. Tasks is the opposite: its parent IS the task list, so it
-  // leads its own menu under a name that says which of the two it is. The
+  // arriving at. Approvals is the opposite: its parent IS the list of approvals,
+  // so it leads its own menu under a name that says which of the two it is. The
   // asymmetry is in the data, not a special case: a parent is included only
   // where the parent is a screen.
-  const PARENT_IS_A_SCREEN = { approvals: true, tasks: true, administration: false };
+  const PARENT_IS_A_SCREEN = { approvals: true, administration: false };
   // What the parent's own row is called in its menu — the list, named for what
   // it is so it cannot be confused with the section's name.
-  const PARENT_LABEL = { approvals: tr.approvalList, tasks: tr.taskList };
+  const PARENT_LABEL = { approvals: tr.approvalList };
 
   const headerMenus = HEADER_KEYS
     .map((key) => {
       const node = fullTree.find((n) => n.key === key);
       if (!node) return null;
       const items = [
-        // The parent's own screen, where it has one. `taskList` rather than the
-        // section's name: "Tasks > Tasks" says nothing about which is which.
+        // The parent's own screen, where it has one, named for what it is:
+        // "Approvals > Approvals" says nothing about which is which.
         ...(PARENT_IS_A_SCREEN[key]
           ? [{ key: node.key, href: `/${studio.slug}/${node.key}`, label: PARENT_LABEL[key] }]
           : []),
@@ -708,7 +701,7 @@ export default function StudioFrame({
         </span>
       </Link>
 
-      {/* TASKS AND ADMINISTRATION, AS MARKS. No visible label — the name is on
+      {/* APPROVALS AND ADMINISTRATION, AS MARKS. No visible label — the name is on
           hover and on `aria-label`, both, for the reason the Engagements square
           in the footer gives.
 

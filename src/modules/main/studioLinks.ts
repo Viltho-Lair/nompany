@@ -34,7 +34,7 @@ export const linkToQuotation = (slug: string, id: string) => (id ? to(slug, "quo
 // THE PROJECT LIST, not the Projects root. `?project=` is read by the list,
 // which opens that project's details — stage, manager, dates, delete. The root
 // is the dashboard and ignores the parameter, so every "open project" link in
-// Finance, Tasks, Inventory and Operations used to land on a chart, and no
+// Finance, Inventory and Operations used to land on a chart, and no
 // screen could reach the one dialog that edits or closes a project.
 export const linkToProject = (slug: string, id: string) => (id ? to(slug, "projects-list", { project: id }) : "");
 

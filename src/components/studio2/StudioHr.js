@@ -463,7 +463,7 @@ function EmployeeEditor({ person, departments, roles, certifications, canAssignR
     <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* THE STUDIO'S OWN DEPARTMENTS, not the product's sections. This list
-            used to be the nav — fifteen entries plus Tasks, four of them screens
+            used to be the nav — fifteen entries plus a control, four of them screens
             that render nothing — and is the register under Master data now.
             Placing somebody is HR's; maintaining the list is not. */}
         <Field label={tr.department} as="select" value={form.departmentId}

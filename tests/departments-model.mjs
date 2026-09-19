@@ -166,24 +166,24 @@ for (const field of FIELDS_OF_WORK) {
 }
 ok("every chart carries Finance and HR", true);
 
-// The picker excludes main, tasks and the four sections that render nothing —
+// The picker excludes main, approvals and the four sections that render nothing —
 // which is exactly the sixteen-entry list the derived model offered. A seed
 // naming one of those would put it straight back.
-const DEAD = new Set(["main", "tasks", "manufacturing", "assets", "reports", "quality-hse"]);
+const DEAD = new Set(["main", "approvals", "manufacturing", "assets", "reports", "quality-hse"]);
 const seedsDead = FIELDS_OF_WORK.flatMap((f) => S.departmentsForField(f))
   .flatMap((d) => d.sectionKeys)
   .filter((k) => DEAD.has(k));
 // Manufacturing, Assets, Quality & HSE and Reports have no screen TODAY, and
 // the seeds name them anyway where the trade genuinely works there — a factory
 // has a Production department whatever the nav can currently draw. What must
-// never appear is main or tasks, which are not departments in any studio.
+// never appear is main or approvals, which are not departments in any studio.
 const seedsNotADepartment = FIELDS_OF_WORK.flatMap((f) => S.departmentsForField(f))
   .flatMap((d) => d.sectionKeys)
-  .filter((k) => k === "main" || k === "tasks");
+  .filter((k) => k === "main" || k === "approvals");
 ok("no seeded department claims to work in Main",
   !seedsNotADepartment.includes("main"), seedsNotADepartment.join(", "));
-ok("...or in Tasks, which is a control rather than a section",
-  !seedsNotADepartment.includes("tasks"), seedsNotADepartment.join(", "));
+ok("...or in Approvals, which is a control rather than a section",
+  !seedsNotADepartment.includes("approvals"), seedsNotADepartment.join(", "));
 console.log(`  note  ${seedsDead.length} seeded links name a section with no screen yet (expected: they arrive with the screen)`);
 
 console.log("\n== the migration off section keys");

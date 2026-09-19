@@ -6,8 +6,8 @@
 //                                 Its failure mode is ADVERTISING A SECTION THAT
 //                                 RENDERS NOTHING — the hero has been streaming
 //                                 sixteen names past visitors, four of them in
-//                                 NO_SCREEN_YET and one of them Tasks, which is
-//                                 not a department at all.
+//                                 NO_SCREEN_YET and one of them a control,
+//                                 which is not a department at all.
 //   shared/marketing/claims       every number stated on a public page, and the
 //                                 module + export that backs it. Its failure
 //                                 mode is a claim outliving its source, which is
@@ -72,9 +72,9 @@ for (const dead of NO_SCREEN_YET) {
 }
 
 // NOT A DEPARTMENT AND NOT A SECTION. CLAUDE.md is explicit: Main is the home
-// surface and Tasks is a cross-cutting control. The hero counted both.
+// surface and Approvals is a cross-cutting control.
 ok("...nor is main", !D.LIVE_DEPARTMENT_KEYS.includes("main"));
-ok("...nor is tasks", !D.LIVE_DEPARTMENT_KEYS.includes("tasks"));
+ok("...nor is approvals", !D.LIVE_DEPARTMENT_KEYS.includes("approvals"));
 
 // AND NOT SYSTEM CONFIGURATION. Read from `SYSTEM_SECTION_KEYS` rather than
 // naming "administration" here, so a second system container added later is

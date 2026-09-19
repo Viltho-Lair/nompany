@@ -4,8 +4,8 @@
 // definition that decides what they may do once they are in.
 //
 // Transcribed from the coercion that already writes them, and not parsing
-// anything yet — see the note at the top of modules/tasks/schema.ts for why
-// replacing the coercion is the next step rather than this one.
+// anything yet — replacing the coercion with a parse is a behaviour change of
+// its own, and the next step rather than this one.
 
 import { z } from "zod";
 import { SCOPES } from "@/platform/access";

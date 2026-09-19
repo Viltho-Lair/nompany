@@ -18,7 +18,7 @@ export const MAIN_AGG_SOURCES: { section: string; fallback: string | null; colle
   { section: "engineering-docs-rfq", fallback: "engineering-docs", collection: "rfqs", switch: "quotations-rfq" },
   { section: "projects-list", fallback: "projects", collection: "projects" },
   { section: "inventory-items", fallback: "inventory", collection: "inventoryItems" },
-  { section: "tasks", fallback: null, collection: "tasks" },
+  { section: "approvals", fallback: null, collection: "approvals" },
 ];
 
 const TRACKED_COLLECTIONS: ReadonlySet<string> = new Set(MAIN_AGG_SOURCES.map((s) => s.collection));

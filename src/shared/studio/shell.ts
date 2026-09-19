@@ -40,8 +40,7 @@ type ShellStrings = {
   expand: string;
   collapse: string;
   documentation: string;
-  /** The Tasks parent's own screen, named in its menu beside Task settings. */
-  taskList: string;
+  /** The Approvals parent's own screen, named in its menu beside Approval settings. */
   approvalList: string;
   studioSettings: string;
   // THE SETTINGS SURFACE — what Administration became when it stopped being a
@@ -114,7 +113,6 @@ const en: ShellStrings = {
   expand: "Expand",
   collapse: "Collapse",
   documentation: "Documentation",
-  taskList: "Task list",
   approvalList: "My approvals",
   studioSettings: "Studio settings",
   settings: "Settings",
@@ -170,7 +168,6 @@ const ar: ShellStrings = {
   expand: "توسيع",
   collapse: "طي",
   documentation: "دليل الاستخدام",
-  taskList: "قائمة المهام",
   approvalList: "موافقاتي",
   studioSettings: "إعدادات الاستوديو",
   settings: "الإعدادات",

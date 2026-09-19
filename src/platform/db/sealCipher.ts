@@ -88,9 +88,7 @@ const BY_COLLECTION: Record<string, Set<string>> = {
   salesTickets: new Set(["ref", "title", "description", "location"]),
   // RFQ-ACME-001.
   rfqs: new Set(["reference"]),
-  // "Approve quotation Q-0004 · ACME" — tasks are titled from the deal.
-  tasks: new Set(["title", "description"]),
-  // The same deal copied onto its approval — "Q-0004 · ACME", the client's PO
+  // A deal copied onto its approval — "Q-0004 · ACME", the client's PO
   // and its file name. Sealed WHOLE: `source` is one field holding the title,
   // and nothing queries inside it (approvals are found by `type`).
   approvals: new Set(["source", "note", "attachment"]),

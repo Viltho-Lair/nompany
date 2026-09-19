@@ -495,7 +495,7 @@ async function studioSetup() {
   ok("a department the owner said no to is off, whatever the trade suggested",
     !isOn("inventory") && !isOn("procurement") && !isOn("logistics"),
     "Wholesale & Retail suggests all three");
-  ok("Main and Tasks are on", isOn("main") && isOn("tasks"));
+  ok("Main and Approvals are on", isOn("main") && isOn("approvals"));
   ok("Settings is on — it is not a department", isOn("administration") && isOn("administration-settings"));
   ok("a part the owner unticked is off", !isOn("crm-sales-pipeline"));
   ok("the other parts of that department are on", isOn("crm-sales-tickets") && isOn("crm-sales-clients"));
@@ -519,12 +519,12 @@ async function studioSetup() {
   ok("no invoice tile — Finance is off", h.outstanding === null, String(h.outstanding));
   ok("the tickets tile stays — CRM & Sales is on", h.openTickets !== null, String(h.openTickets));
   ok("the headcount tile stays — HR is on", h.headcount !== null, String(h.headcount));
-  ok("the tasks tile stays — Tasks is never off", h.awaitingMe !== null, String(h.awaitingMe));
+  ok("the waiting-on-you tile stays — Approvals is never off", h.awaitingMe !== null, String(h.awaitingMe));
   const feedKinds = new Set((front.body?.recent || []).map((r) => r.kind));
   ok("the activity feed carries no projects or quotations",
     !feedKinds.has("project") && !feedKinds.has("quotation"), [...feedKinds].join(","));
   // Drop the switched-off parts: a combined widget stays while any source is
-  // on (Tasks always is), and whatever it draws comes from switched-on sources.
+  // on (Approvals always is), and whatever it draws comes from switched-on sources.
   const exec = front.body?.executive || {};
   ok("no Main widget is hidden while one of its sources is on", (exec.hidden || []).length === 0,
     JSON.stringify(exec.hidden));

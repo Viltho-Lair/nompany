@@ -165,7 +165,7 @@ export function tradeSuggestionFor(
  * screen and the create route, so the screen never offers what the route would
  * refuse.
  *
- * Every product root except Main and Tasks (never off) and any section with no
+ * Every product root except Main and Approvals (never off) and any section with no
  * screen yet. Under each, the sub-sections a company might want without the
  * rest of the department — the point of sale without the pipeline, say —
  * leaving out filed-only rows (another department's storage) and system rows

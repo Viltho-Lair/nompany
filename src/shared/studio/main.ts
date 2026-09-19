@@ -16,7 +16,7 @@ type Strings = CommonStrings & {
   feedTicket: string;
   feedQuotation: string;
   feedProject: string;
-  feedTask: string;
+  feedApproval: string;
   // Executive widgets.
   departmentActivity: string;
   departmentActivityHint: string;
@@ -60,7 +60,7 @@ const en: Strings = {
   feedTicket: "Ticket",
   feedQuotation: "Quotation",
   feedProject: "Project",
-  feedTask: "Task",
+  feedApproval: "Approval",
   departmentActivity: "Department activity",
   departmentActivityHint: "New records, last 30 days",
   noSectionsVisible: "No sections you can see yet.",
@@ -104,7 +104,7 @@ const ar: Strings = {
   feedTicket: "تذكرة",
   feedQuotation: "عرض سعر",
   feedProject: "مشروع",
-  feedTask: "مهمة",
+  feedApproval: "موافقة",
   departmentActivity: "نشاط الأقسام",
   departmentActivityHint: "سجلات جديدة، آخر 30 يوما",
   noSectionsVisible: "لا توجد أقسام يمكنك رؤيتها بعد.",

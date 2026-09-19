@@ -6,7 +6,7 @@ import type { Row } from "@/platform/db/store";
 //
 // THE STUDIO'S OWN ORG CHART, stored. It used to be derived from the section
 // list — `departmentsFromSections`, now deleted — which meant every studio's
-// departments were the product's fifteen nav entries plus Tasks, four of which
+// departments were the product's fifteen nav entries plus a control, four of which
 // render nothing. No company has that shape, and three things a real one needs
 // could not be said at all: two departments inside one section, one department
 // across several, and a department with no section (Legal, a branch office).

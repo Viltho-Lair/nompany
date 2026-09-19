@@ -61,7 +61,7 @@ const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
  * row that appeared in the old derived list and should never have:
  *
  *   main            the studio's home screen, not somewhere anybody works
- *   tasks           a cross-cutting control rather than a section at all
+ *   approvals       a cross-cutting control rather than a section at all
  *   NO_SCREEN_YET   four sections that render nothing — Manufacturing, Assets,
  *                   Reports, Quality & HSE. Offering a department the choice of
  *                   a screen that does not exist is the dead capability this
@@ -86,7 +86,7 @@ const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
  * assignable without anybody remembering this file — the same reason
  * tests/restructure.mjs stopped keeping a hand-typed copy of that list.
  */
-const NEVER_A_DEPARTMENTS_SECTION = new Set(["main", "tasks", "approvals"]);
+const NEVER_A_DEPARTMENTS_SECTION = new Set(["main", "approvals"]);
 
 // Widened to `readonly string[]` on purpose: NO_SCREEN_YET is a tuple of
 // literals, which is what makes it useful to the resolver and useless to a

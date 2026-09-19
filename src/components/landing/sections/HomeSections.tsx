@@ -57,7 +57,7 @@ export function WhatItIs({ locale }: { locale: string }) {
 export function DepartmentsGlance({ locale }: { locale: string }) {
   const tr = homeCopy(locale);
   // READ FROM THE SOFTWARE, not written here. The old page streamed sixteen
-  // names past every visitor — Tasks, which is not a department, and four
+  // names past every visitor — a control that is not a department, and four
   // sections that render nothing.
   const departments = liveDepartments(locale);
 

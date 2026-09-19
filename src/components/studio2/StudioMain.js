@@ -25,14 +25,14 @@ const MainDashboard = nextDynamic(() => import("@/components/studio2/MainDashboa
 // section they were not granted is ABSENT, not zero — a zero would be a claim
 // about a place they have no access to, and the API does not even read it.
 
-const FEED_ICON = { ticket: "ticket", quotation: "report", project: "blueprint", task: "checkDouble" };
+const FEED_ICON = { ticket: "ticket", quotation: "report", project: "blueprint", approval: "verified" };
 
 export default function StudioMain({ slug }) {
   const locale = useLocale();
   const tr = mainDict(locale);
   // The feed names the KIND of record that moved. A fixed four, defined by the
   // code and not by any tenant, so they translate.
-  const FEED_WORD = { ticket: tr.feedTicket, quotation: tr.feedQuotation, project: tr.feedProject, task: tr.feedTask };
+  const FEED_WORD = { ticket: tr.feedTicket, quotation: tr.feedQuotation, project: tr.feedProject, approval: tr.feedApproval };
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -44,7 +44,7 @@ export default function StudioMain({ slug }) {
   useReload(load);
   // The front door reflects every desk, so it watches the busiest of them.
   useLiveUpdates(slug, "crm-sales", load);
-  useLiveUpdates(slug, "tasks", load);
+  useLiveUpdates(slug, "approvals", load);
   useLiveUpdates(slug, "projects", load);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
@@ -56,7 +56,7 @@ export default function StudioMain({ slug }) {
   // Only the figures this person is entitled to. `null` means the section was
   // never read, so the tile simply is not here.
   const tiles = [
-    { key: "tasks", label: tr.needsYou, value: headlines.awaitingMe, tone: headlines.awaitingMe > 0 ? "text-brand-700 dark:text-brand-300" : "" },
+    { key: "approvals", label: tr.needsYou, value: headlines.awaitingMe, tone: headlines.awaitingMe > 0 ? "text-brand-700 dark:text-brand-300" : "" },
     { key: "crm-sales-tickets", label: tr.openTickets, value: headlines.openTickets },
     { key: "quotations-rfq", label: tr.openRfqs, value: headlines.openRfqs },
     { key: "quotations-register", label: tr.liveQuotations, value: headlines.liveQuotations },

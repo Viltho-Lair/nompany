@@ -5,7 +5,7 @@ import { statusLabel } from "@/shared/studio/statuses";
 
 // ONE status pill for the whole studio. Every department used to keep its own
 // little `const XXX_TONE = { … }` map beside the screen that rendered it —
-// Finance had three, Sales/Tasks/Technical/Projects/Operations/HR/Quality one
+// Finance had three, Sales/Technical/Projects/Operations/HR/Quality one
 // each — and every one of them repeated the SAME five colour strings. That is
 // the duplication the house style forbids: a "Paid" pill in Finance and a
 // "Received" pill in Inventory are the same emerald, and nothing guaranteed they
@@ -87,8 +87,6 @@ export const STATUS_TONES = {
   // approved is brand rather than emerald for the same reason a bill's is — it
   // means authorised, not finished.
   changeOrder: { draft: "neutral", submitted: "warning", approved: "progress", rejected: "danger" },
-  // StudioTasks — task board (STATUS_TONE).
-  task:      { Open: "neutral", "In progress": "progress", Blocked: "danger", Done: "success" },
   // StudioApprovals — an approval's overall status, and each of its steps.
   // Pending is amber because it is WAITING ON SOMEBODY; a step not yet reached
   // and one closed without being reached are both neutral — nobody owes them.

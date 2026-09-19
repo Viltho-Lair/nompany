@@ -56,7 +56,7 @@ const COMPOUND_ROOTS = ["crm-sales", "engineering-docs", "field-service", "quali
  * THE DEPARTMENT A SECTION KEY BELONGS TO — "crm-sales-quotations" is CRM &
  * Sales. A prefix split rather than a table, because SECTION_DEFS names every
  * child `<department>-<thing>` and a hand-kept table is a second list to
- * forget to extend. `tasks`, `hr` and `projects` have no dash and are their
+ * forget to extend. `approvals`, `hr` and `projects` have no dash and are their
  * own department, which the same split already gives — but a PLAIN first-dash
  * split stops being enough the moment a root itself contains one, which is
  * exactly what the four compounds above do: "field-service-schedule".indexOf(
@@ -80,7 +80,7 @@ export function departmentOf(sectionKey: string): string {
  *
  * An exact section match wins, its department next, then weight. Nothing is
  * FILTERED OUT by the view — an invoice ninety days overdue is worth saying on
- * the Tasks board too; it simply says it later.
+ * the Approvals page too; it simply says it later.
  */
 export function rankForView(insights: Insight[], view: string): Insight[] {
   const dept = departmentOf(view);
@@ -105,7 +105,7 @@ const daysEn = (d: number) => `${d} day${Math.abs(d) === 1 ? "" : "s"}`;
 const moreEn = (v: unknown) => (n(v) > 0 ? ` (+${n(v)} more)` : "");
 
 const LABEL_EN: Record<string, string> = {
-  "task.overdue": "Task", "task.approval": "Approval", "task.awaiting": "Task",
+  "approval.awaiting": "Approval",
   "quotation.noItems": "Quotation", "quotation.stale": "Quotation",
   "rfq.unquoted": "RFQ",
   "ticket.noRfq": "Ticket", "ticket.deadline": "Ticket",
@@ -122,12 +122,8 @@ const LABEL_EN: Record<string, string> = {
 function textEn(kind: string, v: InsightVars, money: MoneyFmt): string | null {
   const tail = moreEn(v.more);
   switch (kind) {
-    case "task.overdue":
-      return `“${s(v.title)}” was due ${daysEn(n(v.days))} ago and is still on you.${tail}`;
-    case "task.approval":
-      return `“${s(v.title)}” is waiting on your decision.${tail}`;
-    case "task.awaiting":
-      return `“${s(v.title)}” is assigned to you and still open.${tail}`;
+    case "approval.awaiting":
+      return `“${s(v.title)}” is waiting on your approval.${tail}`;
     case "quotation.noItems":
       return `${s(v.number)} is still a draft with no items priced.${tail}`;
     case "quotation.stale":
@@ -204,7 +200,7 @@ const daysAr = (d: number) => {
 const moreAr = (v: unknown) => (n(v) > 0 ? ` (و${n(v)} غيرها)` : "");
 
 const LABEL_AR: Record<string, string> = {
-  "task.overdue": "مهمة", "task.approval": "اعتماد", "task.awaiting": "مهمة",
+  "approval.awaiting": "موافقة",
   "quotation.noItems": "عرض سعر", "quotation.stale": "عرض سعر",
   "rfq.unquoted": "طلب عرض سعر",
   "ticket.noRfq": "تذكرة", "ticket.deadline": "تذكرة",
@@ -221,12 +217,8 @@ const LABEL_AR: Record<string, string> = {
 function textAr(kind: string, v: InsightVars, money: MoneyFmt): string | null {
   const tail = moreAr(v.more);
   switch (kind) {
-    case "task.overdue":
-      return `«${s(v.title)}» تأخرت ${daysAr(n(v.days))} ولا تزال عليك.${tail}`;
-    case "task.approval":
-      return `«${s(v.title)}» بانتظار قرارك.${tail}`;
-    case "task.awaiting":
-      return `«${s(v.title)}» مسندة إليك ولا تزال مفتوحة.${tail}`;
+    case "approval.awaiting":
+      return `«${s(v.title)}» بانتظار موافقتك.${tail}`;
     case "quotation.noItems":
       return `${s(v.number)} لا يزال مسودة بلا بنود مسعرة.${tail}`;
     case "quotation.stale":

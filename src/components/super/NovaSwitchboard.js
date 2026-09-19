@@ -31,7 +31,7 @@ const DEPT_ICON = {
   Quotations: "rfp",
   Projects: "projects",
   Maintenance: "tools",
-  Tasks: "tasks",
+  Approvals: "verified",
   Quality: "hse",
   HR: "team",
   Finance: "wallet",

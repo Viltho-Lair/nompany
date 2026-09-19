@@ -9,7 +9,6 @@
 // becomes a preview the person can reject, never a silent write.
 
 import { hrContext, requestVacation, decideVacation } from "@/modules/hr/hr";
-import { tasksContext, updateTask } from "@/modules/tasks/tasks";
 import { salesContext, editTicket } from "@/modules/sales/sales";
 import { studioContext } from "@/lib/studios";
 import { markRead } from "@/platform/notify/notifications";
@@ -101,26 +100,6 @@ export const ACTION_IMPLS: Record<string, ActionImpl> = {
       const ctx = await salesContext(user, slug);
       if ("error" in ctx) return { error: ctx.error };
       return editTicket(ctx, str(f.id), { addComment: str(f.comment) });
-    },
-  },
-
-  "action.tasks.advance-mine": {
-    label: "Advance my task",
-    description: "Change the status of a task assigned to the user. Needs the task id and the new status.",
-    fields: {
-      type: "object",
-      properties: {
-        id: { type: "string", description: "The task's id" },
-        status: { type: "string", enum: ["Open", "In progress", "Blocked", "Done"] },
-      },
-      required: ["id", "status"],
-    },
-    required: ["id", "status"],
-    summarise: (f) => `Set task ${str(f.id)} to ${str(f.status)}`,
-    submit: async (user, slug, f) => {
-      const ctx = await tasksContext(user, slug);
-      if ("error" in ctx) return { error: ctx.error };
-      return updateTask(ctx, str(f.id), { status: str(f.status) });
     },
   },
 };

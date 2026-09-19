@@ -94,10 +94,10 @@ export const UNIVERSAL_SECTION_KEYS = [
 ] as const;
 
 // NOT SECTIONS, AND NEVER OFF. Main is the home surface — without it a member
-// signs in with nowhere to land — and Tasks is a cross-cutting control rather
-// than a department. `REQUIRED_SECTIONS` in platform/db/sections says the same
+// signs in with nowhere to land — and Approvals is a cross-cutting control
+// rather than a department: every member asks and is asked. `REQUIRED_SECTIONS` in platform/db/sections says the same
 // thing about Main from the storage side.
-export const NEVER_GATED_KEYS = ["main", "tasks", "approvals"] as const;
+export const NEVER_GATED_KEYS = ["main", "approvals"] as const;
 
 // A SECTION THAT CANNOT WORK WITHOUT ANOTHER BRINGS IT ALONG.
 //
