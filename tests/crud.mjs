@@ -62,6 +62,8 @@ const RESOURCES = [
   {
     name: "marketingForms",
     module: "marketing/forms",
+    // The route answers { form }, not { marketingForm }.
+    field: "form",
     list: (b) => b?.forms || [],
     make: () => ({ name: `Enquiry ${F.rand()}`, template: "enquiry", locale: "en" }),
     patch: (id) => ({ id, name: `Enquiry renamed ${F.rand()}` }),
@@ -71,6 +73,7 @@ const RESOURCES = [
   {
     name: "marketingCampaigns",
     module: "marketing/campaigns",
+    field: "campaign",
     list: (b) => b?.campaigns || [],
     make: () => ({ name: `Spring push ${F.rand()}`, objective: "leads", channels: ["email"] }),
     patch: (id) => ({ id, name: `Spring push renamed ${F.rand()}` }),
@@ -133,7 +136,8 @@ async function lifecycle(r) {
   if (!ok(`${r.name}: create answers`, created.status < 300,
     `${created.status} ${JSON.stringify(created.body).slice(0, 140)}`)) return;
 
-  const row = created.body?.[r.name.replace(/s$/, "")] || created.body?.location
+  // An entry whose route names its row differently says so in `field`.
+  const row = created.body?.[r.field || r.name.replace(/s$/, "")] || created.body?.location
     || created.body?.department || created.body?.row;
   const id = row?.id;
   if (!ok(`${r.name}: create returns a row with an id`, Boolean(id),
