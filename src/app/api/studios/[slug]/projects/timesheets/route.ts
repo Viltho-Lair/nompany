@@ -2,7 +2,7 @@ import { route, refused } from "@/platform/http/route";
 import { projectsContext } from "@/modules/projects/projects";
 import {
   listTimesheets, createTimesheet, updateTimesheet,
-  submitTimesheet, answerTimesheet,
+  submitTimesheet,
 } from "@/modules/projects/timesheets";
 
 export const runtime = "nodejs";
@@ -34,26 +34,21 @@ export const PUT = route(spec, async (projects) => {
   return { ok: true, timesheet: result.timesheet };
 });
 
-// Same reasoning as change orders: approving a timesheet is a transition, and
-// invariant 7 is enforced there rather than by the permission model. A generic
-// PUT taking a status would let somebody approve their own hours.
+// Same reasoning as change orders: submitting is its own verb and asks for the
+// sheet's approval; ANSWERING is the Approvals page's since 19/09/2026, where the
+// submitter is never asked about their own hours. A generic PUT taking a status
+// would let somebody approve their own.
 export const PATCH = route(spec, async (projects) => {
   const id = String(projects.body.id || "");
   if (!id) return { error: "missing" };
 
-  // THE ANSWER IS NARROWED HERE, and it was not: `answerTimesheet` takes a
-  // BOOLEAN and was handed the whole body. An object is truthy, so
-  // `{ action: "reject" }` APPROVED the timesheet it was rejecting — the exact
-  // defect the change order carried, in the exact same shape, found by the
-  // guard written for that one (`tests/restructure.mjs`). The compiler cannot
-  // see it: a route handler's `body` is not statically typed.
   const action = String(projects.body.action || "");
   const result = action === "submit"
     ? await submitTimesheet(projects, id)
     : action === "approve" || action === "reject"
-      ? await answerTimesheet(projects, id, action === "approve")
-      : { error: "action" };
+      ? { error: "not-answerable" as const }
+      : { error: "action" as const };
 
   if (refused(result)) return result;
-  return { ok: true, timesheet: result.timesheet };
+  return { ok: true, timesheet: result.timesheet, ...(result.approvalProblem ? { approvalProblem: result.approvalProblem } : {}) };
 });

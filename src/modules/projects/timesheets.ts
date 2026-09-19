@@ -1,9 +1,11 @@
 // TIMESHEETS — the labor record, and the largest cost driver on most deals.
 //
 // The record's shape and the reasoning behind each field are in
-// ./timesheetSchema. This file creates and reads them, and holds the two things
-// the schema cannot say: what a sheet COSTS (derived, never stored) and who is
-// allowed to sign one off (invariant 7).
+// ./timesheetSchema. This file creates and reads them, and holds what the
+// schema cannot say: what a sheet COSTS (derived, never stored). Who signs one
+// off is the Approvals page's since 19/09/2026 — submitting a sheet asks for its
+// approval (type `timesheet`), and the submitter is never asked about their own
+// hours (the Admin excepted).
 import { repo } from "@/platform/db/repo";
 import { requirePermission } from "@/platform/access";
 import { attachRecord, resolveDealId } from "@/platform/db/engagement";
@@ -11,6 +13,11 @@ import type { Timesheet, TimesheetEntry } from "./timesheetSchema";
 import { TIMESHEET_STATUSES } from "./timesheetSchema";
 
 import type { ProjectsContext } from "./types";
+import { approvalPreflight, approvalRows, requestApproval } from "@/modules/approvals/approvals";
+import { approvalSummary } from "@/modules/approvals/reads";
+import type { Refusal } from "@/modules/approvals/effects";
+import type { Approval } from "@/modules/approvals/schema";
+import type { StudioRef } from "@/modules/context";
 import { roundMoney } from "@/shared/money";
 
 type TimesheetStatus = (typeof TIMESHEET_STATUSES)[number];
@@ -143,10 +150,19 @@ export async function listTimesheets(ctx: ProjectsContext, { dealId }: { dealId?
   if (denied) return denied;
   const { studio, listSection } = ctx;
   const where = dealId ? { dealId } : undefined;
-  const timesheets = await Timesheets.find({ studio, section: listSection }, { where });
+  const [timesheets, approvals] = await Promise.all([
+    Timesheets.find({ studio, section: listSection }, { where }),
+    approvalRows(studio, ctx.approvalsSection),
+  ]);
   // Totals ride along because every caller wants them and none should re-derive
-  // them; they are still computed here rather than stored.
-  return { timesheets: timesheets.map((t) => ({ ...t, ...timesheetTotals(t, ctx.studio.currency) })) };
+  // them; they are still computed here rather than stored. So does how far each
+  // sheet's approval has got, read from the approval.
+  return {
+    timesheets: timesheets.map((t) => ({
+      ...t, ...timesheetTotals(t, ctx.studio.currency),
+      approval: approvalSummary(approvals, TIMESHEET_APPROVAL, t.id),
+    })),
+  };
 }
 
 /**
@@ -254,7 +270,35 @@ export async function updateTimesheet(ctx: ProjectsContext, id: string, body: Re
   return timesheet ? { timesheet: { ...timesheet, ...timesheetTotals(timesheet, ctx.studio.currency) } } : { error: "notfound" };
 }
 
-/** Put the sheet to its approver, and record who put it — half of the check below. */
+/** The approval type a timesheet asks for. Its key is stored — see modules/approvals/registry. */
+export const TIMESHEET_APPROVAL = "timesheet";
+
+type Requester = { studio: StudioRef; collaborator: ProjectsContext["collaborator"]; roles: ProjectsContext["roles"] };
+
+/** What the approval is asked about: the sheet's labour cost, in the studio's currency. */
+const amountOf = (studio: StudioRef, t: Timesheet) => ({
+  value: Number(timesheetTotals(t, studio.currency).totalCost) || 0,
+  currency: String(studio.currency || ""),
+});
+
+function askForTimesheet(requester: Requester, t: Timesheet) {
+  const totals = timesheetTotals(t, requester.studio.currency);
+  return requestApproval(requester, {
+    type: TIMESHEET_APPROVAL,
+    source: {
+      sectionKey: "projects-list", recordId: t.id, ref: String(t.reference || ""),
+      title: `${t.reference || "Timesheet"} · ${t.periodStart || ""}${t.periodEnd ? ` – ${t.periodEnd}` : ""}`,
+    },
+    note: `${(t.entries || []).length} entries · ${totals.normalHours ?? ""} normal h · ${totals.overtimeHours ?? ""} overtime h`,
+    amount: amountOf(requester.studio, t),
+  });
+}
+
+/**
+ * PUT THE SHEET TO ITS APPROVERS — which asks for its approval, answered on the
+ * Approvals page. Who submitted is recorded; they are never asked about their
+ * own hours, the Admin excepted.
+ */
 export async function submitTimesheet(ctx: ProjectsContext, id: string) {
   const denied = requirePermission(ctx.access, "projects.list.edit");
   if (denied) return denied;
@@ -264,50 +308,67 @@ export async function submitTimesheet(ctx: ProjectsContext, id: string) {
   if (!current) return { error: "notfound" };
   if (current.status !== "draft") return { error: "already", status: current.status };
 
+  const requester = { studio, collaborator, roles: ctx.roles };
+  const preflight = await approvalPreflight(requester, { type: TIMESHEET_APPROVAL, amount: amountOf(studio, current) });
+  if ("error" in preflight) return preflight;
+
   // CAPTURED ONCE, OUTSIDE THE CLOSURE. This is a function patch (invariant 8),
   // so updateRow may invoke it more than once — a CAS retry under contention, or
   // once per store under NOMPANY_DB=parity — and a `new Date()` inside would
   // disagree between those invocations.
   const at = new Date().toISOString();
   const timesheet = await Timesheets.update({ studio, section: listSection }, id, () => ({
-    status: "submitted" satisfies TimesheetStatus,
+    status: (preflight.needed ? "submitted" : "approved") satisfies TimesheetStatus,
     submittedByCollaboratorId: collaborator.id,
     submittedAt: at,
+    // UNDER EVERY LIMIT THE STUDIO SET, nothing is asked: approved as submitted.
+    ...(preflight.needed ? {} : { approvedByCollaboratorId: collaborator.id, approvedAt: at }),
     updatedAt: at,
   }));
-  return timesheet ? { timesheet: { ...timesheet, ...timesheetTotals(timesheet, ctx.studio.currency) } } : { error: "notfound" };
+  if (!timesheet) return { error: "notfound" };
+  if (preflight.needed) {
+    const asked = await askForTimesheet(requester, timesheet);
+    if (asked.error) return { timesheet: { ...timesheet, ...timesheetTotals(timesheet, ctx.studio.currency) }, approvalProblem: asked.error };
+  }
+  return { timesheet: { ...timesheet, ...timesheetTotals(timesheet, ctx.studio.currency) } };
+}
+
+/** The sheet an approval names, in a context carrying the studio's authority. */
+async function timesheetFor(studio: StudioRef, approval: Approval, byCollaboratorId: string) {
+  // IMPORTED WHEN NEEDED: ./projects imports the services beside it.
+  const { projectsContext } = await import("./projects");
+  const ctx = await projectsContext.asApprover(studio.id, byCollaboratorId);
+  if (ctx.error) return { error: ctx.error } as Refusal;
+  const where = { studio: ctx.studio, section: ctx.listSection };
+  const t = await Timesheets.byId(where, approval.source.recordId);
+  return t ? { where, t } : ({ error: "notfound" } as Refusal);
 }
 
 /**
- * SIGN THE SHEET OFF — INVARIANT 7 at the transition: the person who submitted
- * the hours may not be the one who approves them. Holding both rights is
- * legitimate; using both on one record is not, and labour is precisely where
- * self-approval costs a company money.
- *
- * Guarded by `projects.list.edit` rather than an `approve` verb of its own, for
- * the reason the stage registry gives: minting a permission area for a record
- * that has no screen yet would move the 123-key matrix and every golden that
- * pins it.
+ * ANSWER THE SHEET — what deciding a `timesheet` approval does (see
+ * modules/approvals/effects). Only from `submitted`, once, under a function
+ * patch. STAMPED ON A REJECTION TOO: "nobody answered" and "this person said no"
+ * are different states; the approver's reason travels with it.
  */
-export async function answerTimesheet(ctx: ProjectsContext, id: string, approve: boolean) {
-  const denied = requirePermission(ctx.access, "projects.list.edit");
-  if (denied) return denied;
-
-  const { studio, listSection, collaborator } = ctx;
-  const current = await Timesheets.byId({ studio, section: listSection }, id);
-  if (!current) return { error: "notfound" };
-  if (current.status !== "submitted") return { error: "not-submitted", status: current.status };
-  if (current.submittedByCollaboratorId === collaborator.id) return { error: "same-signer" };
-
+async function answer(studio: StudioRef, approval: Approval, by: string, approve: boolean, reason: string) {
+  const found = await timesheetFor(studio, approval, by);
+  if ("error" in found) return found;
+  if (found.t.status !== "submitted") return approve ? ({ error: "already-decided" } as Refusal) : ("done" as const);
   const at = new Date().toISOString();
   const status: TimesheetStatus = approve ? "approved" : "rejected";
-  const timesheet = await Timesheets.update({ studio, section: listSection }, id, () => ({
-    status,
-    // Stamped on a rejection too: "nobody answered" and "this person said no"
-    // are different states.
-    approvedByCollaboratorId: collaborator.id,
-    approvedAt: at,
-    updatedAt: at,
+  const updated = await Timesheets.update(found.where, found.t.id, (cur) => ((cur as Timesheet).status !== "submitted" ? cur : {
+    ...cur, status, approvedByCollaboratorId: by, approvedAt: at, updatedAt: at,
+    ...(approve ? {} : { rejectedReason: str(reason, 1000) }),
   }));
-  return timesheet ? { timesheet: { ...timesheet, ...timesheetTotals(timesheet, ctx.studio.currency) } } : { error: "notfound" };
+  return updated && (updated as Timesheet).approvedAt === at ? ("done" as const) : ({ error: "already-decided" } as Refusal);
 }
+
+export const timesheetApproval = {
+  ready: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await timesheetFor(studio, approval, by);
+    if ("error" in found) return found;
+    return found.t.status === "submitted" ? null : ({ error: "already-decided", status: found.t.status } as Refusal);
+  },
+  approved: (studio: StudioRef, approval: Approval, by: string) => answer(studio, approval, by, true, ""),
+  rejected: (studio: StudioRef, approval: Approval, by: string, reason: string) => answer(studio, approval, by, false, reason),
+};

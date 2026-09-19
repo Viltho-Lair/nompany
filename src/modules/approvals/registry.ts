@@ -120,6 +120,13 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
     key: "change-order", label: "Change order", requestable: true, amounted: true,
     legacy: [{ permission: "crmSales.contracts.approve", from: 0, label: "Contracts" }],
   },
+  // A TIMESHEET (Projects). Submitting it is asking. It had no approve right
+  // of its own — whoever could edit projects answered it — so that is who its
+  // default step names until a studio saves the type.
+  {
+    key: "timesheet", label: "Timesheet", requestable: true, amounted: true,
+    legacy: [{ permission: "projects.list.edit", from: 0, label: "Projects" }],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 

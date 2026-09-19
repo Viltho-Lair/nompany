@@ -29,11 +29,12 @@ files it, naming the record (`source`: its section, id, reference, title, and th
 | Request approval | HR → Payroll, on a draft run | **Payroll run**, carrying its net | the run becomes Approved, so its bank files are made and it can be paid (`payrollApproval` in `modules/hr/payrollService`) |
 | Submit | Finance → Payables & Expenses → Claims: submitting a draft claim is asking | **Expense claim**, carrying its total | the open advance takes its part, it posts, and it is settled if nothing is left to pay (`claimApproval` in `modules/finance/claimsService`); a no makes it Rejected with the reason |
 | Submit | CRM & Sales → Contracts, on a draft variation | **Change order**, carrying its value delta as an absolute amount | the variation is `approved` and counts in the contract value; a no makes it `rejected` with the reason (`changeOrderApproval` in `modules/sales/changeOrders`) |
+| Submit (the timesheets route — no screen yet) | Projects, on a draft timesheet | **Timesheet**, carrying its labour cost | the sheet is `approved`; a no makes it `rejected` with the reason (`timesheetApproval` in `modules/projects/timesheets`). It never had an approve right: until a studio saves the type, whoever holds `projects.list.edit` answers |
 | Record adjustment | Inventory → Stock: an adjustment worth more than the lowest limit asks; under it the stock moves at once | **Stock adjustment**, valued at units × unit cost (absolute) | the movement is written (`adjustmentApproval` in `modules/inventory/adjustmentApproval`); rejected, it is closed with the reason and nothing moves |
 
 **MOVING EVERY APPROVAL HERE, one type at a time** (the owner, 19/09/2026): the request stays
 where it is made today and the answer moves to this page. The till return, the stock
-adjustment, the bill, the bid, the requisition, payroll, expense claims and change orders have moved; timesheets,
+adjustment, the bill, the bid, the requisition, payroll, expense claims, change orders and timesheets have moved;
 document revisions, held-payment releases and leave follow. Each move drops the type's
 `approve` right — a right to do what the settings decide would be a second answer (invariant
 16) — and the steps it had come with it:
@@ -148,7 +149,7 @@ Stated in words, because a silent gap reads as a finished feature.
 
 - **Five types have no record to ask from yet:** Material PO, Delivery, Delivery return, ID update
   and Permit request. They appear in Approvals settings and nothing can raise one.
-- **Timesheets, document revisions, held-payment releases
+- **Document revisions, held-payment releases
   and leave still answer where they are**, on their own rights. Each moves here in turn; requests
   already waiting on it are carried when it does.
 - **No reminders, no delegation, no out-of-office reassignment, and no withdrawing a request.**
@@ -157,6 +158,8 @@ Stated in words, because a silent gap reads as a finished feature.
   waiting on it waits for ever — there is no reassigning yet.
 - **No condition other than amount.** Supplier, cost code, project or deal cannot decide the steps.
 - **Nova reads a person's approvals but cannot answer one.**
+- **No screen submits a timesheet**, so its approval is reached only through the route; and
+  **project costing counts a timesheet whatever its approval says** (the audit's gap 14).
 - **Editing a bid's bill while its approval waits is allowed** (the approval then no longer
   covers the bid); a bill instead refuses the edit. The two should agree.
 - **A cancelled requisition leaves its approval waiting** until somebody turns it down.
