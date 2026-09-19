@@ -105,7 +105,12 @@ function ApprovalCard({ slug, approval: a, tr, onAnswer }) {
     if (done) { setRejecting(false); setReason(""); }
   };
 
-  const heading = a.source?.ref ? `${a.source.ref} · ${a.source.title}` : a.source?.title;
+  // The reference leads, unless the title already says it — items carried over
+  // from the old board were titled "Approve quotation Q-0042 · …", and printing
+  // Q-0042 twice says nothing twice.
+  const ref = a.source?.ref || "";
+  const title = a.source?.title || "";
+  const heading = ref && !title.includes(ref) ? (title ? `${ref} · ${title}` : ref) : title;
 
   return (
     <article className={panel}>
