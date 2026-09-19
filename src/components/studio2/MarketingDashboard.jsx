@@ -1,11 +1,10 @@
 // THE MARKETING DASHBOARD (19/09/2026) — the department's landing page.
 //
-// WHAT IT CAN SAY TODAY IS WHAT IS PLANNED. The owner's plan puts revenue, ROI,
-// cost per lead and the funnel on this page; every one of those needs spend from
-// Finance, leads from Sales and attribution, and none of that is built yet. So
-// the page shows what the campaign register knows — what is running, what starts
-// this week, what needs somebody, the budget and the targets — and says in words
-// that these are plans. A tile reading "ROI 0%" would be a lie with a number on it.
+// WHAT CAME IN BESIDE WHAT WAS PLANNED. Leads and won value are real now — the
+// Sales tickets each campaign sent (modules/sales/leads) — and each tile carries
+// its target beneath it. Spend, ROI and cost per lead still need Finance's
+// actuals, so they are not on the page: a tile reading "ROI 0%" would be a lie
+// with a number on it.
 //
 // EVERY FIGURE IS THE SERVER'S (modules/marketing → campaignFigures), judged by
 // its `asOf` rather than this browser's clock. All of it is the free floor, so
@@ -47,7 +46,7 @@ export default function MarketingDashboard({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error === "forbidden" ? tr.refused : error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { figures = {}, attention = [], running = [], currency = "", may = {} } = data;
+  const { figures = {}, actual = {}, attention = [], running = [], currency = "", may = {} } = data;
   const cur = (n) => `${money(n || 0, currency)}${currency ? ` ${currency}` : ""}`;
   const register = may.campaigns ? `/${slug}/marketing-campaigns` : "";
   const byStatus = figures.byStatus || {};
@@ -68,8 +67,12 @@ export default function MarketingDashboard({ slug }) {
         <StatTile label={tr.needsAttention} value={<span className="num">{figures.needsAttention ?? 0}</span>} href={register}
           tone={figures.needsAttention ? "text-rose-600 dark:text-rose-300" : ""} />
         <StatTile label={tr.openBudget} value={cur(figures.openBudget)} sub={`${tr.openCampaigns}: ${figures.open ?? 0}`} />
-        <StatTile label={tr.expectedRevenueTile} value={cur(figures.expectedRevenue)} />
-        <StatTile label={tr.expectedLeadsTile} value={<span className="num">{figures.expectedLeads ?? 0}</span>} />
+        {/* WHAT CAME IN, with what was planned beneath it — the Sales tickets
+            each campaign sent, against the targets typed on the campaigns. */}
+        <StatTile label={tr.leadsTile} value={<span className="num">{actual.leads ?? 0}</span>}
+          sub={tr.target(String(figures.expectedLeads ?? 0))} />
+        <StatTile label={tr.wonValueTile} value={cur(actual.wonValue)}
+          sub={tr.target(cur(figures.expectedRevenue))} />
       </StatRow>
 
       <DashGrid>

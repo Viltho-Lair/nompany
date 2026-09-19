@@ -143,6 +143,7 @@ type Strings = CommonStrings & {
   errNoQuotation: string;
   errReasonRequired: string;
   errAlreadyClosed: string;
+  errCampaignGone: string;
   // Asked on the ticket form when a deal is being closed as lost, cancelled or
   // dropped — the only place a person can give the reason now the board's
   // "Move to" dialog is gone.
@@ -356,6 +357,7 @@ const en: Strings = {
   errNoQuotation: "A deal reaches Commit or Closed Won once it has a finished quotation.",
   errReasonRequired: "Say why this deal ended before closing it.",
   errAlreadyClosed: "This deal is closed, so its stage can no longer change.",
+  errCampaignGone: "That campaign no longer exists.",
   lostReasonHint: "Kept on the deal, so the studio can see why it loses work.",
 
   colCreated: "Created",
@@ -569,6 +571,7 @@ const ar: Strings = {
   errNoQuotation: "تصل الصفقة إلى الالتزام أو الفوز بعد أن يكون لها عرض سعر مكتمل.",
   errReasonRequired: "اذكر سبب انتهاء هذه الصفقة قبل إغلاقها.",
   errAlreadyClosed: "هذه الصفقة مغلقة، فلا يمكن تغيير مرحلتها.",
+  errCampaignGone: "تلك الحملة لم تعد موجودة.",
   lostReasonHint: "يحفظ مع الصفقة، ليعرف الاستوديو لماذا يخسر الأعمال.",
 
   colCreated: "تاريخ الإنشاء",

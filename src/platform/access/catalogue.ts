@@ -161,7 +161,11 @@ const OWN_AREAS = [
   // and comments all point back at it. Declaring a right nothing can exercise
   // is the same dead-capability trap as the department grants that were stored
   // and never read.
-  { key: "crmSales.tickets", group: "CRM & Sales", label: "Tickets", verbs: ["view", "create", "edit"] },
+  // ASSIGNING IS ITS OWN POWER (19/09/2026, modules/sales/leads). Being able to
+  // edit a ticket does not make somebody the person who hands leads out; the
+  // holder of this sees the unassigned queue and chooses who works each lead.
+  { key: "crmSales.tickets", group: "CRM & Sales", label: "Tickets", verbs: ["view", "create", "edit"],
+    extra: [{ key: "assign", label: "Assign leads to a sales executive" }] },
   { key: "crmSales.clients", group: "CRM & Sales", label: "Clients", verbs: ["view", "create", "edit", "delete"] },
   { key: "crmSales.live", group: "CRM & Sales", label: "Live view", verbs: ["view"] },
   // VIEW AND NOTHING ELSE, and the absent verbs are the design rather than an
@@ -211,8 +215,12 @@ const OWN_AREAS = [
   // MARKETING — the campaign register, the parent of every marketing activity
   // (19/09/2026). Moving a campaign along its ladder is an EDIT: nobody may run
   // a campaign they may not change. Cloning is a create.
+  //
+  // CHOOSING WHO OWNS A CAMPAIGN is the Marketing manager's (the owner,
+  // 19/09/2026), so it is an extra rather than part of edit.
   { key: "marketing.campaigns", group: "Marketing", label: "Campaigns",
-    verbs: ["view", "create", "edit", "delete"] },
+    verbs: ["view", "create", "edit", "delete"],
+    extra: [{ key: "assign", label: "Choose who owns a campaign" }] },
   { key: "maintenance.requests", group: "Maintenance", label: "Work requests",
     verbs: ["view", "create", "edit", "delete"] },
   { key: "maintenance.orders", group: "Maintenance", label: "Work orders",

@@ -90,6 +90,26 @@ type Strings = {
   openRegister: string;
   endsOn: (d: string) => string;
   noEnd: string;
+  // leads (19/09/2026)
+  leadDeadline: string;
+  leadDeadlineHint: string;
+  ownerManaged: string;
+  results: (leads: number, won: number, value: string) => string;
+  noResults: string;
+  sendLead: string;
+  sendLeadTitle: string;
+  sendLeadHint: string;
+  leadName: string;
+  leadContact: string;
+  leadPhone: string;
+  leadEmail: string;
+  leadWants: string;
+  leadNotes: string;
+  send: string;
+  leadSent: string;
+  leadsTile: string;
+  wonValueTile: string;
+  target: (v: string) => string;
 };
 
 const STATUS_EN: Record<string, string> = {
@@ -193,6 +213,9 @@ const en: Strings = {
     "has-sub-campaigns": "Delete its sub-campaigns first.",
     notfound: "That campaign no longer exists.",
     forbidden: "You don't have the right to do that.",
+    "lead-name": "Give the person's or the company's name.",
+    "lead-contact": "Give a phone number or an email address, so Sales can reach them.",
+    "no-sales": "Sales is switched off in this studio, so there is nowhere to send a lead.",
   },
   running: "Running now",
   openCampaigns: "Open campaigns",
@@ -201,7 +224,7 @@ const en: Strings = {
   openBudget: "Budget in open campaigns",
   expectedRevenueTile: "Expected revenue",
   expectedLeadsTile: "Expected leads",
-  plannedNote: "These are plans. Spend, leads and revenue arrive with Budget & Spend, Leads and Attribution.",
+  plannedNote: "Leads and won value come from the Sales tickets each campaign sent. Spend arrives with Budget & Spend.",
   byStatus: "Campaigns by status",
   byChannel: "Open campaigns by channel",
   byChannelHint: "A campaign on several channels counts once in each.",
@@ -213,6 +236,25 @@ const en: Strings = {
   openRegister: "Open campaigns",
   endsOn: (d) => `Ends ${d}`,
   noEnd: "No end date",
+  leadDeadline: "Lead deadline (hours)",
+  leadDeadlineHint: "How long a lead from this campaign may wait: first for a Sales manager to assign it, then for the executive to act on it. Blank for none.",
+  ownerManaged: "The Marketing manager chooses who owns a campaign.",
+  results: (leads, won, value) => `Leads: ${leads} · Won: ${won} · Won value: ${value}`,
+  noResults: "No leads yet",
+  sendLead: "Send a lead to Sales",
+  sendLeadTitle: "Send a lead to Sales",
+  sendLeadHint: "It arrives in Sales as a new lead from this campaign, waiting for a Sales manager to assign it.",
+  leadName: "Person or company",
+  leadContact: "Contact name",
+  leadPhone: "Phone",
+  leadEmail: "Email",
+  leadWants: "What they want",
+  leadNotes: "Notes",
+  send: "Send to Sales",
+  leadSent: "Sent to Sales.",
+  leadsTile: "Leads from campaigns",
+  wonValueTile: "Won from campaigns",
+  target: (v) => `Target: ${v}`,
 };
 
 const ar: Strings = {
@@ -293,6 +335,9 @@ const ar: Strings = {
     "has-sub-campaigns": "احذف حملاتها الفرعية أولا.",
     notfound: "تلك الحملة لم تعد موجودة.",
     forbidden: "ليست لديك صلاحية القيام بذلك.",
+    "lead-name": "اذكر اسم الشخص أو الشركة.",
+    "lead-contact": "اذكر رقم هاتف أو بريدا إلكترونيا ليتمكن فريق المبيعات من التواصل.",
+    "no-sales": "المبيعات متوقفة في هذا الاستوديو، فلا يوجد مكان لإرسال العميل المحتمل إليه.",
   },
   running: "جارية الآن",
   openCampaigns: "الحملات المفتوحة",
@@ -301,7 +346,7 @@ const ar: Strings = {
   openBudget: "ميزانية الحملات المفتوحة",
   expectedRevenueTile: "الإيراد المتوقع",
   expectedLeadsTile: "العملاء المحتملون المتوقعون",
-  plannedNote: "هذه خطط. الإنفاق والعملاء المحتملون والإيراد تأتي مع الميزانية والإنفاق والعملاء المحتملين والإسناد.",
+  plannedNote: "العملاء المحتملون وقيمة الصفقات الرابحة من تذاكر المبيعات التي أرسلتها كل حملة. الإنفاق يأتي مع الميزانية والإنفاق.",
   byStatus: "الحملات حسب الحالة",
   byChannel: "الحملات المفتوحة حسب القناة",
   byChannelHint: "الحملة على عدة قنوات تحسب مرة في كل منها.",
@@ -313,6 +358,25 @@ const ar: Strings = {
   openRegister: "فتح الحملات",
   endsOn: (d) => `تنتهي ${d}`,
   noEnd: "دون تاريخ انتهاء",
+  leadDeadline: "مهلة العميل المحتمل (بالساعات)",
+  leadDeadlineHint: "المدة التي ينتظرها العميل المحتمل من هذه الحملة: أولا حتى يسنده مدير المبيعات، ثم حتى يتصرف المندوب. اتركها فارغة لعدم وجود مهلة.",
+  ownerManaged: "مدير التسويق هو من يحدد مسؤول الحملة.",
+  results: (leads, won, value) => `العملاء المحتملون: ${leads} · الصفقات الرابحة: ${won} · قيمتها: ${value}`,
+  noResults: "لا يوجد عملاء محتملون بعد",
+  sendLead: "إرسال عميل محتمل إلى المبيعات",
+  sendLeadTitle: "إرسال عميل محتمل إلى المبيعات",
+  sendLeadHint: "يصل إلى المبيعات عميلا محتملا جديدا من هذه الحملة، بانتظار أن يسنده مدير المبيعات.",
+  leadName: "الشخص أو الشركة",
+  leadContact: "اسم جهة الاتصال",
+  leadPhone: "الهاتف",
+  leadEmail: "البريد الإلكتروني",
+  leadWants: "ما يطلبه",
+  leadNotes: "ملاحظات",
+  send: "إرسال إلى المبيعات",
+  leadSent: "تم الإرسال إلى المبيعات.",
+  leadsTile: "العملاء المحتملون من الحملات",
+  wonValueTile: "قيمة الصفقات الرابحة من الحملات",
+  target: (v) => `المستهدف: ${v}`,
 };
 
 const marketingDept: Record<Locale, Strings> = { en, ar };

@@ -46,6 +46,12 @@ export const CampaignSchema = z.object({
   utmCampaign: z.string().max(100),
   utmContent: z.string().max(100),
   utmTerm: z.string().max(100),
+  /**
+   * HOW LONG THIS CAMPAIGN'S LEADS MAY WAIT, in hours — the owner, 19/09/2026:
+   * the deadline is set per campaign. Copied onto each lead when it is sent, so
+   * changing it later re-times nothing already in Sales. null for none.
+   */
+  leadDeadlineHours: z.number().nullable().optional(),
   /** The page the campaign sends people to; the tagged link is built from it. */
   landingUrl: z.string().max(1000),
   /** The campaign this one was cloned from, or "". */

@@ -99,8 +99,11 @@ export const StageEntrySchema = z.object({
  *
  * `status` and `urgency` are automated and Leader-only respectively, never
  * taken from input. `value` is 0 until a completed quotation sets it.
- * `assignedToCollaboratorId` comes from the session, not the payload, so a
- * crafted request cannot raise a ticket in somebody else's name. `ref` comes
+ * `createdByCollaboratorId` is who RAISED it and comes from the session, so a
+ * crafted request cannot raise a ticket in somebody else's name.
+ * `assignedToCollaboratorId` is who is WORKING it: the raiser on a ticket Sales
+ * raises itself, "" on a lead a campaign sent, and changed only by a manager
+ * holding `crmSales.tickets.assign` (./leads, 19/09/2026). `ref` comes
  * from the highest number already used for this client rather than from a
  * count, because counting repeats a reference the moment a gap exists.
  */
@@ -152,6 +155,20 @@ export const SalesTicketSchema = z.object({
    */
   stageHistory: z.array(StageEntrySchema).optional(),
   comments: z.array(z.unknown()).optional(),
+  // ---- where it came from, and who has it (19/09/2026, ./leads) --------------
+  /**
+   * THE CAMPAIGN THAT BROUGHT IT — the original source, the owner's word. Set
+   * when a campaign sends the lead, or picked when Sales raises the ticket; once
+   * set it never changes, so a won deal counts toward the campaign that found it.
+   */
+  campaignId: z.string().optional(),
+  /** Hours the lead may wait, copied from its campaign when it arrived; null for none. */
+  leadDeadlineHours: z.number().nullable().optional(),
+  assignedAt: z.string().optional(),
+  assignedByCollaboratorId: z.string().optional(),
+  /** The assignee's first act on it — a comment, an edit or a stage move. "" until then. */
+  firstActionAt: z.string().optional(),
+  assignmentHistory: z.array(z.object({ to: z.string(), by: z.string(), at: z.string() })).optional(),
 });
 
 export type Contact = z.infer<typeof ContactSchema>;

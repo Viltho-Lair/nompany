@@ -199,6 +199,28 @@ export function attention(c: Dated & { status: string }, today: string, days = 7
   return "";
 }
 
+/** One ticket as a campaign's results see it: which campaign, whether won, what it is worth. */
+export type LeadResult = { campaignId?: string; won: boolean; value: number };
+
+/**
+ * WHAT EACH CAMPAIGN ACTUALLY BROUGHT IN — leads, deals won and their value —
+ * from the Sales tickets that name it as their source (modules/sales/leads).
+ * Only a campaign's OWN tickets: a parent's figures are not its sub-campaigns',
+ * because a lead is sent by exactly one campaign and counting it twice is the
+ * budget's double-count by another road.
+ */
+export function campaignResults(tickets: readonly LeadResult[]) {
+  const out = new Map<string, { leads: number; won: number; wonValue: number }>();
+  for (const t of tickets) {
+    if (!t.campaignId) continue;
+    const r = out.get(t.campaignId) || { leads: 0, won: 0, wonValue: 0 };
+    r.leads += 1;
+    if (t.won) { r.won += 1; r.wonValue = round2(r.wonValue + (Number(t.value) || 0)); }
+    out.set(t.campaignId, r);
+  }
+  return out;
+}
+
 type Summarised = Budgeted & Dated & { channels?: readonly string[]; expectedRevenue?: number | null; expectedLeads?: number | null };
 
 /**

@@ -7,8 +7,10 @@ import { miscDict } from "@/shared/studio/misc";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, money, fmtDate, Dialog } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, money, fmtDate, fmtDateTime, Dialog } from "@/components/studio2/ui";
 import { TicketForm, ticketRefusal } from "@/components/studio2/StudioSales";
+import { AssignControl, LeadStateChip, assignLead } from "@/components/studio2/LeadParts";
+import { leadsDict } from "@/shared/studio/leads";
 import { salesDict } from "@/shared/studio/sales";
 import { Field } from "@/components/fields/Field";
 import { Money } from "@/components/Currency";
@@ -61,6 +63,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
   const tr = miscDict(locale);
   // The ticket form's refusals are Sales' words; the page itself speaks misc.
   const salesTr = salesDict(locale);
+  const leadTr = leadsDict(locale);
   const [formError, setFormError] = useState("");
   const [data, setData] = useState(null);
   const [comment, setComment] = useState("");
@@ -279,7 +282,18 @@ export default function StudioTicketProfile({ slug, ticketId }) {
               <DetailField label={tr.urgency} value={ticket.urgency} />
               <DetailField label={tr.deadline} value={fmtDate(ticket.deadline)} />
               <DetailField label={tr.industry} value={ticket.industry} />
-              <DetailField label={tr.owner} value={aliasOf[ticket.assignedToCollaboratorId] || tr.unassigned3} />
+              {/* WHO HAS IT, WHO RAISED IT, AND WHERE IT CAME FROM — two fields,
+                  the owner's rule: raising never changes, assigning is a
+                  manager's act (modules/sales/leads). */}
+              <DetailField label={leadTr.assignedTo} value={
+                <span className="flex flex-wrap items-center gap-2">
+                  {aliasOf[ticket.assignedToCollaboratorId] || leadTr.nobody}
+                  <LeadStateChip ticket={ticket} />
+                </span>
+              } />
+              <DetailField label={leadTr.raisedBy} value={aliasOf[ticket.createdByCollaboratorId] || ""} />
+              {ticket.campaignName && <DetailField label={leadTr.sourceLocked} value={ticket.campaignName} />}
+              {ticket.leadDueAt && <DetailField label={leadTr.deadline} value={fmtDateTime(ticket.leadDueAt)} />}
               {/* VALUE QUOTED: the latest quotation's total, never typed. */}
               <DetailField label={tr.valueQuoted} value={ticket.value ? <Money amount={ticket.value} currency={currency} /> : ""} />
               <DetailField label={tr.clientBudget} value={ticket.clientBudget ? <Money amount={ticket.clientBudget} currency={currency} /> : ""} />
@@ -290,6 +304,12 @@ export default function StudioTicketProfile({ slug, ticketId }) {
                 <DetailField label={tr.map} value={<a href={ticket.location.url} target="_blank" rel="noopener noreferrer" className="text-brand-700 underline dark:text-brand-300">{tr.openMap}</a>} />
               )}
             </dl>
+            {data.canAssign && (
+              <div className="mt-4 border-t border-slate-100 pt-4 dark:border-white/10">
+                <AssignControl ticket={ticket} people={data.people || []}
+                  onAssign={async (id, to) => { const refusal = await assignLead(slug, id, to); if (!refusal) await load(); return refusal; }} />
+              </div>
+            )}
             {ticket.description && (
               <p className="mt-4 whitespace-pre-wrap border-t border-slate-100 pt-4 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
                 {ticket.description}
@@ -501,6 +521,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
             row={ticket}
             clients={data.clients || []}
             vocabulary={data.vocabulary || {}}
+            campaigns={data.campaigns || []}
             services={data.services || []}
             cities={data.salesCities || []}
             positions={data.salesContactPositions || []}

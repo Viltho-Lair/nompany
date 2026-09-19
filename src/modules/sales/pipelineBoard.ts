@@ -20,7 +20,8 @@ import {
   BOARD_COLUMNS, CLOSED_STAGES, stageDef, isWon,
   weightedValue, enteredStageAt, daysSince,
 } from "./pipeline";
-import { hasLiveQuotation, quotedTotalFor, ticketValue } from "./sales";
+import { hasLiveQuotation, quotedTotalFor, ticketValue, canAssignLeads } from "./sales";
+import { ticketVisible } from "./leads";
 import type { SalesContext, Client } from "./types";
 import type { SalesTicket } from "./schema";
 import type { Quotation } from "@/modules/technical/types";
@@ -64,13 +65,17 @@ export async function listPipeline(ctx: SalesContext) {
   if (denied) return denied;
 
   const { studio, ticketsSection, clientsSection, quotationsSection } = ctx;
-  const [tickets, clients, quotations] = await Promise.all([
+  const [allTickets, clients, quotations] = await Promise.all([
     Tickets.find({ studio, section: ticketsSection }),
     Clients.find({ studio, section: clientsSection }),
     // A studio with no Technical section has no quotations; its deals are worth
     // whatever was set by hand, which is the honest answer.
     quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : [],
   ]);
+  // THE MANAGER'S QUEUE STAYS THE MANAGER'S: an unassigned lead is not on the
+  // board for somebody who cannot assign it (./leads).
+  const canAssign = canAssignLeads(ctx);
+  const tickets = allTickets.filter((t) => ticketVisible(t, canAssign));
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
   const nowMs = Date.now();
   const valueOf = (t: SalesTicket) => ticketValue(t, quotedTotalFor(t.id, quotations));

@@ -40,6 +40,8 @@ export default function StudioCampaigns({ slug }) {
   const [filter, setFilter] = useState("open");
   const [form, setForm] = useState(null);
   const [copied, setCopied] = useState("");
+  const [lead, setLead] = useState(null);
+  const [notice, setNotice] = useState("");
 
   const reload = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/marketing/campaigns`, { cache: "no-store" });
@@ -73,7 +75,7 @@ export default function StudioCampaigns({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { campaigns = [], people = [], currency = "", canCreate, canEdit, canDelete } = data;
+  const { campaigns = [], people = [], currency = "", canCreate, canEdit, canDelete, canAssign, canSendLeads } = data;
   const cur = (n) => `${money(n || 0, currency)}${currency ? ` ${currency}` : ""}`;
   const shown = filter === "all" ? campaigns
     : campaigns.filter((c) => (filter === "open" ? !isFinal(c.status) : isFinal(c.status)));
@@ -87,10 +89,12 @@ export default function StudioCampaigns({ slug }) {
     budget: blank(c.budget), expectedLeads: blank(c.expectedLeads), expectedCustomers: blank(c.expectedCustomers),
     expectedRevenue: blank(c.expectedRevenue), landingUrl: c.landingUrl, utmSource: c.utmSource, utmMedium: c.utmMedium,
     utmCampaign: c.utmCampaign, utmContent: c.utmContent, utmTerm: c.utmTerm, hasChildren: c.children > 0,
+    leadDeadlineHours: blank(c.leadDeadlineHours),
   } : {
     name: "", description: "", objective: "leads", channels: [], parentId: "", startOn: "", endOn: "",
     ownerCollaboratorId: "", budget: "", expectedLeads: "", expectedCustomers: "", expectedRevenue: "",
     landingUrl: "", utmSource: "", utmMedium: "", utmCampaign: "", utmContent: "", utmTerm: "", hasChildren: false,
+    leadDeadlineHours: "",
   });
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
   const toggleChannel = (ch) => setForm((f) => ({
@@ -102,8 +106,26 @@ export default function StudioCampaigns({ slug }) {
     // A NEW campaign with no owner chosen is owned by whoever raises it, which
     // the server does by itself; sending "" would say "nobody" instead.
     if (!id && !fields.ownerCollaboratorId) delete fields.ownerCollaboratorId;
+    // THE OWNER IS THE MANAGER'S TO CHOOSE; without the right it is not sent.
+    if (!canAssign) delete fields.ownerCollaboratorId;
     const done = id ? await send("PUT", { id, ...fields }) : await send("POST", fields);
     if (done) setForm(null);
+  };
+
+  const sendLead = async () => {
+    const { campaignId, ...fields } = lead;
+    setError(""); setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/marketing/campaigns`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: campaignId, action: "lead", ...fields }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(tr.refuse[out.error] || out.error || "failed"); return; }
+    setLead(null);
+    setNotice(tr.leadSent);
+    setTimeout(() => setNotice(""), 2500);
+    await reload();
   };
 
   const copy = async (c) => {
@@ -113,6 +135,7 @@ export default function StudioCampaigns({ slug }) {
   return (
     <div className="space-y-6">
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+      {notice && <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{notice}</p>}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -190,6 +213,10 @@ export default function StudioCampaigns({ slug }) {
                       ].filter(Boolean).join(" · ")}
                     </p>
                   )}
+                  {/* WHAT IT BROUGHT IN, from the Sales tickets that name it. */}
+                  <p className="mt-1 text-xs font-600 text-slate-700 dark:text-slate-200">
+                    {c.results?.leads ? tr.results(c.results.leads, c.results.won, cur(c.results.wonValue)) : tr.noResults}
+                  </p>
                   {c.link && (
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span className="text-xs font-600 text-slate-500 dark:text-slate-400">{tr.trackedLink}</span>
@@ -215,6 +242,12 @@ export default function StudioCampaigns({ slug }) {
                     {canCreate && (
                       <button type="button" className={btnRow} disabled={busy}
                         onClick={() => send("PUT", { id: c.id, action: "clone" })}>{tr.clone}</button>
+                    )}
+                    {canSendLeads && c.status !== "Cancelled" && (
+                      <button type="button" className={btnRow} disabled={busy}
+                        onClick={() => setLead({ campaignId: c.id, clientName: "", contactName: "", contactPhone: "", contactEmail: "", title: "", description: "" })}>
+                        {tr.sendLead}
+                      </button>
                     )}
                     {canDelete && deletable && (
                       <button type="button" className={btnRowDanger} disabled={busy}
@@ -262,11 +295,19 @@ export default function StudioCampaigns({ slug }) {
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label={tr.starts} type="date" value={form.startOn} onChange={set("startOn")} />
               <Field label={tr.ends} type="date" value={form.endOn} onChange={set("endOn")} />
-              <Field label={tr.owner} as="select" value={form.ownerCollaboratorId} onChange={set("ownerCollaboratorId")}
-                options={[{ value: "", label: tr.nobody }, ...people.map((p) => ({ value: p.id, label: p.alias || p.id }))]} />
+              {canAssign ? (
+                <Field label={tr.owner} as="select" value={form.ownerCollaboratorId} onChange={set("ownerCollaboratorId")}
+                  options={[{ value: "", label: tr.nobody }, ...people.map((p) => ({ value: p.id, label: p.alias || p.id }))]} />
+              ) : (
+                <p className="self-center text-xs text-slate-500 dark:text-slate-400">{tr.ownerManaged}</p>
+              )}
             </div>
-            <Field label={tr.budget} type="number" value={form.budget} onChange={set("budget")}
-              hint={tr.budgetHint(currency)} inputProps={{ min: 0, step: "any" }} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={tr.budget} type="number" value={form.budget} onChange={set("budget")}
+                hint={tr.budgetHint(currency)} inputProps={{ min: 0, step: "any" }} />
+              <Field label={tr.leadDeadline} type="number" value={form.leadDeadlineHours} onChange={set("leadDeadlineHours")}
+                hint={tr.leadDeadlineHint} inputProps={{ min: 1, max: 168, step: 1 }} />
+            </div>
 
             <div>
               <p className="text-sm font-600 text-slate-900 dark:text-white">{tr.expectedHeading}</p>
@@ -298,6 +339,34 @@ export default function StudioCampaigns({ slug }) {
               <button type="button" className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
               <button type="button" className={btn} disabled={busy || !form.name.trim()} onClick={save}>
                 {busy ? tr.saving : tr.save}
+              </button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+
+      {lead && (
+        <Dialog title={tr.sendLeadTitle} description={tr.sendLeadHint} onClose={() => setLead(null)} width="max-w-[560px]">
+          <div className="space-y-4">
+            <Field label={tr.leadName} required value={lead.clientName} inputProps={{ maxLength: 160 }}
+              onChange={(v) => setLead((l) => ({ ...l, clientName: v }))} />
+            <Field label={tr.leadContact} value={lead.contactName} inputProps={{ maxLength: 120 }}
+              onChange={(v) => setLead((l) => ({ ...l, contactName: v }))} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={tr.leadPhone} type="tel" value={lead.contactPhone} inputProps={{ maxLength: 60, dir: "ltr" }}
+                onChange={(v) => setLead((l) => ({ ...l, contactPhone: v }))} />
+              <Field label={tr.leadEmail} type="email" value={lead.contactEmail} inputProps={{ maxLength: 200, dir: "ltr" }}
+                onChange={(v) => setLead((l) => ({ ...l, contactEmail: v }))} />
+            </div>
+            <Field label={tr.leadWants} value={lead.title} inputProps={{ maxLength: 200 }}
+              onChange={(v) => setLead((l) => ({ ...l, title: v }))} />
+            <Field label={tr.leadNotes} as="textarea" value={lead.description} inputProps={{ maxLength: 4000 }}
+              onChange={(v) => setLead((l) => ({ ...l, description: v }))} />
+            <div className="flex justify-end gap-2">
+              <button type="button" className={btnGhost} onClick={() => setLead(null)}>{tr.cancel}</button>
+              <button type="button" className={btn} onClick={sendLead}
+                disabled={busy || !lead.clientName.trim() || (!lead.contactPhone.trim() && !lead.contactEmail.trim())}>
+                {busy ? tr.saving : tr.send}
               </button>
             </div>
           </div>

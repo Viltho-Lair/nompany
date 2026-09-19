@@ -28,6 +28,8 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict, liveColumnLabel } from "@/shared/studio/sales";
 import { useReload } from "@/components/studio2/useReload";
 import { stageDef, stageProblem } from "@/modules/sales/pipeline";
+import { LeadQueue, assignLead } from "@/components/studio2/LeadParts";
+import { leadsDict } from "@/shared/studio/leads";
 
 // EVERY REFUSAL THE SALES ROUTES RETURN, said in the reader's language. Exported
 // because the ticket's own page saves through the same form and showed only
@@ -51,6 +53,7 @@ export function ticketRefusal(tr, out) {
     : e === "no-quotation" ? tr.errNoQuotation
     : e === "reason-required" ? tr.errReasonRequired
     : e === "already-closed" ? tr.errAlreadyClosed
+    : e === "campaign" ? tr.errCampaignGone
     : tr.saveFailed;
 }
 
@@ -264,13 +267,20 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
             description={tr.ticketFormHint}
             onClose={closeEditing}
           >
-            <TicketForm row={editing.row} clients={clients} vocabulary={vocabulary}
+            <TicketForm row={editing.row} clients={clients} vocabulary={vocabulary} campaigns={data.campaigns || []}
               cities={data.salesCities || []} positions={data.salesContactPositions || []}
               studioDefaults={data.studioDefaults || {}}
               error={error}
               onCancel={closeEditing}
               onSave={(payload) => send("tickets", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
           </Dialog>
+        )}
+        {/* THE MANAGER'S QUEUE (modules/sales/leads): leads a campaign sent that
+            nobody is on yet. Only drawn for whoever assigns them — for anybody
+            else the server has already left these tickets out. */}
+        {data.canAssign && (
+          <LeadQueue slug={slug} tickets={tickets} people={people}
+            onAssign={async (id, to) => { const refusal = await assignLead(slug, id, to); if (!refusal) await load(); return refusal; }} />
         )}
         <Tickets tickets={tickets} people={people} canManage={canManageTickets} slug={slug}
           hasTechnical={hasTechnical} statuses={vocabulary.statuses || []} urgencies={vocabulary.urgencies || []}
@@ -901,8 +911,14 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
   );
 }
 
-export function TicketForm({ row, clients, vocabulary, cities = [], positions = [], studioDefaults = {}, error = "", onSave, onCancel }) {
-  const tr = salesDict(useStudioLocale());
+export function TicketForm({ row, clients, vocabulary, campaigns = [], cities = [], positions = [], studioDefaults = {}, error = "", onSave, onCancel }) {
+  const locale = useStudioLocale();
+  const tr = salesDict(locale);
+  const leadTr = leadsDict(locale);
+  // "WHICH CAMPAIGN BROUGHT THEM?" — offered while the ticket has none; once set
+  // it is the original source and stays (modules/sales/leads).
+  const [campaignId, setCampaignId] = useState("");
+  const campaignLocked = Boolean(row?.campaignId);
   // Fields mirror the Old System's ticket. Mandatory: title, client, deadline,
   // type of industry. Value Quoted is NOT here on purpose — it is filled from
   // the latest quotation, and Client Budget is the client's own manual figure.
@@ -1064,6 +1080,17 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
 
       <div className="mt-4"><label className={label}>{tr.description}</label><textarea rows={3} className={input} value={f.description} onChange={set("description")} /></div>
 
+      {campaignLocked ? (
+        <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">
+          <span className="font-600">{leadTr.sourceLocked}:</span> {row.campaignName || "—"}
+        </p>
+      ) : campaigns.length > 0 && (
+        <div className="mt-4">
+          <Field label={leadTr.source} as="select" value={campaignId} onChange={setCampaignId} hint={leadTr.sourcePick}
+            options={[{ value: "", label: leadTr.sourceNone }, ...campaigns.map((c) => ({ value: c.id, label: c.label }))]} />
+        </div>
+      )}
+
       {/* THE REFUSAL, IN THE DIALOG. Both screens that open this form keep the
           dialog open on a refusal, so the sentence has to be here, beside the
           button that caused it, rather than on the page behind. */}
@@ -1085,6 +1112,7 @@ export function TicketForm({ row, clients, vocabulary, cities = [], positions = 
             // Only an edit may move these; on creation they are automated.
             ...(row ? { status: f.status, urgency: f.urgency } : {}),
             ...(closingWithReason ? { lostReason } : {}),
+            ...(!campaignLocked && campaignId ? { campaignId } : {}),
           });
           setBusy(false);
         }}>{busy ? tr.saving : tr.saveTicket}</button>

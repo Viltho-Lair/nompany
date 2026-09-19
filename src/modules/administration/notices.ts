@@ -80,6 +80,18 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     ar: { title: "تم الإبلاغ عن عطل", body: "{reference} · {title}" },
   },
   {
+    type: "lead.waiting",
+    fields: ["reference", "title"],
+    en: { title: "A new lead is waiting to be assigned", body: "{reference} · {title}" },
+    ar: { title: "عميل محتمل جديد بانتظار الإسناد", body: "{reference} · {title}" },
+  },
+  {
+    type: "lead.assigned",
+    fields: ["reference", "title"],
+    en: { title: "A lead was assigned to you", body: "{reference} · {title}" },
+    ar: { title: "أسند إليكم عميل محتمل", body: "{reference} · {title}" },
+  },
+  {
     type: "campaign.assigned",
     fields: ["reference", "name"],
     en: { title: "You own a campaign", body: "{reference} · {name}" },
@@ -161,6 +173,12 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
   // LIST, so each is a count and a detail line rather than one record: "3
   // invoices, INV-0002 and 2 more". `detail` is that line, already assembled
   // by the cron, because only it knows how to name a document of that kind.
+  {
+    type: "lead.overdue",
+    fields: ["detail"],
+    en: { title: "Leads waiting too long", body: "{detail}" },
+    ar: { title: "عملاء محتملون تجاوزوا المهلة", body: "{detail}" },
+  },
   {
     type: "invoice.overdue",
     fields: ["detail"],

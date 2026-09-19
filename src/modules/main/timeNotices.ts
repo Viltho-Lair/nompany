@@ -20,6 +20,7 @@ import { invoiceTotals } from "@/modules/finance/finance";
 import { expiringDocuments } from "@/modules/hr/hr";
 import { permitLive } from "@/modules/operations/permitModel";
 import { orderOpen } from "@/modules/maintenance/model";
+import { leadState, leadDueAt, daysLate } from "@/modules/sales/leads";
 
 // Overdue is chased harder early, then at widening intervals. Expiring is warned
 // about from a month out, tightening as the day nears (0 = expires today).
@@ -152,6 +153,37 @@ export function dueWorkOrderNotices(orders: OrderRow[], todayISO: string): WorkO
       name: String(o.title || "Work order"),
       daysOverdue: days,
       assignees: Array.isArray(o.assignedToCollaboratorIds) ? o.assignedToCollaboratorIds.map(String) : [],
+    });
+  }
+  return out;
+}
+
+type LeadRow = {
+  id?: string; ref?: string; title?: string; clientName?: string; status?: string;
+  assignedToCollaboratorId?: string; createdAt?: string; assignedAt?: string; firstActionAt?: string;
+  leadDeadlineHours?: number | null;
+};
+
+/**
+ * LEADS WAITING PAST THEIR CAMPAIGN'S DEADLINE (modules/sales/leads) — nobody
+ * assigned in time, or assigned and not acted on in time. Told on the day the
+ * deadline passes and at the overdue milestones after it, like a work order;
+ * the live screens show the same state to the hour, this is the nudge.
+ * `nowISO` judges the state, `todayISO` the milestone.
+ */
+export function overdueLeadNotices(tickets: LeadRow[], nowISO: string, todayISO: string): OverdueNotice[] {
+  const out: OverdueNotice[] = [];
+  for (const t of tickets) {
+    const state = leadState(t, nowISO);
+    if (state !== "late-assign" && state !== "late-action") continue;
+    const days = daysLate(leadDueAt(t), todayISO);
+    if (days === null || !WORK_ORDER_MILESTONES.includes(days)) continue;
+    out.push({
+      recordId: String(t.id || ""),
+      reference: String(t.ref || ""),
+      name: String(t.clientName || t.title || "—"),
+      daysOverdue: days,
+      outstanding: 0,
     });
   }
   return out;

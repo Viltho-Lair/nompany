@@ -189,6 +189,25 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     to: ["finance.claims"],
     verbs: ["approve"],
   },
+  {
+    id: "sales-lead-assign-2026-09-19",
+    // Leads are handed out by a Sales manager (modules/sales/leads). Whoever
+    // configures Sales — its settings' edit right — is that manager today.
+    note: "Whoever runs Sales' settings assigns its leads",
+    from: "crmSales.settings",
+    fromVerb: "edit",
+    to: ["crmSales.tickets"],
+    verbs: ["assign"],
+  },
+  {
+    id: "marketing-campaign-assign-2026-09-19",
+    // Whoever may delete campaigns manages them, and chooses their owners.
+    note: "Whoever manages campaigns chooses who owns them",
+    from: "marketing.campaigns",
+    fromVerb: "delete",
+    to: ["marketing.campaigns"],
+    verbs: ["assign"],
+  },
 ];
 
 /** Every id, for stamping a role that is created from now on. */

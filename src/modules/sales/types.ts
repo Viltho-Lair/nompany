@@ -21,6 +21,8 @@ export type SalesContext = ModuleContext & {
   quotationsSection: Section | null;
   approvalsSection: Section | null;
   projectsSection: Section | null;
+  /** Marketing's campaigns — a lead's source. Read for names only; null without Marketing. */
+  campaignsSection: Section | null;
   canViewTickets: boolean;
   canManageTickets: boolean;
   canViewClients: boolean;
@@ -137,4 +139,9 @@ export type TicketSummary = {
 export type TicketView = SalesTicket & Omit<TicketSummary, "quotedValue"> & {
   clientName: string;
   value: number;
+  /** The source campaign's "CMP-0001 · name", or "" (./leads). */
+  campaignName: string;
+  /** `leadState` and `leadDueAt` from ./leads, judged by the server's clock. */
+  leadState: string;
+  leadDueAt: string;
 };

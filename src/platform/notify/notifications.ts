@@ -67,6 +67,9 @@ export const NOTIFY = {
   workRequestRaised: "workrequest.raised",
   workOrderAssigned: "workorder.assigned",
   campaignAssigned: "campaign.assigned",
+  leadWaiting: "lead.waiting",
+  leadAssigned: "lead.assigned",
+  leadOverdue: "lead.overdue",
   workOrderDue: "workorder.due",
   calibrationDue: "calibration.due",
   // An item fell to its reorder level (modules/inventory/stockAlerts).

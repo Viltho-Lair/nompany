@@ -21,6 +21,9 @@ import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "./tickets";
 import { stageProblem, stagePatch, stageDef } from "./pipeline";
+import { leadState, leadDueAt, ticketVisible, assignProblem, assignPatch } from "./leads";
+import { notifyCollaboratorIds, notifyHolders } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
 import { cleanRates } from "@/shared/pricing";
 import { normaliseClientName, clientSlug, resolveClientFor, upsertLocation } from "./salesClients";
 import { nextUniqueRef } from "@/modules/main/references";
@@ -57,6 +60,22 @@ const PROJECTS = "projects";
 // what stops a query naming another tenant's keys and what lets one object
 // answer for a sibling department's rows as easily as its own.
 const Clients = repo<Client>(CLIENTS);
+// MARKETING'S, READ ONLY — which campaign a ticket names (./leads).
+type CampaignRef = { id: string; reference?: string; name?: string; status?: string; leadDeadlineHours?: number | null };
+const Campaigns = repo<CampaignRef>("marketingCampaigns");
+const campaignLabel = (c: CampaignRef) => [c.reference, c.name].filter(Boolean).join(" · ");
+async function campaignRows(studio: SalesContext["studio"], section: SalesContext["campaignsSection"]): Promise<CampaignRef[]> {
+  return section ? Campaigns.find({ studio, section }) : [];
+}
+/** Whether this reader manages the lead queue (./leads). */
+export const canAssignLeads = (ctx: Pick<SalesContext, "access">) => !requirePermission(ctx.access, "crmSales.tickets.assign");
+/** The campaigns a ticket may name — the open ones, for the form's picker. */
+export async function campaignChoices(ctx: Pick<SalesContext, "studio" | "campaignsSection">) {
+  return (await campaignRows(ctx.studio, ctx.campaignsSection))
+    .filter((c) => c.status !== "Completed" && c.status !== "Cancelled")
+    .map((c) => ({ id: c.id, label: campaignLabel(c) }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
 // Registered Items, read on exactly one path: checking a customer's agreed
 // rates against the catalogue they name (editClient).
 const InventoryItems = repo<{ id: string }>("inventoryItems");
@@ -100,6 +119,10 @@ export const salesContext = moduleContext<SalesContext>({
     // catalogue it names. Read on ONE path only — an edit that actually carries
     // rates — and never otherwise.
     inventoryItems: ["inventory-items", "inventory"],
+    // MARKETING'S CAMPAIGNS, a lead's source (19/09/2026). Read for a name and a
+    // reference only — never a budget — so a ticket can say which campaign
+    // brought it and the form can offer the open ones.
+    campaigns: ["marketing-campaigns"],
   },
   flags: ["tickets", "clients", "settings"],
   extend: ({ settingsSection }) => ({
@@ -523,13 +546,13 @@ function ticketSummary(
   };
 }
 
-export async function listTickets({
-  studio, ticketsSection, clientsSection, rfqSection, quotationsSection,
-  approvalsSection, projectsSection,
-}: Pick<SalesContext,
-  | "studio" | "ticketsSection" | "clientsSection" | "rfqSection"
+export async function listTickets(ctx: Pick<SalesContext,
+  | "studio" | "ticketsSection" | "clientsSection" | "rfqSection" | "access" | "campaignsSection"
   | "quotationsSection" | "approvalsSection" | "projectsSection">) {
-  const [tickets, clients, rfqs, quotations, approvals, projects] = await Promise.all([
+  const {
+    studio, ticketsSection, clientsSection, rfqSection, quotationsSection, approvalsSection, projectsSection,
+  } = ctx;
+  const [tickets, clients, rfqs, quotations, approvals, projects, campaigns] = await Promise.all([
     Tickets.find({ studio, section: ticketsSection }),
     Clients.find({ studio, section: clientsSection }),
     rfqSection ? Rfqs.find({ studio, section: rfqSection }) : [],
@@ -538,11 +561,18 @@ export async function listTickets({
     // A studio without a Projects section simply gets no project on its
     // tickets, the same way one without Approvals gets no approval button.
     projectsSection ? Projects.find({ studio, section: projectsSection }) : [],
+    campaignRows(studio, ctx.campaignsSection),
   ]);
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
+  const campaignNameById = Object.fromEntries(campaigns.map((c) => [c.id, campaignLabel(c)]));
+  // AN UNASSIGNED LEAD IS THE MANAGER'S QUEUE, hidden from everybody who cannot
+  // assign it (./leads, the owner's rule).
+  const canAssign = canAssignLeads(ctx);
+  const at = new Date().toISOString();
   return [...tickets]
+    .filter((t) => ticketVisible(t, canAssign))
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-    .map((t) => composeTicket(t, { nameById, rfqs, quotations, approvals, projects }));
+    .map((t) => composeTicket(t, { nameById, rfqs, quotations, approvals, projects, campaignNameById, at }));
 }
 
 // WHAT A BOARD'S TICKET ACTUALLY IS — the stored row plus its client's name and
@@ -552,12 +582,14 @@ export async function listTickets({
 // row on the client safe rather than a way to blank four columns.
 function composeTicket(
   t: SalesTicket,
-  { nameById, rfqs, quotations, approvals, projects }: {
+  { nameById, rfqs, quotations, approvals, projects, campaignNameById, at }: {
     nameById: Record<string, string>;
     rfqs: Rfq[];
     quotations: Quotation[];
     approvals: Approval[];
     projects: Project[];
+    campaignNameById: Record<string, string>;
+    at: string;
   },
 ): TicketView {
   const { quotedValue, ...rest } = ticketSummary(t, rfqs, quotations, approvals, projects);
@@ -566,6 +598,9 @@ function composeTicket(
     clientName: nameById[t.clientId] || t.clientName || "",
     ...rest,
     value: ticketValue(t, quotedValue),
+    campaignName: t.campaignId ? campaignNameById[t.campaignId] || "" : "",
+    leadState: leadState(t, at),
+    leadDueAt: leadDueAt(t),
   };
 }
 
@@ -580,18 +615,21 @@ export async function ticketById(ctx: SalesContext, id: string) {
   const { studio, ticketsSection, clientsSection, rfqSection, quotationsSection,
           approvalsSection, projectsSection } = ctx;
 
-  const [ticket, clients, rfqs, quotations, approvals, projects] = await Promise.all([
+  const [ticket, clients, rfqs, quotations, approvals, projects, campaigns] = await Promise.all([
     Tickets.byId({ studio, section: ticketsSection }, id),
     Clients.find({ studio, section: clientsSection }),
     rfqSection ? Rfqs.find({ studio, section: rfqSection }) : [],
     quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : [],
     approvalRows(studio, approvalsSection),
     projectsSection ? Projects.find({ studio, section: projectsSection }) : [],
+    campaignRows(studio, ctx.campaignsSection),
   ]);
-  if (!ticket) return null;
+  // A LEAD NOBODY HAS YET is not patched onto a board that may not show it.
+  if (!ticket || !ticketVisible(ticket, canAssignLeads(ctx))) return null;
 
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
-  return composeTicket(ticket, { nameById, rfqs, quotations, approvals, projects });
+  const campaignNameById = Object.fromEntries(campaigns.map((c) => [c.id, campaignLabel(c)]));
+  return composeTicket(ticket, { nameById, rfqs, quotations, approvals, projects, campaignNameById, at: new Date().toISOString() });
 }
 
 // ONE quotation, in full, for the Sales-side viewer. Sales may read the document
@@ -908,12 +946,50 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   if (serviceIds.length === 0) return { error: "services" };
   if (clientBudget != null && (!Number.isFinite(clientBudget) || clientBudget < 0)) return { error: "budget" };
 
+  // "WHICH CAMPAIGN BROUGHT THEM?" — optional, and it must be one of this
+  // studio's campaigns. A ticket Sales raises itself is Sales' own work, so it
+  // is assigned to its raiser and carries no campaign deadline.
+  const campaignId = str(body?.campaignId, 60);
+  if (campaignId && !(await campaignRows(studio, ctx.campaignsSection)).some((c) => c.id === campaignId)) {
+    return { error: "campaign" };
+  }
+
+  return insertTicket({ studio, ticketsSection, clientsSection }, {
+    title, clientId, clientName, industry, deadline, contact, location, serviceIds, clientBudget,
+    description: str(body?.description, 4000),
+    probability: normaliseProbability(body?.probability, 0),
+    raisedBy: collaborator.id,
+    assignedTo: collaborator.id,
+    campaignId,
+    leadDeadlineHours: null,
+  });
+}
+
+type TicketInput = {
+  title: string; clientId: string; clientName: string; industry: string; deadline: string;
+  contact: { name: string; email: string; phone: string; position: string };
+  location: { name: string; country: string; city: string; url: string };
+  serviceIds: string[]; clientBudget: number | null; description: string; probability: number;
+  raisedBy: string; assignedTo: string; campaignId: string; leadDeadlineHours: number | null;
+};
+
+/**
+ * THE ONE PLACE A TICKET IS WRITTEN — Sales' own form and a campaign's lead both
+ * come through here, so the client resolution, the reference and the engagement
+ * attach cannot be forgotten on one of the two paths. (`openProject`'s comment
+ * makes the same argument for projects.)
+ */
+async function insertTicket(
+  { studio, ticketsSection, clientsSection }: Pick<SalesContext, "studio" | "ticketsSection" | "clientsSection">,
+  input: TicketInput,
+) {
+  const { title, clientId, clientName, industry, deadline, contact, location, serviceIds, clientBudget } = input;
   // Find-or-create the client by name (case-insensitive), falling back to an
   // explicit id, then fold this ticket's contact + location into it — the
   // shared helper every deal-starting path uses; see salesClients.ts.
   const client = await resolveClientFor(
     { studio, section: clientsSection },
-    { clientId, clientName, industry, contact, site: location, collaboratorId: collaborator.id },
+    { clientId, clientName, industry, contact, site: location, collaboratorId: input.raisedBy },
   );
   if (!client) return { error: "client" };
 
@@ -937,7 +1013,7 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
     contactPhone: contact.phone,
     contactPosition: contact.position,
     location,
-    description: str(body?.description, 4000),
+    description: input.description,
     status: DEFAULT_STATUS,                 // automated — never taken from input
     urgency: DEFAULT_URGENCY,               // Leader-only, and only after creation
     industry,
@@ -946,13 +1022,19 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
     clientBudget,
     // Sales' own read on how likely this is to close. Drives the weighted
     // forecast on the dashboard, so it is a number, not a mood.
-    probability: normaliseProbability(body?.probability, 0),
+    probability: input.probability,
     value: 0,                               // auto — set from a completed quotation
-    // The owner IS whoever raised the ticket, so it is taken from the session
-    // rather than the payload — there is no owner field on the form to send,
-    // and a crafted request cannot raise a ticket in someone else's name.
-    assignedToCollaboratorId: collaborator.id,
-    createdByCollaboratorId: collaborator.id,
+    // WHO RAISED IT comes from the session, never the payload, so a crafted
+    // request cannot raise a ticket in someone else's name. WHO HAS IT is the
+    // raiser for Sales' own tickets and nobody for a campaign's lead, which
+    // waits for a manager (./leads).
+    assignedToCollaboratorId: input.assignedTo,
+    createdByCollaboratorId: input.raisedBy,
+    campaignId: input.campaignId,
+    leadDeadlineHours: input.leadDeadlineHours,
+    assignedAt: input.assignedTo ? new Date().toISOString() : "",
+    assignmentHistory: [],
+    firstActionAt: "",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
@@ -965,6 +1047,74 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
     await attachTicketEngagement(studio.id, ticket, client);
   } catch { /* best-effort: the ticket is raised; failing to mint its engagement must not fail that */ }
 
+  return { ticket };
+}
+
+/**
+ * A CAMPAIGN SENDS A LEAD TO SALES (19/09/2026). Called by Marketing, which has
+ * already checked its own right; this writes with the studio's authority,
+ * because a marketer need hold no Sales right to hand Sales a lead — the same
+ * shape as an engine rule raising a record. The lead is raised by the marketer,
+ * assigned to NOBODY, carries its campaign and the campaign's deadline, and the
+ * people who assign leads are told it is waiting.
+ *
+ * WHAT A MARKETER KNOWS, AND NO MORE: who, how to reach them, and what they
+ * want. Industry, deadline and services are left for the sales executive, which
+ * is why this does not go through `createTicket`'s form rules.
+ */
+export async function raiseLead(
+  sections: Pick<SalesContext, "studio" | "ticketsSection" | "clientsSection">,
+  input: {
+    title: string; clientName: string; contactName: string; contactEmail: string; contactPhone: string;
+    description: string; campaignId: string; leadDeadlineHours: number | null; raisedBy: string;
+  },
+) {
+  const result = await insertTicket(sections, {
+    title: input.title, clientId: "", clientName: input.clientName, industry: "", deadline: "",
+    contact: { name: input.contactName, email: input.contactEmail, phone: input.contactPhone, position: "" },
+    location: { name: "", country: "", city: "", url: "" },
+    serviceIds: [], clientBudget: null, description: input.description, probability: 0,
+    raisedBy: input.raisedBy, assignedTo: "", campaignId: input.campaignId, leadDeadlineHours: input.leadDeadlineHours,
+  });
+  if ("ticket" in result && result.ticket) {
+    await notifyHolders(sections.studio.id, "crmSales.tickets.assign", {
+      type: NOTIFY.leadWaiting,
+      title: "A new lead is waiting to be assigned",
+      body: [result.ticket.ref, result.ticket.title].join(" · "),
+      params: { reference: result.ticket.ref, title: result.ticket.title },
+      href: "crm-sales-tickets",
+      tone: "warning",
+    }, [input.raisedBy]);
+  }
+  return result;
+}
+
+/**
+ * HAND A LEAD TO A SALES EXECUTIVE — or move it to another. Only a holder of
+ * `crmSales.tickets.assign`; nobody can clear an assignee (./leads). The new
+ * assignee is told; the one it moved from is not buzzed about losing it.
+ */
+export async function assignTicket(ctx: SalesContext, id: string, to: string) {
+  const denied = requirePermission(ctx.access, "crmSales.tickets.assign");
+  if (denied) return denied;
+  const { studio, ticketsSection, collaborator } = ctx;
+  if (to && !(await listCollaborators(studio.id)).some((c) => String(c.id) === to)) return { error: "assignee" };
+  const at = now();
+  let refusal = "";
+  const ticket = await Tickets.update({ studio, section: ticketsSection }, id, (row: SalesTicket) => {
+    refusal = assignProblem(row, to);
+    return refusal ? {} : assignPatch(row, to, collaborator.id, at);
+  });
+  if (refusal) return { error: refusal };
+  if (!ticket) return { error: "notfound" };
+  await notifyCollaboratorIds(studio.id, [to], {
+    type: NOTIFY.leadAssigned,
+    title: "A lead was assigned to you",
+    body: [ticket.ref, ticket.title].join(" · "),
+    params: { reference: ticket.ref, title: ticket.title },
+    href: "crm-sales-tickets/" + ticket.id,
+    tone: "primary",
+  }, [collaborator.id]);
   return { ticket };
 }
 
@@ -993,9 +1143,12 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
       text: str(body.addComment, 2000),
       at: new Date().toISOString(),
     };
-    const ticket = await Tickets.update({ studio, section: ticketsSection }, id, {
-      comments: [...(Array.isArray(existing.comments) ? existing.comments : []), comment].slice(-200),
-    });
+    const ticket = await Tickets.update({ studio, section: ticketsSection }, id, (row: SalesTicket) => ({
+      comments: [...(Array.isArray(row.comments) ? row.comments : []), comment].slice(-200),
+      // THE ASSIGNEE'S FIRST WORD ON A LEAD STOPS ITS CLOCK (./leads).
+      ...(comment.byCollaboratorId && row.assignedToCollaboratorId === comment.byCollaboratorId && !row.firstActionAt
+        ? { firstActionAt: comment.at } : {}),
+    }));
     return ticket ? { ticket } : { error: "notfound" };
   }
 
@@ -1042,9 +1195,17 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
     patch.serviceIds = serviceIds;
   }
   if (body?.value !== undefined) patch.value = Number(body.value) > 0 ? Number(body.value) : 0;
-  // Ownership is not editable: it means "who raised this", which cannot change
-  // after the fact. Editing a ticket therefore leaves the owner alone, and an
-  // assignedToCollaboratorId in the payload is ignored rather than honoured.
+  // WHO RAISED IT AND WHO HAS IT ARE NOT EDITED HERE. The first never changes;
+  // the second answers to `crmSales.tickets.assign` through `assignTicket`, so
+  // an assignedToCollaboratorId in this payload is ignored rather than honoured.
+  //
+  // THE CAMPAIGN IS THE ORIGINAL SOURCE (the owner, 19/09/2026): it may be named
+  // on a ticket that has none, and never changed once it has one — judged
+  // against the row being written, below.
+  const campaignId = body?.campaignId !== undefined ? str(body.campaignId, 60) : "";
+  if (campaignId && !(await campaignRows(studio, ctx.campaignsSection)).some((c) => c.id === campaignId)) {
+    return { error: "campaign" };
+  }
 
   // THE REFUSAL IS JUDGED ON WHAT THE PERSON SAW. One read, only when the stage
   // is actually moving — an edit that renames a ticket pays nothing for this.
@@ -1070,24 +1231,26 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
 
   patch.updatedAt = now();
 
-  // AND THE WRITE IS A FUNCTION PATCH WHEN THE STAGE MOVES (invariant 8). The
-  // history is appended to the row as it stands AT WRITE TIME rather than to
-  // the copy read a moment ago for the refusal — two people closing the same
-  // deal in the same second must leave two entries, not one that silently
-  // overwrites the other.
-  const ticket = await Tickets.update({ studio, section: ticketsSection }, id, stageMove
-    ? (row: SalesTicket) => ({
-      ...patch,
-      ...stagePatch({
-        from: row.status,
-        to: stageMove.to,
-        at: String(patch.updatedAt),
-        byCollaboratorId: collaborator?.id || "",
-        lostReason: stageMove.lostReason,
-        history: row.stageHistory,
-      }),
-    })
-    : patch);
+  // AND THE WRITE IS A FUNCTION PATCH (invariant 8). The stage history is
+  // appended to the row as it stands AT WRITE TIME rather than to the copy read
+  // a moment ago for the refusal — two people closing the same deal in the same
+  // second must leave two entries, not one that silently overwrites the other.
+  // The same row decides whether the campaign is still unset and whether this is
+  // the assignee's first act on a lead, which stops its clock (./leads).
+  const actor = collaborator?.id || "";
+  const ticket = await Tickets.update({ studio, section: ticketsSection }, id, (row: SalesTicket) => ({
+    ...patch,
+    ...(campaignId && !row.campaignId ? { campaignId } : {}),
+    ...(actor && row.assignedToCollaboratorId === actor && !row.firstActionAt ? { firstActionAt: String(patch.updatedAt) } : {}),
+    ...(stageMove ? stagePatch({
+      from: row.status,
+      to: stageMove.to,
+      at: String(patch.updatedAt),
+      byCollaboratorId: actor,
+      lostReason: stageMove.lostReason,
+      history: row.stageHistory,
+    }) : {}),
+  }));
   if (!ticket) return { error: "notfound" };
 
   // AND FOLD THE SITE BACK INTO THE CLIENT, the same way creating a ticket

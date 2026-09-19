@@ -14,7 +14,7 @@ import { identityDocumentLabel } from "@/shared/identityDocuments";
 import { raiseDuePmOrders, raiseDueContractOrders, raiseDueConditionOrders } from "@/modules/maintenance/pmRun";
 import {
   overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices,
-  dueWorkOrderNotices, dueCalibrationNotices, type WorkOrderNotice,
+  dueWorkOrderNotices, dueCalibrationNotices, overdueLeadNotices, type WorkOrderNotice,
 } from "@/modules/main/timeNotices";
 
 export const runtime = "nodejs";
@@ -40,6 +40,7 @@ const Bills = repo("bills");
 const Permits = repo("permits");
 const WorkOrders = repo("workOrders");
 const EngineRecords = repo("engineRecords");
+const SalesTickets = repo("salesTickets");
 
 async function run() {
 
@@ -133,9 +134,11 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
   // in no static list, so its key comes from the one function that mints it.
   const calibrationKey = engineSectionKey("calibration");
   const calibrationId = sectionId(calibrationKey);
+  // SALES' TICKETS, for the leads waiting past their campaign's deadline.
+  const ticketsId = sectionId("crm-sales-tickets");
 
   // Read only the sections this studio actually has, all at once.
-  const [invoices, bills, permits, workOrders, calibrations] = await Promise.all([
+  const [invoices, bills, permits, workOrders, calibrations, tickets] = await Promise.all([
     cashId ? Invoices.find({ studio: { id: studioId }, section: { id: cashId } }) : Promise.resolve([]),
     payablesId ? Bills.find({ studio: { id: studioId }, section: { id: payablesId } }) : Promise.resolve([]),
     permitsId ? Permits.find({ studio: { id: studioId }, section: { id: permitsId } }) : Promise.resolve([]),
@@ -143,6 +146,7 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
     calibrationId
       ? EngineRecords.find({ studio: { id: studioId }, section: { id: calibrationId } }, { where: { typeKey: "calibration" } })
       : Promise.resolve([]),
+    ticketsId ? SalesTickets.find({ studio: { id: studioId }, section: { id: ticketsId } }) : Promise.resolve([]),
   ]);
 
   const overdueDetail = (n: { reference?: string; name?: string; daysOverdue?: number }) =>
@@ -165,6 +169,9 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
     // CALIBRATION IS TOLD TO WHOEVER CAN RECORD THE NEW CERTIFICATE — the
     // register's edit right, not its view: a notice nobody who reads it can act
     // on is a notice that wastes the person who saw it.
+    // A LEAD PAST ITS CAMPAIGN'S DEADLINE is told to whoever hands leads out
+    // (modules/sales/leads): they are the one who can put a name on it or move it.
+    { notices: overdueLeadNotices(tickets as never, new Date().toISOString(), todayISO), key: "crmSales.tickets.assign", also: "", type: NOTIFY.leadOverdue, title: "Leads waiting too long", href: "crm-sales-tickets", say: (n: { reference?: string; name?: string; daysOverdue?: number }) => `${n.reference || "A lead"}${n.name && n.name !== "—" ? ` — ${n.name}` : ""}, ${(n.daysOverdue ?? 0) <= 0 ? "past its deadline today" : `${n.daysOverdue} day${n.daysOverdue === 1 ? "" : "s"} past its deadline`}` },
     { notices: dueCalibrationNotices(calibrations as never, todayISO), key: "engine.calibration.edit", also: "", type: NOTIFY.calibrationDue, title: "Due calibrations", href: calibrationKey, say: (n: { name?: string; daysLeft?: number }) => `${n.name} ${(n.daysLeft ?? 0) <= 0 ? "is due for calibration today" : `is due for calibration in ${n.daysLeft} day${n.daysLeft === 1 ? "" : "s"}`}` },
   ];
 

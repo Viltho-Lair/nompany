@@ -28,16 +28,31 @@ import { NOTIFY } from "@/platform/notify/notifications";
 import { roundMoney } from "@/shared/money";
 import {
   CHANNELS, OBJECTIVES, campaignProblem, campaignEditable, campaignDeletable, moveProblem, utmSlug,
-  landingUrlProblem, taggedLink, budgetSplit, attention, campaignFigures, isFinal,
+  landingUrlProblem, taggedLink, budgetSplit, attention, campaignFigures, isFinal, campaignResults,
 } from "./model";
+import { leadHours } from "@/modules/sales/leads";
+import { raiseLead, quotedTotalFor, ticketValue } from "@/modules/sales/sales";
+import { isWon } from "@/modules/sales/pipeline";
+import type { SalesTicket } from "@/modules/sales/schema";
+import type { Quotation } from "@/modules/technical/types";
 import type { Campaign } from "./schema";
 import type { MarketingContext } from "./types";
 
 const Campaigns = repo<Campaign>("marketingCampaigns");
+// SALES', READ ONLY here — every write to a ticket goes through Sales' own door.
+const Tickets = repo<SalesTicket>("salesTickets");
+const QuotationRows = repo<Quotation>("quotations");
 
 export const marketingContext = moduleContext<MarketingContext>({
   root: "marketing",
   sub: { campaigns: "marketing-campaigns" },
+  // SALES', for the leads a campaign sends and the deals they became. Foreign,
+  // so a studio with Sales switched off simply has nowhere to send a lead.
+  foreign: {
+    tickets: ["crm-sales-tickets", "crm-sales"],
+    clients: ["crm-sales-clients", "crm-sales"],
+    quotations: ["crm-sales-quotations", "crm-sales"],
+  },
   flags: ["campaigns"],
 });
 
@@ -67,6 +82,26 @@ const channels = (v: unknown): string[] =>
 
 const scope = (ctx: MarketingContext) => ({ studio: ctx.studio, section: ctx.campaignsSection });
 const may = (ctx: MarketingContext, key: PermissionKey) => !requirePermission(ctx.access, key);
+const mayAssign = (ctx: MarketingContext) => may(ctx, "marketing.campaigns.assign");
+
+/**
+ * WHAT EACH CAMPAIGN BROUGHT IN, read from Sales with the studio's authority:
+ * the figures are the campaign's own results, which is what the register and
+ * the dashboard exist to show. Nothing about a ticket but its campaign, stage
+ * and value leaves this function.
+ */
+async function results(ctx: MarketingContext) {
+  if (!ctx.ticketsSection) return campaignResults([]);
+  const [tickets, quotations] = await Promise.all([
+    Tickets.find({ studio: ctx.studio, section: ctx.ticketsSection }),
+    ctx.quotationsSection ? QuotationRows.find({ studio: ctx.studio, section: ctx.quotationsSection }) : Promise.resolve([] as Quotation[]),
+  ]);
+  return campaignResults(tickets.filter((t) => t.campaignId).map((t) => ({
+    campaignId: t.campaignId,
+    won: isWon(t.status),
+    value: ticketValue(t, quotedTotalFor(t.id, quotations)),
+  })));
+}
 
 type Person = { id: string; alias?: string };
 
@@ -81,7 +116,7 @@ async function people(ctx: MarketingContext): Promise<Person[]> {
  * through `moveCampaign`, the ladder's one door — routing a status through a
  * generic edit is the shape that once let a rejected change order approve itself.
  */
-function campaignFields(body: Record<string, unknown>, currency: unknown) {
+function campaignFields(body: Record<string, unknown>, currency: unknown, canAssign: boolean) {
   const out: Partial<Campaign> = {};
   const has = (k: string) => body?.[k] !== undefined;
   if (has("description")) out.description = str(body.description, 4000);
@@ -91,6 +126,7 @@ function campaignFields(body: Record<string, unknown>, currency: unknown) {
   if (has("startOn")) out.startOn = day(body.startOn);
   if (has("endOn")) out.endOn = day(body.endOn);
   if (has("ownerCollaboratorId")) out.ownerCollaboratorId = str(body.ownerCollaboratorId, 60);
+  if (has("leadDeadlineHours")) out.leadDeadlineHours = leadHours(body.leadDeadlineHours);
   if (has("budget")) out.budget = amount(body.budget, currency);
   if (has("expectedLeads")) out.expectedLeads = count(body.expectedLeads);
   if (has("expectedCustomers")) out.expectedCustomers = count(body.expectedCustomers);
@@ -101,6 +137,11 @@ function campaignFields(body: Record<string, unknown>, currency: unknown) {
   if (has("utmContent")) out.utmContent = str(body.utmContent, 100);
   if (has("utmTerm")) out.utmTerm = str(body.utmTerm, 100);
   if (has("landingUrl")) out.landingUrl = str(body.landingUrl, 1000);
+  // WHO OWNS IT is the manager's choice (`marketing.campaigns.assign`, the
+  // owner's rule, 19/09/2026). Without the right the field is ignored rather
+  // than honoured — the screen does not offer it — and a new campaign stays
+  // with whoever raised it.
+  if (!canAssign) delete out.ownerCollaboratorId;
   return out;
 }
 
@@ -139,7 +180,7 @@ async function announceOwner(ctx: MarketingContext, c: Campaign, before: string)
 export async function listCampaigns(ctx: MarketingContext) {
   const denied = requirePermission(ctx.access, "marketing.campaigns.view");
   if (denied) return denied;
-  const [rows, team] = await Promise.all([Campaigns.find(scope(ctx)), people(ctx)]);
+  const [rows, team, got] = await Promise.all([Campaigns.find(scope(ctx)), people(ctx), results(ctx)]);
   const aliasOf = new Map(team.map((p) => [p.id, p.alias || ""]));
   const asOf = today();
   const nameOf = new Map(rows.map((c) => [c.id, `${c.reference} · ${c.name}`]));
@@ -152,6 +193,7 @@ export async function listCampaigns(ctx: MarketingContext) {
     link: c.landingUrl ? taggedLink(c.landingUrl, utmOf(c)) : "",
     attention: attention(c, asOf),
     ownerAlias: aliasOf.get(c.ownerCollaboratorId) || "",
+    results: got.get(c.id) || { leads: 0, won: 0, wonValue: 0 },
     createdByAlias: aliasOf.get(c.createdByCollaboratorId) || "",
   })).sort((a, b) =>
     Number(isFinal(a.status)) - Number(isFinal(b.status))
@@ -165,6 +207,9 @@ export async function listCampaigns(ctx: MarketingContext) {
     canCreate: may(ctx, "marketing.campaigns.create"),
     canEdit: may(ctx, "marketing.campaigns.edit"),
     canDelete: may(ctx, "marketing.campaigns.delete"),
+    canAssign: mayAssign(ctx),
+    // A LEAD NEEDS SOMEWHERE TO GO: Sales switched on, and a way into it.
+    canSendLeads: may(ctx, "marketing.campaigns.edit") && Boolean(ctx.ticketsSection && ctx.clientsSection) && ctx.on("crm-sales"),
   };
 }
 
@@ -182,7 +227,7 @@ export async function createCampaign(ctx: MarketingContext, body: Record<string,
   if (denied) return denied;
   const name = str(body?.name, 200);
   if (!name) return { error: "name" };
-  const fields = campaignFields(body || {}, ctx.studio.currency);
+  const fields = campaignFields(body || {}, ctx.studio.currency, mayAssign(ctx));
   const rows = await Campaigns.find(scope(ctx));
   const problem = await shapeProblem(ctx, fields, rows);
   if (problem) return { error: problem };
@@ -210,6 +255,7 @@ export async function createCampaign(ctx: MarketingContext, body: Record<string,
     utmContent: "",
     utmTerm: "",
     landingUrl: "",
+    leadDeadlineHours: null,
     ...fields,
     status: "Draft",
     createdByCollaboratorId: ctx.collaborator.id,
@@ -227,7 +273,7 @@ export async function editCampaign(ctx: MarketingContext, id: string, body: Reco
   const current = rows.find((c) => c.id === id);
   if (!current) return { error: "notfound" };
   if (!campaignEditable(current.status)) return { error: "campaign-final" };
-  const patch = campaignFields(body || {}, ctx.studio.currency);
+  const patch = campaignFields(body || {}, ctx.studio.currency, mayAssign(ctx));
   if (body?.name !== undefined) {
     const name = str(body.name, 200);
     if (!name) return { error: "name" };
@@ -301,6 +347,7 @@ export async function cloneCampaign(ctx: MarketingContext, id: string) {
     utmContent: source.utmContent,
     utmTerm: source.utmTerm,
     landingUrl: source.landingUrl,
+    leadDeadlineHours: source.leadDeadlineHours ?? null,
     clonedFromId: source.id,
     status: "Draft",
     createdByCollaboratorId: ctx.collaborator.id,
@@ -322,6 +369,46 @@ export async function removeCampaign(ctx: MarketingContext, id: string) {
   return { ok: true };
 }
 
+// ---- leads -------------------------------------------------------------------------
+
+/**
+ * THE CAMPAIGN SENDS A LEAD TO SALES (the owner's flow, 19/09/2026). It arrives
+ * as a Sales ticket at Lead, raised by this marketer, assigned to NOBODY,
+ * carrying the campaign as its original source and the campaign's deadline, and
+ * the Sales managers are told it is waiting. Sales' own function writes it, so
+ * the ticket is exactly what Sales would have written.
+ *
+ * A marketer is asked only what a marketer knows: who, how to reach them, and
+ * what they want. At least one way to reach them — a lead nobody can contact is
+ * nothing Sales can act on.
+ */
+export async function sendLead(ctx: MarketingContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "marketing.campaigns.edit");
+  if (denied) return denied;
+  if (!ctx.ticketsSection || !ctx.clientsSection || !ctx.on("crm-sales")) return { error: "no-sales" };
+  const campaign = await Campaigns.byId(scope(ctx), id);
+  if (!campaign) return { error: "notfound" };
+  const clientName = str(body?.clientName, 160);
+  const contactName = str(body?.contactName, 120);
+  const contactPhone = str(body?.contactPhone, 60);
+  const contactEmail = str(body?.contactEmail, 200);
+  if (!clientName) return { error: "lead-name" };
+  if (!contactPhone && !contactEmail) return { error: "lead-contact" };
+  const result = await raiseLead(
+    { studio: ctx.studio, ticketsSection: ctx.ticketsSection, clientsSection: ctx.clientsSection },
+    {
+      title: str(body?.title, 200) || clientName,
+      clientName, contactName, contactPhone, contactEmail,
+      description: str(body?.description, 4000),
+      campaignId: campaign.id,
+      leadDeadlineHours: campaign.leadDeadlineHours ?? null,
+      raisedBy: ctx.collaborator.id,
+    },
+  );
+  if ("error" in result && result.error) return { error: result.error };
+  return { ok: true };
+}
+
 // ---- the dashboard -----------------------------------------------------------------
 
 /**
@@ -332,10 +419,14 @@ export async function removeCampaign(ctx: MarketingContext, id: string) {
 export async function marketingDashboard(ctx: MarketingContext) {
   const denied = requirePermission(ctx.access, "marketing.dashboard.view");
   if (denied) return denied;
-  const rows = await Campaigns.find(scope(ctx));
+  const [rows, got] = await Promise.all([Campaigns.find(scope(ctx)), results(ctx)]);
   const asOf = today();
   const canOpen = may(ctx, "marketing.campaigns.view");
   const figures = campaignFigures(rows, asOf);
+  // WHAT THE CAMPAIGNS ACTUALLY BROUGHT IN, beside what they planned to.
+  const actual = [...got.values()].reduce((s, r) => ({
+    leads: s.leads + r.leads, won: s.won + r.won, wonValue: Math.round((s.wonValue + r.wonValue) * 100) / 100,
+  }), { leads: 0, won: 0, wonValue: 0 });
   // WHAT NEEDS SOMEBODY, soonest first — late starts and overruns before
   // launches, because those are already wrong.
   const rank: Record<string, number> = { "late-start": 0, "past-end": 1, starting: 2 };
@@ -353,6 +444,7 @@ export async function marketingDashboard(ctx: MarketingContext) {
     asOf,
     currency: String(ctx.studio.currency || ""),
     figures,
+    actual,
     attention: attentionList,
     running,
     may: { campaigns: canOpen, create: may(ctx, "marketing.campaigns.create") },

@@ -16,10 +16,12 @@ the public site's price list and is not part of the department.
 | Right | Opens |
 |---|---|
 | `marketing.dashboard.view` | The dashboard. |
-| `marketing.campaigns.view/create/edit/delete` | The register. Moving a campaign along its ladder is **edit**; running it again (cloning) is **create**. |
+| `marketing.campaigns.view/create/edit/delete` | The register. Moving a campaign along its ladder is **edit**; running it again (cloning) is **create**; sending a lead to Sales is **edit**. |
+| `marketing.campaigns.assign` | Choosing who owns a campaign (2026-09-19). Without it the owner is whoever raised the campaign. |
 
 The **winner-of-work** shape (Sales Manager, Marketing Manager, Digital Marketing Specialist and
-every other marketing title in the role library) holds both, the campaigns at full. A **department
+every other marketing title in the role library) holds both, the campaigns at full, and the assign
+extra. A role that can delete campaigns catches up to the assign extra by itself. A **department
 head** sees the dashboard. Admin holds everything. **Existing roles gain nothing**: no right that
 already exists means "runs marketing", so there is nothing for a catch-up to key off. An Admin
 grants it on the Access screen.
@@ -57,16 +59,21 @@ history, no sub-campaigns and a blank `utm_campaign`, so two runs do not report 
 **Deleting**: only a Draft, Planned or Cancelled campaign, and never one with sub-campaigns.
 One that ran is kept as the record of what ran.
 
+**Leads** (2026-09-19, `docs/functionality/leads.md`): each campaign sets a **lead deadline** in
+hours, and *Send a lead to Sales* raises a Sales ticket at Lead, assigned to nobody, naming the
+campaign as its source. The card shows what the campaign brought in: its leads, deals won and
+won value, read from the Sales tickets that name it.
+
 **Needs attention**, judged by the server's date: a Planned campaign whose start date has passed,
 a running or paused one past its end date, and a Draft or Planned one starting within seven days.
 
 ## The dashboard
 
 The section's landing page. Six figures: running now, starting this week, needing attention,
-budget in open campaigns (counted once), expected revenue and expected leads. Then what needs
+budget in open campaigns (counted once), leads from campaigns (with the target beneath) and won
+value from campaigns (with the expected revenue beneath). Then what needs
 somebody (late starts and overruns first), campaigns by status, what is running now with its end
-date, and open campaigns by channel. It says in words that these are **plans**: spend, leads and
-revenue arrive with the subsections below. Nothing on it is gated by the analytics tier.
+date, and open campaigns by channel. Spend is still a plan: it arrives with Budget & Spend. Nothing on it is gated by the analytics tier.
 
 ## Not built yet
 
@@ -83,9 +90,9 @@ The other sixteen subsections of the plan, and everything the dashboard's plan n
   tools for now, and nompany does not resell messaging or ad credits (both ledger rows, for later).
 - **Web, Forms & Landing Pages**: no forms, no hosted pages, no visitor tracking. The tracked
   link is built, but nothing reads the tags back when a visitor arrives.
-- **Leads & Scoring**: the owner decided leads stay Sales tickets at the Lead stage and Marketing
-  reads them (2026-09-19). **A ticket cannot name a campaign yet**, so a campaign's actual leads,
-  customers and won value are not shown anywhere; only its targets are.
+- **Leads & Scoring**: leads are Sales tickets (the owner, 2026-09-19) and campaigns send them
+  (`leads.md`). Not built: scoring, lifecycle stages beyond the pipeline's, lead enrichment and
+  duplicate merging.
 - **Journeys**, **Content & Brand Assets**, **Events & Webinars**, **Promotions & Loyalty**,
   **Research & Feedback**, **Partners, PR & Influencers**, **Reports & Attribution**.
 - On the dashboard: marketing-sourced revenue, ROI, cost per lead, CAC, the funnel, the budget

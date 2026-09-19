@@ -1,7 +1,7 @@
 import { route } from "@/platform/http/route";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import {
-  salesContext, listClients, listTickets, assignablePeople, saveSalesSettings,
+  salesContext, listClients, listTickets, assignablePeople, saveSalesSettings, canAssignLeads, campaignChoices,
   TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS,
 } from "@/modules/sales/sales";
 
@@ -19,10 +19,13 @@ export const GET = route(spec, async (sales) => {
   // form's picker. Empty is exactly what a studio with none would receive.
   const ticketsOn = sales.on("crm-sales-tickets") || sales.on("crm-sales-live");
   const clientsOn = sales.on("crm-sales-clients") || ticketsOn;
-  const [clients, tickets, people] = await Promise.all([
+  const [clients, tickets, people, campaigns] = await Promise.all([
     clientsOn ? listClients(sales) : Promise.resolve([]),
     ticketsOn ? listTickets(sales) : Promise.resolve([]),
     assignablePeople(sales),
+    // THE OPEN CAMPAIGNS a ticket may name as its source — only when Marketing
+    // is switched on, since a switched-off department leaves nothing behind.
+    sales.on("marketing") ? campaignChoices(sales) : Promise.resolve([]),
   ]);
   return {
     // ONE FLAG PER SUB-SECTION. Tickets, Clients and Settings are separate
@@ -36,6 +39,10 @@ export const GET = route(spec, async (sales) => {
     canManageTickets: sales.canManageTickets,
     canManageClients: sales.canManageClients,
     canManageSettings: sales.canManageSettings,
+    // Whether this reader hands out leads (modules/sales/leads): the unassigned
+    // queue and the Assign button are drawn only for them.
+    canAssign: canAssignLeads(sales),
+    campaigns,
     nav: sales.nav,
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.

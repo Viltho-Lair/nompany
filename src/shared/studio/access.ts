@@ -129,6 +129,8 @@ const extras: Record<Locale, Record<string, string>> = {
   ar: {
     "engineeringDocs.rfq.convert": "التحويل إلى عرض سعر",
     "crmSales.quotations.lock": "القفل الدائم",
+    "crmSales.tickets.assign": "إسناد العملاء المحتملين إلى مندوب مبيعات",
+    "marketing.campaigns.assign": "تحديد مسؤول الحملة",
     "crmSales.quotations.unlock": "فتح عرض سعر مقفل",
     "crmSales.pos.discount": "تغيير السعر عند الصندوق",
     "crmSales.pos.closeShift": "إغلاق الوردية وعد الدرج",
