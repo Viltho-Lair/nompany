@@ -43,6 +43,8 @@ export type PosContext = ModuleContext & {
   clientsSection: Section | null;
   /** Finance → Cash, where invoices and credit notes are filed. Null when Finance is off. */
   cashSection: Section | null;
+  /** Where a return's approval is filed. Null only while a studio awaits its planting. */
+  approvalsSection: Section | null;
   canViewPos: boolean;
   canManagePos: boolean;
 };

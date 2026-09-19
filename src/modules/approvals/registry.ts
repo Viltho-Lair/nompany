@@ -13,11 +13,40 @@
 // holds only the hand-written items converted from the old board when
 // Approvals replaced it.
 
+/**
+ * ONE STEP AS IT WAS ANSWERED BEFORE THIS TYPE MOVED ONTO APPROVALS: a right,
+ * and the amount it started at. Read for one thing only — the steps a studio
+ * that has not set this type up yet gets by default (`defaultSetting` in
+ * ./approvals): the people who hold that right TODAY. The owner, 19/09/2026:
+ * seed each type with the people who hold today's right, so nothing stops the
+ * day a type moves. Saving the type in Approvals settings replaces it for good.
+ */
+export type LegacyStep = { readonly permission: string; readonly from: number; readonly label: string };
+
 export type ApprovalTypeDef = {
   readonly key: string;
   readonly label: string;
   /** False only for `carried` — nothing may raise one. */
   readonly requestable: boolean;
+  /**
+   * CARRIES AN AMOUNT, so a step may start at a threshold (`from`). A request
+   * of such a type says what it is worth; one whose steps all start at 0 is
+   * never converted and never needs the studio's currency.
+   */
+  readonly amounted?: boolean;
+  /**
+   * The old chain in Studio settings → Approvals this type replaces, so a studio
+   * that had moved its limits keeps them in its default steps.
+   */
+  readonly legacyChain?: string;
+  /** The steps it had before — see LegacyStep. */
+  readonly legacy?: readonly LegacyStep[];
+  /**
+   * NOBODY ANSWERS TWO STEPS OF ONE REQUEST — invariant 7's reviewer ≠ approver,
+   * kept where the steps ARE two different acts (a document is reviewed, then
+   * approved). Everywhere else the same person may be named on two steps.
+   */
+  readonly distinctSigners?: boolean;
 };
 
 export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
@@ -28,6 +57,12 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
   { key: "delivery-return", label: "Delivery return", requestable: true },
   { key: "id-update", label: "ID update", requestable: true },
   { key: "permit-request", label: "Permit request", requestable: true },
+  // A RETURN AT THE COUNTER (Point of Sale → Returns). Asked for when the
+  // return is; approving it puts the units back and pays the refund.
+  {
+    key: "pos-return", label: "Till return", requestable: true, amounted: true,
+    legacy: [{ permission: "pos.returns.approve", from: 0, label: "Returns" }],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 

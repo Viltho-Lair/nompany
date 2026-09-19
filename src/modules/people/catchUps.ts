@@ -58,6 +58,11 @@ const DEFAULT_VERBS = ["view", "create", "edit", "delete"] as const;
  * ADD AN ENTRY WHEN A RIGHT SHIPS THAT AN EXISTING ROLE SHOULD HAVE. Never edit
  * one that has shipped: its id is stored on every role already asked, so a
  * changed entry would reach nobody — a new id is how a second thought travels.
+ *
+ * AN ENTRY LEAVES WHEN THE RIGHT IT GIVES LEAVES THE PRODUCT, and only then:
+ * handing out a right nothing can exercise is invariant 16's bug. The till
+ * return's `approve` went this way on 19/09/2026, when approving moved to the
+ * Approvals page (`git log -p` has the entry).
  */
 export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
   {
@@ -98,17 +103,6 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     from: "crmSales.pos",
     to: ["pos.returns"],
     verbs: ["view", "create"],
-  },
-  {
-    id: "pos-returns-approve-2026-09-18",
-    // SIGNING A RETURN IS A MANAGER'S (the owner: every return waits for one).
-    // Whoever managed the till — `crmSales.pos.edit` — signs; a cashier who
-    // only sells does not.
-    note: "The till's managers may approve a return",
-    from: "crmSales.pos",
-    fromVerb: "edit",
-    to: ["pos.returns"],
-    verbs: ["approve"],
   },
   {
     id: "hr-lifecycle-2026-09-17",

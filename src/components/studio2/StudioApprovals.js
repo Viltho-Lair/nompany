@@ -9,7 +9,7 @@ import { useReload } from "@/components/studio2/useReload";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { Icon } from "@/components/studio2/icons";
 import {
-  panel, h2, sub, input, label, btn, btnGhost, btnRow, btnRowPrimary, btnRowDanger, Empty, fmtDateTime,
+  panel, h2, sub, input, label, btn, btnGhost, btnRow, btnRowPrimary, btnRowDanger, Empty, fmtDateTime, money,
 } from "@/components/studio2/ui";
 import { approvalsDict } from "@/shared/studio/approvals";
 
@@ -42,10 +42,11 @@ function ApprovalList({ slug }) {
   // Somebody answered, or asked — pick it up without a refresh.
   useLiveUpdates(slug, "approvals", load);
 
-  const answer = useCallback(async (id, verdict, note) => {
+  // `body` is an answer ({ verdict, note }) or a retry ({ action: "finish" }).
+  const answer = useCallback(async (id, body) => {
     setError("");
     const res = await fetch(`/api/studios/${slug}/approvals`, {
-      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, verdict, note }),
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...body }),
     });
     const out = await res.json().catch(() => ({}));
     if (!res.ok) { setError(tr.error(out.error)); await load(); return false; }
@@ -100,7 +101,7 @@ function ApprovalCard({ slug, approval: a, tr, onAnswer }) {
 
   const act = async (verdict, note = "") => {
     setBusy(true);
-    const done = await onAnswer(a.id, verdict, note);
+    const done = await onAnswer(a.id, { verdict, note });
     setBusy(false);
     if (done) { setRejecting(false); setReason(""); }
   };
@@ -128,6 +129,19 @@ function ApprovalCard({ slug, approval: a, tr, onAnswer }) {
         <Link href={`/${slug}/${a.source.path || a.source.sectionKey}`} className="mt-3 inline-flex items-center gap-1 text-sm font-600 text-brand-700 hover:underline dark:text-brand-400">
           {tr.openRecord}
         </Link>
+      )}
+      {a.amount && (
+        <p className="mt-3 text-sm">
+          <span className={label}>{tr.amount}</span>
+          <span className="num font-600 text-[var(--geex-ink)]">{money(a.amount.value, a.amount.currency)} {a.amount.currency}</span>
+        </p>
+      )}
+      {a.finish?.error && (
+        <div className={`${alert} mt-3 flex flex-wrap items-center justify-between gap-2`}>
+          <span>{tr.finishFailed(a.finish.error)}</span>
+          <button type="button" disabled={busy} className={`${btnRow} text-sm`}
+            onClick={async () => { setBusy(true); await onAnswer(a.id, { action: "finish" }); setBusy(false); }}>{tr.retry}</button>
+        </div>
       )}
       {a.note && (
         <div className="mt-3">
@@ -239,6 +253,7 @@ function ApprovalSettings({ slug }) {
                   <h2 className={h2}>{tr.typeLabel(t.key)}</h2>
                   {data.canEdit && <button type="button" onClick={() => setEditing(t.key)} className={`${btnRow} text-sm`}>{tr.edit}</button>}
                 </div>
+                {t.isDefault && t.steps.length > 0 && <p className={`${sub} text-amber-700 dark:text-amber-300`}>{tr.defaultSteps}</p>}
                 {t.steps.length === 0
                   ? <p className={`${sub} text-amber-700 dark:text-amber-300`}>{tr.notConfigured}</p>
                   : (
@@ -246,6 +261,7 @@ function ApprovalSettings({ slug }) {
                       {t.steps.map((s, i) => (
                         <li key={s.id} className="text-[var(--geex-ink)]">
                           <span className="font-700">{tr.step(i + 1)}{s.label ? ` · ${s.label}` : ""}</span>
+                          {t.amounted && s.from > 0 && <span className="num text-slate-500 dark:text-slate-400"> · {tr.fromAt(money(s.from))}</span>}
                           <span className="text-slate-500 dark:text-slate-400"> — {s.approverIds.map((id) => nameOf[id] || tr.someone).join(", ")} ({s.requireAll ? tr.requireAll : tr.anyOne})</span>
                         </li>
                       ))}
@@ -348,6 +364,22 @@ function StepEditor({ slug, type, people, tr, onDone, onCancel }) {
               <input type="checkbox" checked={s.requireAll} onChange={(e) => change(i, { requireAll: e.target.checked })} />
               {tr.requireAllBox}
             </label>
+
+            {/* A LIMIT, only where the type carries an amount: "a bill has step 1
+                for everyone and step 2 from 50,000" (the owner, 19/09/2026). */}
+            {type.amounted && (
+              <div className="mt-3 max-w-xs">
+                <label className={label} htmlFor={`from-${type.key}-${s.id}`}>{tr.fromLabel}</label>
+                <input
+                  id={`from-${type.key}-${s.id}`}
+                  inputMode="decimal"
+                  value={s.from ?? ""}
+                  onChange={(e) => change(i, { from: e.target.value === "" ? undefined : e.target.value })}
+                  className={`${input} num`}
+                />
+                <p className={`${sub} text-xs`}>{tr.fromHint}</p>
+              </div>
+            )}
           </li>
         ))}
       </ol>

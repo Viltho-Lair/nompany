@@ -22,6 +22,7 @@
 // colleague overrules it would make the result depend on who clicked first.
 // Asking again is a new request, so the rejected one stays as the record of it.
 
+import { approvalChainsFor } from "@/platform/approval/store";
 import { APPROVAL_TYPE_KEYS, approvalType } from "./registry";
 import type {
   Approval, ApprovalSetting, ApprovalStatus, ApprovalStep, Decision, Verdict,
@@ -54,6 +55,7 @@ export function cleanSetting(
   if (!APPROVAL_TYPE_KEYS.includes(String(type))) return { problems: [{ problem: "unknown-type" }] };
 
   const members = new Set(memberIds);
+  const amounted = Boolean(approvalType(type)?.amounted);
   const rows = Array.isArray((raw as { steps?: unknown })?.steps) ? (raw as { steps: unknown[] }).steps : [];
   if (!rows.length) problems.push({ problem: "no-steps" });
   if (rows.length > MAX_STEPS) problems.push({ problem: "too-many-steps" });
@@ -77,7 +79,16 @@ export function cleanSetting(
     if (approverIds.length > MAX_APPROVERS_PER_STEP) problems.push({ problem: "too-many-approvers", step: i + 1 });
     if (approverIds.some((a) => !members.has(a))) problems.push({ problem: "unknown-approver", step: i + 1 });
 
-    return { id, label: text(row.label, 80), approverIds, requireAll: row.requireAll === true };
+    // A THRESHOLD ONLY WHERE THERE IS AN AMOUNT to hold it against. On any other
+    // type it is dropped rather than refused: it could never apply, and storing
+    // it would show a limit that governs nothing.
+    const from = Number(row.from);
+    if (amounted && row.from !== undefined && row.from !== "" && !(Number.isFinite(from) && from >= 0)) {
+      problems.push({ problem: "bad-threshold", step: i + 1 });
+    }
+    const threshold = amounted && Number.isFinite(from) && from > 0 ? { from } : {};
+
+    return { id, label: text(row.label, 80), approverIds, requireAll: row.requireAll === true, ...threshold };
   });
 
   return problems.length ? { problems } : { setting: { steps } };
@@ -101,9 +112,24 @@ export type Actor = { collaboratorId: string; isAdmin?: boolean };
 export function planFor(
   setting: ApprovalSetting | null | undefined,
   requester: Actor,
-): { steps: ApprovalStep[] } | { error: "not-configured" } | { error: "no-approver"; step: number; label: string } {
-  const steps = setting?.steps || [];
-  if (!steps.length) return { error: "not-configured" };
+  amountInBase: number | null = null,
+):
+  | { steps: ApprovalStep[] }
+  | { notNeeded: true }
+  | { error: "not-configured" }
+  | { error: "no-approver"; step: number; label: string } {
+  const configured = setting?.steps || [];
+  if (!configured.length) return { error: "not-configured" };
+  // ONLY THE STEPS THIS AMOUNT REACHES. A request with no amount walks every
+  // step — the thresholds are a type's, and a type without an amount has none.
+  const steps = amountInBase === null
+    ? configured
+    : configured.filter((s) => amountInBase >= (Number(s.from) || 0));
+  // BELOW EVERY THRESHOLD, NOTHING IS ASKED. The owner sets it that way on
+  // purpose — a stock adjustment of a few units is routine work — and the record
+  // goes ahead as though approved. Said out loud rather than returned as an
+  // empty plan, which would file an approval that approves itself.
+  if (!steps.length) return { notNeeded: true };
   const planned = requester.isAdmin
     ? steps.map((s) => ({ ...s }))
     : steps.map((s) => ({ ...s, approverIds: s.approverIds.filter((id) => id !== requester.collaboratorId) }));
@@ -214,7 +240,7 @@ export function waitingOn(approval: Pick<Approval, "status" | "steps" | "decisio
  * an Admin, who planFor left on their steps for that reason.
  */
 export function decisionProblem(
-  approval: Pick<Approval, "status" | "steps" | "decisions" | "requestedByCollaboratorId">,
+  approval: Pick<Approval, "status" | "steps" | "decisions" | "requestedByCollaboratorId"> & { type?: string },
   actor: Actor,
   verdict: unknown,
   note: unknown,
@@ -226,6 +252,11 @@ export function decisionProblem(
   const step = currentStep(approval);
   if (!step || !step.approverIds.includes(collaboratorId)) return "not-yours";
   if (approval.decisions.some((d) => d.stepId === step.id && d.collaboratorId === collaboratorId)) return "already-answered";
+  // REVIEWER ≠ APPROVER where the steps are two different acts (invariant 7).
+  // Asked of everybody, the owner included: this is not self-approval, it is one
+  // person being both halves of a check that exists to need two.
+  if (approvalType(approval.type)?.distinctSigners
+    && approval.decisions.some((d) => d.stepId !== step.id && d.collaboratorId === collaboratorId)) return "signed-another-step";
   // A NO SAYS WHY. The requester has to act on it, and "rejected" alone sends
   // them to ask the approver in person — which is the conversation this replaces.
   if (verdict === "Rejected" && !text(note, 1000)) return "reason-required";
@@ -243,7 +274,7 @@ export function decisionProblem(
  * nothing is written.
  */
 export function applyDecision(
-  row: Pick<Approval, "status" | "steps" | "decisions" | "requestedByCollaboratorId" | "decidedAt">,
+  row: Pick<Approval, "status" | "steps" | "decisions" | "requestedByCollaboratorId" | "decidedAt"> & { type?: string },
   actor: Actor,
   verdict: Verdict,
   note: string,
@@ -270,4 +301,57 @@ export function latestFor<A extends Pick<Approval, "type" | "source" | "requeste
   return approvals
     .filter((a) => a.type === type && a.source?.recordId === recordId)
     .reduce<A | null>((best, a) => (!best || a.requestedAt > best.requestedAt ? a : best), null);
+}
+
+export type Person = { id?: unknown; role?: unknown; roleIds?: unknown; overrides?: { allow?: unknown; deny?: unknown } };
+export type RoleRow = { id?: unknown; wildcard?: unknown; permissions?: unknown };
+const list = (v: unknown) => (Array.isArray(v) ? v.map(String) : []);
+
+/**
+ * WHO HOLDS A RIGHT, read off the STORED strings rather than the catalogue.
+ *
+ * The right is on its way out — a type that moves onto Approvals drops its
+ * `approve` right (a right nothing can exercise is a bug, invariant 16) — and
+ * the catalogue stops knowing it the moment it does. The roles still carry the
+ * string until the move's migration strips it, and that string is exactly who
+ * answered this yesterday. The owner and Admins hold everything.
+ */
+function holdersOf(permission: string, people: readonly Person[], roles: readonly RoleRow[]): string[] {
+  const byId = new Map(roles.map((r) => [String(r.id), r]));
+  return people.filter((c) => {
+    if (c.role === "owner") return true;
+    const mine = list(c.roleIds).map((id) => byId.get(id)).filter(Boolean) as RoleRow[];
+    if (mine.some((r) => r.wildcard)) return true;
+    if (list(c.overrides?.deny).includes(permission)) return false;
+    return mine.some((r) => list(r.permissions).includes(permission)) || list(c.overrides?.allow).includes(permission);
+  }).map((c) => String(c.id));
+}
+
+/**
+ * THE STEPS A TYPE HAS BEFORE ANYBODY HAS SET IT UP — the owner, 19/09/2026:
+ * seed each type with the people who hold today's right, so nothing stops the
+ * day a type moves onto Approvals. Its old limits come with it, including any
+ * a studio had moved in Studio settings → Approvals (`legacyChain`).
+ *
+ * NOT STORED. It is worked out on each read until the type is saved in
+ * Approvals settings, which is the owner's act; the move's migration saves it
+ * for every studio at once.
+ */
+export function defaultSetting(
+  type: string, studio: { readonly [key: string]: unknown } | null | undefined,
+  people: readonly Person[], roles: readonly RoleRow[],
+): ApprovalSetting | null {
+  const def = approvalType(type);
+  if (!def?.legacy?.length) return null;
+  const chain = def.legacyChain ? approvalChainsFor(studio)[def.legacyChain]?.steps : null;
+  const legacy = chain?.length ? chain : def.legacy;
+  return {
+    steps: legacy.map((s, i) => ({
+      id: `s${i + 1}`,
+      label: s.label,
+      approverIds: holdersOf(s.permission, people, roles),
+      requireAll: false,
+      ...(def.amounted && Number(s.from) > 0 ? { from: Number(s.from) } : {}),
+    })),
+  };
 }

@@ -136,7 +136,6 @@ const extras: Record<Locale, Record<string, string>> = {
     "crmSales.pos.discount": "تغيير السعر عند الصندوق",
     "crmSales.pos.closeShift": "إغلاق الوردية وعد الدرج",
     "pos.sales.export": "تنزيل المبيعات والأصناف المبيعة",
-    "pos.returns.approve": "اعتماد المرتجع وصرف المبلغ",
     "inventory.stock.alerts": "تنبيهات المخزون (حد إعادة الطلب)",
     "hr.employees.salary": "الاطلاع على الأجر والراتب",
     "hr.vacations.approve": "اعتماد الطلبات",

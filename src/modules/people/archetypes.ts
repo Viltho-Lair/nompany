@@ -255,7 +255,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // quotation is finishing it. UNLOCK is deliberately not here: it reopens
     // something already committed, and Gate A pins that holding one does not
     // imply the other.
-    extras: ["crmSales.quotations.lock", "engineeringDocs.rfq.convert", "crmSales.pos.discount", "crmSales.pos.closeShift", "pos.sales.export", "pos.returns.approve",
+    extras: ["crmSales.quotations.lock", "engineeringDocs.rfq.convert", "crmSales.pos.discount", "crmSales.pos.closeShift", "pos.sales.export",
       // HANDING OUT LEADS AND CAMPAIGNS (19/09/2026) is the manager's half of
       // this shape: a Sales Manager assigns leads, a Marketing Manager chooses
       // who owns a campaign.

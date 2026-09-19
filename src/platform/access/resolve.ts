@@ -345,6 +345,19 @@ class WildcardPermissions extends Set<PermissionKey> {
 }
 const everything = (): PermissionSet => new WildcardPermissions(ALL_PERMISSIONS);
 
+/**
+ * THE STUDIO'S OWN AUTHORITY — every right, held by nobody in particular.
+ *
+ * FOR ONE CALLER: an approval finishing its record (`modules/approvals/effects`).
+ * Whoever gives the last yes on the Approvals page may hold no right over the
+ * record at all — being named on the step IS the authority (the owner,
+ * 19/09/2026) — so the record's own write cannot be asked of their rights. The
+ * record engine's rules run the same way, for the same reason. It is never handed
+ * to a route: a request's authority is its caller's, resolved in
+ * `effectivePermissions`, and nothing else.
+ */
+export const studioAuthority = (): PermissionSet => everything();
+
 // Everything this person may do in this studio, as a flat Set of keys.
 //
 // Roles and personal overrides, and nothing else. There is no fallback: a

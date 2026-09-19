@@ -2,8 +2,9 @@
 
 // RETURNS (18/09/2026) — Point of Sale's fifth screen. Find the sale by the
 // barcode on its receipt, choose what is coming back, why, and how the money
-// goes back; a manager signs it before anything is refunded or restocked.
-// `docs/functionality/pos.md` is the file.
+// goes back, and ask. The ANSWER is given on the Approvals page (19/09/2026);
+// this screen shows how far each return's approval has got, and nothing is
+// refunded or restocked until it is approved. `docs/functionality/pos.md`.
 //
 // THE REFUND SHOWN IS THE REFUND PAID: the screen runs the same pure functions
 // the server does (modules/sales/posReturnModel), and the server works it out
@@ -15,6 +16,7 @@ import { posReturnsDict } from "@/shared/studio/posReturns";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Field } from "@/components/fields/Field";
+import Link from "next/link";
 import { panel, th, btn, btnGhost, btnRow, money, fmtDateTime, loadPref, prefKey } from "@/components/studio2/ui";
 import { refundFor, returnTotals } from "@/modules/sales/posReturnModel";
 import { PAYMENT_METHODS } from "@/modules/sales/posModel";
@@ -42,8 +44,10 @@ export default function StudioPosReturns({ slug }) {
     (async () => { if (current) await load(); })();
     return () => { current = false; };
   }, [load]);
-  // Returns are written under their own section; the sales they answer are the till's.
+  // Returns are written under their own section; the sales they answer are the
+  // till's; how far each approval has got is written under Approvals.
   useLiveUpdates(slug, "pos-returns", load);
+  useLiveUpdates(slug, "approvals", load);
 
   const call = useCallback(async (method, body) => {
     setBusy(true);
@@ -72,7 +76,13 @@ export default function StudioPosReturns({ slug }) {
         <TakeReturn slug={slug} tr={tr} tills={data.tills} busy={busy}
           onAsk={async (body) => {
             const out = await call("POST", body);
-            if (out) { setNote(tr.asked(out.return.number)); load(); }
+            if (out) {
+              // A return whose approval could not be asked is on file and waiting;
+              // the reason is what the cashier needs to hear.
+              if (out.approvalProblem) setError(tr.refusal(out.approvalProblem, out));
+              setNote(out.return.status === "Approved" ? tr.wentThrough(out.return.number) : tr.asked(out.return.number));
+              load();
+            }
             return Boolean(out);
           }} />
       )}
@@ -81,14 +91,7 @@ export default function StudioPosReturns({ slug }) {
         <h2 className="mb-3 font-display text-lg font-700 text-[var(--geex-ink)]">{tr.pending}</h2>
         {pending.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">{tr.pendingEmpty}</p> : (
           <ul className="divide-y divide-slate-100 dark:divide-white/5">
-            {pending.map((r) => (
-              <PendingRow key={r.id} tr={tr} row={r} busy={busy}
-                onApprove={async () => {
-                  const out = await call("PATCH", { id: r.id, action: "approve" });
-                  if (out) { setNote(r.source === "invoice" ? tr.noteRaised(r.number) : ""); load(); }
-                }}
-                onReject={async (reason) => { if (await call("PATCH", { id: r.id, action: "reject", reason })) { setNote(""); load(); } }} />
-            ))}
+            {pending.map((r) => <PendingRow key={r.id} slug={slug} tr={tr} row={r} />)}
           </ul>
         )}
       </section>
@@ -126,11 +129,10 @@ export default function StudioPosReturns({ slug }) {
   );
 }
 
-// ONE WAITING RETURN: what, why, how much — and Approve / Turn down for whoever
-// may sign it (never the person who asked, unless they are the Admin).
-function PendingRow({ tr, row, busy, onApprove, onReject }) {
-  const [rejecting, setRejecting] = useState(false);
-  const [why, setWhy] = useState("");
+// ONE WAITING RETURN: what, why, how much — and how far its approval has got,
+// read from the approval. It is answered on the Approvals page.
+function PendingRow({ slug, tr, row }) {
+  const a = row.approval;
   return (
     <li className="py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -145,19 +147,11 @@ function PendingRow({ tr, row, busy, onApprove, onReject }) {
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">“{row.reason}” · {tr.askedBy(row.requestedBy)} · {fmtDateTime(row.requestedAt)}</p>
         </div>
-        {row.canDecide ? (
-          <div className="flex shrink-0 gap-2">
-            <button type="button" className={btn} disabled={busy} onClick={onApprove}>{tr.approve}</button>
-            <button type="button" className={btnGhost} disabled={busy} onClick={() => setRejecting((v) => !v)}>{tr.reject}</button>
-          </div>
-        ) : <span className="text-xs text-slate-500 dark:text-slate-400">{tr.waiting}</span>}
-      </div>
-      {rejecting && (
-        <div className="mt-2 flex max-w-xl items-end gap-2">
-          <div className="flex-1"><Field label={tr.rejectReason} value={why} onChange={setWhy} /></div>
-          <button type="button" className={btnGhost} disabled={busy || !why.trim()} onClick={() => onReject(why)}>{tr.reject}</button>
+        <div className="shrink-0 text-end text-xs text-slate-500 dark:text-slate-400">
+          <p>{a ? tr.progress(a.granted, a.required) : tr.waiting}</p>
+          <Link href={`/${slug}/approvals`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openApprovals}</Link>
         </div>
-      )}
+      </div>
     </li>
   );
 }

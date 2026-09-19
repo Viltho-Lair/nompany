@@ -332,12 +332,12 @@ const OWN_AREAS = [
     extra: [{ key: "export", label: "Download sales and items sold" }] },
   { key: "pos.shifts", group: "Point of Sale", label: "Shift history", verbs: ["view"] },
   { key: "pos.settings", group: "Point of Sale", label: "Settings", verbs: ["view", "edit"] },
-  // RETURNS (18/09/2026). `create` asks for one; SIGNING it is its own power
-  // — the owner: every return waits for a manager — and the one who asked may
-  // not sign it (invariant 7; the Admin is the exception, as for bills and
-  // stock adjustments). No edit or delete: a return is decided, not rewritten.
-  { key: "pos.returns", group: "Point of Sale", label: "Returns", verbs: ["view", "create"],
-    extra: [{ key: "approve", label: "Approve a return and refund it" }] },
+  // RETURNS (18/09/2026). `create` asks for one, which asks for its approval.
+  // APPROVING IS NOT A RIGHT ANY MORE (19/09/2026): the people named in
+  // Approvals settings answer it on the Approvals page, and a right to do the
+  // same thing would be a second answer to "who approves this" (invariant 16).
+  // No edit or delete: a return is decided, not rewritten.
+  { key: "pos.returns", group: "Point of Sale", label: "Returns", verbs: ["view", "create"] },
   { key: "engineeringDocs.live", group: "Quotations", label: "Live view", verbs: ["view"] },
   { key: "engineeringDocs.settings", group: "Quotations", label: "Settings", verbs: ["view", "edit"] },
 

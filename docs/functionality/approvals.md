@@ -17,12 +17,38 @@ files it, naming the record (`source`: its section, id, reference, title, and th
 **The record reads its status from the approval**, never a copy of it — through
 `modules/approvals/reads.ts`, the one place every module asks "is this approved".
 
-**Two records have their button (2026-09-19):**
+**Three records ask (2026-09-19):**
 
 | Button | Where | Files | When approved |
 |---|---|---|---|
 | Send for Approval | a Sales ticket, for its latest finished quotation; Technical, for an internal quotation | **Quotation approval** | the quotation reads Approved everywhere, can be locked, opens a project, and ends the RFQ asking |
-| Submit PO | a Sales ticket, once its quotation is approved | **Client PO approval**, carrying what the client sent (a description, a file, or both) | the **project number is issued** (`onApproved` → `issueProjectNumber`), as Finance's signature on the old board did |
+| Submit PO | a Sales ticket, once its quotation is approved | **Client PO approval**, carrying what the client sent (a description, a file, or both) | the **project number is issued** (`effects.ts` → `issueProjectNumber`), as Finance's signature on the old board did |
+| Request approval | Point of Sale → Returns: asking for a return is asking for its approval | **Till return**, carrying the refund as its amount | the units go back into stock and the refund is paid (`returnApproval` in `modules/sales/posReturns`); rejected, the return is closed with the reason |
+
+**MOVING EVERY APPROVAL HERE, one type at a time** (the owner, 19/09/2026): the request stays
+where it is made today and the answer moves to this page. The till return is the first; bills,
+bids, requisitions, stock adjustments, payroll, expense claims, change orders, timesheets,
+document revisions, held-payment releases and leave follow. Each move drops the type's
+`approve` right — a right to do what the settings decide would be a second answer (invariant
+16) — and the steps it had come with it:
+
+- **Until a studio saves a type, its old signers answer it.** `defaultSetting` (`model.ts`)
+  names whoever holds the old right today, read off the roles' stored strings because the
+  catalogue no longer knows it, plus the owner and Admins, with the old limits. Worked out on
+  every read and never stored; the settings screen says "not saved yet". Nothing stops the day a
+  type moves.
+- **A step may start at an amount** (`from`, in the studio's currency, at or above) on a type
+  that carries one: "a bill has step 1 for everyone and step 2 from 50,000". The amount is
+  converted with the day's rate only when some step has a limit, and the amount and the rate are
+  frozen onto the approval. Under every limit nothing is asked and the record goes through.
+- **Every yes asks the signer's PIN**, on every type, where before only the amount chains did.
+- **The record moves when its approval is decided** (`effects.ts`), with the studio's authority
+  and the approver named — the person answering may hold no right over the record. The yes that
+  would finish an approval is asked of the record first, so a return that can no longer be paid
+  out is refused while the answer is still the approver's. If the record's write still fails
+  afterwards, the approval says so (`finish`) and offers **Try again**.
+- **Reviewer ≠ approver stays where the steps are two acts** (`distinctSigners`, for document
+  revisions): nobody answers two steps of one such request, the owner included.
 
 **A quotation is approved by its approval and by nothing else.** Editing a quotation's status to
 Approved is refused (`needs-approval`) — it was how anybody who could edit one skipped the people
@@ -70,10 +96,13 @@ every studio. What it had left became approvals of their own types, and the hand
 became `carried` approvals, which can be answered but never requested. The conversion code went
 once it had run. What it deleted is in the export the owner holds.
 
-**Not built yet on the page:** only the two buttons above exist — Material PO, Delivery,
-Delivery return, ID update and Permit request have no record to ask from yet, and neither do the
-records the amount chains sign; Nova reads a person's approvals but cannot answer one; the amount chains above have not moved onto it; no signer PIN, no amount limits, no reminders, no delegation, and no withdrawing a
-request. **A step whose only approver leaves the studio cannot be answered by anybody**, and
+**Not built yet on the page:** only the three records above ask — Material PO, Delivery,
+Delivery return, ID update and Permit request have no record to ask from yet, and bills, bids,
+requisitions, stock adjustments, payroll, expense claims, change orders, timesheets, document
+revisions, held-payment releases and leave still answer where they are, through the amount
+chains below and their own rights; requests already waiting on those are converted when each
+type moves (export first, two confirmations); Nova reads a person's approvals but cannot answer
+one; no reminders, no delegation, and no withdrawing a request. **A step whose only approver leaves the studio cannot be answered by anybody**, and
 an approval waiting on it waits for ever — there is no reassigning yet.
 
 ## The amount chains — who signs a bill, and above what amount

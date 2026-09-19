@@ -29,7 +29,6 @@ type Strings = {
   creditHint: string;
   invoiceSale: (n: string, client: string, paid: string) => string;
   noShelf: string;
-  noteRaised: (n: string) => string;
   reference: string;
   till: string;
   total: string;
@@ -39,9 +38,9 @@ type Strings = {
   pending: string;
   pendingEmpty: string;
   waiting: string;
-  approve: string;
-  reject: string;
-  rejectReason: string;
+  progress: (granted: number, required: number) => string;
+  openApprovals: string;
+  wentThrough: (n: string) => string;
   recent: string;
   recentEmpty: string;
   against: (n: string) => string;
@@ -55,7 +54,7 @@ const en: Strings = {
   loading: "Loading returns…",
   refused: "You do not have the right to see returns.",
   take: "Take a return",
-  takeLead: "Scan the barcode on the receipt or the invoice, or type its number. Every return waits for a manager to sign it before anything is refunded or goes back on the shelf.",
+  takeLead: "Scan the barcode on the receipt or the invoice, or type its number. A return waits for its approval before anything is refunded or goes back on the shelf; it is answered on the Approvals page.",
   find: "Find",
   findLabel: "Receipt or invoice number",
   notFound: (n) => `No sale or issued invoice with the number "${n}".`,
@@ -65,7 +64,7 @@ const en: Strings = {
   returned: "Already returned",
   back: "Coming back",
   refund: "Refund",
-  nothingLeft: "Everything on this receipt has already been returned or is waiting for a signature.",
+  nothingLeft: "Everything on this receipt has already been returned or is waiting for approval.",
   reason: "Why is it coming back?",
   reasonHint: "Damaged, wrong item, changed mind… Kept on the return.",
   method: "Refund by",
@@ -76,19 +75,18 @@ const en: Strings = {
   creditHint: "No money changes hands: a credit note reduces what the client owes. Finance issues it.",
   invoiceSale: (n, client, paid) => `Invoice ${n}${client ? ` · ${client}` : ""} · paid ${paid}`,
   noShelf: "service — refunded only",
-  noteRaised: (n) => `A draft credit note for ${n} is waiting in Finance to be issued.`,
   reference: "Reference",
   till: "Paid from the till",
   total: "To refund",
-  ask: "Ask a manager to approve",
+  ask: "Request approval",
   asking: "Sending…",
-  asked: (n) => `${n} is waiting for a manager's signature.`,
-  pending: "Waiting for a manager",
+  asked: (n) => `${n} is waiting for approval.`,
+  pending: "Waiting for approval",
   pendingEmpty: "No return is waiting.",
-  waiting: "Waiting for a manager",
-  approve: "Approve and refund",
-  reject: "Turn down",
-  rejectReason: "Why is it turned down?",
+  waiting: "Waiting for approval",
+  progress: (g, r) => `${g} of ${r} step${r === 1 ? "" : "s"} approved`,
+  openApprovals: "Open in Approvals",
+  wentThrough: (n) => `${n} was under every approval limit and went straight through.`,
   recent: "Returns",
   recentEmpty: "No return has been decided yet.",
   against: (n) => `against ${n}`,
@@ -104,7 +102,10 @@ const en: Strings = {
       case "method": return "Choose how the money goes back.";
       case "inactive": return "That till is retired. Choose another.";
       case "no-shift": return "A cash refund comes out of a drawer: open a shift on that till first, or refund by card or transfer.";
-      case "same-signer": return "Whoever asked for a return cannot sign it. Another manager has to.";
+      case "not-configured": return "Nobody has been named to approve returns yet. The owner or an Admin names them in Approvals settings.";
+      case "no-approver": return "You are the only person who approves returns, so you cannot ask for one yourself. Ask the owner to name somebody else in Approvals settings.";
+      case "no-studio-currency": return "Returns have an approval limit, and this studio has not set its own currency to judge it by. The owner sets it in Studio settings.";
+      case "unquoted": return "Today's exchange rates do not quote this sale's currency, so it cannot be judged against the approval limit.";
       case "over-paid": return `Only ${x.paid ?? 0} of this invoice was paid, so no more than that can go back as money. Credit the account instead.`;
       case "over-credit": return `The invoice has only ${x.remaining ?? 0} left to credit.`;
       case "already-decided": return "Somebody has already decided that return.";
@@ -119,7 +120,7 @@ const ar: Strings = {
   loading: "جار تحميل المرتجعات…",
   refused: "لا تملك صلاحية الاطلاع على المرتجعات.",
   take: "استلام مرتجع",
-  takeLead: "امسح الباركود على الإيصال أو الفاتورة أو اكتب رقمها. كل مرتجع ينتظر توقيع مدير قبل صرف أي مبلغ أو إعادة أي صنف إلى الرف.",
+  takeLead: "امسح الباركود على الإيصال أو الفاتورة أو اكتب رقمها. ينتظر المرتجع اعتماده قبل صرف أي مبلغ أو إعادة أي صنف إلى الرف، ويجاب عليه في صفحة الموافقات.",
   find: "بحث",
   findLabel: "رقم الإيصال أو الفاتورة",
   notFound: (n) => `لا توجد عملية بيع أو فاتورة صادرة بالرقم "${n}".`,
@@ -129,7 +130,7 @@ const ar: Strings = {
   returned: "أرجع سابقا",
   back: "العائد",
   refund: "المبلغ المسترد",
-  nothingLeft: "كل ما في هذا الإيصال أرجع أو ينتظر التوقيع.",
+  nothingLeft: "كل ما في هذا الإيصال أرجع أو ينتظر الاعتماد.",
   reason: "سبب الإرجاع",
   reasonHint: "تالف، صنف خاطئ، غير رأيه… يحفظ مع المرتجع.",
   method: "طريقة الاسترداد",
@@ -140,19 +141,18 @@ const ar: Strings = {
   creditHint: "لا يدفع أي مبلغ: إشعار دائن يخفض ما على العميل. تصدره المالية.",
   invoiceSale: (n, client, paid) => `فاتورة ${n}${client ? ` · ${client}` : ""} · المدفوع ${paid}`,
   noShelf: "خدمة — تسترد قيمتها فقط",
-  noteRaised: (n) => `إشعار دائن مسودة عن ${n} بانتظار إصداره في المالية.`,
   reference: "المرجع",
   till: "يصرف من الصندوق",
   total: "المبلغ المسترد",
-  ask: "طلب اعتماد المدير",
+  ask: "طلب الاعتماد",
   asking: "جار الإرسال…",
-  asked: (n) => `${n} ينتظر توقيع المدير.`,
-  pending: "بانتظار المدير",
-  pendingEmpty: "لا يوجد مرتجع بانتظار التوقيع.",
-  waiting: "بانتظار المدير",
-  approve: "اعتماد وصرف المبلغ",
-  reject: "رفض",
-  rejectReason: "سبب الرفض",
+  asked: (n) => `${n} بانتظار الاعتماد.`,
+  pending: "بانتظار الاعتماد",
+  pendingEmpty: "لا يوجد مرتجع بانتظار الاعتماد.",
+  waiting: "بانتظار الاعتماد",
+  progress: (g, r) => `اعتمدت ${g} من ${r} مراحل`,
+  openApprovals: "فتح في الموافقات",
+  wentThrough: (n) => `${n} دون كل حدود الاعتماد فنفذ مباشرة.`,
   recent: "المرتجعات",
   recentEmpty: "لم يبت في أي مرتجع بعد.",
   against: (n) => `على ${n}`,
@@ -168,7 +168,10 @@ const ar: Strings = {
       case "method": return "اختر طريقة الاسترداد.";
       case "inactive": return "هذا الصندوق موقوف. اختر غيره.";
       case "no-shift": return "الاسترداد النقدي يخرج من درج: افتح وردية على هذا الصندوق أولا، أو استرد بالبطاقة أو التحويل.";
-      case "same-signer": return "من طلب المرتجع لا يوقعه. يجب أن يوقعه مدير آخر.";
+      case "not-configured": return "لم يحدد أحد لاعتماد المرتجعات بعد. يحددهم المالك أو المشرف في إعدادات الموافقات.";
+      case "no-approver": return "أنت الوحيد الذي يعتمد المرتجعات، فلا يمكنك طلب مرتجع بنفسك. اطلب من المالك تحديد شخص آخر في إعدادات الموافقات.";
+      case "no-studio-currency": return "للمرتجعات حد اعتماد، ولم تحدد هذه المنشأة عملتها لتقاس به. يحددها المالك في إعدادات المنشأة.";
+      case "unquoted": return "أسعار الصرف اليوم لا تشمل عملة هذا البيع، فلا يمكن قياسه بحد الاعتماد.";
       case "over-paid": return `لم يدفع من هذه الفاتورة إلا ${x.paid ?? 0}، فلا يعاد نقدا أكثر من ذلك. قيده في حساب العميل بدلا من ذلك.`;
       case "over-credit": return `لم يتبق للفاتورة إلا ${x.remaining ?? 0} يمكن قيده دائنا.`;
       case "already-decided": return "بت أحدهم في هذا المرتجع بالفعل.";

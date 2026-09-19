@@ -24,7 +24,11 @@
 // doing anything the first had not already done.
 
 import { studioContext, sectionNav, manageMap } from "@/lib/studios";
-import { sectionViewable, sectionManageable, dashboardViewable } from "@/platform/access";
+import { sectionViewable, sectionManageable, dashboardViewable, studioAuthority } from "@/platform/access";
+import { getStudioById } from "@/modules/main/studios";
+import { getCollaborator } from "@/platform/auth/collaborators";
+import { listRoles } from "@/modules/people/roles";
+import { listSections } from "@/platform/db/sections";
 import { switchboard } from "@/lib/dashboardWidgets";
 import type { PermissionSet, Role } from "@/platform/access";
 import type { Section } from "@/platform/db/sections";
@@ -153,10 +157,25 @@ const pick = (byKey: Record<string, Section>, keys: string | string[]): Section 
  * a handler, which otherwise receives the bare ModuleContext and has to cast
  * every field the department actually asked for.
  */
-export function moduleContext<C extends ModuleContext = ModuleContext>(spec: ModuleSpec) {
+type Membership = { studio: StudioRef; collaborator: CollaboratorRef; access: PermissionSet; roles: Role[]; sections: Section[] };
+
+/** A department's resolver, and the one other way to build the same context. */
+export type ModuleResolver<C> = {
+  (user: unknown, slug: string): Promise<C | ContextError>;
+  /**
+   * THE SAME CONTEXT, WITH THE STUDIO'S AUTHORITY rather than a caller's — for
+   * an approval finishing the record it approved (`modules/approvals/effects`),
+   * and nothing else. `collaboratorId` is who gave the last yes, so what the
+   * record writes (a stock movement, a credit note) still names a person.
+   * Built from the studio id, because the approvals engine has no slug to hand.
+   */
+  asApprover(studioId: string, collaboratorId: string): Promise<C | ContextError>;
+};
+
+export function moduleContext<C extends ModuleContext = ModuleContext>(spec: ModuleSpec): ModuleResolver<C> {
   const { root, sub = {}, foreign = {}, flags = [], extend } = spec;
 
-  return async function resolve(user: unknown, slug: string): Promise<C | ContextError> {
+  const resolve = async function resolve(user: unknown, slug: string): Promise<C | ContextError> {
     const context = await studioContext(user as { id?: unknown }, slug);
     if (context.error) return context as ContextError;
 
@@ -165,11 +184,30 @@ export function moduleContext<C extends ModuleContext = ModuleContext>(spec: Mod
     // `roles` travels with it because scopeFor needs both — a context carrying
     // one without the other is half an answer.
     // studioContext is still JavaScript, so what it hands back arrives untyped.
-    // Named here, once, rather than at each of the fifteen uses below — and the
-    // day studios.ts lands this line becomes a plain destructure again.
-    const { studio, collaborator, access, roles, sections } = context as unknown as {
-      studio: StudioRef; collaborator: CollaboratorRef; access: PermissionSet; roles: Role[]; sections: Section[];
-    };
+    return build(context as unknown as Membership);
+  } as ModuleResolver<C>;
+
+  resolve.asApprover = async (studioId: string, collaboratorId: string) => {
+    const studio = await getStudioById(studioId);
+    if (!studio) return { error: "notfound" };
+    const [collaborator, roles, sections] = await Promise.all([
+      getCollaborator(studioId, collaboratorId),
+      listRoles(studioId),
+      listSections(studioId),
+    ]);
+    if (!collaborator) return { error: "forbidden" };
+    return build({
+      studio: studio as unknown as StudioRef,
+      collaborator: collaborator as unknown as CollaboratorRef,
+      access: studioAuthority(),
+      roles: roles as Role[],
+      sections,
+    });
+  };
+
+  return resolve;
+
+  async function build({ studio, collaborator, access, roles, sections }: Membership): Promise<C | ContextError> {
 
     const byKey = Object.fromEntries(sections.map((s) => [s.key, s]));
     const section = byKey[root];
@@ -244,5 +282,5 @@ export function moduleContext<C extends ModuleContext = ModuleContext>(spec: Mod
     out.manage = manageMap(studio, collaborator, sections, access);
 
     return (extend ? { ...out, ...(await extend(out as ExtendContext, byKey) as object) } : out) as C;
-  };
+  }
 }

@@ -158,6 +158,9 @@ export const posContext = moduleContext<PosContext>({
     // against a Documents invoice (18/09/2026). Nullable — no Finance, no
     // invoice returns.
     cash: ["finance-cash", "finance"],
+    // APPROVALS', where a return's approval is filed: the Returns screen shows
+    // how far each has got. Nullable like every foreign section.
+    approvals: "approvals",
   },
   flags: ["pos"],
 });

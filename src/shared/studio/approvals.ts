@@ -22,6 +22,9 @@ type Strings = {
   carried: string;
   note: string;
   attachment: string;
+  amount: string;
+  finishFailed: (code: string) => string;
+  retry: string;
   step: (n: number) => string;
   requireAll: string;
   anyOne: string;
@@ -38,6 +41,10 @@ type Strings = {
   noSettingsAccess: string;
   readOnly: string;
   notConfigured: string;
+  defaultSteps: string;
+  fromLabel: string;
+  fromHint: string;
+  fromAt: (amount: string) => string;
   edit: string;
   save: string;
   stepName: string;
@@ -61,6 +68,7 @@ const TYPES_EN: Record<string, string> = {
   "delivery-return": "Delivery return",
   "id-update": "ID update",
   "permit-request": "Permit request",
+  "pos-return": "Till return",
   carried: "Carried over",
 };
 const TYPES_AR: Record<string, string> = {
@@ -71,6 +79,7 @@ const TYPES_AR: Record<string, string> = {
   "delivery-return": "إرجاع توصيل",
   "id-update": "تحديث الهوية",
   "permit-request": "طلب تصريح",
+  "pos-return": "مرتجع الصندوق",
   carried: "منقولة",
 };
 
@@ -91,6 +100,15 @@ const en: Strings = {
   carried: "Carried over when Approvals replaced the old board.",
   note: "Note",
   attachment: "Attachment",
+  amount: "Amount",
+  finishFailed: (code) => `Approved, but the record could not be completed: ${({
+    "no-shift": "a cash refund needs a shift open on its till",
+    "too-many": "those units have already gone back on another return",
+    "over-credit": "the invoice has too little left to credit",
+    notfound: "the record no longer exists",
+    "already-decided": "the record had already been decided",
+  } as Record<string, string>)[code] || "something went wrong"}.`,
+  retry: "Try again",
   step: (n) => `Step ${n}`,
   requireAll: "All must approve",
   anyOne: "Any one may approve",
@@ -108,6 +126,10 @@ const en: Strings = {
   noSettingsAccess: "You do not have access to approval settings.",
   readOnly: "You can see these settings but not change them.",
   notConfigured: "Not set up — requests of this kind are refused until somebody is named.",
+  defaultSteps: "Not saved yet: these are the people who approved this before it moved here. Saving makes them this studio's own.",
+  fromLabel: "Applies from",
+  fromHint: "Amount in the studio's currency. Leave empty to apply to every amount.",
+  fromAt: (amount) => `from ${amount}`,
   edit: "Edit",
   save: "Save",
   stepName: "Step name",
@@ -127,6 +149,7 @@ const en: Strings = {
       case "step-no-approvers": return `${where}name at least one person.`;
       case "too-many-approvers": return `${where}at most fifty people.`;
       case "unknown-approver": return `${where}somebody named is no longer in this studio.`;
+      case "bad-threshold": return `${where}the amount must be a number of 0 or more.`;
       default: return `${where}this step could not be saved.`;
     }
   },
@@ -137,6 +160,13 @@ const en: Strings = {
       case "not-yours": return "This step is not waiting on you.";
       case "own-request": return "You cannot answer your own request.";
       case "reason-required": return "Say why you are rejecting it.";
+      case "signed-another-step": return "You answered an earlier step of this request; somebody else has to answer this one.";
+      case "no-shift": return "A cash refund comes out of a drawer: a shift has to be open on that till before this can be approved.";
+      case "too-many": return "Those units have already gone back on another return.";
+      case "over-credit": return "The invoice has too little left to credit for this return.";
+      case "already-decided": return "The record has already been decided.";
+      case "not-unfinished": return "The record has already been completed.";
+      case "notfound": return "The record no longer exists.";
       case "forbidden": return "You do not have access to do that.";
       default: return "That did not go through. Try again.";
     }
@@ -160,6 +190,15 @@ const ar: Strings = {
   carried: "نُقلت عندما حلّت الموافقات محل اللوحة السابقة.",
   note: "ملاحظة",
   attachment: "مرفق",
+  amount: "المبلغ",
+  finishFailed: (code) => `اعتمدت، لكن تعذر إتمام السجل: ${({
+    "no-shift": "الاسترداد النقدي يحتاج وردية مفتوحة على صندوقه",
+    "too-many": "هذه الوحدات أرجعت في مرتجع آخر",
+    "over-credit": "لم يتبق في الفاتورة ما يكفي لقيده دائنا",
+    notfound: "السجل لم يعد موجودا",
+    "already-decided": "بت في السجل سابقا",
+  } as Record<string, string>)[code] || "حدث خطأ"}.`,
+  retry: "حاول مرة أخرى",
   step: (n) => `الخطوة ${n}`,
   requireAll: "يجب أن يوافق الجميع",
   anyOne: "تكفي موافقة أي واحد",
@@ -177,6 +216,10 @@ const ar: Strings = {
   noSettingsAccess: "لا تملك صلاحية الوصول إلى إعدادات الموافقات.",
   readOnly: "يمكنك الاطلاع على هذه الإعدادات دون تغييرها.",
   notConfigured: "غير معدّة — تُرفض طلبات هذا النوع حتى يُسمّى أحد للرد عليها.",
+  defaultSteps: "لم تحفظ بعد: هؤلاء من كانوا يعتمدون هذا قبل نقله إلى هنا. الحفظ يجعلهم خاصين بهذه المنشأة.",
+  fromLabel: "تسري من مبلغ",
+  fromHint: "المبلغ بعملة المنشأة. اتركه فارغا ليسري على كل المبالغ.",
+  fromAt: (amount) => `من ${amount}`,
   edit: "تعديل",
   save: "حفظ",
   stepName: "اسم الخطوة",
@@ -196,6 +239,7 @@ const ar: Strings = {
       case "step-no-approvers": return `${where}سمِّ شخصًا واحدًا على الأقل.`;
       case "too-many-approvers": return `${where}خمسون شخصًا على الأكثر.`;
       case "unknown-approver": return `${where}أحد المسمّين لم يعد في هذا الاستوديو.`;
+      case "bad-threshold": return `${where}يجب أن يكون المبلغ رقما من 0 فأكثر.`;
       default: return `${where}تعذر حفظ هذه الخطوة.`;
     }
   },
@@ -206,6 +250,13 @@ const ar: Strings = {
       case "not-yours": return "هذه الخطوة لا تنتظر ردك.";
       case "own-request": return "لا يمكنك الرد على طلبك.";
       case "reason-required": return "اذكر سبب الرفض.";
+      case "signed-another-step": return "رددت على خطوة سابقة من هذا الطلب؛ يجب أن يرد غيرك على هذه.";
+      case "no-shift": return "الاسترداد النقدي يخرج من درج: يجب فتح وردية على ذلك الصندوق قبل الاعتماد.";
+      case "too-many": return "هذه الوحدات أرجعت في مرتجع آخر.";
+      case "over-credit": return "لم يتبق في الفاتورة ما يكفي لقيد هذا المرتجع دائنا.";
+      case "already-decided": return "بت في السجل سابقا.";
+      case "not-unfinished": return "أتم السجل سابقا.";
+      case "notfound": return "السجل لم يعد موجودا.";
       case "forbidden": return "لا تملك صلاحية القيام بذلك.";
       default: return "لم تنجح العملية. حاول مرة أخرى.";
     }

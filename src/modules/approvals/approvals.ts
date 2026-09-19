@@ -14,6 +14,9 @@
 // ANSWERING NEEDS NO RIGHT: being named on the open step is the authority.
 
 import { requirePermission, can, isAdministrator, type Role } from "@/platform/access";
+import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
+import { crossRate } from "@/shared/currencies";
+import { roundMoney } from "@/shared/money";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey, updateSection, type Section } from "@/platform/db/sections";
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -21,12 +24,12 @@ import { NOTIFY } from "@/platform/notify/notifications";
 import { notifyCollaboratorIds, signatureNotice } from "@/modules/people/holders";
 import { moduleContext, type ModuleContext } from "../context";
 import {
-  applyDecision, cleanSetting, decisionProblem, latestFor, planFor, requestProblem, stepStates, waitingOn,
-  type Actor,
+  applyDecision, cleanSetting, decisionProblem, defaultSetting, latestFor, planFor, requestProblem, stepStates, waitingOn,
+  type Actor, type Person, type RoleRow,
 } from "./model";
 import { APPROVAL_TYPES, approvalType } from "./registry";
-import { CLIENT_PO_APPROVAL } from "./reads";
-import type { Approval, ApprovalSetting, ApprovalSource, Verdict } from "./schema";
+import { finishApproved, finishRejected, readyToFinish } from "./effects";
+import type { Approval, ApprovalAmount, ApprovalSetting, ApprovalSource, Verdict } from "./schema";
 import type { StudioRef, CollaboratorRef } from "../context";
 
 const APPROVALS = "approvals";
@@ -58,6 +61,19 @@ export function readApprovalSettings(section: { settings?: unknown } | null | un
     if (approvalType(type) && Array.isArray(steps) && steps.length) out[type] = setting as ApprovalSetting;
   }
   return out;
+}
+
+/** Every type's steps in this studio: what was saved, else the default. */
+async function settingsFor(studio: StudioRef, settingsSection: { settings?: unknown } | null | undefined, roles: readonly Role[]) {
+  const stored = readApprovalSettings(settingsSection);
+  const people = await listCollaborators(studio.id);
+  const out: Record<string, ApprovalSetting & { isDefault?: boolean }> = { ...stored };
+  for (const t of APPROVAL_TYPES) {
+    if (out[t.key]) continue;
+    const seeded = defaultSetting(t.key, studio, people as Person[], roles as unknown as RoleRow[]);
+    if (seeded) out[t.key] = { ...seeded, isDefault: true };
+  }
+  return { settings: out, people };
 }
 
 export const approvalsContext = moduleContext<ApprovalsContext>({
@@ -108,6 +124,8 @@ export async function listApprovals(ctx: ApprovalsContext) {
     source: a.source,
     note: a.note,
     attachment: a.attachment || null,
+    amount: a.amount || null,
+    finish: a.finish || null,
     requestedByCollaboratorId: a.requestedByCollaboratorId,
     requestedByAlias: alias[a.requestedByCollaboratorId] || "",
     requestedAt: a.requestedAt,
@@ -156,6 +174,17 @@ export async function decideApproval(ctx: ApprovalsContext, id: string, body: Re
   // ONE CLOCK READ, OUTSIDE THE PATCH — the patch may run once per retry, and
   // every run must compute the same row.
   const at = new Date().toISOString();
+
+  // THE YES THAT WOULD FINISH IT IS ASKED OF THE RECORD FIRST. Approving a till
+  // return puts units back and pays money out, and either can be impossible by
+  // now — the drawer is closed, the units went back on another request. The
+  // approver is told why HERE, while their yes has not landed, rather than an
+  // approval reading Approved over a record that never moved.
+  if (applyDecision(current, me, verdict as Verdict, note, at).status === "Approved") {
+    const notReady = await readyToFinish(ctx.studio, current, me.collaboratorId);
+    if (notReady) return notReady;
+  }
+
   const approval = await Approvals.update(ctx, id, (row) => applyDecision(row, me, verdict as Verdict, note, at));
   if (!approval) return { error: "notfound" };
 
@@ -165,28 +194,52 @@ export async function decideApproval(ctx: ApprovalsContext, id: string, body: Re
   if (!landed) return { error: "not-pending" };
 
   await announce(ctx.studio.id, current, approval, me.collaboratorId);
-  if (approval.status === "Approved" && current.status === "Pending") await onApproved(ctx.studio, approval);
+  if (approval.status !== "Pending" && current.status === "Pending") {
+    return { approval: await finish(ctx, approval, me.collaboratorId) };
+  }
   return { approval };
 }
 
 /**
- * WHAT AN APPROVAL CAUSES, beside the record reading it as approved.
+ * THE RECORD MOVES WHEN ITS APPROVAL IS DECIDED — the till return restocks and
+ * refunds, the rejected one is closed. `./effects` holds what each type does.
  *
- * A CLIENT'S PO, APPROVED, ISSUES THE PROJECT NUMBER it will be billed under —
- * what Finance's signature on the old board did. Done here, next to the write
- * that causes it, because a screen cannot be trusted to remember it. Best-effort
- * and idempotent: the project may not be open yet, in which case there is
- * nothing to number and `issueProjectNumber` numbers nothing.
- *
- * IMPORTED WHEN NEEDED, because Projects reads approvals too and a module-level
- * import would make the two modules load each other.
+ * WHAT HAPPENED IS STORED ON THE APPROVAL (`finish`), because the record's
+ * write can still fail after the yes has landed — a store error, somebody
+ * changing the record in between. An approval reading Approved over a record
+ * that never moved is the one thing this page must not claim, so it says so and
+ * offers to try again (`retryFinish`).
  */
-async function onApproved(studio: StudioRef, approval: Approval) {
-  if (approval.type !== CLIENT_PO_APPROVAL || !approval.source?.recordId) return;
-  const listSection = (await getSectionByKey(studio.id, "projects-list")) || (await getSectionByKey(studio.id, "projects"));
-  if (!listSection) return;
-  const { issueProjectNumber } = await import("@/modules/projects/projects");
-  await issueProjectNumber({ studio, listSection }, approval.source.recordId);
+async function finish(ctx: Pick<ApprovalsContext, "studio" | "section">, approval: Approval, byCollaboratorId: string): Promise<Approval> {
+  const outcome = approval.status === "Approved"
+    ? await finishApproved(ctx.studio, approval, byCollaboratorId)
+    : await finishRejected(ctx.studio, approval, byCollaboratorId);
+  if (outcome === "none") return approval;
+  const at = new Date().toISOString();
+  const written = await Approvals.update(ctx, approval.id, () => ({
+    finish: { at, error: outcome === "done" ? "" : outcome.error },
+  }));
+  return written || approval;
+}
+
+/**
+ * TRY THE RECORD'S WRITE AGAIN, for an approval that was decided and could not
+ * finish. Whoever gave the deciding answer may, and so may anybody who sees
+ * every approval. Each type's finish refuses a record that has already moved,
+ * so trying twice moves nothing twice.
+ */
+export async function retryFinish(ctx: ApprovalsContext, id: string) {
+  const current = await Approvals.byId(ctx, id);
+  if (!current) return { error: "notfound" };
+  if (current.status === "Pending" || !current.finish?.error) return { error: "not-unfinished" };
+  const me = String(ctx.collaborator.id);
+  const decider = [...current.decisions].sort((a, b) => b.at.localeCompare(a.at))[0]?.collaboratorId || me;
+  if (me !== decider && !seesEverything(ctx)) return { error: "forbidden" };
+  if (current.status === "Approved") {
+    const notReady = await readyToFinish(ctx.studio, current, decider);
+    if (notReady) return notReady;
+  }
+  return { approval: await finish(ctx, current, decider) };
 }
 
 /**
@@ -218,10 +271,59 @@ async function announce(studioId: string, before: Approval, after: Approval, byI
  * is set up, nothing about this record is already waiting, and the requester is
  * not the only person who could answer.
  */
-export async function requestApproval(
-  requester: { studio: StudioRef; collaborator: CollaboratorRef; roles: readonly Role[] },
-  input: { type: string; source: ApprovalSource; note?: unknown; attachment?: { url: string; name: string } | null },
-) {
+/**
+ * WHAT A REQUEST IS WORTH, in the studio's currency — converted only when a step
+ * starts at a threshold, because that is the only thing the conversion is for.
+ * A type whose steps all start at 0 never needs the studio's currency and never
+ * reads a rate, so moving a type onto Approvals stops no studio that has not set
+ * one (`createStudio` never has).
+ */
+async function judge(
+  studio: StudioRef, setting: ApprovalSetting | null | undefined, amount: { value: unknown; currency: unknown } | null | undefined,
+): Promise<{ amount: ApprovalAmount | null } | { error: "no-studio-currency" | "unquoted"; detail?: string }> {
+  if (!amount) return { amount: null };
+  const value = Number(amount.value) || 0;
+  const base = String(studio.currency || "").trim().toUpperCase();
+  const from = String(amount.currency || "").trim().toUpperCase() || base;
+  const thresholds = (setting?.steps || []).some((s) => Number(s.from) > 0);
+  if (!thresholds || from === base) {
+    return { amount: { value, currency: from, inBase: base ? roundMoney(value, base) : value, rate: null } };
+  }
+  if (!base) return { error: "no-studio-currency" };
+  const snap = await getExchangeSnapshot();
+  const rate = crossRate(snap?.rates, from, base);
+  if (rate == null) return { error: "unquoted", detail: `${from} to ${base}` };
+  return { amount: { value, currency: from, inBase: roundMoney(value * rate, base), rate } };
+}
+
+type Requester = { studio: StudioRef; collaborator: CollaboratorRef; roles: readonly Role[] };
+type RequestInput = {
+  type: string; source: ApprovalSource; note?: unknown;
+  attachment?: { url: string; name: string } | null;
+  /** For a type that carries one — see `amounted` in ./registry. */
+  amount?: { value: unknown; currency: unknown } | null;
+};
+
+/**
+ * CAN THIS BE ASKED FOR, and does it need asking at all — the answers
+ * `requestApproval` gives, without writing anything. A record whose creation IS
+ * the request (a till return) asks this first, so it is never created and then
+ * refused. `{ needed: false }` is an amount under every threshold: the record
+ * goes ahead as though approved.
+ */
+export async function approvalPreflight(requester: Requester, input: Pick<RequestInput, "type" | "amount">) {
+  const { studio, collaborator, roles } = requester;
+  const settingsSection = await getSectionByKey(studio.id, "approvals-settings");
+  const { settings } = await settingsFor(studio, settingsSection, roles);
+  const setting = settings[input.type];
+  const judged = await judge(studio, setting, input.amount);
+  if ("error" in judged) return judged;
+  const plan = planFor(setting, actorOf(collaborator, roles), judged.amount ? judged.amount.inBase : null);
+  if ("error" in plan) return plan;
+  return { needed: !("notNeeded" in plan) };
+}
+
+export async function requestApproval(requester: Requester, input: RequestInput) {
   const { studio, collaborator, roles } = requester;
   const section = await getSectionByKey(studio.id, APPROVALS);
   if (!section) return { error: "no-section" };
@@ -240,8 +342,13 @@ export async function requestApproval(
   if (refused) return { error: refused };
 
   const me = actorOf(collaborator, roles);
-  const plan = planFor(readApprovalSettings(settingsSection)[input.type], me);
+  const { settings } = await settingsFor(studio, settingsSection, roles);
+  const setting = settings[input.type];
+  const judged = await judge(studio, setting, input.amount);
+  if ("error" in judged) return judged;
+  const plan = planFor(setting, me, judged.amount ? judged.amount.inBase : null);
   if ("error" in plan) return plan;
+  if ("notNeeded" in plan) return { notNeeded: true as const };
 
   const approval = await Approvals.create(scope, {
     type: input.type,
@@ -253,6 +360,7 @@ export async function requestApproval(
     decisions: [],
     decidedAt: "",
     note: text(input.note, 4000),
+    ...(judged.amount ? { amount: judged.amount } : {}),
     ...(input.attachment?.url ? { attachment: { url: text(input.attachment.url, 2000), name: text(input.attachment.name, 200) } } : {}),
   });
   await notifyCollaboratorIds(studio.id, waitingOn(approval), signatureNotice(source.ref || source.title, "approvals"), [me.collaboratorId]);
@@ -276,12 +384,16 @@ export async function approvalFor(studio: StudioRef, type: string, recordId: str
 export async function approvalSettingsView(ctx: ApprovalsContext) {
   const denied = requirePermission(ctx.access, "approvals.settings.view");
   if (denied) return denied;
-  const people = await listCollaborators(ctx.studio.id);
+  const { settings, people } = await settingsFor(ctx.studio, ctx.settingsSection, ctx.roles);
   return {
     types: APPROVAL_TYPES.filter((t) => t.requestable).map((t) => ({
       key: t.key,
       label: t.label,
-      steps: ctx.approvalSettings[t.key]?.steps || [],
+      amounted: Boolean(t.amounted),
+      steps: settings[t.key]?.steps || [],
+      // NOT SAVED YET: today's right holders, worked out on each read. The screen
+      // says so, and saving the type makes them the studio's own.
+      isDefault: Boolean(settings[t.key]?.isDefault),
     })),
     people: people.map((c) => ({ id: String(c.id), alias: String(c.alias || "") })),
     canEdit: can(ctx.access, "approvals.settings.edit"),

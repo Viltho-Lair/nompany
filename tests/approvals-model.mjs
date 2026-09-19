@@ -147,5 +147,46 @@ ok("a quotation approved by hand before Approvals stays approved, on its own dat
 const carry = Q.approvalSummary([qApproval("Approved", "t9")], "quotation", "q1");
 ok("the summary counts steps", carry.required === 1 && carry.granted === 1 && carry.approved && !carry.rejected);
 
+console.log("\n== a step can start at an amount (the owner: step 2 from 50,000)");
+const tiered = { steps: [
+  { id: "s1", label: "Finance", approverIds: ["bob"], requireAll: false },
+  { id: "s2", label: "Above the limit", approverIds: ["cat"], requireAll: false, from: 50000 },
+] };
+ok("under the limit walks the first step only", M.planFor(tiered, { collaboratorId: "ann" }, 49999.99).steps.map((s) => s.id).join() === "s1");
+ok("AT the limit walks both — at or above, the safer reading", M.planFor(tiered, { collaboratorId: "ann" }, 50000).steps.length === 2);
+ok("a request with no amount walks every step", M.planFor(tiered, { collaboratorId: "ann" }).steps.length === 2);
+const noFloor = { steps: [{ id: "s1", label: "Stock control", approverIds: ["bob"], requireAll: false, from: 1000 }] };
+ok("under every threshold nothing is asked, and says so rather than filing an empty approval",
+  M.planFor(noFloor, { collaboratorId: "ann" }, 999).notNeeded === true);
+ok("the requester is still taken off a step the amount reaches",
+  M.planFor(tiered, { collaboratorId: "cat" }, 60000).error === "no-approver");
+const withFrom = M.cleanSetting("pos-return", { steps: [{ label: "A", approverIds: ["bob"], from: "250" }] }, ["bob"]);
+ok("a threshold typed on a type with an amount is kept as a number", withFrom.setting?.steps[0].from === 250);
+ok("a bad threshold is refused on save",
+  M.cleanSetting("pos-return", { steps: [{ label: "A", approverIds: ["bob"], from: "-3" }] }, ["bob"]).problems?.[0]?.problem === "bad-threshold");
+ok("a threshold on a type with no amount is dropped — it could never apply",
+  M.cleanSetting("quotation", { steps: [{ label: "A", approverIds: ["bob"], from: 500 }] }, ["bob"]).setting?.steps[0].from === undefined);
+
+console.log("\n== until a studio sets a type up, today's right holders answer it");
+const roles = [
+  { id: "admin", wildcard: true, permissions: [] },
+  { id: "mgr", permissions: ["pos.returns.view", "pos.returns.approve"] },
+  { id: "cashier", permissions: ["pos.returns.view", "pos.returns.create"] },
+];
+const people = [
+  { id: "own", role: "owner", roleIds: [] },
+  { id: "adm", roleIds: ["admin"] },
+  { id: "man", roleIds: ["mgr"] },
+  { id: "cas", roleIds: ["cashier"] },
+  { id: "den", roleIds: ["mgr"], overrides: { deny: ["pos.returns.approve"] } },
+  { id: "alw", roleIds: ["cashier"], overrides: { allow: ["pos.returns.approve"] } },
+];
+const seeded = M.defaultSetting("pos-return", {}, people, roles);
+ok("the owner, Admins and whoever holds the old right — read off the stored strings, since the catalogue no longer has it",
+  seeded.steps[0].approverIds.join() === "own,adm,man,alw");
+ok("a personal deny is honoured, and a cashier is not asked", !seeded.steps[0].approverIds.includes("den") && !seeded.steps[0].approverIds.includes("cas"));
+ok("any one of them may answer, as one signature did before", seeded.steps[0].requireAll === false);
+ok("a type with no old right has no default: it waits to be set up", M.defaultSetting("quotation", {}, people, roles) === null);
+
 console.log(fails ? `\n${fails} FAILED` : "\napprovals model: all passed");
 process.exit(fails ? 1 : 0);

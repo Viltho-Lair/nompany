@@ -4,14 +4,19 @@
 // THE SHAPE: somebody at the counter finds the sale — by scanning the barcode on
 // its receipt, or typing its number — picks what is coming back, says why and
 // how the money goes back (cash, card or transfer, the cashier's choice), and
-// ASKS. Nothing moves then. **Every return waits for a manager's signature**
-// (`pos.returns.approve`); signing it puts the units back into stock, into the
-// batches they left, and records the refund against the drawer that paid it.
-// A rejected return moves nothing and stays on the record.
+// ASKS. Nothing moves then. **Every return waits for an approval** on the
+// Approvals page (the owner, 19/09/2026: the request stays where it is made, the
+// answer moves to Approvals). Asking for the return IS asking for the approval;
+// the people who answer are set in Approvals settings (`pos-return`), and until
+// a studio sets them they are whoever could sign a return before. The last yes
+// puts the units back into stock, into the batches they left, and records the
+// refund against the drawer that paid it (`returnApproval`, run by
+// modules/approvals/effects). A rejected return moves nothing and stays on the
+// record, with the reason given.
 //
-// INVARIANT 7: whoever asked does not sign. The Admin is the exception, as for
-// bills and stock adjustments — the owner's instruction that they have every
-// access, and a one-person shop could otherwise never take anything back.
+// INVARIANT 7: whoever asked does not answer. The Admin is the exception — the
+// owner's instruction that they have every access, and a one-person shop could
+// otherwise never take anything back. Approvals enforces it.
 //
 // THE REFUND IS WHAT WAS PAID (./posReturnModel): each line's stored net, pro
 // rata, in the sale's own tax terms. A return is never re-priced.
@@ -25,7 +30,12 @@
 // refund may be a CREDIT on the client's account, and money goes back only up
 // to what the client actually paid.
 
-import { requirePermission, can, isAdministrator } from "@/platform/access";
+import { requirePermission, can } from "@/platform/access";
+import { approvalPreflight, approvalRows, requestApproval } from "@/modules/approvals/approvals";
+import { approvalSummary } from "@/modules/approvals/reads";
+import type { Refusal } from "@/modules/approvals/effects";
+import type { Approval } from "@/modules/approvals/schema";
+import type { StudioRef } from "@/modules/context";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
@@ -143,13 +153,38 @@ const returnableInvoice = (inv: Invoice | null | undefined) =>
 export async function returnsView(ctx: PosContext) {
   const denied = requirePermission(ctx.access, "pos.returns.view");
   if (denied) return denied;
-  const [rows, people, terminals] = await Promise.all([
+  const [rows, people, terminals, approvals] = await Promise.all([
     Returns.find(returnsScope(ctx)),
     listCollaborators(ctx.studio.id),
     Terminals.find(tillScope(ctx)),
+    approvalRows(ctx.studio, ctx.approvalsSection),
   ]);
   const names = Object.fromEntries((people as { id?: unknown; alias?: unknown }[]).map((c) => [String(c.id), String(c.alias || "")]));
   const tills = Object.fromEntries(terminals.map((t) => [t.id, t.name]));
+
+  // A RETURN ASKED FOR BEFORE APPROVALS TOOK IT OVER waits on a signature that
+  // can no longer be given here. Its approval is asked now, in the name of
+  // whoever asked for the return, so it reaches the people who answer returns —
+  // once: \`already-pending\` stops a second, and a filed one is found next time.
+  // The owner's rule of 12/09/2026: an update reaches every studio by itself.
+  const stranded = rows.filter((r) => r.status === "Pending" && !approvalSummary(approvals, "pos-return", r.id));
+  if (stranded.length && ctx.approvalsSection) {
+    const byId = new Map((people as { id?: unknown }[]).map((c) => [String(c.id), c]));
+    for (const r of stranded) {
+      const requester = byId.get(r.requestedByCollaboratorId);
+      if (!requester) continue;
+      const asked = await requestApproval(
+        { studio: ctx.studio, collaborator: requester as PosContext["collaborator"], roles: ctx.roles },
+        {
+          type: "pos-return",
+          source: { sectionKey: "pos-returns", recordId: r.id, ref: r.number, title: `${r.number} · ${r.receiptNumber}`, path: "pos-returns" },
+          note: r.reason,
+          amount: { value: r.total, currency: r.currency },
+        },
+      );
+      if ("approval" in asked && asked.approval) approvals.push(asked.approval);
+    }
+  }
   return {
     returns: [...rows]
       .sort((a, b) => (b.requestedAt || "").localeCompare(a.requestedAt || ""))
@@ -159,13 +194,13 @@ export async function returnsView(ctx: PosContext) {
         requestedBy: names[r.requestedByCollaboratorId] || "",
         decidedBy: r.decidedByCollaboratorId ? names[r.decidedByCollaboratorId] || "" : "",
         till: tills[r.terminalId] || "",
-        // Whether THIS reader may sign it — said here so the screen does not
-        // offer a button the server would refuse.
-        canDecide: r.status === "Pending" && can(ctx.access, "pos.returns.approve")
-          && (r.requestedByCollaboratorId !== ctx.collaborator.id || isAdministrator(ctx.collaborator, ctx.roles)),
+        // HOW FAR ITS APPROVAL HAS GOT, read from the approval itself — steps
+        // answered of steps asked. Null for a return under every threshold,
+        // which went through without one.
+        approval: approvalSummary(approvals, "pos-return", r.id),
       })),
     tills: terminals.filter((t) => t.active !== false).map((t) => ({ id: t.id, name: t.name })),
-    can: { create: can(ctx.access, "pos.returns.create"), approve: can(ctx.access, "pos.returns.approve") },
+    can: { create: can(ctx.access, "pos.returns.create") },
     me: ctx.collaborator.id,
   };
 }
@@ -223,7 +258,7 @@ export async function findSale(ctx: PosContext, rawNumber: unknown) {
 
 // ---- asking -----------------------------------------------------------------
 
-/** Ask for a return. Nothing moves until a manager signs it. */
+/** Ask for a return, which asks for its approval. Nothing moves until it is approved. */
 export async function requestReturn(ctx: PosContext, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "pos.returns.create");
   if (denied) return denied;
@@ -266,6 +301,15 @@ export async function requestReturn(ctx: PosContext, body: Record<string, unknow
     if (!till || till.active === false) return { error: "inactive" as const };
   }
 
+  // ASKED BEFORE THE RETURN EXISTS, so a studio whose returns nobody could
+  // approve refuses in words and writes nothing — rather than filing a return
+  // that waits for ever with its number spent (invariant 10 would not give it
+  // back).
+  const requester = { studio: ctx.studio, collaborator: ctx.collaborator, roles: ctx.roles };
+  const amount = { value: totals.total, currency: receipt.currency };
+  const preflight = await approvalPreflight(requester, { type: "pos-return", amount });
+  if ("error" in preflight) return preflight;
+
   const number = await nextReference(ctx.studio.id, {
     rows: [], field: "number", ...seriesSetting("posReturn", ctx.studio.numbering),
   });
@@ -289,57 +333,96 @@ export async function requestReturn(ctx: PosContext, body: Record<string, unknow
     requestedByCollaboratorId: ctx.collaborator.id,
     requestedAt: now(),
   } as Omit<PosReturn, "id">);
+
+  // UNDER EVERY THRESHOLD THE STUDIO SET, NOTHING IS ASKED: the return goes
+  // through as the cashier asked it, exactly as an approved one would.
+  if (!preflight.needed) {
+    const done = await completeReturn(ctx, row);
+    return "error" in done ? { return: row, finishProblem: done.error } : { return: done.return };
+  }
+  const asked = await requestApproval(requester, {
+    type: "pos-return",
+    source: {
+      sectionKey: "pos-returns", recordId: row.id, ref: number,
+      title: `${number} · ${receipt.number}`, path: "pos-returns",
+    },
+    note: reason,
+    amount,
+  });
+  // The preflight said yes a moment ago; a refusal now means the settings moved
+  // in between. The return is on file and says it is waiting, so the screen
+  // shows why rather than pretending it was asked.
+  if ("error" in asked) return { return: row, approvalProblem: asked.error };
   return { return: row };
 }
 
-// ---- deciding ---------------------------------------------------------------
+// ---- deciding — on the Approvals page ------------------------------------------
+//
+// NOTHING HERE IS A ROUTE ANY MORE. The answer is given on the Approvals page;
+// these are what the approvals engine runs when it is (modules/approvals/effects),
+// with the studio's authority and the approver named, because the person giving
+// the last yes may hold no right in Point of Sale at all.
 
-const mayDecide = (ctx: PosContext, row: PosReturn) =>
-  row.requestedByCollaboratorId !== ctx.collaborator.id || isAdministrator(ctx.collaborator, ctx.roles);
-
-/**
- * SIGN IT: the units go back into stock and the refund is recorded against the
- * drawer that pays it. A cash refund needs a shift open on its till — the cash
- * has to come out of a drawer somebody will count.
- */
-export async function approveReturn(ctx: PosContext, id: string) {
-  const denied = requirePermission(ctx.access, "pos.returns.approve");
-  if (denied) return denied;
-  const row = await Returns.byId(returnsScope(ctx), str(id, 60));
-  if (!row) return { error: "notfound" as const };
-  if (row.status !== "Pending") return { error: "already-decided" as const, status: row.status };
-  if (!mayDecide(ctx, row)) return { error: "same-signer" as const };
-
+/** The receipt or invoice a return is against, read as a sale — null when it is gone. */
+async function saleOf(ctx: PosContext, row: PosReturn) {
   const isInvoice = row.source === "invoice";
   const invoice = isInvoice && ctx.cashSection ? await Invoices.byId(cashScope(ctx), row.receiptId) : null;
   const receipt: SoldReceipt | null = isInvoice
     ? (invoice && returnableInvoice(invoice) ? invoiceAsSale(invoice, ctx.studio.currency) : null)
     : await Receipts.byId(tillScope(ctx), row.receiptId);
-  if (!receipt) return { error: "notfound" as const };
+  return { receipt, invoice };
+}
 
-  // THE CREDIT NOTE MUST FIT BEFORE ANYTHING IS SIGNED: a return that restocked
+/**
+ * CAN THIS RETURN BE PAID OUT NOW — asked before the yes that would approve it
+ * lands, so the approver hears the reason while it is still theirs to act on.
+ */
+async function returnProblem(ctx: PosContext, row: PosReturn): Promise<Refusal | null> {
+  if (row.status !== "Pending") return { error: "already-decided", status: row.status };
+  const { receipt, invoice } = await saleOf(ctx, row);
+  if (!receipt) return { error: "notfound" };
+  // THE CREDIT NOTE MUST FIT BEFORE ANYTHING MOVES: a return that restocked
   // and then could not be credited would leave the goods back and the client
   // still owing for them.
-  if (isInvoice && invoice) {
+  if (invoice) {
     const notes = await CreditNotes.find(cashScope(ctx));
     const room = creditableRemaining(
       { ...invoice, ...invoiceTotals(invoice, ctx.studio.currency), currency: invoice.currency || ctx.studio.currency } as never,
       notes as never,
     );
-    if (row.total > room) return { error: "over-credit" as const, remaining: room };
+    if (row.total > room) return { error: "over-credit", remaining: room };
   }
-  // CHECKED AGAIN AT THE SIGNATURE: another return of the same units may have
-  // been signed since this one was asked for.
+  // CHECKED AGAIN AT THE ANSWER: another return of the same units may have gone
+  // through since this one was asked for.
   const others = (await Returns.find(returnsScope(ctx), { where: { receiptId: receipt.id } })).filter((r) => r.id !== row.id);
   const left = returnable(receipt, others);
   const over = row.lines.find((l) => l.units > (left[l.line]?.remaining ?? 0));
-  if (over) return { error: "too-many" as const, line: over.line, remaining: left[over.line]?.remaining ?? 0 };
+  if (over) return { error: "too-many", line: over.line, remaining: left[over.line]?.remaining ?? 0 };
+  if (row.method === "cash") {
+    const open = (await Shifts.find(tillScope(ctx), { where: { terminalId: row.terminalId, status: "Open" } }))[0];
+    if (!open) return { error: "no-shift" };
+  }
+  return null;
+}
 
+/**
+ * PUT IT THROUGH: the units go back into stock and the refund is recorded
+ * against the drawer that pays it. A cash refund needs a shift open on its till
+ * — the cash has to come out of a drawer somebody will count.
+ *
+ * `ctx.collaborator` is who approved it (or who asked, for a return under every
+ * threshold), and is what the stock movements and the credit note name.
+ */
+async function completeReturn(ctx: PosContext, row: PosReturn): Promise<{ return: PosReturn; creditNote?: unknown } | Refusal> {
+  const problem = await returnProblem(ctx, row);
+  if (problem) return problem;
+  const { receipt } = await saleOf(ctx, row);
+  if (!receipt) return { error: "notfound" };
+  const others = (await Returns.find(returnsScope(ctx), { where: { receiptId: receipt.id } })).filter((r) => r.id !== row.id);
   const open = (await Shifts.find(tillScope(ctx), { where: { terminalId: row.terminalId, status: "Open" } }))[0];
-  if (row.method === "cash" && !open) return { error: "no-shift" as const };
 
-  // ONCE: a second manager signing the same return at the same moment finds it
-  // decided, and is told so rather than refunding it twice.
+  // ONCE: the approvals engine and a retry finishing the same return at the same
+  // moment find it decided, and the second is told so rather than refunding twice.
   const at = now();
   const signed = await Returns.update(returnsScope(ctx), row.id, (cur) => (cur.status !== "Pending" ? cur : {
     ...cur,
@@ -348,13 +431,13 @@ export async function approveReturn(ctx: PosContext, id: string) {
     decidedAt: at,
     ...(open ? { refundShiftId: open.id } : {}),
   }));
-  if (!signed) return { error: "notfound" as const };
+  if (!signed) return { error: "notfound" };
   if (signed.status !== "Approved" || signed.decidedByCollaboratorId !== ctx.collaborator.id || signed.decidedAt !== at) {
-    return { error: "already-decided" as const, status: signed.status };
+    return { error: "already-decided", status: signed.status };
   }
 
   // BACK INTO STOCK, into the batches the sale took from (posReturnModel), each
-  // movement naming the return. Units already put back by an earlier signed
+  // movement naming the return. Units already put back by an earlier approved
   // return of the same line are skipped.
   if (ctx.itemsSection && ctx.stockSection) {
     const signedBefore = others.filter((r) => r.status === "Approved");
@@ -364,7 +447,7 @@ export async function approveReturn(ctx: PosContext, id: string) {
     for (const l of row.lines) {
       // A free-text invoice line — a service, a fee — has nothing to put back.
       if (!l.itemId) continue;
-      const before = signedBefore.flatMap((r) => r.lines.filter((x) => x.line === l.line)).reduce((s, x) => s + x.units, 0);
+      const before = signedBefore.flatMap((r) => r.lines.filter((x) => x.line === l.line)).reduce((sum, x) => sum + x.units, 0);
       const unitCost = cost.get(l.itemId);
       for (const p of restockPlan(receipt.lines[l.line], before, l.units)) {
         moves.push({
@@ -381,7 +464,7 @@ export async function approveReturn(ctx: PosContext, id: string) {
 
   // THE CREDIT NOTE, AS A DRAFT, for Finance to issue. Its number and headroom
   // come from the one function Finance's own screen uses.
-  if (isInvoice && ctx.cashSection) {
+  if (row.source === "invoice" && ctx.cashSection) {
     const note = await draftCreditNote(
       { studio: ctx.studio, section: ctx.cashSection, collaboratorId: ctx.collaborator.id },
       { invoiceId: row.receiptId, amount: row.total, reason: `Return ${row.number}: ${row.reason}` },
@@ -391,19 +474,13 @@ export async function approveReturn(ctx: PosContext, id: string) {
       const withNote = await Returns.update(returnsScope(ctx), row.id, (cur) => ({ ...cur, creditNoteId: noteId }));
       return { return: withNote || signed, creditNote: (note as { creditNote: unknown }).creditNote };
     }
-    return { return: signed, creditNoteProblem: (note as { error?: string }).error || "" };
   }
   return { return: signed };
 }
 
-/** Turn it down. Nothing moves, and the units it reserved are free again. */
-export async function rejectReturn(ctx: PosContext, id: string, reason: unknown) {
-  const denied = requirePermission(ctx.access, "pos.returns.approve");
-  if (denied) return denied;
-  const row = await Returns.byId(returnsScope(ctx), str(id, 60));
-  if (!row) return { error: "notfound" as const };
-  if (row.status !== "Pending") return { error: "already-decided" as const, status: row.status };
-  if (!mayDecide(ctx, row)) return { error: "same-signer" as const };
+/** Turned down: nothing moves, and the units it held are free again. */
+async function closeRejected(ctx: PosContext, row: PosReturn, reason: string): Promise<"done" | Refusal> {
+  if (row.status !== "Pending") return "done";
   const at = now();
   const done = await Returns.update(returnsScope(ctx), row.id, (cur) => (cur.status !== "Pending" ? cur : {
     ...cur,
@@ -412,10 +489,36 @@ export async function rejectReturn(ctx: PosContext, id: string, reason: unknown)
     decidedByCollaboratorId: ctx.collaborator.id,
     decidedAt: at,
   }));
-  if (!done) return { error: "notfound" as const };
-  if (done.status !== "Rejected" || done.decidedAt !== at) return { error: "already-decided" as const, status: done.status };
-  return { return: done };
+  return done ? "done" : { error: "notfound" };
 }
+
+/** The return an approval names, in a context carrying the studio's authority. */
+async function returnFor(studio: StudioRef, approval: Approval, byCollaboratorId: string) {
+  // IMPORTED WHEN NEEDED: ./pos imports this file for the shift report.
+  const { posContext } = await import("./pos");
+  const ctx = await posContext.asApprover(studio.id, byCollaboratorId);
+  if (ctx.error) return { error: ctx.error } as Refusal;
+  const row = await Returns.byId(returnsScope(ctx), approval.source.recordId);
+  return row ? { ctx, row } : ({ error: "notfound" } as Refusal);
+}
+
+/** What deciding a `pos-return` approval does — see modules/approvals/effects. */
+export const returnApproval = {
+  ready: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await returnFor(studio, approval, by);
+    return "error" in found ? found : returnProblem(found.ctx, found.row);
+  },
+  approved: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await returnFor(studio, approval, by);
+    if ("error" in found) return found;
+    const done = await completeReturn(found.ctx, found.row);
+    return "error" in done ? done : ("done" as const);
+  },
+  rejected: async (studio: StudioRef, approval: Approval, by: string, reason: string) => {
+    const found = await returnFor(studio, approval, by);
+    return "error" in found ? found : closeRejected(found.ctx, found.row, reason);
+  },
+};
 
 /** The refunds each shift paid out, for its report. */
 export async function refundsByShift(ctx: PosContext, shiftIds: readonly string[]) {

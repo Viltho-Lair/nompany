@@ -57,6 +57,9 @@ const FORBIDDEN = [
   // Answering your own approval request. No grant makes it succeed — only
   // being the owner or an Admin does, and that is not a grant.
   "own-request",
+  // Answering the second step of a request you answered the first of, where the
+  // steps are two different acts (a document reviewed, then approved).
+  "signed-another-step",
 ];
 
 // 404 — IT IS NOT THERE, or you are not allowed to know that it is. Membership
@@ -134,6 +137,8 @@ const CONFLICT = [
   // is already waiting on one, or nobody has been named to answer it yet — each
   // needs a refresh or somebody's settings, not a different request.
   "not-pending", "already-answered", "already-pending", "no-approver", "not-configured", "not-requestable",
+  // Trying again to finish a record whose approval finished it already.
+  "not-unfinished",
   // SERVICE CONTRACTS (11/09/2026), each the record having moved on: the
   // contract has raised work (so it is cancelled, not deleted), a visit already
   // has its order, the contract is cancelled, today is outside its term, or its

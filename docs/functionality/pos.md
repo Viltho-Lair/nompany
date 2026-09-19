@@ -10,7 +10,7 @@
 | Sales | `pos-sales` | `pos.sales.view`; `pos.sales.export` downloads |
 | Shift history | `pos-shifts` | `pos.shifts.view` |
 | Settings | `pos-settings` | `pos.settings.view` / `.edit` |
-| Returns | `pos-returns` | `pos.returns.view` / `.create`; `.approve` signs |
+| Returns | `pos-returns` | `pos.returns.view` / `.create`; approved on the Approvals page |
 
 `modules/sales/pos.ts` (service), `modules/sales/posModel.ts` (the till's arithmetic),
 `modules/sales/posReports.ts` (periods, filters, totals, what sold, the CSV — pure),
@@ -178,24 +178,29 @@ is told to set one on their account's Security page.
   (the sale's own method is the default) — and which till's drawer pays a cash refund.
   **Nothing moves when it is asked.** A waiting return **reserves** its units, so two cashiers
   cannot each take back the same last one; a turned-down return frees them.
-- **Every return waits for a manager** (the owner): `pos.returns.approve`. **Whoever asked does
-  not sign** (invariant 7); **the Admin is the exception**, as for bills and stock adjustments —
-  a one-person shop could otherwise take nothing back. Signing is **once**: two managers signing
-  at the same moment get one refund and one "already decided". What is left is checked again at
-  the signature.
+- **Every return waits for its approval, answered on the Approvals page** (the owner,
+  19/09/2026): asking for the return IS the request (type `pos-return`), and the Returns screen
+  shows how far each has got. The people who answer are set in Approvals settings, steps and
+  amount limits included; until a studio saves the type, they are whoever held the old
+  `pos.returns.approve` right, plus the owner and Admins. **Whoever asked does not answer**
+  (invariant 7); **the Admin is the exception**. A return under every limit the studio set goes
+  straight through. Putting it through happens **once**: the approvals engine re-checks what is
+  left, the drawer and the credit room before the last yes lands, and refuses that yes with the
+  reason if the return can no longer be paid out. **A return asked for before 19/09/2026** gets
+  its approval filed, in its requester's name, the first time the Returns screen is read.
 - **The refund is what was paid**: each line's stored net (its discount and its share of the
   basket's already off), pro rata by units, and **the last unit takes the remainder** — a line
   returned in pieces refunds exactly what it was charged. The tax is the SALE's (its rate, method
   and whether its prices included tax), so returning everything refunds the sale's total and its
   tax to the minor unit.
-- **Signed, the units go back into stock**, into the batches the sale took them from, the last
+- **Approved, the units go back into stock**, into the batches the sale took them from, the last
   taken first (`restockPlan`), each movement naming the return (`sourceType: "pos-return"`).
-- **A cash refund comes out of a drawer**: signing needs a shift open on the return's till
+- **A cash refund comes out of a drawer**: approving needs a shift open on the return's till
   (`no-shift` otherwise), and the shift's report takes the cash out of what it expects and lists
   refunds by method. A card or transfer refund is recorded against the open shift when there is
   one.
-- **Who reaches it**: roles that could open the till see Returns and may ask for one; roles that
-  managed the till (`crmSales.pos.edit`) may sign — both by catch-up, with nothing run per studio.
+- **Who reaches it**: roles that could open the till see Returns and may ask for one, by
+  catch-up with nothing run per studio. Who approves is Approvals settings', not a right.
 
 **Against a Documents invoice** (18/09/2026, the owner's second answer). The same box takes an
 invoice's reference — a printed invoice carries it as a barcode too — and only an issued invoice
@@ -283,15 +288,14 @@ picking.
 - **A cash or card refund against an invoice posts nothing** to the books beyond the credit note;
   the money out of the drawer is in the shift report only (the till has no ledger entry yet).
 - **Voiding** a sale, and exchanges (a return and a sale as one act).
-- **A printed return slip**, and a notice to the managers who can sign; the Returns screen is live
-  and shows what is waiting.
+- **A printed return slip.** (The people who answer are told on the Approvals page and the bell.)
 - **A credit note for a returned sale**: a return is not a tax document yet — in Saudi Arabia a
   simplified credit note referencing the receipt is required (`docs/progress.md`).
 - **Returns without a receipt**, return windows, restocking fees, and a condition per line
   (everything signed goes back on the shelf, on the owner's decision; damaged goods are written
   off in Inventory).
 - **Two returns asked at the same moment for the same last unit** can both be recorded as
-  waiting; the signature re-checks, so only one can be signed.
+  waiting; the approval re-checks, so only one can be approved.
 - **The ledger**: a shift posts nothing to the books yet — no revenue, VAT, cash or cost of sales
   entry. (Planned as one entry per shift.)
 - **Sending the receipt by WhatsApp** as a PDF from the till's share menu; the server does not

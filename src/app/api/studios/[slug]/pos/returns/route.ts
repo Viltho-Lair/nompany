@@ -1,20 +1,19 @@
 import { route, refused } from "@/platform/http/route";
-import { signingPinProblem } from "@/platform/auth/lock";
 import { posContext } from "@/modules/sales/pos";
-import { returnsView, findSale, requestReturn, approveReturn, rejectReturn } from "@/modules/sales/posReturns";
+import { returnsView, findSale, requestReturn } from "@/modules/sales/posReturns";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // RETURNS (18/09/2026). GET lists them, or finds the sale a scanned receipt
-// number names (`?number=`); POST asks for one; PATCH signs or turns one down.
-// APPROVE AND REJECT ARE NAMED IN THE BODY rather than reached through a
-// generic edit — the shape that once let a rejected change order approve
-// itself is not repeated. Units already returned, a return already decided and
-// a cash refund with no drawer open are the world disagreeing: 409.
+// number names (`?number=`); POST asks for one, which asks for its approval.
+// THE ANSWER IS GIVEN ON THE APPROVALS PAGE (19/09/2026), so there is no PATCH:
+// approving and turning down a return are the approvals route's, and what they
+// do to the return is modules/approvals/effects'. Units already returned and
+// more money back than was paid are the world disagreeing: 409.
 const spec = {
   auth: "studio", context: posContext, body: true, name: "pos-returns",
-  status: { "too-many": 409, "already-decided": 409, "no-shift": 409, inactive: 409, "same-signer": 403, "over-paid": 409, "over-credit": 409 },
+  status: { "too-many": 409, inactive: 409, "over-paid": 409 },
 };
 
 export const GET = route({ ...spec, body: false }, async (pos) => {
@@ -27,21 +26,7 @@ export const GET = route({ ...spec, body: false }, async (pos) => {
 export const POST = route(spec, async (pos) => {
   const result = await requestReturn(pos, pos.body);
   if (refused(result)) return result;
-  return { status: 201, body: { ok: true, return: result.return } };
-});
-
-export const PATCH = route(spec, async (pos) => {
-  const id = String(pos.body?.id ?? "").trim();
-  if (!id) return { error: "missing" };
-  const action = String(pos.body?.action ?? "");
-  // THE SIGNER'S PIN, before a signature (platform/auth/lock.ts).
-  if (action === "approve") {
-    const pinGate = await signingPinProblem(pos.studio, pos.user.id, pos.body?.pin);
-    if (pinGate) return pinGate;
-  }
-  const result = action === "approve" ? await approveReturn(pos, id)
-    : action === "reject" ? await rejectReturn(pos, id, pos.body?.reason)
-      : { error: "action" as const };
-  if (refused(result)) return result;
-  return { ok: true, return: result.return };
+  // A return under every threshold went straight through; one whose approval
+  // could not be asked says why, and is on file waiting.
+  return { status: 201, body: { ok: true, ...result } };
 });

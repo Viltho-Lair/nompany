@@ -31,6 +31,16 @@ export const ApprovalStepSchema = z.object({
   label: z.string().max(80),
   approverIds: z.array(z.string().max(60)),
   requireAll: z.boolean(),
+  /**
+   * THE AMOUNT AT OR ABOVE WHICH THIS STEP APPLIES, in the studio's currency —
+   * the owner, 19/09/2026: "a bill has step 1 for everyone and step 2 from
+   * 50,000". Absent or 0 means always. Only a type that carries an amount
+   * (`amounted` in ./registry) reads it; on any other it is ignored.
+   *
+   * AT OR ABOVE, not above — the old chains' reading of "bills over 50000 need
+   * the FD", the safer of the sentence's two readings.
+   */
+  from: z.number().min(0).optional(),
 });
 
 /** How one approval type is answered in this studio: its steps, in order. */
@@ -68,6 +78,20 @@ export const ApprovalSourceSchema = z.object({
   path: z.string().max(200).optional(),
 });
 
+/**
+ * THE AMOUNT A REQUEST WAS JUDGED BY, frozen onto it with the rate that
+ * converted it — the old chains' rule: a rate moving overnight cannot re-route a
+ * request already asked, because which steps it walks is a recorded fact about it.
+ */
+export const ApprovalAmountSchema = z.object({
+  value: z.number(),
+  currency: z.string().max(8),
+  /** In the studio's currency — what the thresholds are compared with. */
+  inBase: z.number(),
+  /** Null when no conversion happened. */
+  rate: z.number().nullable(),
+});
+
 export const ApprovalSchema = z.object({
   id: z.string(),
   studioId: z.string(),
@@ -89,6 +113,14 @@ export const ApprovalSchema = z.object({
   decidedAt: z.string(),
   /** What the requester added when asking. */
   note: z.string().max(4000),
+  /**
+   * WHAT DECIDING IT DID TO THE RECORD (./effects): when the record was moved,
+   * and why not if it could not be. Absent on a type whose record reads its
+   * approval and moves nothing of its own.
+   */
+  finish: z.object({ at: z.string(), error: z.string().max(80) }).optional(),
+  /** What it is worth, for a type that carries an amount. */
+  amount: ApprovalAmountSchema.optional(),
   /** A document the request carries — a client's purchase order, say. */
   attachment: z.object({
     url: z.string(),
@@ -102,4 +134,5 @@ export type ApprovalStep = z.infer<typeof ApprovalStepSchema>;
 export type ApprovalSetting = z.infer<typeof ApprovalSettingSchema>;
 export type Decision = z.infer<typeof DecisionSchema>;
 export type ApprovalSource = z.infer<typeof ApprovalSourceSchema>;
+export type ApprovalAmount = z.infer<typeof ApprovalAmountSchema>;
 export type Approval = z.infer<typeof ApprovalSchema>;
