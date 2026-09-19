@@ -73,6 +73,15 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
       { permission: "inventory.stock.approveHigh", from: 25000, label: "Above the limit" },
     ],
   },
+  // A SUPPLIER'S BILL (Finance → Payables). Asked for from the bill once it is
+  // received; approving it is what payment waits on.
+  {
+    key: "bill", label: "Supplier bill", requestable: true, amounted: true, legacyChain: "bill",
+    legacy: [
+      { permission: "finance.payables.approve", from: 0, label: "Finance" },
+      { permission: "finance.payables.approveHigh", from: 50000, label: "Above the limit" },
+    ],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 

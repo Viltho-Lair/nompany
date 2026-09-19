@@ -330,7 +330,17 @@ export async function approvalPreflight(requester: Requester, input: Pick<Reques
   return { needed: !("notNeeded" in plan) };
 }
 
-export async function requestApproval(requester: Requester, input: RequestInput) {
+/**
+ * WHAT ASKING ANSWERS — one of three, each saying so, so a caller narrows on
+ * `.error`, `.notNeeded` or `.approval` and never has to guess which shape a
+ * refusal took.
+ */
+export type RequestOutcome =
+  | { approval: Approval; notNeeded?: undefined; error?: undefined }
+  | { notNeeded: true; approval?: undefined; error?: undefined }
+  | { error: string; approval?: undefined; notNeeded?: undefined; [detail: string]: unknown };
+
+export async function requestApproval(requester: Requester, input: RequestInput): Promise<RequestOutcome> {
   const { studio, collaborator, roles } = requester;
   const section = await getSectionByKey(studio.id, APPROVALS);
   if (!section) return { error: "no-section" };

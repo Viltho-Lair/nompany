@@ -1,11 +1,10 @@
 import { route, refused } from "@/platform/http/route";
-import { signingPinProblem } from "@/platform/auth/lock";
 import { setupFor as setupOf } from "@/modules/finance/setup";
 import { requirePermission } from "@/platform/access";
 import { financeContext, PAYMENT_METHODS } from "@/modules/finance/finance";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import {
-  listBillsForScreen, createBill, editBill, approveBill, recordBillPayment, releaseBillHold, removeBill,
+  listBillsForScreen, createBill, editBill, requestBillApproval, recordBillPayment, releaseBillHold, removeBill,
   BILL_STATUSES, BILL_TERMS,
 } from "@/modules/finance/payables";
 import { referencePickers } from "@/modules/procurement/pickers";
@@ -45,10 +44,9 @@ export const GET = route(
       canManage: fin.canManage,
       manage: fin.manage,
       nav: fin.nav,
-      // EACH ROW CARRIES ITS OWN APPROVAL ANSWER — the plan it is routed
-      // under, how far along it is, and the step THIS viewer could sign.
-      // Computed in the service from the same plan approveBill enforces, so
-      // the screen never has to decide who may approve what.
+      // EACH ROW CARRIES HOW FAR ITS APPROVAL HAS GOT, read from the approval,
+      // and whether this viewer may ask for one. Answering is the Approvals
+      // page's (19/09/2026).
       bills,
       pickers,
       ...setupOf(fin),
@@ -81,20 +79,16 @@ export const POST = route(spec, async (fin) => {
   return { status: 201, body: { ok: true, bill: result.bill, ...(posting ? { posting } : {}) } };
 });
 
-// Editing, approving or paying a bill are three different acts on the same row.
-// No blanket `canManage` gate here — approve and pay are NOT covered by it
-// (finance.payables.approve / .pay are separate grants, invariant 7), so each
-// branch is left to its own service call and its own requirePermission.
+// Editing, asking for approval or paying a bill are different acts on the same
+// row. No blanket `canManage` gate here — paying is NOT covered by it
+// (`finance.payables.pay` is its own grant), so each branch is left to its own
+// service call and its own requirePermission. APPROVING is not here at all: it
+// is answered on the Approvals page (19/09/2026), which asks the signer's PIN.
 export const PUT = route(spec, async (fin) => {
   if (!fin.body.id) return { error: "missing" };
 
-  // THE SIGNER'S PIN, before a signature (platform/auth/lock.ts).
-  if (fin.body.approve === true) {
-    const pinGate = await signingPinProblem(fin.studio, fin.user.id, fin.body.pin);
-    if (pinGate) return pinGate;
-  }
-  const result = fin.body.approve === true
-    ? await approveBill(fin, fin.body.id)
+  const result = fin.body.requestApproval === true
+    ? await requestBillApproval(fin, fin.body.id)
     : fin.body.payment
       ? await recordBillPayment(fin, fin.body.id, fin.body.payment)
       // RELEASING A HELD PAYMENT is a fourth act on the same row, its right

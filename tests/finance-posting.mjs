@@ -27,7 +27,8 @@ const { financeContext } = await import("@/modules/finance/finance");
 const {
   createInvoice, editInvoice, recordPayment, createExpense,
 } = await import("@/modules/finance/finance");
-const { createBill, approveBill, recordBillPayment } = await import("@/modules/finance/payables");
+const { createBill, requestBillApproval, recordBillPayment } = await import("@/modules/finance/payables");
+const { approvalsContext, decideApproval, saveApprovalSetting } = await import("@/modules/approvals/approvals");
 const { listJournal, trialBalance } = await import("@/modules/finance/ledger");
 const { updateStudio } = await import("@/modules/main/studios");
 
@@ -118,9 +119,14 @@ if (billId) {
 
   // PAYMENT WAITS ON APPROVAL since 11/09/2026; the owner is an Admin and may
   // sign a bill they raised. This paid an unapproved bill until 17/09/2026.
-  const signed = await approveBill(await ctx(), billId);
-  ok("fixture: the owner approves the bill", signed.bill?.status === "Approved",
-    JSON.stringify(signed.error ?? signed.bill?.status));
+  // ASKED FOR IN PAYABLES AND ANSWERED ON THE APPROVALS PAGE since 19/09/2026,
+  // one step naming the owner, who may answer what they asked for.
+  const approvalsCtx = await approvalsContext(F.owner, F.slug);
+  await saveApprovalSetting(approvalsCtx, { type: "bill", setting: { steps: [{ label: "Finance", approverIds: [approvalsCtx.collaborator.id] }] } });
+  const asked = await requestBillApproval(await ctx(), billId);
+  const signed = asked.approval ? await decideApproval(await approvalsContext(F.owner, F.slug), asked.approval.id, { verdict: "Approved" }) : asked;
+  ok("fixture: the owner approves the bill", signed.approval?.status === "Approved",
+    JSON.stringify(signed.error ?? signed.approval?.status));
   const settled = await recordBillPayment(await ctx(), billId, { amount: 250 });
   ok("paying it reports its own posting", settled.posting?.posted === true,
     JSON.stringify(settled.posting));

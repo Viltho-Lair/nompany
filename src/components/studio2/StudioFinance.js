@@ -597,6 +597,12 @@ function message(out, tr) {
   // ---- accounts payable ----------------------------------------------------
   if (out.error === "vendor") return tr.mVendor;
   if (out.error === "same-signer") return tr.mSameSigner;
+  if (out.error === "no-studio-currency") return tr.approvalNoStudioCurrency;
+  if (out.error === "unquoted") return tr.approvalUnquoted;
+  if (out.error === "not-configured") return tr.approvalNotConfigured;
+  if (out.error === "no-approver") return tr.approvalNoApprover;
+  if (out.error === "approval-pending") return tr.approvalPendingEdit;
+  if (out.error === "not-received") return tr.approvalNotReceived;
   if (out.error === "locked") return tr.mLocked;
   if (out.error === "already") return tr.mAlready;
   if (out.error === "not-approved") return tr.mNotApproved;
@@ -1203,63 +1209,20 @@ const termLabel = (tr) => ({
   "net-30": tr.termNet302, "net-60": tr.termNet602,
 });
 
-// WHERE A BILL HAS GOT TO IN ITS APPROVAL CHAIN, and why it cannot move when
-// it cannot. A workflow that waits silently waits forever: without this the
-// only visible difference between "needs one more signature" and "approved"
-// was the absence of a button, which reads as a broken screen rather than a
-// pending one.
-//
-// THE REFUSAL IS TRANSLATED HERE, keyed by the token the server sent, rather
-// than printed from the server's own sentence. The studio is bilingual and
-// resolveApprovalPlan writes English; sending prose the screen cannot
-// translate would put an English apology on an Arabic page. Statuses and
-// engagement stages already translate on display for the same reason.
-function BillApproval({ bill }) {
+// WHERE A BILL'S APPROVAL HAS GOT TO — read from the approval itself, which is
+// answered on the Approvals page (19/09/2026). A workflow that waits silently
+// waits forever: without this the only visible difference between "waiting on
+// the second step" and "nobody has asked" was the absence of a button.
+function BillApproval({ slug, bill }) {
   const tr = financeDict(useStudioLocale());
-  const signatures = bill.approvals || [];
-  const required = bill.approvalRequired || 0;
-
-  if (bill.approvalBlocked) {
-    const why = {
-      "no-studio-currency": tr.approvalNoStudioCurrency,
-      unquoted: tr.approvalUnquoted,
-      "no-chain": tr.approvalNoChain,
-    }[bill.approvalBlocked];
-    return (
-      <p className="mt-3 rounded-xl border-s-2 border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
-        {why || tr.approvalNoChain}
-      </p>
-    );
-  }
-
-  // A single step with nothing signed is the ordinary case and says nothing
-  // worth a paragraph — the Approve button is the whole story.
-  if (required <= 1 && signatures.length === 0) return null;
-
-  const outstanding = (bill.approvalPlan?.steps || []).filter(
-    (s) => !signatures.some((sig) => sig.permission === s.permission),
-  );
-
+  const a = bill.approval;
+  if (!a) return null;
   return (
-    <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
-      <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
-        {tr.approvalOf(signatures.length, required)}
-      </p>
-      {signatures.length > 0 && (
-        <ul className="mt-1 space-y-0.5 text-sm text-slate-600 dark:text-slate-300">
-          {signatures.map((s, i) => (
-            <li key={i} className="flex justify-between gap-4">
-              <span>{tr.approvalSignedBy} {s.byAlias || "—"}</span>
-              <span className="text-slate-400">{fmt(s.at.slice(0, 10))}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {outstanding.length > 0 && (
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          {tr.approvalAwaiting} {outstanding.map((s) => s.label).join(" · ")}
-        </p>
-      )}
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
+      <span className={a.rejected ? "text-rose-600 dark:text-rose-300" : "text-slate-600 dark:text-slate-300"}>
+        {a.rejected ? tr.approvalRejected(a.reason) : a.approved ? tr.approvalOf(a.granted, a.required) : `${tr.approvalWaiting} · ${tr.approvalOf(a.granted, a.required)}`}
+      </span>
+      <a href={`/${slug}/approvals`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.approvalOpen}</a>
     </div>
   );
 }
@@ -1284,7 +1247,7 @@ function Payables({ slug, onDenied }) {
       <div className="flex items-center justify-end">
         {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
       </div>
-      <Bills rows={bills} vocab={vocabulary} canManage={canManage} canRelease={Boolean(data.canRelease)} busy={busy} send={send}
+      <Bills slug={slug} rows={bills} vocab={vocabulary} canManage={canManage} canRelease={Boolean(data.canRelease)} busy={busy} send={send}
         pickers={data.pickers || {}} />
     </div>
   );
@@ -1317,7 +1280,7 @@ function PayablesSummary({ bills }) {
   );
 }
 
-function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} }) {
+function Bills({ slug, rows, vocab, canManage, canRelease, busy, send, pickers = {} }) {
   const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -1375,13 +1338,10 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} })
                 {rows.map((b) => {
                   const noHistory = (b.payments || []).length === 0;
                   const editable = ["Draft", "Received", "Disputed"].includes(b.status) && noHistory;
-                  // THE SERVER SAYS WHETHER THIS PERSON CAN SIGN, not the status.
-                  // A bill's status cannot express "waiting on the second
-                  // signature", nor whether the viewer is the raiser, has
-                  // already signed, or holds the outstanding step's right —
-                  // availableApproval asks all four, so the button is drawn only
-                  // where pressing it would succeed.
-                  const approvable = !!b.nextApproval;
+                  // THE SERVER SAYS WHETHER THIS PERSON MAY ASK, not the status:
+                  // a received bill nobody has asked about, or one whose last
+                  // request was turned down. Answering is the Approvals page's.
+                  const askable = !!b.canRequestApproval;
                   // ONLY AN APPROVED BILL IS PAID — the server refuses anything
                   // else (`recordBillPayment`), so the button is not offered on a
                   // bill still waiting for its signature.
@@ -1404,12 +1364,11 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} })
                         <td className={td}>
                           <StatusPill kind="bill" status={b.status} />
                           <HoldPill hold={b.hold} tr={tr} />
-                          {/* ONLY WHERE IT SAYS SOMETHING. A one-step bill that is
-                              signed or unsigned is fully described by its status;
-                              "1 of 2 signed" is the state the status cannot carry. */}
-                          {(b.approvalRequired || 0) > 1 && b.status !== "Approved" && b.status !== "Paid" && (
+                          {/* THE STATE THE STATUS CANNOT CARRY: a received bill
+                              waiting on its approval, and how far it has got. */}
+                          {b.approval?.status === "Pending" && (
                             <span className="ms-2 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-600 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                              {tr.approvalOf(b.approvalSigned || 0, b.approvalRequired)}
+                              {tr.approvalOf(b.approval.granted, b.approval.required)}
                             </span>
                           )}
                         </td>
@@ -1417,13 +1376,9 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} })
                           {canManage && (
                             <span className="flex flex-wrap justify-end gap-2">
                               {b.status === "Draft" && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Received" })}>{tr.markReceived}</button>}
-                              {approvable && (
-                                <button className={btn} disabled={busy} onClick={() => send("PUT", { id: b.id, approve: true })}>
-                                  {/* The step's own label, and it is NOT translated: a
-                                      studio names its own steps in Finance settings, and
-                                      a tenant-authored word is data — the same rule that
-                                      leaves section names and service actions alone. */}
-                                  {(b.approvalRequired || 0) > 1 ? `${tr.approve} · ${b.nextApproval.label}` : tr.approve}
+                              {askable && (
+                                <button className={btn} disabled={busy} onClick={() => send("PUT", { id: b.id, requestApproval: true })}>
+                                  {tr.approvalRequest}
                                 </button>
                               )}
                               {/* A HELD BILL OFFERS RELEASE, NOT PAYMENT: the pay door would refuse it,
@@ -1455,7 +1410,7 @@ function Bills({ rows, vocab, canManage, canRelease, busy, send, pickers = {} })
                                 {tr.billedOn} {b.billDate ? fmt(b.billDate) : "—"} · {tr.termsLabel} {termLabel(tr)[b.terms] || b.terms || "—"}
                               </p>
                               {b.notes && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{b.notes}</p>}
-                              <BillApproval bill={b} />
+                              <BillApproval slug={slug} bill={b} />
                               {(b.payments || []).length > 0 && (
                                 <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
                                   <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.payments}</p>

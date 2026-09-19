@@ -79,8 +79,6 @@ shipped template is already in the client bundle because the module is pure.
 **`approval.requested`** ("Waiting for your signature", the document's reference as the one
 fact) goes to whoever can answer the next step, resolved from the right that step names:
 
-- a **bill** when it is received (created Received, or a draft marked Received) and after
-  every signature that is not the last;
 - a **requisition** when it is submitted and after every signature that is not the last;
 - a **bid** after every signature that is not the last;
 - every **approval**, to the people named on each step as it opens (Approval settings), and

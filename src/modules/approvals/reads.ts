@@ -33,6 +33,9 @@ export function approvalSummary(rows: Rows, type: string, recordId: string | nul
     at: a.decidedAt || "",
     requestedAt: a.requestedAt,
     note: a.note || "",
+    // WHY IT WAS TURNED DOWN, in the approver's words — the record shows it so
+    // whoever asked knows what to fix without opening the Approvals page.
+    reason: a.decisions.find((d) => d.verdict === "Rejected")?.note || "",
     attachment: a.attachment || null,
   };
 }

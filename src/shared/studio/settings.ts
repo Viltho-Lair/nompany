@@ -861,26 +861,20 @@ const settings = { en, ar };
 // the stored token so a relabel cannot orphan a translation. HAND-WRITTEN, NO
 // DIACRITICS. A step label is the studio's own and is never translated.
 const EN_CHAINS: Record<string, string> = {
-  bill: "Supplier bills",
   tender: "Bids",
   requisition: "Purchase requisitions",
 };
 const AR_CHAINS: Record<string, string> = {
-  bill: "فواتير الموردين",
   tender: "العطاءات",
   requisition: "طلبات الشراء",
 };
 const EN_RIGHTS: Record<string, string> = {
-  "finance.payables.approve": "Approve bills",
-  "finance.payables.approveHigh": "Approve bills above the limit",
   "tendering.tenders.approve": "Approve bids",
   "tendering.tenders.approveHigh": "Approve bids above the limit",
   "procurement.requisitions.approve": "Approve requisitions",
   "procurement.requisitions.approveHigh": "Approve requisitions above the limit",
 };
 const AR_RIGHTS: Record<string, string> = {
-  "finance.payables.approve": "اعتماد الفواتير",
-  "finance.payables.approveHigh": "اعتماد الفواتير فوق الحد",
   "tendering.tenders.approve": "اعتماد العطاءات",
   "tendering.tenders.approveHigh": "اعتماد العطاءات فوق الحد",
   "procurement.requisitions.approve": "اعتماد طلبات الشراء",

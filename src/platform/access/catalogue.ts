@@ -599,22 +599,17 @@ const OWN_AREAS = [
   // approver), and paying is a third — so approve and pay are extra powers
   // outside the view/create/edit/delete ladder.
   //
-  // `approveHigh` is a FOURTH, and it exists because `approve` could not
-  // express an amount: one right meant a 200-unit stationery bill and a
-  // 2,000,000 subcontractor bill took the same path, so the only way a studio
-  // could say "the FD sees the big ones" was to withhold approval from
-  // everybody who handles the small ones — a bottleneck, not a control. WHICH
-  // amount counts as high is the STUDIO's to set (Finance settings, as an
-  // approval chain); this key is only who may clear a bill once it is.
+  // APPROVING A BILL IS NOT A RIGHT ANY MORE (19/09/2026): it is answered on the
+  // Approvals page by the people Approvals settings name, amount limits and
+  // all, and `approve`/`approveHigh` would be a second answer to "who approves
+  // this" (invariant 16). Asking for it is `edit`.
   { key: "finance.payables", group: "Finance & Accounting", label: "Payables (bills)", verbs: ["view", "create", "edit", "delete"],
     extra: [
-      { key: "approve", label: "Approve bills" },
       { key: "pay", label: "Record payments" },
       // RELEASING A HELD PAYMENT, kept away from whoever pays: department-head
       // holds it and `money` does not, because a second signature the payer can
       // give is not a second signature. See modules/finance/hold.ts.
       { key: "release", label: "Release a held payment" },
-      { key: "approveHigh", label: "Approve bills above the limit" },
     ] },
   { key: "finance.assets", group: "Finance & Accounting", label: "Fixed assets", verbs: ["view", "create", "edit"],
     extra: [{ key: "dispose", label: "Dispose of an asset" }] },

@@ -27,7 +27,7 @@ exception (unlike bills, payroll and stock adjustments): a one-person studio has
 from.
 
 **Catch-ups** (`catchUps.ts`): a role holding `finance.expenses` gains `finance.claims` view/create
-verb for verb; a role holding `finance.payables.approve` gains `finance.claims.approve`. The
+verb for verb; a role holding `finance.payables.approve` gains `finance.claims.approve` (bills moved to the Approvals page on 19/09/2026 and that right left the catalogue; roles asked before then kept what they gained). The
 `money` archetype holds the area in full and approves. **A person with no Finance right cannot
 claim until somebody grants `finance.claims.create`** — a catch-up can only widen a role that
 already holds something (see "Not built yet").

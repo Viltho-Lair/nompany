@@ -70,6 +70,7 @@ const TYPES_EN: Record<string, string> = {
   "permit-request": "Permit request",
   "pos-return": "Till return",
   adjustment: "Stock adjustment",
+  bill: "Supplier bill",
   carried: "Carried over",
 };
 const TYPES_AR: Record<string, string> = {
@@ -82,6 +83,7 @@ const TYPES_AR: Record<string, string> = {
   "permit-request": "طلب تصريح",
   "pos-return": "مرتجع الصندوق",
   adjustment: "تسوية مخزون",
+  bill: "فاتورة مورد",
   carried: "منقولة",
 };
 

@@ -69,8 +69,10 @@ ok("...and its first step is always-on",
   C.SEEDED_CHAINS.tender.steps[0].from === 0, String(C.SEEDED_CHAINS.tender.steps[0].from));
 // A CHAIN NAMING A RIGHT THE PRODUCT DOES NOT HAVE blocks every record reaching
 // it, silently and forever. The seeds are the one chain nobody validates on
-// write, so they are validated here instead.
-for (const [type, chain] of Object.entries(C.SEEDED_CHAINS)) {
+// write, so they are validated here instead — the ones a studio can still edit.
+// A type that moved onto the Approvals page lost its rights with the move, and
+// its seed is only the default steps there (modules/approvals/model).
+for (const [type, chain] of Object.entries(C.SEEDED_CHAINS).filter(([t]) => S.STUDIO_EDITABLE_CHAINS.includes(t))) {
   ok(`the seeded ${type} chain is one a studio could have saved`,
     C.chainProblems(chain, ALL_PERMISSIONS).length === 0,
     C.chainProblems(chain, ALL_PERMISSIONS).join("; "));
@@ -82,7 +84,7 @@ for (const [type, chain] of Object.entries(C.SEEDED_CHAINS)) {
 // existed the product shipped a seed its own editor would have rejected. The
 // pair below is what stops that flag becoming a blanket excuse: without it the
 // same chain is still a hole.
-const holed = { type: "bill", steps: [{ permission: "finance.payables.approve", from: 500, label: "Finance" }] };
+const holed = { type: "tender", steps: [{ permission: "tendering.tenders.approve", from: 500, label: "Estimating" }] };
 ok("a chain with nothing at the bottom is refused",
   C.chainProblems(holed, ALL_PERMISSIONS).some((p) => /no approval at all/.test(p)));
 ok("...and accepted once it says that is the policy",
@@ -131,14 +133,15 @@ const edited = { tender: { type: "tender", steps: [{ permission: "tendering.tend
 const saved = S.approvalChainOverrides(edited);
 ok("a tender chain may be saved there", saved.chains?.tender?.steps.length === 1);
 
-// ONE DOOR PER TYPE — and since tier 5 it is Studio settings for all four. The
-// bill chain's "Finance screen" never existed; its only writer was an API that
-// also took every other type. Moved here in the commit that made Finance refuse.
-const billHere = S.approvalChainOverrides({ bill: { type: "bill", steps: [{ permission: "finance.payables.approve", from: 0, label: "Me" }] } });
-ok("a bill chain is saved in Studio settings now", billHere.chains?.bill?.steps.length === 1, JSON.stringify(billHere));
-const adjustmentHere = S.approvalChainOverrides({ adjustment: { ...C.SEEDED_CHAINS.adjustment, steps: [C.SEEDED_CHAINS.adjustment.steps[0]] } });
-ok("...and so is the stock adjustment chain, whose only writer was Finance's API",
-  adjustmentHere.chains?.adjustment?.steps.length === 1, JSON.stringify(adjustmentHere));
+// ONE DOOR PER TYPE. Bills and stock adjustments LEFT this editor on
+// 19/09/2026 for Approvals settings, where their steps name people; saving one
+// here would show a limit that governs nothing, so it is refused by name.
+const billHere = S.approvalChainOverrides({ bill: C.SEEDED_CHAINS.bill });
+ok("a bill chain is refused here now — bills are set up in Approvals settings",
+  typeof billHere.error === "string" && !("chains" in billHere), JSON.stringify(billHere));
+const adjustmentHere = S.approvalChainOverrides({ adjustment: C.SEEDED_CHAINS.adjustment });
+ok("...and so is the stock adjustment chain",
+  typeof adjustmentHere.error === "string" && !("chains" in adjustmentHere), JSON.stringify(adjustmentHere));
 const nonsense = S.approvalChainOverrides({ payroll: C.SEEDED_CHAINS.bill });
 ok("a type nothing approves is refused rather than dropped, so nobody saves a screen governing nothing",
   typeof nonsense.error === "string" && !("chains" in nonsense), JSON.stringify(nonsense));
@@ -146,10 +149,10 @@ ok("a type nothing approves is refused rather than dropped, so nobody saves a sc
 // SETTING A CHAIN BACK TO ITS SEED OVER FINANCE'S OLD BLOB MUST BE STORED — the
 // legacy layer sits beneath the studio's, so dropping it would keep enforcing
 // the old chain behind a screen that says the built-in is in force.
-const legacyBill = { bill: { type: "bill", steps: [{ permission: "finance.payables.approve", from: 0, label: "Old" }] } };
-const reset = S.approvalChainOverrides({ bill: C.SEEDED_CHAINS.bill }, undefined, legacyBill);
-ok("a reset to the seed over a legacy chain is kept", reset.chains?.bill?.steps.length === 2, JSON.stringify(reset));
-ok("...and wins when read", S.approvalChainsFor({ approvalChains: reset.chains }, legacyBill).bill.steps.length === 2);
+const legacyTender = { tender: { type: "tender", steps: [{ permission: "tendering.tenders.approve", from: 0, label: "Old" }] } };
+const reset = S.approvalChainOverrides({ tender: C.SEEDED_CHAINS.tender }, undefined, legacyTender);
+ok("a reset to the seed over a legacy chain is kept", reset.chains?.tender?.steps.length === 2, JSON.stringify(reset));
+ok("...and wins when read", S.approvalChainsFor({ approvalChains: reset.chains }, legacyTender).tender.steps.length === 2);
 
 // SAVING WITHOUT CHANGING ANYTHING MUST NOT FORK THE BUILT-IN, or merely
 // looking at the editor would stop a studio ever receiving a correction to it.

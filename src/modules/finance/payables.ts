@@ -11,11 +11,14 @@ import { requirePermission, isAdministrator } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { autoPost, autoReverse, autoRepost } from "./posting";
 import type { PermissionKey } from "@/platform/access";
-import { resolveApprovalPlan, firstUnsignedStep, planSatisfied } from "@/platform/approval/resolve";
-import type { ResolvedPlan, PlanRefusal } from "@/platform/approval/resolve";
-import type { ApprovalStep } from "@/platform/approval/chains";
+import { approvalRows, requestApproval } from "@/modules/approvals/approvals";
+import { approvalSummary } from "@/modules/approvals/reads";
+import type { Refusal } from "@/modules/approvals/effects";
+import type { Approval } from "@/modules/approvals/schema";
+import type { StudioRef } from "@/modules/context";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { repo } from "@/platform/db/repo";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals, cleanLines, str, day, cash } from "./finance";
 import { documentVatRate } from "@/shared/vat";
@@ -23,7 +26,6 @@ import type { Bill, FinanceContext } from "./types";
 import { paymentHold, releaseProblem, payProblem, type PaymentHold } from "./hold";
 import { threeWayMatch } from "@/modules/procurement/receivingModel";
 import { supplierQualification } from "@/modules/procurement/supplierModel";
-import { notifyHolders, signatureNotice } from "@/modules/people/holders";
 import { documentTaxMethod } from "@/shared/compliance/rules";
 import { isForeign, cleanRate, rateFor } from "./fx";
 import { moneyAccountProblem, paymentSource } from "./ledger";
@@ -78,102 +80,9 @@ export async function listBills(
     });
 }
 
-// What planFor needs off a bill, so it can be asked about one that has not been
-// written yet — a create resolves its plan BEFORE the row exists, which is the
-// only way the stored row carries it without a second write.
-type Priceable = Pick<Bill, "lines" | "vatRate" | "payments" | "currency" | "taxMethod">;
+/** The approval type a bill asks for. Its key is stored — see modules/approvals/registry. */
+export const BILL_APPROVAL = "bill";
 
-/** Today's rates, or the fact that none were needed. */
-type Fx = { rates: Record<string, number> | null; updatedAt: number; stale: boolean };
-const NO_FX: Fx = { rates: null, updatedAt: 0, stale: false };
-
-/**
- * FETCH THE RATE TABLE ONCE, FOR A WHOLE LIST, AND ONLY IF SOMETHING NEEDS IT.
- *
- * Taken for the set rather than per bill because the bills screen resolves a
- * plan for every row: per-bill fetching would put one round trip per FOREIGN
- * bill on a single GET, and hop counts are part of this repo's contract. A
- * studio billed only in its own currency never touches FX at all.
- */
-async function fxFor(ctx: FinanceContext, bills: readonly Priceable[]): Promise<Fx> {
-  const studioCurrency = str(ctx.studio.currency, 8).toUpperCase();
-  if (!studioCurrency) return NO_FX;
-  const foreign = bills.some((b) => {
-    const c = str(b.currency, 8).toUpperCase();
-    return !!c && c !== studioCurrency;
-  });
-  if (!foreign) return NO_FX;
-  const snapshot = await getExchangeSnapshot();
-  return { rates: snapshot.rates ?? null, updatedAt: Number(snapshot.updatedAt) || 0, stale: !!snapshot.stale };
-}
-
-/**
- * THE PLAN THIS BILL IS ROUTED UNDER, resolved from its own total.
- *
- * Pure given `fx`, which is what lets a list resolve every row against one
- * fetch. `str` rather than a bare read on the currencies: studio.currency comes
- * off StudioRef's index signature, so it is `{}` to the compiler until
- * something narrows it.
- */
-function planWith(ctx: FinanceContext, bill: Priceable, fx: Fx): ResolvedPlan | PlanRefusal {
-  const { total } = billTotals(bill as Bill, ctx.studio.currency);
-  const studioCurrency = str(ctx.studio.currency, 8);
-  const billCurrency = (str(bill.currency, 8) || studioCurrency).toUpperCase();
-  return resolveApprovalPlan({
-    chain: ctx.approvalChains.bill, amount: total, currency: billCurrency,
-    studioCurrency, rates: fx.rates, updatedAt: fx.updatedAt, stale: fx.stale,
-  });
-}
-
-/** One bill's plan, fetching FX only if that one bill needs it. */
-async function planFor(ctx: FinanceContext, bill: Priceable): Promise<ResolvedPlan | PlanRefusal> {
-  return planWith(ctx, bill, await fxFor(ctx, [bill]));
-}
-
-/**
- * Which step this person could sign right now, or null.
- *
- * Read by the screen so a button is drawn only where pressing it would succeed.
- * IT ASKS EVERY QUESTION approveBill ASKS, in the same order and for the same
- * reasons — the raiser never signs, nobody signs twice on one record, the step
- * must be outstanding, and they must hold its right. A screen that checked
- * fewer of them would offer buttons that refuse; one that lived in the
- * component would be a second copy of the rule, free to drift.
- *
- * This is availableMoves's job in modules/technical/signables.ts, and it is
- * here for the same reason.
- */
-export function availableApproval(
-  bill: Bill,
-  plan: ResolvedPlan | PlanRefusal | null,
-  holds: (permission: string) => boolean,
-  actorCollaboratorId: string,
-  // THE ADMIN EXCEPTION, asked the same way `approveBill` asks it, so the screen
-  // offers the button exactly where the server would take the signature.
-  admin = false,
-): ApprovalStep | null {
-  if (!plan || plan.ok !== true) return null;
-  if (!admin && bill.createdByCollaboratorId === actorCollaboratorId) return null;
-  if (!admin && (bill.approvals || []).some((s) => s.byCollaboratorId === actorCollaboratorId)) return null;
-  const step = firstUnsignedStep(plan, bill.approvals || []);
-  return step && holds(step.permission) ? step : null;
-}
-
-/**
- * THE BILLS LIST AS A SCREEN NEEDS TO DRAW IT: each row plus the plan it is
- * routed under, the step this viewer could sign, and — when no plan could be
- * resolved — the REASON, as a token rather than a sentence.
- *
- * The reason is a token because the sentence resolveApprovalPlan writes is
- * English, and the studio is bilingual: statuses and refusals translate on
- * DISPLAY, keyed by what was stored, exactly as engagement stages do. Sending
- * prose the screen cannot translate would put an English apology on an Arabic
- * page.
- *
- * The plan is RE-RESOLVED here rather than read off the row, for the same
- * reason approveBill re-resolves it: a bill raised before chains existed has
- * none, and the screen must not offer a button the service will refuse.
- */
 /**
  * THE PAYMENT HOLD FOR EACH OF THESE BILLS, read once for all of them.
  *
@@ -217,23 +126,49 @@ async function holdsFor(
   return out;
 }
 
+/**
+ * THE BILLS LIST AS A SCREEN NEEDS TO DRAW IT: each row with how far its approval
+ * has got — read from the approval (modules/approvals/reads), never a copy — and
+ * whether this reader may ask for one now.
+ *
+ * APPROVING IS THE APPROVALS PAGE'S since 19/09/2026 (the owner: the request
+ * stays where it is made, the answer moves to Approvals), so no row carries a
+ * signing button any more — only Request approval, where it applies.
+ *
+ * A BILL PART-SIGNED BEFORE THAT DAY is given its approval here, in the name of
+ * whoever raised it, carrying the signatures it already had, so nobody signs
+ * twice. Once: a filed one is found on the next read. A received bill nobody had
+ * signed waits for somebody to press Request approval, like every new one.
+ */
 export async function listBillsForScreen(ctx: FinanceContext) {
-  const bills = await listBills(ctx);
-  const fx = await fxFor(ctx, bills);
+  const [bills, approvals] = await Promise.all([listBills(ctx), approvalRows(ctx.studio, ctx.approvalsSection)]);
   const paymentHolds = await holdsFor(ctx, bills, bills);
-  const me = ctx.collaborator.id;
-  const holds = (permission: string) => !requirePermission(ctx.access, permission as PermissionKey);
 
+  const stranded = bills.filter((b) => b.status === "Received" && (b.approvals || []).length
+    && !approvalSummary(approvals, BILL_APPROVAL, b.id));
+  if (stranded.length && ctx.approvalsSection) {
+    const people = await listCollaborators(ctx.studio.id);
+    const byId = new Map((people as { id?: unknown }[]).map((c) => [String(c.id), c]));
+    for (const b of stranded) {
+      const requester = byId.get(String(b.createdByCollaboratorId || ""));
+      if (!requester) continue;
+      const asked = await askForBill(
+        { studio: ctx.studio, collaborator: requester as FinanceContext["collaborator"], roles: ctx.roles }, b,
+        (b.approvals || []).map((x) => ({ collaboratorId: x.byCollaboratorId, at: x.at })),
+      );
+      if ("approval" in asked && asked.approval) approvals.push(asked.approval);
+    }
+  }
+
+  const mayAsk = !requirePermission(ctx.access, "finance.payables.edit");
   return bills.map((bill) => {
-    const plan = planWith(ctx, bill, fx);
-    const signed = (bill.approvals || []).length;
+    const approval = approvalSummary(approvals, BILL_APPROVAL, bill.id);
     return {
       ...bill,
-      approvalPlan: plan.ok ? plan : null,
-      approvalBlocked: plan.ok ? null : plan.reason,
-      approvalSigned: signed,
-      approvalRequired: plan.ok ? plan.steps.length : 0,
-      nextApproval: availableApproval(bill as Bill, plan, holds, me, isAdministrator(ctx.collaborator, ctx.roles)),
+      approval,
+      // A RECEIVED BILL NOBODY HAS ASKED ABOUT, or one whose last request was
+      // turned down (asking again is a new request; the refusal stays on file).
+      canRequestApproval: mayAsk && bill.status === "Received" && (!approval || approval.rejected),
       // THE PAYMENT HOLD, so the screen says why a bill cannot be paid before
       // anybody tries — from the same function the pay door refuses with.
       hold: paymentHolds.get(bill.id) || null,
@@ -258,14 +193,8 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
   // reclaimed input tax it had never paid unless somebody retyped it.
   const vatRate = documentVatRate(studio, body?.vatRate);
   const currency = str(body?.currency, 8) || str(studio.currency, 8);
-  // RESOLVED BEFORE THE ROW EXISTS, from the same three fields billTotals reads,
-  // so the stored bill carries its plan without a second write. A bill whose
-  // plan cannot be resolved is STILL RAISED and stores null: recording an
-  // obligation that already exists must not wait on an exchange rate. Only
-  // authorising payment refuses.
   // FROZEN like the currency: how the studio's country adds a document's tax up.
   const taxMethod = documentTaxMethod(studio);
-  const plan = await planFor(ctx, { lines, vatRate, payments: [], currency, taxMethod });
   const bill = await Bills.create({ studio, section: payablesSection }, {
     reference: await nextReference(studio.id, { rows: bills, field: "reference", ...seriesSetting("bill", studio.numbering) }),
     vendorId: str(body?.vendorId, 60),
@@ -292,8 +221,6 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
     ...(str(body?.withholdingLabel, 80) && !isForeign(currency, studio.currency) ? { withholdingLabel: str(body?.withholdingLabel, 80) } : {}),
     vatRate,
     ...(taxMethod ? { taxMethod } : {}),
-    approvals: [],
-    approvalPlan: plan.ok ? plan : null,
     // A bill arrives already owed — its default is Received, not Draft — unless
     // the caller is only drafting it.
     status: body?.status === "Draft" ? "Draft" : "Received",
@@ -315,21 +242,7 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
   // name — asked here rather than let through, so the reason is in the code
   // that decides rather than discovered from a refusal.
   const posting = bill.status === "Received" ? await autoPost(ctx, "bill", bill.id) : null;
-  // WHOEVER SIGNS THE FIRST STEP IS TOLD IT IS WAITING. A received bill sat in
-  // Payables until somebody happened to open the screen.
-  if (bill.status === "Received") await announceNextStep(ctx, bill as Bill, plan, []);
   return { bill: { ...bill, ...billTotals(bill, studio.currency) }, ...(posting ? { posting } : {}) };
-}
-
-/** Ring whoever holds the next outstanding step of this bill's chain. */
-async function announceNextStep(
-  ctx: FinanceContext, bill: Bill, plan: ResolvedPlan | PlanRefusal,
-  signatures: readonly { byCollaboratorId: string }[],
-) {
-  const step = firstUnsignedStep(plan, signatures as never);
-  if (!step) return;
-  await notifyHolders(ctx.studio.id, step.permission, signatureNotice(String(bill.reference || ""), "finance-payables"),
-    [String(bill.createdByCollaboratorId || ""), ...signatures.map((s) => s.byCollaboratorId)]);
 }
 
 export async function editBill(ctx: FinanceContext, id: string, body: Record<string, unknown>) {
@@ -350,14 +263,21 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   // than editing what was authorised.
   if (current.status === "Approved" || current.status === "Paid") return { error: "locked", status: current.status };
   if ((current.payments || []).length) return { error: "has-payments" };
+  // WHAT IS BEING APPROVED CANNOT MOVE UNDER THE APPROVERS. A pending approval
+  // froze this bill's amount when it was asked for; changing the lines, the tax
+  // or the currency now would have them sign one figure and the studio pay
+  // another. Turned down, the bill edits again and is asked about afresh.
+  if (["lines", "vatRate", "currency", "exchangeRate"].some((k) => body?.[k] !== undefined)) {
+    const waiting = approvalSummary(await approvalRows(studio, ctx.approvalsSection), BILL_APPROVAL, id);
+    if (waiting?.status === "Pending") return { error: "approval-pending" };
+  }
 
   const patch: Record<string, unknown> = {};
   if (body?.vendorName !== undefined) { const v = str(body.vendorName, 160); if (!v) return { error: "vendor" }; patch.vendorName = v; }
   if (body?.lines !== undefined) { const l = cleanLines(body.lines, str(body?.currency, 8) || current.currency || studio.currency); if (!l.length) return { error: "lines" }; patch.lines = l; }
   if (body?.vatRate !== undefined) patch.vatRate = documentVatRate(studio, body.vatRate, current.vatRate);
   // EDITABLE WHILE THE BILL IS OPEN. A currency typed wrong at entry is exactly
-  // the kind of thing corrected before anybody approves it, and the approval
-  // engine re-derives its plan from whatever it now says.
+  // the kind of thing corrected before anybody is asked to approve it.
   if (body?.currency !== undefined) patch.currency = str(body.currency, 8);
   // WITHHOLDING ON A BILL IN THE STUDIO'S OWN MONEY ONLY: a foreign bill is
   // settled at two rates (fx.ts), and splitting its last payment between the
@@ -388,26 +308,18 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   if (body?.vendorId !== undefined) patch.vendorId = str(body.vendorId, 60);
   if (body?.orderId !== undefined) patch.orderId = str(body.orderId, 60);
   // RE-CODED WITHOUT RE-APPROVING. Which budget a cost belongs to is a filing
-  // decision, not a change to what is owed, so it does not disturb a chain
-  // mid-walk the way editing the AMOUNT does.
+  // decision, not a change to what is owed, so a pending approval does not
+  // stand in its way the way it does for the AMOUNT.
   if (body?.costCodeId !== undefined) patch.costCodeId = str(body.costCodeId, 60);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);
   if (body?.status !== undefined) {
     const s = String(body.status);
     if (!BILL_STATUSES.includes(s)) return { error: "status" };
-    // Approved and Paid are consequences (of approveBill / of payments), never
+    // Approved and Paid are consequences (of its approval / of payments), never
     // asserted here.
     if (s === "Approved" || s === "Paid") return { error: "derived-status" };
     patch.status = s;
   }
-
-  // RE-DERIVED FROM THE MERGED ROW, in the same write. An edit that moves a
-  // bill across its threshold changes which signatures it needs, and a plan
-  // left stale would route the new amount by the old rules — the one way this
-  // feature could be wrong without anything looking wrong.
-  const merged = { ...current, ...patch } as Bill;
-  const replanned = await planFor(ctx, merged);
-  patch.approvalPlan = replanned.ok ? replanned : null;
 
   const bill = await Bills.update({ studio, section: payablesSection }, id, patch);
   if (!bill) return { error: "notfound" };
@@ -436,97 +348,103 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
       : reshaped
         ? await autoRepost(ctx, "bill", id, `${label} corrected`)
         : null;
-  // A DRAFT MARKED RECEIVED IS NOW WAITING FOR ITS FIRST SIGNATURE, the same
-  // moment a bill created Received announces itself.
-  if (becameReceived) await announceNextStep(ctx, bill, replanned, bill.approvals || []);
   return { bill: { ...bill, ...billTotals(bill, studio.currency) }, ...(posting ? { posting } : {}) };
 }
 
 /**
- * AUTHORISE A BILL — ONE STEP OF ITS CHAIN.
+ * ASK FOR A BILL'S APPROVAL — the Request approval button in Payables. The
+ * answer is given on the Approvals page, and the last yes makes the bill
+ * Approved, which is what payment waits on (the owner, 11/09/2026).
  *
- * This used to be a single act guarded by a single right, which meant a
- * 200-unit stationery bill and a 2,000,000 subcontractor bill took the same
- * path. It is a WALK now: the studio's chain says which steps an amount of
- * this size needs, and each call clears the first one still outstanding.
- *
- * INVARIANT 7 IS ENFORCED TWICE HERE, and they are two different rules:
- *   - the person who RAISED the bill may not sign it at all;
- *   - somebody who signed an EARLIER STEP may not sign a later one, because
- *     invariant 7 is about the record rather than about the pair of rights,
- *     and a second step the first signer can clear is not a second step.
- *
- * THE PERMISSION IS CHOSEN AT RUNTIME, which is the whole feature. Access is
- * still resolved once (invariant 3); this only asks a different question of
- * the set that was already resolved.
+ * THE AMOUNT IS THE BILL'S TOTAL IN ITS OWN CURRENCY, converted to the studio's
+ * with the day's rate only when some step starts at a limit — and then frozen on
+ * the approval with the rate, so a rate moving overnight cannot re-route a bill
+ * already asked about. Until the studio saves the type in Approvals settings,
+ * its steps are the old chain's: everybody who could approve a bill from 0, and
+ * whoever could approve above the limit from 50,000 (or the studio's own).
  */
-export async function approveBill(ctx: FinanceContext, id: string) {
-  const { studio, payablesSection, collaborator } = ctx;
-  const current = (await Bills.find({ studio, section: payablesSection })).find((b) => b.id === id);
-  if (!current) return { error: "notfound" };
-  if (current.status === "Approved" || current.status === "Paid") return { error: "already", status: current.status };
-  if (current.status === "Cancelled") return { error: "cancelled" };
-  // THE ADMIN IS THE EXCEPTION — the owner's instruction, 11/09/2026, the same
-  // one payroll carries. Payment now waits on approval, and the raiser never
-  // signs their own bill; a studio run by one person would otherwise be unable
-  // to pay a supplier at all. The owner or a holder of the Admin role may sign
-  // a bill they raised, and a later step after an earlier one. Everybody else
-  // still needs a second person on both counts.
-  const admin = isAdministrator(ctx.collaborator, ctx.roles);
-  if (!admin && current.createdByCollaboratorId === collaborator.id) return { error: "same-signer" };
-
-  // RE-RESOLVED RATHER THAN READ OFF THE ROW. A bill raised before chains
-  // existed carries no plan, and one whose amount changed outside editBill
-  // would carry a stale one; deriving it here costs at most one FX read and
-  // removes the whole class of "the stored plan disagrees with the stored
-  // amount". The refusal is passed through with its reason, because
-  // "your studio has no currency" and "this pair is not quoted" send whoever
-  // hits them to different places.
-  const plan = await planFor(ctx, current);
-  if (!plan.ok) return { error: plan.reason, detail: plan.detail };
-
-  const signatures = current.approvals || [];
-  if (!admin && signatures.some((s) => s.byCollaboratorId === collaborator.id)) return { error: "same-signer" };
-
-  const step = firstUnsignedStep(plan, signatures);
-  if (!step) return { error: "already", status: current.status };
-
-  const denied = requirePermission(ctx.access, step.permission as PermissionKey);
+export async function requestBillApproval(ctx: FinanceContext, id: string) {
+  const denied = requirePermission(ctx.access, "finance.payables.edit");
   if (denied) return denied;
-
-  // CAPTURED ONCE — same reasoning as tasks.ts's `now`: this is a
-  // function-patch (invariant 8), so updateRow may invoke it more than once
-  // (a CAS retry under contention, or once per store under NOMPANY_DB=parity),
-  // and a `new Date().toISOString()` called fresh inside the closure would
-  // disagree between those invocations by whatever time separated them.
-  const approvedAt = new Date().toISOString();
-  const next = [...signatures, {
-    permission: step.permission,
-    byCollaboratorId: collaborator.id,
-    byAlias: collaborator.alias || "",
-    at: approvedAt,
-  }];
-  const done = planSatisfied(plan, next);
-
-  const bill = await Bills.update({ studio, section: payablesSection }, id, () => ({
-    approvals: next,
-    approvalPlan: plan,
-    // STATUS ONLY ON THE LAST STEP. BILL_STATUSES gains no value, and every
-    // reader deriving from status — statusFor, overdue, the edit lock,
-    // recordBillPayment's not-approved refusal — keeps reading what it reads
-    // today. A stored second answer agrees with the first only until something
-    // writes one and not the other, which is why the ladder is derived from
-    // the signatures rather than tracked beside them.
-    //
-    // approvedByCollaboratorId stays the FINAL approver, so every existing
-    // reader of those two fields keeps the meaning it had.
-    ...(done ? { status: "Approved", approvedByCollaboratorId: collaborator.id, approvedAt } : {}),
-  }));
-  // THE NEXT SIGNER, if there is a next step — a two-step chain waited at step
-  // two for somebody to wander past it.
-  if (bill && !done) await announceNextStep(ctx, bill, plan, next);
-  return bill ? { bill: { ...bill, ...billTotals(bill, ctx.studio.currency) } } : { error: "notfound" };
+  const { studio, payablesSection } = ctx;
+  const bill = await Bills.byId({ studio, section: payablesSection }, str(id, 60));
+  if (!bill) return { error: "notfound" };
+  if (bill.status === "Approved" || bill.status === "Paid") return { error: "already", status: bill.status };
+  // Only a bill that is owed is approved: a draft is somebody still typing, and a
+  // cancelled or disputed one is not going to be paid as it stands.
+  if (bill.status !== "Received") return { error: "not-received", status: bill.status };
+  const asked = await askForBill({ studio, collaborator: ctx.collaborator, roles: ctx.roles }, bill);
+  if (asked.error) return { ...asked, error: asked.error };
+  // UNDER EVERY LIMIT THE STUDIO SET, nothing is asked and the bill is approved
+  // as the one who asked — the same thing the last yes would have written.
+  if ("notNeeded" in asked) {
+    await markApproved(ctx, bill.id, ctx.collaborator.id);
+    return { bill: await Bills.byId({ studio, section: payablesSection }, bill.id), approval: null };
+  }
+  return { bill, approval: asked.approval ?? null };
 }
+
+/** File the bill's approval. `carried` is the old engine's signatures, for a bill part-signed before. */
+async function askForBill(
+  requester: { studio: StudioRef; collaborator: FinanceContext["collaborator"]; roles: FinanceContext["roles"] },
+  bill: Bill,
+  carried: { collaboratorId: string; at: string }[] = [],
+) {
+  const { total } = billTotals(bill, requester.studio.currency);
+  return requestApproval(requester, {
+    type: BILL_APPROVAL,
+    source: {
+      sectionKey: "finance-payables", recordId: bill.id, ref: String(bill.reference || ""),
+      title: `${bill.reference || ""} · ${bill.vendorName || ""}`, path: "finance-payables",
+    },
+    note: str(bill.notes, 4000),
+    amount: { value: total, currency: str(bill.currency, 8) || str(requester.studio.currency, 8) },
+    carried,
+  });
+}
+
+/**
+ * THE BILL BECOMES APPROVED — once, under a function patch, and only from a
+ * status that can be approved. `approvedByCollaboratorId` is whoever gave the
+ * last yes, so every reader of those two fields keeps the meaning it had.
+ */
+async function markApproved(ctx: Pick<FinanceContext, "studio" | "payablesSection">, id: string, by: string) {
+  const approvedAt = new Date().toISOString();
+  const bill = await Bills.update({ studio: ctx.studio, section: ctx.payablesSection }, id, (row) => (
+    (row as Bill).status !== "Received" && (row as Bill).status !== "Disputed" ? row : {
+      ...row, status: "Approved", approvedByCollaboratorId: by, approvedAt,
+    }));
+  return bill && bill.status === "Approved" && bill.approvedAt === approvedAt ? bill : null;
+}
+
+/** The bill an approval names, in a context carrying the studio's authority. */
+async function billFor(studio: StudioRef, approval: Approval, byCollaboratorId: string) {
+  // IMPORTED WHEN NEEDED: ./finance imports this file.
+  const { financeContext } = await import("./finance");
+  const ctx = await financeContext.asApprover(studio.id, byCollaboratorId);
+  if (ctx.error) return { error: ctx.error } as Refusal;
+  const bill = await Bills.byId({ studio: ctx.studio, section: ctx.payablesSection }, approval.source.recordId);
+  return bill ? { ctx, bill } : ({ error: "notfound" } as Refusal);
+}
+
+/**
+ * WHAT DECIDING A `bill` APPROVAL DOES — see modules/approvals/effects. A no
+ * changes nothing on the bill: it stays Received, reads its rejected approval,
+ * and is disputed, cancelled or asked about again by whoever runs Payables.
+ */
+export const billApproval = {
+  ready: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await billFor(studio, approval, by);
+    if ("error" in found) return found;
+    const status = found.bill.status;
+    return status === "Received" || status === "Disputed" ? null : { error: "already-decided", status } as Refusal;
+  },
+  approved: async (studio: StudioRef, approval: Approval, by: string) => {
+    const found = await billFor(studio, approval, by);
+    if ("error" in found) return found;
+    return (await markApproved(found.ctx, found.bill.id, by)) ? ("done" as const) : ({ error: "already-decided" } as Refusal);
+  },
+};
 
 // `chequeId` is never read from the body — see recordPayment.
 export async function recordBillPayment(

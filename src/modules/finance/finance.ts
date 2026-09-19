@@ -124,6 +124,9 @@ export const financeContext = moduleContext<FinanceContext>({
     // INVENTORY'S ITEMS, so an invoice line can name what it sells (18/09/2026)
     // — and a return against it can put that back. Nullable like the rest.
     items: ["inventory-items", "inventory"],
+    // APPROVALS', where a bill's approval is filed (19/09/2026). Nullable like
+    // every foreign section, only while a studio awaits its planting.
+    approvals: "approvals",
   },
   flags: ["cash", "ledger", "payables", "assets", "settings", "receivables", "tax", "reports", "budgets"],
   extend: ({ settingsSection, studio }) => ({

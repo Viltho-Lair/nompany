@@ -73,7 +73,7 @@ import { S, REG as REG_KEYS } from "@/platform/db/keys";
 import { financeContext, createInvoice, editInvoice, recordPayment, createExpense, removeInvoice, listInvoices, saveFinanceSettings } from "@/modules/finance/finance";
 import { listAccounts, postEntry, reverseEntry, listJournal, trialBalance, postInvoice, postExpense, postPayment, postBill, postBillPayment } from "@/modules/finance/ledger";
 import { arAging, topDebtors, collectionRate, dso, incomeVsExpense, expenseMix, apAging, topVendors, assetRegister } from "@/modules/finance/analytics";
-import { listBills, createBill, editBill, approveBill, recordBillPayment, removeBill } from "@/modules/finance/payables";
+import { listBills, createBill, editBill, requestBillApproval, recordBillPayment, removeBill } from "@/modules/finance/payables";
 import { depreciationOf, listAssets, createAsset, editAsset, disposeAsset } from "@/modules/finance/assets";
 import { analyticsLevelOf, analyticsAllows } from "@/lib/analytics";
 import { enabledWidgets, widgetsForRung, WIDGET_KEYS, WIDGET_SECTIONS, DASHBOARD_WIDGETS } from "@/lib/dashboardWidgets";
@@ -380,6 +380,24 @@ async function approveQuotationFixture(quotationId) {
   if (filed.error) return filed;
   await decideApproval(await approvalsContext(member.user, slug), filed.approval.id, { verdict: "Approved" });
   return decideApproval(await approvalsContext(owner, slug), filed.approval.id, { verdict: "Approved" });
+}
+
+// A BILL APPROVED THE WAY THE PRODUCT APPROVES ONE since 19/09/2026: asked for
+// from Payables (`requestBillApproval`) and answered on the Approvals page. The
+// steps are set to one step naming the owner, who is an Admin and so may answer
+// what they asked for. Returns the bill as it stands afterwards.
+async function approveBillFixture(fin, billId) {
+  const ownerApprovals = await approvalsContext(owner, slug);
+  await saveApprovalSetting(ownerApprovals, { type: "bill", setting: { steps: [
+    { label: "Finance", approverIds: [ownerApprovals.collaborator.id] },
+  ] } });
+  const asked = await requestBillApproval(fin, billId);
+  if (asked.error) return asked;
+  if (asked.approval) {
+    const answered = await decideApproval(await approvalsContext(owner, slug), asked.approval.id, { verdict: "Approved" });
+    if (answered.error) return answered;
+  }
+  return { bill: (await listBills(fin)).find((b) => b.id === billId) };
 }
 
 // ============================================================================
@@ -2522,27 +2540,23 @@ console.log("\n== Main executive: the entitled/locked split the route gates on")
 }
 
 // ============================================================================
-console.log("\n== a bill cannot be approved by a studio with no currency of its own");
-// SPEC D4, and this runs BEFORE the block below sets one because it is the
-// state every studio is really in: createStudio has never written a currency,
-// so this is what an untouched studio does today. Everything else about the
-// studio keeps working \u2014 only the act where an unknown amount matters stops.
+console.log("\n== a bill is asked about in a studio with no currency of its own");
+// createStudio has never written a currency, so this is what an untouched
+// studio does. THE OLD ENGINE REFUSED HERE; Approvals converts an amount only
+// when a step starts at a limit AND the bill is in another currency than the
+// studio's — a bill in "no currency" in a studio of "no currency" is compared
+// as it stands, so asking is not stopped for want of a setting.
 {
   const fin = await financeContext(owner, slug);
   const bill = await createBill(fin, {
     vendorName: "Currencyless Co",
     lines: [{ description: "Anything", qty: 1, unitPrice: 100 }],
   });
-  // RAISING IT STILL WORKS. An obligation that already exists must not wait on
-  // an exchange rate; losing the record would be worse than not approving it.
-  ok("a bill is still raised without a studio currency", !!bill.bill, JSON.stringify(bill.error ?? "raised"));
-  ok("...and stores no plan, rather than a wrong one",
-    bill.bill.approvalPlan === null, JSON.stringify(bill.bill.approvalPlan));
-
-  const viewerFin0 = await financeContext(viewer.user, slug);
-  const denied = await approveBill(viewerFin0, bill.bill.id);
-  ok("but approving it refuses by name", denied.error === "no-studio-currency", JSON.stringify(denied));
-  ok("...and the refusal says where to fix it", /settings/i.test(denied.detail || ""), denied.detail);
+  ok("a bill is raised without a studio currency", !!bill.bill, JSON.stringify(bill.error ?? "raised"));
+  ok("...and stores no approval plan of its own any more", bill.bill.approvalPlan === undefined, JSON.stringify(bill.bill.approvalPlan));
+  const asked = await requestBillApproval(fin, bill.bill.id);
+  ok("...and its approval is asked for", !!asked.approval && asked.approval.amount?.value === 100,
+    JSON.stringify(asked.error ?? asked.approval?.amount));
 }
 
 console.log("\n== Finance 1b: accounts payable mirrors the invoice");
@@ -2594,7 +2608,7 @@ console.log("\n== Finance 1b: accounts payable mirrors the invoice");
   // waits on approval. The owner raised this one and signs it. Invariant 7 for
   // everybody else is asserted in the two-signature block below. This asserted
   // the opposite until 17/09/2026 and had failed since the rule changed.
-  const approved = await approveBill(fin, bill.bill.id);
+  const approved = await approveBillFixture(fin, bill.bill.id);
   ok("an Admin may approve a bill they raised", approved.bill?.status === "Approved", JSON.stringify(approved.error ?? approved.bill?.status));
   ok("...and it records who", approved.bill?.approvedByCollaboratorId === fin.collaborator.id,
     JSON.stringify(approved.bill?.approvedByCollaboratorId));
@@ -2709,83 +2723,69 @@ console.log("\n== bill approval chains: seeded, overridable, validated on write"
 }
 
 // ============================================================================
-console.log("\n== a bill over the studio's limit needs two signatures");
-// THE DEFECT THIS WHOLE FEATURE EXISTS TO PREVENT. Threshold is 5000, set by
-// the block above. Three people, because invariant 7 needs two and the
-// signed-an-earlier-step rule needs three to prove itself.
-//
-// NOBODY HERE IS AN ADMIN, and that is load-bearing. Since 11/09/2026 an Admin
-// may approve a bill they raised and sign a later step after an earlier one,
-// so admins would prove nothing about invariant 7. Both approvers hold BOTH
-// rights on a role of their own — approverA holds approveHigh, so the second
-// attempt below refuses because they already signed and not for want of the
-// right, which is the whole distinction. (These were Admins until 17/09/2026,
-// and the block had failed since the rule changed.)
+console.log("\n== a bill over the studio's limit needs two steps, answered on the Approvals page");
+// THE DEFECT THE LIMIT EXISTS TO PREVENT: a 1,000 bill and a 90,000 bill taking
+// the same path. Since 19/09/2026 the steps name PEOPLE (Approvals settings),
+// the second starting at 5,000. Three people: the raiser, and two approvers
+// named on different steps. NOBODY HERE IS AN ADMIN, and that is load-bearing —
+// an Admin may answer what they asked for, so an admin would prove nothing.
 {
-  await fixtureRole("Bill approver", [
-    "finance.payables.view", "finance.payables.approve", "finance.payables.approveHigh",
-  ]);
-  await fixtureRole("Bill raiser", [
-    "finance.payables.view", "finance.payables.create", "finance.payables.approve",
-  ]);
-  const approverAPerson = await person("ApproverA", "Bill approver");
-  const approverBPerson = await person("ApproverB", "Bill approver");
+  await fixtureRole("Bill raiser", ["finance.payables.view", "finance.payables.create", "finance.payables.edit"]);
+  await fixtureRole("Bill reader", ["finance.payables.view"]);
+  const approverAPerson = await person("ApproverA", "Bill reader");
+  const approverBPerson = await person("ApproverB", "Bill reader");
   const raiserPerson = await person("BillRaiser", "Bill raiser");
   const raiser = await financeContext(raiserPerson.user, slug);
-  const approverA = await financeContext(approverAPerson.user, slug);
-  const approverB = await financeContext(approverBPerson.user, slug);
+  const answer = async (who, approvalId, verdict = "Approved", note = "") =>
+    decideApproval(await approvalsContext(who.user, slug), approvalId, { verdict, note });
+
+  const ownerApprovals = await approvalsContext(owner, slug);
+  const saved = await saveApprovalSetting(ownerApprovals, { type: "bill", setting: { steps: [
+    { label: "Finance", approverIds: [approverAPerson.collaborator.id, raiserPerson.collaborator.id] },
+    { label: "Director", approverIds: [approverBPerson.collaborator.id], from: 5000 },
+  ] } });
+  ok("fixture: the bill steps are saved, the second from 5,000", saved.setting?.steps?.[1]?.from === 5000, JSON.stringify(saved));
 
   const small = await createBill(raiser, { vendorName: "Small Co", lines: [{ description: "x", qty: 1, unitPrice: 1000 }] });
-  ok("a bill under the limit plans one step",
-    small.bill?.approvalPlan?.steps?.length === 1, JSON.stringify(small.bill?.approvalPlan?.steps));
-  const a1 = await approveBill(approverA, small.bill.id);
-  ok("...and is Approved after one signature",
-    a1.bill?.status === "Approved", JSON.stringify(a1.error ?? a1.bill?.status));
+  const smallAsked = await requestBillApproval(raiser, small.bill.id);
+  ok("a bill under the limit walks one step", smallAsked.approval?.steps?.length === 1, JSON.stringify(smallAsked.error ?? smallAsked.approval?.steps));
+  ok("...and the raiser is not asked to approve their own", !smallAsked.approval?.steps?.[0]?.approverIds?.includes(raiserPerson.collaborator.id));
+  const a1 = await answer(approverAPerson, smallAsked.approval.id);
+  ok("...and is Approved after one yes", a1.approval?.status === "Approved"
+    && (await listBills(raiser)).find((b) => b.id === small.bill.id)?.status === "Approved", JSON.stringify(a1.error ?? a1.approval?.status));
 
   const big = await createBill(raiser, { vendorName: "Big Co", lines: [{ description: "x", qty: 1, unitPrice: 90000 }] });
-  ok("a bill over the limit plans two steps",
-    big.bill?.approvalPlan?.steps?.length === 2, JSON.stringify(big.bill?.approvalPlan?.steps));
-  const b1 = await approveBill(approverA, big.bill.id);
-  ok("...and is NOT Approved after one signature",
-    b1.bill?.status !== "Approved", JSON.stringify(b1.error ?? b1.bill?.status));
-  ok("...though one signature is recorded",
-    b1.bill?.approvals?.length === 1, JSON.stringify(b1.bill?.approvals));
-
-  // Invariant 7 about the RECORD, not the pair of rights. approverA holds
-  // approveHigh, so this refuses because they already signed — not for want of
-  // the right, which is the whole distinction.
-  const sameAgain = await approveBill(approverA, big.bill.id);
-  ok("the same person cannot sign the second step", sameAgain.error === "same-signer", JSON.stringify(sameAgain));
-
-  const b2 = await approveBill(approverB, big.bill.id);
-  ok("a second person completes it", b2.bill?.status === "Approved", JSON.stringify(b2.error ?? b2.bill?.status));
+  const bigAsked = await requestBillApproval(raiser, big.bill.id);
+  ok("a bill over the limit walks two steps", bigAsked.approval?.steps?.length === 2, JSON.stringify(bigAsked.error ?? bigAsked.approval?.steps));
+  const b1 = await answer(approverAPerson, bigAsked.approval.id);
+  ok("...and is NOT Approved after the first", b1.approval?.status === "Pending"
+    && (await listBills(raiser)).find((b) => b.id === big.bill.id)?.status === "Received", JSON.stringify(b1.error ?? b1.approval?.status));
+  const notTheirs = await answer(approverAPerson, bigAsked.approval.id);
+  ok("the first step's approver cannot answer the second", notTheirs.error === "not-yours", JSON.stringify(notTheirs));
+  const b2 = await answer(approverBPerson, bigAsked.approval.id);
+  const bigAfter = (await listBills(raiser)).find((b) => b.id === big.bill.id);
+  ok("the second step's approver completes it", b2.approval?.status === "Approved" && bigAfter?.status === "Approved",
+    JSON.stringify(b2.error ?? bigAfter?.status));
   ok("...and approvedByCollaboratorId is the FINAL approver",
-    b2.bill?.approvedByCollaboratorId === approverB.collaborator.id,
-    JSON.stringify([b2.bill?.approvedByCollaboratorId, approverB.collaborator.id]));
-  ok("...with both signatures kept, in order",
-    b2.bill?.approvals?.length === 2
-      && b2.bill.approvals[0].permission === "finance.payables.approve"
-      && b2.bill.approvals[1].permission === "finance.payables.approveHigh",
-    JSON.stringify(b2.bill?.approvals?.map((a) => a.permission)));
+    bigAfter?.approvedByCollaboratorId === approverBPerson.collaborator.id, JSON.stringify(bigAfter?.approvedByCollaboratorId));
 
-  // UNCHANGED FOR EVERYBODY BUT AN ADMIN, and re-asserted because the walk
-  // rewrote the function that used to enforce it. The raiser holds approve.
+  // UNCHANGED FOR EVERYBODY BUT AN ADMIN: the raiser, even named on the step,
+  // never answers their own request.
   const own = await createBill(raiser, { vendorName: "Own Co", lines: [{ description: "x", qty: 1, unitPrice: 100 }] });
-  const byRaiser = await approveBill(raiser, own.bill.id);
-  ok("a raiser who is not an Admin cannot approve their own bill", byRaiser.error === "same-signer", JSON.stringify(byRaiser));
-}
+  const ownAsked = await requestBillApproval(raiser, own.bill.id);
+  const byRaiser = await answer(raiserPerson, ownAsked.approval?.id);
+  ok("a raiser who is not an Admin cannot approve their own bill", byRaiser.error === "own-request", JSON.stringify(byRaiser));
 
-console.log("\n== a bill edited across the limit is re-planned");
-// The one way this feature could be wrong without anything looking wrong: an
-// edit that moves a bill over the threshold, routed by the old plan.
-{
-  const raiser = await financeContext(owner, slug);
-  const made = await createBill(raiser, { vendorName: "Growing Co", lines: [{ description: "x", qty: 1, unitPrice: 1000 }] });
-  ok("it starts needing one step",
-    made.bill?.approvalPlan?.steps?.length === 1, JSON.stringify(made.bill?.approvalPlan?.steps));
-  const edited = await editBill(raiser, made.bill.id, { lines: [{ description: "x", qty: 1, unitPrice: 90000 }] });
-  ok("editing it over the limit re-derives the plan",
-    edited.bill?.approvalPlan?.steps?.length === 2, JSON.stringify(edited.bill?.approvalPlan?.steps));
+  // WHAT IS BEING APPROVED CANNOT MOVE UNDER THE APPROVERS. The approval froze
+  // the amount it was asked about; an edit to it waits for a no.
+  const frozen = await editBill(raiser, own.bill.id, { lines: [{ description: "x", qty: 1, unitPrice: 90000 }] });
+  ok("a bill waiting for approval cannot change its amount", frozen.error === "approval-pending", JSON.stringify(frozen));
+  await answer(approverAPerson, ownAsked.approval.id, "Rejected", "Wrong amount");
+  const thawed = await editBill(raiser, own.bill.id, { lines: [{ description: "x", qty: 1, unitPrice: 90000 }] });
+  ok("...and can once it is turned down", thawed.bill?.total === 90000, JSON.stringify(thawed.error ?? thawed.bill?.total));
+  const again = await requestBillApproval(raiser, own.bill.id);
+  ok("...and is asked about afresh at the new amount, now two steps", again.approval?.steps?.length === 2,
+    JSON.stringify(again.error ?? again.approval?.steps));
 }
 
 // ============================================================================
@@ -2822,7 +2822,7 @@ console.log("\n== Finance 1b: a bill posts as the mirror of an invoice");
   // Pay it and post the payment: Dr AP, Cr Bank. PAYMENT WAITS ON APPROVAL
   // since 11/09/2026, so the owner (an Admin, who may sign what they raised)
   // approves it first — this block paid an unapproved bill until 17/09/2026.
-  const signed = await approveBill(fin, bill.bill.id);
+  const signed = await approveBillFixture(fin, bill.bill.id);
   ok("the owner approves the bill before paying it", signed.bill?.status === "Approved", JSON.stringify(signed.error ?? signed.bill?.status));
   const paid = await recordBillPayment(fin, bill.bill.id, { amount: 230 });
   ok("the bill is paid", !!paid.bill?.payments?.length, JSON.stringify(paid.error ?? paid));
