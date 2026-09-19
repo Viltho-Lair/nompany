@@ -168,6 +168,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     note: "Operations Director, Head of Production, Executive Chef, Chief Nursing Officer.",
     grants: [
       ["crmSales.dashboard", "view"], ["projects.dashboard", "view"], ["hr.dashboard", "view"],
+      ["crmSales.insights", "view"],
       ["engineeringDocs.dashboard", "view"], ["inventory.dashboard", "view"],
       ["marketing.dashboard", "view"],
       ["projects.list", "full"], ["projects.planner", "edit"], ["projects.sla", "edit"],
@@ -226,6 +227,9 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     grants: [
       ["crmSales.tickets", "full"], ["crmSales.clients", "full"], ["crmSales.quotations", "edit"],
       ["crmSales.pipeline", "view"], ["crmSales.dashboard", "view"], ["crmSales.live", "view"],
+      // WHO TO CALL NEXT (19/09/2026): the buying-pattern analysis is the
+      // seller's own instrument.
+      ["crmSales.insights", "view"],
       // THE ORDER IS THE SELLER'S. Full rather than edit, because deleting
       // a draft nobody has been told about is part of placing one — and the
       // service refuses the delete the moment it stops being a draft, so the
@@ -255,7 +259,10 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // HANDING OUT LEADS AND CAMPAIGNS (19/09/2026) is the manager's half of
       // this shape: a Sales Manager assigns leads, a Marketing Manager chooses
       // who owns a campaign.
-      "crmSales.tickets.assign", "marketing.campaigns.assign"],
+      "crmSales.tickets.assign", "marketing.campaigns.assign",
+      // …and the sales manager works the insights list: takes it away and
+      // turns the customers on it into leads (19/09/2026).
+      "crmSales.insights.export", "crmSales.insights.act"],
   },
   {
     id: "bidder",

@@ -200,6 +200,25 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     verbs: ["assign"],
   },
   {
+    id: "sales-insights-2026-09-19",
+    // Customer insights arrived in CRM & Sales (19/09/2026). Whoever reads the
+    // Sales dashboard reads the analysis beneath it.
+    note: "Whoever reads the Sales dashboard reads customer insights",
+    from: "crmSales.dashboard",
+    to: ["crmSales.insights"],
+    verbs: ["view"],
+  },
+  {
+    id: "sales-insights-act-2026-09-19",
+    // …and whoever hands out leads works the list: downloads it and sends
+    // customers on it back to Sales.
+    note: "Whoever assigns leads works the customer insights list",
+    from: "crmSales.tickets",
+    fromVerb: "assign",
+    to: ["crmSales.insights"],
+    verbs: ["view", "export", "act"],
+  },
+  {
     id: "marketing-forms-2026-09-19",
     // Forms arrived in Marketing (19/09/2026). Whoever works campaigns works
     // the forms that feed them, verb for verb.

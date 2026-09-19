@@ -803,8 +803,9 @@ of `a2044ff`, one commit later, because that commit added a golden; then 365 and
 after that. A number nobody re-measures decays silently, and nothing fails when prose
 disagrees with a test. **Treat every figure in this file as a measurement with a date,
 not as a fact, and re-measure at the commit you are writing rather than the one you were
-reading.** `ALL_PERMISSIONS.length` is **264 over 84 areas, measured 19/09/2026**, after the old Tasks board left
-and Marketing's forms (`marketing.forms`) arrived; it said 266 over 85 earlier that day (Marketing's
+reading.** `ALL_PERMISSIONS.length` is **267 over 85 areas, measured 19/09/2026**, after Customer insights
+(`crmSales.insights`, view with `export` and `act`) arrived; it said 264 over 84 earlier that day, after the old Tasks board left
+and Marketing's forms (`marketing.forms`) arrived; and 266 over 85 earlier that day (Marketing's
 dashboard and campaigns, the Approvals page, and the lead and campaign `assign` extras), 261 over 83
 earlier the same day, 256 over 81 on 18/09/2026, and 248 over 79 the same
 day; seven of the eight since are expense claims (`finance.claims`, three) and budgets

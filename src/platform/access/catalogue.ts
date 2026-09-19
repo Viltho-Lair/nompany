@@ -171,6 +171,16 @@ const OWN_AREAS = [
   // would be a second right over the same act, free to disagree with the first
   // about who may move a deal; this right decides who may SEE the funnel.
   { key: "crmSales.pipeline", group: "CRM & Sales", label: "Pipeline", verbs: ["view"] },
+  // CUSTOMER INSIGHTS (19/09/2026, modules/sales/insights). Its OWN right, the
+  // owner's decision: mainly Sales, grantable to anybody. VIEW opens the
+  // analysis — which shows what each customer was invoiced, so holding it is
+  // deliberately a window onto that much of Finance. Taking the list away as a
+  // file and turning customers into leads are separate powers.
+  { key: "crmSales.insights", group: "CRM & Sales", label: "Customer insights", verbs: ["view"],
+    extra: [
+      { key: "export", label: "Download the customer list" },
+      { key: "act", label: "Send customers to Sales as leads" },
+    ] },
 
   // TENDERING & ESTIMATING'S FIRST AREA. The section was declared at the
   // fifteen-section restructure and has held no right since, because it had no

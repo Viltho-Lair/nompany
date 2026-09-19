@@ -118,6 +118,7 @@ const SECTION_ICONS = {
   "crm-sales-pipeline": "kanban",
   "crm-sales-tickets": "ticket",
   "crm-sales-clients": "group",
+  "crm-sales-insights": "trendUp",
   "crm-sales-contracts": "contract",
   "crm-sales-live": "live",
   // Technical sub-sections, same idea. Live view reuses the broadcast mark the

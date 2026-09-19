@@ -67,6 +67,8 @@ export const NOTIFY = {
   workOrderAssigned: "workorder.assigned",
   campaignAssigned: "campaign.assigned",
   leadWaiting: "lead.waiting",
+  // Several at once, from Customer insights (modules/sales/insights).
+  leadsWaiting: "leads.waiting",
   leadAssigned: "lead.assigned",
   leadOverdue: "lead.overdue",
   workOrderDue: "workorder.due",

@@ -20,6 +20,10 @@ Built 2026-09-19, on the owner's decisions of the same day. The rules are
 4. **The executive works it.** They cannot reject it or clear themselves off it; only a manager
    can move it.
 
+Two other doors raise leads the same way: an answer to a **Marketing form** set to make leads
+(`forms.md`), and **Customer insights**, which sends chosen existing customers to Sales with
+why each was sent, and tells the assigners once for the batch (`customer-insights.md`).
+
 A ticket Sales raises itself is unchanged: it is assigned to the person who raised it, as every
 existing ticket already is.
 
@@ -67,8 +71,6 @@ and a role that can delete campaigns gains `marketing.campaigns.assign` (`catchU
 
 ## Not built yet
 
-- Lead forms, a link or QR code for the public, and an embed code: the proposed Forms subsection
-  (ledger row "Marketing Forms").
 - Assignment by rotation or by rules; only by hand, as decided.
 - A deadline for leads Sales raises itself; only campaign leads have one.
 - The daily notice runs once a day, so a lead a few hours late is shown on the screens at once but

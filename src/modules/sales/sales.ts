@@ -76,6 +76,20 @@ export async function campaignChoices(ctx: Pick<SalesContext, "studio" | "campai
     .map((c) => ({ id: c.id, label: campaignLabel(c) }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }
+/**
+ * ONE CAMPAIGN a lead may name — open unless `anyStatus`, which is how a won
+ * deal's finished campaign is still NAMED on a report. Null when it is not there.
+ */
+export async function campaignById(
+  ctx: { studio: SalesContext["studio"]; campaignsSection?: SalesContext["campaignsSection"] | null },
+  id: string,
+  { anyStatus = false } = {},
+): Promise<CampaignRef | null> {
+  if (!ctx.campaignsSection || !id) return null;
+  const c = await Campaigns.byId({ studio: ctx.studio, section: ctx.campaignsSection }, id);
+  if (!c) return null;
+  return anyStatus || (c.status !== "Completed" && c.status !== "Cancelled") ? c : null;
+}
 // Registered Items, read on exactly one path: checking a customer's agreed
 // rates against the catalogue they name (editClient).
 const InventoryItems = repo<{ id: string }>("inventoryItems");
@@ -1061,22 +1075,27 @@ async function insertTicket(
  * WHAT A MARKETER KNOWS, AND NO MORE: who, how to reach them, and what they
  * want. Industry, deadline and services are left for the sales executive, which
  * is why this does not go through `createTicket`'s form rules.
+ *
+ * CUSTOMER INSIGHTS SENDS LEADS TOO (19/09/2026), for customers the studio
+ * already has — so a `clientId` may name one — and it sends them in a batch,
+ * so `notify: false` lets it tell the assigners once rather than once a lead.
  */
 export async function raiseLead(
   sections: Pick<SalesContext, "studio" | "ticketsSection" | "clientsSection">,
   input: {
     title: string; clientName: string; contactName: string; contactEmail: string; contactPhone: string;
     description: string; campaignId: string; leadDeadlineHours: number | null; raisedBy: string;
+    clientId?: string; notify?: boolean;
   },
 ) {
   const result = await insertTicket(sections, {
-    title: input.title, clientId: "", clientName: input.clientName, industry: "", deadline: "",
+    title: input.title, clientId: input.clientId || "", clientName: input.clientName, industry: "", deadline: "",
     contact: { name: input.contactName, email: input.contactEmail, phone: input.contactPhone, position: "" },
     location: { name: "", country: "", city: "", url: "" },
     serviceIds: [], clientBudget: null, description: input.description, probability: 0,
     raisedBy: input.raisedBy, assignedTo: "", campaignId: input.campaignId, leadDeadlineHours: input.leadDeadlineHours,
   });
-  if ("ticket" in result && result.ticket) {
+  if ("ticket" in result && result.ticket && input.notify !== false) {
     await notifyHolders(sections.studio.id, "crmSales.tickets.assign", {
       type: NOTIFY.leadWaiting,
       title: "A new lead is waiting to be assigned",

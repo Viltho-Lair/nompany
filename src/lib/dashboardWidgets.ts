@@ -147,6 +147,10 @@ export const DASHBOARD_WIDGETS: WidgetDef[] = [
   { key: "sales.intake-trend", label: "Deals opened per month", section: "crm-sales", rung: "moderate", needs: ["crm-sales-tickets"] },
   { key: "sales.win-loss", label: "Won and lost by month", section: "crm-sales", rung: "moderate", needs: ["crm-sales-tickets", "crm-sales-pipeline"] },
   { key: "sales.activity-heat", label: "When deals arrive", section: "crm-sales", rung: "advanced", needs: ["crm-sales-tickets"] },
+  // CUSTOMER INSIGHTS (19/09/2026, modules/sales/insights) — the owner's
+  // buying-pattern analysis and the who-is-selling scatter, the advanced tier.
+  { key: "sales.customer-patterns", label: "Customer buying patterns", section: "crm-sales", rung: "advanced", needs: ["crm-sales-insights"] },
+  { key: "sales.team-scatter", label: "Who is selling", section: "crm-sales", rung: "advanced", needs: ["crm-sales-insights"] },
   // Technical
   { key: "technical.quotation-volume", label: "Quotation volume", section: "crm-sales", rung: "simple", needs: ["quotations-register"] },
   { key: "technical.rfq-funnel", label: "RFQ funnel", section: "quotations", rung: "simple", needs: ["quotations-rfq"] },

@@ -643,6 +643,10 @@ export const SECTION_DEFS = [
     { key: "crm-sales-pipeline", name: "Pipeline" },
     { key: "crm-sales-tickets", name: "Tickets" },
     { key: "crm-sales-clients", name: "Customers" },
+    // CUSTOMER INSIGHTS (19/09/2026) — the owner's 3 + 3 + 1 buying-pattern
+    // analysis. Owns NO COLLECTION: it reads invoices, receipts and won deals
+    // where they are filed and writes only leads, which are tickets.
+    { key: "crm-sales-insights", name: "Customer insights" },
     // THE REGISTER, NOT THE ROWS. Contracts and change orders were built as
     // records in P2 with routes and no screen, and they stay in the
     // `crm-sales-quotations` collection below — a contract is what a won

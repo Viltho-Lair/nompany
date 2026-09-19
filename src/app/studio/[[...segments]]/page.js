@@ -101,6 +101,11 @@ const StudioResourceLoad = nextDynamic(
   () => import("@/components/studio2/StudioResourceLoad"),
   { loading: () => <ScreenSkeleton /> },
 );
+// Customer insights (19/09/2026): the buying-pattern analysis, advanced tier.
+const CustomerInsightsDashboard = nextDynamic(
+  () => import("@/components/studio2/CustomerInsightsDashboard"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioPipeline = nextDynamic(
   () => import("@/components/studio2/StudioPipeline"),
   { loading: () => <ScreenSkeleton /> },
@@ -902,6 +907,7 @@ async function renderStudio(params) {
         : active?.key === "tendering-rates" ? <StudioRates slug={studio.slug} />
         : screenKey === "tendering" ? <StudioTenders slug={studio.slug} view={active?.key} initial={tendersInitial} initialError={tendersError} />
         : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />
+        : active?.key === "crm-sales-insights" ? <CustomerInsightsDashboard slug={studio.slug} />
         : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />
         : active?.key === "crm-sales-orders" ? <StudioOrders slug={studio.slug} />
         : screenKey === "crm-sales" ? <StudioSales slug={studio.slug} view={active?.key} />

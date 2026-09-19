@@ -86,6 +86,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   "crm-sales-clients": ["crmSales.clients"],
   "crm-sales-live": ["crmSales.live"],
   "crm-sales-pipeline": ["crmSales.pipeline"],
+  "crm-sales-insights": ["crmSales.insights"],
   // The ROOT is viewable on either — a person who may only maintain rates still
   // needs the department to appear in the nav to reach them.
   "tendering": ["tendering.tenders", "tendering.rates"],

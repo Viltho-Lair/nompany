@@ -80,6 +80,12 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     ar: { title: "عميل محتمل جديد بانتظار الإسناد", body: "{reference} · {title}" },
   },
   {
+    type: "leads.waiting",
+    fields: ["count"],
+    en: { title: "New leads are waiting to be assigned", body: "{count} leads from Customer insights" },
+    ar: { title: "عملاء محتملون جدد بانتظار الإسناد", body: "{count} من تحليلات العملاء" },
+  },
+  {
     type: "lead.assigned",
     fields: ["reference", "title"],
     en: { title: "A lead was assigned to you", body: "{reference} · {title}" },
