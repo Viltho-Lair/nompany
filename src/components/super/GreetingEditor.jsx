@@ -225,8 +225,11 @@ function Detail({ message, generated, problems, keySet, busy, onChange, onSend, 
 
           {/* THE STOPS STAY VISIBLE ON HOUSE COLOURS, dimmed rather than removed —
               somebody switching back should find what they picked still there,
-              and a control that vanishes reads as one that was cleared. */}
-          <div className={custom ? "" : "pointer-events-none opacity-50"}>
+              and a control that vanishes reads as one that was cleared.
+              `inert` as well as the dimming: pointer-events only stopped the
+              mouse, so Tab still reached the pickers and a screen reader still
+              read them out as live controls. */}
+          <div className={custom ? "" : "pointer-events-none opacity-50"} inert={!custom || undefined}>
             <Stops title="Border" stops={message.theme.border}
               hint={message.theme.border.length === 1 ? "One colour: a plain 1px border." : `${message.theme.border.length} colours, left to right.`}
               onChange={(border) => setTheme({ border })} />
