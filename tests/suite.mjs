@@ -38,7 +38,7 @@ import { studioContext, canAdminister, studiosForUser } from "@/lib/studios";
 import { explain, ADMIN_ROLE_ID, ALL_PERMISSIONS, isPermission, NO_SCREEN_YET } from "@/platform/access";
 import { tasksContext, createTask, updateTask, removeTask, decideTask } from "@/modules/tasks/tasks";
 import { listForCollaborator, NOTIFY } from "@/platform/notify/notifications";
-import { approvalsContext, decideApproval, saveApprovalSetting } from "@/modules/approvals/approvals";
+import { approvalsContext, decideApproval, requestApproval, saveApprovalSetting } from "@/modules/approvals/approvals";
 import {
   salesContext, createTicket, requestTicketRfq, listTickets, sendTicketForApproval,
   submitTicketPo, editClient, listClients,
@@ -362,6 +362,27 @@ async function person(alias, roleName) {
 const member = await person("Member", "Member");
 const viewer = await person("Viewer", "Viewer");
 const nobody = await person("Nobody", null);
+
+// A FIXTURE THAT NEEDS AN APPROVED QUOTATION gets one the only way there is:
+// its Quotation approval, filed and answered at every step. Editing the status
+// to Approved was the old shortcut, and it is refused now (19/09/2026) — it was
+// also how anybody who could edit a quotation skipped its approvers. The steps
+// are saved first so the helper stands on its own, whatever ran before it: the
+// Member answers, then the owner (the owner/Admin exception, as the requester).
+async function approveQuotationFixture(quotationId) {
+  const ownerCtx = await approvalsContext(owner, slug);
+  await saveApprovalSetting(ownerCtx, { type: "quotation", setting: { steps: [
+    { label: "Sales", approverIds: [member.collaborator.id] },
+    { label: "Management", approverIds: [ownerCtx.collaborator.id] },
+  ] } });
+  const filed = await requestApproval(await salesContext(owner, slug), {
+    type: "quotation",
+    source: { sectionKey: "crm-sales-quotations", recordId: quotationId, ref: "fixture", title: "fixture" },
+  });
+  if (filed.error) return filed;
+  await decideApproval(await approvalsContext(member.user, slug), filed.approval.id, { verdict: "Approved" });
+  return decideApproval(await approvalsContext(owner, slug), filed.approval.id, { verdict: "Approved" });
+}
 
 // ============================================================================
 console.log("== tasks: the board writes at all");
@@ -1387,7 +1408,7 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
   const rfqMade = await requestTicketRfq(salesForRegression, { ticketId: ticketMade.ticket?.id });
   const techForRegression = await technicalContext(owner, slug);
   const convMade = await convertRfq(techForRegression, { rfqId: rfqMade.rfq?.id });
-  await updateQuotation(techForRegression, convMade.quotation?.id, { status: "Approved" });
+  await approveQuotationFixture(convMade.quotation?.id);
 
   const projForRegression = await projectsContext(owner, slug);
   const openedTicketHeaded = await openProject(projForRegression, { quotationId: convMade.quotation?.id });
@@ -1443,7 +1464,7 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
     !!rfqFallback.rfq, JSON.stringify(rfqFallback.error));
   const techForFallback = await technicalContext(owner, slug);
   const convFallback = await convertRfq(techForFallback, { rfqId: rfqFallback.rfq?.id });
-  await updateQuotation(techForFallback, convFallback.quotation?.id, { status: "Approved" });
+  await approveQuotationFixture(convFallback.quotation?.id);
 
   const projForFallback = await projectsContext(owner, slug);
   const openedFallback = await openProject(projForFallback, { quotationId: convFallback.quotation?.id });
@@ -1482,7 +1503,7 @@ console.log("\n== the picker one screen before openProject names an internal quo
   ok("an internal quotation can be raised for the picker check",
     !!madePicker.quotation?.clientId, JSON.stringify(madePicker.error || madePicker.quotation));
 
-  await updateQuotation(tech, madePicker.quotation?.id, { status: "Approved" });
+  await approveQuotationFixture(madePicker.quotation?.id);
 
   const proj = await projectsContext(owner, slug);
   const picked = await approvedQuotations(proj);
@@ -1516,7 +1537,7 @@ console.log("\n== the picker one screen before openProject names an internal quo
   const pickerRfq = await requestTicketRfq(salesForPickerTicket, { ticketId: pickerTicket.ticket?.id });
   const techForPickerTicket = await technicalContext(owner, slug);
   const pickerConv = await convertRfq(techForPickerTicket, { rfqId: pickerRfq.rfq?.id });
-  await updateQuotation(techForPickerTicket, pickerConv.quotation?.id, { status: "Approved" });
+  await approveQuotationFixture(pickerConv.quotation?.id);
 
   const pickedTicketHeaded = await approvedQuotations(proj);
   const pickerTicketRow = pickedTicketHeaded.find((q) => q.id === pickerConv.quotation?.id);
@@ -1553,9 +1574,9 @@ console.log("\n== CI proves a quotation-born deal carries its client (Task 5, cl
   ok("the internal quotation resolves a real clientId",
     !!madeQuote.quotation?.clientId, JSON.stringify(madeQuote.error || madeQuote.quotation));
 
-  const approvedQuote = await updateQuotation(tech, madeQuote.quotation?.id, { status: "Approved" });
-  ok("the internal quotation approves directly (no ticket-approval task behind it)",
-    approvedQuote.quotation?.status === "Approved", JSON.stringify(approvedQuote.error));
+  const approvedQuote = await approveQuotationFixture(madeQuote.quotation?.id);
+  ok("the internal quotation is approved by its approval",
+    approvedQuote.approval?.status === "Approved", JSON.stringify(approvedQuote.error));
 
   const proj = await projectsContext(owner, slug);
   const openedQuote = await openProject(proj, { quotationId: madeQuote.quotation?.id });
@@ -1639,7 +1660,7 @@ console.log("\n== deleting a record takes its engagement state with it");
   // its own deal, and this derivation only names it by resolving.
   const engId = await resolveDealId(studio.id, deterministicEngId("quotation", quotationId));
 
-  await updateQuotation(await technicalContext(owner, slug), quotationId, { status: "Approved" });
+  await approveQuotationFixture(quotationId);
   const proj = await projectsContext(owner, slug);
   const opened = await openProject(proj, { quotationId });
   ok("fixture: a project opened from it", !!opened.project, JSON.stringify(opened.error));
@@ -1778,7 +1799,7 @@ console.log("\n== a project's children are in the deal, and leave it when they g
   // Resolved through the alias (deal-aliases Task 3): createQuotation mints
   // its own deal, and this derivation only names it by resolving.
   const engId = await resolveDealId(studio.id, deterministicEngId("quotation", quotationId));
-  await updateQuotation(await technicalContext(owner, slug), quotationId, { status: "Approved" });
+  await approveQuotationFixture(quotationId);
   const opened = await openProject(await projectsContext(owner, slug), { quotationId });
   ok("fixture: a project opened on it", !!opened.project, JSON.stringify(opened.error));
   const projectId = opened.project?.id;
