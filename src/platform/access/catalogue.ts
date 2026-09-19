@@ -250,12 +250,10 @@ const OWN_AREAS = [
     verbs: ["view", "create", "edit", "delete"] },
   { key: "reports.exports", group: "Reports & BI", label: "Data exports",
     verbs: ["view"] },
+  // APPROVING A BID IS NOT A RIGHT ANY MORE (19/09/2026): it is answered on the
+  // Approvals page by the people Approvals settings name. Asking for it is `edit`.
   { key: "tendering.tenders", group: "Tendering & Estimating", label: "Tender register",
-    verbs: ["view", "create", "edit", "delete"],
-    extra: [
-      { key: "approve", label: "Approve a bid" },
-      { key: "approveHigh", label: "Approve a bid above the limit" },
-    ] },
+    verbs: ["view", "create", "edit", "delete"] },
   // THE RATE LIBRARY IS ITS OWN AREA, and the bill of quantities is NOT.
   //
   // A bill is a tender's content: whoever may read a tender may read what it is

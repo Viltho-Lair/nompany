@@ -363,7 +363,7 @@ console.log("\n== a library role starts inside its department's own sections");
   // THE ONE EXEMPTION, the owner's decision: principal runs the whole company.
   const md = L.permissionsForLibraryRole({ ...entry, archetype: "principal" }, { sectionKeys: ["administration"] });
   ok("a principal role is not confined to its department",
-    md.includes("projects.list.delete") && md.includes("tendering.tenders.approveHigh"));
+    md.includes("projects.list.delete") && md.includes("finance.ledger.close"));
   ok("...and still cannot decide who may do what",
     !md.some((k) => k.startsWith("administration.access")));
 

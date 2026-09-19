@@ -85,8 +85,8 @@ export function approvalChainsFor(
 // ONE TYPE FEWER AT A TIME, as each moves onto the Approvals page (19/09/2026):
 // its steps and limits are set in Approvals settings from then on, and a chain
 // stored here is read only as that type's default steps until a studio saves
-// them there. `adjustment` and `bill` have moved.
-export const STUDIO_EDITABLE_CHAINS: readonly string[] = ["tender", "requisition"];
+// them there. `adjustment`, `bill` and `tender` have moved.
+export const STUDIO_EDITABLE_CHAINS: readonly string[] = ["requisition"];
 
 /**
  * What may be STORED, out of what a settings screen sent — the overrides alone.

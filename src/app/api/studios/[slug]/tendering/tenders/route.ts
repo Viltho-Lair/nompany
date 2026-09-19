@@ -1,7 +1,6 @@
 import { route, refused } from "@/platform/http/route";
-import { signingPinProblem } from "@/platform/auth/lock";
 import { tenderingContext, tendersView, createTender, editTender, removeTender } from "@/modules/tendering/tenders";
-import { approveBid } from "@/modules/tendering/bid";
+import { requestBidApproval } from "@/modules/tendering/bid";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,17 +30,15 @@ export const PUT = route(spec, async (tendering) => {
   if (!tendering.body.id) return { error: "missing" };
   const id = String(tendering.body.id);
 
-  // SIGNING IS ITS OWN VERB, not a field on the edit — the same decision the
-  // pack made about superseding, and here it is load-bearing rather than tidy.
-  // `editTender` opens on `tendering.tenders.edit`; a signature must NOT, or
-  // whoever priced the bid could sign it by sending one more key.
-  if (tendering.body.approve) {
-    // THE SIGNER'S PIN, before a signature (platform/auth/lock.ts).
-    const pinGate = await signingPinProblem(tendering.studio, tendering.user.id, tendering.body.pin);
-    if (pinGate) return pinGate;
-    const signed = await approveBid(tendering, id);
-    if (refused(signed)) return signed;
-    return { ok: true, tender: signed.tender, approved: signed.approved, signed: signed.signed, required: signed.required };
+  // ASKING FOR THE BID'S APPROVAL is its own verb, not a field on the edit —
+  // the same decision the pack made about superseding. The ANSWER is not here
+  // at all: it is given on the Approvals page (19/09/2026), by the people
+  // Approvals settings name, so whoever priced the bid cannot sign it by
+  // sending one more key.
+  if (tendering.body.requestApproval) {
+    const asked = await requestBidApproval(tendering, id);
+    if (refused(asked)) return asked;
+    return { ok: true, tender: asked.tender, approval: asked.approval };
   }
 
   const result = await editTender(tendering, id, tendering.body);

@@ -71,6 +71,7 @@ const TYPES_EN: Record<string, string> = {
   "pos-return": "Till return",
   adjustment: "Stock adjustment",
   bill: "Supplier bill",
+  bid: "Bid",
   carried: "Carried over",
 };
 const TYPES_AR: Record<string, string> = {
@@ -84,6 +85,7 @@ const TYPES_AR: Record<string, string> = {
   "pos-return": "مرتجع الصندوق",
   adjustment: "تسوية مخزون",
   bill: "فاتورة مورد",
+  bid: "عطاء",
   carried: "منقولة",
 };
 
@@ -169,6 +171,8 @@ const en: Strings = {
       case "no-shift": return "A cash refund comes out of a drawer: a shift has to be open on that till before this can be approved.";
       case "too-many": return "Those units have already gone back on another return.";
       case "insufficient": return "There is not enough on the shelf any more for this write-off.";
+      case "already-submitted": return "The bid has already gone out.";
+      case "bill-incomplete": return "The bid's bill has lines with no rate, so its total is not the bid yet.";
       case "over-credit": return "The invoice has too little left to credit for this return.";
       case "already-decided": return "The record has already been decided.";
       case "not-unfinished": return "The record has already been completed.";
@@ -261,6 +265,8 @@ const ar: Strings = {
       case "no-shift": return "الاسترداد النقدي يخرج من درج: يجب فتح وردية على ذلك الصندوق قبل الاعتماد.";
       case "too-many": return "هذه الوحدات أرجعت في مرتجع آخر.";
       case "insufficient": return "لم يعد في الرف ما يكفي لهذا الشطب.";
+      case "already-submitted": return "قدم العطاء بالفعل.";
+      case "bill-incomplete": return "في جدول الكميات بنود بلا سعر، فمجموعه ليس العطاء بعد.";
       case "over-credit": return "لم يتبق في الفاتورة ما يكفي لقيد هذا المرتجع دائنا.";
       case "already-decided": return "بت في السجل سابقا.";
       case "not-unfinished": return "أتم السجل سابقا.";

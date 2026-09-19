@@ -1,11 +1,32 @@
 # Bid review — who signs a bid, and above what value
 
 **Where:** the review block on `/<slug>/tendering-register/<tenderId>`, beneath the bill.
-**The engine:** `src/platform/approval/*` — P2's, reused whole.
-**The service:** `src/modules/tendering/bid.ts`. **The chain store:**
-`src/platform/approval/store.ts`.
-**Bills and bids.** Every other approval in the product is unchanged — see "Not built yet"
-in `approvals.md`.
+**The service:** `src/modules/tendering/bid.ts`. **The answer:** the Approvals page
+(`approvals.md`).
+
+## Since 19/09/2026 — asked for here, answered on the Approvals page
+
+The owner moved every approval onto the Approvals page, with the request staying where it is
+made. **What a bid does now:**
+
+- **Request approval**, beside the bill, once the bill is fully priced and the bid has not gone
+  out (`requestBidApproval`, `tendering.tenders.edit`). It files a **Bid** approval carrying
+  the bid's value in the tender's currency, and whether that came from the bill or the estimate.
+- **The people who answer are Approvals settings'**, steps and limits included. Until a studio
+  saves the type, they are whoever held `tendering.tenders.approve` (from 0) and
+  `.approveHigh` (from 500,000, or the studio's own), plus the owner and Admins. Those two
+  rights are gone from the catalogue, and the chain editor no longer offers bids.
+- **Submitting reads the approval** (`bidApproved`): its newest Bid approval is Approved **and
+  is for the value the bid has now**. A bill repriced after its approval is a different promise —
+  the block says so ("the bill has changed") and offers Request approval again. This closes the
+  old gap where re-pricing after a signature left it standing.
+- **A no is kept, with its reason**, and the bid is asked about again once corrected.
+- **Nothing is written on the tender** when it is approved.
+- **A bid part-signed before 19/09/2026** gets its approval the first time its bill is opened,
+  carrying the signatures it had.
+
+The rest of this file describes the engine bids used until then, and is kept as the record of
+why it was built the way it was.
 
 ## What it is
 
@@ -140,25 +161,14 @@ screen says it in place of the button.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **No editor for the tender chain.** The storage, the validation and the write door all exist
-  and are enforced; there is no screen in Studio settings that sets the steps, so a studio
-  changing the 500,000 threshold has to do it through the API. This is the largest gap here.
-- **The bill chain still lives in Finance's settings screen.** Reading is unified; editing is
-  not, and moving that editor is a commit of its own.
-- **No parallel steps, no delegation, no reminders, no approval inbox** — inherited verbatim
-  from the bill implementation, and the same sentence applies.
+- **No delegation and no reminders** — the Approvals page has neither yet.
 - **No condition other than value.** A chain cannot say "anything for this issuer" or "any bid
   below our target margin"; margin is not modelled at all, because the bill holds what the
   studio would charge and not what the work would cost.
-- **Nothing is notified.** A bid waiting for a signature tells nobody; the reviewer has to open
-  the tender.
-- **A signature is not withdrawn.** There is no un-sign, no rejection with a reason, and no
-  record of a bid that was reviewed and sent back — the only outcomes are signed and not yet
-  signed.
-- **Re-pricing after a signature does not clear it.** Editing the bill under a signed bid
-  leaves the signature standing, and only the stored plan records what was actually signed
-  against. A bill edited across a threshold re-plans on the next attempt, which is what makes
-  the extra step appear, but the earlier signature is not invalidated.
+- **A request cannot be withdrawn** by whoever asked; only a no ends one early.
+- **Editing the bill while its approval is waiting is allowed**, and the approval then no longer
+  covers the bid — the yes, if it comes, is for the old price and the bid still cannot go out.
+  Refusing the edit instead, as a bill does, is not built.
 - **No approval on a No Bid or a Withdrawal.** Deciding not to bid needs no signature, which is
   right, but so does withdrawing one already submitted — and that is a decision somebody senior
   might reasonably want to make.

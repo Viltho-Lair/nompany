@@ -19,6 +19,8 @@ export type TenderingContext = ModuleContext & {
   ratesSection: Section;
   salesClientsSection: Section | null;
   projectsListSection: Section | null;
+  /** Where a bid's approval is filed. */
+  approvalsSection: Section | null;
   canViewRegister: boolean;
   canManageRegister: boolean;
   canViewRates: boolean;

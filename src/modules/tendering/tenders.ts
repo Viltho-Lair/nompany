@@ -119,6 +119,9 @@ export const tenderingContext = moduleContext<TenderingContext>({
     // tender BECAME is the tender's own story. A studio with no Projects
     // section simply cannot hand anything over.
     projectsList: ["projects-list", "projects"],
+    // APPROVALS', where a bid's approval is filed (19/09/2026). Nullable like
+    // every foreign section, only while a studio awaits its planting.
+    approvals: "approvals",
   },
   flags: ["register", "rates"],
 });

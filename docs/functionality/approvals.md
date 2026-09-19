@@ -2,7 +2,7 @@
 
 Two things share this file while one replaces the other. **The Approvals page** (below, 2026-09-19)
 is where every approval in the product is going. **The amount chains**
-(the rest of the file) are how bids and requisitions are signed today;
+(the rest of the file) are how requisitions are signed today;
 each moves onto the page as its Request approval button is built.
 
 ## The Approvals page (2026-09-19)
@@ -25,11 +25,12 @@ files it, naming the record (`source`: its section, id, reference, title, and th
 | Submit PO | a Sales ticket, once its quotation is approved | **Client PO approval**, carrying what the client sent (a description, a file, or both) | the **project number is issued** (`effects.ts` → `issueProjectNumber`), as Finance's signature on the old board did |
 | Request approval | Point of Sale → Returns: asking for a return is asking for its approval | **Till return**, carrying the refund as its amount | the units go back into stock and the refund is paid (`returnApproval` in `modules/sales/posReturns`); rejected, the return is closed with the reason |
 | Request approval | Finance → Payables, on a received bill (or one whose last request was turned down) | **Supplier bill**, carrying its total in its own currency | the bill becomes Approved, which payment waits on (`billApproval` in `modules/finance/payables`); a no changes nothing on the bill — it is corrected and asked about again, disputed or cancelled |
+| Request approval | Tendering → a tender's bill, once fully priced and before it goes out | **Bid**, carrying its value in the tender's currency | the tender may be submitted — while the bill still has the value the approval was for (`bidApproved` in `modules/tendering/bid`); nothing is written on the tender |
 | Record adjustment | Inventory → Stock: an adjustment worth more than the lowest limit asks; under it the stock moves at once | **Stock adjustment**, valued at units × unit cost (absolute) | the movement is written (`adjustmentApproval` in `modules/inventory/adjustmentApproval`); rejected, it is closed with the reason and nothing moves |
 
 **MOVING EVERY APPROVAL HERE, one type at a time** (the owner, 19/09/2026): the request stays
 where it is made today and the answer moves to this page. The till return, the stock
-adjustment and the bill have moved; bids, requisitions, payroll, expense claims, change orders, timesheets,
+adjustment, the bill and the bid have moved; requisitions, payroll, expense claims, change orders, timesheets,
 document revisions, held-payment releases and leave follow. Each move drops the type's
 `approve` right — a right to do what the settings decide would be a second answer (invariant
 16) — and the steps it had come with it:
@@ -106,7 +107,7 @@ became `carried` approvals, which can be answered but never requested. The conve
 once it had run. What it deleted is in the export the owner holds.
 
 **Not built yet on the page:** only the three records above ask — Material PO, Delivery,
-Delivery return, ID update and Permit request have no record to ask from yet, and bids,
+Delivery return, ID update and Permit request have no record to ask from yet, and
 requisitions, payroll, expense claims, change orders, timesheets, document
 revisions, held-payment releases and leave still answer where they are, through the amount
 chains below and their own rights; requests already waiting on those are converted when each
@@ -114,11 +115,12 @@ type moves (export first, two confirmations); Nova reads a person's approvals bu
 one; no reminders, no delegation, and no withdrawing a request. **A step whose only approver leaves the studio cannot be answered by anybody**, and
 an approval waiting on it waits for ever — there is no reassigning yet.
 
-## The amount chains — who signs a bid or a requisition, and above what amount
+## The amount chains — who signs a requisition, and above what amount
 
-**BILLS LEFT THIS ENGINE ON 19/09/2026** for the Approvals page (the table at the top), and
-stock adjustments before them. What follows still describes bids and requisitions; where it
-says "bill", it is how bills were signed until then. `finance.payables.approve` and
+**BILLS AND BIDS LEFT THIS ENGINE ON 19/09/2026** for the Approvals page (the table at the top),
+and stock adjustments before them. What follows still describes requisitions; where it says
+"bill" or "bid", it is how those were signed until then. `tendering.tenders.approve` and
+`.approveHigh` are gone too. `finance.payables.approve` and
 `.approveHigh` are gone from the catalogue, and the bill chain is no longer offered in Studio
 settings — a limit a studio had moved there is read as the bill type's default steps.
 
@@ -271,8 +273,8 @@ default steps until the studio saves it in Approvals settings. `inventory.stock.
 
 ## The signer's PIN (18/09/2026)
 
-**Approving asks the signer's personal PIN** — a bid and a requisition in their own routes,
-and every approval on the Approvals page (`signingPinProblem`,
+**Approving asks the signer's personal PIN** — a requisition in its own route, and every
+approval on the Approvals page (`signingPinProblem`,
 `platform/auth/lock.ts`). Rejecting is not asked: it commits nobody to anything. It is asked
 of a person who has set a PIN, and of **everybody** when the studio switches on **PIN on every
 signature** (Studio settings, beside the chains; `signingPin` on the studio), in which case a

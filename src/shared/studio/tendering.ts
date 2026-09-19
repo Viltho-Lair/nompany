@@ -173,12 +173,14 @@ type Strings = CommonStrings & {
   bidValue: string;
   fromTheBill: string;
   fromTheEstimate: string;
-  approveBid: string;
-  signStep: (label: string) => string;
-  nOfMSigned: (n: number, m: number) => string;
+  requestBidApproval: string;
+  bidStepsOf: (n: number, m: number) => string;
   bidApproved: string;
   awaitingSignature: string;
-  stepUnsigned: string;
+  bidNeverAsked: string;
+  bidRejected: (reason: string) => string;
+  bidStale: string;
+  openApprovals: string;
   cannotSignOwnBid: string;
   refuseBillIncomplete: string;
   refuseNoStudioCurrency: string;
@@ -186,8 +188,8 @@ type Strings = CommonStrings & {
   refuseNoChain: string;
   refuseNotApproved: string;
   refuseAlreadyApproved: string;
-  convertedAt: (rate: string) => string;
-  ratesAreStale: string;
+  refuseNotConfigured: string;
+  refuseNoApprover: string;
 
   // The handover to Projects.
   handover: string;
@@ -384,18 +386,18 @@ const en: Strings = {
   lastPricedOn: "Last priced",
 
   bidReview: "Bid review",
-  bidReviewSub: "Who has signed off this bid, and what it still needs before it can go out.",
+  bidReviewSub: "Whether this bid has been approved at this price. It is answered on the Approvals page.",
   bidValue: "Bid value",
   fromTheBill: "From the bill of quantities",
   fromTheEstimate: "From the typed estimate — there is no bill",
-  approveBid: "Sign off the bid",
-  signStep: (label) => `Sign: ${label}`,
-  nOfMSigned: (n, m) => `${n} of ${m} signed`,
-  bidApproved: "Signed off. This bid can be submitted.",
-  awaitingSignature: "Not signed off yet — this bid cannot be submitted.",
-  // A LABEL, NOT A SENTENCE. The line above says what the BID needs; a step row
-  // needs two words, and repeating the sentence per row reads as an error.
-  stepUnsigned: "Not signed",
+  requestBidApproval: "Request approval",
+  bidStepsOf: (n, m) => `${n} of ${m} step${m === 1 ? "" : "s"} approved`,
+  bidApproved: "Approved at this price. This bid can be submitted.",
+  awaitingSignature: "Waiting for approval — this bid cannot be submitted yet.",
+  bidNeverAsked: "Nobody has asked for this bid's approval yet.",
+  bidRejected: (reason) => `Approval turned down${reason ? `: “${reason}”` : ""}. Correct the bill and ask again.`,
+  bidStale: "The bill has changed since this approval was asked for, so it no longer covers the bid. Ask again at the new price.",
+  openApprovals: "Open in Approvals",
   cannotSignOwnBid: "You raised this tender, so somebody else signs it off.",
   refuseBillIncomplete: "Some lines still have no rate. A bid cannot be signed off against a total that is going to change.",
   refuseNoStudioCurrency: "This studio has not set its own currency, so a bid value cannot be judged against an approval limit. An owner or admin sets it in Studio settings.",
@@ -403,8 +405,8 @@ const en: Strings = {
   refuseNoChain: "No approval chain is configured for bids.",
   refuseNotApproved: "This bid has not been signed off yet, so it cannot be submitted.",
   refuseAlreadyApproved: "This bid is already signed off.",
-  convertedAt: (rate) => `Converted at ${rate}`,
-  ratesAreStale: "Judged against yesterday’s rates — today’s have not arrived.",
+  refuseNotConfigured: "Nobody has been named to approve bids. The owner or an Admin names them in Approvals settings.",
+  refuseNoApprover: "You are the only person who approves bids, so you cannot ask for one yourself. Ask the owner to name somebody else in Approvals settings.",
 
   handover: "Handover",
   handoverSub: "What this tender became once it was won.",
@@ -596,16 +598,18 @@ const ar: Strings = {
   lastPricedOn: "آخر تسعير",
 
   bidReview: "مراجعة العرض",
-  bidReviewSub: "من اعتمد هذا العرض، وما يلزمه قبل أن يقدم.",
+  bidReviewSub: "هل اعتمد هذا العرض بهذا السعر. يجاب عليه في صفحة الموافقات.",
   bidValue: "قيمة العرض",
   fromTheBill: "من جدول الكميات",
   fromTheEstimate: "من القيمة التقديرية — لا يوجد جدول",
-  approveBid: "اعتماد العرض",
-  signStep: (label) => `اعتماد: ${label}`,
-  nOfMSigned: (n, m) => `اعتمد ${n} من ${m}`,
-  bidApproved: "اعتمد. يمكن تقديم هذا العرض.",
-  awaitingSignature: "لم يعتمد بعد — لا يمكن تقديم هذا العرض.",
-  stepUnsigned: "بانتظار الاعتماد",
+  requestBidApproval: "طلب الاعتماد",
+  bidStepsOf: (n, m) => `اعتمدت ${n} من ${m} مراحل`,
+  bidApproved: "اعتمد بهذا السعر. يمكن تقديم هذا العرض.",
+  awaitingSignature: "بانتظار الاعتماد — لا يمكن تقديم هذا العرض بعد.",
+  bidNeverAsked: "لم يطلب أحد اعتماد هذا العرض بعد.",
+  bidRejected: (reason) => `رفض الاعتماد${reason ? `: «${reason}»` : ""}. صحح الجدول واطلب مجددا.`,
+  bidStale: "تغير جدول الكميات منذ طلب هذا الاعتماد، فلم يعد يغطي العرض. اطلب مجددا بالسعر الجديد.",
+  openApprovals: "فتح في الموافقات",
   cannotSignOwnBid: "أنت من أنشأ هذه المناقصة، فيعتمدها شخص آخر.",
   refuseBillIncomplete: "بعض البنود بلا سعر. لا يعتمد عرض على إجمال سيتغير.",
   refuseNoStudioCurrency: "لم تحدد عملة المنشأة، فلا يمكن قياس قيمة العرض على حد اعتماد. يضبطها المالك أو المسؤول من إعدادات المنشأة.",
@@ -613,8 +617,8 @@ const ar: Strings = {
   refuseNoChain: "لا توجد سلسلة اعتماد مضبوطة للعروض.",
   refuseNotApproved: "لم يعتمد هذا العرض بعد، فلا يمكن تقديمه.",
   refuseAlreadyApproved: "هذا العرض معتمد بالفعل.",
-  convertedAt: (rate) => `حول بسعر ${rate}`,
-  ratesAreStale: "مقيس على أسعار الأمس — لم تصل أسعار اليوم بعد.",
+  refuseNotConfigured: "لم يحدد أحد لاعتماد العروض. يحددهم المالك أو المشرف في إعدادات الموافقات.",
+  refuseNoApprover: "أنت الوحيد الذي يعتمد العروض، فلا يمكنك طلب اعتماد بنفسك. اطلب من المالك تحديد شخص آخر في إعدادات الموافقات.",
 
   handover: "التسليم",
   handoverSub: "ما آلت إليه هذه المناقصة بعد الفوز بها.",

@@ -43,8 +43,8 @@ export type HandoverState = {
  * Has this tender become a project, and may this reader make it one?
  *
  * ASKS THE SAME QUESTIONS `tenderSource` ASKS, in the same order, so the screen
- * offers a button only where the server would accept it — the rule
- * `availableBidApproval` states at length and which holds identically here.
+ * offers a button only where the server would accept it — a screen checking
+ * fewer questions offers buttons that refuse.
  * What it deliberately does NOT re-ask is the client resolution: that one
  * WRITES (it creates the Client record when the issuer is not one yet), and a
  * read that renders a screen must not.

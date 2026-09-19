@@ -31,6 +31,9 @@ export function refusal(tr, token) {
     case "no-studio-currency": return tr.refuseNoStudioCurrency;
     case "unquoted": return tr.refuseUnquoted;
     case "no-chain": return tr.refuseNoChain;
+    // Asking for a bid's approval (19/09/2026): nobody named, or only the asker.
+    case "not-configured": return tr.refuseNotConfigured;
+    case "no-approver": return tr.refuseNoApprover;
 
     // ---- the handover ----
     case "not-won": return tr.refuseNotWon;

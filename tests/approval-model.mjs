@@ -30,9 +30,9 @@ console.log("\n== a chain's shape");
 // catch, because no studio writes it. The bill's is no longer one: bills are
 // approved on the Approvals page (19/09/2026), their rights left the catalogue,
 // and the seed is read only as the default steps there.
-ok("the seeded tender chain passes its own validator",
-  chainProblems(SEEDED_CHAINS.tender, ALL_PERMISSIONS).length === 0,
-  JSON.stringify(chainProblems(SEEDED_CHAINS.tender, ALL_PERMISSIONS)));
+ok("the seeded requisition chain passes its own validator",
+  chainProblems(SEEDED_CHAINS.requisition, ALL_PERMISSIONS).length === 0,
+  JSON.stringify(chainProblems(SEEDED_CHAINS.requisition, ALL_PERMISSIONS)));
 
 ok("the seeded bill chain has two steps", SEEDED_CHAINS.bill.steps.length === 2);
 ok("...the first of which always applies", SEEDED_CHAINS.bill.steps[0].from === 0);

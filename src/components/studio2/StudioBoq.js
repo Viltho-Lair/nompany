@@ -21,7 +21,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { tenderingDict } from "@/shared/studio/tendering";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money, fmtDateTime } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { boqGroups, boqTotals, extension, isPriced } from "@/modules/tendering/boq";
@@ -72,6 +72,8 @@ export default function StudioBoq({ slug, tenderId }) {
   // its own section would keep offering edits the server has started refusing.
   useLiveUpdates(slug, "tendering-register", reload);
   useLiveUpdates(slug, "projects-list", reload);
+  // How far the bid's approval has got is written under Approvals.
+  useLiveUpdates(slug, "approvals", reload);
 
   // `route` names the endpoint: the bill's lines are `boq`, but a SIGNATURE is
   // an act on the tender and only the tenders route answers `approve` — sent to
@@ -187,15 +189,13 @@ export default function StudioBoq({ slug, tenderId }) {
 
       {/* ---- the bid review -------------------------------------------
           WHY IT SITS WITH THE BILL and not on the register: the thing being
-          signed IS the price, and a reviewer asked to commit the company to a
-          number needs that number in front of them rather than a row in a list.
+          approved IS the price, and whoever asks needs that number in front of
+          them rather than a row in a list.
 
-          THE BUTTON IS DRAWN ONLY WHERE PRESSING IT WOULD SUCCEED. `review.next`
-          comes from `availableBidApproval`, which asks every question
-          `approveBid` asks — the raiser never signs, nobody signs twice on one
-          record, the step must be outstanding, and they must hold its right. A
-          screen checking fewer of them offers buttons that refuse; one checking
-          them here would be a second copy of the rule, free to drift. */}
+          ANSWERED ON THE APPROVALS PAGE since 19/09/2026. This block shows how
+          far the approval has got — read from the approval — and whether it is
+          still for this price, and offers Request approval exactly where the
+          server would accept it (`review.canRequest`). */}
       {review && (
         <section className={panel}>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -203,10 +203,10 @@ export default function StudioBoq({ slug, tenderId }) {
               <h2 className={h2}>{tr.bidReview}</h2>
               <p className={sub}>{tr.bidReviewSub}</p>
             </div>
-            {review.next && (
+            {review.canRequest && (
               <button type="button" className={btn} disabled={busy}
-                onClick={async () => { await send("PUT", { id: tenderId, approve: true }, "tenders"); }}>
-                {tr.signStep(review.next.label)}
+                onClick={async () => { await send("PUT", { id: tenderId, requestApproval: true }, "tenders"); }}>
+                {tr.requestBidApproval}
               </button>
             )}
           </div>
@@ -222,51 +222,24 @@ export default function StudioBoq({ slug, tenderId }) {
             <span className="text-xs text-slate-500 dark:text-slate-400">
               {review.value.basis === "boq" ? tr.fromTheBill : tr.fromTheEstimate}
             </span>
-            {review.plan?.rate != null && (
-              <span className="text-xs text-slate-400">{tr.convertedAt(String(review.plan.rate))}</span>
-            )}
           </div>
-
-          {review.plan?.stale && (
-            <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">{tr.ratesAreStale}</p>
-          )}
 
           {review.blocked ? (
             <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm font-600 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
               {refusal(tr, review.blocked)}
             </p>
           ) : (
-            <>
-              <p className={`mt-3 text-sm font-600 ${review.approved ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-300"}`}>
-                {tr.nOfMSigned(review.signed, review.required)} · {review.approved ? tr.bidApproved : tr.awaitingSignature}
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className={`text-sm font-600 ${review.approved ? "text-emerald-700 dark:text-emerald-400" : review.approval?.rejected ? "text-rose-600 dark:text-rose-300" : "text-amber-700 dark:text-amber-300"}`}>
+                {!review.approval ? tr.bidNeverAsked
+                  : review.stale ? tr.bidStale
+                    : review.approval.rejected ? tr.bidRejected(review.approval.reason)
+                      : `${tr.bidStepsOf(review.approval.granted, review.approval.required)} · ${review.approved ? tr.bidApproved : tr.awaitingSignature}`}
               </p>
-              {/* EVERY STEP, SIGNED OR NOT, in the order they must be walked —
-                  so somebody looking at a half-signed bid can see what it is
-                  still waiting for rather than only how far it has come. The
-                  step LABEL is tenant-authored and never translated. */}
-              <ol className="mt-3 space-y-2">
-                {(review.plan?.steps || []).map((step) => {
-                  const sig = (tender?.approvals || []).find((a) => a.permission === step.permission);
-                  return (
-                    <li key={step.permission} className="flex flex-wrap items-baseline justify-between gap-2 border-s-2 ps-3 text-sm"
-                      style={{ borderInlineStartColor: sig ? "rgb(16 185 129)" : "rgb(148 163 184 / 0.4)" }}>
-                      <span className="text-slate-800 dark:text-slate-100">
-                        {step.label}
-                        {step.from > 0 && <span className="ms-2 num text-xs text-slate-400">≥ {money(step.from)}</span>}
-                      </span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
-                        {sig ? `${sig.byAlias || "—"} · ${fmtDateTime(sig.at)}` : tr.stepUnsigned}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
-              {/* Said rather than left as an absent button: somebody who raised
-                  the tender and holds the right will otherwise look for one. */}
-              {!review.next && !review.approved && review.mine && (
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.cannotSignOwnBid}</p>
+              {review.approval && (
+                <a href={`/${slug}/approvals`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openApprovals}</a>
               )}
-            </>
+            </div>
           )}
         </section>
       )}

@@ -205,7 +205,7 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     //   — register.approve, because checker holds `review` and invariant 7 is
     //     the reason it stops there.
     extras: [
-      "hr.vacations.approve", "tendering.tenders.approve",
+      "hr.vacations.approve",
       "procurement.requisitions.approve", "engineeringDocs.register.approve",
       "engagements.lock",
       // ONE MORE ANSWER, away from whoever raises the thing answered, which is
@@ -268,8 +268,8 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     home: "edit",
     note: "Estimator, Tendering Engineer, Bid Manager, Quantity Surveyor. Prices the work.",
     // "May price a bid" and "may commit the company to it" are different
-    // powers — the split tendering.tenders.approve already makes — so a bidder
-    // gets the register and the rate library and no approval extra.
+    // powers — who commits it is named in Approvals settings, not held as a
+    // right — so a bidder gets the register and the rate library.
     grants: [
       ["tendering.tenders", "full"], ["tendering.rates", "full"],
       ["crmSales.quotations", "edit"], ["inventory.items", "view"], ["engineeringDocs.rfq", "view"],

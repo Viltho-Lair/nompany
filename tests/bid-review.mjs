@@ -84,7 +84,7 @@ for (const [type, chain] of Object.entries(C.SEEDED_CHAINS).filter(([t]) => S.ST
 // existed the product shipped a seed its own editor would have rejected. The
 // pair below is what stops that flag becoming a blanket excuse: without it the
 // same chain is still a hole.
-const holed = { type: "tender", steps: [{ permission: "tendering.tenders.approve", from: 500, label: "Estimating" }] };
+const holed = { type: "requisition", steps: [{ permission: "procurement.requisitions.approve", from: 500, label: "Procurement" }] };
 ok("a chain with nothing at the bottom is refused",
   C.chainProblems(holed, ALL_PERMISSIONS).some((p) => /no approval at all/.test(p)));
 ok("...and accepted once it says that is the policy",
@@ -129,9 +129,12 @@ ok("nonsense on the studio is ignored",
 
 console.log("\n== what studio settings may write");
 
-const edited = { tender: { type: "tender", steps: [{ permission: "tendering.tenders.approve", from: 0, label: "Me" }] } };
+const edited = { requisition: { type: "requisition", steps: [{ permission: "procurement.requisitions.approve", from: 0, label: "Me" }] } };
 const saved = S.approvalChainOverrides(edited);
-ok("a tender chain may be saved there", saved.chains?.tender?.steps.length === 1);
+ok("a requisition chain may be saved there", saved.chains?.requisition?.steps.length === 1);
+// BIDS LEFT THIS EDITOR on 19/09/2026 too, for Approvals settings.
+const tenderHere = S.approvalChainOverrides({ tender: C.SEEDED_CHAINS.tender });
+ok("a bid chain is refused here now", typeof tenderHere.error === "string", JSON.stringify(tenderHere));
 
 // ONE DOOR PER TYPE. Bills and stock adjustments LEFT this editor on
 // 19/09/2026 for Approvals settings, where their steps name people; saving one
@@ -149,14 +152,14 @@ ok("a type nothing approves is refused rather than dropped, so nobody saves a sc
 // SETTING A CHAIN BACK TO ITS SEED OVER FINANCE'S OLD BLOB MUST BE STORED — the
 // legacy layer sits beneath the studio's, so dropping it would keep enforcing
 // the old chain behind a screen that says the built-in is in force.
-const legacyTender = { tender: { type: "tender", steps: [{ permission: "tendering.tenders.approve", from: 0, label: "Old" }] } };
-const reset = S.approvalChainOverrides({ tender: C.SEEDED_CHAINS.tender }, undefined, legacyTender);
-ok("a reset to the seed over a legacy chain is kept", reset.chains?.tender?.steps.length === 2, JSON.stringify(reset));
-ok("...and wins when read", S.approvalChainsFor({ approvalChains: reset.chains }, legacyTender).tender.steps.length === 2);
+const legacyReq = { requisition: { type: "requisition", steps: [{ permission: "procurement.requisitions.approve", from: 0, label: "Old" }] } };
+const reset = S.approvalChainOverrides({ requisition: C.SEEDED_CHAINS.requisition }, undefined, legacyReq);
+ok("a reset to the seed over a legacy chain is kept", reset.chains?.requisition?.steps.length === 2, JSON.stringify(reset));
+ok("...and wins when read", S.approvalChainsFor({ approvalChains: reset.chains }, legacyReq).requisition.steps.length === 2);
 
 // SAVING WITHOUT CHANGING ANYTHING MUST NOT FORK THE BUILT-IN, or merely
 // looking at the editor would stop a studio ever receiving a correction to it.
-const untouched = S.approvalChainOverrides({ tender: C.SEEDED_CHAINS.tender });
+const untouched = S.approvalChainOverrides({ requisition: C.SEEDED_CHAINS.requisition });
 ok("a chain identical to its seed is not stored at all",
   Object.keys(untouched.chains || {}).length === 0, JSON.stringify(untouched.chains));
 

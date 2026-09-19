@@ -82,6 +82,16 @@ export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
       { permission: "finance.payables.approveHigh", from: 50000, label: "Above the limit" },
     ],
   },
+  // A BID (Tendering → a tender's bill). Asked for beside the fully priced
+  // bill; approved, the tender may be submitted — while the bill still has the
+  // value the approval was for.
+  {
+    key: "bid", label: "Bid", requestable: true, amounted: true, legacyChain: "tender",
+    legacy: [
+      { permission: "tendering.tenders.approve", from: 0, label: "Estimating" },
+      { permission: "tendering.tenders.approveHigh", from: 500000, label: "Above the limit" },
+    ],
+  },
   { key: "carried", label: "Carried over", requestable: false },
 ];
 
