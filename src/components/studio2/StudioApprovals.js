@@ -67,10 +67,7 @@ function ApprovalList({ slug }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-800 text-[var(--geex-ink)]">{tr.title}</h1>
-        <p className={sub}>{tr.lead}</p>
-      </div>
+      <p className="text-sm text-slate-500 dark:text-slate-400">{tr.lead}</p>
 
       <div role="tablist" className="flex flex-wrap gap-2">
         {tabs.map(([key, text]) => (
@@ -215,8 +212,7 @@ function ApprovalSettings({ slug }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-800 text-[var(--geex-ink)]">{tr.settingsTitle}</h1>
-        <p className={sub}>{tr.settingsLead}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{tr.settingsLead}</p>
         {!data.canEdit && <p className={`${sub} font-600`}>{tr.readOnly}</p>}
       </div>
 

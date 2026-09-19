@@ -6,7 +6,6 @@ import { defaultLocale, type Locale } from "../locale";
 // rejection's reason — is data and is shown as typed.
 
 type Strings = {
-  title: string;
   lead: string;
   loading: string;
   cannotLoad: string;
@@ -34,16 +33,13 @@ type Strings = {
   reasonLabel: string;
   confirmReject: string;
   cancel: string;
-  settings: string;
   // settings
-  settingsTitle: string;
   settingsLead: string;
   noSettingsAccess: string;
   readOnly: string;
   notConfigured: string;
   edit: string;
   save: string;
-  saved: string;
   stepName: string;
   stepNamePlaceholder: string;
   approvers: string;
@@ -79,7 +75,6 @@ const TYPES_AR: Record<string, string> = {
 };
 
 const en: Strings = {
-  title: "Approvals",
   lead: "What is waiting on you, and how far your own requests have got.",
   loading: "Loading approvals…",
   cannotLoad: "Approvals could not be loaded. Try again in a moment.",
@@ -109,15 +104,12 @@ const en: Strings = {
   reasonLabel: "Why are you rejecting it?",
   confirmReject: "Reject",
   cancel: "Cancel",
-  settings: "Approval settings",
-  settingsTitle: "Approval settings",
   settingsLead: "Who answers each kind of approval, step by step. A change applies to new requests; ones already asked keep the steps they were asked with.",
   noSettingsAccess: "You do not have access to approval settings.",
   readOnly: "You can see these settings but not change them.",
   notConfigured: "Not set up — requests of this kind are refused until somebody is named.",
   edit: "Edit",
   save: "Save",
-  saved: "Saved.",
   stepName: "Step name",
   stepNamePlaceholder: "e.g. Finance",
   approvers: "Approvers",
@@ -152,7 +144,6 @@ const en: Strings = {
 };
 
 const ar: Strings = {
-  title: "الموافقات",
   lead: "ما ينتظر ردك، وإلى أين وصلت طلباتك.",
   loading: "جارٍ تحميل الموافقات…",
   cannotLoad: "تعذر تحميل الموافقات. حاول مرة أخرى بعد قليل.",
@@ -182,15 +173,12 @@ const ar: Strings = {
   reasonLabel: "لماذا ترفضها؟",
   confirmReject: "رفض",
   cancel: "إلغاء",
-  settings: "إعدادات الموافقات",
-  settingsTitle: "إعدادات الموافقات",
   settingsLead: "من يرد على كل نوع من الموافقات، خطوة بخطوة. يسري التغيير على الطلبات الجديدة؛ أما الطلبات القائمة فتبقى على الخطوات التي طُلبت بها.",
   noSettingsAccess: "لا تملك صلاحية الوصول إلى إعدادات الموافقات.",
   readOnly: "يمكنك الاطلاع على هذه الإعدادات دون تغييرها.",
   notConfigured: "غير معدّة — تُرفض طلبات هذا النوع حتى يُسمّى أحد للرد عليها.",
   edit: "تعديل",
   save: "حفظ",
-  saved: "تم الحفظ.",
   stepName: "اسم الخطوة",
   stepNamePlaceholder: "مثال: المالية",
   approvers: "المعتمدون",
