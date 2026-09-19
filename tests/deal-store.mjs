@@ -181,10 +181,10 @@ try {
   // PROMOTION RESPECTS THE DESTINATION'S SHAPE. Before this, promote validated
   // nothing, so a side entrance could create the exact state attachRecord
   // refuses at the front door.
-  await E.parkUnassigned(S, "task", "task_loose");
-  await E.promote(S, "task", "task_loose", "eng_derived_for_attach");
+  await E.parkUnassigned(S, "bill", "bill_loose");
+  await E.promote(S, "bill", "bill_loose", "eng_derived_for_attach");
   ok("promoting through an alias lands on the real deal",
-    (await E.listMembers(S, project.id, "task")).includes("task_loose"));
+    (await E.listMembers(S, project.id, "bill")).includes("bill_loose"));
 
   // A TYPE THAT WAS NEVER PARKABLE CANNOT BE PROMOTED, and this is the refusal
   // that actually fires. I first asserted the destination-cardinality case here
