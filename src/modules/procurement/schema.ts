@@ -14,8 +14,14 @@ export const RequisitionLineSchema = z.object({
    * price. Nobody has quoted anything at this point — that is the supplier RFQ,
    * a later bullet of this section — so calling it `unitPrice` would invite it
    * to be read as agreed.
+   *
+   * BLANK IS STORED AS BLANK (19/09/2026). "Nobody has said" and "expected to
+   * cost nothing" are different answers, and `requisitionTotals` tells them
+   * apart — but the line was coerced to 0 on the way in, so no stored request
+   * was ever part-estimated and a blank price always routed low (the audit's
+   * gap 9). An empty string is the blank.
    */
-  estUnitCost: z.number(),
+  estUnitCost: z.union([z.number(), z.literal("")]),
   /** A Registered Item, when the request names one. Frequently blank. */
   itemId: z.string().max(60),
 });

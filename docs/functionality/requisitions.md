@@ -33,7 +33,7 @@ type they are whoever held `procurement.requisitions.approve` (from 0) and `.app
 catalogue. The last yes makes it **Approved**; a no makes it **Rejected** with the reason.
 Nobody named refuses the submit in words (`not-configured`, `no-approver`) and leaves it a
 draft. **A request with an unestimated line is asked of every step**, because an amount nobody
-knows is under no limit — the audit's gap 9, where blank prices routed a request low. A request
+knows is under no limit — the audit's gap 9, where blank prices routed a request low. **A blank estimate is stored as blank**: it was coerced to 0 on the way in, so no stored request was ever part-estimated and that gap was open on every one. A request
 submitted before that day gets its approval the first time the register is read, carrying its
 signatures. **A request cancelled while its approval waits** refuses a later yes on the
 Approvals page (`already-decided`); the approver turns it down instead.

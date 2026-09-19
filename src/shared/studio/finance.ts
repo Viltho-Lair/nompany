@@ -813,7 +813,7 @@ const en: Strings = {
   setupTitle: "Finance is not fully set up yet",
   setupItem: (key) => ({
     country: "Choose the studio's country. Its tax rules and what its invoices must carry come from it.",
-    currency: "Set the studio's currency. The books are kept in it, and bills and bids cannot be approved without it.",
+    currency: "Set the studio's currency. The books are kept in it, and a bill or bid in another currency cannot be judged against an approval limit without it.",
     vat: "No VAT rate is set, so no document carries tax. That is right only if the studio is not registered for VAT.",
     einvoice: "Your country requires e-invoicing, and nompany does not submit invoices to the tax authority yet. Issue them through the authority's own system meanwhile — Finance → Tax lists what still needs to reach it.",
   } as Record<string, string>)[key] || key,
@@ -1279,7 +1279,7 @@ const ar: Strings = {
   setupTitle: "إعداد المالية لم يكتمل بعد",
   setupItem: (key) => ({
     country: "اختر دولة الاستوديو. منها تأتي قواعد الضريبة وما يجب أن تحمله فواتيره.",
-    currency: "حدد عملة الاستوديو. بها تمسك الدفاتر، ولا تعتمد فواتير الموردين والعطاءات بدونها.",
+    currency: "حدد عملة الاستوديو. بها تمسك الدفاتر، ولا تقاس فاتورة أو عطاء بعملة أخرى على حد اعتماد بدونها.",
     vat: "لم تحدد نسبة ضريبة القيمة المضافة، فلا يحمل أي مستند ضريبة. وهذا صحيح فقط إن لم يكن الاستوديو مسجلا فيها.",
     einvoice: "تشترط دولتك الفوترة الالكترونية، ولا يرسل نومباني الفواتير الى الجهة الضريبية بعد. أصدرها عبر نظام الجهة نفسه في الأثناء — المالية ← الضرائب تعرض ما لم يصل بعد.",
   } as Record<string, string>)[key] || key,

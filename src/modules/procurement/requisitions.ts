@@ -76,7 +76,8 @@ function cleanLines(raw: unknown): RequisitionLine[] {
       description: str((l as RequisitionLine).description, 400),
       unit: str((l as RequisitionLine).unit, 40),
       qty: num((l as RequisitionLine).qty),
-      estUnitCost: num((l as RequisitionLine).estUnitCost),
+      // BLANK STAYS BLANK — see the schema: nought is a price and a blank is not.
+      estUnitCost: String((l as RequisitionLine).estUnitCost ?? "").trim() === "" ? "" : num((l as RequisitionLine).estUnitCost),
       itemId: str((l as RequisitionLine).itemId, 60),
     }));
 }
