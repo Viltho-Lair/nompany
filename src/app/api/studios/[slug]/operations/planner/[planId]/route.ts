@@ -25,5 +25,5 @@ export const PUT = route({ ...spec, body: true }, async (c) => {
   // grant) so the access audit sees operations.planner.edit reach a guard.
   const denied = requirePermission(c.access, "projects.planner.edit");
   if (denied) return denied;
-  return savePlan(c.studio.id, c.params.planId, c.body?.plan);
+  return savePlan(c.studio.id, c.params.planId, c.body?.plan, c.collaborator.id);
 });

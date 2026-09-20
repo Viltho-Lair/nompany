@@ -78,6 +78,9 @@ export const ID = {
   // app. Server-minted (unlike the board's client-side ids) because a plan is a
   // studio-level record that both doors list.
   plan: () => makeId("pln"),
+  // One entry in a plan's change history — one editing session by one person,
+  // not one autosave (see modules/operations/planChanges).
+  planChange: () => makeId("plc"),
   row: (collection: string) => makeId(collection.slice(0, 3)),
   // An engagement — the umbrella a Tier-B record (project, job, …) opens over
   // the Tier-A records it draws in. See the approved engagement storage spec.
@@ -572,6 +575,12 @@ export const PROJECT = {
 export const PLAN = {
   index: (studioId: string) => `${P}s:${studioId}:plans`,
   doc: (studioId: string, planId: string) => `${P}s:${studioId}:plan:${planId}`,
+  // WHAT CHANGED AND WHO CHANGED IT (modules/operations/planChanges), one
+  // capped list per plan. Its own key rather than a field on the document
+  // because the document is written WHOLE on every autosave: history inside it
+  // would be rewritten six hundred times an hour and lost to any save that
+  // raced. Dies with the plan — removeProjectPlans and deletePlan clear it.
+  history: (studioId: string, planId: string) => `${P}s:${studioId}:plan:${planId}:history`,
 };
 
 // A studio's editable WBS TEMPLATES — the presets a new plan starts from. Seeded

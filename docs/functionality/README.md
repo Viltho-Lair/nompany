@@ -65,6 +65,7 @@ Three rules that keep this folder worth reading:
 | [nova-insights.md](nova-insights.md) | Nova's speech bubble: what it may say, where it reads from, and what it never volunteers |
 | [official-values.md](official-values.md) | A country's registration, tax and address details: one definition file per country, the Owner-only country choice, validation and checksums, the resolver that prints a value only when selected, filled and applicable, the change history, and how to add a country |
 | [pg-gateway.md](pg-gateway.md) | Reaching Cloud SQL from Vercel: the Cloud Run service, one call one transaction, and the guards re-run server-side |
+| [plan-history.md](plan-history.md) | What changed in a project plan, when and by whom: one entry per editing session rather than per autosave, and why a view change is not a change |
 | [pipeline.md](pipeline.md) | The sales funnel: the stages a deal moves through, the moves that are refused, how long it has sat where it is, and why it ended |
 | [pos.md](pos.md) | The point of sale: tills, shifts and receipts, why the server prices the basket, tax taken out of a shelf price, stock by expiry, and the end-of-day report |
 | [pricing.md](pricing.md) | What a quotation line is priced at: the customer's agreed rate, the studio's sell price, or cost — and how each is shown |

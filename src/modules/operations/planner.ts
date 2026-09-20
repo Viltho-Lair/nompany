@@ -8,6 +8,7 @@
 // lives in the two route trees; this module does storage and the create seam.
 
 import { editJSON, editArr, getJSON, delKeys } from "@/platform/db/store";
+import { appendHistory, planChanges, type PlanHistoryEntry } from "./planChanges";
 import { PLAN, PLAN_TEMPLATE, ID } from "@/platform/db/keys";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -145,6 +146,26 @@ export async function readPlan(studioId: string, planId: string) {
   return (await getJSON<Record<string, unknown>>(PLAN.doc(studioId, planId))) || null;
 }
 
+/**
+ * WHAT HAS BEEN DONE TO THIS PLAN, newest first, with each entry's author
+ * resolved to a name here rather than on the screen — the ids mean nothing to
+ * a reader, and the screen holding a second copy of the studio's people is how
+ * two lists of the same thing start to disagree. Somebody since removed from
+ * the studio still did the work, so an unresolved id reads as its own entry
+ * with no name rather than vanishing.
+ */
+export async function planHistory(studioId: string, planId: string) {
+  const [rows, people] = await Promise.all([
+    getJSON<PlanHistoryEntry[]>(PLAN.history(studioId, planId)),
+    planPeople(studioId),
+  ]);
+  const nameOf = new Map(people.map((p) => [p.id, p.name]));
+  return (Array.isArray(rows) ? rows : []).map((e) => ({
+    ...e,
+    byName: nameOf.get(e.byCollaboratorId) || "",
+  }));
+}
+
 // THE PEOPLE A PLAN CAN ASSIGN WORK TO — the studio's current collaborators,
 // read live so a plan always names who is actually in the studio now rather than
 // a pool copied into it once. Returned to both plan doors (the app and a
@@ -238,11 +259,14 @@ export async function createStandalonePlan(studioId: string, byCollaboratorId: s
  * name/status/updatedAt in step, so the list reflects edits without opening each
  * plan. Refuses a plan that does not exist rather than resurrecting a deleted one.
  */
-export async function savePlan(studioId: string, planId: string, plan: unknown) {
+export async function savePlan(studioId: string, planId: string, plan: unknown, byCollaboratorId = "") {
   if (!plan || typeof plan !== "object" || Array.isArray(plan)) return { error: "plan" };
   const existing = await getJSON<Record<string, unknown>>(PLAN.doc(studioId, planId));
   if (!existing) return { error: "notfound" };
   if (JSON.stringify(plan).length > PLAN_MAX_BYTES) return { error: "too-large" };
+  // WHAT THIS SAVE DID, decided BEFORE the write and from the document that is
+  // actually stored — never from anything the browser claims it changed.
+  const changes = planChanges(existing, plan);
   await editJSON(PLAN.doc(studioId, planId), () => ({ next: plan }));
 
   const meta = (plan as { meta?: { name?: unknown; status?: unknown } }).meta || {};
@@ -256,6 +280,19 @@ export async function savePlan(studioId: string, planId: string, plan: unknown) 
     next: rows.map((r) =>
       r.id === planId ? { ...r, name: name || r.name, status: status || r.status, progress, updatedAt: now } : r),
   }));
+
+  // THE HISTORY IS BEST-EFFORT AND LAST. A plan that saved must not fail
+  // because its record of the save could not be written, and appendHistory
+  // returns the list untouched when this save changed nothing it records — a
+  // zoom change and a column toggle both PUT the whole document.
+  if (changes.length) {
+    const taskCount = Array.isArray((plan as { tasks?: unknown }).tasks) ? ((plan as { tasks: unknown[] }).tasks).length : 0;
+    try {
+      await editArr<PlanHistoryEntry>(PLAN.history(studioId, planId), (rows) => ({
+        next: appendHistory(rows, { id: ID.planChange(), at: now, byCollaboratorId, changes, taskCount }),
+      }));
+    } catch { /* the plan is saved; the note about it is not worth failing over */ }
+  }
   return { ok: true };
 }
 
@@ -267,7 +304,7 @@ export async function savePlan(studioId: string, planId: string, plan: unknown) 
 export async function removeProjectPlans(studioId: string, projectId: string) {
   const mine = (await listStudioPlans(studioId)).filter((p) => p.projectId === projectId);
   if (!mine.length) return;
-  await delKeys(mine.map((p) => PLAN.doc(studioId, p.id)));
+  await delKeys(mine.flatMap((p) => [PLAN.doc(studioId, p.id), PLAN.history(studioId, p.id)]));
   await editArr<PlanSummary>(PLAN.index(studioId), (all) => ({ next: all.filter((p) => p.projectId !== projectId) }));
 }
 

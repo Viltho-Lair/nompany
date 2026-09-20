@@ -198,6 +198,22 @@ type Strings = CommonStrings & {
   viewDefaultsHeading: string;
   viewGrid: string;
   viewOnly: string;
+  // ---- the change history panel (modules/operations/planChanges) ----------
+  history: string;
+  historyLead: string;
+  historyEmpty: string;
+  historyFailed: string;
+  historyLoading: string;
+  historyClose: string;
+  historyUnknownPerson: string;
+  historyMore: (n: number) => string;
+  historyTasksNow: (n: number) => string;
+  historyFields: Record<string, string>;
+  changeAdded: (name: string) => string;
+  changeRemoved: (name: string) => string;
+  changeField: (name: string, field: string, from: string, to: string) => string;
+  changePlan: (field: string, from: string, to: string) => string;
+  changeNothing: string;
   viewOnlyAccessPlan: string;
   viewSplit: string;
   viewTimeline: string;
@@ -403,6 +419,26 @@ const en: Strings = {
   viewDefaultsHeading: "View defaults",
   viewGrid: "Information table",
   viewOnly: "View only",
+  history: "History",
+  historyLead: "What has been changed in this plan, newest first. Edits made close together by one person are shown as one entry.",
+  historyEmpty: "Nothing has been changed since this plan started keeping a history.",
+  historyFailed: "The history could not be loaded.",
+  historyLoading: "Loading the history…",
+  historyClose: "Close",
+  historyUnknownPerson: "Someone no longer in the studio",
+  historyMore: (n) => `and ${n} more ${n === 1 ? "change" : "changes"}`,
+  historyTasksNow: (n) => `${n} ${n === 1 ? "task" : "tasks"} after this`,
+  historyFields: {
+    name: "name", start: "start", duration: "duration", durationUnit: "duration unit",
+    percentComplete: "progress", status: "status", priority: "priority", milestone: "milestone",
+    parentId: "parent", assigneeIds: "assignees", dependencies: "depends on",
+    effortHours: "effort", notes: "notes",
+  },
+  changeAdded: (name) => `Added "${name}"`,
+  changeRemoved: (name) => `Removed "${name}"`,
+  changeField: (name, field, from, to) => `${name} — ${field}: ${from || "—"} → ${to || "—"}`,
+  changePlan: (field, from, to) => `Plan ${field}: ${from || "—"} → ${to || "—"}`,
+  changeNothing: "(nothing)",
   viewOnlyAccessPlan: "You have view-only access to this plan — changes you make here are not saved.",
   viewSplit: "Split",
   viewTimeline: "Waterfall",
@@ -624,6 +660,26 @@ const ar: Strings = {
   viewDefaultsHeading: "الإعدادات الافتراضية للعرض",
   viewGrid: "جدول المعلومات",
   viewOnly: "عرض فقط",
+  history: "السجل",
+  historyLead: "ما تغيّر في هذه الخطة، الأحدث أولًا. التعديلات المتقاربة من الشخص نفسه تظهر كإدخال واحد.",
+  historyEmpty: "لم يتغير شيء منذ أن بدأت هذه الخطة بحفظ سجلها.",
+  historyFailed: "تعذر تحميل السجل.",
+  historyLoading: "جارٍ تحميل السجل…",
+  historyClose: "إغلاق",
+  historyUnknownPerson: "شخص لم يعد في المنشأة",
+  historyMore: (n) => `و${n === 1 ? "تغيير واحد" : n === 2 ? "تغييران" : n <= 10 ? `${n} تغييرات` : `${n} تغييرًا`} أخرى`,
+  historyTasksNow: (n) => `${n === 1 ? "مهمة واحدة" : n === 2 ? "مهمتان" : n <= 10 ? `${n} مهام` : `${n} مهمة`} بعد ذلك`,
+  historyFields: {
+    name: "الاسم", start: "البداية", duration: "المدة", durationUnit: "وحدة المدة",
+    percentComplete: "نسبة الإنجاز", status: "الحالة", priority: "الأولوية", milestone: "معلم",
+    parentId: "المهمة الأم", assigneeIds: "المسؤولون", dependencies: "يعتمد على",
+    effortHours: "الجهد", notes: "ملاحظات",
+  },
+  changeAdded: (name) => `أُضيفت "${name}"`,
+  changeRemoved: (name) => `حُذفت "${name}"`,
+  changeField: (name, field, from, to) => `${name} — ${field}: ${from || "—"} ← ${to || "—"}`,
+  changePlan: (field, from, to) => `الخطة ${field}: ${from || "—"} ← ${to || "—"}`,
+  changeNothing: "(لا شيء)",
   viewOnlyAccessPlan: "وصولك إلى هذا المخطط للعرض فقط — والتغييرات التي تجريها هنا لا تحفظ.",
   viewSplit: "مقسم",
   viewTimeline: "المخطط الزمني",

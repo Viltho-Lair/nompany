@@ -31,5 +31,5 @@ export const PUT = route({ ...spec, body: true }, async (c) => {
   const denied = requirePermission(c.access, "projects.list.edit");
   if (denied) return denied;
   if (!(await ownsPlan(c.studio.id, c.params.projectId, c.params.planId))) return { error: "notfound" };
-  return savePlan(c.studio.id, c.params.planId, c.body?.plan);
+  return savePlan(c.studio.id, c.params.planId, c.body?.plan, c.collaborator.id);
 });

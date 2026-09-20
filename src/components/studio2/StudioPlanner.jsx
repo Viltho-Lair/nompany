@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import nextDynamic from "next/dynamic";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { plannerDict } from "@/shared/studio/planner";
 import "@/components/planner/planner.css";
@@ -93,6 +94,11 @@ export function peopleToResources(people, tr) {
 
 const DEBOUNCE_MS = 600;
 
+// THE HISTORY PANEL IS ITS OWN CHUNK. Most visits to a plan never open it, and
+// this is a client module, so the import() is a real lazy boundary (see
+// HeavyScreens.jsx for why the same call in a Server Component is not).
+const PlanHistory = nextDynamic(() => import("@/components/studio2/PlanHistory"), { ssr: false });
+
 // `slug` IS PASSED NOW, and it did not used to be: this comment used to say the
 // planner had nothing to do with the tenant's address beyond the URL it was
 // handed, because `planApiBase` carried the slug and the plan document was the
@@ -117,6 +123,7 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel }
   // swallowed, so an edit that will not persist is not silently lost — the old
   // fire-and-forget PUT reverted such edits on reload with no word to anyone.
   const [saveFailed, setSaveFailed] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const hydratedRef = useRef(false);
 
   // WARM THE DATE CHUNK. planner/cells reaches the picker through `import()`
@@ -228,11 +235,23 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel }
           </p>
         </div>
 
-        {!state.loading && !state.canEdit && (
-          <span className="ms-auto rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500">
-            {tr.viewOnly}
-          </span>
-        )}
+        <span className="ms-auto flex items-center gap-2">
+          {!state.loading && !state.canEdit && (
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500">
+              {tr.viewOnly}
+            </span>
+          )}
+          {/* WHO CHANGED WHAT, for anybody who may open the plan — reading the
+              record of a change is not a second power over it, and the panel
+              fetches only when it is opened. */}
+          {!state.loading && !state.error && (
+            <button type="button" onClick={() => setHistoryOpen((v) => !v)}
+              aria-expanded={historyOpen}
+              className="inline-flex h-9 items-center rounded-full border border-slate-200 px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50">
+              {tr.history}
+            </button>
+          )}
+        </span>
       </header>
 
       {/* A plain reason the plan is not saving. Read-only comes first — an edit a
@@ -250,7 +269,10 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel }
       )}
 
       {/* ---- the ported planner, inside its scoped design-system root ---- */}
-      <div className="min-h-0 flex-1">
+      {/* Positioned, so the history panel sits OVER the planner rather than
+          squeezing the Gantt into a narrower column while it is open. */}
+      <div className="relative min-h-0 flex-1">
+        {historyOpen && <PlanHistory planApiBase={planApiBase} onClose={() => setHistoryOpen(false)} />}
         <div className="planner-root h-full">
           {state.loading ? (
             <PlannerLoading />
