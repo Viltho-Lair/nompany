@@ -10,7 +10,7 @@ import { contribute, emptyContext, CONTEXT_FACTS, rankOf } from "../engagement/c
 import { templateById } from "../engagement/templates";
 // SIBLINGS IMPORT EACH OTHER RELATIVELY (CLAUDE.md) — `flows` is this folder's
 // own, and it is where a studio's stored templates and industries live.
-import { defaultTemplateForStudio, industryKeyOf, listFlowTemplates } from "./flows";
+import { defaultTemplateForStudio, defaultTemplateForTrade, industryKeyOf, listFlowTemplates } from "./flows";
 import { attachmentProblem, canSitUnassigned, promotionProblem } from "../engagement/membership";
 import { record as recordAudit } from "@/platform/http/audit";
 import type { DealContext, ContextProvenance, ContextSource, ContributionResult } from "../engagement/context";
@@ -693,8 +693,12 @@ async function freezeTemplate(studioId: string, dealId: string): Promise<void> {
   try {
     const root = await readEngagement(studioId, dealId);
     const industryKey = industryKeyOf(root?.context as Record<string, unknown> | undefined);
-    if (!industryKey) return;
-    const primary = await defaultTemplateForStudio(studioId, industryKey);
+    // THE DEAL'S OWN INDUSTRY FIRST, THEN THE STUDIO'S TRADE. A deal carries its
+    // CLIENT's industry, which is a different vocabulary from the trade the map
+    // is keyed by — see `defaultTemplateForTrade`, which is why almost every
+    // deal used to fall back to Template A whatever the map said.
+    const primary = (industryKey ? await defaultTemplateForStudio(studioId, industryKey) : "")
+      || await defaultTemplateForTrade(studioId);
     if (!primary) return;
     // THE STUDIO'S OWN LIST, not the built-ins: a studio that cloned a template
     // and pointed its industry at the clone would otherwise be refused here and

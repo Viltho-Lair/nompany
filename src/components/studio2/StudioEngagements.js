@@ -838,7 +838,7 @@ function EngagementDetail({ slug, block, loading, error }) {
             {stageLabel(block.nextAction.step.type, block.nextAction.step.label, locale)}
           </span>
           <span className="text-xs text-slate-400 dark:text-slate-500">
-            {tr.nextStepIn(sectionName(block.nextAction.step.sectionKey, block.nextAction.step.sectionKey, locale))}
+            {tr.nextStepIn(sectionName(block.nextAction.step.sectionKey, block.nextAction.step.sectionName || block.nextAction.step.sectionKey, locale))}
           </span>
           {block.nextAction.actionable && (
             <Link

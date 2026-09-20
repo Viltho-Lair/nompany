@@ -225,6 +225,32 @@ export async function defaultTemplateForStudio(studioId: string, industryKey: st
   return (await getIndustry(studioId, industryKey))?.primary || "";
 }
 
+/**
+ * THE FLOW THIS STUDIO'S OWN TRADE STARTS ON.
+ *
+ * A DEAL'S "INDUSTRY" IS ITS CLIENT'S, NOT THE STUDIO'S — and that is why the
+ * industry map was reaching almost nothing. The engagement's context carries the
+ * ticket's `industry`, which comes from the studio's CLIENT-industry taxonomy
+ * ("Residential", "Commercial", "Banking"): a way of segmenting customers. The
+ * industry map is keyed by TRADE ("construction-and-contracting") — what the
+ * STUDIO does. The two never matched, `getIndustry` answered null for every
+ * live deal, and every deal fell back to Template A however the map was edited.
+ * Found while watching a real deal open, 20/09/2026.
+ *
+ * So the deal's own industry is still asked first — a studio may legitimately
+ * key a row to the way it segments work — and this is what answers when it does
+ * not: the studio's field of work, joined to the map by `IndustryEntry.field`,
+ * which is the same join `dealSpineFor` already uses at creation to decide the
+ * studio's departments. One studio, one trade, one flow its work starts on.
+ */
+export async function defaultTemplateForTrade(studioId: string): Promise<string> {
+  const studios = await readArr<{ id: string; fieldOfWork?: string }>(REG.studios);
+  const field = String(studios.find((s) => s.id === studioId)?.fieldOfWork || "");
+  if (!field) return "";
+  const match = (await listIndustries(studioId)).find((i) => i.field === field);
+  return match?.primary || "";
+}
+
 // ---- which flow a deal walks ------------------------------------------------
 
 /**

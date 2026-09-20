@@ -155,7 +155,11 @@ ok("…with the flows that trade starts on and also runs, and no others",
 // live deals are on would hide the thing the screen exists to explain.
 const walking = narrow(INDUSTRIES, FLOW_TEMPLATES, contractor.field, { deals: { C: 4 } });
 ok("a flow live deals walk stays listed", walking.templates.some((t) => t.id === "C"));
-ok("…and so does the trade that starts on it", walking.industries.some((i) => i.primary === "C"));
+// …but not every trade that happens to start on it: the flow is shared, the
+// trades are not, and keeping them put nine on a contractor's screen.
+ok("…without dragging in every trade that starts on it",
+  walking.industries.length === 1 && walking.industries[0].key === contractor.key,
+  walking.industries.map((i) => i.key).join(","));
 
 // A row THIS studio wrote is always its own business; one added in the console
 // is not, or every studio would see it the day it was added.

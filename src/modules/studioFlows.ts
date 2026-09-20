@@ -152,10 +152,14 @@ export function narrow(
   const builtInTemplate = new Set(FLOW_TEMPLATES.map((t) => t.id));
   const walked = new Set(Object.keys(usage?.deals || {}));
 
+  // A TRADE EARNS ITS PLACE BY BEING THIS STUDIO'S, never by pointing at a
+  // flow somebody is walking. Keeping every trade whose default is Template A
+  // put nine of them on a contractor's screen — the flow is shared, the trades
+  // are not, and the list is about what this studio does. The FLOW in use is
+  // kept below, which is the part that was actually worth protecting.
   const keep = industries.filter((i) => (
     (field && i.field === field)          // the trade this studio said it does
     || own.has(i.key)                     // a row THIS studio wrote for itself
-    || walked.has(i.primary)              // work is already walking its flow
   ));
 
   const named = new Set<string>();

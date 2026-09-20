@@ -65,7 +65,7 @@ type EngagementCtx = {
    * way an unreadable one is — see `visibleStageTypes`. Optional because the
    * cascade resolves a bare context; absent, nothing is switched off.
    */
-  sections?: readonly SwitchRow[];
+  sections?: readonly (SwitchRow & { name?: string })[];
 };
 
 /**
@@ -282,7 +282,7 @@ export async function listEngagements(
 export async function engagementBlock(
   ctx: EngagementCtx,
   engId: string,
-): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; statusType: string; templateId: string; templateName: string; locked: boolean; cards: StageCard[]; progress: FlowProgress | null; nextAction: { step: FlowStep; actionable: boolean } | null } } | Refusal | { error: "notfound" | "forbidden" }> {
+): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; statusType: string; templateId: string; templateName: string; locked: boolean; cards: StageCard[]; progress: FlowProgress | null; nextAction: { step: FlowStep & { sectionName: string }; actionable: boolean } | null } } | Refusal | { error: "notfound" | "forbidden" }> {
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
@@ -378,8 +378,24 @@ export async function engagementBlock(
   // is a deal whose industry named a template this studio has since deleted, or
   // one imported before templates existed. The cards still render from the
   // registry; there is simply no sequence to be at a point in.
-  const nextAction = progress
+  const next = progress
     ? nextActionFor(progress, (key) => !requirePermission(ctx.access, key as PermissionKey))
+    : null;
+  // WHAT THE STUDIO CALLS THE SCREEN THE NEXT STEP IS TAKEN ON. Without it the
+  // deal read "Add the RFQ in quotations-rfq" — a key, spelled out, to somebody
+  // who has never seen one. A section's name is the tenant's own data (it is
+  // never translated), so it comes off their row rather than from a dictionary;
+  // the key remains as the fallback, which is what a studio missing that row
+  // would have shown anyway.
+  const nextAction = next
+    ? {
+      ...next,
+      step: {
+        ...next.step,
+        sectionName: (ctx.sections || []).find((s) => s.key === next.step.sectionKey)?.name
+          || next.step.sectionKey,
+      },
+    }
     : null;
   // Live, not the stored copy — see clientNameById's comment. One lookup for
   // the single engagement this block renders.

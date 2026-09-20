@@ -100,7 +100,13 @@ const createKeyFor = (permission: string): string => {
 const stepOf = (type: string, info: StageInfo): FlowStep => ({
   type,
   label: info.label,
-  sectionKey: info.sectionKey,
+  // WHERE THE WORK IS DONE, WHICH IS NOT ALWAYS WHERE IT IS FILED. The screen
+  // prints this and links to it, and a filed-only row is neither a name nor an
+  // address: a deal invited its reader to "Add the RFQ in engineering-docs-rfq"
+  // — the storage key, spelled out — and the link led to a screen that does not
+  // exist. The RFQ desk is `quotations-rfq`, and `screenKey` has said so all
+  // along (20/09/2026).
+  sectionKey: info.screenKey || info.sectionKey,
   permission: info.permission,
   createPermission: createKeyFor(info.permission),
 });
