@@ -577,14 +577,19 @@ async function studioSetup() {
     engAll.status === 200 && engAll.body?.may?.documents === true,
     `${engAll.status} ${JSON.stringify(engAll.body?.may)}`);
 
+  // A SWITCHED-OFF DEPARTMENT'S ADDRESS DOES NOT ANSWER AT ALL since 20/09/2026
+  // (platform/http/sectionRoutes): the refusal moved from "every block reads
+  // nothing" to "there is nothing here", which is the stronger property and the
+  // one the owner asked for. It is `section-off` rather than `forbidden`,
+  // because the reader holds every right in the studio and no right would help.
   const proc = await procOf(slug);
-  ok("Procurement is off, so its dashboard reads no block — owner included",
-    proc.status === 200 && PARTS.every((k) => proc.body?.may?.[k] === false && !proc.body?.[k]),
-    `${proc.status} ${JSON.stringify(proc.body?.may)}`);
+  ok("Procurement is off, so its dashboard does not answer — owner included",
+    proc.status === 404 && proc.body?.error === "section-off",
+    `${proc.status} ${JSON.stringify(proc.body)}`);
   const eng = await engOf(slug);
-  ok("Engineering is off, so its dashboard reads no register — owner included",
-    eng.status === 200 && eng.body?.may && !Object.values(eng.body.may).some(Boolean) && eng.body.documents === null,
-    `${eng.status} ${JSON.stringify(eng.body?.may)}`);
+  ok("Engineering is off, so its dashboard does not answer — owner included",
+    eng.status === 404 && eng.body?.error === "section-off",
+    `${eng.status} ${JSON.stringify(eng.body)}`);
 
   // ---- no choice at all keeps the old behaviour ------------------------------
   // A second studio would hit the free-plan cap, so the old path is proven on
