@@ -10,6 +10,7 @@
 // THE TWO GATES ARE ASKED HERE, together, so neither caller can forget one.
 
 import { can } from "@/platform/access";
+import { switchboard } from "@/lib/dashboardWidgets";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey } from "@/platform/db/sections";
 import { invoiceTotals } from "@/modules/finance/finance";
@@ -39,12 +40,30 @@ const DERIVE: Record<string, (row: Record<string, unknown>, currency: unknown) =
 
 export type DatasetRead =
   | { error: "forbidden"; key: string }
+  | { error: "section-off"; section: string }
   | { rows: Record<string, unknown>[] };
 
 export async function readDataset(
-  ctx: { studio: { id: string; currency?: unknown }; access: PermissionSet },
+  ctx: {
+    studio: { id: string; currency?: unknown };
+    access: PermissionSet;
+    /** Every stored section row — studioContext's list, disabled ones included. */
+    sections?: readonly { id?: string; key: string; parentId?: string | null; enabled?: boolean }[];
+  },
   dataset: DataSet,
 ): Promise<DatasetRead> {
+  // THE FIRST GATE IS WHAT THE STUDIO RUNS (20/09/2026). A part the owner
+  // switched off has no screens, and its rows must not leave by the export, the
+  // report builder or a saved report either — the board already drops its tile
+  // before reading. Refused rather than answered empty: an empty file reads as
+  // "there is nothing", and there may be a great deal.
+  //
+  // `sections` is optional because one caller resolves a bare context without
+  // them; absent, nothing is switched off, which is what a studio that has
+  // never switched anything looks like.
+  if (ctx.sections && !switchboard(ctx.sections)(dataset.switch)) {
+    return { error: "section-off", section: dataset.switch };
+  }
   // THE SECOND GATE. Named in the refusal so somebody told "no" knows which
   // right to ask for — a bare `forbidden` on a screen listing eight data sets
   // says nothing about which one.

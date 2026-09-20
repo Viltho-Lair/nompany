@@ -47,8 +47,14 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   // somebody told "no" knows which right to ask for. A studio with no such
   // section gets an EMPTY FILE rather than an error — the header row still
   // tells them what the columns are.
+  // A SET WHOSE PART THE STUDIO HAS SWITCHED OFF is 404 rather than 403: the
+  // department is not part of this studio's product, so there is no right to
+  // ask for. Refused rather than downloaded empty — a blank file reads as "we
+  // have none of these", and there may be years of them.
   const read = await readDataset(context, dataset);
-  if ("error" in read) return Response.json(read, { status: 403 });
+  if ("error" in read) {
+    return Response.json(read, { status: read.error === "section-off" ? 404 : 403 });
+  }
   const { rows } = read;
 
   // THE BOM IS NOT DECORATION. Excel on Windows reads a UTF-8 CSV as the system

@@ -2,8 +2,8 @@ import { route } from "@/platform/http/route";
 import { can, type PermissionKey } from "@/platform/access";
 import { STOCK_ALERT_RIGHT } from "@/modules/inventory/stockAlerts";
 import {
-  inventoryContext, listVendors, listItems, listMovements, listOrders, listDeliveries,
-  openProjects, stockValue, listProjectSheets, ORDER_STATUSES, DELIVERY_STATUSES,
+  inventoryContext, listVendors, listItems, listMovements, listOrders,
+  openProjects, stockValue, listProjectSheets, ORDER_STATUSES,
 } from "@/modules/inventory/inventory";
 import { unitsFor } from "@/modules/administration/units";
 import { listShipments, listAirlines } from "@/modules/inventory/awbTracking";
@@ -28,17 +28,19 @@ export const GET = route(
   //   projects   the air-waybill screen's project picker
   //   shipments, airlines   Logistics → Shipments
   //   sheets     Inventory → Project sheets
-  //   deliveries Procurement → Receiving, where delivery notes belong. NO SCREEN
-  //              READS THEM FROM THIS RESPONSE today; they are kept on the
-  //              shape and gated rather than dropped, which is its own change.
+  //
+  // DELIVERY NOTES ARE NOT HERE ANY MORE (20/09/2026). This response carried the
+  // whole list — read from the store and sent to every reader of the Inventory
+  // screen — and no screen had drawn it since the sheet workspace replaced the
+  // hand-raised delivery note. They are still WRITTEN (deliveries/route.ts:
+  // create, issue, cancel); what is gone is a list nothing listed.
   const on = g.on;
   const shipmentsOn = on("logistics-shipments");
-  const [vendors, items, movements, orders, deliveries, projects, shipments, airlines, sheets] = await Promise.all([
+  const [vendors, items, movements, orders, projects, shipments, airlines, sheets] = await Promise.all([
     on("inventory-items") ? listVendors(g) : Promise.resolve([]),
     on("inventory-items") || on("inventory-stock") ? listItems(g) : Promise.resolve([]),
     on("inventory-stock") ? listMovements(g) : Promise.resolve([]),
     on("procurement-orders") ? listOrders(g) : Promise.resolve([]),
-    on("procurement-receiving") ? listDeliveries(g) : Promise.resolve([]),
     shipmentsOn ? openProjects(g) : Promise.resolve([]),
     shipmentsOn ? listShipments(g) : Promise.resolve([]),
     shipmentsOn ? listAirlines(g) : Promise.resolve([]),
@@ -68,7 +70,7 @@ export const GET = route(
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.
     manage: g.manage,
-    vendors, items, movements, orders, deliveries, projects, shipments, airlines, sheets,
+    vendors, items, movements, orders, projects, shipments, airlines, sheets,
     summary: {
       items: items.length,
       low: items.filter((i) => i.low).length,
@@ -83,7 +85,7 @@ export const GET = route(
       // THE STUDIO'S OWN UNITS, not a fixed eight — the form offers exactly
       // what `createItem` will accept, which is the whole point of resolving
       // them in one pure place.
-      orderStatuses: ORDER_STATUSES, deliveryStatuses: DELIVERY_STATUSES,
+      orderStatuses: ORDER_STATUSES,
       units: unitsFor(g.studio.units, g.studio.unitsOff),
       awbStatuses: AWB_STATUS,
       // The studio's own service actions, so the item form can offer a scope

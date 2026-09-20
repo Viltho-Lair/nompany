@@ -155,8 +155,11 @@ widgets now declare their sources.
   reading it for numbering while the RFQ desk is on); Projects skips overtime and the approved
   quotations a project opens from; Field Operations skips permits while Quality & HSE → Permits
   is off. Inventory reads each list only for its own part — items (Items or Stock), suppliers
-  (Items), movements (Stock), purchase orders (Procurement → Orders), delivery notes (Receiving),
+  (Items), movements (Stock), purchase orders (Procurement → Orders),
   air waybills, airlines and their project picker (Logistics → Shipments), project sheets.
+  **Delivery notes left that response entirely (20/09/2026)** along with `listDeliveries` — the
+  list was composed four reads deep and drawn by nothing, the sheet workspace having replaced the
+  hand-raised note. The three writes stay.
   Finance reads nothing of Cash's — invoices, expenses, the project margins built from them and
   the invoice form's pickers — while Cash is off, and the landing page drops the margins block.
   Human Resources reads only leave while Employees is off (leave is on the HR root); departments,
@@ -206,16 +209,22 @@ while Leave is off. Headcount and expiring documents stay on `hr-employees`.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Delivery notes are still on the Inventory response** (gated on Procurement → Receiving),
-  though no screen reads them from it; dropping the field is its own change.
 - **The API does not refuse a switched-off part.** A part's own route still answers if called
   directly; switching decides what is shown and read for the screens, not access.
 - **The leave charts and tiles follow the HR department as a whole.** Leave is kept on the HR
   root, which has no part of its own to switch.
 - **Free headline tiles are not in the registry.** Main's are gated through `seen` by the read
   behind each figure, which works, but a tile cannot be listed or tested as a widget.
-- **The engagements view** reads across sections through its own path and does not ask the
-  switchboard. Nor do the Reports exports and the report builder — only the board does.
+- **Every surface that reads across departments asks the switchboard now (20/09/2026).** A data
+  set names the part it belongs to (`switch` on `DATASETS`, the switch and never the storage),
+  the export list and the builder's catalogue drop a switched-off one, and `readDataset` —
+  the single door the export, the builder, a saved report and the board all read through —
+  refuses it with `section-off` (404, the answer a section the studio never had already gives).
+  A tile takes its switch from its data set rather than restating it. The engagements view drops
+  a stage whose department is off, keyed on the SCREEN the record is worked on (`screenKey`),
+  the way its permission lens already works. **A destruction warning is the exception**: what a
+  delete will take is counted through rights alone, since a record under a switched-off
+  department is still a record and the cascade still takes it.
 
 - **The windows are fixed.** Twelve months, eight or twelve weeks, thirty days — no date-range
   filter on any of the new widgets, and no comparison against a previous period (the Reports

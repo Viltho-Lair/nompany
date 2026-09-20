@@ -28,7 +28,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   const parsedCursor = Number.parseInt(searchParams.get("cursor") || "", 10);
   const cursor = Number.isFinite(parsedCursor) && parsedCursor >= 0 ? parsedCursor : 0;
 
-  const result = await listEngagements({ studio: main.studio, access: main.access }, { cursor });
+  const result = await listEngagements({ studio: main.studio, access: main.access, sections: main.sections }, { cursor });
   if (refused(result)) {
     // listEngagements only ever refuses through requirePermission, so this is
     // "forbidden" (403) or the internal-bug case "unknown-permission" (500) —

@@ -30,6 +30,13 @@ export type ReportsContext = {
   collaborator: { id: string };
   access: PermissionSet;
   section: Section;
+  /**
+   * EVERY STORED SECTION ROW, switched-off ones included — studioContext's own
+   * list. `readDataset` asks it whether the studio still runs the part a data
+   * set belongs to, so a report over a switched-off department is refused
+   * wherever it is run from.
+   */
+  sections?: Section[];
 };
 
 const scope = (ctx: ReportsContext) => ({ studio: ctx.studio as never, section: ctx.section });

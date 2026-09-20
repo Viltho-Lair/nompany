@@ -72,6 +72,11 @@ const NOT_FOUND = [
   // mapped to 404 by hand in the route that produced them; listing them is what
   // stops conversion silently downgrading them to 400.
   "no-section", "no-technical", "no-sales", "no-projects", "no-tasks",
+  // A SECTION THE STUDIO HAS SWITCHED OFF, which is the same answer as one it
+  // never had (20/09/2026): the owner decided this department is not part of
+  // their product, so there is no right anybody could be granted to reach it.
+  // Never 403 — that would invite asking for a permission that would not help.
+  "section-off",
   "no-revision",       // the revision being signed is not there
   "quotation",         // the quotation a project was opened against is gone
   "ticket",            // the sales ticket an action was raised against is gone

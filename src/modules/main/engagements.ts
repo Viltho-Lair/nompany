@@ -9,6 +9,7 @@
 import { requirePermission, can } from "@/platform/access";
 import type { PermissionKey, PermissionSet } from "@/platform/access";
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
+import { switchboard, type SwitchRow } from "@/lib/dashboardWidgets";
 import { statusStage } from "@/platform/engagement/context";
 import { ENG } from "@/platform/db/keys";
 import { zRange } from "@/platform/db/store";
@@ -55,12 +56,40 @@ function resolveClientName(
 /** The minimal shape every caller here has in hand — studio id and the
  * resolved permission set. Deliberately not the full ModuleContext: engagements
  * is not a section (spec §3), so there is no department section to require. */
-type EngagementCtx = { studio: { id: string; slug?: string }; access: PermissionSet };
+type EngagementCtx = {
+  studio: { id: string; slug?: string };
+  access: PermissionSet;
+  /**
+   * EVERY STORED SECTION ROW, switched-off ones included. A stage whose
+   * department the studio has switched off is left out of a deal's story the
+   * way an unreadable one is — see `visibleStageTypes`. Optional because the
+   * cascade resolves a bare context; absent, nothing is switched off.
+   */
+  sections?: readonly SwitchRow[];
+};
 
-/** The stage types this reader may see at all. The department lens, in one line. */
-export function visibleStageTypes(access: PermissionSet): string[] {
+/**
+ * The stage types this reader may see at all. The department lens, in one line.
+ *
+ * TWO QUESTIONS SINCE 20/09/2026, and they are different questions: may this
+ * READER open the record (their own rights), and does this STUDIO still run the
+ * department it belongs to (the owner's switches). A stage the studio switched
+ * off is absent, exactly as one the reader holds no right for is — a deal that
+ * listed "Tenders" for a studio that does not tender would be offering a way
+ * into a department its owner has closed.
+ *
+ * THE SWITCH IS THE SCREEN'S, NEVER THE STORAGE'S: a quotation is filed under
+ * `crm-sales-quotations` and worked in Quotations → Register, which is what
+ * `screenKey` already says for exactly this class of row.
+ */
+export function visibleStageTypes(
+  access: PermissionSet,
+  sections?: readonly SwitchRow[],
+): string[] {
+  const on = switchboard(sections || []);
   return Object.values(STAGE_REGISTRY)
     .filter((e) => can(access, e.permission as PermissionKey))
+    .filter((e) => on(e.screenKey || e.sectionKey))
     .map((e) => e.type);
 }
 
@@ -214,7 +243,7 @@ export async function listEngagements(
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
-  const visible = new Set(visibleStageTypes(ctx.access));
+  const visible = new Set(visibleStageTypes(ctx.access, ctx.sections));
   const ids = await zRange(ENG.index(ctx.studio.id), cursor, cursor + limit - 1, { rev: true });
   // Read once for the whole page (up to PAGE=25 engagements below), not once
   // per row — see clientNameById's own comment.
@@ -269,7 +298,7 @@ export async function engagementBlock(
   const view = await readEngagementView(ctx.studio.id, dealId);
   if (!view) return { error: "notfound" };
 
-  const visible = new Set(visibleStageTypes(ctx.access));
+  const visible = new Set(visibleStageTypes(ctx.access, ctx.sections));
   const present = new Set(stagesPresent(view));
   // Nothing here is theirs to read.
   if (![...present].some((t) => visible.has(t))) return { error: "forbidden" };
@@ -449,6 +478,11 @@ export async function deletionImpact(
     .filter(([, id]) => id === record.id)
     .map(([slot]) => slot);
 
+  // A WARNING COUNTS WHAT IS THERE, so this asks the reader's RIGHTS alone and
+  // not the studio's switches: a sibling filed under a switched-off department
+  // is still a record, the cascade below still takes it, and a warning that
+  // left it out would understate what a delete destroys. The reads above hide
+  // a switched-off stage; a destruction notice never does.
   const visible = new Set(visibleStageTypes(ctx.access));
   const siblings = Object.values(STAGE_REGISTRY)
     .filter((e) => e.type !== type && visible.has(e.type))
@@ -509,6 +543,9 @@ export async function engagementImpact(
   const view = await readEngagementView(ctx.studio.id, dealId);
   if (!view) return { error: "notfound" };
 
+  // RIGHTS ALONE, NOT THE SWITCHES — see recordImpact: what this delete will
+  // destroy is the same whether or not the owner still runs the department, and
+  // the count is the one thing that must not be flattering.
   const visible = new Set(visibleStageTypes(ctx.access));
   const deletes: EngagementImpact["deletes"] = [];
   const survives: EngagementImpact["survives"] = [];
@@ -561,6 +598,10 @@ export async function removeEngagement(
   const dealId = await resolveDealId(ctx.studio.id, engId);
   const view = await readEngagementView(ctx.studio.id, dealId);
   if (!view) return { error: "notfound" };
+  // RIGHTS ALONE. This is the "no stage of this is yours" refusal, and reading
+  // it through the switches would make a deal undeletable the moment its last
+  // visible department was switched off — locking rows in rather than hiding
+  // them, which is the opposite of what a switch is for.
   const visible = new Set(visibleStageTypes(ctx.access));
   const present = Object.values(STAGE_REGISTRY)
     .filter((e) => idsFor(view, e.type).length)

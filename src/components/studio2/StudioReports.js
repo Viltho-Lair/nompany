@@ -1,5 +1,6 @@
 import nextDynamic from "next/dynamic";
 import { exportableFor } from "@/modules/reports/datasets";
+import { switchboard } from "@/lib/dashboardWidgets";
 import { reportsDict } from "@/shared/studio/reports";
 
 // THE BUILDER IS A CLIENT MODULE and this page is a SERVER component, so it
@@ -31,9 +32,13 @@ import { ExecutiveBoard } from "@/components/studio2/HeavyScreens";
 // list is exactly what the reader could already have read on the screens that
 // own it. Somebody granted the export right and nothing else sees an empty page,
 // which is the truthful answer rather than a refusal.
-export default function StudioReports({ slug, access, locale = "en" }) {
+export default function StudioReports({ slug, access, sections = [], locale = "en" }) {
   const tr = reportsDict(locale);
-  const sets = exportableFor((key) => access.has(key));
+  // WHAT THE READER MAY EXPORT, out of what the studio RUNS. A set belonging to
+  // a switched-off part is not listed — the board above already drops that
+  // department's figure, and a page that hid the figure while offering the
+  // whole register as a download would disagree with itself.
+  const sets = exportableFor((key) => access.has(key), switchboard(sections));
 
   // GROUPED BY SECTION, in catalogue order, so a studio finds its invoice export
   // under Finance rather than in an alphabetised list of eight nouns.

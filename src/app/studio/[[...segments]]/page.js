@@ -1009,7 +1009,10 @@ async function renderStudio(params) {
         : screenKey === "approvals" ? <StudioApprovals slug={studio.slug} view={active?.key} />
         : screenKey === "field-service" ? <StudioOperations slug={studio.slug} view={active?.key} />
         : screenKey === "reports"
-          ? <StudioReports slug={studio.slug} access={access} locale={locale} />
+          // `allSections`, not `sections`: the visible list has already dropped
+          // the switched-off rows, so a switchboard built from it would find no
+          // row for a switched-off part and call it on (dashboards.md).
+          ? <StudioReports slug={studio.slug} access={access} sections={allSections} locale={locale} />
         : screenKey === "main" ? <StudioMain slug={studio.slug} />
         : active ? <SectionDashboard section={active} studio={studio} locale={locale}
             subsections={sections.filter((s) => s.parentId === active.id)} />

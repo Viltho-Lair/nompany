@@ -18,24 +18,17 @@
 // for, and reading them to throw the answer away would cost a round trip for
 // nothing.
 //
-// PURE. No store, and one import — `shared/money`, itself pure and importless —
-// so the screen and the server agree by construction, and every rule here is
-// asserted without a database.
+// PURE. No store, and two imports — `shared/money` and `./datasets`, both
+// importless themselves — so the screen and the server agree by construction,
+// and every rule here is asserted without a database.
 
 import { roundMoney } from "@/shared/money";
+import { datasetFor } from "./datasets";
 
 export type Measure = "count" | "sum";
 
 export type Tile = {
   key: string;
-  /**
-   * THE PART IT COUNTS, as the owner switches it (the owner's rule, 17/09/2026:
-   * a visual goes with its section). Named as the SWITCH, never the storage —
-   * quotations are kept under `crm-sales-quotations` and purchase orders under
-   * `inventory-sheets`, and nobody switches either. Switched off, the tile is
-   * absent and its data set is never read.
-   */
-  switch: string;
   /** The department it is shown under on the board. */
   department: string;
   label: string;
@@ -73,39 +66,39 @@ export type Tile = {
  */
 export const TILES: readonly Tile[] = Object.freeze([
   {
-    key: "invoiced", switch: "finance-receivables", department: "finance", label: "Invoiced", dataset: "invoices", measure: "sum",
+    key: "invoiced", department: "finance", label: "Invoiced", dataset: "invoices", measure: "sum",
     field: "total", dateField: "issueDate",
     excludeStatuses: ["Draft", "Cancelled"], goodWhen: "up", unit: "money",
   },
   {
-    key: "billed", switch: "finance-payables", department: "finance", label: "Supplier bills", dataset: "bills", measure: "sum",
+    key: "billed", department: "finance", label: "Supplier bills", dataset: "bills", measure: "sum",
     field: "total", dateField: "billDate",
     excludeStatuses: ["Draft", "Cancelled"], goodWhen: "down", unit: "money",
   },
   {
-    key: "deals", switch: "crm-sales-tickets", department: "crm-sales", label: "Deals opened", dataset: "tickets", measure: "count",
+    key: "deals", department: "crm-sales", label: "Deals opened", dataset: "tickets", measure: "count",
     dateField: "createdAt", goodWhen: "up", unit: "count",
   },
   {
-    key: "quoted", switch: "quotations-register", department: "quotations", label: "Quoted", dataset: "quotations", measure: "sum",
+    key: "quoted", department: "quotations", label: "Quoted", dataset: "quotations", measure: "sum",
     field: "total", dateField: "createdAt",
     excludeStatuses: ["Draft", "Cancelled", "Rejected"], goodWhen: "up", unit: "money",
   },
   {
-    key: "projectsOpened", switch: "projects-list", department: "projects", label: "Projects opened", dataset: "projects", measure: "count",
+    key: "projectsOpened", department: "projects", label: "Projects opened", dataset: "projects", measure: "count",
     dateField: "createdAt", goodWhen: "up", unit: "count",
   },
   {
-    key: "ordersPlaced", switch: "procurement-orders", department: "procurement", label: "Purchase orders", dataset: "orders", measure: "sum",
+    key: "ordersPlaced", department: "procurement", label: "Purchase orders", dataset: "orders", measure: "sum",
     field: "total", dateField: "createdAt",
     excludeStatuses: ["Draft", "Cancelled"], goodWhen: "down", unit: "money",
   },
   {
-    key: "tendersEntered", switch: "tendering-register", department: "tendering", label: "Tenders entered", dataset: "tenders", measure: "count",
+    key: "tendersEntered", department: "tendering", label: "Tenders entered", dataset: "tenders", measure: "count",
     dateField: "createdAt", goodWhen: "up", unit: "count",
   },
   {
-    key: "leaveTaken", switch: "hr-leave", department: "hr", label: "Leave days", dataset: "vacations", measure: "sum",
+    key: "leaveTaken", department: "hr", label: "Leave days", dataset: "vacations", measure: "sum",
     field: "days", dateField: "from",
     excludeStatuses: ["Declined", "Cancelled"], goodWhen: "down", unit: "days",
   },
@@ -258,9 +251,18 @@ export const datasetsNeeded = (tiles: readonly Tile[] = TILES): string[] =>
  * BEFORE anything is read, so its data set is never fetched and the board does
  * not count it among the figures "hidden for want of a right" — a department
  * the owner turned off is a choice, not a missing permission.
+ *
+ * WHICH PART A TILE BELONGS TO IS THE DATA SET'S ANSWER, not a second one here.
+ * A tile that named its own switch would be free to disagree with the export
+ * and the builder about which department "invoices" is — the same argument that
+ * keeps the collection on the catalogue rather than on the tile. A tile whose
+ * data set has gone is dropped rather than drawn from nothing.
  */
 export const tilesRunning = (on: (key: string) => boolean, tiles: readonly Tile[] = TILES): Tile[] =>
-  tiles.filter((t) => on(t.switch));
+  tiles.filter((t) => {
+    const dataset = datasetFor(t.dataset);
+    return Boolean(dataset) && on(dataset!.switch);
+  });
 
 /**
  * THE BOARD IN DEPARTMENTS, in the order `order` gives them, each holding its

@@ -152,16 +152,31 @@ console.log("\n== the Reports board: each figure goes with its own part");
 // SLICE 3. The board was one pair of registry keys over eight figures from
 // eight departments, so switching Tendering off left "Tenders entered" on it.
 const X = await import("@/modules/reports/executive");
-const tileSwitches = X.TILES.map((t) => t.switch);
-ok("every tile names the part it counts", X.TILES.every((t) => t.switch && t.department));
+const D = await import("@/modules/reports/datasets");
+// THE PART A FIGURE BELONGS TO IS THE DATA SET'S, and a tile does not restate
+// it — the export, the builder and the board must agree about which department
+// "invoices" is, and three copies of that answer would not stay equal.
+const switchOf = (tile) => D.datasetFor(tile.dataset)?.switch || "";
+const tileSwitches = X.TILES.map(switchOf);
+ok("every data set names the part it belongs to", D.DATASETS.every((d) => d.switch));
 ok("every tile's part is a real switch, never storage",
-  tileSwitches.every((k) => keys.has(k) && !K.isFiledOnlySection(k) && !K.isSystemSection(k)),
-  tileSwitches.filter((k) => !keys.has(k) || K.isFiledOnlySection(k)).join(","));
+  D.DATASETS.every((d) => keys.has(d.switch) && !K.isFiledOnlySection(d.switch) && !K.isSystemSection(d.switch)),
+  D.DATASETS.filter((d) => !keys.has(d.switch) || K.isFiledOnlySection(d.switch)).map((d) => d.key).join(","));
 ok("every tile sits under the department its part belongs to",
-  X.TILES.every((t) => t.switch === t.department || t.switch.startsWith(`${t.department}-`)),
-  X.TILES.filter((t) => !(t.switch === t.department || t.switch.startsWith(`${t.department}-`))).map((t) => t.key).join(","));
+  X.TILES.every((t) => switchOf(t) === t.department || switchOf(t).startsWith(`${t.department}-`)),
+  X.TILES.filter((t) => !(switchOf(t) === t.department || switchOf(t).startsWith(`${t.department}-`))).map((t) => t.key).join(","));
 ok("REPORT_SOURCES is exactly the tiles' parts",
-  new Set(tileSwitches).size === W.REPORT_SOURCES.length && tileSwitches.every((k) => W.REPORT_SOURCES.includes(k)));
+  new Set(tileSwitches).size === W.REPORT_SOURCES.length && tileSwitches.every((k) => W.REPORT_SOURCES.includes(k)),
+  `${[...new Set(tileSwitches)].join(",")} vs ${W.REPORT_SOURCES.join(",")}`);
+
+// THE EXPORT LIST AND THE BUILDER'S CATALOGUE FOLLOW THE SAME SWITCHES.
+const offAll = () => false;
+ok("a switched-off part's data set is not offered for export",
+  D.exportableFor(() => true, offAll).length === 0);
+ok("…and is still offered when the studio runs it", D.exportableFor(() => true).length === D.DATASETS.length);
+const readSource = readFileSync("src/modules/reports/read.ts", "utf8");
+ok("the one read door refuses a set whose part is off",
+  /switchboard\(ctx\.sections\)\(dataset\.switch\)/.test(readSource) && /"section-off"/.test(readSource));
 
 const tenderingOff = W.switchboard([
   { id: "t", key: "tendering", parentId: null, enabled: false },
@@ -205,7 +220,7 @@ const TRIMMED = [
   ["src/app/api/studios/[slug]/operations/route.ts", ['on("quality-hse-permits")']],
   ["src/app/api/studios/[slug]/inventory/route.ts", [
     'on("logistics-shipments")', 'on("inventory-sheets")', 'on("inventory-items")', 'on("inventory-stock")',
-    'on("procurement-orders") ? listOrders', 'on("procurement-receiving") ? listDeliveries',
+    'on("procurement-orders") ? listOrders',
   ]],
   // Since Finance split (18/09/2026) each part of this read answers to its own switch.
   ["src/app/api/studios/[slug]/finance/route.ts", ['on("finance-receivables")', 'on("finance-payables")', 'on("finance-reports")', "seeMargins ? await profitability"]],

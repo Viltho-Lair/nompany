@@ -1869,27 +1869,14 @@ export async function removeOrder(ctx: InventoryContext, id: string) {
 }
 
 // ---- deliveries (stock out, to a project) ----------------------------------
-export async function listDeliveries({ studio, itemsSection, deliveriesSection }: InventoryContext) {
-  const [deliveries, items, projects, people] = await Promise.all([
-    Deliveries.find({ studio, section: deliveriesSection }),
-    Items.find({ studio, section: itemsSection }),
-    projectRows({ studio }),
-    listCollaborators(studio.id),
-  ]);
-  const itemLabel = Object.fromEntries(items.map((i) => [i.id, `${i.sku} · ${i.name}`]));
-  const projectNumber = Object.fromEntries(projects.map((p) => [p.id, p.number]));
-  const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
-
-  return [...deliveries]
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-    .map((d) => ({
-      ...d,
-      projectNumber: projectNumber[d.projectId] || "",
-      issuedByAlias: alias[d.issuedByCollaboratorId || ""] || "",
-      lines: (d.lines || []).map((l) => ({ ...l, itemLabel: itemLabel[String(l.itemId || "")] || "(removed item)" })),
-      units: (d.lines || []).reduce((n, l) => n + (l.qty || 0), 0),
-    }));
-}
+//
+// THERE IS NO `listDeliveries` ANY MORE (20/09/2026). It composed every note
+// with its project number, the alias of whoever issued it and a label per line,
+// four reads deep, for a list that left on the Inventory response and was drawn
+// by nothing: the sheet workspace replaced the hand-raised delivery note and
+// took the screen with it. The three writes below are untouched — a note is
+// still raised, issued and cancelled — so the day a screen lists them again,
+// this comes back with it rather than having been half-kept in the meantime.
 
 export async function createDelivery(ctx: InventoryContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.

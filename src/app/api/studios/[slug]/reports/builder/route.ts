@@ -3,6 +3,7 @@ import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { getSectionByKey } from "@/platform/db/sections";
 import { exportableFor } from "@/modules/reports/datasets";
+import { switchboard } from "@/lib/dashboardWidgets";
 import { can } from "@/platform/access";
 import {
   reportsHome, preview, runSaved, saveReport, deleteReport, saveTarget, deleteTarget,
@@ -45,9 +46,14 @@ async function reportsContext(params: Promise<Record<string, string>>) {
   return { ctx: { ...context, section } as ReportsContext };
 }
 
+// A SET THE STUDIO HAS SWITCHED OFF IS NOT HERE — 404 rather than 403, which
+// is what `no-section` already answers: the reader is not being refused a right
+// they could be granted, the department is not part of this studio's product.
 const answer = (result: unknown) =>
   Response.json(result as Record<string, unknown>, {
-    status: refused(result) ? ((result as { error: string }).error === "forbidden" ? 403 : 400) : 200,
+    status: refused(result)
+      ? ({ forbidden: 403, "section-off": 404 } as Record<string, number>)[(result as { error: string }).error] ?? 400
+      : 200,
   });
 
 export async function GET(request: Request, ctx: { params: Promise<Record<string, string>> }) {
@@ -64,9 +70,12 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     ok: true,
     ...home,
     // THE CATALOGUE THE READER CAN ACTUALLY BUILD AGAINST — `exportableFor`
-    // already filters by the second gate, so the builder offers no data set
-    // whose rows would come back refused.
-    datasets: exportableFor((key) => can(resolved.ctx.access, key as PermissionKey))
+    // filters by the second gate AND by what the studio runs, so the builder
+    // offers no data set whose rows would come back refused.
+    datasets: exportableFor(
+      (key) => can(resolved.ctx.access, key as PermissionKey),
+      switchboard(resolved.ctx.sections || []),
+    )
       .map((d) => ({ key: d.key, label: d.label, group: d.group, columns: d.columns })),
   });
 }

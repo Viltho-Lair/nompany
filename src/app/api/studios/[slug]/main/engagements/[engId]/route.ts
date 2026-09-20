@@ -21,7 +21,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     return Response.json({ error: main.error }, { status });
   }
 
-  const result = await engagementBlock({ studio: main.studio, access: main.access }, engId);
+  const result = await engagementBlock({ studio: main.studio, access: main.access, sections: main.sections }, engId);
   if (refused(result)) {
     // engagementBlock refuses three ways: "notfound" (the root or its view is
     // missing), "forbidden" (no stage of it is this reader's to see), or the

@@ -27,6 +27,15 @@ export type DataSet = {
   group: string;
   /** The right the owning section already requires to read these rows. */
   permission: string;
+  /**
+   * THE PART THE OWNER SWITCHES, which is not always where the rows are filed
+   * (the owner's rule, 17/09/2026: a visual goes with its section — and so does
+   * a data set). Quotations are kept under `crm-sales-quotations` and purchase
+   * orders under `inventory-sheets`, and nobody switches either; leave sits on
+   * the HR root and is switched as `hr-leave`. Switched off, the set is not
+   * offered, not exported and not read — `readDataset` refuses it.
+   */
+  switch: string;
   /** The section key that owns the collection, and the collection itself. */
   sectionKey: string;
   /** Falls back to this when the sub-section is absent — the `ownerOf` shape. */
@@ -48,6 +57,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "invoices", label: "Invoices", group: "Finance & Accounting",
     permission: "finance.receivables.view",
+    switch: "finance-receivables",
     sectionKey: "finance-cash", parentSectionKey: "finance", collection: "invoices",
     columns: [
       col("reference", "Reference"), col("clientName", "Client"), col("status", "Status"),
@@ -57,6 +67,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "bills", label: "Bills", group: "Finance & Accounting",
     permission: "finance.payables.view",
+    switch: "finance-payables",
     sectionKey: "finance-payables", parentSectionKey: "finance", collection: "bills",
     columns: [
       col("reference", "Reference"), col("vendorName", "Vendor"), col("status", "Status"),
@@ -66,6 +77,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "journal", label: "Journal entries", group: "Finance & Accounting",
     permission: "finance.ledger.view",
+    switch: "finance-ledger",
     sectionKey: "finance-ledger", parentSectionKey: "finance", collection: "journalEntries",
     columns: [
       col("reference", "Reference"), col("date", "Date"), col("memo", "Memo"),
@@ -74,6 +86,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "projects", label: "Projects", group: "Projects",
     permission: "projects.list.view",
+    switch: "projects-list",
     sectionKey: "projects-list", parentSectionKey: "projects", collection: "projects",
     columns: [
       col("number", "Number"), col("title", "Title"), col("clientName", "Client"),
@@ -83,6 +96,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "tenders", label: "Tenders", group: "Tendering & Estimating",
     permission: "tendering.tenders.view",
+    switch: "tendering-register",
     sectionKey: "tendering-register", parentSectionKey: "tendering", collection: "tenders",
     columns: [
       col("ref", "Reference"), col("title", "Title"), col("issuer", "Issuer"),
@@ -92,6 +106,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "clients", label: "Customers", group: "CRM & Sales",
     permission: "crmSales.clients.view",
+    switch: "crm-sales-clients",
     sectionKey: "crm-sales-clients", parentSectionKey: "crm-sales", collection: "salesClients",
     columns: [
       col("name", "Name"), col("industry", "Industry"), col("createdAt", "Added"),
@@ -100,6 +115,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "items", label: "Registered items", group: "Inventory & Warehouse",
     permission: "inventory.items.view",
+    switch: "inventory-items",
     sectionKey: "inventory-items", parentSectionKey: "inventory", collection: "catalogueItems",
     columns: [
       col("sku", "SKU"), col("name", "Name"), col("unit", "Unit"), col("sellPrice", "Sell price"),
@@ -108,6 +124,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "suppliers", label: "Suppliers", group: "Procurement & Subcontracting",
     permission: "procurement.suppliers.view",
+    switch: "procurement-suppliers",
     sectionKey: "procurement-suppliers", parentSectionKey: "procurement", collection: "suppliers",
     columns: [
       col("name", "Name"), col("category", "Category"), col("email", "Email"), col("phone", "Phone"),
@@ -126,6 +143,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "tickets", label: "Deals", group: "CRM & Sales",
     permission: "crmSales.tickets.view",
+    switch: "crm-sales-tickets",
     sectionKey: "crm-sales-tickets", parentSectionKey: "crm-sales", collection: "salesTickets",
     columns: [
       col("reference", "Reference"), col("title", "Title"), col("clientName", "Client"),
@@ -135,6 +153,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "quotations", label: "Quotations", group: "Quotations",
     permission: "crmSales.quotations.view",
+    switch: "quotations-register",
     sectionKey: "crm-sales-quotations", parentSectionKey: "crm-sales", collection: "quotations",
     columns: [
       col("reference", "Reference"), col("clientName", "Client"), col("status", "Status"),
@@ -144,6 +163,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "orders", label: "Purchase orders", group: "Inventory & Warehouse",
     permission: "inventory.stock.view",
+    switch: "procurement-orders",
     sectionKey: "inventory-sheets", parentSectionKey: "inventory", collection: "materialOrders",
     columns: [
       col("reference", "Reference"), col("vendorName", "Vendor"), col("status", "Status"),
@@ -153,6 +173,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
   {
     key: "vacations", label: "Leave", group: "Human Resources",
     permission: "hr.vacations.view",
+    switch: "hr-leave",
     // HR'S OWN ROOT, not a sub-section: `vacations` is one of the few
     // collections still owned by a department root rather than a child.
     sectionKey: "hr", parentSectionKey: "hr", collection: "vacations",
@@ -167,14 +188,23 @@ const byKey = new Map(DATASETS.map((d) => [d.key, d]));
 export const datasetFor = (key: unknown): DataSet | null => byKey.get(String(key ?? "")) || null;
 
 /**
- * WHAT THIS READER MAY EXPORT.
+ * WHAT THIS READER MAY EXPORT, out of what this studio RUNS.
  *
  * `has` is asked rather than a permission set being iterated, so a wildcard
  * (the owner, Admin) answers correctly — `WildcardPermissions.has` is the
  * authority and `size`/`[...access]` are not.
+ *
+ * `on` is the studio's switchboard, and a set whose part is switched off is
+ * ABSENT rather than refused on the way out: a department the owner turned off
+ * is a choice, and offering its rows for download while its screens are gone
+ * would be the same page disagreeing with itself. Omitted, every caller keeps
+ * the answer it had — the screen passes one, `tests/reports-model.mjs` does not.
  */
-export function exportableFor(has: (key: string) => boolean): DataSet[] {
-  return DATASETS.filter((d) => has(d.permission));
+export function exportableFor(
+  has: (key: string) => boolean,
+  on: (key: string) => boolean = () => true,
+): DataSet[] {
+  return DATASETS.filter((d) => has(d.permission) && on(d.switch));
 }
 
 /**
