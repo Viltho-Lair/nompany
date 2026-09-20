@@ -36,6 +36,25 @@ type Strings = CommonStrings & {
    */
   skipped: (n: number) => string;
   notInThisFlow: string;
+  /**
+   * WHAT THE WORK IS JUDGED ON. Five states, and each is worded as a fact
+   * rather than as a verdict — a missed target is information (the flow's own
+   * rule, which KPIs inherit), not an accusation.
+   *
+   * `kpiNothing` is said out loud rather than drawn as an empty frame: a deal
+   * measuring nothing and a deal measuring nothing WELL look identical
+   * otherwise, and only one of them is a problem.
+   */
+  kpis: string;
+  kpiNothing: string;
+  kpiMet: string;
+  kpiMissed: string;
+  kpiRunning: string;
+  kpiNotStarted: string;
+  kpiUnknown: string;
+  kpiOf: (count: number, target: number) => string;
+  kpiDueIn: (days: number) => string;
+  kpiOverdue: (days: number) => string;
   iUnderstandDeleted: (what: string) => string;
   moreDealsFurtherDown: string;
   nDeals: (n: number) => string;
@@ -113,6 +132,16 @@ const en: Strings = {
   flowComplete: "Everything this flow asks for is on the deal.",
   skipped: (n) => (n === 1 ? "One earlier stage was skipped" : `${n} earlier stages were skipped`),
   notInThisFlow: "Outside this flow",
+  kpis: "What this is measured on",
+  kpiNothing: "Nothing is being measured on this deal.",
+  kpiMet: "Met",
+  kpiMissed: "Missed",
+  kpiRunning: "Under way",
+  kpiNotStarted: "Not started",
+  kpiUnknown: "Cannot be counted",
+  kpiOf: (count: number, target: number) => `${count} of ${target}`,
+  kpiDueIn: (days: number) => (days === 0 ? "due today" : days === 1 ? "1 day left" : `${days} days left`),
+  kpiOverdue: (days: number) => (days === 1 ? "1 day over" : `${days} days over`),
   iUnderstandDeleted: (what: string) => `I understand ${what} will be permanently deleted, and that this cannot be undone.`,
   moreDealsFurtherDown: "More deals may be further down the list — this page just did not have any you have access to.",
   nDeals: (n: number) => `${n} deal${n === 1 ? "" : "s"}`,
@@ -199,6 +228,16 @@ const ar: Strings = {
   flowComplete: "كل ما يطلبه هذا المسار موجود على الصفقة.",
   skipped: (n) => (n === 1 ? "تم تخطي مرحلة سابقة واحدة" : `تم تخطي ${n} مراحل سابقة`),
   notInThisFlow: "خارج هذا المسار",
+  kpis: "ما تقاس به هذه الصفقة",
+  kpiNothing: "لا شيء يقاس على هذه الصفقة.",
+  kpiMet: "تحقق",
+  kpiMissed: "لم يتحقق",
+  kpiRunning: "جار",
+  kpiNotStarted: "لم يبدأ",
+  kpiUnknown: "لا يمكن احتسابه",
+  kpiOf: (count: number, target: number) => `${count} من ${target}`,
+  kpiDueIn: (days: number) => (days === 0 ? "مستحق اليوم" : days === 1 ? "بقي يوم واحد" : `بقي ${days} يوما`),
+  kpiOverdue: (days: number) => (days === 1 ? "تأخر يوما واحدا" : `تأخر ${days} يوما`),
   iUnderstandDeleted: (what: string) => `أفهم أن ${what} ستحذف نهائيا، وأن هذا لا يمكن التراجع عنه.`,
   moreDealsFurtherDown: "قد تكون هناك صفقات أخرى أسفل القائمة — هذه الصفحة لم يكن فيها ما تملك الوصول إليه فحسب.",
   nDeals: (n: number) => n === 1 ? "صفقة واحدة" : n === 2 ? "صفقتان" : n <= 10 ? `${n} صفقات` : `${n} صفقة`,

@@ -20,6 +20,8 @@ import { getSectionByKey } from "@/platform/db/sections";
 import { repo } from "@/platform/db/repo";
 import { listFlowTemplates, defaultTemplateForStudio, pickTemplate, industryKeyOf } from "@/platform/db/flows";
 import { flowProgress, nextActionFor, stagesRunning } from "@/platform/engagement/progress";
+import { measureKpi } from "@/platform/kpi/model";
+import type { KpiReading, StoredKpi } from "@/platform/kpi/model";
 import type { FlowProgress, FlowStep, StageInfo } from "@/platform/engagement/progress";
 import type { Refusal } from "@/platform/access";
 
@@ -193,6 +195,41 @@ async function dealTemplate(ctx: EngagementCtx, root: { templateId?: string; con
   return pickTemplate(templates, known, primary);
 }
 
+/**
+ * WHAT THIS DEAL IS BEING MEASURED ON, AS THIS READER MAY SEE IT.
+ *
+ * Counted off the stages the deal already carries — there is no KPI field on
+ * any record and nothing to key in, which is the rule `platform/kpi/model`
+ * exists to hold.
+ *
+ * A KPI WHOSE RECORDS THE READER MAY NOT OPEN IS ABSENT, not zeroed and not
+ * greyed. `visible` is the same set the cards and the status walk are filtered
+ * by — rights AND the studio's own switches — and it is load-bearing in both
+ * directions here: a count is evidence of records existing, so reporting "0 of
+ * 3 site visits" to somebody refused site visits tells them exactly what the
+ * refusal is for. A target on a department the studio does not run is a target
+ * for work nobody there does, and hiding it is the same rule every widget
+ * follows.
+ *
+ * A KPI NAMING A STAGE THIS PRODUCT NO LONGER HAS IS SHOWN AS `unknown` rather
+ * than dropped: the deal is genuinely carrying a target nothing can count, and
+ * a silently shorter list is how that stays invisible for ever.
+ */
+function readKpis(
+  kpis: readonly StoredKpi[],
+  view: { singletons: Record<string, string | null>; members: Record<string, string[]> },
+  visible: ReadonlySet<string>,
+  asOf: string,
+): KpiReading[] {
+  const out: KpiReading[] = [];
+  for (const kpi of kpis) {
+    const known = Boolean(STAGE_REGISTRY[kpi.stage]);
+    if (known && !visible.has(kpi.stage)) continue;
+    out.push(measureKpi(kpi, known ? idsFor(view, kpi.stage).length : null, asOf));
+  }
+  return out;
+}
+
 /** Which stage types this engagement actually has. */
 function stagesPresent(view: { singletons: Record<string, string | null>; members: Record<string, string[]> }): string[] {
   const out: string[] = [];
@@ -282,7 +319,7 @@ export async function listEngagements(
 export async function engagementBlock(
   ctx: EngagementCtx,
   engId: string,
-): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; statusType: string; templateId: string; templateName: string; locked: boolean; cards: StageCard[]; progress: FlowProgress | null; nextAction: { step: FlowStep & { sectionName: string }; actionable: boolean } | null } } | Refusal | { error: "notfound" | "forbidden" }> {
+): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; statusType: string; templateId: string; templateName: string; locked: boolean; cards: StageCard[]; progress: FlowProgress | null; nextAction: { step: FlowStep & { sectionName: string }; actionable: boolean } | null; kpis: KpiReading[] } } | Refusal | { error: "notfound" | "forbidden" }> {
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
@@ -441,6 +478,11 @@ export async function engagementBlock(
       cards,
       progress,
       nextAction,
+      // WHAT THE WORK IS JUDGED ON, beside where it has got to. The clock is
+      // resolved here and passed down, so one read reports every KPI against
+      // the same instant — two of them measured milliseconds apart could
+      // otherwise disagree about which day it is.
+      kpis: readKpis(root.kpis || [], view, visible, new Date().toISOString()),
     },
   };
 }

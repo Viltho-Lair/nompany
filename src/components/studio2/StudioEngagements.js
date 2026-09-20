@@ -860,10 +860,71 @@ function EngagementDetail({ slug, block, loading, error }) {
         </p>
       )}
 
+      {/* WHAT THE WORK IS JUDGED ON, beside where it has got to.
+          Deliberately ABOVE the stage cards and below the next step: a target
+          is read with the deal's progress, not filed away under it.
+
+          COUNTED OFF THE RECORDS ALREADY ON THIS SCREEN. Nothing here is keyed
+          in, and a KPI whose records this reader may not open never arrives —
+          so there is no row to grey out and no zero to misread.
+
+          A MISSED TARGET IS A FACT, NOT A WARNING. The flow's rule (it assists,
+          it never blocks) is inherited whole: amber says the date passed, and
+          nothing on this screen refuses anything because of it. */}
+      {(block.kpis?.length > 0) && (
+        <div className="mb-4 rounded-geex border border-slate-200/70 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#20202c]">
+          <p className="mb-2.5 text-xs font-700 uppercase tracking-wide text-slate-400 dark:text-slate-500">{tr.kpis}</p>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {block.kpis.map((k) => <KpiRow key={k.id} kpi={k} tr={tr} />)}
+          </ul>
+        </div>
+      )}
+      {block.kpis?.length === 0 && (
+        <p className="mb-4 text-xs text-slate-400 dark:text-slate-500">{tr.kpiNothing}</p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         {(block.cards || []).map((card) => <StageCard key={card.type} slug={slug} card={card} />)}
       </div>
     </div>
+  );
+}
+
+// ONE KPI. The state is the server's — measured off the deal's own records
+// against one instant — and this only chooses the words and the colour.
+//
+// A PERCENTAGE IS DRAWN ONLY WHERE ONE EXISTS. `progress` is null on every
+// milestone, because there is no half-signed contract, and a bar at 0% would
+// say "no progress" about something that is simply not that kind of target.
+function KpiRow({ kpi, tr }) {
+  const words = {
+    met: tr.kpiMet, missed: tr.kpiMissed, "in-progress": tr.kpiRunning,
+    "not-started": tr.kpiNotStarted, unknown: tr.kpiUnknown,
+  };
+  const tone = {
+    met: "text-emerald-600 dark:text-emerald-400",
+    missed: "text-amber-600 dark:text-amber-400",
+    "in-progress": "text-slate-600 dark:text-slate-300",
+    "not-started": "text-slate-400 dark:text-slate-500",
+    unknown: "text-slate-400 dark:text-slate-500",
+  };
+  const clock = kpi.daysLeft === null ? ""
+    : kpi.daysLeft < 0 ? tr.kpiOverdue(-kpi.daysLeft)
+      : tr.kpiDueIn(kpi.daysLeft);
+  return (
+    <li className="flex items-baseline gap-2">
+      <span className={`shrink-0 text-xs font-700 ${tone[kpi.state] || tone.unknown}`}>{words[kpi.state] || words.unknown}</span>
+      <span className="min-w-0 text-sm text-slate-700 dark:text-slate-200">{kpi.label}</span>
+      {kpi.kind === "quantity" && kpi.target !== null && (
+        <span className="num shrink-0 text-xs text-slate-500 dark:text-slate-400">{tr.kpiOf(kpi.count, kpi.target)}</span>
+      )}
+      {/* The clock is hidden once the target is met: "3 days left" on work
+          already done is noise, and on a met target it reads as a deadline
+          that still matters. */}
+      {clock && kpi.state !== "met" && (
+        <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{clock}</span>
+      )}
+    </li>
   );
 }
 

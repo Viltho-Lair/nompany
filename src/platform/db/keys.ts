@@ -129,6 +129,13 @@ export const REG = {
   // so adding one was a release. A studio still keeps its OWN row for a trade
   // it works differently (`S.industries`), which wins over this.
   erpIndustries: `${P}g:erpIndustries`,
+  // WHAT A DEAL IS MEASURED ON — one row per KPI, keyed to a service action
+  // (20/09/2026, the owner: service actions were a label and nothing else).
+  // Platform-level, beside the trades: a target for "Installation" is what
+  // nompany means by the word, and a studio inherits it by naming the action.
+  // A deal COPIES what it is given when the work starts (see freezeKpis), so
+  // editing a row here never re-judges work already under way.
+  erpKpis: `${P}g:erpKpis`,
   // What people think of nompany. One field per user, so a rating is inherently
   // unique to them and re-rating replaces rather than accumulates. Platform-
   // level because the opinion is about the product, not about a studio.
