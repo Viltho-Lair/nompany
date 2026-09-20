@@ -4,6 +4,7 @@ import { studioContext } from "@/lib/studios";
 import { getSectionByKey } from "@/platform/db/sections";
 import { exportableFor } from "@/modules/reports/datasets";
 import { switchboard } from "@/lib/dashboardWidgets";
+import { sectionOffRefusal } from "@/platform/http/sectionRoutes";
 import { can } from "@/platform/access";
 import {
   reportsHome, preview, runSaved, saveReport, deleteReport, saveTarget, deleteTarget,
@@ -30,7 +31,7 @@ export const dynamic = "force-dynamic";
 // other section's collections through `readDataset`; a module context would
 // resolve a section list this never uses and refuse a caller for the absence of
 // one it does not need.
-async function reportsContext(params: Promise<Record<string, string>>) {
+async function reportsContext(request: Request, params: Promise<Record<string, string>>) {
   const user = await currentUser();
   if (!user) return { status: 401 as const, body: { error: "unauthorized" } };
   const { slug } = await params;
@@ -43,6 +44,12 @@ async function reportsContext(params: Promise<Record<string, string>>) {
   }
   const section = await getSectionByKey(context.studio.id, "reports");
   if (!section) return { status: 404 as const, body: { error: "no-section" } };
+  // REPORTS & BI SWITCHED OFF ANSWERS NOTHING — the same table `route()` uses,
+  // asked by hand because this route is written out (the note at the top says
+  // why). A studio that does not run Reports has no builder, no saved list and
+  // no targets, exactly as it has no screen.
+  const off = sectionOffRefusal(request, context.sections);
+  if (off) return { status: 404 as const, body: { error: "section-off" } };
   return { ctx: { ...context, section } as ReportsContext };
 }
 
@@ -57,7 +64,7 @@ const answer = (result: unknown) =>
   });
 
 export async function GET(request: Request, ctx: { params: Promise<Record<string, string>> }) {
-  const resolved = await reportsContext(ctx.params);
+  const resolved = await reportsContext(request, ctx.params);
   if ("status" in resolved) return Response.json(resolved.body, { status: resolved.status });
 
   const url = new URL(request.url);
@@ -84,7 +91,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
 // split across verbs, because they are four acts on one screen and a generic
 // PUT is the shape that let a rejected change order approve itself.
 export async function POST(request: Request, ctx: { params: Promise<Record<string, string>> }) {
-  const resolved = await reportsContext(ctx.params);
+  const resolved = await reportsContext(request, ctx.params);
   if ("status" in resolved) return Response.json(resolved.body, { status: resolved.status });
 
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;

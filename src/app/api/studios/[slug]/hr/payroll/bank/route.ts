@@ -1,4 +1,5 @@
 import { currentUser } from "@/platform/auth/identity";
+import { sectionOffRefusal } from "@/platform/http/sectionRoutes";
 import { hrContext } from "@/modules/hr/hr";
 import { bankFile, sifFileFor } from "@/modules/hr/payrollService";
 import { toCsv } from "@/modules/reports/datasets";
@@ -26,6 +27,12 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   const context = await hrContext(user, slug);
   if (context.error) {
     return Response.json({ error: context.error }, { status: context.error === "forbidden" ? 403 : 404 });
+  }
+  // A PART THE STUDIO SWITCHED OFF DOES NOT ANSWER — the same table `route()`
+  // uses, asked by hand because this route predates the wrapper.
+  {
+    const off = sectionOffRefusal(request, context.sections);
+    if (off) return off;
   }
 
   const url = new URL(request.url);

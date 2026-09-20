@@ -14,6 +14,7 @@ import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { getSectionByKey } from "@/platform/db/sections";
 import { refused } from "@/platform/http/route";
+import { sectionOffRefusal } from "@/platform/http/sectionRoutes";
 import { executiveDashboard } from "@/modules/reports/executiveService";
 import type { ReportsContext } from "@/modules/reports/reportService";
 
@@ -29,6 +30,12 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   if (context.error) {
     return Response.json({ error: context.error },
       { status: context.error === "forbidden" ? 403 : 404 });
+  }
+  // A PART THE STUDIO SWITCHED OFF DOES NOT ANSWER — the same table `route()`
+  // uses, asked by hand because this route predates the wrapper.
+  {
+    const off = sectionOffRefusal(request, context.sections);
+    if (off) return off;
   }
 
   const section = await getSectionByKey(context.studio.id, "reports");

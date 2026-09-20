@@ -225,6 +225,27 @@ const KNOWN_COLLISIONS = {
   "src/shared/marketing/enquiry.ts": [
     { value: "sales", reason: "where the mailbox code is defined and returned" },
   ],
+  // THE API ADDRESSES, WHICH DID NOT MOVE WHEN THE SECTIONS DID. This table
+  // maps a studio route to the part it serves, and a route is reached at the
+  // path it has always had: `/sales/tickets` serves `crm-sales-tickets`,
+  // `/technical/rfqs` serves `quotations-rfq`, `/operations/schedule` serves
+  // `field-service-schedule`. The left-hand side is a URL and the right-hand
+  // side is the section key — which is the whole point of the file, and why
+  // every token below is spelled like a retired key without being one.
+  "src/platform/http/sectionRoutes.ts": [
+    { value: "sales", reason: "the unmoved API route segment for CRM & Sales" },
+    { value: "sales/tickets", reason: "the unmoved address of the tickets routes" },
+    { value: "sales/clients", reason: "the unmoved address of the clients routes" },
+    { value: "technical", reason: "the unmoved API route segment Quotations is served under" },
+    { value: "technical/quotations", reason: "the unmoved address of the quotation routes" },
+    { value: "technical/rfqs", reason: "the unmoved address of the RFQ routes" },
+    { value: "operations", reason: "the unmoved API route segment for Field Operations" },
+    { value: "operations/planner", reason: "the unmoved address of the planner route" },
+    { value: "operations/schedule", reason: "the unmoved address of the schedule route" },
+    { value: "operations/tracking", reason: "the unmoved address of the tracking route" },
+    { value: "inventory/vendors", reason: "the unmoved address of the suppliers routes" },
+    { value: "inventory/awb", reason: "the unmoved address of the air-waybill routes" },
+  ],
   "src/lib/dashboardWidgets.ts": [
     { value: "technical.rfq-funnel", reason: "a FROZEN per-tier dashboard-widget key (renaming one is a data migration)" },
   ],

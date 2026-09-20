@@ -39,6 +39,8 @@ import { currentSuperAdmin } from "@/platform/auth/superAuth";
 import { bearerFrom, resolveKey, touchKey, withApiKeyScopes } from "@/platform/auth/apiKeys";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { statusFor } from "./httpStatus";
+import { switchKeyForPath } from "./sectionRoutes";
+import { switchboard } from "@/lib/dashboardWidgets";
 import type { ContextError } from "@/modules/context";
 import { isCrossSite, MUTATING } from "./origin";
 import { withRequest, requestId } from "./observability";
@@ -494,6 +496,34 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
       // out establishes the other.
       const args = resolved.args as RouteArgs;
       const identity = resolved.identity || "";
+
+      // A PART THE STUDIO HAS SWITCHED OFF DOES NOT ANSWER (20/09/2026, the
+      // owner: "turn off a switched-off part's API, turned back on when the
+      // functionality is on"). The screens went with the switch already — the
+      // studio page resolves only sections that are on — and these addresses
+      // did not, so an integration, a script or a stale tab could still write
+      // into a department its owner had closed.
+      //
+      // HERE RATHER THAN IN `resolve`, because the API-key path builds its own
+      // context and returns from inside it: one place, both doors, and a key
+      // is refused exactly as a session is.
+      //
+      // BEFORE THE HANDLER, so nothing is read or written on the way to finding
+      // out. `section-off` is 404 (httpStatus): the department is not part of
+      // this studio's product, so there is no right to ask for — 403 would send
+      // somebody to request a permission that could not help. Switched back on,
+      // the next request is served: the switchboard is built per request from
+      // the stored rows and nothing caches it.
+      //
+      // THE SETTINGS ROUTES ARE EXEMPT BY NAME (sectionRoutes), which is what
+      // keeps this from being a trap door: switching a part back on is itself
+      // an API call, and gating that would leave a studio unable to undo a
+      // switch.
+      const switchKey = switchKeyForPath(new URL(request.url).pathname);
+      if (switchKey && Array.isArray(args.sections)
+        && !switchboard(args.sections as never)(switchKey)) {
+        return refuse("section-off", statusFor("section-off"));
+      }
 
       // WHO DID WHAT — written after the handler, so it records what actually
       // happened rather than what was attempted. Reads are not logged: an audit

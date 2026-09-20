@@ -76,6 +76,23 @@ export function testVisibleStageTypes() {
   const finance = new Set(["engagements.view", "finance.receivables.view"]);
   assert.ok(visibleStageTypes(finance).includes("invoice"));
   assert.ok(!visibleStageTypes(finance).includes("ticket"));
+
+  // AND THE SAME PROPERTY FOR THE STUDIO'S OWN SWITCHES (20/09/2026). A stage
+  // whose department the owner switched off is absent exactly as an unreadable
+  // one is: a deal cannot offer a way into a department that is not running.
+  const sections = [
+    { id: "s", key: "crm-sales", parentId: null, enabled: true },
+    { id: "st", key: "crm-sales-tickets", parentId: "s", enabled: false },
+    { id: "f", key: "finance", parentId: null, enabled: true },
+    { id: "fr", key: "finance-receivables", parentId: "f", enabled: true },
+  ];
+  const both = new Set(["engagements.view", "crmSales.tickets.view", "finance.receivables.view"]);
+  const running = visibleStageTypes(both, sections);
+  assert.ok(!running.includes("ticket"), "the ticket stage goes with its switched-off part");
+  assert.ok(running.includes("invoice"), "a part that is on keeps its stage");
+  // Nothing passed is a studio that has switched nothing off, not one with
+  // everything off — the same reading `switchboard` gives an empty list.
+  assert.ok(visibleStageTypes(both).includes("ticket"));
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

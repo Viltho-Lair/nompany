@@ -1,4 +1,5 @@
 import { refused } from "@/platform/http/route";
+import { sectionOffRefusal } from "@/platform/http/sectionRoutes";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import { nextNumberForSequence } from "@/modules/technical/technical";
 import { currentUser } from "@/platform/auth/identity";
@@ -24,6 +25,12 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   if (tech.error) {
     const status = tech.error === "notfound" || tech.error === "no-section" ? 404 : 403;
     return Response.json({ error: tech.error }, { status });
+  }
+  // A PART THE STUDIO SWITCHED OFF DOES NOT ANSWER — the same table `route()`
+  // uses, asked by hand because this route predates the wrapper.
+  {
+    const off = sectionOffRefusal(request, tech.sections);
+    if (off) return off;
   }
 
   // WHOSE PRICES. A quotation is written FOR somebody, and what that customer
@@ -130,6 +137,12 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
   if (tech.error) {
     const status = tech.error === "notfound" || tech.error === "no-section" ? 404 : 403;
     return Response.json({ error: tech.error }, { status });
+  }
+  // A PART THE STUDIO SWITCHED OFF DOES NOT ANSWER — the same table `route()`
+  // uses, asked by hand because this route predates the wrapper.
+  {
+    const off = sectionOffRefusal(request, tech.sections);
+    if (off) return off;
   }
   if (!tech.canManageSettings) return Response.json({ error: "read-only" }, { status: 403 });
 

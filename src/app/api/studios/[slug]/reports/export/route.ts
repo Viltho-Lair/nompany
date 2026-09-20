@@ -3,6 +3,7 @@ import { studioContext } from "@/lib/studios";
 import { can } from "@/platform/access";
 import { datasetFor, toRows, toCsv } from "@/modules/reports/datasets";
 import { readDataset } from "@/modules/reports/read";
+import { sectionOffRefusal } from "@/platform/http/sectionRoutes";
 import type { PermissionKey } from "@/platform/access";
 
 export const runtime = "nodejs";
@@ -40,13 +41,21 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     return Response.json({ error: "forbidden", key: "reports.exports.view" }, { status: 403 });
   }
 
+  // REPORTS & BI SWITCHED OFF ANSWERS NOTHING — the same table `route()` uses,
+  // asked by hand because this route returns a file rather than JSON. The data
+  // set's OWN part is asked further down, inside `readDataset`; this is the
+  // department this address belongs to.
+  const off = sectionOffRefusal(request, context.sections);
+  if (off) return off;
+
   const dataset = datasetFor(new URL(request.url).searchParams.get("dataset"));
   if (!dataset) return Response.json({ error: "notfound" }, { status: 404 });
 
   // THE SECOND GATE, asked inside `readDataset` and named in its refusal so
-  // somebody told "no" knows which right to ask for. A studio with no such
-  // section gets an EMPTY FILE rather than an error — the header row still
-  // tells them what the columns are.
+  // somebody told "no" knows which right to ask for. A studio that has never
+  // had that section gets an EMPTY FILE rather than an error — the header row
+  // still tells them what the columns are.
+  //
   // A SET WHOSE PART THE STUDIO HAS SWITCHED OFF is 404 rather than 403: the
   // department is not part of this studio's product, so there is no right to
   // ask for. Refused rather than downloaded empty — a blank file reads as "we

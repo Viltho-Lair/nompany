@@ -205,12 +205,42 @@ while Leave is off. Headcount and expiring documents stay on `hr-employees`.
 `tests/widget-sections-model.mjs` refuses any HR widget that names the bare root, because
 `hr` is a real switch and nothing else could tell the declaration was wrong.
 
+## A switched-off part's API does not answer
+
+**The owner's instruction, 20/09/2026: "turn off a switched-off part's API, turned back on when
+the functionality is on."** Switching a part off already took its screens (the studio page
+resolves only sections that are on), its widgets and its reads; the addresses underneath them
+went on answering, so an integration, a script or a tab left open from before the switch could
+still write into a department its owner had closed.
+
+- **`platform/http/sectionRoutes.ts` is the one table**, a line per address rather than a field
+  on each of 178 route files — 178 chances to forget, and a missing declaration would have read
+  as "not gated". It names the SWITCH and never the storage: `inventory/orders` is Procurement →
+  Orders, `inventory/awb` is Logistics → Shipments, `hr/vacations` is HR → Leave. An address
+  serving several parts names its DEPARTMENT, so the gate is "does this studio run it at all"
+  and the parts keep their own guards. An address that belongs to no switchable part is exempt
+  BY NAME, with the reason, rather than by falling through.
+- **`route()` refuses before the handler**, so nothing is read or written on the way to finding
+  out, and the API-key door is refused exactly as a session is. The answer is `section-off`,
+  **404** — the department is not part of this studio's product, so there is no right to ask
+  for, and 403 would send somebody to request a permission that could not help.
+- **The twenty-two hand-written routes ask the same table** through `sectionOffRefusal`, because
+  the wrapper cannot answer for a route it does not wrap.
+- **Settings is exempt, which is what keeps this from being a trap door**: switching a part back
+  on is itself an API call, and gating it would leave a studio unable to undo a switch.
+- **Measured in the sandbox:** with every section on, none of ~70 addresses was refused; with
+  five parts off, their reads AND writes answered `section-off` 404 while their siblings
+  answered normally, the export of a switched-off set was refused while another downloaded, and
+  every one of them answered again on the next request after being switched back on.
+
+`tests/section-routes-model.mjs` holds it: every studio route is in one of the two tables, every
+section named is one the owner can actually switch, and a route that belongs to a part reaches
+the gate — through the wrapper or by hand.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **The API does not refuse a switched-off part.** A part's own route still answers if called
-  directly; switching decides what is shown and read for the screens, not access.
 - **The leave charts and tiles follow the HR department as a whole.** Leave is kept on the HR
   root, which has no part of its own to switch.
 - **Free headline tiles are not in the registry.** Main's are gated through `seen` by the read
