@@ -358,6 +358,9 @@ export default function StudioSettings({ slug, locale = "en" }) {
         leaveTypes={studio.leaveTypes || []}
         country={studio.country || ""}
         preset={studio.employmentPreset || null}
+        // WHAT THIS COUNTRY ACTUALLY HAS, from its own file — the panel draws
+        // no block the country does not run (20/09/2026).
+        applies={studio.employmentApplies || undefined}
         canManage={canManage}
         onSave={save}
         tr={tr}

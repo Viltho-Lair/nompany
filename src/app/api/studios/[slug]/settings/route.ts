@@ -16,7 +16,7 @@ import { unitProblems, cleanUnits, unitsView, cleanUnitsOff, unitsOffProblems } 
 import { taxonomyProblems, cleanTaxonomies, taxonomyView, valuesFor } from "@/modules/administration/taxonomy";
 import { cleanEmploymentRules, employmentRulesOf } from "@/modules/hr/leaveBalance";
 import { cleanStatutory, statutoryRulesOf } from "@/modules/hr/statutory";
-import { payPresetFor } from "@/shared/compliance/rules";
+import { payPresetFor, employmentAppliesFor } from "@/shared/compliance/rules";
 import { templateProblems as noticeProblems, cleanTemplates as cleanNotices, templateView as noticeView } from "@/modules/administration/notices";
 import { isValuationMethod } from "@/modules/inventory/valuation";
 import { cleanVatSetting, studioVatRate } from "@/shared/vat";
@@ -160,6 +160,11 @@ const clean = (studio: Record<string, unknown>) => ({
   // (`rules.payPreset`), or null. Sent rather than imported by the screen, so
   // the settings bundle does not carry every country's definition.
   employmentPreset: payPresetFor(studio.country),
+  // WHICH OF THE THREE STATUTORY BLOCKS THIS COUNTRY ACTUALLY HAS (20/09/2026,
+  // the owner: a studio sees its own country's rules and nothing else). The
+  // screen draws only what is here; the PUT below refuses anything else, so a
+  // stale form cannot store a scheme the country does not run.
+  employmentApplies: employmentAppliesFor(studio.country),
   // The leave types a rule may name — the studio's own list, additions included.
   leaveTypes: valuesFor("leaveTypes", studio.taxonomies),
   language: studioLocale(studio),
@@ -397,7 +402,9 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // each checked by its own module and stored together.
     if (key === "employmentRules") {
       const leave = cleanEmploymentRules(body[key], valuesFor("leaveTypes", studio.taxonomies));
-      const statutory = cleanStatutory(body[key]);
+      // JUDGED AGAINST THE STUDIO'S OWN COUNTRY: a Jordanian studio storing a
+      // UAE routing code is refused here, not merely un-offered on the screen.
+      const statutory = cleanStatutory(body[key], employmentAppliesFor(studio.country));
       const problems = [
         ...("problems" in leave ? leave.problems.map((p) => `${p.type}: ${p.field}`) : []),
         ...("problems" in statutory ? statutory.problems : []),

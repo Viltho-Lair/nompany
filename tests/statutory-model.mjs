@@ -7,13 +7,14 @@
 
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
+import fs from "node:fs";
 
 const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const S = await import("@/modules/hr/statutory");
 // THE PRESETS ARE THE COUNTRY FILES' (`rules.payPreset`) since 18/09/2026.
-const { payPresetFor: presetFor } = await import("@/shared/compliance/rules");
+const { payPresetFor: presetFor, employmentAppliesFor, wageProtectionFor } = await import("@/shared/compliance/rules");
 const P = await import("@/modules/hr/payroll");
 
 let fails = 0;
@@ -117,6 +118,72 @@ ok("...no WPS section is still no WPS section", S.wpsWithEmployer(null, "2222222
 ok("a file with neither ID is refused, not written with a blank",
   S.sifFile({ ...input, wps: S.wpsWithEmployer({ employerId: "", routingCode: "123456789", scrFirst: false }, "") }).error === "sif-employer");
 ok("a file with nobody in it is refused", S.sifFile({ ...input, lines: [input.lines[1]] }).error === "sif-empty");
+
+// ---------------------------------------------------------------------------
+// ONLY WHAT THE COUNTRY HAS — the owner, 20/09/2026: "studios with a set of
+// rules and information for a specific country should not display information
+// of anything else besides the picked one".
+//
+// THE DEFECT: Studio settings offered all three statutory blocks to every
+// studio. A Jordanian company was asked for a 13-digit MoHRE establishment id
+// and a UAE bank routing code — identifiers issued by a ministry it has never
+// dealt with — and for an end-of-service award Jordan does not grant, and it
+// could save both.
+console.log("\n== a country is shown its own rules and no others");
+
+const joHas = employmentAppliesFor("Jordan");
+ok("Jordan has social security", joHas.socialSecurity === true);
+ok("...no end of service, which its own file says in words", joHas.endOfService === false);
+ok("...and no wage protection scheme", joHas.wps === null);
+
+const aeHas = employmentAppliesFor("United Arab Emirates");
+ok("the UAE has all three", aeHas.socialSecurity === true && aeHas.endOfService === true && Boolean(aeHas.wps));
+ok("...and its scheme names itself", aeHas.wps.system === "WPS" && aeHas.wps.authority === "MoHRE");
+ok("...with ITS digit lengths, not this module's", aeHas.wps.employerIdDigits === 13 && aeHas.wps.routingDigits === 9);
+ok("...and the employer id it asks for is an official value of the UAE's own",
+  aeHas.wps.employerIdField === "mohre_establishment_id");
+
+// A COUNTRY NOBODY HAS RESEARCHED KEEPS THE GENERAL BLOCKS. "We know there is
+// none" and "nobody has written it down" are different answers, and hiding a
+// scheme on the strength of the second would be this same bug facing the other
+// way — a studio unable to record what it actually pays into.
+const frHas = employmentAppliesFor("France");
+ok("an unresearched country still offers social security and end of service",
+  frHas.socialSecurity === true && frHas.endOfService === true && frHas.researched === false);
+ok("...but never a wage protection scheme, which must be declared", frHas.wps === null);
+ok("no country is shown another's scheme",
+  wageProtectionFor("Jordan") === null && wageProtectionFor("Saudi Arabia") === null);
+
+console.log("\n== and it cannot be saved around");
+
+const joApplies = { socialSecurity: true, endOfService: false, wps: null };
+ok("a Jordanian studio is refused a WPS section by name",
+  S.statutoryProblems({ wps: { employerId: "", routingCode: "123456789" } }, joApplies).includes("wpsNotHere"));
+ok("...and an end-of-service scheme by name",
+  S.statutoryProblems({ endOfService: { firstMonths: "0.5", afterMonths: "1" } }, joApplies).includes("eosNotHere"));
+ok("...while its own social security is accepted",
+  S.statutoryProblems({ socialSecurity: { employeePct: "7.5", employerPct: "14.25" } }, joApplies).length === 0);
+ok("nothing stored is nothing refused", S.statutoryProblems({}, joApplies).length === 0);
+
+// THE LENGTHS TRAVEL WITH THE SCHEME. Written here as 13 and 9 — the UAE's —
+// they would refuse another country's correct identifiers as malformed.
+const short = { socialSecurity: true, endOfService: true, wps: { employerIdDigits: 8, routingDigits: 4 } };
+ok("a scheme with shorter identifiers is judged by its own lengths",
+  S.statutoryProblems({ wps: { employerId: "12345678", routingCode: "1234" } }, short).length === 0);
+ok("...and the UAE's shapes are refused under it",
+  S.statutoryProblems({ wps: { employerId: "1234567890123", routingCode: "123456789" } }, short).includes("wpsEmployer"));
+ok("an omitted applies still judges everything, as every caller before this did",
+  S.statutoryProblems({ wps: { employerId: "1234567890123", routingCode: "123456789" } }).length === 0);
+
+// THE UAE'S KEY IS THE UAE FILE'S. It was hardcoded in the payroll service,
+// which is how one country's identifier ends up asked of every other.
+const payrollSource = fs.readFileSync("src/modules/hr/payrollService.ts", "utf8");
+ok("payroll reads the employer id field the scheme names",
+  /official\(ctx\.studio, scheme\.employerIdField\)/.test(payrollSource));
+ok("...and the file's currency is the scheme's, not a constant AED",
+  /scheme!\.fileCurrency\.toUpperCase\(\)/.test(payrollSource));
+ok("...and no salary file is built where the country runs no scheme",
+  /if \(!scheme\) return \{ error: "no-wps-here" \}/.test(payrollSource));
 
 console.log(fails ? `\n${fails} failed` : "\nall passed");
 process.exitCode = fails ? 1 : 0;

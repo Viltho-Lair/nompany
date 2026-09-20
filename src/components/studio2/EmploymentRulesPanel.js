@@ -8,7 +8,22 @@ import { statutoryProblems } from "@/modules/hr/statutory";
 
 // THE STUDIO'S EMPLOYMENT RULES — tier 6. Leave (allowances, the longer-service
 // figure, carry-over, working-day counting), then statutory pay: social
-// security, end of service, and the UAE's WPS identifiers.
+// security, end of service, and — where the country runs one — a wage
+// protection scheme's identifiers.
+//
+// ONLY WHAT THE COUNTRY HAS — the owner's rule, 20/09/2026: "studios with a set
+// of rules and information for a specific country should not display
+// information of anything else besides the picked one". All three blocks used
+// to be drawn for everybody, so a Jordanian studio was asked for a 13-digit
+// MoHRE establishment id and a UAE bank routing code, and for an end-of-service
+// award Jordan does not grant. `applies` comes from the country's own file
+// (`employmentAppliesFor`); the PUT refuses the same thing, so a stale form
+// cannot store another country's scheme either.
+//
+// A BLOCK THAT NO LONGER APPLIES IS SHOWN, MARKED, WITH A WAY OUT. Hiding a
+// scheme a studio has already saved would leave figures nobody can see feeding
+// payroll — and after a country change that is exactly the case worth catching.
+// It cannot be saved around: the refusal names it until it is removed.
 //
 // A COUNTRY PRESET FILLS THE FORM AND SAVES NOTHING — the owner's choice:
 // presets the studio confirms. The figures are the law's as researched for 2026
@@ -88,9 +103,33 @@ function Num({ label, value, onChange, disabled }) {
   );
 }
 
-// `preset` IS THE COUNTRY'S, sent by the settings route from the country's
-// definition file (null when the file carries none).
-export default function EmploymentRulesPanel({ rules, leaveTypes = [], country = "", preset = null, canManage, onSave, tr }) {
+/**
+ * A BLOCK THE COUNTRY DOES NOT HAVE, SHOWN BECAUSE THE STUDIO SAVED ONE.
+ *
+ * Only ever reached after a country change, which is exactly when it matters:
+ * the figures are still feeding payroll, and a screen that simply dropped them
+ * would leave nobody able to see what was being applied. Amber rather than red
+ * — the studio did nothing wrong — and the button clears it rather than asking
+ * anybody to blank six boxes by hand.
+ */
+function Stranded({ what, country, tr, canManage, onClear }) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+      <p>{tr.notInCountry(what, country)}</p>
+      {canManage && <button type="button" className={BTN_GHOST} onClick={onClear}>{tr.removeBlock}</button>}
+    </div>
+  );
+}
+
+// `preset` and `applies` are BOTH THE COUNTRY'S, sent by the settings route
+// from its definition file. The default hides the wage-protection block: it is
+// a named national scheme, so it appears only where a country declares one —
+// never because a prop went missing.
+const NOTHING_DECLARED = { socialSecurity: true, endOfService: true, wps: null };
+
+export default function EmploymentRulesPanel({
+  rules, leaveTypes = [], country = "", preset = null, applies = NOTHING_DECLARED, canManage, onSave, tr,
+}) {
   const [draft, setDraft] = useState(() => draftFrom(rules, leaveTypes));
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -100,9 +139,39 @@ export default function EmploymentRulesPanel({ rules, leaveTypes = [], country =
     const payload = payloadOf(draft);
     return [
       ...employmentRuleProblems(payload, leaveTypes).map((p) => tr.ruleProblem(p.type, p.field)),
-      ...statutoryProblems(payload).map((code) => tr.statProblem(code)),
+      ...statutoryProblems(payload, applies).map((code) => tr.statProblem(code, country)),
     ];
-  }, [draft, leaveTypes, tr]);
+  }, [draft, leaveTypes, tr, applies, country]);
+
+  // WHAT THIS COUNTRY HAS, and what this studio has SAVED that it does not.
+  // A section is drawn when it applies, or when something is stored in it —
+  // never neither.
+  const has = { ss: Boolean(applies.socialSecurity), eos: Boolean(applies.endOfService), wps: Boolean(applies.wps) };
+  const stored = useMemo(() => {
+    const r = rules || {};
+    return {
+      ss: Boolean(r.socialSecurity),
+      eos: Boolean(r.endOfService),
+      wps: Boolean(r.wps),
+    };
+  }, [rules]);
+  const stranded = { ss: !has.ss && stored.ss, eos: !has.eos && stored.eos, wps: !has.wps && stored.wps };
+  const show = { ss: has.ss || stranded.ss, eos: has.eos || stranded.eos, wps: has.wps || stranded.wps };
+
+  // THE SCHEME'S OWN WORDS. A stranded block has no country rule to read them
+  // from, so it falls back to the shape the values were saved under — which is
+  // the UAE's, because that is the only scheme this product has ever offered.
+  const scheme = applies.wps || { system: "WPS", authority: "MoHRE", employerIdDigits: 13, routingDigits: 9, fileCurrency: "AED" };
+
+  // REMOVING A STRANDED BLOCK IS BLANKING IT: a section whose defining figures
+  // are blank is sent as null and stops existing, which is the same door the
+  // studio has always had for "we have no such scheme".
+  const clearSection = (which) => change((d) => {
+    if (which === "ss") d.ss = { employeePct: "", employerPct: "", ceiling: "", coversEveryone: true };
+    if (which === "eos") d.eos = { firstYears: "", firstMonths: "", afterMonths: "", base: "wage", minYears: "", capMonths: "", resignation: [] };
+    if (which === "wps") d.wps = { employerId: "", routingCode: "", scrFirst: false };
+    return d;
+  });
 
   const change = (fn) => { setSaved(false); setDraft((d) => fn(structuredClone(d))); };
   const setLeave = (type, field, value) => change((d) => { d.leave[type][field] = value; return d; });
@@ -181,9 +250,11 @@ export default function EmploymentRulesPanel({ rules, leaveTypes = [], country =
       </label>
 
       {/* ---- social security ---- */}
+      {show.ss && (
       <section className="mt-6">
         <h4 className={h4}>{tr.ssHeading}</h4>
         <p className={lead}>{tr.ssLead}</p>
+        {stranded.ss && <Stranded what={tr.ssHeading} country={country} tr={tr} canManage={canManage} onClear={() => clearSection("ss")} />}
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Num label={tr.ssEmployee} value={draft.ss.employeePct} disabled={off} onChange={(v) => change((d) => { d.ss.employeePct = v; return d; })} />
           <Num label={tr.ssEmployer} value={draft.ss.employerPct} disabled={off} onChange={(v) => change((d) => { d.ss.employerPct = v; return d; })} />
@@ -195,11 +266,14 @@ export default function EmploymentRulesPanel({ rules, leaveTypes = [], country =
           {tr.ssEveryone}
         </label>
       </section>
+      )}
 
       {/* ---- end of service ---- */}
+      {show.eos && (
       <section className="mt-6">
         <h4 className={h4}>{tr.eosHeading}</h4>
         <p className={lead}>{tr.eosLead}</p>
+        {stranded.eos && <Stranded what={tr.eosHeading} country={country} tr={tr} canManage={canManage} onClear={() => clearSection("eos")} />}
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Num label={tr.eosFirstYears} value={draft.eos.firstYears} disabled={off} onChange={(v) => change((d) => { d.eos.firstYears = v; return d; })} />
           <Num label={tr.eosFirstMonths} value={draft.eos.firstMonths} disabled={off} onChange={(v) => change((d) => { d.eos.firstMonths = v; return d; })} />
@@ -236,24 +310,30 @@ export default function EmploymentRulesPanel({ rules, leaveTypes = [], country =
           )}
         </div>
       </section>
+      )}
 
-      {/* ---- WPS ---- */}
+      {/* ---- the wage protection scheme, where the country runs one ---- */}
+      {show.wps && (
       <section className="mt-6">
-        <h4 className={h4}>{tr.wpsHeading}</h4>
-        <p className={lead}>{tr.wpsLead}</p>
+        {/* THE SCHEME NAMES ITSELF: its own name, its ministry and its own
+            digit lengths come off the country file, so nothing here says "UAE"
+            to a studio that is not in one. */}
+        <h4 className={h4}>{tr.wpsHeading(scheme.system)}</h4>
+        <p className={lead}>{tr.wpsLead(scheme.system, scheme.authority, scheme.fileCurrency)}</p>
+        {stranded.wps && <Stranded what={tr.wpsHeading(scheme.system)} country={country} tr={tr} canManage={canManage} onClear={() => clearSection("wps")} />}
         {/* THE EMPLOYER ID MOVED TO OFFICIAL VALUES (18/09/2026) — it is the
-            Studio's registration with MoHRE, not a payroll setting. A studio
-            that saved one here keeps it, shown so it can be cleared once the
-            Official values field is filled; nobody else is asked for it twice. */}
-        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.wpsEmployerMoved}</p>
+            Studio's registration with the ministry, not a payroll setting. A
+            studio that saved one here keeps it, shown so it can be cleared once
+            the Official values field is filled; nobody else is asked twice. */}
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.wpsEmployerMoved(scheme.authority)}</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {(rules?.wps?.employerId || draft.wps.employerId) && (
             <div>
-              <Num label={tr.wpsEmployer} value={draft.wps.employerId} disabled={off} onChange={(v) => change((d) => { d.wps.employerId = v; return d; })} />
+              <Num label={tr.wpsEmployer(scheme.employerIdDigits)} value={draft.wps.employerId} disabled={off} onChange={(v) => change((d) => { d.wps.employerId = v; return d; })} />
               <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{tr.wpsEmployerLegacy}</p>
             </div>
           )}
-          <Num label={tr.wpsRouting} value={draft.wps.routingCode} disabled={off} onChange={(v) => change((d) => { d.wps.routingCode = v; return d; })} />
+          <Num label={tr.wpsRouting(scheme.routingDigits)} value={draft.wps.routingCode} disabled={off} onChange={(v) => change((d) => { d.wps.routingCode = v; return d; })} />
         </div>
         <label className="mt-3 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
           <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={draft.wps.scrFirst} disabled={off}
@@ -261,6 +341,7 @@ export default function EmploymentRulesPanel({ rules, leaveTypes = [], country =
           {tr.wpsScrFirst}
         </label>
       </section>
+      )}
 
       {problems.length > 0 && (
         <ul className="mt-4 space-y-1 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">

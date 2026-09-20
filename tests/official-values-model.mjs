@@ -280,5 +280,37 @@ for (const [name, text] of sharedFiles) {
   ok(`${name} names no country`, !literal.test(text), (text.match(literal) || [])[0]);
 }
 
+// ---- a wage protection scheme is the country's own, or absent -------------------
+// 20/09/2026: the scheme was the UAE's, hardcoded in the HR module and offered
+// to every studio. It is a declared block now, and a declaration nothing could
+// act on is refused the way a field nothing could fill is.
+console.log("\n== a country declares its own wage protection scheme");
+
+const aeDef = definitionFor("AE");
+ok("the UAE declares one", Boolean(aeDef.rules.wageProtection));
+ok("...naming a field the UAE actually has",
+  aeDef.fields.some((f) => f.key === aeDef.rules.wageProtection.employerIdField));
+ok("no other country carries one it has not been researched for",
+  ["JO", "SA", "EG", "US", "GB", "DE"].every((c) => !definitionFor(c)?.rules?.wageProtection));
+
+const withScheme = (wageProtection) => ({
+  code: "ZZ", name: { en: "Z", ar: "ز" }, version: 1, checked: "2026-09-20",
+  rules: { wageProtection },
+  fields: [{
+    key: "some_id", department: "hr", label: { en: "Some id", ar: "رقم" }, hint: { en: "", ar: "" },
+    required: "optional", showOn: [], source: { label: "x", status: "uncertain" },
+  }],
+});
+const sound = { system: "WPS", authority: "Ministry", employerIdField: "some_id", employerIdDigits: 10, routingDigits: 6, fileCurrency: "ZZD", checked: "2026-09-20", source: "x" };
+ok("a sound declaration is accepted", definitionProblems(withScheme(sound)).length === 0);
+ok("a scheme naming a field the country has not got is refused",
+  definitionProblems(withScheme({ ...sound, employerIdField: "elsewhere_id" }))
+    .some((p) => /employerIdField/.test(p)));
+ok("...and one with no identifier lengths is refused, since nothing could judge a value",
+  definitionProblems(withScheme({ ...sound, employerIdDigits: 0 }))
+    .some((p) => /employerIdDigits/.test(p)));
+ok("...and one with no source is refused, like every other rule",
+  definitionProblems(withScheme({ ...sound, source: "" })).some((p) => /wageProtection: source/.test(p)));
+
 console.log(fails ? `\nofficial values model: ${fails} FAILED` : "\nofficial values model: all passed");
 process.exitCode = fails ? 1 : 0;

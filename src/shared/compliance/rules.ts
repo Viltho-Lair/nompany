@@ -19,7 +19,7 @@
 // the categories in shared/taxProfile, which import no country.
 
 import { COUNTRY_DEFINITIONS, definitionFor } from "./countries";
-import type { EmploymentRules, PayPreset, ZakatRules, EInvoiceRules } from "./definition";
+import type { EmploymentRules, PayPreset, ZakatRules, EInvoiceRules, WageProtectionRules } from "./definition";
 import { DEFAULT_TAX_PROFILE, type TaxMethod, type TaxProfile } from "../taxProfile";
 
 // ---- tax ----------------------------------------------------------------------
@@ -80,6 +80,67 @@ export function payPresetFor(country: unknown): (PayPreset & { code: string }) |
   const def = definitionFor(country);
   const p = def?.rules?.payPreset;
   return def && p ? { code: def.code, ...p } : null;
+}
+
+// ---- what a country's employment law actually has ---------------------------------
+
+/**
+ * WHICH STATUTORY BLOCKS APPLY IN A COUNTRY — the owner's rule, 20/09/2026: a
+ * studio placed in one country is shown that country's rules and nothing else.
+ *
+ * Studio settings → Employment rules offered all three to everybody: social
+ * security, end of service, and the UAE's Wage Protection System. Jordan has no
+ * end of service for anyone the SSC covers — its own file says so in the
+ * source line beside `endOfService: null` — and no WPS at all, yet a Jordanian
+ * studio was asked for a MoHRE establishment id and a UAE bank routing code,
+ * and could save both.
+ *
+ * TWO DIFFERENT DEFAULTS, because "we know there is none" and "nobody has
+ * written it down" are different answers:
+ *
+ *   - a country whose file carries a pay preset has been researched, so a null
+ *     block there means the country HAS no such scheme and it is hidden;
+ *   - a country with no preset has not been, so the general blocks stay — a
+ *     studio must still be able to record the scheme it pays into, and hiding
+ *     it on the strength of nobody having looked would be the same mistake in
+ *     the other direction;
+ *   - WPS is hidden unless the country DECLARES one. It is a named national
+ *     system with a ministry's own identifier formats, so it can never be a
+ *     default; see `WageProtectionRules`.
+ */
+export type EmploymentApplies = {
+  socialSecurity: boolean;
+  endOfService: boolean;
+  /** The country's scheme, or null where it runs none (or none is declared). */
+  wps: WageProtectionRules | null;
+  /** False when nothing in the product knows this country's employment law. */
+  researched: boolean;
+};
+
+export function employmentAppliesFor(country: unknown): EmploymentApplies {
+  const def = definitionFor(country);
+  const preset = def?.rules?.payPreset;
+  return {
+    socialSecurity: preset ? preset.socialSecurity !== null : true,
+    endOfService: preset ? preset.endOfService !== null : true,
+    wps: def?.rules?.wageProtection || null,
+    researched: Boolean(preset),
+  };
+}
+
+/** What applies to this studio, from the country it stores in Studio settings. */
+export function studioEmploymentApplies(studio: unknown): EmploymentApplies {
+  return employmentAppliesFor((studio as { country?: unknown } | null | undefined)?.country);
+}
+
+/** The studio's country scheme, or null — the shape payroll asks for. */
+export function studioWageProtection(studio: unknown): WageProtectionRules | null {
+  return wageProtectionFor((studio as { country?: unknown } | null | undefined)?.country);
+}
+
+/** The country's wage protection scheme, or null. */
+export function wageProtectionFor(country: unknown): WageProtectionRules | null {
+  return definitionFor(country)?.rules?.wageProtection || null;
 }
 
 // ---- zakat ----------------------------------------------------------------------

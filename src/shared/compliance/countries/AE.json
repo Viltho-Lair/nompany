@@ -63,6 +63,16 @@
         "capMonths": 24,
         "resignation": []
       }
+    },
+    "wageProtection": {
+      "system": "WPS",
+      "authority": "MoHRE",
+      "employerIdField": "mohre_establishment_id",
+      "employerIdDigits": 13,
+      "routingDigits": 9,
+      "fileCurrency": "AED",
+      "checked": "2026-09-18",
+      "source": "UAE Central Bank WPS salary file (SIF) specification — 13-digit MoHRE establishment ID and 9-digit employer bank routing code in the SCR record"
     }
   },
   "fields": [

@@ -114,6 +114,24 @@ instead of from tables keyed by country code:
 - **`rules.payPreset`** — the starting figures for Employment rules: leave, social
   security, end of service (`payroll.md`). Sent to the screen by the settings route, so
   no browser bundle carries every country's file. Jordan, Saudi Arabia and the UAE.
+- **`rules.wageProtection`** — the country's wage protection scheme, where it runs one:
+  its name, its ministry, which official value holds the employer's registration with it,
+  the two identifier lengths and the currency a salary file is paid in. **The UAE only.**
+
+**AND THE FILE DECIDES WHAT EMPLOYMENT RULES OFFERS** (20/09/2026, the owner: "studios
+with a set of rules and information for a specific country should not display information
+of anything else besides the picked one"). `employmentAppliesFor` answers three
+questions from the file — social security, end of service, wage protection — and Studio
+settings draws only what comes back, while the settings PUT refuses the rest, so a stale
+form cannot store it either. Two different defaults, because they are two different
+answers: a country with a pay preset has been researched, so a `null` block there means
+the country HAS none and it is hidden; a country with no preset keeps the general blocks,
+since hiding a scheme nobody has looked up would leave a studio unable to record what it
+pays into. A wage protection scheme is never a default — it is a named national system
+with its ministry's own formats, so it appears only where a country declares one.
+**A block a studio saved and its country does not have is shown, marked, with a Remove
+button, and blocks the save until it goes** — hiding it would leave figures nobody can see
+still feeding payroll, which after a country change is exactly the case worth catching.
 
 **The figures did not change.** A script copied them out of the old tables, and the model
 tests that pinned them (`tax-profile-model`, `statutory-model`, `hr-lifecycle-model`)

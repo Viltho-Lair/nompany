@@ -60,7 +60,32 @@ export type StatutoryRules = {
 
 export type StatutoryProblem =
   | "ssPct" | "ssCeiling" | "eosRates" | "eosYears" | "eosCap" | "eosResignation"
-  | "wpsEmployer" | "wpsRouting";
+  | "wpsEmployer" | "wpsRouting"
+  // A SCHEME THE COUNTRY DOES NOT RUN — the owner's rule, 20/09/2026. Refused
+  // at the door rather than hidden on one screen: a form can be stale, and a
+  // studio in Jordan must not end up storing UAE identifiers by any route.
+  | "ssNotHere" | "eosNotHere" | "wpsNotHere";
+
+/**
+ * WHICH BLOCKS THE STUDIO'S COUNTRY HAS — `employmentAppliesFor` in
+ * shared/compliance/rules, passed in rather than read here, because this module
+ * is pure and knows no country (its figures moved into the country files on
+ * 18/09/2026 for exactly that reason).
+ *
+ * Omitted, everything applies — which is what every caller predating this got,
+ * and what a studio with no country chosen still gets.
+ */
+export type StatutoryApplies = {
+  socialSecurity: boolean;
+  endOfService: boolean;
+  wps: { employerIdDigits: number; routingDigits: number } | null;
+};
+
+const EVERYTHING: StatutoryApplies = {
+  socialSecurity: true, endOfService: true,
+  // The UAE's shapes, which is where these two numbers have always come from.
+  wps: { employerIdDigits: 13, routingDigits: 9 },
+};
 
 // ---- the presets ------------------------------------------------------------
 
@@ -138,9 +163,16 @@ function sections(v: unknown) {
 }
 
 /** Why a submitted set of statutory rules cannot be stored, as codes for the screen to word. */
-export function statutoryProblems(v: unknown): StatutoryProblem[] {
+export function statutoryProblems(v: unknown, applies: StatutoryApplies = EVERYTHING): StatutoryProblem[] {
   const { ss, eos, wps } = sections(v);
   const out: StatutoryProblem[] = [];
+  // WHAT THE COUNTRY DOES NOT HAVE IS REFUSED BEFORE IT IS JUDGED: there is no
+  // sense in checking a UAE routing code's length on a studio that should never
+  // have been asked for one.
+  if (ss && !applies.socialSecurity) out.push("ssNotHere");
+  if (eos && !applies.endOfService) out.push("eosNotHere");
+  if (wps && !applies.wps) out.push("wpsNotHere");
+  if (out.length) return out;
   if (ss) {
     if (!ok(ss.employeePct, 100) || !ok(ss.employerPct, 100)) out.push("ssPct");
     if (!ok(ss.ceiling, 1e9)) out.push("ssCeiling");
@@ -165,8 +197,14 @@ export function statutoryProblems(v: unknown): StatutoryProblem[] {
     // now (`mohre_establishment_id` in the UAE's definition file), entered under
     // Official values. A studio that saved one here before keeps it, so a typed
     // one is still judged.
-    if (!blank(wps.employerId) && !/^\d{13}$/.test(String(wps.employerId ?? "").trim())) out.push("wpsEmployer");
-    if (!/^\d{9}$/.test(String(wps.routingCode ?? "").trim())) out.push("wpsRouting");
+    // THE LENGTHS ARE THE COUNTRY'S, not this module's. They were written here
+    // as 13 and 9 — the UAE's — which is the same mistake as offering the form
+    // everywhere: a second country's scheme would have been judged by the
+    // UAE's format and refused for being correct.
+    const digits = applies.wps || EVERYTHING.wps!;
+    const rule = (len: number) => new RegExp(`^\\d{${len}}$`);
+    if (!blank(wps.employerId) && !rule(digits.employerIdDigits).test(String(wps.employerId ?? "").trim())) out.push("wpsEmployer");
+    if (!rule(digits.routingDigits).test(String(wps.routingCode ?? "").trim())) out.push("wpsRouting");
   }
   return out;
 }
@@ -202,8 +240,11 @@ function parse(v: unknown): StatutoryRules {
   };
 }
 
-export function cleanStatutory(v: unknown): { rules: StatutoryRules } | { problems: StatutoryProblem[] } {
-  const problems = statutoryProblems(v);
+export function cleanStatutory(
+  v: unknown,
+  applies?: StatutoryApplies,
+): { rules: StatutoryRules } | { problems: StatutoryProblem[] } {
+  const problems = statutoryProblems(v, applies);
   return problems.length ? { problems } : { rules: parse(v) };
 }
 

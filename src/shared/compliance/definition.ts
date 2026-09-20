@@ -178,10 +178,47 @@ export type EInvoiceRules = {
   source: string;
 };
 
+/**
+ * A WAGE PROTECTION SYSTEM, where a country runs one — the owner's correction,
+ * 20/09/2026: "studios with a set of rules for a specific country should not
+ * display information of anything else besides the picked one".
+ *
+ * WPS is the UAE's scheme, with equivalents elsewhere, and Employment rules
+ * offered its form — a 13-digit MoHRE establishment id and a 9-digit UAE
+ * routing code — to EVERY studio whatever its country. A Jordanian company was
+ * being asked for identifiers issued by a ministry it has never dealt with, and
+ * could save them.
+ *
+ * A POSITIVE DECLARATION, never a default. A country the product has not
+ * researched has no scheme HERE, which is the honest reading: an absent block
+ * means nobody has written the rule down, and offering another country's form
+ * on that basis is exactly the bug this closes. Where a country does run one
+ * and it is not declared yet, the block is missing rather than wrong, and
+ * `docs/functionality/payroll.md` says which.
+ *
+ * The digit lengths are the FORMAT CHECK the salary file needs; they were
+ * hardcoded in `modules/hr/statutory` as the UAE's and are the country's now.
+ */
+export type WageProtectionRules = {
+  /** What the scheme is called where it runs — "WPS". */
+  system: string;
+  /** Who runs it — "MoHRE". */
+  authority: string;
+  /** The official-values key holding the employer's registration with it. */
+  employerIdField: string;
+  employerIdDigits: number;
+  routingDigits: number;
+  /** The currency a salary file is paid in; a studio paying in another gets no file. */
+  fileCurrency: string;
+  checked: string;
+  source: string;
+};
+
 export type CountryRules = {
   tax?: TaxRules;
   employment?: EmploymentRules[];
   payPreset?: PayPreset;
+  wageProtection?: WageProtectionRules;
   zakat?: ZakatRules;
   einvoice?: EInvoiceRules;
 };
@@ -228,6 +265,20 @@ function rulesProblems(rules: unknown): string[] {
   if (r.payPreset) {
     if (!r.payPreset.asOf || !r.payPreset.source) out.push("rules.payPreset: asOf and source are required");
     if (!r.payPreset.leave || typeof r.payPreset.leave !== "object") out.push("rules.payPreset: leave is required");
+  }
+  if (r.wageProtection) {
+    const w = r.wageProtection;
+    if (!w.system || !w.authority) out.push("rules.wageProtection: system and authority are required");
+    // THE EMPLOYER ID IS AN OFFICIAL VALUE, so the field it names must exist in
+    // this country's own list — a scheme pointing at a key nobody can fill asks
+    // for an identifier with nowhere to type it.
+    if (!w.employerIdField) out.push("rules.wageProtection: employerIdField is required");
+    if (!(w.employerIdDigits > 0) || !(w.routingDigits > 0)) {
+      out.push("rules.wageProtection: employerIdDigits and routingDigits must be above 0");
+    }
+    if (!w.fileCurrency) out.push("rules.wageProtection: fileCurrency is required");
+    if (!DATE.test(String(w.checked || ""))) out.push("rules.wageProtection: checked must be YYYY-MM-DD");
+    if (!w.source) out.push("rules.wageProtection: source is required");
   }
   return out;
 }
@@ -314,6 +365,15 @@ export function definitionProblems(def: unknown): string[] {
     if (!f.source?.label || !(SOURCE_STATUSES as readonly string[]).includes(f.source.status)) {
       out.push(`${at}: source needs a label and a status`);
     }
+  }
+  // THE WAGE PROTECTION SCHEME'S EMPLOYER ID MUST BE A FIELD OF THIS COUNTRY,
+  // checked here rather than in `rulesProblems` because only this function has
+  // the field list. A scheme naming a key nobody can fill asks a studio for an
+  // identifier with nowhere to type it — and asking for it under the wrong
+  // country is the whole defect this block exists to prevent.
+  const wps = (d.rules as CountryRules | undefined)?.wageProtection;
+  if (wps?.employerIdField && !seen.has(wps.employerIdField)) {
+    out.push(`rules.wageProtection: employerIdField ${wps.employerIdField} is not a field of this country`);
   }
   return out;
 }

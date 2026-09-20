@@ -78,14 +78,23 @@ type Strings = {
   eosUnderYears: string;
   eosPaidPct: string;
   eosAddStep: string;
-  wpsHeading: string;
-  wpsLead: string;
-  wpsEmployer: string;
-  wpsEmployerMoved: string;
+  /**
+   * THE SCHEME NAMES ITSELF (20/09/2026). Every one of these said "UAE" and
+   * "MoHRE" and "13 digits" in fixed words, on a form drawn for every country —
+   * so the wording had to become the country file's before the form could stop
+   * being everybody's.
+   */
+  wpsHeading: (system: string) => string;
+  wpsLead: (system: string, authority: string, currency: string) => string;
+  wpsEmployer: (digits: number) => string;
+  wpsEmployerMoved: (authority: string) => string;
   wpsEmployerLegacy: string;
-  wpsRouting: string;
+  wpsRouting: (digits: number) => string;
   wpsScrFirst: string;
-  statProblem: (code: string) => string;
+  /** A block the studio saved and its country does not have — shown, marked, removable. */
+  notInCountry: (what: string, country: string) => string;
+  removeBlock: string;
+  statProblem: (code: string, country?: string) => string;
   language: string;
   languageHint: string;
   workingHours: string;
@@ -329,22 +338,30 @@ const en: Strings = {
   eosUnderYears: "With under … years",
   eosPaidPct: "% of the award paid",
   eosAddStep: "Add a resignation step",
-  wpsHeading: "UAE salary file (WPS)",
-  wpsLead: "For a payroll paid through the UAE's Wage Protection System. With these set and the studio's currency AED, an approved run offers a .SIF file.",
-  wpsEmployer: "Employer ID (13 digits)",
-  wpsEmployerMoved: "The employer ID is entered under Official values, as the MoHRE establishment ID.",
+  wpsHeading: (system) => `Salary file (${system})`,
+  wpsLead: (system, authority, currency) =>
+    `For a payroll paid through ${authority ? authority + "'s " : ""}${system}. With these set and the studio's currency ${currency}, an approved run offers a .SIF file.`,
+  wpsEmployer: (digits) => `Employer ID (${digits} digits)`,
+  wpsEmployerMoved: (authority) =>
+    `The employer ID is entered under Official values, as the ${authority} establishment ID.`,
   wpsEmployerLegacy: "Saved here before Official values existed. The file uses it until the Official values field is filled; clear it once that is done.",
-  wpsRouting: "Employer's bank routing code (9 digits)",
+  wpsRouting: (digits) => `Employer's bank routing code (${digits} digits)`,
   wpsScrFirst: "Put the control record first (banks differ — check with yours)",
-  statProblem: (code) => ({
+  notInCountry: (what, country) =>
+    `${what} does not apply in ${country || "this country"}. It was saved before, and is still being applied — remove it to save.`,
+  removeBlock: "Remove",
+  statProblem: (code, country) => ({
+    ssNotHere: `${country || "This country"} has no social security scheme here — remove the figures to save.`,
+    eosNotHere: `${country || "This country"} grants no end of service — remove the figures to save.`,
+    wpsNotHere: `${country || "This country"} runs no wage protection scheme — remove its identifiers to save.`,
     ssPct: "Social security rates are percentages from 0 to 100.",
     ssCeiling: "The social security ceiling must be a number.",
     eosRates: "End of service needs months a year, from 0 to 12, and at least one above 0.",
     eosYears: "End of service years must be numbers.",
     eosCap: "The end of service cap must be a number of months.",
     eosResignation: "Resignation steps need increasing years and a share from 0 to 100%.",
-    wpsEmployer: "The WPS employer ID is 13 digits.",
-    wpsRouting: "The WPS routing code is 9 digits.",
+    wpsEmployer: "The scheme's employer ID is the wrong length.",
+    wpsRouting: "The bank routing code is the wrong length.",
   })[code] || code,
   language: "Language",
   // WHAT THIS ROW MEANS CHANGED, so its hint had to. It used to read "Everyone
@@ -598,22 +615,29 @@ const ar: Strings = {
   eosUnderYears: "بخدمة اقل من … سنوات",
   eosPaidPct: "% المدفوع من المكافاة",
   eosAddStep: "اضافة شريحة استقالة",
-  wpsHeading: "ملف الرواتب في الامارات (WPS)",
-  wpsLead: "للرواتب المدفوعة عبر نظام حماية الاجور في الامارات. عند تعبئتها وكون عملة الاستوديو درهما، تعرض الدورة المعتمدة ملف ‎.SIF.",
-  wpsEmployer: "رقم المنشاة (13 رقما)",
-  wpsEmployerMoved: "يدخل رقم صاحب العمل في البيانات الرسمية، بوصفه رقم المنشأة لدى وزارة الموارد البشرية والتوطين.",
+  wpsHeading: (system) => `ملف الرواتب (${system})`,
+  wpsLead: (system, authority, currency) =>
+    `للرواتب المدفوعة عبر ${system}${authority ? " لدى " + authority : ""}. عند تعبئتها وكون عملة الاستوديو ${currency}، تعرض الدورة المعتمدة ملف ‎.SIF.`,
+  wpsEmployer: (digits) => `رقم المنشاة (${digits} رقما)`,
+  wpsEmployerMoved: (authority) => `يدخل رقم صاحب العمل في البيانات الرسمية، بوصفه رقم المنشأة لدى ${authority}.`,
   wpsEmployerLegacy: "حفظ هنا قبل وجود البيانات الرسمية. يستخدمه الملف حتى تعبأ خانة البيانات الرسمية؛ امسحوه بعد ذلك.",
-  wpsRouting: "رمز توجيه بنك صاحب العمل (9 ارقام)",
+  wpsRouting: (digits) => `رمز توجيه بنك صاحب العمل (${digits} ارقام)`,
   wpsScrFirst: "وضع سجل التحكم اولا (تختلف البنوك — تحقق مع بنكك)",
-  statProblem: (code) => ({
+  notInCountry: (what, country) =>
+    `${what} لا ينطبق في ${country || "هذه الدولة"}. حفظ سابقا ولا يزال مطبقا — احذفوه للحفظ.`,
+  removeBlock: "حذف",
+  statProblem: (code, country) => ({
+    ssNotHere: `لا يوجد ضمان اجتماعي بهذه الصورة في ${country || "هذه الدولة"} — احذفوا الارقام للحفظ.`,
+    eosNotHere: `لا تمنح ${country || "هذه الدولة"} مكافاة نهاية خدمة — احذفوا الارقام للحفظ.`,
+    wpsNotHere: `لا يوجد نظام حماية اجور في ${country || "هذه الدولة"} — احذفوا بياناته للحفظ.`,
     ssPct: "نسب الضمان الاجتماعي من 0 الى 100.",
     ssCeiling: "يجب ان يكون سقف الضمان الاجتماعي رقما.",
     eosRates: "تحتاج مكافاة نهاية الخدمة اشهرا في السنة من 0 الى 12، واحدة منها على الاقل اكبر من صفر.",
     eosYears: "يجب ان تكون سنوات مكافاة نهاية الخدمة ارقاما.",
     eosCap: "يجب ان يكون حد المكافاة عددا من الاشهر.",
     eosResignation: "تحتاج شرائح الاستقالة سنوات متزايدة ونسبة من 0 الى 100٪.",
-    wpsEmployer: "رقم المنشاة في WPS من 13 رقما.",
-    wpsRouting: "رمز التوجيه في WPS من 9 ارقام.",
+    wpsEmployer: "طول رقم المنشاة في النظام غير صحيح.",
+    wpsRouting: "طول رمز التوجيه البنكي غير صحيح.",
   })[code] || code,
   language: "اللغة",
   languageHint: "لغة الاستوديو الافتراضية. ويمكن لكل شخص اختيار لغته من الشريط العلوي.",

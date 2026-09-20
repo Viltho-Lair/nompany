@@ -29,6 +29,7 @@ import { statutoryRulesOf, endOfService, sifFile, wpsWithEmployer } from "./stat
 import { employedBetween, statusOf } from "./lifecycle";
 import { official, officialForDocument } from "@/shared/compliance/resolve";
 import { legalRowsBeside } from "@/shared/compliance/printing";
+import { studioWageProtection } from "@/shared/compliance/rules";
 
 /** Somebody with a pay record who is not in this run, and why in words. */
 export type Excluded = { collaboratorId: string; alias: string; reason: string };
@@ -109,6 +110,9 @@ export async function listPay(ctx: HrContext) {
   const mayAsk = !requirePermission(ctx.access, "hr.payroll.edit");
   const alias = Object.fromEntries(people.map((c) => [String(c.id), String(c.alias || "Unnamed")]));
   const rules = statutoryRulesOf(ctx.studio);
+  // The scheme the studio's COUNTRY runs, which decides whether its saved WPS
+  // identifiers mean anything here at all.
+  const scheme = studioWageProtection(ctx.studio);
   const today = new Date().toISOString().slice(0, 10);
 
   return {
@@ -160,8 +164,16 @@ export async function listPay(ctx: HrContext) {
     // those fields and files.
     ssEnabled: Boolean(rules.socialSecurity),
     eosEnabled: Boolean(rules.endOfService),
-    wpsEnabled: Boolean(rules.wps),
-    sifReady: Boolean(rules.wps) && String((ctx.studio as { currency?: unknown }).currency || "").toUpperCase() === "AED",
+    // AND ONLY WHERE THE COUNTRY RUNS THE SCHEME (20/09/2026). A studio that
+    // saved WPS identifiers and has since moved to a country with no such
+    // system is offered no file: the identifiers are another ministry's, and a
+    // salary file built from them would be sent to a regulator that has never
+    // heard of this employer. The CURRENCY is the scheme's too — AED was this
+    // line's own constant, and it is the UAE's answer rather than every
+    // country's.
+    wpsEnabled: Boolean(rules.wps) && Boolean(scheme),
+    sifReady: Boolean(rules.wps) && Boolean(scheme)
+      && String((ctx.studio as { currency?: unknown }).currency || "").toUpperCase() === scheme!.fileCurrency.toUpperCase(),
     runs: [...runs]
       .sort((a, b) => String(b.period).localeCompare(String(a.period)))
       .map((r) => ({
@@ -462,13 +474,20 @@ export async function bankFile(ctx: HrContext, id: string) {
 }
 
 /**
- * THE UAE'S WPS FILE for an approved run (statutory.sifFile). The same gates as
- * the CSV — `hr.payroll.view`, never a draft, accounts read live — plus the
- * studio's WPS identifiers and a currency of AED.
+ * THE WAGE PROTECTION SALARY FILE for an approved run (statutory.sifFile). The
+ * same gates as the CSV — `hr.payroll.view`, never a draft, accounts read
+ * live — plus the studio's own identifiers and the scheme's currency.
+ *
+ * AND THE COUNTRY MUST RUN ONE. Refused by name otherwise, not merely absent
+ * from the screen: the file carries a ministry's establishment id, and building
+ * one for a country with no such ministry is the wrong country's document.
  */
 export async function sifFileFor(ctx: HrContext, id: string) {
   const denied = requirePermission(ctx.access, "hr.payroll.view");
   if (denied) return denied;
+
+  const scheme = studioWageProtection(ctx.studio);
+  if (!scheme) return { error: "no-wps-here" };
 
   const run = (await Runs.find(scope(ctx))).find((r) => r.id === id);
   if (!run) return { error: "notfound" };
@@ -479,9 +498,12 @@ export async function sifFileFor(ctx: HrContext, id: string) {
     iban: r.iban || "", agentId: r.agentId || "", labourCardId: r.labourCardId || "",
   }]));
   return sifFile({
-    // THE EMPLOYER ID IS AN OFFICIAL VALUE (the UAE's definition file), read
-    // through the resolver like every other; the rest is Employment rules'.
-    wps: wpsWithEmployer(statutoryRulesOf(ctx.studio).wps, official(ctx.studio, "mohre_establishment_id")),
+    // THE EMPLOYER ID IS AN OFFICIAL VALUE, and WHICH one is the scheme's to
+    // say (`employerIdField`) rather than this line's: it was
+    // `mohre_establishment_id`, hardcoded, which is the UAE's key and no
+    // other country's. Read through the resolver like every other value; the
+    // rest is Employment rules'.
+    wps: wpsWithEmployer(statutoryRulesOf(ctx.studio).wps, official(ctx.studio, scheme.employerIdField)),
     currency: String((ctx.studio as { currency?: unknown }).currency || ""),
     period: run.period,
     lines: run.lines,

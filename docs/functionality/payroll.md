@@ -136,10 +136,16 @@ nobody deciding it should. Studios elsewhere enter their own figures.
   day is exactly three. The Pay records list shows **what each person would be owed leaving
   today**, by termination. Jordan's preset has none: the Labour Law gives it only to
   employees the SSC does not cover.
-- **The UAE's WPS file**: with a 13-digit employer ID (an official value since 18/09/2026 —
+- **A wage protection salary file, where the country runs a scheme.** Declared in the
+  country file (`rules.wageProtection` — the scheme's name, its ministry, which official
+  value holds the employer id, the two identifier lengths and the currency a file is paid
+  in), and **the UAE is the only country that declares one today**. A studio in a country
+  that declares none is not asked for the identifiers at all and is offered no file; the
+  route refuses one by name (`no-wps-here`) rather than building another ministry's
+  document. With the employer ID (an official value since 18/09/2026 —
   the MoHRE establishment ID under Official values; one saved in Employment rules before
-  then is still used until that is filled), a 9-digit bank routing code saved, and the
-  studio's currency AED, an approved run offers a `.SIF` beside the CSV
+  then is still used until that is filled), a routing code saved, and the
+  studio's currency matching the scheme's, an approved run offers a `.SIF` beside the CSV
   (`?format=sif`). One EDR per employee — labour-card ID (14 digits), their bank's routing
   code (9 digits), account, the period, the net as fixed income, unpaid-leave days — and one
   SCR, last by default and first if the studio's bank wants it first (the published guides
@@ -199,6 +205,11 @@ says so across the page.
 
 ## Not built yet
 
+- **Only the UAE's wage protection scheme is declared.** Saudi Arabia (Mudad/WPS) and Oman
+  run their own and their files are not researched, so those studios see no such block —
+  missing rather than wrong, which is the direction the owner's rule points (20/09/2026:
+  a studio sees its own country's rules and nothing else). Adding one is adding
+  `rules.wageProtection` to that country's file; nothing in code names a country.
 - **No attendance.** Unpaid leave comes from the vacation register; hours worked do not
   exist, so an hourly employee cannot be paid.
 - **No income tax.** Social security is computed (above); income tax is still typed as an
