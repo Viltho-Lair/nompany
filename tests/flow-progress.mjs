@@ -106,5 +106,84 @@ for (const tpl of FLOW_TEMPLATES) {
   ok(`${tpl.id}: walking it in order is never "behind"`, behindEver === 0, String(behindEver));
 }
 
+console.log("\n== a flow is walked over the departments this studio runs");
+
+// THE LAST CORNER OF THE OWNER'S RULE (20/09/2026). The cards already went with
+// their sections; the SEQUENCE did not, so a studio with Quotations switched
+// off was told its next step was to raise a quotation — a step nobody there can
+// take, for a stage the same screen had stopped drawing.
+const { stagesRunning } = await import("@/platform/engagement/progress");
+const A = FLOW_TEMPLATES.find((t) => t.id === "A");
+const quotationsOff = (key) => key !== "quotations-register" && key !== "quotations-rfq";
+
+const walked = stagesRunning(A.stages, [], STAGE_REGISTRY, quotationsOff);
+ok("a switched-off part's stage leaves the walk", !walked.includes("quotation"), walked.join(","));
+ok("…and the rest of the flow keeps its order",
+  walked.join(",") === A.stages.filter((s) => walked.includes(s)).join(","));
+const nextOff = flowProgress(walked, [], STAGE_REGISTRY).next;
+ok("so the next step is never one nobody can take", nextOff?.type !== "quotation", String(nextOff?.type));
+
+// A STAGE THE DEAL HOLDS STAYS, whatever the switches say: dropping it would
+// report the deal as further back than it is and invite a step it has taken.
+const held = stagesRunning(A.stages, ["quotation"], STAGE_REGISTRY, quotationsOff);
+ok("a stage the deal already holds is still walked", held.includes("quotation"));
+ok("nothing changes when every part is on",
+  stagesRunning(A.stages, [], STAGE_REGISTRY, () => true).join(",") === A.stages.join(","));
+ok("a stage the registry does not know is left for flowProgress to drop",
+  stagesRunning(["not-a-stage"], [], STAGE_REGISTRY, () => false).join(",") === "not-a-stage");
+
+console.log("\n== a studio is shown its own trades and flows, not the catalogue");
+
+// THE OWNER, 20/09/2026: "the user should not see every single industry and
+// Deal flow he doesn't need". Every studio's Settings listed all twenty-five
+// trades and all seven flows, so the product's catalogue read as that studio's
+// own configuration. The master list is the console's now (/super → ERP
+// settings); this is what a studio keeps.
+const { narrow } = await import("@/modules/studioFlows");
+const { INDUSTRIES } = await import("@/platform/engagement/industries");
+const contractor = INDUSTRIES.find((i) => i.key === "construction-and-contracting");
+
+const mine = narrow(INDUSTRIES, FLOW_TEMPLATES, contractor.field, null);
+ok("only the studio's own trade is listed",
+  mine.industries.length === 1 && mine.industries[0].key === contractor.key,
+  mine.industries.map((i) => i.key).join(","));
+ok("…with the flows that trade starts on and also runs, and no others",
+  mine.templates.every((t) => t.id === contractor.primary || t.id === contractor.secondary),
+  mine.templates.map((t) => t.id).join(","));
+
+// A FLOW SOMEBODY IS ALREADY WALKING IS NEVER HIDDEN — hiding the flow four
+// live deals are on would hide the thing the screen exists to explain.
+const walking = narrow(INDUSTRIES, FLOW_TEMPLATES, contractor.field, { deals: { C: 4 } });
+ok("a flow live deals walk stays listed", walking.templates.some((t) => t.id === "C"));
+ok("…and so does the trade that starts on it", walking.industries.some((i) => i.primary === "C"));
+
+// A row THIS studio wrote is always its own business; one added in the console
+// is not, or every studio would see it the day it was added.
+const own = narrow(INDUSTRIES, FLOW_TEMPLATES, contractor.field, null, new Set(["manufacturing"]));
+ok("a trade this studio edited is listed", own.industries.some((i) => i.key === "manufacturing"));
+const added = [...INDUSTRIES, { key: "space-mining", name: "Space mining", primary: "B", secondary: "", note: "", field: "" }];
+ok("a trade added for the product at large is not",
+  !narrow(added, FLOW_TEMPLATES, contractor.field, null).industries.some((i) => i.key === "space-mining"));
+
+// A STUDIO THAT HAS NOT SAID WHAT IT DOES SEES EVERYTHING, which is the honest
+// answer rather than an empty screen.
+const unsaid = narrow(INDUSTRIES, FLOW_TEMPLATES, "", null);
+ok("no trade set means nothing is hidden",
+  unsaid.industries.length === INDUSTRIES.length && unsaid.templates.length === FLOW_TEMPLATES.length);
+
+console.log("\n== which flow a deal walks is decided once, when it opens");
+
+// The precedence never moves: the deal's own template, then its industry's, then
+// A. What changed on 20/09/2026 is that the deal now HAS one — `freezeTemplate`
+// writes it at the single place a deal is minted, so editing an industry's
+// default stops re-routing live deals that were opened under the old answer.
+const { readFileSync } = await import("node:fs");
+const engagementStore = readFileSync("src/platform/db/engagement.ts", "utf8");
+ok("a minted deal is given its flow", /await freezeTemplate\(studioId, dealId\)/.test(engagementStore));
+ok("…once, and never over an answer it already has",
+  /if \(!current \|\| current\.templateId\) return \{ result: undefined \}/.test(engagementStore));
+ok("…best-effort, so it cannot fail the record that opened the deal",
+  /catch \{ \/\* the deal stands/.test(engagementStore));
+
 console.log(fails ? `\nflow progress: ${fails} FAILED` : "\nflow progress: all passed");
 process.exit(fails ? 1 : 0);

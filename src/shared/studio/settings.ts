@@ -239,8 +239,9 @@ type Strings = {
   industrySecondary: string;
   industryNote: string;
   industryNone: string;
-  industryAdd: string;
   industryNameLabel: string;
+  /** What the studio is NOT being shown, and where the rest live. */
+  industriesHidden: (n: number) => string;
   // The warning before a flow that already has work on it is changed.
   flowDealCount: (n: number) => string;
   flowDealsMore: (n: number) => string;
@@ -506,13 +507,13 @@ const en: Strings = {
     calendar: "A period, not an event",
   },
   industriesHeading: "Industries",
-  industriesLead: "Which flow a new deal starts on, by the trade it belongs to.",
+  industriesLead: "Which flow a new deal starts on, by the trade it belongs to. The trades this studio works, and what each one starts on.",
   industryPrimary: "Starts on",
   industrySecondary: "Also common",
   industryNote: "Why",
   industryNone: "— none —",
-  industryAdd: "Add an industry",
   industryNameLabel: "Industry",
+  industriesHidden: (n) => `The product knows ${n} more trade${n === 1 ? "" : "s"}, kept with nompany. Ask for one to be added to this studio.`,
   flowDealCount: (n) => `${n} deal${n === 1 ? "" : "s"}`,
   flowDealsMore: (n) => `${n}+ deals`,
   flowIndustryCount: (n) => `${n} industr${n === 1 ? "y" : "ies"} start here`,
@@ -794,13 +795,13 @@ const ar: Strings = {
     calendar: "فترة زمنية، لا حدث",
   },
   industriesHeading: "القطاعات",
-  industriesLead: "على أي مسار تبدأ صفقة جديدة، بحسب المجال الذي تنتمي إليه.",
+  industriesLead: "على أي مسار تبدأ صفقة جديدة، بحسب المجال الذي تنتمي إليه. المجالات التي يعمل بها هذا الاستوديو، وما يبدأ عليه كل منها.",
   industryPrimary: "تبدأ على",
   industrySecondary: "شائع أيضا",
   industryNote: "السبب",
   industryNone: "— بلا —",
-  industryAdd: "أضف قطاعا",
   industryNameLabel: "القطاع",
+  industriesHidden: (n) => `يعرف المنتج ${n === 1 ? "قطاعا آخر" : `${n} قطاعات أخرى`} محفوظة لدى نومباني. اطلب إضافة أي منها إلى هذا الاستوديو.`,
   flowDealCount: (n) => n === 1 ? "صفقة واحدة" : n === 2 ? "صفقتان" : n <= 10 ? `${n} صفقات` : `${n} صفقة`,
   flowDealsMore: (n) => `أكثر من ${n} صفقة`,
   flowIndustryCount: (n) => n === 1 ? "قطاع واحد يبدأ هنا" : n === 2 ? "قطاعان يبدآن هنا" : n <= 10 ? `${n} قطاعات تبدأ هنا` : `${n} قطاعا تبدأ هنا`,

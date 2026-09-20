@@ -37,6 +37,7 @@ export const CONSOLE_BAR = [
   { href: `${BASE}/chat`, label: "Chat", icon: "chat" },
   { href: `${BASE}/packages`, label: "Packages", icon: "package" },
   { href: `${BASE}/tiers`, label: "Tiers", icon: "layers" },
+  { href: `${BASE}/erp-settings`, label: "ERP settings", icon: "settings" },
   { href: `${BASE}/nova`, label: "Nova", icon: "star" },
   { href: `${BASE}/calendar`, label: "Calendar", icon: "calendar" },
   { href: `${BASE}/broadcast`, label: "Broadcast", icon: "live" },

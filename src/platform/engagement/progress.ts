@@ -32,6 +32,14 @@
 export type StageInfo = {
   label: string;
   sectionKey: string;
+  /**
+   * THE SCREEN THE RECORD IS WORKED ON, where that is not where it is filed —
+   * a quotation is filed under `crm-sales-quotations` and worked in Quotations
+   * → Register. Optional, as it is on the registry, and `sectionKey` answers
+   * for every stage that has no such split. It is the SWITCH `stagesRunning`
+   * asks about: the owner turns off a screen, never a storage row.
+   */
+  screenKey?: string;
   /** The VIEW permission for this stage's records, as STAGE_REGISTRY declares it. */
   permission: string;
 };
@@ -104,6 +112,36 @@ const stepOf = (type: string, info: StageInfo): FlowStep => ({
  * @param present  the stage types the deal actually carries
  * @param registry stage type -> what it is and where it lives
  */
+/**
+ * THE STAGES THIS STUDIO ACTUALLY WALKS — the flow, narrowed to what is running.
+ *
+ * A template is the shape of a kind of business; a studio runs the departments
+ * it switched on (the owner's rule, 17/09/2026, and this is its last corner).
+ * Walked against the whole template, a studio with Quotations off was told its
+ * next step was to raise a quotation — a step nobody there can take, on a
+ * screen that had already stopped showing the stage.
+ *
+ * A STAGE THE DEAL ALREADY HOLDS STAYS, whatever the switches say. Dropping it
+ * would report the deal as further back than it is and invite a step it has
+ * taken: switching a department off hides what is not there, it does not unmake
+ * what is.
+ *
+ * `on` is the studio's switchboard; a stage the registry does not know is left
+ * alone for `flowProgress` to drop, so there is one place that decides that.
+ */
+export function stagesRunning(
+  stages: readonly string[],
+  present: ReadonlySet<string> | readonly string[],
+  registry: Readonly<Record<string, StageInfo>>,
+  on: (key: string) => boolean,
+): string[] {
+  const has = present instanceof Set ? present : new Set(present);
+  return stages.filter((type) => {
+    const entry = registry[type];
+    return !entry || has.has(type) || on(entry.screenKey || entry.sectionKey);
+  });
+}
+
 export function flowProgress(
   stages: readonly string[],
   present: ReadonlySet<string> | readonly string[],

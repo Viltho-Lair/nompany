@@ -8,6 +8,9 @@ import { buildEngagements } from "../engagement/backfill";
 import type { EngagementDescriptor } from "../engagement/backfill";
 import { contribute, emptyContext, CONTEXT_FACTS, rankOf } from "../engagement/context";
 import { templateById } from "../engagement/templates";
+// SIBLINGS IMPORT EACH OTHER RELATIVELY (CLAUDE.md) — `flows` is this folder's
+// own, and it is where a studio's stored templates and industries live.
+import { defaultTemplateForStudio, industryKeyOf, listFlowTemplates } from "./flows";
 import { attachmentProblem, canSitUnassigned, promotionProblem } from "../engagement/membership";
 import { record as recordAudit } from "@/platform/http/audit";
 import type { DealContext, ContextProvenance, ContextSource, ContributionResult } from "../engagement/context";
@@ -661,7 +664,48 @@ async function applyAsDeal(studioId: string, d: EngagementDescriptor): Promise<s
   const dealId = ID.engagement();
   await setDealAlias(studioId, derived, dealId);
   await applyDescriptor(studioId, { ...d, engId: dealId });
+  await freezeTemplate(studioId, dealId);
   return dealId;
+}
+
+/**
+ * WHICH FLOW THIS DEAL WALKS, DECIDED ONCE — when the deal opens, here, at the
+ * one place a deal is first minted.
+ *
+ * `setDealTemplate` has said since it was written that the answer is stored
+ * rather than re-derived, "precisely so a deal does not silently gain and lose
+ * stage cards for reasons nobody performed" — and nothing called it except the
+ * field-service job. So every other deal resolved its flow from its industry on
+ * EVERY READ, and editing which flow an industry starts on re-routed every live
+ * deal in that industry at once, with no warning and nothing recorded. Found by
+ * the owner, 20/09/2026.
+ *
+ * BEST-EFFORT, exactly like the dual-write that calls it: the records are the
+ * authority and a deal with no stored template still resolves by industry, the
+ * way every deal did before this. A failure here must never fail the ticket,
+ * quotation or project that was just created.
+ *
+ * OLDER DEALS ARE LEFT ALONE. Writing one on read would make a list route a
+ * writer, and choosing a flow for a deal that has been walking another one for
+ * months is a decision, not a repair.
+ */
+async function freezeTemplate(studioId: string, dealId: string): Promise<void> {
+  try {
+    const root = await readEngagement(studioId, dealId);
+    const industryKey = industryKeyOf(root?.context as Record<string, unknown> | undefined);
+    if (!industryKey) return;
+    const primary = await defaultTemplateForStudio(studioId, industryKey);
+    if (!primary) return;
+    // THE STUDIO'S OWN LIST, not the built-ins: a studio that cloned a template
+    // and pointed its industry at the clone would otherwise be refused here and
+    // silently keep the old re-derived behaviour.
+    const templates = await listFlowTemplates(studioId);
+    if (!templates.some((t) => t.id === primary)) return;
+    await editJSON<Engagement, void>(ENG.root(studioId, dealId), (current) => {
+      if (!current || current.templateId) return { result: undefined };
+      return { next: { ...current, templateId: primary, updatedAt: nowISO() }, result: undefined };
+    });
+  } catch { /* the deal stands; its flow resolves by industry as it always did */ }
 }
 
 // Dual-write helper: derive and persist the engagement for a just-created ticket,

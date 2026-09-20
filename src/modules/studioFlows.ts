@@ -21,19 +21,25 @@ import { requirePermission } from "@/platform/access";
 import type { PermissionSet, Refusal } from "@/platform/access";
 import {
   listFlowTemplates, saveFlowTemplate, deleteFlowTemplate,
-  listIndustries, saveIndustry, deleteIndustry,
+  listIndustries, saveIndustry, deleteIndustry, ownIndustryKeys,
   pickTemplate, industryKeyOf,
 } from "@/platform/db/flows";
 import { ENG } from "@/platform/db/keys";
 import { SLOT_TYPE } from "@/platform/db/engagement";
 import { zRange, getJSONMany, sMembers } from "@/platform/db/store";
+import { FLOW_TEMPLATES } from "@/platform/engagement/templates";
 import type { FlowTemplate, BillingTrigger } from "@/platform/engagement/templates";
 import type { IndustryEntry } from "@/platform/engagement/industries";
 
 /** What a refused edit tells the studio: the reason flows.ts gave, verbatim. */
 export type FlowRefusal = { error: "refused"; detail: string };
 
-type Ctx = { studioId: string; access: PermissionSet };
+type Ctx = {
+  studioId: string;
+  access: PermissionSet;
+  /** The studio's own field of work — what narrows the lists to its trade. */
+  field?: string;
+};
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const strs = (v: unknown, max: number, cap = 40) =>
@@ -65,7 +71,11 @@ async function refusable(run: () => Promise<void>): Promise<FlowRefusal | null> 
 // ---- reading ----------------------------------------------------------------
 
 export async function readFlows(ctx: Ctx): Promise<
-  { templates: FlowTemplate[]; industries: IndustryEntry[]; usage: FlowUsage | null; canManage: boolean }
+  {
+    templates: FlowTemplate[]; industries: IndustryEntry[];
+    hidden: { industries: number; templates: number };
+    usage: FlowUsage | null; canManage: boolean;
+  }
   | Refusal
 > {
   const denied = requirePermission(ctx.access, "administration.settings.view");
@@ -75,18 +85,97 @@ export async function readFlows(ctx: Ctx): Promise<
   // would be refused at the door.
   const canManage = !requirePermission(ctx.access, "administration.settings.edit");
 
-  return {
-    templates: await listFlowTemplates(ctx.studioId),
-    industries: await listIndustries(ctx.studioId),
+  const [allTemplates, allIndustries, own, usage] = await Promise.all([
+    listFlowTemplates(ctx.studioId),
+    listIndustries(ctx.studioId),
+    ownIndustryKeys(ctx.studioId),
     // USAGE IS MANAGER-ONLY, for both of the reasons the sibling settings route
     // gives about its own: it exists to warn somebody who is about to change a
     // flow, and a viewer who cannot change one is offered no warning to read.
     // Skipping it also saves a viewer the whole engagement scan on every GET —
     // and, less obviously, avoids handing somebody with no deal rights a count
     // of how much work the studio has.
-    usage: canManage ? await flowUsage(ctx) : null,
+    canManage ? flowUsage(ctx) : Promise.resolve(null),
+  ]);
+
+  // WHAT THIS STUDIO NEEDS TO SEE, and nothing else — the owner, 20/09/2026:
+  // "the user should not see every single industry and Deal flow he doesn't
+  // need". The screen listed all twenty-five trades and all seven flows in
+  // every studio, so a plumber scrolled past Mining & Quarrying to find their
+  // own, and the product's whole catalogue read as this studio's configuration.
+  // The master list lives in /super now; this is the studio's own working set.
+  //
+  // FOUR WAYS A ROW EARNS ITS PLACE, and the last two are what stop this
+  // hiding something somebody is standing on:
+  //   its trade      the studio's own field of work
+  //   its deals      a trade or flow live work is already walking
+  //   its own edit   anything THIS studio has changed or cloned — never one
+  //                  added in the console, which would otherwise appear on
+  //                  every studio's screen the day it was added
+  //   its flows      whatever the trades above start on and also run
+  const shown = narrow(allIndustries, allTemplates, ctx.field || "", usage, new Set(own));
+
+  return {
+    templates: shown.templates,
+    industries: shown.industries,
+    // WHAT IS NOT LISTED, counted rather than hidden silently. "Nine more
+    // trades the product knows" is a fact somebody can act on — by asking for
+    // one — where an unexplained short list reads as data having gone missing.
+    hidden: {
+      industries: allIndustries.length - shown.industries.length,
+      templates: allTemplates.length - shown.templates.length,
+    },
+    usage,
     canManage,
   };
+}
+
+/**
+ * THE STUDIO'S OWN WORKING SET of trades and flows.
+ *
+ * Pure, and given everything it needs, so the rule is readable in one place and
+ * testable without a database.
+ *
+ * `field` is the studio's field of work, which names ONE industry row through
+ * the join `IndustryEntry.field` carries. `usage` is the deal scan when the
+ * reader may have it — a flow somebody is already walking is shown whether or
+ * not this studio's trade points at it, because hiding the flow four live deals
+ * are on would be hiding the thing the screen exists to explain.
+ */
+export function narrow(
+  industries: readonly IndustryEntry[],
+  templates: readonly FlowTemplate[],
+  field: string,
+  usage: FlowUsage | null,
+  own: ReadonlySet<string> = new Set(),
+): { industries: IndustryEntry[]; templates: FlowTemplate[] } {
+  const builtInTemplate = new Set(FLOW_TEMPLATES.map((t) => t.id));
+  const walked = new Set(Object.keys(usage?.deals || {}));
+
+  const keep = industries.filter((i) => (
+    (field && i.field === field)          // the trade this studio said it does
+    || own.has(i.key)                     // a row THIS studio wrote for itself
+    || walked.has(i.primary)              // work is already walking its flow
+  ));
+
+  const named = new Set<string>();
+  for (const i of keep) {
+    if (i.primary) named.add(i.primary);
+    if (i.secondary) named.add(i.secondary);
+  }
+
+  const flows = templates.filter((t) => (
+    named.has(t.id)                       // what the trades above start on and also run
+    || walked.has(t.id)                   // what live deals walk
+    || !builtInTemplate.has(t.id)         // this studio's own clone
+  ));
+
+  // A STUDIO WITH NO TRADE SET SEES EVERYTHING, which is the honest answer
+  // rather than an empty screen: nothing has told us what it does yet, so
+  // nothing can be said to be irrelevant to it.
+  return keep.length
+    ? { industries: keep, templates: flows.length ? flows : [...templates] }
+    : { industries: [...industries], templates: [...templates] };
 }
 
 // ---- who is already walking these flows -------------------------------------

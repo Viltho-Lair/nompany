@@ -33,7 +33,7 @@ async function open(ctx: Params) {
   if (context.error) {
     return { fail: Response.json({ error: context.error }, { status: status(context.error) }) };
   }
-  return { ctx: { studioId: context.studio.id, access: context.access } };
+  return { ctx: { studioId: context.studio.id, access: context.access, field: String(context.studio.fieldOfWork || "") } };
 }
 
 export async function GET(_request: Request, params: Params) {

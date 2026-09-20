@@ -216,6 +216,7 @@ export default function StudioFlowEditor({ slug, tr }) {
       <Industries
         industries={data.industries}
         templates={data.templates}
+        hidden={data.hidden?.industries || 0}
         tr={tr}
         canManage={canManage}
         busy={busy}
@@ -586,11 +587,13 @@ function StageChecks({ legend, value, options, locale, onChange }) {
  * still needs to say which work goes on it, and that is what an industry is —
  * the row a new deal reads to pick its template.
  */
-function Industries({ industries, templates, tr, canManage, busy, onSave, onDrop }) {
+function Industries({ industries, templates, hidden = 0, tr, canManage, busy, onSave, onDrop }) {
   const [open, setOpen] = useState("");
-  const [adding, setAdding] = useState(false);
-  const blank = { key: "", name: "", primary: templates[0]?.id || "", secondary: "", note: "" };
-  const editing = adding ? blank : industries.find((i) => i.key === open);
+  // NO "ADD A TRADE" HERE ANY MORE (20/09/2026). The trades the product knows
+  // are the console's list — a studio adding a twenty-sixth privately was how
+  // every studio ended up looking at all twenty-five. What a studio decides is
+  // which flow ITS trade starts on, which is what the form below asks.
+  const editing = industries.find((i) => i.key === open);
 
   return (
     <div className="mt-8">
@@ -609,7 +612,7 @@ function Industries({ industries, templates, tr, canManage, busy, onSave, onDrop
                 type="button"
                 className={btnRow}
                 disabled={busy}
-                onClick={() => { setAdding(false); setOpen(open === i.key ? "" : i.key); }}
+                onClick={() => setOpen(open === i.key ? "" : i.key)}
               >
                 {tr.flowEdit}
               </button>
@@ -618,27 +621,22 @@ function Industries({ industries, templates, tr, canManage, busy, onSave, onDrop
         ))}
       </div>
 
-      {canManage && (
-        <button
-          type="button"
-          className={`${btnGhost} mt-3`}
-          disabled={busy}
-          onClick={() => { setOpen(""); setAdding(true); }}
-        >
-          {tr.industryAdd}
-        </button>
+      {/* WHAT IS NOT LISTED, said plainly. A short list with no explanation
+          reads as data gone missing; this says the product knows more trades
+          and that this studio is being shown its own. */}
+      {hidden > 0 && (
+        <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{tr.industriesHidden(hidden)}</p>
       )}
 
       {editing && (
         <IndustryForm
-          key={editing.key || "new"}
+          key={editing.key}
           entry={editing}
-          isNew={adding}
           templates={templates}
           tr={tr}
           busy={busy}
-          onCancel={() => { setOpen(""); setAdding(false); }}
-          onSave={async (next) => { if (await onSave(next)) { setOpen(""); setAdding(false); } }}
+          onCancel={() => setOpen("")}
+          onSave={async (next) => { if (await onSave(next)) setOpen(""); }}
           onDrop={() => { onDrop(editing.key); setOpen(""); }}
         />
       )}
@@ -646,57 +644,49 @@ function Industries({ industries, templates, tr, canManage, busy, onSave, onDrop
   );
 }
 
-function IndustryForm({ entry, isNew, templates, tr, busy, onCancel, onSave, onDrop }) {
+/**
+ * ONE QUESTION, NOT FIVE — the owner, 20/09/2026.
+ *
+ * This form used to ask a studio to name a trade, pair it with a second flow
+ * and write down why: the console's job, which is where those fields live now
+ * (`/super` → ERP settings). What is left is the only part of a trade that is
+ * genuinely this studio's to decide — WHICH FLOW ITS WORK STARTS ON — because
+ * a studio that clones a flow has to be able to point its own trade at the
+ * clone, and nothing else here could say so.
+ *
+ * The trade's name and the reasoning are shown rather than edited: a studio
+ * reading "Contracting / Project, because the work is billed on progress"
+ * can tell whether the answer is right for them, which is what the words were
+ * for in the first place.
+ */
+function IndustryForm({ entry, templates, tr, busy, onCancel, onSave, onDrop }) {
   const [form, setForm] = useState(entry);
   const set = (patch) => setForm({ ...form, ...patch });
 
-  // THE KEY IS DERIVED FROM THE NAME, and only for a new row. It is an
-  // identifier a deal stores, so changing it later would orphan every deal that
-  // named it — which is why an existing row's key is shown and never edited.
-  const key = isNew
-    ? form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-    : form.key;
-
   return (
     <div className="mt-3 rounded-geex border border-brand-200 p-4 dark:border-brand-500/30">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block">
-          <span className={labelCls}>{tr.industryNameLabel}</span>
-          <input className={input} value={form.name} onChange={(e) => set({ name: e.target.value })} />
-        </label>
-        <label className="block">
-          <span className={labelCls}>{tr.industryPrimary}</span>
-          <SelectMenu className={input} value={form.primary} onChange={(v) => set({ primary: v })}
-            aria-label={tr.industryPrimary}
-            options={templates.map((t) => ({ value: t.id, label: t.name }))}
-          />
-        </label>
-        <label className="block">
-          <span className={labelCls}>{tr.industrySecondary}</span>
-          <SelectMenu className={input} value={form.secondary} onChange={(v) => set({ secondary: v })}
-            aria-label={tr.industrySecondary}
-            options={[{ value: "", label: tr.industryNone }, ...templates.map((t) => ({ value: t.id, label: t.name }))]}
-          />
-        </label>
-        <label className="block">
-          <span className={labelCls}>{tr.industryNote}</span>
-          <input className={input} value={form.note} onChange={(e) => set({ note: e.target.value })} />
-        </label>
-      </div>
+      <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{form.name}</p>
+      {form.note && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{form.note}</p>}
+
+      <label className="mt-3 block sm:max-w-sm">
+        <span className={labelCls}>{tr.industryPrimary}</span>
+        <SelectMenu className={input} value={form.primary} onChange={(v) => set({ primary: v })}
+          aria-label={tr.industryPrimary}
+          options={templates.map((t) => ({ value: t.id, label: t.name }))}
+        />
+      </label>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
           className={btn}
-          disabled={busy || !key || !form.name.trim()}
-          onClick={() => onSave({ ...form, key })}
+          disabled={busy || !form.primary}
+          onClick={() => onSave(form)}
         >
           {busy ? tr.saving : tr.save}
         </button>
         <button type="button" className={btnGhost} disabled={busy} onClick={onCancel}>{tr.flowClose}</button>
-        {!isNew && (
-          <button type="button" className={btnRowDanger} disabled={busy} onClick={onDrop}>{tr.flowRevert}</button>
-        )}
+        <button type="button" className={btnRowDanger} disabled={busy} onClick={onDrop}>{tr.flowRevert}</button>
       </div>
     </div>
   );

@@ -19,7 +19,7 @@ import type { EngagementLineage } from "@/platform/db/engagement";
 import { getSectionByKey } from "@/platform/db/sections";
 import { repo } from "@/platform/db/repo";
 import { listFlowTemplates, defaultTemplateForStudio, pickTemplate, industryKeyOf } from "@/platform/db/flows";
-import { flowProgress, nextActionFor } from "@/platform/engagement/progress";
+import { flowProgress, nextActionFor, stagesRunning } from "@/platform/engagement/progress";
 import type { FlowProgress, FlowStep, StageInfo } from "@/platform/engagement/progress";
 import type { Refusal } from "@/platform/access";
 
@@ -352,8 +352,27 @@ export async function engagementBlock(
   // cards. A stage this reader may not see is still a stage the deal HAS, and
   // telling somebody to go and raise an RFQ that already exists — because they
   // cannot see it — would be worse than telling them nothing.
+  // AND THE FLOW IS THIS STUDIO'S, NOT THE TEMPLATE'S IN THE ABSTRACT
+  // (20/09/2026). A template is the shape of that kind of business; a studio
+  // runs the departments it switched on. Walked against the template's whole
+  // list, a studio with Quotations off was told its next step was to raise a
+  // quotation — a step nobody there can take, on a screen that had already
+  // stopped showing the stage. The cards and the sequence read the same
+  // switchboard now, so they cannot disagree about which stages exist here.
+  //
+  // A STAGE THE DEAL ALREADY HOLDS STAYS IN THE WALK even when its part is off,
+  // or the flow would report a deal as further back than it is and invite a
+  // step it has taken. Switching a department off hides what is not there; it
+  // does not unmake what is.
+  const running = template
+    ? stagesRunning(
+      template.stages, present,
+      STAGE_REGISTRY as Readonly<Record<string, StageInfo>>,
+      switchboard(ctx.sections || []),
+    )
+    : [];
   const progress = template
-    ? flowProgress(template.stages, present, STAGE_REGISTRY as Readonly<Record<string, StageInfo>>)
+    ? flowProgress(running, present, STAGE_REGISTRY as Readonly<Record<string, StageInfo>>)
     : null;
   // A DEAL ON NO TEMPLATE HAS NO NEXT STEP, and that is not a failure state: it
   // is a deal whose industry named a template this studio has since deleted, or

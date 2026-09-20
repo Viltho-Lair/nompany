@@ -207,6 +207,34 @@ Before deleting, the affects-query answers *"deleting this will affect X, Y and 
 dies and what survives because it is owned elsewhere — filtered by the same permission rule
 as the view, so it can never name a record the viewer could not already see.
 
+### A deal walks the flow THIS studio runs (20/09/2026)
+
+**The owner's rule reaches the sequence, not only the cards.** A stage whose department is
+switched off left the deal screen with slice 3; the WALK still came from the template's whole
+list, so a studio with Quotations off was told its next step was to raise a quotation — a step
+nobody there can take, for a stage the same screen had stopped drawing. `stagesRunning`
+(`platform/engagement/progress`, pure) narrows the template to what is running before
+`flowProgress` walks it, so the cards and the sequence read one switchboard.
+
+**A stage the deal ALREADY HOLDS stays in the walk**, switched off or not: dropping it would
+report the deal as further back than it is and invite a step it has taken. Switching a
+department off hides what is not there; it does not unmake what is.
+
+### Its flow is chosen when it opens, not re-derived on every read (20/09/2026)
+
+`setDealTemplate` has said since it was written that a deal's flow is stored "precisely so a
+deal does not silently gain and lose stage cards for reasons nobody performed" — **and nothing
+called it except the field-service job.** Every other deal resolved its flow from its industry
+on EVERY read, so editing which flow an industry starts on re-routed every live deal in that
+industry at once, with no warning and nothing recorded. Found by the owner.
+
+`freezeTemplate` runs at `applyAsDeal`, the single place a deal is first minted, and writes the
+industry's answer onto the deal once. Best-effort, like the dual-write it rides on: the records
+are the authority, and a deal with no stored template still resolves by industry exactly as
+before. **Deals opened before this keep resolving by industry** — writing one on read would make
+a list route a writer, and choosing a flow for a deal that has walked another one for months is
+a decision rather than a repair.
+
 ### The backfill is the reconciler
 
 `scripts/migrate/backfill-engagements.mjs` derives engagements from the existing chains. Dry
@@ -214,7 +242,34 @@ run by default, refuses the live namespace without `--allow-live`, writes only w
 `--apply`, additive and idempotent — a missed dual-write is healed by re-running it. Applied
 to live once; 7 engagements proven.
 
+### The trades are the console's list, and a studio sees its own (20/09/2026)
+
+**The owner: "the user should not see every single industry and Deal flow he doesn't need."**
+Every studio's Settings listed all twenty-five trades and all seven flows, so the product's
+catalogue read as that studio's own configuration.
+
+- **`/super` → ERP settings owns the trades** (`REG.erpIndustries`). The code's twenty-five are
+  the seed underneath: a console row replaces one, a reverted row falls back to it, and a trade
+  the code never had disappears when it is reverted. Adding a trade stopped being a release.
+- **A studio's Settings shows its working set** — its own field of work's trade, any trade or
+  flow live deals are already walking, and anything the studio itself edited or cloned, with
+  the flows those trades start on and also run. What is left out is COUNTED on the screen
+  rather than silently missing; a studio that has not said what it does still sees everything.
+- **A studio no longer adds or names a trade.** Its dialog asks the one question that is
+  genuinely the studio's: which flow that trade starts on — because a studio that clones a flow
+  has to be able to point its own work at the clone. The name, the pairing and the reasoning
+  are shown, not edited.
+
 ## Not built yet — do not assume otherwise
+
+- **Switching a section off warns about nothing.** Changing the field of work, retiring a
+  service action and editing a flow all show what the change will touch first; the Sections
+  panel does not, and a part switched off takes its screens, widgets, reads and API with it
+  (`dashboards.md`). Nothing is deleted, so this is a warning that is missing rather than a
+  loss that is silent — but it is the one switch of the four that says nothing.
+- **Changing which flow a trade starts on warns about nothing either**, where editing the flow
+  itself counts the deals first. It no longer re-routes live deals (above), so what it changes
+  is deals opened from now on.
 
 - **P2's six stage records have a schema, a collection and a service, and NO ROUTE, NO
   SCREEN and NO PERMISSION AREA of their own.** `contract` and `change_order`

@@ -17,7 +17,7 @@
 // doubt. Refusing it at the door means the studio hears about it while it is
 // still their edit, in words about the edit. Validating on read instead would
 // mean discovering it at the worst moment, on somebody else's screen.
-import { S } from "./keys";
+import { S, REG } from "./keys";
 import { readArr, editArr } from "./store";
 import { FLOW_TEMPLATES, templateProblems } from "../engagement/templates";
 import type { FlowTemplate } from "../engagement/templates";
@@ -100,15 +100,78 @@ export async function deleteFlowTemplate(studioId: string, id: string): Promise<
 
 // ---- industries -------------------------------------------------------------
 
-/** Every industry this studio can choose: the seeded twenty-five, as it has edited them. */
+/**
+ * THE TRADES THIS STUDIO CAN PUT A DEAL IN — three layers, most local last.
+ *
+ * The code's twenty-five (`INDUSTRIES`), then the ones the CONSOLE has added or
+ * changed (`REG.erpIndustries`, 20/09/2026 — "so I can add more in the future"),
+ * then the studio's own. Adding a trade to the product stopped being a release
+ * the day the middle layer landed; the outer two are unchanged by it.
+ *
+ * READ IN ONE WAVE. The console list is a small platform-level array and the
+ * studio's is usually empty, and this is on the deal screen's path.
+ */
 export async function listIndustries(studioId: string): Promise<IndustryEntry[]> {
-  const overrides = await readArr<IndustryEntry & { id?: string }>(S.industries(studioId));
+  const [platform, overrides] = await Promise.all([
+    readArr<IndustryEntry & { id?: string }>(REG.erpIndustries),
+    readArr<IndustryEntry & { id?: string }>(S.industries(studioId)),
+  ]);
   // IndustryEntry is keyed by `key`, not `id`; merge() wants an `id`, so the two
   // are bridged here rather than by giving industries a second identifier that
   // would then need keeping in step with the first.
   const asIded = overrides.map((o) => ({ ...o, id: o.key }));
-  const seeds = INDUSTRIES.map((i) => ({ ...i, id: i.key }));
+  const seeds = merge(
+    INDUSTRIES.map((i) => ({ ...i, id: i.key })),
+    platform.map((p) => ({ ...p, id: p.key })),
+  );
   return merge(seeds, asIded).map(({ id: _id, ...rest }) => rest as IndustryEntry);
+}
+
+/**
+ * THE TRADES THIS STUDIO ITSELF HAS A ROW FOR — its own edits and additions.
+ *
+ * Told apart from the console's and the code's because the Settings screen
+ * narrows to what this studio needs: a trade somebody here deliberately changed
+ * is always shown, while one added for the product at large is not (it would be
+ * on every studio's screen the day it was added, which is the thing the
+ * narrowing exists to stop).
+ */
+export async function ownIndustryKeys(studioId: string): Promise<string[]> {
+  const rows = await readArr<IndustryEntry>(S.industries(studioId));
+  return rows.map((r) => r.key);
+}
+
+/** The console's own list, without any studio's edits — what `/super` shows. */
+export async function listPlatformIndustries(): Promise<IndustryEntry[]> {
+  const platform = await readArr<IndustryEntry & { id?: string }>(REG.erpIndustries);
+  return merge(
+    INDUSTRIES.map((i) => ({ ...i, id: i.key })),
+    platform.map((p) => ({ ...p, id: p.key })),
+  ).map(({ id: _id, ...rest }) => rest as IndustryEntry);
+}
+
+/**
+ * ADD OR CHANGE ONE FOR THE WHOLE PRODUCT.
+ *
+ * REFUSED THE SAME WAY A STUDIO'S IS, against the BUILT-IN templates: this list
+ * is the seed every studio reads, so it may only name a flow every studio has.
+ * A studio pointing its own copy at its own clone is the layer below.
+ */
+export async function writePlatformIndustry(entry: IndustryEntry): Promise<{ error: string } | { ok: true }> {
+  const problems = industryProblems(FLOW_TEMPLATES.map((t) => t.id), [entry]);
+  if (problems.length) return { error: problems[0] };
+  await editArr<IndustryEntry>(REG.erpIndustries, (rows) => {
+    const without = rows.filter((r) => r.key !== entry.key);
+    return { next: [...without, entry], result: undefined };
+  });
+  return { ok: true };
+}
+
+/** Take the console's row away again — the code's own answer returns with it. */
+export async function dropPlatformIndustry(key: string): Promise<void> {
+  await editArr<IndustryEntry>(REG.erpIndustries, (rows) => ({
+    next: rows.filter((r) => r.key !== key), result: undefined,
+  }));
 }
 
 export async function getIndustry(studioId: string, key: string): Promise<IndustryEntry | null> {

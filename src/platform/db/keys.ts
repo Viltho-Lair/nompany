@@ -120,6 +120,15 @@ export const REG = {
   // The ERP services a tier is made of — a shared catalogue so two tiers can
   // name the same service and mean it.
   erpServices: `${P}g:erpServices`,
+  // THE TRADES THE PRODUCT KNOWS, and which deal flow each one starts on
+  // (20/09/2026, the owner: "add there the things that can be set for studios
+  // to complete their work, one of which is the drop list of industries so I
+  // can add more in the future"). Platform-level, like the packages beside it:
+  // a trade is something nompany recognises, not something one studio owns —
+  // and it was a hardcoded list in `platform/engagement/industries` until now,
+  // so adding one was a release. A studio still keeps its OWN row for a trade
+  // it works differently (`S.industries`), which wins over this.
+  erpIndustries: `${P}g:erpIndustries`,
   // What people think of nompany. One field per user, so a rating is inherently
   // unique to them and re-rating replaces rather than accumulates. Platform-
   // level because the opinion is about the product, not about a studio.
