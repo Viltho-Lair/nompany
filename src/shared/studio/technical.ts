@@ -175,6 +175,23 @@ type Strings = CommonStrings & {
   requested: string;
   resume: string;
   revision: string;
+  // ---- comparing two revisions (modules/technical/quotationDiff) ----------
+  compare: string;
+  compareWith: (n: number) => string;
+  compareTitle: (from: number, to: number) => string;
+  compareIdentical: string;
+  compareSummary: (added: number, changed: number, removed: number) => string;
+  compareAdded: string;
+  compareChanged: string;
+  compareRemoved: string;
+  compareTableRenamed: (from: string, to: string) => string;
+  compareTableAdded: (title: string) => string;
+  compareTableRemoved: (title: string) => string;
+  compareVatRate: (from: number, to: number) => string;
+  compareTotal: string;
+  compareFields: Record<string, string>;
+  compareNoPrevious: string;
+  compareClose: string;
   rfqFunnel: string;
   rfqInformation: string;
   rfqsWorkflowStatus: string;
@@ -414,6 +431,24 @@ const en: Strings = {
   requested: "Requested by",
   resume: "Resume",
   revision: "Revision",
+  compare: "Compare",
+  compareWith: (n) => `Compare with Rev ${n}`,
+  compareTitle: (from, to) => `What changed between Rev ${from} and Rev ${to}`,
+  compareIdentical: "Nothing on the priced document changed between these two versions.",
+  compareSummary: (added, changed, removed) => `${added} added · ${changed} changed · ${removed} removed`,
+  compareAdded: "Added",
+  compareChanged: "Changed",
+  compareRemoved: "Removed",
+  compareTableRenamed: (from, to) => `Section renamed: ${from || "—"} → ${to || "—"}`,
+  compareTableAdded: (title) => `Section added: ${title || "—"}`,
+  compareTableRemoved: (title) => `Section removed: ${title || "—"}`,
+  compareVatRate: (from, to) => `VAT rate: ${from}% → ${to}%`,
+  compareTotal: "Total",
+  compareFields: {
+    description: "description", unit: "unit", qty: "quantity", unitPrice: "unit price", discount: "discount",
+  },
+  compareNoPrevious: "This is the first version, so there is nothing to compare it with.",
+  compareClose: "Close",
   rfqFunnel: "RFQ funnel",
   rfqInformation: "RFQ information",
   rfqsWorkflowStatus: "RFQs by workflow status",
@@ -657,6 +692,24 @@ const ar: Strings = {
   requested: "طلبه",
   resume: "استئناف",
   revision: "المراجعة",
+  compare: "مقارنة",
+  compareWith: (n) => `قارن بالمراجعة ${n}`,
+  compareTitle: (from, to) => `ما تغيّر بين المراجعة ${from} والمراجعة ${to}`,
+  compareIdentical: "لم يتغير شيء في المستند المسعّر بين هاتين النسختين.",
+  compareSummary: (added, changed, removed) => `${added} مضاف · ${changed} معدّل · ${removed} محذوف`,
+  compareAdded: "مضاف",
+  compareChanged: "معدّل",
+  compareRemoved: "محذوف",
+  compareTableRenamed: (from, to) => `أُعيدت تسمية القسم: ${from || "—"} ← ${to || "—"}`,
+  compareTableAdded: (title) => `قسم مضاف: ${title || "—"}`,
+  compareTableRemoved: (title) => `قسم محذوف: ${title || "—"}`,
+  compareVatRate: (from, to) => `نسبة الضريبة: ${from}% ← ${to}%`,
+  compareTotal: "الإجمالي",
+  compareFields: {
+    description: "الوصف", unit: "الوحدة", qty: "الكمية", unitPrice: "سعر الوحدة", discount: "الخصم",
+  },
+  compareNoPrevious: "هذه هي النسخة الأولى، فلا يوجد ما يقارن بها.",
+  compareClose: "إغلاق",
   rfqFunnel: "مسار طلبات عروض الأسعار",
   rfqInformation: "معلومات طلب عرض السعر",
   rfqsWorkflowStatus: "طلبات عروض الأسعار حسب حالة سير العمل",

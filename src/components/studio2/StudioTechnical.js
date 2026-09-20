@@ -17,6 +17,7 @@ import {
 import { isUnfinished } from "@/modules/technical/quotations";
 import { sectionName } from "@/shared/studio/sections";
 import QuotationBuilder from "@/components/studio2/QuotationBuilder";
+import { previousRevision } from "@/modules/technical/quotationDiff";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import Combo from "@/components/studio2/Combo";
 import StudioDate from "@/components/fields/StudioDate";
@@ -307,6 +308,9 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
           <QuotationBuilder
             slug={slug}
             quote={quotations.find((q) => q.id === editingQuote.id) || editingQuote}
+            // THE VERSION THIS ONE REPLACED, out of the list already in hand —
+            // so comparing two revisions costs no round trip (quotationDiff).
+            previous={previousRevision(quotations, quotations.find((q) => q.id === editingQuote.id) || editingQuote)}
             canManage={canManageQuotations}
             catalogue={quoteClientId && priced?.clientId === quoteClientId
               ? priced.items

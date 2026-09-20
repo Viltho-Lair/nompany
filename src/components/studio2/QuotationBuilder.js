@@ -5,13 +5,18 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { technicalDict } from "@/shared/studio/technical";
 import { documentsDict } from "@/shared/studio/documents";
 import Link from "next/link";
-import { btn, btnGhost, input, money } from "@/components/studio2/ui";
+import nextDynamic from "next/dynamic";
+import { btn, btnGhost, input, money, Dialog } from "@/components/studio2/ui";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
 import TaxTag from "@/components/studio2/TaxTag";
 import { MAX_TABLES, MAX_TABLE_ROWS, netUnitPrice } from "@/modules/technical/quotations";
 import { fmtRate } from "@/shared/currencies";
 import { documentTotals } from "@/shared/documentTotals";
+
+// WHAT CHANGED SINCE THE PREVIOUS REVISION — its own chunk, fetched when
+// somebody asks for it. Most quotations are Rev 1 and never offer the button.
+const QuotationCompare = nextDynamic(() => import("@/components/studio2/QuotationCompare"), { ssr: false });
 
 // The Quotation Builder: the full screen where a quotation is actually built.
 //
@@ -34,7 +39,7 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 // through typing "1.5".
 const cell = "w-full rounded-geex border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-export default function QuotationBuilder({ slug, quote, catalogue = [], currency: studioCurrency = "", vatOn = false, canManage, onSave, onClose }) {
+export default function QuotationBuilder({ slug, quote, previous = null, catalogue = [], currency: studioCurrency = "", vatOn = false, canManage, onSave, onClose }) {
   const tr = technicalDict(useStudioLocale());
   const dt = documentsDict(useStudioLocale());
   // THE QUOTATION'S OWN MONEY FIRST — frozen when it was raised — and the
@@ -53,6 +58,10 @@ export default function QuotationBuilder({ slug, quote, catalogue = [], currency
   const [vatRate, setVatRate] = useState(num(quote.vatRate));
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState("");
+  // WHAT CHANGED SINCE THE LAST VERSION, offered only where there IS one: a
+  // revision opens on a copy of its predecessor, and until now the two sat side
+  // by side in the register with nothing saying what moved between them.
+  const [comparing, setComparing] = useState(false);
 
   // Opening the builder is what makes a New quotation a Draft. Reported once,
   // on arrival — the server decides whether that actually changes anything, so
@@ -178,6 +187,11 @@ export default function QuotationBuilder({ slug, quote, catalogue = [], currency
               A NEW TAB, not this one: the print page fills the STORED record,
               and navigating away would throw away whatever is typed here and
               not yet saved. */}
+          {previous && (
+            <button type="button" className={btnGhost} onClick={() => setComparing(true)}>
+              {tr.compareWith(Number(previous.revision) || 1)}
+            </button>
+          )}
           {slug && quote.id && (
             <Link href={`/${slug}/print/quotation/${quote.id}`} target="_blank" rel="noopener" className={btnGhost}>
               {dt.print}
@@ -201,6 +215,15 @@ export default function QuotationBuilder({ slug, quote, catalogue = [], currency
           )}
         </div>
       </header>
+
+      {comparing && (
+        <Dialog title={tr.compare} onClose={() => setComparing(false)} width="max-w-[720px]">
+          {/* THE SAVED DOCUMENT, not what is being typed: the comparison
+              answers "what did this revision change", and unsaved edits are not
+              part of any revision yet. */}
+          <QuotationCompare quote={quote} previous={previous} currency={currency} />
+        </Dialog>
+      )}
 
       {!locked && !catalogue.length && (
         <p className="border-b border-slate-200 bg-slate-100 px-5 py-2 text-xs text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
