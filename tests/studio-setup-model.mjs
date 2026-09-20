@@ -17,6 +17,8 @@ register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 const T = await import("@/shared/tradeSections");
 const M = await import("@/modules/main/studios");
 const K = await import("@/platform/db/keys");
+const F = await import("@/shared/fieldsOfWork");
+const A = await import("@/platform/access/resolve");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -49,6 +51,45 @@ ok("another department's storage is never offered as a part",
   "crm-sales-quotations is filed under CRM & Sales and belongs to Quotations");
 ok("a settings page is never offered as a part",
   Object.values(cat.children).flat().every((k) => !k.endsWith("-settings")));
+
+// EVERY PART A DEPARTMENT HAS IS OFFERED UNLESS SOMETHING NAMES A REASON.
+//
+// The three assertions above are all NEGATIVE — they hold that the wrong rows
+// stay out, and nothing held that the right ones come in. A filter widening by
+// accident, or a sub-section whose key happens to match one, would drop a real
+// screen from the question list and the owner would never learn the part
+// existed: there is no empty row to notice, only one fewer tick box.
+//
+// So each unoffered child must be one of the four kinds the catalogue means to
+// drop, re-derived here from the primitives rather than read back out of the
+// catalogue's own filter. Anything else is a part that has gone missing.
+const unoffered = [];
+for (const d of K.PRODUCT_SECTION_DEFS.filter((x) => cat.roots.includes(x.key))) {
+  const offered = cat.children[d.key] || [];
+  for (const c of d.children || []) {
+    if (offered.includes(c.key)) continue;
+    const reason = K.isFiledOnlySection(c.key) ? "filed-only"
+      : K.isSystemSection(c.key) ? "system"
+      : (A.NO_SCREEN_YET || []).includes(c.key) ? "no-screen"
+      : c.key.endsWith("-settings") ? "settings"
+      : "";
+    unoffered.push({ ...c, root: d.key, reason });
+  }
+}
+ok("every part left out of the question list has a reason",
+  unoffered.every((c) => c.reason),
+  unoffered.filter((c) => !c.reason).map((c) => `${c.root}/${c.key}`).join(", ") || "nothing unaccounted for");
+
+// AND A SETTINGS PAGE IS RECOGNISED BY TWO INDEPENDENT THINGS — its key and its
+// declared name. The SUFFIX is what the catalogue filters on, so a work screen
+// named `<department>-settings` would be dropped silently and this is the only
+// thing that would say so; the name a studio actually reads is the second
+// opinion. Every settings row in the tree carries "settings" in its name today,
+// `engineering-docs-settings` ("Quotation settings") included.
+ok("a part dropped for being a settings page says so in its own name",
+  unoffered.filter((c) => c.reason === "settings").every((c) => /settings/i.test(c.name || "")),
+  unoffered.filter((c) => c.reason === "settings" && !/settings/i.test(c.name || ""))
+    .map((c) => `${c.key} is named "${c.name}"`).join(", ") || "all named as settings");
 
 console.log("\n== the screen's payload");
 
@@ -107,6 +148,45 @@ ok("a body that is not an object is refused",
 // AN EMPTY SIDEBAR IS THE SHOCK FROM THE OTHER SIDE.
 ok("choosing no department at all is refused",
   T.resolveSectionChoice({ roots: [] }, cat).error === "sections-empty");
+
+console.log("\n== every department some trade actually starts with");
+
+// A DEPARTMENT NO TRADE EVER PRE-TICKS IS A QUESTION NOBODY IS HELPED WITH.
+//
+// The trade only pre-fills the answers, so a root missing from the trade rules
+// is still ASKED about and can still be ticked — which is why nothing failed
+// today and why this went unnoticed as a class. What it costs is the point of
+// the screen: the department is off by default for all twenty-five trades,
+// including the ones that live by it, and the owner has to know to go and find
+// it.
+//
+// THE WAY IN IS `tradeSections.ts`, three of them: an action resolves to it
+// (ACTION_SECTION), it is on some trade's flow spine, or every company needs it
+// (UNIVERSAL_SECTION_KEYS — which is how Marketing arrived on 19/09/2026, no
+// service action being marketing). A new department that touched none of the
+// three is what this catches.
+//
+// REAL TRADES ONLY. An unknown trade suggests every department, so counting it
+// would satisfy this assertion for a root nothing knows about — the single case
+// it exists to find.
+const preTicked = Object.fromEntries(cat.roots.map((k) => [k, 0]));
+for (const field of F.FIELDS_OF_WORK) {
+  const on = M.tradeRootsFor(field);
+  if (!(on instanceof Set) || on.size === 0) ok(`${field} resolves to a real set of departments`, false);
+  for (const key of cat.roots) if (on?.has(key)) preTicked[key] += 1;
+}
+const orphans = cat.roots.filter((k) => preTicked[k] === 0);
+const rarest = [...cat.roots].sort((a, b) => preTicked[a] - preTicked[b])[0];
+ok("every department asked about is one some trade starts with", orphans.length === 0,
+  orphans.length
+    ? `pre-ticked by no trade: ${orphans.join(", ")}`
+    : `least common is ${rarest} at ${preTicked[rarest]}/${F.FIELDS_OF_WORK.length}`);
+// MARKETING IS WHAT PROVED THE GAP WAS REACHABLE — declared 19/09/2026 with no
+// action that could turn it on, so it is universal BY HAND. Named here because
+// losing it reads as a trade-rules change rather than as a missing department.
+ok("Marketing is a department every trade starts with",
+  preTicked.marketing === F.FIELDS_OF_WORK.length,
+  `${preTicked.marketing}/${F.FIELDS_OF_WORK.length}`);
 
 console.log("\n== the trade rule did not move");
 
