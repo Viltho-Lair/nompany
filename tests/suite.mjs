@@ -5539,9 +5539,22 @@ console.log("== the flow editor: a studio owns its flows, and a refusal says why
     industry: { key: "made-up", name: "Made Up", primary: "A", secondary: "", note: "ours" },
   }), { params: params(slug) });
   ok("...and one pointing at a real template is accepted", goodIndustry.status === 200);
+  // A STUDIO IS SHOWN ITS OWN WORKING SET, NOT THE CATALOGUE (20/09/2026, the
+  // owner: "the user should not see every single industry and Deal flow he
+  // doesn't need"). This asserted twenty-six — the product's twenty-five plus
+  // the studio's own — which is exactly the screen that had to go. The row
+  // THIS studio wrote is what it now sees, and the rest are COUNTED rather
+  // than silently absent. The fixture has no field of work, so before it wrote
+  // one there was nothing to narrow by and it saw all twenty-five (above).
   const withIndustry = await (await FLOWS.GET(req(), { params: params(slug) })).json();
-  ok("a new industry appends a twenty-sixth", withIndustry.industries.length === 26,
-    String(withIndustry.industries.length));
+  ok("a studio sees the trade it wrote for itself", withIndustry.industries.length === 1
+    && withIndustry.industries[0].key === "made-up",
+  JSON.stringify(withIndustry.industries.map((i) => i.key)));
+  ok("...and is told how many more the product knows", withIndustry.hidden?.industries === 25,
+    String(withIndustry.hidden?.industries));
+  ok("...with the flows those trades use, and no others",
+    withIndustry.templates.length === 1 && withIndustry.templates[0].id === "A",
+    JSON.stringify(withIndustry.templates.map((t) => t.id)));
 
   // DELETING AN OVERRIDE REVERTS TO THE BUILT-IN — one operation, and which it
   // is depends only on whether a seed exists underneath.
@@ -5569,7 +5582,11 @@ console.log("== the flow editor: a studio owns its flows, and a refusal says why
   await updateCollaborator(studio.id, reader.collaborator.id, { roleIds: [readerRole.id] });
   await signInAs(reader.user.id);
   const readerBody = await (await FLOWS.GET(req(), { params: params(slug) })).json();
-  ok("a reader sees the flows themselves", readerBody.templates?.length === 7);
+  // The same working set a manager sees — narrowing is about what the STUDIO
+  // needs, never about who is reading. What a reader loses is the usage count
+  // below, which exists to warn somebody who is about to change a flow.
+  ok("a reader sees the flows themselves", readerBody.templates?.length === 1,
+    JSON.stringify(readerBody.templates?.map((t) => t.id)));
   ok("...is told they may not manage them", readerBody.canManage === false);
   ok("...and is given no count of the studio's deals", readerBody.usage === null,
     JSON.stringify(readerBody.usage));
