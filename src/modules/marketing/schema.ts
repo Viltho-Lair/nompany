@@ -82,10 +82,25 @@ export const MarketingFormSchema = z.object({
   definition: z.object({ pages: z.array(z.unknown()) }),
   settings: z.object({
     campaignId: z.string(),
+    /** True when some action fires on EVERY answer — the single switch this feature began as. */
     createLead: z.boolean(),
+    /**
+     * What an answer sets off, in order; the first whose condition holds wins.
+     * Optional because a form stored before rules existed has none, and
+     * `cleanSettings` reads its `createLead` as the one rule it always meant.
+     */
+    actions: z.array(z.object({
+      id: z.string(),
+      when: z.object({ questionId: z.string(), op: z.string(), value: z.string() }),
+      raise: z.string(),
+      assignTo: z.string(),
+    })).optional(),
     leadFields: z.object({ name: z.string(), company: z.string(), phone: z.string(), email: z.string() }),
     confirmation: z.string(),
     closesOn: z.string(),
+    /** The megabytes of uploads this form may ever hold, and what it holds now. */
+    storageMb: z.number().optional(),
+    storedBytes: z.number().optional(),
   }),
   createdByCollaboratorId: z.string(),
   createdAt: z.string(),

@@ -434,6 +434,13 @@ export const RL = {
   // forms is the same abuse as one form forty times.
   formIp: (ip: string) => `${P}rl:form:i:${String(ip || "unknown")}`,
 
+  // AND THE FILES THOSE FORMS TAKE (20/09/2026), counted apart from the answers
+  // because they cost differently: an answer is a row, an upload is a bill.
+  // Tighter than the answer limit for that reason — a form may accept ten files
+  // per answer, and the person filling one in is not sending forty in ten
+  // minutes.
+  formUploadIp: (ip: string) => `${P}rl:formup:i:${String(ip || "unknown")}`,
+
   // FAILED CREDENTIAL ATTEMPTS — password sign-in and password reset.
   //
   // Three counters rather than one, and the SPREAD between them is the design:

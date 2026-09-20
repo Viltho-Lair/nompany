@@ -3,18 +3,25 @@
 // "preview renderer" would be a second reading of every branch, free to disagree
 // with the real one about exactly what an author opens a preview to check.
 //
-// The branching is lib/questionnaireLogic's and the checks are
+// The branching is modules/marketing/formsFlow's and the checks are
 // modules/marketing/formsModel's — both pure, and both what the server applies
 // again on arrival — so this page refuses what the server would refuse, and
 // says why beside the question rather than after a round trip.
 //
+// BACK IS A STACK, NOT AN INDEX (20/09/2026). Once an answer can send somebody
+// past three pages, "the page before this one" is a fact about where they have
+// BEEN, and the list of pages is no longer it. Walking the path forward from
+// the start would agree with the stack most of the time and disagree exactly
+// when it matters — after somebody goes back and changes the answer that did
+// the jumping.
+//
 // It wears no studio chrome and no nompany marketing: it is the studio's form,
 // with the studio's name and logo at the top.
 "use client";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import SelectMenu from "@/components/fields/SelectMenu";
-import { visiblePages, visibleQuestions } from "@/lib/questionnaireLogic";
-import { answerProblem, takesAnswer } from "@/modules/marketing/formsModel";
+import { askedOn, isLastPage, nextPageId } from "@/modules/marketing/formsFlow";
+import { answerProblem, takesAnswer, gridField, isGrid } from "@/modules/marketing/formsModel";
 import { publicFormDict } from "@/shared/forms";
 
 const INPUT = "w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-white/15 dark:bg-[#15151c] dark:text-white";
@@ -22,30 +29,34 @@ const CHOICE = "rounded-xl border px-4 py-2.5 text-start text-[15px] transition-
 const ON = "border-indigo-500 bg-indigo-50 text-indigo-900 dark:bg-indigo-500/15 dark:text-white";
 const OFF = "border-slate-300 text-slate-700 hover:border-indigo-400 dark:border-white/15 dark:text-slate-200";
 const OTHER = "__other__";
+const ICONS = { star: ["★", "☆"], heart: ["♥", "♡"], thumb: ["👍", "👍"] };
 
-export default function PublicForm({ form, onSubmit, preview = false }) {
+export default function PublicForm({ form, onSubmit, onUpload, preview = false }) {
   const tr = publicFormDict(form.locale);
   const pages = useMemo(() => form.pages || [], [form.pages]);
   const [answers, setAnswers] = useState({});
-  const [pageId, setPageId] = useState("");
+  // The pages this person has actually been through, oldest first; the last is
+  // where they are. Empty means "the first page", so a form with no answers yet
+  // needs no special case.
+  const [stack, setStack] = useState([]);
+  const [fileNames, setFileNames] = useState({});
   const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
   const [trap, setTrap] = useState("");
 
-  // THE PAGES THIS PERSON'S ANSWERS LEAD THROUGH, by id rather than index —
-  // an answer that reveals or hides a page must not move somebody elsewhere.
-  const live = useMemo(() => visiblePages(pages, answers), [pages, answers]);
-  const index = Math.max(0, live.findIndex((p) => p.id === pageId));
-  const current = live[index] || live[0] || null;
-  const asked = useMemo(() => (current ? visibleQuestions(current, pages, answers) : []), [current, pages, answers]);
-  const last = index >= live.length - 1;
+  const current = useMemo(
+    () => pages.find((p) => p.id === stack[stack.length - 1]) || pages[0] || null,
+    [pages, stack],
+  );
+  const asked = useMemo(() => (current ? askedOn(current, pages, answers) : []), [current, pages, answers]);
+  const last = current ? isLastPage(current, pages, answers) : true;
 
-  const set = (id, value) => {
+  const set = useCallback((id, value) => {
     setAnswers((a) => ({ ...a, [id]: value }));
     setErrors((e) => ({ ...e, [id]: "" }));
-  };
+  }, []);
 
   // THE PAGE'S OWN CHECK before moving on, the same function the server runs.
   // "OTHER" CHOSEN WITH NOTHING TYPED is no answer yet, not the word "__other__".
@@ -57,8 +68,14 @@ export default function PublicForm({ form, onSubmit, preview = false }) {
     return false;
   };
 
-  const next = () => { if (check()) { setPageId(live[index + 1]?.id || ""); setError(""); } };
-  const back = () => setPageId(live[index - 1]?.id || "");
+  const next = () => {
+    if (!check()) return;
+    const to = nextPageId(current, pages, clean());
+    if (!to || to === "submit" || !pages.some((p) => p.id === to)) return;
+    setStack((s) => [...(s.length ? s : [current.id]), to]);
+    setError("");
+  };
+  const back = () => setStack((s) => s.slice(0, -1));
 
   const send = async () => {
     if (!check()) return;
@@ -70,7 +87,7 @@ export default function PublicForm({ form, onSubmit, preview = false }) {
     else setError(tr.errors[out?.error] || tr.errors.failed);
   };
 
-  const again = () => { setAnswers({}); setPageId(""); setDone(null); setErrors({}); };
+  const again = () => { setAnswers({}); setStack([]); setDone(null); setErrors({}); setFileNames({}); };
 
   return (
     <div dir={form.locale === "ar" ? "rtl" : "ltr"} lang={form.locale}
@@ -102,13 +119,17 @@ export default function PublicForm({ form, onSubmit, preview = false }) {
           </div>
         ) : !current ? null : (
           <>
-            {live.length > 1 && <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{tr.pageOf(index + 1, live.length)}</p>}
+            {/* HOW FAR IN, NOT HOW FAR TO GO. A jump means the number of pages
+                left is not known until the answers are in, so "page 2 of 5"
+                would be a guess that changes under somebody mid-form. */}
+            {pages.length > 1 && <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{tr.step(Math.max(1, stack.length))}</p>}
             {current.title && <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{current.title}</h2>}
             {current.lead && <p className="mt-1 whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{current.lead}</p>}
 
             <div className="mt-6 space-y-6">
               {asked.map((q) => (
-                <Question key={q.id} q={q} value={answers[q.id]} onChange={(v) => set(q.id, v)}
+                <Question key={q.id} q={q} answers={answers} onChange={set} preview={preview}
+                  onUpload={onUpload} fileNames={fileNames} setFileNames={setFileNames}
                   error={errors[q.id] ? tr.errors[errors[q.id]] || tr.errors.required : ""} tr={tr} />
               ))}
             </div>
@@ -122,7 +143,7 @@ export default function PublicForm({ form, onSubmit, preview = false }) {
             {error && <p role="alert" className="mt-6 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
             <div className="mt-8 flex items-center justify-between gap-3">
-              {index > 0
+              {stack.length > 1
                 ? <button type="button" onClick={back} className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5">{tr.back}</button>
                 : <span />}
               {last
@@ -136,10 +157,10 @@ export default function PublicForm({ form, onSubmit, preview = false }) {
   );
 }
 
-function Question({ q, value, onChange, error, tr }) {
+function Question({ q, answers, onChange, error, tr, preview, onUpload, fileNames, setFileNames }) {
   const id = `q-${q.id}`;
-  const heading = (
-    <>
+  return (
+    <div>
       {q.type !== "legal" && (
         <label htmlFor={id} className="block text-[15px] font-semibold text-slate-900 dark:text-white">
           {q.label}
@@ -147,13 +168,137 @@ function Question({ q, value, onChange, error, tr }) {
         </label>
       )}
       {q.description && <p className="mt-0.5 whitespace-pre-line text-sm text-slate-500 dark:text-slate-400">{q.description}</p>}
+      {/* The author's picture, served by the media route like every other file
+          this product hands out — never a URL somebody pasted. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {q.image && <img src={`/api/media/${q.image}`} alt="" className="mt-3 max-h-72 w-auto rounded-xl border border-slate-200 dark:border-white/10" />}
+      <div className="mt-2">
+        {isGrid(q.type)
+          ? <Grid q={q} answers={answers} onChange={onChange} tr={tr} />
+          : q.type === "file"
+            ? <Files q={q} value={answers[q.id]} onChange={(v) => onChange(q.id, v)} tr={tr}
+                preview={preview} onUpload={onUpload} fileNames={fileNames} setFileNames={setFileNames} />
+            : control(q, answers[q.id], (v) => onChange(q.id, v), id, tr)}
+      </div>
+      {error && <p role="alert" className="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
+    </div>
+  );
+}
+
+/**
+ * A GRID IS A TABLE ON A SCREEN AND A LIST ON A PHONE, and that is not a
+ * styling preference: five columns of radio buttons at 375 pixels is either a
+ * horizontal scroll or a row of targets too small to hit. Each row is its own
+ * answer either way (`gridField`), so the two layouts write identical answers.
+ */
+function Grid({ q, answers, onChange, tr }) {
+  const rows = q.rows || [];
+  const columns = q.columns || [];
+  const multi = q.type === "grid-multi";
+  const valueOf = (i) => answers[gridField(q.id, i)];
+  const toggle = (i, column) => {
+    const field = gridField(q.id, i);
+    if (!multi) { onChange(field, valueOf(i) === column ? "" : column); return; }
+    const picked = Array.isArray(valueOf(i)) ? valueOf(i) : [];
+    onChange(field, picked.includes(column) ? picked.filter((c) => c !== column) : [...picked, column]);
+  };
+  const on = (i, column) => {
+    const v = valueOf(i);
+    return multi ? Array.isArray(v) && v.includes(column) : v === column;
+  };
+  return (
+    <>
+      <table className="hidden w-full text-sm sm:table">
+        <thead>
+          <tr>
+            <th className="w-1/3" />
+            {columns.map((c) => (
+              <th key={c} scope="col" className="px-2 pb-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={row} className="border-t border-slate-100 dark:border-white/5">
+              <th scope="row" className="py-2 pe-3 text-start font-medium text-slate-800 dark:text-slate-100">{row}</th>
+              {columns.map((c) => (
+                <td key={c} className="px-2 py-2 text-center">
+                  <input type={multi ? "checkbox" : "radio"} name={`${q.id}-${i}`} checked={on(i, c)}
+                    aria-label={`${row} — ${c}`} onChange={() => toggle(i, c)}
+                    className="h-4 w-4 accent-indigo-600" />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="space-y-3 sm:hidden">
+        {rows.map((row, i) => (
+          <div key={row} className="rounded-xl border border-slate-200 p-3 dark:border-white/10">
+            <p className="mb-2 text-sm font-medium text-slate-800 dark:text-slate-100">{row}</p>
+            <div className="flex flex-wrap gap-2" role={multi ? "group" : "radiogroup"}>
+              {columns.map((c) => (
+                <button key={c} type="button" role={multi ? "checkbox" : "radio"} aria-checked={on(i, c)}
+                  onClick={() => toggle(i, c)} className={`${CHOICE} py-1.5 text-sm ${on(i, c) ? ON : OFF}`}>{c}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      {q.requireEachRow && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.everyRow}</p>}
     </>
   );
+}
+
+/**
+ * FILES GO UP AS THEY ARE CHOSEN, not when the form is sent. Holding them until
+ * the end would mean a person who filled in nine questions and picked a 4 MB
+ * file finds out at the last button that the form is full — and the answer
+ * carries media ids, so the upload has to have happened before there is
+ * anything to store.
+ */
+function Files({ q, value, onChange, tr, preview, onUpload, fileNames, setFileNames }) {
+  const ids = Array.isArray(value) ? value : [];
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState("");
+  const max = q.maxFiles || 1;
+  const full = ids.length >= max;
+
+  const pick = async (list) => {
+    setProblem("");
+    const chosen = Array.from(list || []).slice(0, max - ids.length);
+    if (!chosen.length) return;
+    setBusy(true);
+    const kept = [...ids];
+    for (const file of chosen) {
+      if (file.size > (q.maxFileMb || 1) * 1024 * 1024) { setProblem(tr.errors["too-large"]); continue; }
+      const out = await onUpload?.(q.id, file).catch(() => ({ error: "failed" }));
+      if (out?.id) { kept.push(out.id); setFileNames((n) => ({ ...n, [out.id]: out.name || file.name })); }
+      else setProblem(tr.errors[out?.error] || tr.errors.failed);
+    }
+    setBusy(false);
+    onChange(kept);
+  };
+
   return (
     <div>
-      {heading}
-      <div className="mt-2">{control(q, value, onChange, id, tr)}</div>
-      {error && <p role="alert" className="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
+      <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">{tr.fileHint(max, q.maxFileMb || 1, q.fileKinds || [])}</p>
+      {ids.map((mediaId) => (
+        <div key={mediaId} className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-white/10">
+          <span className="min-w-0 flex-1 truncate text-slate-800 dark:text-slate-100">{fileNames[mediaId] || tr.file}</span>
+          <button type="button" className="text-xs font-semibold text-rose-600 hover:underline dark:text-rose-300"
+            onClick={() => onChange(ids.filter((x) => x !== mediaId))}>{tr.removeFile}</button>
+        </div>
+      ))}
+      {!full && (
+        <label className={`inline-flex cursor-pointer items-center gap-2 rounded-xl border border-dashed px-4 py-2.5 text-sm font-semibold ${
+          busy ? "border-slate-200 text-slate-400" : "border-slate-300 text-slate-700 hover:border-indigo-400 dark:border-white/15 dark:text-slate-200"}`}>
+          <input type="file" className="hidden" multiple={max > 1} disabled={busy || preview}
+            onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
+          {busy ? tr.uploading : preview ? tr.previewNoUpload : tr.addFile}
+        </label>
+      )}
+      {problem && <p role="alert" className="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{problem}</p>}
     </div>
   );
 }
@@ -165,8 +310,12 @@ function control(q, value, onChange, id, tr) {
       return null;
     case "long-text":
       return <textarea id={id} rows={4} className={INPUT} value={value || ""} placeholder={q.placeholder || ""} onChange={(e) => onChange(e.target.value)} />;
-    case "short-text": case "email": case "phone": case "website": case "number": case "date": {
-      const type = { email: "email", phone: "tel", website: "url", number: "number", date: "date" }[q.type] || "text";
+    case "short-text": case "email": case "phone": case "website": case "number":
+    case "date": case "time": case "datetime": {
+      const type = {
+        email: "email", phone: "tel", website: "url", number: "number",
+        date: "date", time: "time", datetime: "datetime-local",
+      }[q.type] || "text";
       const ltr = ["email", "phone", "website", "number"].includes(q.type);
       return <input id={id} type={type} dir={ltr ? "ltr" : undefined} className={INPUT} value={value ?? ""}
         placeholder={q.placeholder || ""} autoComplete={{ email: "email", phone: "tel" }[q.type] || "off"}
@@ -233,6 +382,7 @@ function control(q, value, onChange, id, tr) {
     case "rating": case "opinion-scale": case "nps": {
       const min = Number(q.min ?? (q.type === "nps" ? 0 : 1));
       const max = Number(q.max ?? (q.type === "nps" ? 10 : 5));
+      const [full, empty] = ICONS[q.icon] || ICONS.star;
       const steps = [];
       for (let i = min; i <= max; i += 1) steps.push(i);
       return (
@@ -240,9 +390,10 @@ function control(q, value, onChange, id, tr) {
           <div className="flex flex-wrap gap-1.5" role="radiogroup">
             {steps.map((n) => (
               <button key={n} type="button" role="radio" aria-checked={Number(value) === n} onClick={() => onChange(n)}
+                aria-label={String(n)}
                 className={`h-10 min-w-10 rounded-lg border px-2 text-sm font-semibold transition-colors ${
                   q.type === "rating" ? (Number(value) >= n ? ON : OFF) : Number(value) === n ? ON : OFF}`}>
-                {q.type === "rating" ? "★" : n}
+                {q.type === "rating" ? (Number(value) >= n ? full : empty) : n}
               </button>
             ))}
           </div>

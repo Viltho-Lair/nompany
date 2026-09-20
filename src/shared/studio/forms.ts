@@ -104,6 +104,54 @@ type Strings = {
   every: string;
   when: string;
   lead: string;
+  // THE CANVAS (20/09/2026) — the builder rebuilt as a page of cards.
+  sectionOf: (n: number, of: number) => string;
+  addSection: string;
+  removeSection: string;
+  afterSection: (n: number) => string;
+  continueNext: string;
+  goToSection: (n: number, title: string) => string;
+  submitForm: string;
+  routeHint: string;
+  jumps: string;
+  jumpsHint: string;
+  jumpFor: (choice: string) => string;
+  duplicate: string;
+  moreOptions: string;
+  addImage: string;
+  removeImage: string;
+  imageTooBig: string;
+  questionHint: string;
+  typeOf: string;
+  rows: string;
+  columns: string;
+  addRow: string;
+  addColumn: string;
+  requireEachRow: string;
+  ratingIcon: string;
+  iconName: (i: string) => string;
+  fileKinds: string;
+  fileKindsAny: string;
+  fileKind: (k: string) => string;
+  maxFiles: string;
+  maxFileSize: string;
+  storage: string;
+  storageHint: string;
+  storageUsed: (used: string, total: string) => string;
+  actionsHeading: string;
+  actionsHint: string;
+  addAction: string;
+  removeAction: string;
+  actionEvery: string;
+  actionWhen: string;
+  actionOp: (op: string) => string;
+  actionValue: string;
+  actionThen: string;
+  assignTo: string;
+  assignNobody: string;
+  assignHint: string;
+  files: string;
+  openFile: string;
   refuse: Record<string, string>;
 };
 
@@ -111,11 +159,13 @@ const TYPE_EN: Record<string, string> = {
   "short-text": "Short answer", "long-text": "Paragraph", email: "Email", phone: "Phone", number: "Number",
   date: "Date", website: "Website", "multiple-choice": "Multiple choice", dropdown: "Dropdown", "yes-no": "Yes / No",
   legal: "Consent", rating: "Rating", "opinion-scale": "Scale", nps: "Recommend score (0–10)", statement: "Text only",
+  time: "Time", datetime: "Date and time", "grid-single": "Multiple-choice grid", "grid-multi": "Tick box grid", file: "File upload",
 };
 const TYPE_AR: Record<string, string> = {
   "short-text": "إجابة قصيرة", "long-text": "فقرة", email: "بريد إلكتروني", phone: "هاتف", number: "رقم",
   date: "تاريخ", website: "موقع إلكتروني", "multiple-choice": "اختيار من متعدد", dropdown: "قائمة منسدلة", "yes-no": "نعم / لا",
   legal: "موافقة", rating: "تقييم", "opinion-scale": "مقياس", nps: "مؤشر التوصية (0–10)", statement: "نص فقط",
+  time: "وقت", datetime: "تاريخ ووقت", "grid-single": "شبكة اختيار واحد", "grid-multi": "شبكة اختيارات", file: "رفع ملف",
 };
 
 const en: Strings = {
@@ -227,6 +277,58 @@ const en: Strings = {
   every: "Every response",
   when: "When",
   lead: "Sales lead",
+  sectionOf: (n, of) => `Section ${n} of ${of}`,
+  addSection: "Add a section",
+  removeSection: "Remove this section",
+  afterSection: (n) => `After section ${n}`,
+  continueNext: "Continue to the next section",
+  goToSection: (n, title) => `Go to section ${n}${title ? ` (${title})` : ""}`,
+  submitForm: "Submit the form",
+  routeHint: "Where somebody goes when they finish this section — unless an answer below sends them elsewhere.",
+  jumps: "Go to a section based on the answer",
+  jumpsHint: "Only for a question with one answer. A choice with no destination carries on as usual.",
+  jumpFor: (choice) => `When they choose “${choice}”`,
+  duplicate: "Duplicate",
+  moreOptions: "More",
+  addImage: "Add a picture",
+  removeImage: "Remove the picture",
+  imageTooBig: "That picture is too big (4 MB at most).",
+  questionHint: "Question",
+  typeOf: "Question type",
+  rows: "Rows",
+  columns: "Columns",
+  addRow: "Add a row",
+  addColumn: "Add a column",
+  requireEachRow: "Require an answer in every row",
+  ratingIcon: "Shape",
+  iconName: (i) => ({ star: "Star", heart: "Heart", thumb: "Thumb" } as Record<string, string>)[i] || i,
+  fileKinds: "Accept only these kinds of file",
+  fileKindsAny: "Any kind of file",
+  fileKind: (k) => ({
+    document: "Document", spreadsheet: "Spreadsheet", presentation: "Presentation",
+    pdf: "PDF", image: "Image", video: "Video", audio: "Audio",
+  } as Record<string, string>)[k] || k,
+  maxFiles: "Files per answer",
+  maxFileSize: "Largest file",
+  storage: "Files this form may hold",
+  storageHint: "Anybody can send a file to an open form, so a form stops taking them at its limit rather than filling without end.",
+  storageUsed: (used, total) => `${used} of ${total} used`,
+  actionsHeading: "What an answer sets off",
+  actionsHint: "The first rule whose condition is met raises the lead; an answer matching none is simply kept.",
+  addAction: "Add a rule",
+  removeAction: "Remove this rule",
+  actionEvery: "Every answer",
+  actionWhen: "When",
+  actionOp: (op) => ({
+    any: "every answer", is: "is", "is-not": "is not", includes: "includes", answered: "is answered",
+  } as Record<string, string>)[op] || op,
+  actionValue: "this answer",
+  actionThen: "raise a Sales lead",
+  assignTo: "Hand it to",
+  assignNobody: "— Leave it waiting for a Sales manager —",
+  assignHint: "Only somebody who may assign leads can name a person here.",
+  files: "Files",
+  openFile: "Open",
   refuse: {
     name: "Give the form a name.",
     campaign: "That campaign no longer exists.",
@@ -238,6 +340,8 @@ const en: Strings = {
     "lead-contact": "It makes Sales leads: choose which answer is the phone or the email.",
     "lead-name": "It makes Sales leads: choose which answer is the name.",
     consent: "It collects contact details: add a required Consent question.",
+    "assign-right": "You can only hand a lead to somebody if you may assign leads yourself.",
+    assignee: "That person is no longer in this studio.",
   },
 };
 
@@ -350,6 +454,58 @@ const ar: Strings = {
   every: "كل الإجابات",
   when: "الوقت",
   lead: "عميل محتمل",
+  sectionOf: (n, of) => `القسم ${n} من ${of}`,
+  addSection: "إضافة قسم",
+  removeSection: "حذف هذا القسم",
+  afterSection: (n) => `بعد القسم ${n}`,
+  continueNext: "المتابعة إلى القسم التالي",
+  goToSection: (n, title) => `الانتقال إلى القسم ${n}${title ? ` (${title})` : ""}`,
+  submitForm: "إرسال النموذج",
+  routeHint: "إلى أين ينتقل من ينهي هذا القسم — ما لم ترسله إجابة أدناه إلى مكان آخر.",
+  jumps: "الانتقال إلى قسم حسب الإجابة",
+  jumpsHint: "للأسئلة ذات الإجابة الواحدة فقط. والخيار الذي بلا وجهة يكمل كالمعتاد.",
+  jumpFor: (choice) => `عند اختيار “${choice}”`,
+  duplicate: "نسخ",
+  moreOptions: "المزيد",
+  addImage: "إضافة صورة",
+  removeImage: "حذف الصورة",
+  imageTooBig: "حجم الصورة كبير (4 ميغابايت كحد أقصى).",
+  questionHint: "السؤال",
+  typeOf: "نوع السؤال",
+  rows: "الصفوف",
+  columns: "الأعمدة",
+  addRow: "إضافة صف",
+  addColumn: "إضافة عمود",
+  requireEachRow: "طلب إجابة في كل صف",
+  ratingIcon: "الشكل",
+  iconName: (i) => ({ star: "نجمة", heart: "قلب", thumb: "إعجاب" } as Record<string, string>)[i] || i,
+  fileKinds: "قبول هذه الأنواع فقط",
+  fileKindsAny: "أي نوع من الملفات",
+  fileKind: (k) => ({
+    document: "مستند", spreadsheet: "جدول بيانات", presentation: "عرض تقديمي",
+    pdf: "PDF", image: "صورة", video: "فيديو", audio: "صوت",
+  } as Record<string, string>)[k] || k,
+  maxFiles: "عدد الملفات لكل إجابة",
+  maxFileSize: "أكبر حجم للملف",
+  storage: "حجم الملفات المسموح لهذا النموذج",
+  storageHint: "يستطيع أي شخص إرسال ملف إلى نموذج مفتوح، لذا يتوقف النموذج عن قبول الملفات عند حده بدلا من الامتلاء بلا نهاية.",
+  storageUsed: (used, total) => `استُخدم ${used} من ${total}`,
+  actionsHeading: "ما الذي تطلقه الإجابة",
+  actionsHint: "أول قاعدة يتحقق شرطها هي التي تنشئ العميل المحتمل؛ والإجابة التي لا تطابق أي قاعدة تحفظ فقط.",
+  addAction: "إضافة قاعدة",
+  removeAction: "حذف هذه القاعدة",
+  actionEvery: "كل إجابة",
+  actionWhen: "عندما",
+  actionOp: (op) => ({
+    any: "كل إجابة", is: "تساوي", "is-not": "لا تساوي", includes: "تتضمن", answered: "تمت الإجابة عنه",
+  } as Record<string, string>)[op] || op,
+  actionValue: "هذه الإجابة",
+  actionThen: "أنشئ عميلا محتملا في المبيعات",
+  assignTo: "أسندها إلى",
+  assignNobody: "— اتركها بانتظار مدير المبيعات —",
+  assignHint: "لا يمكن تحديد شخص هنا إلا لمن يملك صلاحية إسناد العملاء المحتملين.",
+  files: "الملفات",
+  openFile: "فتح",
   refuse: {
     name: "أعط النموذج اسما.",
     campaign: "تلك الحملة لم تعد موجودة.",
@@ -361,6 +517,8 @@ const ar: Strings = {
     "lead-contact": "يصنع عملاء محتملين: حدد أي إجابة هي الهاتف أو البريد.",
     "lead-name": "يصنع عملاء محتملين: حدد أي إجابة هي الاسم.",
     consent: "يجمع بيانات تواصل: أضف سؤال موافقة مطلوبا.",
+    "assign-right": "لا يمكنك إسناد عميل محتمل إلا إذا كنت تملك صلاحية الإسناد.",
+    assignee: "هذا الشخص لم يعد في هذا الاستوديو.",
   },
 };
 

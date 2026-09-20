@@ -14,6 +14,7 @@ import { pathToFileURL } from "node:url";
 register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
 
 const F = await import("@/modules/marketing/formsModel");
+const W = await import("@/modules/marketing/formsFlow");
 const L = await import("@/lib/questionnaireLogic");
 
 let fails = 0;
@@ -25,13 +26,13 @@ const ok = (label, cond, extra = "") => {
 console.log("\n== what is stored");
 const def = F.cleanDefinition({ pages: [{ id: "p1", title: "T", questions: [
   { id: "q_name", type: "short-text", label: "Name", required: true },
-  { id: "q_file", type: "file-upload", label: "CV" },
+  { id: "q_sig", type: "signature", label: "Sign here" },
   { id: "q_pick", type: "dropdown", label: "Pick", options: ["A", " ", "B"], reveals: [{ op: "is", value: "A", show: ["q_more", "q_gone"] }] },
   { id: "q_more", type: "long-text", label: "More" },
   { id: "q_note", type: "statement", label: "Hello", required: true },
 ] }] });
 const qs = def.pages[0].questions;
-ok("a type the public page cannot draw is dropped", !qs.some((q) => q.type === "file-upload"));
+ok("a type the public page cannot draw is dropped", !qs.some((q) => q.type === "signature"));
 ok("blank choices are dropped", qs.find((q) => q.id === "q_pick").options.join() === "A,B");
 ok("a rule keeps only questions that exist", qs.find((q) => q.id === "q_pick").reveals[0].show.join() === "q_more");
 ok("a statement is never required", qs.find((q) => q.id === "q_note").required === false);
@@ -97,6 +98,121 @@ console.log("\n== the public code");
 const codes = new Set(Array.from({ length: 200 }, () => F.newFormCode()));
 ok("sixteen characters from a safe alphabet", [...codes].every((c) => /^[a-z2-9]{16}$/.test(c)));
 ok("no two alike in two hundred", codes.size === 200);
+
+console.log("\n== a grid is one card and several answers");
+const gridDef = F.cleanDefinition({ pages: [{ id: "gp1", title: "", questions: [
+  { id: "q_grid", type: "grid-single", label: "Rate each", rows: ["Speed", "Price"], columns: ["Good", "Bad"], requireEachRow: true },
+  { id: "q_multi", type: "grid-multi", label: "Which apply", rows: ["Site"], columns: ["AM", "PM"] },
+] }] });
+const grid = gridDef.pages[0].questions[0];
+ok("rows and columns are kept", grid.rows.join() === "Speed,Price" && grid.columns.join() === "Good,Bad");
+ok("each row has its own answer key", W.fieldsOf(grid).join() === "q_grid__r0,q_grid__r1");
+ok("a missing row is named when every row is required",
+  F.answerProblem([grid], { q_grid__r0: "Good" })?.error === "row");
+ok("a full grid passes", F.answerProblem([grid], { q_grid__r0: "Good", q_grid__r1: "Bad" }) === null);
+ok("a column nobody offered is refused",
+  F.answerProblem([grid], { q_grid__r0: "Good", q_grid__r1: "Maybe" })?.error === "choice");
+ok("one row of a single-answer grid takes one answer",
+  F.answerProblem([grid], { q_grid__r0: ["Good", "Bad"], q_grid__r1: "Bad" })?.error === "choice");
+ok("a tick box grid takes several",
+  F.answerProblem([gridDef.pages[0].questions[1]], { q_multi__r0: ["AM", "PM"] }) === null);
+// THE ONE THAT WOULD HAVE READ AS "a question the form no longer asks": the
+// record and the report have to name a grid's rows identically, or every row
+// of every grid is reported as retired.
+const reported = W.pagesForReport(gridDef.pages)[0].questions.map((q) => q.id);
+const recorded = W.askedRecord(gridDef.pages[0].questions).map((a) => a.field);
+ok("the report and the record agree on a grid's fields", reported.join() === recorded.join(), reported.join());
+ok("a reported grid row offers the grid's columns",
+  W.pagesForReport(gridDef.pages)[0].questions[0].options.join() === "Good,Bad");
+
+console.log("\n== a file answer is ids, and only ids");
+const fileDef = F.cleanDefinition({ pages: [{ id: "fp1", title: "", questions: [
+  { id: "q_cv", type: "file", label: "CV", required: true, maxFiles: 2, maxFileMb: 99, fileKinds: ["pdf", "nonsense"] },
+] }] });
+const fq = fileDef.pages[0].questions[0];
+ok("an impossible size is brought back to what the platform can take", F.FILE_MB_CHOICES.includes(fq.maxFileMb));
+ok("a kind nobody defined is dropped", fq.fileKinds.join() === "pdf");
+ok("a required file question wants a file", F.answerProblem([fq], {})?.error === "required");
+ok("more files than the question takes is refused",
+  F.answerProblem([fq], { q_cv: ["a".repeat(32), "b".repeat(32), "c".repeat(32)] })?.error === "too-many-files");
+ok("anything but a media id is refused", F.answerProblem([fq], { q_cv: ["../secrets"] })?.error === "file");
+ok("two real ids pass", F.answerProblem([fq], { q_cv: ["a".repeat(32), "b".repeat(32)] }) === null);
+ok("only the declared kinds are accepted", F.fileKindAllowed(["pdf"], "application/pdf") && !F.fileKindAllowed(["pdf"], "image/png"));
+ok("no kinds means any kind", F.fileKindAllowed([], "image/png"));
+
+console.log("\n== an answer can send somebody to another section");
+const routed = F.cleanDefinition({ pages: [
+  { id: "pg1", title: "One", questions: [
+    { id: "q_who", type: "dropdown", label: "Who are you?", options: ["New", "Existing"],
+      jumps: [{ value: "Existing", to: "pg3" }, { value: "New", to: "" }, { value: "Ghost", to: "pg3" }] },
+  ] },
+  { id: "pg2", title: "Two", questions: [{ id: "q_company", type: "short-text", label: "Company" }] },
+  { id: "pg3", title: "Three", questions: [{ id: "q_msg", type: "long-text", label: "Message" }] },
+] });
+const jumps = routed.pages[0].questions[0].jumps;
+ok("a jump to nowhere is dropped", !jumps.some((j) => j.value === "New"));
+ok("a jump on a choice nobody is offered is dropped", !jumps.some((j) => j.value === "Ghost"));
+ok("the jump that survives is the real one", jumps.length === 1 && jumps[0].to === "pg3");
+const path = (answers) => W.walk(routed.pages, answers).path.map((p) => p.id).join(",");
+ok("no answer walks the pages as written", path({}) === "pg1,pg2,pg3");
+ok("the answer jumps the middle section", path({ q_who: "Existing" }) === "pg1,pg3");
+ok("the other answer carries on", path({ q_who: "New" }) === "pg1,pg2,pg3");
+ok("the last page of the walk knows it is last",
+  W.isLastPage(routed.pages[0], routed.pages, {}) === false
+  && W.isLastPage(routed.pages[2], routed.pages, {}) === true);
+// AN ANSWER TO A SECTION NOBODY WALKED THROUGH IS NOT AN ANSWER. It would
+// otherwise reach the summary, the CSV and — worst — the notes of a lead
+// somebody then rings about.
+const said = { q_who: "Existing", q_company: "Typed before going back", q_msg: "Hello" };
+const asked = W.askedQuestions(routed.pages, said);
+ok("the skipped section is not asked", !asked.some((q) => q.id === "q_company"));
+ok("...and what was typed there is dropped", W.prune(routed.pages, said, asked).q_company === undefined);
+ok("...while the answers on the path are kept", W.prune(routed.pages, said, asked).q_msg === "Hello");
+const loop = F.cleanDefinition({ pages: [
+  { id: "lp1", title: "", next: "lp2", questions: [] },
+  { id: "lp2", title: "", next: "lp1", questions: [] },
+] });
+ok("a section that leads back terminates the walk", W.walk(loop.pages, {}).path.length === 2);
+ok("a section pointing at a page that is gone falls back to the next one",
+  F.cleanDefinition({ pages: [{ id: "aa1", title: "", next: "deleted", questions: [] }] }).pages[0].next === "");
+ok("a multi-select cannot jump", !F.canJump({ type: "multiple-choice", multiple: true })
+  && F.canJump({ type: "multiple-choice", multiple: false }) && F.canJump({ type: "yes-no" }));
+
+console.log("\n== what an answer sets off");
+const actionDef = F.cleanDefinition({ pages: [{ id: "ap1", title: "", questions: [
+  { id: "q_need", type: "dropdown", label: "What do you need?", options: ["A quote", "An invoice question"] },
+  { id: "q_email", type: "email", label: "Email" },
+] }] });
+// THE ROLLOUT ONE: every form built before rules existed carries the old
+// switch, and it has to keep meaning exactly what it meant.
+const old = F.cleanSettings({ createLead: true, leadFields: { email: "q_email", name: "q_need" } }, actionDef);
+ok("the old switch is read as one rule on every answer",
+  old.actions.length === 1 && old.actions[0].when.op === "any" && old.actions[0].raise === "lead");
+ok("...and still reads as a lead form", old.createLead === true);
+ok("it fires on anything", Boolean(F.actionFor(old, {})));
+const conditional = F.cleanSettings({
+  leadFields: { email: "q_email", name: "q_need" },
+  actions: [
+    { id: "a1", when: { questionId: "q_need", op: "is", value: "A quote" }, raise: "lead", assignTo: "col_1" },
+    { id: "a2", when: { questionId: "q_gone", op: "is", value: "x" }, raise: "lead", assignTo: "" },
+  ],
+}, actionDef);
+ok("a rule watching a question that is gone is dropped", conditional.actions.length === 1);
+ok("a conditional form is not an every-answer form", conditional.createLead === false);
+ok("the rule fires on its own answer",
+  F.actionFor(conditional, { q_need: "A quote" })?.assignTo === "col_1");
+ok("...and on nothing else", F.actionFor(conditional, { q_need: "An invoice question" }) === null);
+ok("a form that raises leads still needs somebody to ring",
+  F.openProblems(actionDef, F.cleanSettings({ actions: [{ when: { questionId: "q_need", op: "is", value: "A quote" } }] }, actionDef)).includes("lead-contact"));
+const first = F.cleanSettings({
+  leadFields: { email: "q_email", name: "q_need" },
+  actions: [
+    { id: "a1", when: { questionId: "q_need", op: "answered", value: "" }, raise: "lead", assignTo: "col_1" },
+    { id: "a2", when: { questionId: "q_need", op: "is", value: "A quote" }, raise: "lead", assignTo: "col_2" },
+  ],
+}, actionDef);
+ok("one answer raises one lead, and it is the first rule that matched",
+  F.actionFor(first, { q_need: "A quote" })?.assignTo === "col_1");
 
 console.log(`\n${fails ? `${fails} FAILED` : "all passed"}`);
 process.exit(fails ? 1 : 0);

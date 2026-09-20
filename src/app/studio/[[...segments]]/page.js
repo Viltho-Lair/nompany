@@ -472,6 +472,15 @@ async function renderStudio(params) {
     return <StudioPos slug={studio.slug} />;
   }
 
+  // ONE FORM'S BUILDER, full-screen (20/09/2026) — `/marketing-forms/<id>`.
+  // The list keeps the shell; the builder takes the window, the same split the
+  // planner makes between its list and one plan. `shared/studioRoute` decides
+  // the chrome from the same address, so the two cannot disagree about which
+  // one this is.
+  if (requested === "marketing-forms" && segments[1] && sections.some((s) => s.key === "marketing-forms")) {
+    return <StudioFormEditor slug={studio.slug} formId={segments[1]} backHref={`/${studio.slug}/marketing-forms`} />;
+  }
+
   if (requested === "engineering-docs-register" && sections.some((s) => s.key === "engineering-docs-register")) {
     const studioProps = { name: studio.name, slug: studio.slug };
     // NO SETUP SCREEN. Document types, prefixes, department codes and the
@@ -596,10 +605,6 @@ async function renderStudio(params) {
   // exactly as it governs the list. What the page then SHOWS is gated block by
   // block by the rights over those records — see modules/sales/customer.ts.
   const customerId = requested === "crm-sales-clients" ? (segments[1] || "") : "";
-
-  // AND A SECOND SEGMENT ON marketing-forms NAMES ONE FORM: its editor, reached
-  // from the list and resolving through the same section and right.
-  const formId = requested === "marketing-forms" ? (segments[1] || "") : "";
 
   // AND A SECOND SEGMENT ON tendering-register NAMES ONE TENDER'S BILL. The
   // same shape the ticket and the customer use, resolving through the same
@@ -965,7 +970,7 @@ async function renderStudio(params) {
         : active?.key === "marketing-campaigns"
           ? <StudioCampaigns slug={studio.slug} />
         : active?.key === "marketing-forms"
-          ? (formId ? <StudioFormEditor slug={studio.slug} formId={formId} /> : <StudioForms slug={studio.slug} />)
+          ? <StudioForms slug={studio.slug} />
         : active?.key === "pos-sales"
           ? <StudioPosSales slug={studio.slug} />
         : active?.key === "pos-shifts"

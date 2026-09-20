@@ -10,7 +10,15 @@ type Strings = {
   send: string;
   sending: string;
   required: string;
-  pageOf: (n: number, of: number) => string;
+  /** How many pages in somebody is — never how many are left; a jump makes that unknowable. */
+  step: (n: number) => string;
+  everyRow: string;
+  file: string;
+  addFile: string;
+  removeFile: string;
+  uploading: string;
+  previewNoUpload: string;
+  fileHint: (max: number, mb: number, kinds: readonly string[]) => string;
   closed: string;
   closedBody: string;
   thanks: string;
@@ -27,7 +35,18 @@ const en: Strings = {
   send: "Send",
   sending: "Sending…",
   required: "Required",
-  pageOf: (n, of) => `Page ${n} of ${of}`,
+  step: (n) => `Page ${n}`,
+  everyRow: "Please answer every row.",
+  file: "File",
+  addFile: "Add a file",
+  removeFile: "Remove",
+  uploading: "Uploading…",
+  previewNoUpload: "Uploading is off in the preview",
+  fileHint: (max, mb, kinds) => [
+    max > 1 ? `Up to ${max} files` : "One file",
+    `${mb} MB each`,
+    kinds.length ? kinds.join(", ") : "",
+  ].filter(Boolean).join(" · "),
   closed: "This form is closed",
   closedBody: "It is no longer taking answers.",
   thanks: "Thank you — your answers were sent.",
@@ -41,6 +60,15 @@ const en: Strings = {
     email: "Please enter a valid email address.",
     number: "Please enter a number.",
     choice: "Please choose one of the options.",
+    row: "Please answer every row.",
+    time: "Please enter a valid time.",
+    file: "That file could not be attached.",
+    "too-many-files": "That is more files than this question takes.",
+    "too-large": "That file is too big.",
+    "file-kind": "That kind of file is not accepted here.",
+    // WHAT IT REALLY MEANS, said plainly: the FORM is out of room, so trying
+    // again with a smaller file will not help and neither will waiting.
+    "form-full": "This form cannot take any more files. Please contact us directly.",
     closed: "This form is no longer taking answers.",
     "rate-limited": "Too many answers from this connection. Please try again in a few minutes.",
     notfound: "This form is no longer available.",
@@ -54,7 +82,18 @@ const ar: Strings = {
   send: "إرسال",
   sending: "جار الإرسال…",
   required: "مطلوب",
-  pageOf: (n, of) => `الصفحة ${n} من ${of}`,
+  step: (n) => `الصفحة ${n}`,
+  everyRow: "يرجى الإجابة عن كل صف.",
+  file: "ملف",
+  addFile: "إضافة ملف",
+  removeFile: "إزالة",
+  uploading: "جار الرفع…",
+  previewNoUpload: "الرفع معطل في المعاينة",
+  fileHint: (max, mb, kinds) => [
+    max > 1 ? `حتى ${max} ملفات` : "ملف واحد",
+    `${mb} ميغابايت للملف`,
+    kinds.length ? kinds.join("، ") : "",
+  ].filter(Boolean).join(" · "),
   closed: "هذا النموذج مغلق",
   closedBody: "لم يعد يستقبل إجابات.",
   thanks: "شكرا لك — تم إرسال إجاباتك.",
@@ -68,6 +107,13 @@ const ar: Strings = {
     email: "يرجى إدخال بريد إلكتروني صحيح.",
     number: "يرجى إدخال رقم.",
     choice: "يرجى اختيار أحد الخيارات.",
+    row: "يرجى الإجابة عن كل صف.",
+    time: "يرجى إدخال وقت صحيح.",
+    file: "تعذر إرفاق هذا الملف.",
+    "too-many-files": "عدد الملفات أكبر مما يقبله هذا السؤال.",
+    "too-large": "حجم الملف كبير جدا.",
+    "file-kind": "هذا النوع من الملفات غير مقبول هنا.",
+    "form-full": "لا يمكن لهذا النموذج استقبال ملفات أخرى. يرجى التواصل معنا مباشرة.",
     closed: "لم يعد هذا النموذج يستقبل إجابات.",
     "rate-limited": "إجابات كثيرة من هذا الاتصال. يرجى المحاولة بعد دقائق.",
     notfound: "هذا النموذج لم يعد متاحا.",

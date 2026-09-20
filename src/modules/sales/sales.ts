@@ -1086,24 +1086,49 @@ export async function raiseLead(
     title: string; clientName: string; contactName: string; contactEmail: string; contactPhone: string;
     description: string; campaignId: string; leadDeadlineHours: number | null; raisedBy: string;
     clientId?: string; notify?: boolean;
+    /**
+     * WHO IT GOES TO, when the caller already knows. A marketing form's rule can
+     * name the person enquiries of this kind belong to, and a lead that lands on
+     * the right desk at two in the morning is the point of the feature
+     * (docs/functionality/forms.md). The caller is answerable for having the
+     * right to assign — `saveForm` asks `crmSales.tickets.assign` of whoever
+     * WRITES the rule, which is invariant 5's shape: the escalation is closed at
+     * the door where a person chooses, not where a machine acts.
+     */
+    assignTo?: string;
   },
 ) {
+  const assignTo = String(input.assignTo || "");
   const result = await insertTicket(sections, {
     title: input.title, clientId: input.clientId || "", clientName: input.clientName, industry: "", deadline: "",
     contact: { name: input.contactName, email: input.contactEmail, phone: input.contactPhone, position: "" },
     location: { name: "", country: "", city: "", url: "" },
     serviceIds: [], clientBudget: null, description: input.description, probability: 0,
-    raisedBy: input.raisedBy, assignedTo: "", campaignId: input.campaignId, leadDeadlineHours: input.leadDeadlineHours,
+    raisedBy: input.raisedBy, assignedTo: assignTo, campaignId: input.campaignId, leadDeadlineHours: input.leadDeadlineHours,
   });
   if ("ticket" in result && result.ticket && input.notify !== false) {
-    await notifyHolders(sections.studio.id, "crmSales.tickets.assign", {
-      type: NOTIFY.leadWaiting,
-      title: "A new lead is waiting to be assigned",
-      body: [result.ticket.ref, result.ticket.title].join(" · "),
-      params: { reference: result.ticket.ref, title: result.ticket.title },
-      href: "crm-sales-tickets",
-      tone: "warning",
-    }, [input.raisedBy]);
+    // AN ASSIGNED LEAD BUZZES ITS OWNER, NOT THE MANAGERS. Telling a room of
+    // managers a lead is "waiting to be assigned" when it already has somebody
+    // is how a notification stops being read.
+    if (assignTo) {
+      await notifyCollaboratorIds(sections.studio.id, [assignTo], {
+        type: NOTIFY.leadAssigned,
+        title: "A lead was assigned to you",
+        body: [result.ticket.ref, result.ticket.title].join(" · "),
+        params: { reference: result.ticket.ref, title: result.ticket.title },
+        href: "crm-sales-tickets/" + result.ticket.id,
+        tone: "primary",
+      }, [input.raisedBy]);
+    } else {
+      await notifyHolders(sections.studio.id, "crmSales.tickets.assign", {
+        type: NOTIFY.leadWaiting,
+        title: "A new lead is waiting to be assigned",
+        body: [result.ticket.ref, result.ticket.title].join(" · "),
+        params: { reference: result.ticket.ref, title: result.ticket.title },
+        href: "crm-sales-tickets",
+        tone: "warning",
+      }, [input.raisedBy]);
+    }
   }
   return result;
 }

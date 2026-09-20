@@ -18,14 +18,17 @@ import { repo } from "@/platform/db/repo";
 import { listSections } from "@/platform/db/sections";
 import { getStudioBySlug } from "@/modules/main/studios";
 import { raiseLead } from "@/modules/sales/sales";
+import { listCollaborators } from "@/platform/auth/collaborators";
+import { putMedia, getMedia, deleteMedia } from "@/lib/media";
 import { cleanAnswers } from "@/lib/questionnaire";
-import { visiblePages, visibleQuestions, prunedAnswers } from "@/lib/questionnaireLogic";
 import { summariseResponses, responsesToCsv } from "@/lib/questionnaireSummary";
 import {
   cleanDefinition, cleanSettings, openProblems, accepting, fromTemplate, newFormCode, answerProblem,
-  leadFromAnswers, takesAnswer, FORM_STATUSES, FORM_LOCALES, TEMPLATES,
-  type FormDefinition, type FormSettings, type FormQuestion,
+  leadFromAnswers, takesAnswer, isFile, fileKindAllowed, actionFor,
+  FORM_STATUSES, FORM_LOCALES, TEMPLATES,
+  type FormDefinition, type FormSettings, type FormQuestion, type FormAction,
 } from "./formsModel";
+import { askedQuestions, askedRecord, prune, pagesForReport, fileQuestionIds } from "./formsFlow";
 import type { Campaign, MarketingForm, FormResponse } from "./schema";
 import type { MarketingContext } from "./types";
 import type { Section } from "@/platform/db/sections";
@@ -82,16 +85,25 @@ export async function getForm(ctx: MarketingContext, id: string) {
   if (denied) return denied;
   const form = await Forms.byId(scope(ctx), id);
   if (!form) return { error: "notfound" };
-  const [campaigns, responses] = await Promise.all([
+  const [campaigns, responses, people] = await Promise.all([
     campaignChoices(ctx),
     Responses.find(scope(ctx), { where: { formId: id } }),
+    listCollaborators(ctx.studio.id),
   ]);
+  const settings = cleanSettings(form.settings, defOf(form));
   return {
-    form,
+    form: { ...form, settings },
     path: publicPath(ctx, form),
-    problems: openProblems(defOf(form), form.settings),
+    problems: openProblems(defOf(form), settings),
     responses: responses.length,
     campaigns,
+    // WHO A RULE MAY HAND A LEAD TO — offered only to somebody who could hand
+    // one over themselves. A picker that lists people the saver will then be
+    // refused for choosing is a screen that lies.
+    assignees: may(ctx, "crmSales.tickets.assign")
+      ? people.map((c) => ({ id: String(c.id), label: String(c.name || c.email || c.id) })).sort((a, b) => a.label.localeCompare(b.label))
+      : [],
+    canAssign: may(ctx, "crmSales.tickets.assign"),
     // A LEAD NEEDS SOMEWHERE TO GO: the editor says so rather than offering a
     // switch that would do nothing.
     salesOn: ctx.on("crm-sales"),
@@ -130,8 +142,20 @@ export async function saveForm(ctx: MarketingContext, id: string, body: Record<s
   if (!current) return { error: "notfound" };
   const definition = body?.definition !== undefined ? cleanDefinition(body.definition) : defOf(current);
   const settings = cleanSettings(body?.settings !== undefined ? body.settings : current.settings, definition);
+  // WHAT THE FORM HOLDS IS COUNTED BY THE UPLOAD DOOR, NOT SENT BY THE EDITOR.
+  // The editor round-trips the whole settings object, so a stale save would put
+  // the figure back an hour, and a hand-written one would zero it — either way
+  // the cap stops meaning anything.
+  settings.storedBytes = cleanSettings(current.settings, definition).storedBytes;
   const campaignProblem = await badCampaign(ctx, settings.campaignId);
   if (campaignProblem) return { error: campaignProblem };
+  // NOBODY HANDS OUT WORK THEY COULD NOT HAND OUT THEMSELVES (invariant 5).
+  // The rule fires later, with the studio's authority and nobody watching, so
+  // the only honest place to ask is here, of the person writing it.
+  if (settings.actions.some((a) => a.assignTo) && !may(ctx, "crmSales.tickets.assign")) return { error: "assign-right" };
+  const knownPeople = settings.actions.some((a) => a.assignTo)
+    ? new Set((await listCollaborators(ctx.studio.id)).map((c) => String(c.id))) : null;
+  if (knownPeople && settings.actions.some((a) => a.assignTo && !knownPeople.has(a.assignTo))) return { error: "assignee" };
   if (current.status === "Open") {
     const problems = openProblems(definition, settings);
     if (problems.length) return { error: problems[0], problems };
@@ -161,7 +185,7 @@ export async function setFormStatus(ctx: MarketingContext, id: string, status: s
   const current = await Forms.byId(scope(ctx), id);
   if (!current) return { error: "notfound" };
   if (status === "Open") {
-    const problems = openProblems(defOf(current), current.settings);
+    const problems = openProblems(defOf(current), cleanSettings(current.settings, defOf(current)));
     if (problems.length) return { error: problems[0], problems };
   }
   const form = await Forms.update(scope(ctx), id, { status, updatedAt: now() });
@@ -189,13 +213,40 @@ export async function formResponses(ctx: MarketingContext, id: string) {
   if (!form) return { error: "notfound" };
   const rows = (await Responses.find(scope(ctx), { where: { formId: id } }))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const pages = defOf(form).pages;
+  // THE FORM AS A REPORT READS IT: a grid counted row by row, which is the one
+  // shape the summary and the CSV cannot work out for themselves (./formsFlow).
+  const pages = pagesForReport(defOf(form).pages);
+  const files = await fileNames(defOf(form), rows);
   return {
     form: { id: form.id, name: form.name },
     summary: summariseResponses(rows as never, pages as never),
     responses: rows.map((r) => ({ id: r.id, createdAt: r.createdAt, answers: r.answers, ticketId: r.ticketId || "" })),
+    // WHAT EACH UPLOAD IS CALLED, against its media id. The answer stores ids,
+    // because an id is what the upload door hands back and a name a stranger
+    // typed is not a handle; the screen needs both to draw a link worth
+    // clicking.
+    files,
     csv: () => responsesToCsv(rows as never, pages as never),
   };
+}
+
+/** The filename and size behind every uploaded media id in these responses. */
+async function fileNames(def: FormDefinition, rows: readonly FormResponse[]) {
+  const ids = new Set<string>();
+  for (const questionId of fileQuestionIds(def.pages)) {
+    for (const row of rows) {
+      const v = (row.answers as Record<string, unknown>)[questionId];
+      for (const mediaId of Array.isArray(v) ? v.map(String) : []) ids.add(mediaId);
+    }
+  }
+  const out: Record<string, { name: string; size: number }> = {};
+  // A busy form is a lot of round trips, so it is bounded: past this the screen
+  // shows the ids it has names for and a plain link for the rest.
+  for (const mediaId of [...ids].slice(0, 500)) {
+    const record = await getMedia(mediaId).catch(() => null);
+    if (record) out[mediaId] = { name: record.filename, size: record.size };
+  }
+  return out;
 }
 
 // ---- the public door ---------------------------------------------------------------
@@ -246,11 +297,14 @@ export async function submitForm(slug: string, code: string, body: Record<string
   const { form, studio, sections } = found;
   if (!accepting(form.status, form.settings, today())) return { error: "closed" };
   const def = defOf(form);
+  const settings = cleanSettings(form.settings, def);
   const answers = cleanAnswers(body?.answers);
-  const shown = visiblePages(def.pages as never, answers)
-    .flatMap((p) => visibleQuestions(p as never, def.pages as never, answers)) as unknown as FormQuestion[];
-  const kept = prunedAnswers(def.pages as never, answers) as Record<string, unknown>;
-  const problem = answerProblem(shown, kept);
+  // THE SAME WALK THE PAGE DREW. asked → judged → kept, in that order: a form
+  // must never refuse an answer to a question it did not put, nor keep one to a
+  // question this person never saw (modules/marketing/formsFlow).
+  const asked = askedQuestions(def.pages, answers);
+  const kept = prune(def.pages, answers, asked);
+  const problem = answerProblem(asked, kept);
   if (problem) return { error: problem.error, questionId: problem.questionId };
 
   const section = sections.find((s) => s.key === "marketing-forms") as Section;
@@ -258,26 +312,56 @@ export async function submitForm(slug: string, code: string, body: Record<string
   const response = await Responses.create({ studio, section }, {
     formId: form.id,
     answers: kept,
-    asked: shown.filter((q) => takesAnswer(q.type)).map((q) => ({ field: q.id, label: q.label, type: q.type })),
+    asked: askedRecord(asked),
     createdAt: at, updatedAt: at,
   });
 
-  if (form.settings.createLead) {
+  // A FILE UPLOADED INTO A BRANCH SOMEBODY THEN LEFT is not part of this answer
+  // and nothing will ever read it, so it goes — and the form's allowance goes
+  // back with it. (An upload abandoned before submitting keeps its space; there
+  // is no submission to notice it, which is the cap's own job.)
+  await releaseAbandoned({ studio, section, form, answers, kept });
+
+  const action = actionFor(settings, kept);
+  if (action) {
     try {
-      const ticketId = await leadFor({ studio, sections, form, answers: kept });
+      const ticketId = await leadFor({ studio, sections, form, settings, action, answers: kept });
       if (ticketId) await Responses.update({ studio, section }, response.id, { ticketId });
     } catch { /* the answer is stored; a lead that failed to raise is visible as a response with no ticket */ }
   }
-  return { ok: true, confirmation: form.settings.confirmation };
+  return { ok: true, confirmation: settings.confirmation };
 }
 
-async function leadFor({ studio, sections, form, answers }: Omit<Found, "form"> & { form: MarketingForm; answers: Record<string, unknown> }) {
+/** Media the walk left behind: uploaded, then branched away from. */
+async function releaseAbandoned(
+  { studio, section, form, answers, kept }:
+  { studio: Found["studio"]; section: Section; form: MarketingForm; answers: Record<string, unknown>; kept: Record<string, unknown> },
+) {
+  const dropped: string[] = [];
+  for (const id of fileQuestionIds(defOf(form).pages)) {
+    if (kept[id] !== undefined) continue;
+    for (const mediaId of Array.isArray(answers[id]) ? (answers[id] as unknown[]).map(String) : []) dropped.push(mediaId);
+  }
+  if (!dropped.length) return;
+  let freed = 0;
+  for (const mediaId of dropped) {
+    const record = await getMedia(mediaId).catch(() => null);
+    if (!record || record.studioId !== studio.id) continue;
+    freed += record.size || 0;
+    await deleteMedia(mediaId).catch(() => {});
+  }
+  if (freed) await countStorage({ studio, section }, form.id, -freed);
+}
+
+async function leadFor(
+  { studio, sections, form, settings, action, answers }:
+  Omit<Found, "form"> & { form: MarketingForm; settings: FormSettings; action: FormAction; answers: Record<string, unknown> },
+) {
   const by = (key: string) => sections.find((s) => s.key === key) || null;
   const salesRoot = by("crm-sales");
   if (!salesRoot || salesRoot.enabled === false) return "";
   const ticketsSection = by("crm-sales-tickets") || salesRoot;
   const clientsSection = by("crm-sales-clients") || salesRoot;
-  const settings: FormSettings = form.settings;
   const lead = leadFromAnswers(defOf(form), settings, answers, form.name);
   if (!lead.clientName || (!lead.contactPhone && !lead.contactEmail)) return "";
   const campaignsSection = by("marketing-campaigns");
@@ -291,6 +375,76 @@ async function leadFor({ studio, sections, form, answers }: Omit<Found, "form"> 
     // raised it, and the person who put the form in front of the public is the
     // one answerable for what it brings in.
     raisedBy: form.createdByCollaboratorId,
+    // AND HANDED TO WHOEVER THE RULE NAMES. `saveForm` asked the right to
+    // assign of the person who wrote the rule; by the time it fires there is
+    // nobody to ask.
+    assignTo: action.assignTo,
   });
   return "ticket" in result && result.ticket ? result.ticket.id : "";
+}
+
+// ---- the upload door ---------------------------------------------------------------
+
+/**
+ * MOVE THE FORM'S STORED TOTAL, under compare-and-set (invariant 8). Two people
+ * uploading at once is the ordinary case at a registration desk, and a blind
+ * write would lose one of them — which on a cap means the form quietly holds
+ * more than it is allowed to.
+ */
+async function countStorage(scopeIn: { studio: Found["studio"]; section: Section }, formId: string, by: number) {
+  await Forms.update(scopeIn as never, formId, (row: MarketingForm) => {
+    const settings = cleanSettings(row.settings, row.definition as unknown as FormDefinition);
+    return { settings: { ...settings, storedBytes: Math.max(0, settings.storedBytes + by) } };
+  });
+}
+
+/**
+ * A STRANGER SENDS A FILE. This is the only path in the product where somebody
+ * with no account writes bytes, so every one of its refusals is load-bearing:
+ *
+ * - the form must be open and must ASK this question (a file question's id from
+ *   this form's own definition, not "a file question somewhere");
+ * - the content type must be one the question accepts, and the size under the
+ *   question's own limit — which is itself under what `lib/media` will take;
+ * - the form must not already hold its whole allowance. It stops taking files
+ *   rather than spending without end, and says so, because an upload that
+ *   silently vanished would be an application nobody could finish.
+ *
+ * The file is stored PRIVATE against the studio, so reading it back is the
+ * ordinary membership check `/api/media/<id>` already makes. The id is all the
+ * uploader is given, and the id is all the answer stores.
+ */
+export async function takeUpload(
+  slug: string, code: string,
+  { questionId, filename, contentType, buffer }: { questionId: string; filename: string; contentType: string; buffer: Buffer },
+) {
+  const found = await findPublic(slug, code);
+  if (!found) return { error: "notfound" };
+  const { form, studio, sections } = found;
+  if (!accepting(form.status, form.settings, today())) return { error: "closed" };
+  const def = defOf(form);
+  const question = def.pages.flatMap((p) => p.questions).find((q) => q.id === questionId && isFile(q.type));
+  if (!question) return { error: "notfound" };
+  if (!buffer?.length) return { error: "empty" };
+  if (!fileKindAllowed(question.fileKinds, contentType)) return { error: "file-kind" };
+  if (buffer.length > (question.maxFileMb || 1) * 1024 * 1024) return { error: "too-large" };
+
+  const settings = cleanSettings(form.settings, def);
+  if (settings.storedBytes + buffer.length > settings.storageMb * 1024 * 1024) return { error: "form-full" };
+
+  const stored = await putMedia({
+    buffer, contentType, filename,
+    // PRIVATE, AND THE STUDIO'S. The person who sent it is nobody we know, so
+    // "who may read this" can only be answered as "whoever may read this
+    // studio's files" — which is what the media route already enforces.
+    visibility: "private", studioId: String(studio.id), owner: "",
+  });
+  if ("error" in stored) return { error: String(stored.error) };
+  const section = sections.find((s) => s.key === "marketing-forms") as Section;
+  await countStorage({ studio, section }, form.id, buffer.length);
+  // THE ID, AND NOTHING ELSE. `stored.url` is the media route's path rather
+  // than Blob's, but even that would hand a stranger a handle to a file they
+  // have just lost the right to read — the studio's members read it, they do
+  // not.
+  return { id: stored.id, name: String(filename || "file").slice(0, 200), size: stored.size };
 }

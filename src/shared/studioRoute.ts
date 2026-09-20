@@ -159,6 +159,14 @@ export function isFullScreenPath(
 
   if (key === "projects-planner") return granted(key);
 
+  // ONE FORM, BEING BUILT (20/09/2026). The list at `/marketing-forms` keeps
+  // the shell — it is a register like any other — and `/marketing-forms/<id>`
+  // is the builder, which is an app: a canvas of cards, a floating toolbar and
+  // a preview beside it. The same argument the planner makes, for the same
+  // reason a department sidebar beside a form's own page sidebar reads as two
+  // navigations competing.
+  if (key === "marketing-forms" && segments[1]) return granted(key);
+
   if (key === "projects-list" && segments[1] && granted(key)) {
     // `/projects-list/<id>` is the board and `/projects-list/<id>/plans/<planId>`
     // is one of its plans — both full-screen. `/projects-list/<id>/quotation` is
