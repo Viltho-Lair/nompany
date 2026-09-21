@@ -126,6 +126,13 @@ export default function StudioFormEditor({ slug, formId, backHref }) {
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const api = `/api/studios/${slug}/marketing/forms`;
+  // HOW TALL THE BAR IS, measured rather than guessed: the preview hangs off
+  // it, and on a narrow screen the bar WRAPS to two rows, so a constant would
+  // put the preview over the tabs exactly where the window is smallest. Written
+  // straight onto the element as a CSS variable — no state, so a resize costs a
+  // style write rather than a re-render of the whole editor.
+  const headRef = useRef(null);
+  const shellRef = useRef(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`${api}?id=${encodeURIComponent(formId)}`, { cache: "no-store" });
@@ -140,6 +147,19 @@ export default function StudioFormEditor({ slug, formId, backHref }) {
     (async () => { if (current) await load(); })();
     return () => { current = false; };
   }, [load]);
+
+  const ready = Boolean(data && doc);
+  useEffect(() => {
+    const head = headRef.current;
+    const shell = shellRef.current;
+    if (!ready || !head || !shell) return undefined;
+    const apply = () => shell.style.setProperty("--fb-head", `${head.offsetHeight}px`);
+    apply();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const watch = new ResizeObserver(apply);
+    watch.observe(head);
+    return () => watch.disconnect();
+  }, [ready, showPreview]);
 
   const edit = useCallback((fn) => {
     setDoc((d) => { const next = structuredClone(d); fn(next); return next; });
@@ -183,7 +203,7 @@ export default function StudioFormEditor({ slug, formId, backHref }) {
     <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-[#0f0f14]">
       {/* THE BAR THAT NEVER SCROLLS AWAY: what this is, whether it is saved, and
           the two acts that change the world — preview and open. */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-[var(--geex-surface)] dark:border-white/10">
+      <header ref={headRef} className="sticky top-0 z-30 border-b border-slate-200 bg-[var(--geex-surface)] dark:border-white/10">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 sm:px-5">
           <Link href={backHref || `/${slug}/marketing-forms`} aria-label={tr.back}
             className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5">
@@ -212,7 +232,16 @@ export default function StudioFormEditor({ slug, formId, backHref }) {
 
       {error && <p role="alert" className="mx-auto mt-4 w-full max-w-3xl px-4 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
 
-      <div className={`flex-1 ${showPreview ? "grid gap-0 xl:grid-cols-2" : ""}`}>
+      {/* THE CANVAS AND THE PREVIEW SCROLL SEPARATELY, and the preview does not
+          go anywhere. Sharing one page scroll meant a long form pushed the
+          preview off the top: to see what a change did you scrolled up, looked,
+          and scrolled back down to make the next one. It is stuck to the top of
+          the window and scrolls INSIDE itself now, so the two move
+          independently — which is the whole point of having them side by side.
+          `--fb-head` is the two rows of the bar above; sticky needs a number
+          and it is the only one either column needs to know. */}
+      <div ref={shellRef} className={`flex-1 ${showPreview ? "xl:grid xl:grid-cols-2 xl:gap-0" : ""}`}
+        style={{ "--fb-head": "6.5rem" }}>
         <div className="min-w-0 px-3 py-6 pb-24 sm:px-6 lg:pb-6">
           {tab === "questions" && (
             <Canvas doc={doc} edit={edit} tr={tr} readOnly={readOnly} slug={slug}
@@ -227,10 +256,21 @@ export default function StudioFormEditor({ slug, formId, backHref }) {
           )}
         </div>
         {showPreview && (
-          <div className="min-w-0 border-t border-slate-200 bg-white dark:border-white/10 dark:bg-[#121218] xl:border-s xl:border-t-0">
-            <PublicForm key={JSON.stringify(doc.definition)} preview
-              form={{ name: doc.name, locale: doc.locale, pages: doc.definition.pages, accepting: true, studio: {} }}
-              onSubmit={async () => ({ ok: true, confirmation: doc.settings.confirmation })} />
+          // BELOW xl THERE IS NO ROOM FOR TWO COLUMNS, so the preview is a
+          // SHEET over the canvas rather than a panel stacked under it. Stacked,
+          // it was worse than useless: to reach it you scrolled past the whole
+          // form, and once you were there the form you were editing was gone.
+          <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col bg-white dark:bg-[#121218] xl:sticky xl:inset-x-auto xl:bottom-auto xl:z-auto xl:h-[calc(100vh-var(--fb-head))] xl:border-s xl:border-slate-200 dark:xl:border-white/10"
+            style={{ top: "var(--fb-head)" }}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2 dark:border-white/10 xl:hidden">
+              <span className="text-sm font-600 text-slate-700 dark:text-slate-200">{tr.preview}</span>
+              <button type="button" className={btnGhost} onClick={() => setShowPreview(false)}>{tr.hidePreview}</button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto xl:overflow-visible">
+              <PublicForm key={JSON.stringify(doc.definition)} preview
+                form={{ name: doc.name, locale: doc.locale, pages: doc.definition.pages, accepting: true, studio: {} }}
+                onSubmit={async () => ({ ok: true, confirmation: doc.settings.confirmation })} />
+            </div>
           </div>
         )}
       </div>
@@ -243,6 +283,11 @@ export default function StudioFormEditor({ slug, formId, backHref }) {
 function Canvas({ doc, edit, tr, readOnly, slug, selected, setSelected, active, setActive }) {
   const pages = doc.definition.pages;
   const [drag, setDrag] = useState(null);
+  // WHAT THE POINTER IS OVER WHILE DRAGGING — { pageIdx, id, edge }, or an id
+  // of null for the empty space at the end of a section. Without it a drag was
+  // a guess: the card went somewhere when you let go and nothing beforehand
+  // said where.
+  const [over, setOver] = useState(null);
 
   // WHICH SECTION THE TOOLBAR IS AIMED AT. It used to be derived from the
   // SELECTED QUESTION alone — and `findIndex` returns -1 when nothing is
@@ -279,7 +324,12 @@ function Canvas({ doc, edit, tr, readOnly, slug, selected, setSelected, active, 
   // MOVING A CARD IS THE ONE EDIT THAT TOUCHES TWO PLACES AT ONCE, so it is
   // written here rather than in the card: take it out of wherever it is, put it
   // back where it was dropped, in one patch.
-  const moveQuestion = (fromId, toPageIdx, toIdx) => edit((d) => {
+  //
+  // BY ID, NEVER BY INDEX. Removing the card first shifts every index after it,
+  // so "drop before the fourth card" means two different places depending on
+  // where the card came from. Finding the neighbour again after the removal has
+  // no such arithmetic to get wrong.
+  const moveQuestion = (fromId, toPageIdx, targetId, edge) => edit((d) => {
     let moved = null;
     for (const p of d.definition.pages) {
       const i = p.questions.findIndex((q) => q.id === fromId);
@@ -288,8 +338,16 @@ function Canvas({ doc, edit, tr, readOnly, slug, selected, setSelected, active, 
     if (!moved) return;
     const page = d.definition.pages[toPageIdx];
     if (!page) return;
-    page.questions.splice(Math.max(0, Math.min(toIdx, page.questions.length)), 0, moved);
+    const at = targetId ? page.questions.findIndex((q) => q.id === targetId) : -1;
+    if (at < 0) page.questions.push(moved);
+    else page.questions.splice(edge === "after" ? at + 1 : at, 0, moved);
   });
+
+  /** Where the card would land if it were let go now — the line the author sees. */
+  const dropOn = (pageIdx, targetId, edge) => {
+    if (drag && drag !== targetId) moveQuestion(drag, pageIdx, targetId, edge);
+    setDrag(null); setOver(null);
+  };
 
   return (
     <div className="relative mx-auto w-full max-w-3xl lg:pe-20">
@@ -321,9 +379,11 @@ function Canvas({ doc, edit, tr, readOnly, slug, selected, setSelected, active, 
                 pages={pages} pageIdx={pageIdx} open={selected === q.id} onOpen={() => setSelected(q.id)}
                 others={pages.flatMap((p) => p.questions).filter((x) => x.id !== q.id && takesAnswer(x.type))}
                 dragging={drag === q.id}
-                onDragStart={() => setDrag(q.id)}
-                onDragEnd={() => setDrag(null)}
-                onDrop={() => { if (drag && drag !== q.id) moveQuestion(drag, pageIdx, i); setDrag(null); }}
+                dropEdge={over && over.pageIdx === pageIdx && over.id === q.id ? over.edge : ""}
+                onDragStart={() => { setDrag(q.id); setSelected(q.id); }}
+                onDragEnd={() => { setDrag(null); setOver(null); }}
+                onDragOverCard={(edge) => { if (drag) setOver({ pageIdx, id: q.id, edge }); }}
+                onDrop={(edge) => dropOn(pageIdx, q.id, edge)}
                 patch={(fn) => edit((d) => {
                   const target = d.definition.pages[pageIdx].questions.find((x) => x.id === q.id);
                   if (target) fn(target);
@@ -358,10 +418,25 @@ function Canvas({ doc, edit, tr, readOnly, slug, selected, setSelected, active, 
               />
             ))}
             {!page.questions.length && (
-              <div onDragOver={(e) => e.preventDefault()} onDrop={() => { if (drag) moveQuestion(drag, pageIdx, 0); setDrag(null); }}
-                className="rounded-geex border border-dashed border-slate-300 py-6 text-center text-sm text-slate-500 dark:border-white/15 dark:text-slate-400">
+              <div onDragOver={(e) => { e.preventDefault(); if (drag) setOver({ pageIdx, id: null, edge: "after" }); }}
+                onDrop={() => dropOn(pageIdx, null)}
+                className={`rounded-geex border border-dashed py-6 text-center text-sm transition-colors ${
+                  over && over.pageIdx === pageIdx && over.id === null
+                    ? "border-brand-500 bg-brand-500/5 text-brand-700 dark:text-brand-300"
+                    : "border-slate-300 text-slate-500 dark:border-white/15 dark:text-slate-400"}`}>
                 {tr.noQuestions}
               </div>
+            )}
+            {/* THE END OF THE LIST IS A PLACE TOO. Without it the last card was
+                the only one nothing could be dropped after, so "move this to
+                the bottom" was the one move the board could not do. */}
+            {drag && page.questions.length > 0 && (
+              <div onDragOver={(e) => { e.preventDefault(); setOver({ pageIdx, id: null, edge: "after" }); }}
+                onDrop={() => dropOn(pageIdx, null)}
+                className={`h-10 rounded-geex border border-dashed transition-colors ${
+                  over && over.pageIdx === pageIdx && over.id === null
+                    ? "border-brand-500 bg-brand-500/5"
+                    : "border-slate-200 dark:border-white/10"}`} />
             )}
             {/* EVERY SECTION HAS ITS OWN, and it is the reason the floating one
                 can be wrong without being harmful: this button says which
@@ -461,21 +536,48 @@ function Toolbar({ tr, onAddQuestion, onAddSection, where }) {
 
 function QuestionCard({
   q, tr, readOnly, slug, formLocale, pages, pageIdx, open, onOpen, others, patch, replace, duplicate, remove,
-  dragging, onDragStart, onDragEnd, onDrop,
+  dragging, dropEdge, onDragStart, onDragEnd, onDragOverCard, onDrop,
 }) {
   const [more, setMore] = useState(false);
+  // DRAGGABLE ONLY FROM THE HANDLE. The whole card was draggable, which means
+  // selecting the words of a question — the commonest thing anybody does here —
+  // picked the card up instead.
+  const [byHandle, setByHandle] = useState(false);
   const set = (k) => (v) => patch((x) => { x[k] = v; });
+  // WHICH HALF THE POINTER IS IN decides which side of this card the dragged
+  // one lands on. Measured against the card's own box every time rather than
+  // remembered, because the list moves under the pointer as the line redraws.
+  const edgeAt = (e) => {
+    const box = e.currentTarget.getBoundingClientRect();
+    return e.clientY < box.top + box.height / 2 ? "before" : "after";
+  };
   return (
     <section
-      draggable={!readOnly}
+      draggable={!readOnly && byHandle}
       onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={onDrop}
+      onDragEnd={() => { setByHandle(false); onDragEnd(); }}
+      onDragOver={(e) => { e.preventDefault(); onDragOverCard(edgeAt(e)); }}
+      onDrop={(e) => { e.preventDefault(); onDrop(edgeAt(e)); }}
       onClick={onOpen}
-      className={`${panel} transition-shadow ${dragging ? "opacity-40" : ""} ${
+      className={`${panel} relative transition-shadow ${dragging ? "opacity-40" : ""} ${
         open ? "border-s-4 border-s-brand-600 shadow-md" : "border-s-4 border-s-transparent"}`}
     >
+      {/* THE LINE IS THE ANSWER TO "where is this going". Drawn on the card
+          being dragged OVER, on the side the pointer is nearer. */}
+      {dropEdge && (
+        <span aria-hidden className={`absolute inset-x-0 h-0.5 rounded-full bg-brand-600 ${
+          dropEdge === "before" ? "-top-1.5" : "-bottom-1.5"}`} />
+      )}
+      {!readOnly && (
+        <div className="-mt-1 mb-1 flex justify-center">
+          <button type="button" aria-label={tr.dragHandle} title={tr.dragHandle}
+            onMouseDown={() => setByHandle(true)} onMouseUp={() => setByHandle(false)}
+            onTouchStart={() => setByHandle(true)} onTouchEnd={() => setByHandle(false)}
+            className="cursor-grab rounded px-3 text-slate-300 hover:text-slate-500 active:cursor-grabbing dark:text-white/20 dark:hover:text-white/40">
+            <Icon name="grid" className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <div className="min-w-0 flex-1">
           <textarea value={q.label} disabled={readOnly} rows={1} maxLength={300} placeholder={tr.questionHint}

@@ -117,6 +117,7 @@ type Strings = {
   jumpsHint: string;
   jumpFor: (choice: string) => string;
   duplicate: string;
+  dragHandle: string;
   moreOptions: string;
   addImage: string;
   removeImage: string;
@@ -289,6 +290,7 @@ const en: Strings = {
   jumpsHint: "Only for a question with one answer. A choice with no destination carries on as usual.",
   jumpFor: (choice) => `When they choose “${choice}”`,
   duplicate: "Duplicate",
+  dragHandle: "Drag to move this question",
   moreOptions: "More",
   addImage: "Add a picture",
   removeImage: "Remove the picture",
@@ -466,6 +468,7 @@ const ar: Strings = {
   jumpsHint: "للأسئلة ذات الإجابة الواحدة فقط. والخيار الذي بلا وجهة يكمل كالمعتاد.",
   jumpFor: (choice) => `عند اختيار “${choice}”`,
   duplicate: "نسخ",
+  dragHandle: "اسحب لنقل هذا السؤال",
   moreOptions: "المزيد",
   addImage: "إضافة صورة",
   removeImage: "حذف الصورة",
