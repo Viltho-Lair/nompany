@@ -118,6 +118,9 @@ export default function StudioFormEditor({ slug, formId, backHref }) {
   const [dirty, setDirty] = useState(false);
   const [tab, setTab] = useState("questions");
   const [selected, setSelected] = useState("");
+  // WHICH SECTION THE TOOLBAR ADDS TO. Empty until a form is loaded or clicked
+  // into, which `Canvas` reads as the first one.
+  const [active, setActive] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
@@ -210,10 +213,10 @@ export default function StudioFormEditor({ slug, formId, backHref }) {
       {error && <p role="alert" className="mx-auto mt-4 w-full max-w-3xl px-4 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
 
       <div className={`flex-1 ${showPreview ? "grid gap-0 xl:grid-cols-2" : ""}`}>
-        <div className="min-w-0 overflow-x-hidden px-3 py-6 sm:px-6">
+        <div className="min-w-0 px-3 py-6 pb-24 sm:px-6 lg:pb-6">
           {tab === "questions" && (
             <Canvas doc={doc} edit={edit} tr={tr} readOnly={readOnly} slug={slug}
-              selected={selected} setSelected={setSelected} />
+              selected={selected} setSelected={setSelected} active={active} setActive={setActive} />
           )}
           {tab === "responses" && <div className="mx-auto max-w-4xl"><Responses slug={slug} formId={formId} doc={doc} tr={tr} /></div>}
           {tab === "settings" && (
@@ -237,25 +240,40 @@ export default function StudioFormEditor({ slug, formId, backHref }) {
 
 // ---- the canvas -----------------------------------------------------------------
 
-function Canvas({ doc, edit, tr, readOnly, slug, selected, setSelected }) {
+function Canvas({ doc, edit, tr, readOnly, slug, selected, setSelected, active, setActive }) {
   const pages = doc.definition.pages;
   const [drag, setDrag] = useState(null);
 
-  const addQuestion = (type = "short-text") => {
+  // WHICH SECTION THE TOOLBAR IS AIMED AT. It used to be derived from the
+  // SELECTED QUESTION alone — and `findIndex` returns -1 when nothing is
+  // selected, which `Math.max(0, …)` then turned into section ONE. So every
+  // question added without first clicking a card landed in the first section,
+  // whatever you were looking at, and there was no way to say otherwise.
+  // A section is a thing you can point at now: clicking anywhere in one makes
+  // it the active one, and it is drawn as the active one.
+  const activeIdx = Math.max(0, pages.findIndex((p) => p.id === active));
+  const pageOf = (questionId) => pages.findIndex((p) => p.questions.some((x) => x.id === questionId));
+
+  /** Add to the section asked for, after the selected question when it is in that section. */
+  const addQuestion = (pageIdx = activeIdx, type = "short-text") => {
     const q = shapeFor(type, doc.locale);
-    const pageIndex = Math.max(0, pages.findIndex((p) => p.questions.some((x) => x.id === selected)));
+    const target = Math.min(Math.max(0, pageIdx), Math.max(0, pages.length - 1));
     edit((d) => {
       if (!d.definition.pages.length) d.definition.pages.push({ id: rid("fp"), title: "", lead: "", next: "", questions: [] });
-      const page = d.definition.pages[Math.min(pageIndex, d.definition.pages.length - 1)];
-      const at = page.questions.findIndex((x) => x.id === selected);
+      const page = d.definition.pages[Math.min(target, d.definition.pages.length - 1)];
+      const at = pageOf(selected) === target ? page.questions.findIndex((x) => x.id === selected) : -1;
       page.questions.splice(at < 0 ? page.questions.length : at + 1, 0, q);
     });
     setSelected(q.id);
+    if (pages[target]) setActive(pages[target].id);
   };
+  // AFTER THE ACTIVE ONE, not at the end. "Add a section" while reading section
+  // two means one between two and three; appending would put it past work the
+  // author has not looked at yet.
   const addSection = () => {
     const page = { id: rid("fp"), title: "", lead: "", next: "", questions: [] };
-    edit((d) => { d.definition.pages.push(page); });
-    setSelected("");
+    edit((d) => { d.definition.pages.splice(activeIdx + 1, 0, page); });
+    setSelected(""); setActive(page.id);
   };
 
   // MOVING A CARD IS THE ONE EDIT THAT TOUCHES TWO PLACES AT ONCE, so it is
@@ -276,13 +294,15 @@ function Canvas({ doc, edit, tr, readOnly, slug, selected, setSelected }) {
   return (
     <div className="relative mx-auto w-full max-w-3xl lg:pe-20">
       {pages.map((page, pageIdx) => (
-        <section key={page.id} className="mb-8">
+        <section key={page.id} className="mb-8" onFocusCapture={() => setActive(page.id)} onClick={() => setActive(page.id)}>
           {pages.length > 1 && (
-            <p className="mb-2 inline-block rounded-t-lg bg-brand-600 px-3 py-1 text-xs font-700 text-white">
+            <p className={`mb-2 inline-block rounded-t-lg px-3 py-1 text-xs font-700 ${pageIdx === activeIdx
+              ? "bg-brand-600 text-white"
+              : "bg-slate-200 text-slate-600 dark:bg-white/10 dark:text-slate-300"}`}>
               {tr.sectionOf(pageIdx + 1, pages.length)}
             </p>
           )}
-          <div className={`${panel} border-s-4 border-s-brand-600`}>
+          <div className={`${panel} border-s-4 ${pageIdx === activeIdx ? "border-s-brand-600" : "border-s-slate-200 dark:border-s-white/10"}`}>
             <input value={page.title} disabled={readOnly} maxLength={200} placeholder={tr.pageTitle}
               onChange={(e) => edit((d) => { d.definition.pages[pageIdx].title = e.target.value; })}
               className="w-full rounded-lg bg-transparent px-2 py-1 font-display text-lg font-700 text-slate-900 outline-none hover:bg-slate-50 focus:bg-slate-50 dark:text-white dark:hover:bg-white/5 dark:focus:bg-white/5" />
@@ -343,6 +363,15 @@ function Canvas({ doc, edit, tr, readOnly, slug, selected, setSelected }) {
                 {tr.noQuestions}
               </div>
             )}
+            {/* EVERY SECTION HAS ITS OWN, and it is the reason the floating one
+                can be wrong without being harmful: this button says which
+                section it adds to by being inside it. */}
+            {!readOnly && (
+              <button type="button" onClick={() => addQuestion(pageIdx)}
+                className="w-full rounded-geex border border-dashed border-slate-300 py-2.5 text-sm font-600 text-slate-600 transition-colors hover:border-brand-500 hover:text-brand-700 dark:border-white/15 dark:text-slate-300 dark:hover:text-brand-300">
+                + {tr.addQuestion}
+              </button>
+            )}
           </div>
 
           {/* WHERE THIS SECTION LEADS. Below the questions because it is the
@@ -362,7 +391,8 @@ function Canvas({ doc, edit, tr, readOnly, slug, selected, setSelected }) {
       ))}
 
       {!readOnly && (
-        <Toolbar tr={tr} onAddQuestion={() => addQuestion()} onAddSection={addSection} />
+        <Toolbar tr={tr} onAddQuestion={() => addQuestion(activeIdx)} onAddSection={addSection}
+          where={pages.length > 1 ? tr.sectionOf(activeIdx + 1, pages.length) : ""} />
       )}
     </div>
   );
@@ -379,29 +409,44 @@ function destinations(pages, tr, fromIdx) {
 }
 
 /**
- * THE TOOLBAR FLOATS BESIDE THE CANVAS ON A DESKTOP AND SITS UNDER IT ON A
+ * THE TOOLBAR FLOATS BESIDE THE CANVAS ON A DESKTOP AND ALONG THE BOTTOM ON A
  * PHONE. A floating column at 375 pixels covers the card being edited, which is
  * the one thing a builder's furniture must never do.
+ *
+ * FIXED ON A PHONE RATHER THAN STICKY, and this is the bug it is written for:
+ * `position: sticky` resolves against its nearest SCROLLPORT, and the canvas
+ * sat inside a wrapper carrying `overflow-x-hidden` — which makes that wrapper
+ * the scrollport even though the document is what actually scrolls. The bar
+ * never floated; it stayed where it was laid out, beside the first section,
+ * while the page scrolled past it. The wrapper's overflow rule is gone (the
+ * desktop column is what it was guarding against, and that column is inside a
+ * `relative` box that does not overflow), and the bar is fixed to the viewport,
+ * which no ancestor can take away.
+ *
+ * `where` names the section a press would add to, because the one thing a
+ * floating button cannot say for itself is where it points.
  */
-function Toolbar({ tr, onAddQuestion, onAddSection }) {
+function Toolbar({ tr, onAddQuestion, onAddSection, where }) {
   const buttons = [
-    { key: "q", icon: "plus", label: tr.addQuestion, onClick: onAddQuestion },
-    { key: "s", icon: "layers", label: tr.addSection, onClick: onAddSection },
+    { key: "q", icon: "plus", label: tr.addQuestion, onClick: onAddQuestion, where },
+    { key: "s", icon: "layers", label: tr.addSection, onClick: onAddSection, where: "" },
   ];
   return (
     <>
-      <div className="sticky bottom-4 z-20 mt-6 flex justify-center gap-2 lg:hidden">
+      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center gap-2 lg:hidden">
         {buttons.map((b) => (
           <button key={b.key} type="button" onClick={b.onClick}
-            className="flex items-center gap-2 rounded-full border border-slate-200 bg-[var(--geex-surface)] px-4 py-2.5 text-sm font-600 shadow-lg dark:border-white/10">
-            <Icon name={b.icon} className="h-4 w-4" />{b.label}
+            className="pointer-events-auto flex items-center gap-2 rounded-full border border-slate-200 bg-[var(--geex-surface)] px-4 py-2.5 text-sm font-600 shadow-lg dark:border-white/10">
+            <Icon name={b.icon} className="h-4 w-4" />
+            <span>{b.label}{b.where ? ` · ${b.where}` : ""}</span>
           </button>
         ))}
       </div>
       <div className="pointer-events-none absolute inset-y-0 end-0 hidden lg:block">
         <div className="pointer-events-auto sticky top-32 flex flex-col gap-1 rounded-geex border border-slate-200 bg-[var(--geex-surface)] p-1.5 shadow-sm dark:border-white/10">
           {buttons.map((b) => (
-            <button key={b.key} type="button" onClick={b.onClick} title={b.label} aria-label={b.label}
+            <button key={b.key} type="button" onClick={b.onClick}
+              title={b.where ? `${b.label} · ${b.where}` : b.label} aria-label={b.where ? `${b.label} · ${b.where}` : b.label}
               className="rounded-lg p-2.5 text-slate-600 transition-colors hover:bg-brand-500/10 hover:text-brand-700 dark:text-slate-300 dark:hover:text-brand-300">
               <Icon name={b.icon} className="h-5 w-5" />
             </button>
@@ -495,10 +540,15 @@ function QuestionCard({
         </button>
       </div>
 
-      {more && (
-        <div className="mt-3 space-y-3 border-t border-slate-100 pt-3 dark:border-white/10">
-          {canJump(q) && pages.length > 1 && <Jumps q={q} tr={tr} readOnly={readOnly} pages={pages} pageIdx={pageIdx} patch={patch} />}
-          {hasChoices(q.type) && others.length > 0 && <Logic q={q} tr={tr} readOnly={readOnly} others={others} patch={patch} />}
+      {canJump(q) && pages.length > 1 && (
+        <div className="mt-3 border-t border-slate-100 pt-3 dark:border-white/10">
+          <Jumps q={q} tr={tr} readOnly={readOnly} pages={pages} pageIdx={pageIdx} patch={patch} />
+        </div>
+      )}
+
+      {more && hasChoices(q.type) && others.length > 0 && (
+        <div className="mt-3 border-t border-slate-100 pt-3 dark:border-white/10">
+          <Logic q={q} tr={tr} readOnly={readOnly} others={others} patch={patch} />
         </div>
       )}
     </section>
