@@ -1,6 +1,16 @@
 import { locales, defaultLocale } from "@/shared/i18n";
 import { youtubeVideoId, youtubeThumbnailUrl } from "@/lib/youtube";
 import { CONTACT, SITE_DESCRIPTION } from "@/lib/site";
+import { LIVE_DEPARTMENT_KEYS } from "@/shared/marketing/departments";
+
+/**
+ * HOW MANY DEPARTMENTS THE PRODUCT HAS, for the titles below — the same list
+ * the pages themselves render, so a title cannot claim a number the page
+ * disproves three lines down. Digits rather than words: the body spells it
+ * ("Eighteen departments"), and spelling it here would mean a number-to-words
+ * table in two languages to keep one title in voice.
+ */
+const departmentCount = () => LIVE_DEPARTMENT_KEYS.length;
 
 // Canonical site origin, and the "www." is load-bearing rather than cosmetic.
 // The site SERVES on www.nompany.com; the apex 308-redirects to it. This
@@ -43,12 +53,17 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
   },
   "/platform": {
     en: {
-      title: "The platform — sixteen departments on one data model",
+      // THE COUNT IS DERIVED, because this one was typed and went stale in the
+      // one place nobody reads while testing: the page BODY says eighteen (it
+      // is read from SECTION_DEFS), and this title said sixteen — which is what
+      // Google, a browser tab and every shared link showed. A title is the
+      // only claim on the site with no reader to notice it drifting.
+      title: `The platform — ${departmentCount()} departments on one data model`,
       description:
         "Sales, tendering, projects, engineering, procurement, inventory, field operations, logistics, people and finance, sharing one data model. Arabic and English, with every record permissioned to the row.",
     },
     ar: {
-      title: "المنصة — ستة عشر قسما على نموذج بيانات واحد",
+      title: `المنصة — ${departmentCount()} قسما على نموذج بيانات واحد`,
       description:
         "المبيعات والمناقصات والمشاريع والهندسة والمشتريات والمخزون والعمليات الميدانية والخدمات اللوجستية والموارد البشرية والمالية على نموذج بيانات واحد. بالعربية والإنجليزية، وكل سجل محكوم بالصلاحيات حتى مستوى الصف.",
     },

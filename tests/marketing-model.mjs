@@ -903,5 +903,33 @@ ok("...priced per head", PRICE.offersSomething({ ...seeded, perEmployee: 4 }) ==
 ok("...or priced in one of its categories",
   PRICE.offersSomething({ ...seeded, categories: [{ monthly: 0 }, { monthly: 12 }] }) === true);
 
+console.log("\n== a title cannot claim a number the page disproves");
+// THE DEFECT: the /platform page BODY is read from SECTION_DEFS and said
+// eighteen departments, while its TITLE was hand-typed and said sixteen — in
+// both languages. A title is the one claim on the site with no reader to
+// notice it drifting: it shows in a search result, a browser tab and every
+// shared link, and never on the page anybody is testing. Found 22/09/2026 by
+// sweeping the live site's metadata rather than its pages.
+const SEO = await import("@/lib/seo");
+const platformEn = await SEO.buildMetadata({ locale: "en", path: "/platform" });
+const platformAr = await SEO.buildMetadata({ locale: "ar", path: "/platform" });
+const count = String(D.LIVE_DEPARTMENT_KEYS.length);
+ok("the English platform title counts the departments the product has",
+  String(platformEn?.title || "").includes(count), String(platformEn?.title || ""));
+ok("...and the Arabic one counts the same",
+  String(platformAr?.title || "").includes(count), String(platformAr?.title || ""));
+
+// AND NO TITLE MAY SPELL A COUNT, because a spelled one is a typed one.
+const SPELLED = /(nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\s+departments/i;
+const spelledSomewhere = [];
+for (const path of ["/", "/platform", "/pricing", "/security", "/about", "/contact", "/customers"]) {
+  for (const locale of ["en", "ar"]) {
+    const m = await SEO.buildMetadata({ locale, path });
+    const blob = [m?.title, m?.description].filter(Boolean).join(" ");
+    if (SPELLED.test(blob)) spelledSomewhere.push(`${locale}${path}`);
+  }
+}
+ok("no page's metadata spells a department count", spelledSomewhere.length === 0, spelledSomewhere.join(", "));
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nmarketing model: all passed\n");
 process.exit(fails ? 1 : 0);
