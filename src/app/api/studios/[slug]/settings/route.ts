@@ -21,6 +21,7 @@ import { templateProblems as noticeProblems, cleanTemplates as cleanNotices, tem
 import { isValuationMethod } from "@/modules/inventory/valuation";
 import { cleanVatSetting, studioVatRate } from "@/shared/vat";
 import { change, recordOfficialChanges } from "@/modules/administration/officialValues";
+import { isTimezone } from "@/shared/timezone";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,12 @@ export const dynamic = "force-dynamic";
 // so the boundary that decides what a request may write has to be here.
 const FIELDS = [
   "logo", "country", "city", "location", "currency",
+  // WHERE THE STUDIO'S CLOCK IS (22/09/2026, the owner: "something general
+  // which can be used by multiple sections must not be in a section
+  // settings"). A shop's opening hours, a per-day cap, a shift's own date and
+  // a nightly job all ask which day it is; one answer, on the studio, beside
+  // the currency it is the exact counterpart of. `shared/timezone` is the file.
+  "timezone",
   // THE STUDIO'S DEFAULT LANGUAGE — see studioLocale in shared/i18n. It sets
   // the direction and the dictionary for everyone who has not chosen one of
   // their own, which for most people is everyone; that is why it stays behind
@@ -154,6 +161,7 @@ const clean = (studio: Record<string, unknown>) => ({
   id: studio.id, name: studio.name, slug: studio.slug, logo: studio.logo || "",
   country: studio.country || "", city: studio.city || "", location: studio.location || "",
   currency: studio.currency || "",
+  timezone: studio.timezone || "",
   vatRate: studioVatRate(studio) ?? "",
   employmentRules: { ...employmentRulesOf(studio), ...statutoryRulesOf(studio) },
   // THE COUNTRY'S STARTING FIGURES for those rules, from its definition file
@@ -382,6 +390,17 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // saveFinanceSettings held for bills; it moved here with the store.
     if (key === "signingPin") {
       patch[key] = body[key] === true;
+      continue;
+    }
+    // REFUSED RATHER THAN COERCED, for the language's reason. A zone `Intl`
+    // does not recognise silently falls back on every read, so a studio would
+    // set its clock, see it accepted, and keep getting somebody else's day —
+    // on a per-day cap and a shift report, not just on a label. "" is a real
+    // value: it is how a studio goes back to having no clock of its own.
+    if (key === "timezone") {
+      const zone = String(body[key] ?? "").trim();
+      if (zone && !isTimezone(zone)) return Response.json({ error: "timezone" }, { status: 400 });
+      patch[key] = zone;
       continue;
     }
     // NUMBERING IS REFUSED ON WRITE, never on read, exactly as the chains are.

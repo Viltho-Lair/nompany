@@ -13,12 +13,19 @@
 
 import { requirePermission, can } from "@/platform/access";
 import { roundSum } from "@/shared/money";
+import { dayIn as studioDay, studioTimezone } from "@/shared/timezone";
 import { repo } from "@/platform/db/repo";
 import type { PosContext } from "./types";
+import { nextReference } from "@/modules/main/references";
+import { seriesSetting } from "@/modules/administration/numbering";
 import {
-  evaluate, couponProblem,
-  type AppliedPromotion, type BasketLine, type CouponClaim, type Promotion, type PromotionUsage,
+  evaluate, couponProblem, cleanPromotion, promotionProblems, couponCode, nullableCount,
+  PROMOTION_STATUSES,
+  type AppliedPromotion, type BasketLine, type CouponClaim, type Promotion,
+  type PromotionStatus, type PromotionUsage,
 } from "./posPromotionsModel";
+
+const now = () => new Date().toISOString();
 
 /**
  * AN OFFER AS STORED: everything the engine reads (`Promotion`, and the engine
@@ -76,23 +83,10 @@ export type PosRedemption = {
   currency: string;
 };
 
-/**
- * THE STUDIO'S OWN DATE for an instant — what "per day" means to a shop that
- * opens at ten and closes at two in the morning. `Intl` is the only thing that
- * knows a zone's offset on a given day.
- */
-export function studioDay(at: string, timezone?: string): string {
-  const zone = String(timezone || "").trim() || "UTC";
-  try {
-    return new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" })
-      .format(new Date(at));
-  } catch {
-    return String(at).slice(0, 10);
-  }
-}
-
-/** The studio's timezone, which is a STUDIO setting rather than the till's. */
-export const studioTimezone = (studio: { timezone?: unknown }): string => String(studio.timezone || "").trim();
+// THE CLOCK IS THE STUDIO'S, not this section's (the owner, 22/09/2026). Both
+// of these were written here first and moved out the same day: a per-day cap and
+// a shift report ask the same question, and two copies of "which day is it" are
+// two answers free to disagree. `shared/timezone` is the one.
 
 /** Every offer that could price a basket on this till — the live ones, ordered. */
 export async function livePromotions(ctx: PosContext): Promise<PosPromotion[]> {
@@ -417,5 +411,394 @@ export async function couponLookup(
     promotionCode: promotion.code,
     name: promotion.name,
     nameAr: String(promotion.nameAr || ""),
+  };
+}
+
+// ---- writing an offer -------------------------------------------------------
+//
+// AN ACTIVE OFFER IS NOT EDITED (the brief, and it is the right rule): a rate
+// typed onto a live offer changes what the next customer through the door is
+// charged, with nobody having decided that it should. So a live offer is
+// PAUSED, edited, and put back — three deliberate acts, each logged, instead of
+// one silent one.
+//
+// EVERY CHANGE WRITES A LOG ROW. What an offer costs a shop is decided by its
+// rules, and "who made it 50%" has to be answerable from something other than
+// the offer's own current state.
+
+const Log = repo<PosPromotionLogEntry>("posPromotionLog");
+
+/** One change to an offer: what happened, who did it, and what it was before. */
+export type PosPromotionLogEntry = {
+  id: string;
+  promotionId: string;
+  promotionCode: string;
+  action: "created" | "edited" | "status" | "cloned";
+  /** For a status move, where it went; for an edit, the fields that changed. */
+  detail: string;
+  from?: string;
+  to?: string;
+  at: string;
+  byCollaboratorId: string;
+};
+
+async function log(
+  ctx: PosContext,
+  promotion: { id: string; code: string },
+  entry: { action: PosPromotionLogEntry["action"]; detail: string; from?: string; to?: string },
+) {
+  return Log.create(scope(ctx), {
+    promotionId: promotion.id,
+    promotionCode: promotion.code,
+    at: now(),
+    byCollaboratorId: ctx.collaborator.id,
+    ...entry,
+  } as unknown as PosPromotionLogEntry);
+}
+
+/** What changed between two versions of an offer, named — the log's `detail`. */
+function changedFields(before: Record<string, unknown>, after: Record<string, unknown>): string {
+  const names = [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((k) => !["id", "code", "createdAt", "createdByCollaboratorId", "updatedAt", "updatedByCollaboratorId"].includes(k))
+    .filter((k) => JSON.stringify(before[k] ?? null) !== JSON.stringify(after[k] ?? null));
+  return names.join(", ");
+}
+
+/**
+ * A NEW OFFER, ALWAYS AS A DRAFT whatever the body says. Activation is its own
+ * act — it is the one that costs money, it is the one that may need a
+ * signature, and a create that could land straight on `active` would be a way
+ * round both.
+ */
+export async function createPromotion(ctx: PosContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "pos.promotions.create");
+  if (denied) return denied;
+  if (!ctx.promotionsSection) return { error: "no-section" as const };
+
+  const cleaned = { ...cleanPromotion(body), status: "draft" as const };
+  const problems = promotionProblems(cleaned);
+  if (problems.length) return { error: "refused" as const, detail: problems.join(", ") };
+
+  const rows = await Promotions.find(scope(ctx));
+  const code = await nextReference(ctx.studio.id, {
+    rows, field: "code", ...seriesSetting("posPromotion", ctx.studio.numbering),
+  });
+  const created = await Promotions.create(scope(ctx), {
+    ...cleaned,
+    code,
+    createdAt: now(),
+    createdByCollaboratorId: ctx.collaborator.id,
+  } as unknown as PosPromotion);
+  await log(ctx, created, { action: "created", detail: created.name });
+  return { promotion: created };
+}
+
+/** Change a DRAFT or PAUSED offer. A live one is refused by name, not quietly ignored. */
+export async function editPromotion(ctx: PosContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "pos.promotions.edit");
+  if (denied) return denied;
+  if (!ctx.promotionsSection) return { error: "no-section" as const };
+
+  const before = await Promotions.byId(scope(ctx), String(id || ""));
+  if (!before) return { error: "notfound" as const };
+  if (before.status === "active") return { error: "active" as const };
+  if (before.status === "archived") return { error: "archived" as const };
+
+  const cleaned = { ...cleanPromotion({ ...before, ...body }), status: before.status };
+  const problems = promotionProblems(cleaned);
+  if (problems.length) return { error: "refused" as const, detail: problems.join(", ") };
+
+  const updated = await Promotions.update(scope(ctx), before.id, (row) => ({
+    ...row, ...cleaned, updatedAt: now(), updatedByCollaboratorId: ctx.collaborator.id,
+  }));
+  if (!updated) return { error: "notfound" as const };
+  await log(ctx, updated, { action: "edited", detail: changedFields(before, updated) });
+  return { promotion: updated };
+}
+
+/**
+ * WHERE AN OFFER MAY GO FROM WHERE IT IS. Written out rather than checked
+ * field by field, because the interesting refusals are the ones nobody thinks
+ * of: an ended offer put back to draft would re-run it under the same code its
+ * receipts already name, and an archived one is done.
+ */
+const NEXT_STATUS: Record<PromotionStatus, readonly PromotionStatus[]> = {
+  draft: ["active", "archived"],
+  active: ["paused", "ended"],
+  paused: ["active", "ended", "archived"],
+  ended: ["archived"],
+  archived: [],
+};
+
+/**
+ * Move an offer. Activation is the act that costs money, so it is the one that
+ * asks whether this studio wants a signature over it first.
+ */
+export async function movePromotion(ctx: PosContext, id: string, to: string) {
+  const denied = requirePermission(ctx.access, "pos.promotions.edit");
+  if (denied) return denied;
+  if (!ctx.promotionsSection) return { error: "no-section" as const };
+
+  const before = await Promotions.byId(scope(ctx), String(id || ""));
+  if (!before) return { error: "notfound" as const };
+  const next = String(to || "") as PromotionStatus;
+  if (!(PROMOTION_STATUSES as readonly string[]).includes(next)) return { error: "status" as const };
+  if (!NEXT_STATUS[before.status].includes(next)) {
+    return { error: "transition" as const, from: before.status, to: next };
+  }
+  // A HALF-BUILT OFFER CANNOT GO LIVE. `promotionProblems` is the same check
+  // the write ran; a draft saved before a tier was finished would otherwise be
+  // activated and then match nothing, which reads as a broken till.
+  if (next === "active") {
+    const problems = promotionProblems(before);
+    if (problems.length) return { error: "refused" as const, detail: problems.join(", ") };
+  }
+
+  const updated = await Promotions.update(scope(ctx), before.id, (row) => ({
+    ...row, status: next, updatedAt: now(), updatedByCollaboratorId: ctx.collaborator.id,
+  }));
+  if (!updated) return { error: "notfound" as const };
+  await log(ctx, updated, { action: "status", detail: next, from: before.status, to: next });
+  return { promotion: updated };
+}
+
+/**
+ * A COPY, AS A DRAFT, WITH ITS OWN CODE. A shop runs the same offer every
+ * Ramadan and every back-to-school; retyping eight conditions is how one of
+ * them ends up different from last year's by accident.
+ */
+export async function clonePromotion(ctx: PosContext, id: string) {
+  const denied = requirePermission(ctx.access, "pos.promotions.create");
+  if (denied) return denied;
+  if (!ctx.promotionsSection) return { error: "no-section" as const };
+
+  const source = await Promotions.byId(scope(ctx), String(id || ""));
+  if (!source) return { error: "notfound" as const };
+
+  const rows = await Promotions.find(scope(ctx));
+  const code = await nextReference(ctx.studio.id, {
+    rows, field: "code", ...seriesSetting("posPromotion", ctx.studio.numbering),
+  });
+  const { id: _id, code: _code, createdAt: _at, createdByCollaboratorId: _by, updatedAt: _uat, updatedByCollaboratorId: _uby, ...rest } = source;
+  const created = await Promotions.create(scope(ctx), {
+    ...rest,
+    // THE COPY IS NOT LIVE AND HAS NOT STARTED. Copying `startsAt` would open
+    // an offer in the past, which `promotionValidAt` reads as running now.
+    status: "draft",
+    startsAt: now(),
+    endsAt: null,
+    code,
+    createdAt: now(),
+    createdByCollaboratorId: ctx.collaborator.id,
+  } as unknown as PosPromotion);
+  await log(ctx, created, { action: "cloned", detail: source.code });
+  return { promotion: created };
+}
+
+/** One offer, everything about it: its rules, its coupons and what it has been used for. */
+export async function promotionDetail(ctx: PosContext, id: string) {
+  const denied = requirePermission(ctx.access, "pos.promotions.view");
+  if (denied) return denied;
+  if (!ctx.promotionsSection) return { error: "no-section" as const };
+
+  const promotion = await Promotions.byId(scope(ctx), String(id || ""));
+  if (!promotion) return { error: "notfound" as const };
+  const [coupons, redemptions, history] = await Promise.all([
+    Coupons.find(scope(ctx), { where: { promotionId: promotion.id } }),
+    Redemptions.find(scope(ctx), { where: { promotionId: promotion.id } }),
+    Log.find(scope(ctx), { where: { promotionId: promotion.id } }),
+  ]);
+  return {
+    promotion,
+    // A COUPON'S CODE IS THE SECRET. A batch of ten thousand is listed as a
+    // count and exported as a file; the screen never draws them all.
+    coupons: coupons.slice(0, 500),
+    couponCount: coupons.length,
+    redemptions: [...redemptions].sort((a, b) => (b.at || "").localeCompare(a.at || "")).slice(0, 200),
+    used: redemptions.length,
+    discountGiven: roundSum(redemptions.reduce((s, r) => s + Number(r.discount || 0), 0)),
+    history: [...history].sort((a, b) => (b.at || "").localeCompare(a.at || "")),
+    can: {
+      create: can(ctx.access, "pos.promotions.create"),
+      edit: can(ctx.access, "pos.promotions.edit"),
+    },
+    asOf: now(),
+  };
+}
+
+// ---- minting coupons --------------------------------------------------------
+
+/**
+ * CODES ARE MINTED IN A BATCH AND CHECKED AGAINST WHAT EXISTS. There is no
+ * unique index in this store, so uniqueness is this function's job: it reads
+ * the codes already issued, generates against that set, and refuses rather than
+ * issuing a duplicate it cannot detect later. A duplicate would be redeemed
+ * twice against two different offers, and nothing would report it.
+ */
+export async function createCoupons(ctx: PosContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "pos.promotions.create");
+  if (denied) return denied;
+  if (!ctx.promotionsSection) return { error: "no-section" as const };
+
+  const promotion = await Promotions.byId(scope(ctx), String(body?.promotionId || ""));
+  if (!promotion) return { error: "notfound" as const };
+
+  const distribution = ["public", "personal", "batch"].includes(String(body?.distribution))
+    ? String(body.distribution) as PosCoupon["distribution"] : "public";
+  // A PERSONAL CODE NAMES ITS HOLDER, or it is not personal — it is a public
+  // code with a misleading label on it.
+  const customerId = String(body?.customerId || "").trim();
+  if (distribution === "personal" && !customerId) return { error: "customer" as const };
+
+  const asked = Math.max(1, Math.min(10000, Math.round(Number(body?.count) || 1)));
+  // A PUBLIC CODE IS ONE CODE. Its point is that it is printed on a poster;
+  // minting a thousand of them is a batch, which is the other kind.
+  const count = distribution === "batch" ? asked : 1;
+  const typed = String(body?.code || "").trim().toUpperCase();
+
+  const existing = await Coupons.find(scope(ctx));
+  const taken = new Set(existing.map((c) => c.code));
+  if (typed && count === 1) {
+    if (taken.has(typed)) return { error: "duplicate" as const, code: typed };
+    if (!/^[A-Z0-9-]{3,24}$/.test(typed)) return { error: "code" as const };
+  }
+
+  const codes: string[] = [];
+  if (typed && count === 1) codes.push(typed);
+  else {
+    for (let i = 0; i < count; i += 1) {
+      let code = "";
+      // A HANDFUL OF TRIES, THEN REFUSE. The alphabet is 31 characters over 8
+      // places, so a collision at any realistic batch size is vanishing; a loop
+      // that could not give up would hang a request instead of saying so.
+      for (let attempt = 0; attempt < 8 && !code; attempt += 1) {
+        const candidate = couponCode(Math.random, 8, String(body?.prefix || ""));
+        if (!taken.has(candidate)) code = candidate;
+      }
+      if (!code) return { error: "codes-exhausted" as const, made: codes.length };
+      taken.add(code);
+      codes.push(code);
+    }
+  }
+
+  const at = now();
+  const rows = codes.map((code) => ({
+    promotionId: promotion.id,
+    code,
+    distribution,
+    ...(customerId ? { customerId } : {}),
+    ...(distribution === "batch" ? { batchId: at } : {}),
+    singleUse: body?.singleUse !== false,
+    maxRedemptions: nullableCount(body?.maxRedemptions),
+    perCustomerLimit: nullableCount(body?.perCustomerLimit),
+    expiresAt: String(body?.expiresAt || "").trim() || null,
+    status: "live" as const,
+    redeemed: 0,
+    createdAt: at,
+    createdByCollaboratorId: ctx.collaborator.id,
+  }));
+  const made = await Coupons.createMany(scope(ctx), rows as unknown as Record<string, unknown>[]);
+  await log(ctx, promotion, { action: "edited", detail: `coupons +${made.length}` });
+  return { coupons: made, count: made.length };
+}
+
+/**
+ * CANCEL A COUPON RATHER THAN DELETE IT. A redemption names the coupon it
+ * spent; deleting the row would leave that redemption pointing at nothing, and
+ * "why was this sale discounted" would stop being answerable.
+ */
+export async function voidCoupon(ctx: PosContext, id: string) {
+  const denied = requirePermission(ctx.access, "pos.promotions.edit");
+  if (denied) return denied;
+  if (!ctx.promotionsSection) return { error: "no-section" as const };
+  const updated = await Coupons.update(scope(ctx), String(id || ""), (row) => ({ ...row, status: "void" as const }));
+  if (!updated) return { error: "notfound" as const };
+  return { coupon: updated };
+}
+
+/** Every code for one offer, for the CSV the studio hands out. */
+export async function couponsFor(ctx: PosContext, promotionId: string) {
+  const denied = requirePermission(ctx.access, "pos.promotions.view");
+  if (denied) return denied;
+  if (!ctx.promotionsSection) return { error: "no-section" as const };
+  const rows = await Coupons.find(scope(ctx), { where: { promotionId: String(promotionId || "") } });
+  return { coupons: [...rows].sort((a, b) => a.code.localeCompare(b.code)) };
+}
+
+// ---- what the offers did ----------------------------------------------------
+
+/**
+ * WHAT EVERY OFFER COST AND EARNED, over a window of the studio's own days.
+ *
+ * COUNTED FROM THE REDEMPTION ROWS, which are the only record of a use: the
+ * receipts carry the same figures, but reading them would mean loading every
+ * sale in the period to find the few that had an offer on them.
+ */
+export async function promotionReport(
+  ctx: PosContext,
+  { from, to }: { from?: string; to?: string },
+) {
+  const denied = requirePermission(ctx.access, "pos.promotions.view");
+  if (denied) return denied;
+  if (!ctx.promotionsSection) return { error: "no-section" as const };
+
+  const [promotions, redemptions, coupons] = await Promise.all([
+    Promotions.find(scope(ctx)),
+    Redemptions.find(scope(ctx)),
+    Coupons.find(scope(ctx)),
+  ]);
+  const start = String(from || "").slice(0, 10);
+  const end = String(to || "").slice(0, 10);
+  const inWindow = redemptions.filter((r) => {
+    const day = String(r.day || r.at || "").slice(0, 10);
+    return (!start || day >= start) && (!end || day <= end);
+  });
+
+  const byPromotion = promotions.map((p) => {
+    const mine = inWindow.filter((r) => r.promotionId === p.id);
+    const issued = coupons.filter((c) => c.promotionId === p.id);
+    const redeemedCoupons = issued.filter((c) => Number(c.redeemed || 0) > 0).length;
+    return {
+      id: p.id, code: p.code, name: p.name, nameAr: p.nameAr || "", status: p.status,
+      used: mine.length,
+      discount: roundSum(mine.reduce((s, r) => s + Number(r.discount || 0), 0)),
+      customers: new Set(mine.map((r) => r.customerId).filter(Boolean)).size,
+      couponsIssued: issued.length,
+      couponsRedeemed: redeemedCoupons,
+      // NULL RATHER THAN ZERO: an offer with no coupons has no redemption rate,
+      // and "0%" would read as a campaign nobody took up.
+      couponRate: issued.length ? Math.round((redeemedCoupons / issued.length) * 1000) / 10 : null,
+    };
+  }).filter((r) => r.used > 0 || r.couponsIssued > 0);
+
+  const day = (r: PosRedemption) => String(r.day || r.at || "").slice(0, 10);
+  const days = [...new Set(inWindow.map(day))].sort().map((d) => ({
+    day: d,
+    used: inWindow.filter((r) => day(r) === d).length,
+    discount: roundSum(inWindow.filter((r) => day(r) === d).reduce((s, r) => s + Number(r.discount || 0), 0)),
+  }));
+
+  const tills = [...new Set(inWindow.map((r) => r.terminalId).filter(Boolean))].map((terminalId) => ({
+    terminalId,
+    used: inWindow.filter((r) => r.terminalId === terminalId).length,
+    discount: roundSum(inWindow.filter((r) => r.terminalId === terminalId).reduce((s, r) => s + Number(r.discount || 0), 0)),
+  })).sort((a, b) => b.discount - a.discount);
+
+  const customers = [...new Set(inWindow.map((r) => r.customerId).filter(Boolean))].map((customerId) => ({
+    customerId: String(customerId),
+    used: inWindow.filter((r) => r.customerId === customerId).length,
+    discount: roundSum(inWindow.filter((r) => r.customerId === customerId).reduce((s, r) => s + Number(r.discount || 0), 0)),
+  })).sort((a, b) => b.discount - a.discount).slice(0, 20);
+
+  return {
+    from: start, to: end,
+    promotions: byPromotion.sort((a, b) => b.discount - a.discount),
+    days,
+    tills,
+    customers,
+    used: inWindow.length,
+    discount: roundSum(inWindow.reduce((s, r) => s + Number(r.discount || 0), 0)),
+    currency: String(ctx.studio.currency || ""),
+    asOf: now(),
   };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { CURRENCIES_FROM_EXCHANGE_API, searchCurrencies, currency as currencyOf, fmtRate } from "@/shared/currencies";
+import { allTimezones } from "@/shared/timezone";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/studio2/icons";
@@ -216,6 +217,26 @@ export default function StudioSettings({ slug, locale = "en" }) {
             <SelectMenu className={INPUT} value={draft} onChange={set} aria-label={tr.currency}
               options={[{ value: "", label: tr.currencyNone },
                 ...CURRENCIES_FROM_EXCHANGE_API.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))]}
+            />
+          )}
+        />
+
+        {/* WHERE THE STUDIO'S CLOCK IS. Here and nowhere else (the owner,
+            22/09/2026): several sections ask which day it is — a shop's
+            offers, a per-day cap, a shift report — and a section keeping its
+            own answer is a second clock free to disagree with this one.
+            A real select, for the currency's reason: a free-typed zone is one
+            `Intl` refuses, and the refusal would land on the wrong day. */}
+        <EditRow
+          icon="clock" label={tr.timezone} canManage={canManage}
+          value={studio.timezone || ""}
+          editValue={studio.timezone || ""}
+          hint={tr.timezoneUnset}
+          onSave={(v) => save({ timezone: v })}
+          render={(draft, set) => (
+            <SelectMenu className={INPUT} value={draft} onChange={set} aria-label={tr.timezone}
+              options={[{ value: "", label: tr.timezoneNone },
+                ...allTimezones().map((z) => ({ value: z, label: z }))]}
             />
           )}
         />

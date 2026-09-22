@@ -38,6 +38,9 @@ type Strings = {
   currency: string;
   currencyUnset: string;
   currencyNone: string;
+  timezone: string;
+  timezoneUnset: string;
+  timezoneNone: string;
   vatRate: string;
   vatRateUnset: string;
   vatRateSet: string;
@@ -292,6 +295,9 @@ const en: Strings = {
   currency: "Currency",
   currencyUnset: "Not set — amounts show without one.",
   currencyNone: "— not set —",
+  timezone: "Time zone",
+  timezoneUnset: "Not set — days and opening hours are read in UTC.",
+  timezoneNone: "— not set —",
   vatRate: "VAT rate",
   vatRateUnset: "Not registered — no document carries VAT and there is no tax return.",
   vatRateSet: "New quotations, orders, invoices and bills start at this rate. Each can still be changed — to 0 for a zero-rated sale, for example.",
@@ -569,6 +575,9 @@ const ar: Strings = {
   currency: "العملة",
   currencyUnset: "غير محددة — تظهر المبالغ بدونها.",
   currencyNone: "— غير محددة —",
+  timezone: "المنطقة الزمنية",
+  timezoneUnset: "غير محددة — تُقرأ الأيام وأوقات العمل بتوقيت UTC.",
+  timezoneNone: "— غير محددة —",
   vatRate: "نسبة ضريبة القيمة المضافة",
   vatRateUnset: "غير مسجلة — لا يحمل اي مستند ضريبة ولا يوجد اقرار ضريبي.",
   vatRateSet: "تبدأ عروض الاسعار والطلبات والفواتير الجديدة بهذه النسبة، ويمكن تغييرها في كل مستند — الى صفر للبيع الخاضع لنسبة الصفر مثلا.",

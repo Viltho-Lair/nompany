@@ -706,7 +706,12 @@ const cleanSchedule = (raw: unknown): PromotionSchedule | null => {
 
 const nullableAmount = (v: unknown): number | null =>
   v === null || v === undefined || v === "" ? null : Math.max(0, num(v));
-const nullableCount = (v: unknown): number | null =>
+/**
+ * A LIMIT THAT IS NOT SET IS NULL, not nought. Nought is a real limit — it
+ * means nobody may use it — and the two must never be the same value.
+ * Exported because a coupon's limits are the same question as an offer's.
+ */
+export const nullableCount = (v: unknown): number | null =>
   v === null || v === undefined || v === "" ? null : Math.max(0, Math.round(num(v)));
 
 /** An offer as it will be stored, from whatever the screen sent. */
