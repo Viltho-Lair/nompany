@@ -16,6 +16,9 @@ import { roundSum } from "@/shared/money";
 import { dayIn as studioDay, studioTimezone } from "@/shared/timezone";
 import { repo } from "@/platform/db/repo";
 import type { PosContext } from "./types";
+import type { Item } from "@/modules/inventory/types";
+import { expiryWarningDays, type PosTerminal } from "./pos";
+import { listClientTags } from "@/modules/administration/clientTags";
 import { nextReference } from "@/modules/main/references";
 import { seriesSetting } from "@/modules/administration/numbering";
 import {
@@ -42,16 +45,56 @@ export type PosPromotion = Promotion & {
 };
 
 const Promotions = repo<PosPromotion>("posPromotions");
+const Items = repo<Item>("inventoryItems");
+const Terminals = repo<PosTerminal>("posTerminals");
+const Vendors = repo<{ id: string; name: string }>("inventoryVendors");
 const scope = (ctx: PosContext) => ({ studio: ctx.studio, section: ctx.promotionsSection });
 
-/** Every offer, newest first, with what this reader may do about them. */
+/**
+ * Every offer, newest first, with what this reader may do about them — and the
+ * vocabulary the editor picks from.
+ *
+ * THE ITEMS COME WITHOUT THEIR COST. An offer names items, types and suppliers,
+ * so the editor needs the list; what the shop PAID is nobody's business here
+ * any more than it is at the till.
+ */
 export async function promotionsView(ctx: PosContext) {
   const denied = requirePermission(ctx.access, "pos.promotions.view");
   if (denied) return denied;
 
-  const rows = await Promotions.find(scope(ctx));
+  const [rows, items, tills, vendors, tags] = await Promise.all([
+    Promotions.find(scope(ctx)),
+    ctx.itemsSection ? Items.find({ studio: ctx.studio, section: ctx.itemsSection }) : Promise.resolve([]),
+    Terminals.find({ studio: ctx.studio, section: ctx.posSection }),
+    ctx.vendorsSection ? Vendors.find({ studio: ctx.studio, section: ctx.vendorsSection }) : Promise.resolve([]),
+    // THE TAG NAMES, NOT THE IDS. An eligibility rule stores ids; a picker
+    // offering ids is a picker nobody can use.
+    ctx.masterSection ? listClientTags({ studio: ctx.studio, section: ctx.masterSection }) : Promise.resolve([]),
+  ]);
   return {
     promotions: [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
+    items: items.map((i) => ({
+      id: i.id, name: i.name, sku: i.sku || "", unit: i.unit || "",
+      itemType: i.itemType || "", vendorId: i.vendorId || "",
+      sellPrice: Number(i.sellPrice) || 0,
+      excludedFromPromotions: (i as { excludedFromPromotions?: unknown }).excludedFromPromotions === true,
+    })),
+    // The vocabulary the conditions pick from — the studio's own words, never
+    // a list this module keeps.
+    itemTypes: [...new Set(items.map((i) => String(i.itemType || "")).filter(Boolean))].sort(),
+    units: [...new Set(items.map((i) => String(i.unit || "")).filter(Boolean))].sort(),
+    tills: tills.filter((t) => t.active !== false).map((t) => ({ id: t.id, code: t.code || "", name: t.name || "" })),
+    // ONLY THE SUPPLIERS SOMETHING IS BOUGHT FROM. An offer naming a supplier
+    // with nothing on the shelf matches no line, which reads as a broken offer.
+    vendors: vendors
+      .filter((v) => items.some((i) => i.vendorId === v.id))
+      .map((v) => ({ id: v.id, name: v.name })),
+    tags: tags.map((t) => ({ id: t.id, name: t.name, nameAr: t.nameAr || "" })),
+    timezone: studioTimezone(ctx.studio as { timezone?: unknown }),
+    currency: String(ctx.studio.currency || ""),
+    // HOW SOON "ENDING SOON" IS — the studio's own answer, in POS settings,
+    // because it is this section's badge and nothing else reads it.
+    expiryWarningDays: expiryWarningDays(ctx),
     can: {
       create: can(ctx.access, "pos.promotions.create"),
       edit: can(ctx.access, "pos.promotions.edit"),

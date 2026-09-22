@@ -181,6 +181,13 @@ export const posContext = moduleContext<PosContext>({
     // APPROVALS', where a return's approval is filed: the Returns screen shows
     // how far each has got. Nullable like every foreign section.
     approvals: "approvals",
+    // PROCUREMENT'S SUPPLIERS, read for their NAMES alone: an offer can be
+    // "everything from this supplier", and an offer editor offering a list of
+    // ids is a list nobody can use. Nullable like the rest.
+    vendors: ["procurement-suppliers", "procurement"],
+    // ADMINISTRATION'S CLIENT TAGS, read for their names: an offer's
+    // eligibility names tags, and the editor cannot offer ids.
+    master: "administration-master",
   },
   flags: ["pos"],
 });
@@ -197,7 +204,17 @@ const scope = (ctx: PosContext) => ({ studio: ctx.studio, section: ctx.posSectio
 // together. Absent means no cap. Whoever may change this setting is not held
 // to it: they could raise it anyway, and a cap they had to lift and lower
 // again for one sale would be a cap nobody set back.
-type PosSettings = { pricesIncludeTax?: boolean; footer?: string; maxDiscountPercent?: number };
+// `promotionExpiryWarningDays`: how soon "ending soon" is on the offers
+// screen. Here rather than on the studio because nothing outside Point of Sale
+// reads it — the rule the owner set on 22/09/2026 is that a setting several
+// sections share belongs to the studio and one section's belongs to the
+// section. Absent means seven.
+type PosSettings = {
+  pricesIncludeTax?: boolean;
+  footer?: string;
+  maxDiscountPercent?: number;
+  promotionExpiryWarningDays?: number;
+};
 const settingsOf = (ctx: PosContext): PosSettings =>
   ((ctx.posSection as { settings?: PosSettings }).settings) || {};
 
@@ -224,6 +241,13 @@ export function tillTerms(ctx: PosContext) {
     footer: str(s.footer, 300),
     maxDiscountPercent: typeof s.maxDiscountPercent === "number" ? s.maxDiscountPercent : null,
   };
+}
+
+/** How many days before its end an offer is called "ending soon". Seven unless the studio says. */
+export const EXPIRY_WARNING_DEFAULT_DAYS = 7;
+export function expiryWarningDays(ctx: PosContext): number {
+  const set = settingsOf(ctx).promotionExpiryWarningDays;
+  return typeof set === "number" && set >= 0 ? set : EXPIRY_WARNING_DEFAULT_DAYS;
 }
 
 // ---- reading ----------------------------------------------------------------
@@ -412,6 +436,15 @@ export async function savePosSettings(ctx: PosContext, body: Record<string, unkn
       const cap = Number(raw);
       if (!Number.isFinite(cap) || cap < 0 || cap > 100) return { error: "discount-cap" as const };
       next.maxDiscountPercent = Math.round(cap * 100) / 100;
+    }
+  }
+  if (body?.promotionExpiryWarningDays !== undefined) {
+    const raw = body.promotionExpiryWarningDays;
+    if (raw === null || raw === "") delete next.promotionExpiryWarningDays;
+    else {
+      const days = Number(raw);
+      if (!Number.isFinite(days) || days < 0 || days > 365) return { error: "warning-days" as const };
+      next.promotionExpiryWarningDays = Math.round(days);
     }
   }
   const section = await updateSection(ctx.studio.id, ctx.posSection.id, { settings: { ...(ctx.posSection.settings || {}), ...next } });

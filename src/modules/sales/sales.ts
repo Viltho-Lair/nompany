@@ -243,6 +243,10 @@ export async function listClients({ studio, clientsSection }: Pick<SalesContext,
   return [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
+/** The tag ids as the screen sent them — bounded, blanks and repeats dropped. */
+const cleanTagIds = (v: unknown): string[] =>
+  [...new Set((Array.isArray(v) ? v : []).map((x) => String(x ?? "").trim()).filter(Boolean))].slice(0, 30);
+
 export async function createClient(ctx: SalesContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
@@ -269,6 +273,10 @@ export async function createClient(ctx: SalesContext, body: Record<string, unkno
     logo: str(body?.logo, 400000),
     notes: str(body?.notes, 2000),
     contacts: cleanContacts(body?.contacts),
+    // HOW THE STUDIO GROUPS THIS CUSTOMER — ids into Administration's register.
+    // Not checked against it: a tag deleted afterwards stops resolving either
+    // way, so a write-time check would guard only the half that cannot happen.
+    tagIds: cleanTagIds(body?.tagIds),
     locations: cleanLocations(body?.locations),
     createdByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
@@ -302,6 +310,7 @@ export async function editClient(ctx: SalesContext, id: string, body: Record<str
   if (body?.logo !== undefined) patch.logo = str(body.logo, 400000);
   if (body?.contacts !== undefined) patch.contacts = cleanContacts(body.contacts);
   if (body?.locations !== undefined) patch.locations = cleanLocations(body.locations);
+  if (body?.tagIds !== undefined) patch.tagIds = cleanTagIds(body.tagIds);
 
   // AGREED RATES, CHECKED AGAINST THE CATALOGUE THEY NAME — and the catalogue
   // is read ONLY on a request that actually carries rates. Renaming a client or

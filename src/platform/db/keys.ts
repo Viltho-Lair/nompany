@@ -1340,7 +1340,7 @@ export const SECTION_COLLECTIONS = {
   // units and the numbering series went — because the studio record is read
   // on every request in the product and a library of two hundred codes would
   // be carried into all of them.
-  "administration-master": ["locations", "departments", "costCodeLibrary"],
+  "administration-master": ["locations", "departments", "costCodeLibrary", "clientTags"],
   // THE ENGINE'S TWO COLLECTIONS, and no more. A record type is a ROW, so a
   // collection per type would need a deploy per type — the thing runtime was
   // chosen to avoid. Instances are discriminated by `typeKey` inside

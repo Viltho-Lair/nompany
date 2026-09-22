@@ -76,6 +76,17 @@ export const ClientSchema = z.object({
    */
   rates: z.array(CustomerRateSchema).optional(),
 
+  /**
+   * HOW THIS STUDIO GROUPS THE PEOPLE IT SELLS TO (22/09/2026). Ids into
+   * Administration's client-tag register, never names — that is what lets a
+   * studio RENAME a tag without touching a single client, which is the whole
+   * point of the register being a register (modules/administration/clientTags).
+   *
+   * A tag that has been deleted simply stops resolving to a name. It is not
+   * swept off the clients carrying it, for the reason that file gives.
+   */
+  tagIds: z.array(z.string()).max(30).optional(),
+
   // LEGACY, pre-dating `contacts`. Nothing writes these any more; records made
   // before the list existed still carry them, and `clientContacts` reads either
   // shape so no screen has to know which era a client is from.

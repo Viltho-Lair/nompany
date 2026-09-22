@@ -869,3 +869,105 @@ export function couponProblem(
   if (coupon.perCustomerLimit != null && num(coupon.redeemedByCustomer) >= num(coupon.perCustomerLimit)) return "customer-limit";
   return "";
 }
+
+// ---- shapes to start from ---------------------------------------------------
+//
+// A PRESET IS A STARTING DRAFT, NOT A KIND OF OFFER. There is one offer type in
+// this product and one engine; these five are the arrangements of conditions
+// and tiers a shop asks for by name, filled in so nobody has to learn the
+// vocabulary to write the commonest offer in retail. Everything a preset sets
+// can be changed afterwards, and `promotionProblems` judges the result rather
+// than the preset it came from — so a preset cannot make an offer the engine
+// would not otherwise accept.
+
+export const PRESET_KEYS = ["buy-x-get-y", "percent-off", "spend-save", "bundle", "coupon-only"] as const;
+export type PresetKey = (typeof PRESET_KEYS)[number];
+
+/** The draft a preset starts from — merged over the empty offer, never over a saved one. */
+export function presetDraft(key: PresetKey): Partial<Omit<Promotion, "id" | "code">> {
+  switch (key) {
+    case "buy-x-get-y":
+      return {
+        applicationLevel: "line",
+        conditions: [{ type: "item_in_list", value: { itemIds: [] } }],
+        tiers: [{
+          thresholdType: "none",
+          thresholdValue: 0,
+          // THE FREE ONE IS THE CHEAPEST MATCHED, which is what a shop means by
+          // "buy two get one free" and what a customer expects; giving away the
+          // dearest is a different (and more expensive) offer.
+          benefits: [{ type: "buy_x_get_y", value: { buy: 2, get: 1 }, appliesTo: "cheapest_matched" }],
+        }],
+      };
+    case "percent-off":
+      return {
+        applicationLevel: "line",
+        conditions: [{ type: "category_in_list", value: { categories: [] } }],
+        tiers: [{
+          thresholdType: "none",
+          thresholdValue: 0,
+          benefits: [{ type: "percentage_off", value: { percent: 10 }, appliesTo: "matched_lines" }],
+        }],
+      };
+    case "spend-save":
+      // SPENDING IS THE WHOLE SALE'S, so this one is receipt-level — a ladder
+      // measured line by line would let one basket earn the top rung twice.
+      return {
+        applicationLevel: "receipt",
+        conditions: [],
+        tiers: [
+          { thresholdType: "amount", thresholdValue: 100, benefits: [{ type: "fixed_amount_off", value: { amount: 10 }, appliesTo: "matched_lines" }] },
+          { thresholdType: "amount", thresholdValue: 250, benefits: [{ type: "fixed_amount_off", value: { amount: 30 }, appliesTo: "matched_lines" }] },
+        ],
+      };
+    case "bundle":
+      return {
+        applicationLevel: "line",
+        conditions: [{ type: "item_in_list", value: { itemIds: [] } }],
+        tiers: [{
+          thresholdType: "quantity",
+          thresholdValue: 2,
+          benefits: [{ type: "fixed_price", value: { price: 0 }, appliesTo: "matched_lines" }],
+        }],
+      };
+    case "coupon-only":
+      return {
+        applicationLevel: "receipt",
+        requiresCoupon: true,
+        conditions: [],
+        tiers: [{
+          thresholdType: "none",
+          thresholdValue: 0,
+          benefits: [{ type: "percentage_off", value: { percent: 15 }, appliesTo: "matched_lines" }],
+        }],
+      };
+    default:
+      return {};
+  }
+}
+
+/** An offer with nothing decided — what the editor opens on. */
+export function emptyPromotion(startsAt: string): Omit<Promotion, "id" | "code"> {
+  return {
+    name: "",
+    status: "draft",
+    startsAt,
+    endsAt: null,
+    schedule: null,
+    tillIds: [],
+    channels: "pos",
+    eligibility: null,
+    applicationLevel: "line",
+    exclusive: false,
+    priority: 100,
+    maxDiscountAmount: null,
+    maxUsesTotal: null,
+    maxUsesPerCustomer: null,
+    maxUsesPerDay: null,
+    requiresManualSelection: false,
+    requiresCoupon: false,
+    campaignId: null,
+    conditions: [],
+    tiers: [],
+  };
+}

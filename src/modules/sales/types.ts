@@ -41,6 +41,10 @@ export type PosContext = ModuleContext & {
   returnsSection: Section;
   /** Where promotions, coupons and their redemptions are filed (22/09/2026). */
   promotionsSection: Section;
+  /** Procurement's suppliers, for their names. Null when the studio has no Procurement. */
+  vendorsSection: Section | null;
+  /** Administration's Master data, where the client-tag register lives. */
+  masterSection: Section | null;
   itemsSection: Section | null;
   stockSection: Section | null;
   /** CRM's client register, where a phone number registers a repeat customer. Null when CRM is off. */
