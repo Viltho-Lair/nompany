@@ -54,6 +54,28 @@ export const CampaignSchema = z.object({
   leadDeadlineHours: z.number().nullable().optional(),
   /** The page the campaign sends people to; the tagged link is built from it. */
   landingUrl: z.string().max(1000),
+  /**
+   * THE BRIEF (22/09/2026): who this is for, what it says to them, what it
+   * offers, and what would make it a success.
+   *
+   * ON THE CAMPAIGN, not a record of its own. A brief belongs to exactly one
+   * campaign, is read whenever the campaign is, and is four short pieces of
+   * text — the same argument that keeps an order's chases on the order. It is
+   * therefore governed by `marketing.campaigns.edit` and mints no right: a
+   * second right over one campaign's content would be free to disagree with
+   * the first about who works on it.
+   *
+   * OPTIONAL, because every campaign already written predates it, and a
+   * campaign without a brief is an ordinary state rather than a fault.
+   */
+  brief: z.object({
+    audience: z.string().max(1000),
+    message: z.string().max(2000),
+    offer: z.string().max(1000),
+    success: z.string().max(1000),
+    updatedAt: z.string().optional(),
+    updatedByCollaboratorId: z.string().max(60).optional(),
+  }).optional(),
   /** The campaign this one was cloned from, or "". */
   clonedFromId: z.string().max(60).optional(),
   createdByCollaboratorId: z.string(),

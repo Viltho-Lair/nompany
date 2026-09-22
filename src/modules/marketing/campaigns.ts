@@ -29,6 +29,7 @@ import { roundMoney } from "@/shared/money";
 import {
   CHANNELS, OBJECTIVES, campaignProblem, campaignEditable, campaignDeletable, moveProblem, utmSlug,
   landingUrlProblem, taggedLink, budgetSplit, attention, campaignFigures, isFinal, campaignResults,
+  cleanBrief, briefWritten, briefGaps,
 } from "./model";
 import { leadHours } from "@/modules/sales/leads";
 import { raiseLead, quotedTotalFor, ticketValue } from "@/modules/sales/sales";
@@ -126,12 +127,16 @@ async function people(ctx: MarketingContext): Promise<Person[]> {
  * through `moveCampaign`, the ladder's one door — routing a status through a
  * generic edit is the shape that once let a rejected change order approve itself.
  */
-function campaignFields(body: Record<string, unknown>, currency: unknown, canAssign: boolean) {
+function campaignFields(body: Record<string, unknown>, currency: unknown, canAssign: boolean, byId = "") {
   const out: Partial<Campaign> = {};
   const has = (k: string) => body?.[k] !== undefined;
   if (has("description")) out.description = str(body.description, 4000);
   if (has("objective")) out.objective = oneOf(OBJECTIVES, body.objective, "other");
   if (has("channels")) out.channels = channels(body.channels);
+  // THE BRIEF IS THE CAMPAIGN'S OWN CONTENT (22/09/2026): it arrives whole, is
+  // cleaned whole, and carries who last touched it — four boxes somebody typed
+  // in one sitting, not four independently versioned fields.
+  if (has("brief")) out.brief = { ...cleanBrief(body.brief), updatedAt: now(), updatedByCollaboratorId: byId };
   if (has("parentId")) out.parentId = str(body.parentId, 60);
   if (has("startOn")) out.startOn = day(body.startOn);
   if (has("endOn")) out.endOn = day(body.endOn);
@@ -205,6 +210,13 @@ export async function listCampaigns(ctx: MarketingContext) {
     ownerAlias: aliasOf.get(c.ownerCollaboratorId) || "",
     results: got.get(c.id) || { leads: 0, won: 0, wonValue: 0 },
     createdByAlias: aliasOf.get(c.createdByCollaboratorId) || "",
+    // THE BRIEF, AND WHETHER ANYBODY HAS WRITTEN ONE (22/09/2026). Both, because
+    // "no brief" and "a brief with the last question unanswered" send a person
+    // to different places, and only the screen knows which it is showing.
+    brief: cleanBrief(c.brief),
+    briefWritten: briefWritten(c.brief),
+    briefGaps: briefGaps(c.brief),
+    briefBy: aliasOf.get(String(c.brief?.updatedByCollaboratorId || "")) || "",
   })).sort((a, b) =>
     Number(isFinal(a.status)) - Number(isFinal(b.status))
     || (a.startOn || "9999").localeCompare(b.startOn || "9999")
@@ -237,7 +249,7 @@ export async function createCampaign(ctx: MarketingContext, body: Record<string,
   if (denied) return denied;
   const name = str(body?.name, 200);
   if (!name) return { error: "name" };
-  const fields = campaignFields(body || {}, ctx.studio.currency, mayAssign(ctx));
+  const fields = campaignFields(body || {}, ctx.studio.currency, mayAssign(ctx), ctx.collaborator.id);
   const rows = await Campaigns.find(scope(ctx));
   const problem = await shapeProblem(ctx, fields, rows);
   if (problem) return { error: problem };
@@ -283,7 +295,7 @@ export async function editCampaign(ctx: MarketingContext, id: string, body: Reco
   const current = rows.find((c) => c.id === id);
   if (!current) return { error: "notfound" };
   if (!campaignEditable(current.status)) return { error: "campaign-final" };
-  const patch = campaignFields(body || {}, ctx.studio.currency, mayAssign(ctx));
+  const patch = campaignFields(body || {}, ctx.studio.currency, mayAssign(ctx), ctx.collaborator.id);
   if (body?.name !== undefined) {
     const name = str(body.name, 200);
     if (!name) return { error: "name" };

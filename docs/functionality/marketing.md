@@ -73,6 +73,19 @@ hours, and *Send a lead to Sales* raises a Sales ticket at Lead, assigned to nob
 campaign as its source. The card shows what the campaign brought in: its leads, deals won and
 won value, read from the Sales tickets that name it.
 
+**The brief** (2026-09-22): four questions on the campaign — who is it for, what are we saying to
+them, what are we offering, and what would make it a success. Four questions rather than one box,
+because a box gets a paragraph and a question gets an answer; the fourth is the one nobody writes
+unprompted, which is how a campaign ends up judged afterwards on whichever figure is to hand. It
+is written by whoever edits the campaign (`marketing.campaigns.edit`) and mints no right of its
+own — the brief IS the campaign's content. It records who last wrote it and when.
+
+**An unstarted brief is not a brief with four gaps.** A campaign nobody has briefed says *No brief
+yet*; one that has been started says how many questions are left. Nagging about a document nobody
+has begun would make every register read as behind on its first day. A brief is *written* when any
+one question is answered, and whitespace is not an answer. A long answer is cut to its limit
+rather than refused, so a pasted page loses its tail instead of the whole edit failing.
+
 **Needs attention**, judged by the server's date: a Planned campaign whose start date has passed,
 a running or paused one past its end date, and a Draft or Planned one starting within seven days.
 
@@ -98,7 +111,9 @@ actually knows. Until then it keeps saying, in words, that its figures are a pla
 The other twelve subsections of the plan, and everything the dashboard's plan needs from them:
 
 - **Planning & Calendar** is part-built (`marketing-calendar.md`): the calendar across channels,
-  with what starts, what ends and what collides. Not built there: plans by period, and briefs.
+  with what starts, what ends and what collides, and the brief per campaign (four questions, in
+  this file). Not built there: plans by period — a plan with its own objectives and budget, above
+  the campaigns that spend it.
 - **Budget & Spend** is built (`marketing-budget.md`): a bill and an expense name their campaign,
   and the screen reads them against the budget. Not built there: **committed** spend (a purchase
   order cannot name a campaign), spend over time, and alerts to anybody.

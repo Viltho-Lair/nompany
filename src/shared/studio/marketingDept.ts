@@ -24,6 +24,16 @@ type Strings = {
   filterAll: string;
   name: string;
   description: string;
+  /** The brief (22/09/2026): four questions rather than one empty box. */
+  briefHeading: string;
+  briefHint: string;
+  briefAudience: string;
+  briefMessage: string;
+  briefOffer: string;
+  briefSuccess: string;
+  briefNone: string;
+  briefLeft: (n: number) => string;
+  briefBy: (who: string) => string;
   objective: string;
   channelsLabel: string;
   parent: string;
@@ -150,6 +160,15 @@ const en: Strings = {
   filterAll: "All",
   name: "Name",
   description: "Description",
+  briefHeading: "The brief",
+  briefHint: "Four questions, so the campaign can be judged afterwards on what it set out to do.",
+  briefAudience: "Who is it for?",
+  briefMessage: "What are we saying to them?",
+  briefOffer: "What are we offering?",
+  briefSuccess: "What would make it a success?",
+  briefNone: "No brief yet",
+  briefLeft: (n) => (n === 1 ? "1 question unanswered" : `${n} questions unanswered`),
+  briefBy: (who) => (who ? `Written by ${who}` : "Written"),
   objective: "Objective",
   channelsLabel: "Channels",
   parent: "Part of",
@@ -272,6 +291,15 @@ const ar: Strings = {
   filterAll: "الكل",
   name: "الاسم",
   description: "الوصف",
+  briefHeading: "موجز الحملة",
+  briefHint: "أربعة أسئلة، ليُحكم على الحملة لاحقاً بما قصدته.",
+  briefAudience: "لمن هي موجّهة؟",
+  briefMessage: "ما الذي نقوله لهم؟",
+  briefOffer: "ما الذي نعرضه؟",
+  briefSuccess: "ما الذي يجعلها ناجحة؟",
+  briefNone: "لا يوجد موجز بعد",
+  briefLeft: (n) => `${n} سؤال بلا إجابة`,
+  briefBy: (who) => (who ? `كتبه ${who}` : "مكتوب"),
   objective: "الهدف",
   channelsLabel: "القنوات",
   parent: "جزء من",

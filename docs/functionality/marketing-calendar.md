@@ -51,9 +51,10 @@ campaigns catches up to it** — the calendar shows them and nothing else.
 
 ## Not built yet
 
-- **Plans and briefs**, the other half of the plan's "Planning & Calendar": a plan per period with
-  its own objectives and budget, and a brief per campaign (audience, message, assets). Only the
-  calendar half is built.
+- **Plans by period**, the remaining part of the plan's "Planning & Calendar": a plan for a month
+  or a quarter with its own objectives and budget, above the campaigns that spend it. The brief
+  per campaign is built and lives on the campaign (`marketing.md`); the calendar and the brief
+  are the two parts of this subsection that exist.
 - Nothing but campaigns is on it. Forms with closing dates, events and content deadlines are all
   invisible here.
 - No month or quarter view, and no printing or export.

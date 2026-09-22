@@ -95,5 +95,21 @@ ok("channels are counted per open campaign", f.byChannel[0].channel === "email" 
   && !f.byChannel.some((c) => c.channel === "print"));
 ok("an overrun counts as needing attention", f.needsAttention >= 1);
 
+// THE BRIEF (22/09/2026). The defects these guard: an object of four empty
+// strings reading as a written brief, so a register shows every campaign as
+// briefed; and an UNSTARTED brief being reported as one with four gaps, which
+// would nag about a document nobody has begun.
+console.log("\n== the brief");
+const empty = M.cleanBrief(undefined);
+ok("a missing brief cleans to four empty strings", empty.audience === "" && empty.message === "" && empty.offer === "" && empty.success === "");
+ok("...and is not a written brief", M.briefWritten(empty) === false && M.briefWritten(null) === false);
+ok("one answered question makes it written", M.briefWritten(M.cleanBrief({ audience: "Facilities managers" })) === true);
+ok("whitespace is not an answer", M.briefWritten(M.cleanBrief({ message: "   " })) === false);
+ok("an unstarted brief has no gaps to nag about", M.briefGaps(empty).length === 0);
+ok("a started one lists what is left", M.briefGaps(M.cleanBrief({ audience: "FMs", message: "Cheaper upkeep" })).join() === "offer,success");
+ok("a finished one has none", M.briefGaps(M.cleanBrief({ audience: "a", message: "b", offer: "c", success: "d" })).length === 0);
+ok("nonsense is not a brief", M.briefWritten(M.cleanBrief("a brief")) === false);
+ok("a long answer is cut rather than refused", M.cleanBrief({ message: "x".repeat(5000) }).message.length === 2000);
+
 console.log(`\n${fails ? `${fails} FAILED` : "all passed"}`);
 process.exit(fails ? 1 : 0);

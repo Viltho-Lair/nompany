@@ -90,11 +90,13 @@ export default function StudioCampaigns({ slug }) {
     expectedRevenue: blank(c.expectedRevenue), landingUrl: c.landingUrl, utmSource: c.utmSource, utmMedium: c.utmMedium,
     utmCampaign: c.utmCampaign, utmContent: c.utmContent, utmTerm: c.utmTerm, hasChildren: c.children > 0,
     leadDeadlineHours: blank(c.leadDeadlineHours),
+    brief: c.brief || { audience: "", message: "", offer: "", success: "" },
   } : {
     name: "", description: "", objective: "leads", channels: [], parentId: "", startOn: "", endOn: "",
     ownerCollaboratorId: "", budget: "", expectedLeads: "", expectedCustomers: "", expectedRevenue: "",
     landingUrl: "", utmSource: "", utmMedium: "", utmCampaign: "", utmContent: "", utmTerm: "", hasChildren: false,
     leadDeadlineHours: "",
+    brief: { audience: "", message: "", offer: "", success: "" },
   });
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
   const toggleChannel = (ch) => setForm((f) => ({
@@ -179,6 +181,14 @@ export default function StudioCampaigns({ slug }) {
                     <span className="font-600">{c.name}</span>
                     <Chip tone={STATUS_TONE[c.status] || STATUS_TONE.Draft}>{tr.status(c.status)}</Chip>
                     {c.attention && <Chip tone={ATTENTION_TONE}>{tr.attention(c.attention)}</Chip>}
+                    {/* AN UNBRIEFED CAMPAIGN IS VISIBLE WITHOUT OPENING IT, and
+                        a part-written brief says how much is left rather than
+                        reading as finished. Both are quiet greys: a missing
+                        brief is a gap, not a fault. */}
+                    {!c.briefWritten && <Chip tone="bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.briefNone}</Chip>}
+                    {c.briefWritten && c.briefGaps?.length > 0 && (
+                      <Chip tone="bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.briefLeft(c.briefGaps.length)}</Chip>
+                    )}
                   </p>
                   {c.parentName && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.subCampaignOf(c.parentName)}</p>}
                   {c.description && <p className="mt-1 max-w-prose whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{c.description}</p>}
@@ -307,6 +317,29 @@ export default function StudioCampaigns({ slug }) {
                 hint={tr.budgetHint(currency)} inputProps={{ min: 0, step: "any" }} />
               <Field label={tr.leadDeadline} type="number" value={form.leadDeadlineHours} onChange={set("leadDeadlineHours")}
                 hint={tr.leadDeadlineHint} inputProps={{ min: 1, max: 168, step: 1 }} />
+            </div>
+
+            {/* THE BRIEF — four questions rather than one box, because a box
+                gets a paragraph and a question gets an answer. The fourth is
+                the one nobody writes unprompted, which is why campaigns end up
+                judged afterwards on whatever figure is to hand. */}
+            <div>
+              <p className="text-sm font-600 text-slate-900 dark:text-white">{tr.briefHeading}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{tr.briefHint}</p>
+              <div className="mt-2 grid gap-4 sm:grid-cols-2">
+                <Field label={tr.briefAudience} as="textarea" value={form.brief.audience}
+                  onChange={(v) => setForm((f) => ({ ...f, brief: { ...f.brief, audience: v } }))}
+                  inputProps={{ maxLength: 1000 }} />
+                <Field label={tr.briefMessage} as="textarea" value={form.brief.message}
+                  onChange={(v) => setForm((f) => ({ ...f, brief: { ...f.brief, message: v } }))}
+                  inputProps={{ maxLength: 2000 }} />
+                <Field label={tr.briefOffer} as="textarea" value={form.brief.offer}
+                  onChange={(v) => setForm((f) => ({ ...f, brief: { ...f.brief, offer: v } }))}
+                  inputProps={{ maxLength: 1000 }} />
+                <Field label={tr.briefSuccess} as="textarea" value={form.brief.success}
+                  onChange={(v) => setForm((f) => ({ ...f, brief: { ...f.brief, success: v } }))}
+                  inputProps={{ maxLength: 1000 }} />
+              </div>
             </div>
 
             <div>

@@ -144,6 +144,42 @@ export function taggedLink(landingUrl: string, utm: Utm): string {
 /** Is this an address a tagged link may be built on? */
 export const landingUrlProblem = (v: string): string => (!v || taggedLink(v, {}) ? "" : "landing-url");
 
+/** A campaign's brief, cleaned. Every field optional; an empty brief is no brief. */
+export type Brief = { audience: string; message: string; offer: string; success: string };
+
+const BRIEF_LIMITS: Record<keyof Brief, number> = {
+  audience: 1000, message: 2000, offer: 1000, success: 1000,
+};
+
+/**
+ * WHAT A BRIEF IS, coerced. Four questions and nothing else: who it is for,
+ * what it says, what it offers, and what would count as having worked.
+ *
+ * FOUR RATHER THAN A FREE-TEXT BOX because a box gets a paragraph and a form
+ * gets an answer — and the fourth question is the one nobody writes down
+ * unprompted, which is why campaigns get judged afterwards on whatever figure
+ * happens to be to hand.
+ */
+export function cleanBrief(v: unknown): Brief {
+  const raw = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
+  const at = (k: keyof Brief) => String(raw[k] ?? "").trim().slice(0, BRIEF_LIMITS[k]);
+  return { audience: at("audience"), message: at("message"), offer: at("offer"), success: at("success") };
+}
+
+/** Has anybody actually written one? An object of four empty strings has not. */
+export const briefWritten = (b: Brief | null | undefined): boolean =>
+  Boolean(b && (b.audience || b.message || b.offer || b.success));
+
+/**
+ * WHAT IS STILL MISSING FROM IT, so a screen can ask for the one thing left
+ * rather than showing four empty boxes again. Empty when nothing is written at
+ * all — an unstarted brief is not a half-finished one.
+ */
+export function briefGaps(b: Brief | null | undefined): (keyof Brief)[] {
+  if (!briefWritten(b)) return [];
+  return (["audience", "message", "offer", "success"] as const).filter((k) => !b![k]);
+}
+
 type Budgeted = { id: string; parentId?: string; status: string; budget: number | null };
 
 /**
