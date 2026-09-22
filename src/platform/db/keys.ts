@@ -795,6 +795,9 @@ export const SECTION_DEFS = [
     // the studio's own brand files. It owns the asset records; the files
     // themselves are in Blob behind /api/media.
     { key: "marketing-content", name: "Content & brand assets" },
+    // PARTNERS, PR & INFLUENCERS (22/09/2026): who brings the studio work, and
+    // what the tag on their links actually brought in.
+    { key: "marketing-partners", name: "Partners & influencers" },
   ] },
 
   // THE FIRST OF TENDERING'S FIVE. The root was declared for ordering alone at
@@ -1154,6 +1157,7 @@ export const SECTION_COLLECTIONS = {
   // `marketingFormResponses`, filed under Forms.
   "marketing-events": ["marketingEvents"],
   "marketing-content": ["marketingAssets"],
+  "marketing-partners": ["marketingPartners"],
   // tendering. The register OWNS its records — unlike crm-sales-contracts,
   // which is a destination over somebody else's rows — so deleting the section
   // takes the tenders with it (invariant 11, children first).

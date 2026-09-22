@@ -233,6 +233,15 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     verbs: ["view", "export", "act"],
   },
   {
+    id: "marketing-partners-2026-09-22",
+    // Partners & influencers arrived (22/09/2026). A partner is measured by the
+    // tag on the links a CAMPAIGN publishes, so whoever works the campaigns
+    // works the register of who publishes them, verb for verb.
+    note: "Whoever works the campaigns works the partners who carry them",
+    from: "marketing.campaigns",
+    to: ["marketing.partners"],
+  },
+  {
     id: "marketing-content-2026-09-22",
     // Content & brand assets arrived (22/09/2026). The artwork is the campaign's
     // own work product, so whoever works the campaigns works the library that

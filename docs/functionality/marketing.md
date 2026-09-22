@@ -1,21 +1,37 @@
 # Marketing
 
 The eighteenth department (2026-09-19), from the owner's *Marketing Section — ERP Requirements
-& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Eight of the
-seventeen are built: Campaigns**, because the plan makes the campaign the parent of everything
-else, **Forms** (2026-09-19, `docs/functionality/forms.md`), **Budget & spend** (2026-09-21,
-`docs/functionality/marketing-budget.md`) **and Audiences & consent** (2026-09-22,
-`docs/functionality/audiences.md`), **and Planning & calendar** (2026-09-22,
-`docs/functionality/marketing-calendar.md`). A sub-section appears in the sidebar only when its
-screen exists (invariant 16), so the other twelve are not declared yet; they are listed at the end
-of this file.
+& Implementation Plan*: seventeen subsections behind one dashboard, in six phases.
+
+**Nine of the seventeen are built**, and this list is the count — a number without its
+members is how this file drifted before:
+
+1. **Campaigns** (2026-09-19, below), because the plan makes the campaign the parent of
+   everything else.
+2. **Forms** (2026-09-19, `forms.md`).
+3. **Budget & spend** (2026-09-21, `marketing-budget.md`).
+4. **Audiences & consent** (2026-09-22, `audiences.md`).
+5. **Planning & calendar** (2026-09-22, `marketing-calendar.md`) — the calendar, the brief
+   per campaign and plans by period.
+6. **Events & webinars** (2026-09-22, `events.md`).
+7. **Content & brand assets** (2026-09-22, `content-assets.md`).
+8. **Partners, PR & influencers** (2026-09-22, `partners.md`).
+9. **Research & feedback**, part-built through Forms: a survey is a form, and its scale
+   questions mean something since 2026-09-22 (`forms.md`).
+
+A sub-section appears in the sidebar only when its screen exists (invariant 16), so the
+rest are not declared yet; they are listed at the end of this file.
 
 Section keys: `marketing` (the dashboard), `marketing-campaigns` (the register, which owns
-the `marketingCampaigns` collection), `marketing-forms`, `marketing-budget` (which owns
-nothing — its costs are Finance's bills and expenses) and `marketing-audiences` (the consent
-ledger, `marketingConsents`). Code: `src/modules/marketing/` (`model.ts` holds the rules,
-pure and shared with the screen; `campaigns.ts` the service). `pricing.ts` in the same folder is
-the public site's price list and is not part of the department.
+`marketingCampaigns`), `marketing-forms` (`marketingForms`, `marketingFormResponses`),
+`marketing-budget` (which owns **nothing** — its costs are Finance's bills and expenses),
+`marketing-audiences` (the consent ledger, `marketingConsents`), `marketing-planning`
+(`marketingPlans`; the calendar itself owns nothing), `marketing-events`
+(`marketingEvents`; registrations are Forms' replies), `marketing-content`
+(`marketingAssets`; the files are in Blob) and `marketing-partners`
+(`marketingPartners`). Code: `src/modules/marketing/`, one pure rules file per subsection
+beside its service. `pricing.ts` in the same folder is the public site's price list and is
+not part of the department.
 
 ## Who may do what
 
@@ -26,6 +42,7 @@ the public site's price list and is not part of the department.
 | `marketing.campaigns.assign` | Choosing who owns a campaign (2026-09-19). Without it the owner is whoever raised the campaign. |
 | `marketing.budget.view` | Budget & spend (2026-09-21). View alone: setting a budget is editing the campaign, and filing a cost is editing the bill. |
 | `marketing.audiences.view/edit` | The consent ledger (2026-09-22). Edit adds an entry; nothing can be changed or removed, because the ledger is append-only. |
+| `marketing.partners.view/create/edit/delete` | Partners, PR & influencers (2026-09-22). It opens FIGURES derived from form replies, never a reply, a name or an address — those stay with `marketing.forms.view`. |
 | `marketing.content.view/create/edit/delete` | Content & brand assets (2026-09-22). Marking an asset as replaced by a newer version is an **edit**: the old file stays and stays readable. |
 | `marketing.events.view/create/edit/delete` | Events & webinars (2026-09-22). Marking who attended is an **edit**. It does NOT open the registrants: their names are form answers and answer to `marketing.forms.view`. |
 | `marketing.planning.view/create/edit/delete` | The calendar and the plans (2026-09-22). The CALENDAR is view alone — moving a campaign in time is editing that campaign — and the other three verbs write the plan for a period, which is this section's own record. Filing a campaign under a plan answers to `marketing.campaigns.edit`. |
@@ -195,7 +212,16 @@ The other twelve subsections of the plan, and everything the dashboard's plan ne
   rather than copied from them, so a replaced file is kept and stays readable. Not built there:
   no preview, no folders, tags or search, no approval, and nothing records where an asset was
   actually used.
-- **Journeys**, **Promotions & Loyalty**,
+- **Partners, PR & Influencers** is built (2026-09-22, `partners.md`): a partner owns the
+  `utm_source` on the links they publish, so what they brought is COUNTED from the form arrivals
+  carrying that tag — arrivals, leads, won deals and their value — and the tags arriving that no
+  partner holds are named. Not built there: nothing is sent to a partner, no commission or payout,
+  no split by campaign, and only FORM arrivals are counted.
+- **Promotions** are ALREADY BUILT, in Point of Sale (`promotions.md`), with a channel covering
+  online as well as the counter — Marketing must not grow a second one. What its **Promotions &
+  Loyalty** subsection would add is LOYALTY (points, tiers, rewards, member balances), which is
+  not built.
+- **Journeys**,
   **Research & Feedback**, **Partners, PR & Influencers**, **Reports & Attribution**.
 - On the dashboard: marketing-sourced revenue, ROI, cost per lead, CAC, the funnel, the budget
   line, geography and lead quality. The global filters, role presets and saved views.

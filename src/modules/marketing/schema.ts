@@ -214,6 +214,46 @@ export const MarketingAssetSchema = z.object({
 export type MarketingAsset = z.infer<typeof MarketingAssetSchema>;
 
 /**
+ * A PARTNER, AGENCY, INFLUENCER OR AFFILIATE (22/09/2026, ./partners). Filed
+ * under `marketing-partners`.
+ *
+ * `source` IS THE `utm_source` ON THE LINKS THEY PUBLISH, and it is
+ * what makes this a register worth keeping rather than an address book: a form
+ * reads the tag back when somebody arrives (./arrival), so what a partner
+ * brought is COUNTED rather than typed in. Two partners may not hold one tag —
+ * every arrival under it would count for both.
+ *
+ * THE FEE IS A NOTE, NOT AN AMOUNT. What a partner costs is a Finance bill
+ * naming the campaign, like every other cost in Marketing; a number here would
+ * be a second place the same money is recorded, free to disagree with the
+ * ledger.
+ */
+export const MarketingPartnerSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  name: z.string().max(200),
+  /** A PARTNER_KINDS token. */
+  kind: z.string().max(20),
+  /** Their own tag on the links they publish, folded lower-case, or "". */
+  source: z.string().max(120),
+  contactName: z.string().max(200),
+  email: z.string().max(200),
+  phone: z.string().max(60),
+  website: z.string().max(500),
+  /** What was agreed, in words — including what they are paid. */
+  terms: z.string().max(4000),
+  notes: z.string().max(4000),
+  /** Still working with them. A partner is kept when it ends, not deleted. */
+  active: z.boolean(),
+  ownerCollaboratorId: z.string().max(60),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type MarketingPartner = z.infer<typeof MarketingPartnerSchema>;
+
+/**
  * A FORM THE STUDIO BUILDS AND THE PUBLIC ANSWERS (19/09/2026, ./formsModel).
  * Filed under `marketing-forms`. `definition` is the questionnaire builder's
  * shape (pages of questions), cleaned by `cleanDefinition` on every write.

@@ -23,6 +23,8 @@ export type MarketingContext = ModuleContext & {
   eventsSection: Section;
   /** Content & brand assets (22/09/2026). It owns the records; the files are in Blob. */
   contentSection: Section;
+  /** Partners & influencers (22/09/2026). Measured by the tag on their links. */
+  partnersSection: Section;
   /** Sales' tickets and clients — where a lead is written, and what a campaign's results read. */
   ticketsSection: Section | null;
   clientsSection: Section | null;
@@ -44,4 +46,6 @@ export type MarketingContext = ModuleContext & {
   canManageEvents: boolean;
   canViewContent: boolean;
   canManageContent: boolean;
+  canViewPartners: boolean;
+  canManagePartners: boolean;
 };

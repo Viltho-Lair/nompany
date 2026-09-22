@@ -104,6 +104,7 @@ const SECTION_ICONS = {
   "marketing-planning": "calendar",
   "marketing-events": "calendar",
   "marketing-content": "file",
+  "marketing-partners": "group",
   "pos-till": "cash",
   "pos-sales": "invoice",
   "pos-shifts": "clock",

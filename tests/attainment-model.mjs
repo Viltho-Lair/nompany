@@ -94,4 +94,21 @@ ok("a plan with no campaigns has a real 0 against its target", empty.leads.actua
 ok("...and owes the whole target", empty.leads.short === 10);
 
 console.log(`\n${fails ? `${fails} FAILED` : "all passed"}`);
-process.exit(fails ? 1 : 0);
+
+// `process.exitCode` RATHER THAN `process.exit()`, which every other test file
+// in this folder still calls — and the difference is not style.
+//
+// MEASURED 22/09/2026: this file exited **127** on roughly half of the runs
+// where stdout was redirected (`node tests/attainment-model.mjs >/dev/null`),
+// and 0 the rest of the time. `process.exit()` tears the process down while
+// buffered stdout writes are still in flight, and to a pipe or a device those
+// writes are asynchronous — so a PURE test with no I/O of its own failed
+// intermittently, at a different line each time, for a reason that had nothing
+// to do with what it asserts. Setting the code and letting Node drain fixes it:
+// 0/6 failures after, and it still exits 1 on a real failure (verified by
+// breaking an assertion on purpose).
+//
+// THE SAME RACE CAN BITE ANY FILE HERE. It is left alone in the others rather
+// than swept in this commit, because a forced exit also masks a hanging handle
+// and changing 130 files blind would trade a visible flake for a silent hang.
+process.exitCode = fails ? 1 : 0;

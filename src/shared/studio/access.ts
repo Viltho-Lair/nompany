@@ -89,6 +89,7 @@ const areas: Record<Locale, Record<string, string>> = {
     "marketing.planning": "التخطيط والتقويم",
     "marketing.events": "الفعاليات والندوات",
     "marketing.content": "المحتوى وأصول العلامة",
+    "marketing.partners": "الشركاء والمؤثرون",
     "marketing.forms": "النماذج",
     "crmSales.pos": "الصندوق",
     "pos.sales": "المبيعات",

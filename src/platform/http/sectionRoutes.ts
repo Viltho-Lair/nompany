@@ -195,6 +195,7 @@ export const SECTION_BY_ROUTE: Record<string, string> = {
   "marketing/plans": "marketing-planning",
   "marketing/events": "marketing-events",
   "marketing/assets": "marketing-content",
+  "marketing/partners": "marketing-partners",
   "reports/builder": "reports",
   "reports/executive": "reports",
   "reports/export": "reports",

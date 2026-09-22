@@ -260,6 +260,13 @@ const OWN_AREAS = [
   // version is an EDIT of the library rather than a verb of its own: a version
   // is the asset's own content, and marking one as replaced is not a bigger
   // kind of delete — the old file stays and stays readable.
+  // PARTNERS, PR & INFLUENCERS (22/09/2026). What a partner BROUGHT is read
+  // from the form arrivals carrying their tag, so this right opens figures
+  // derived from form replies — but never a reply itself, and never anybody's
+  // name or address: the counts are the partner's own fact, the way an event's
+  // turnout is the event's.
+  { key: "marketing.partners", group: "Marketing", label: "Partners & influencers",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "marketing.content", group: "Marketing", label: "Content & brand assets",
     verbs: ["view", "create", "edit", "delete"] },
   { key: "marketing.events", group: "Marketing", label: "Events & webinars",
