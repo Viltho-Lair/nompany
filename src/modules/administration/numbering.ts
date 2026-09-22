@@ -68,6 +68,11 @@ export const SERIES: readonly Series[] = Object.freeze([
   { key: "posReceipt", prefix: "RCT", group: "Point of Sale", label: "POS receipts" },
   { key: "posShift", prefix: "SHF", group: "Point of Sale", label: "POS shifts" },
   { key: "posReturn", prefix: "RTN", group: "Point of Sale", label: "POS returns" },
+  // THE OFFERS A TILL PRICES WITH (22/09/2026), and the number is INTERNAL:
+  // staff and reports call an offer by it. What a customer types is a COUPON
+  // code, which is generated from an unambiguous alphabet rather than numbered,
+  // because a sequence would let anybody guess the next one.
+  { key: "posPromotion", prefix: "PRM", group: "Point of Sale", label: "POS promotions" },
   { key: "campaign", prefix: "CMP", group: "Marketing", label: "Campaigns" },
   { key: "requisition", prefix: "PR", group: "Procurement & Subcontracting", label: "Purchase requisitions" },
   { key: "rfq", prefix: "SRQ", group: "Procurement & Subcontracting", label: "Requests for quotation" },

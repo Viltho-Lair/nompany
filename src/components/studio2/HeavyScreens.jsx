@@ -122,6 +122,11 @@ export const StudioPosReturns = nextDynamic(
   () => import("@/components/studio2/StudioPosReturns"),
   { loading: () => <ScreenSkeleton /> },
 );
+// PROMOTIONS (22/09/2026), behind the same boundary for the same reason.
+export const StudioPosPromotions = nextDynamic(
+  () => import("@/components/studio2/StudioPosPromotions"),
+  { loading: () => <ScreenSkeleton /> },
+);
 
 export const ExecutiveBoard = nextDynamic(
   () => import("@/components/studio2/ExecutiveBoard"),

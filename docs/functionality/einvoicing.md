@@ -48,5 +48,10 @@ with the authority's id, QR and message. **The registry is empty.**
   until accepted; without an adapter, gating would stop the studio invoicing at all, so issuing
   is unchanged and the queue shows what is outstanding.
 - **No automatic retry** (a cron) and no printing of the returned QR on the invoice.
+- **A discount is not emitted as an allowance.** A till receipt records what an offer and what
+  the cashier took off, per line and per sale (`promotions.md`, `pos.md`); an invoice records no
+  discount at all. So when an adapter is written, mapping those onto UBL `AllowanceCharge` with
+  a net `TaxableAmount` is part of writing it — the owner's instruction, 22/09/2026: park it
+  here beside ZATCA until they say.
 - Countries other than Saudi Arabia and Jordan declare nothing yet, though
   `docs/progress.md`'s country research lists several that require e-invoicing.

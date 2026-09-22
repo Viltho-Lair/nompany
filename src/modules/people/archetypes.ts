@@ -230,8 +230,9 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       // its drawers, and manages the tills.
       ["crmSales.pos", "edit"],
       ["pos.dashboard", "view"], ["pos.sales", "view"], ["pos.shifts", "view"], ["pos.settings", "edit"],
-      // …and signs the returns (18/09/2026).
+      // …and signs the returns (18/09/2026), and writes the offers (22/09/2026).
       ["pos.returns", "edit"],
+      ["pos.promotions", "edit"],
       // FINDING CUSTOMERS IS WINNING WORK (19/09/2026). Every marketing title in
       // the role library — Marketing Manager, Digital Marketing Specialist,
       // Head of Marketing — resolves to this shape, so it runs the campaigns.
@@ -251,6 +252,10 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // something already committed, and Gate A pins that holding one does not
     // imply the other.
     extras: ["crmSales.quotations.lock", "engineeringDocs.rfq.convert", "crmSales.pos.discount", "crmSales.pos.closeShift", "pos.sales.export",
+      // CHOOSING AN OFFER AT THE TILL AND TAKING ONE OFF (22/09/2026) go with
+      // the right to change a price, which this shape already holds: all three
+      // decide what the customer pays.
+      "pos.promotions.applyManual", "pos.promotions.removeAuto",
       // HANDING OUT LEADS AND CAMPAIGNS (19/09/2026) is the manager's half of
       // this shape: a Sales Manager assigns leads, a Marketing Manager chooses
       // who owns a campaign.
@@ -357,6 +362,8 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["pos.sales", "view"], ["pos.shifts", "view"],
       // A SHIFT LEADER TAKES A RETURN AT THE COUNTER; a manager signs it.
       ["pos.returns", "edit"],
+      // …and sees which offers are running, without writing one (22/09/2026).
+      ["pos.promotions", "view"],
     ],
     extras: ["crmSales.pos.closeShift"],
   },

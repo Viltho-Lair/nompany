@@ -39,6 +39,8 @@ export type PosContext = ModuleContext & {
   posSection: Section;
   /** Where returns are filed. Falls back to the root while a studio awaits its planting. */
   returnsSection: Section;
+  /** Where promotions, coupons and their redemptions are filed (22/09/2026). */
+  promotionsSection: Section;
   itemsSection: Section | null;
   stockSection: Section | null;
   /** CRM's client register, where a phone number registers a repeat customer. Null when CRM is off. */

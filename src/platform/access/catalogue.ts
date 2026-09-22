@@ -355,6 +355,17 @@ const OWN_AREAS = [
   // same thing would be a second answer to "who approves this" (invariant 16).
   // No edit or delete: a return is decided, not rewritten.
   { key: "pos.returns", group: "Point of Sale", label: "Returns", verbs: ["view", "create"] },
+  // PROMOTIONS (22/09/2026). Writing an offer and working the till are
+  // different jobs, so the two acts a CASHIER performs are extras rather than
+  // verbs: choosing an offer the till does not apply by itself, and taking off
+  // one it did. No delete — an offer that has priced a sale is archived, or the
+  // receipts it wrote would name something the product no longer admits.
+  // Activating one above the studio's limit is an APPROVAL, not a right.
+  { key: "pos.promotions", group: "Point of Sale", label: "Promotions", verbs: ["view", "create", "edit"],
+    extra: [
+      { key: "applyManual", label: "Choose an offer at the till" },
+      { key: "removeAuto", label: "Take off an offer the till applied" },
+    ] },
   { key: "engineeringDocs.live", group: "Quotations", label: "Live view", verbs: ["view"] },
   { key: "engineeringDocs.settings", group: "Quotations", label: "Settings", verbs: ["view", "edit"] },
 

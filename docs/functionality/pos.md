@@ -314,7 +314,8 @@ picking.
   lookup and then a create, not one atomic step. Merging clients is not built either.
 - **No customer's purchase history on their CRM page yet** — the receipts name the client, and
   nothing reads that from CRM's side.
-- **Weighed items, promotions, loyalty**, and trade add-ons (drug tracking, prescriptions, age
+- **Weighed items and loyalty** (offers are their own section since 22/09/2026 —
+  `promotions.md`), and trade add-ons (drug tracking, prescriptions, age
   checks).
 - **Stock is not locked between the check and the write**: two tills selling the last unit at
   once can both succeed, and the ledger then reads below nought.

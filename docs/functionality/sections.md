@@ -21,8 +21,10 @@ ever called with `settings`). Because they are code rather than tenant data, sec
 Arabic studio wearing an English sidebar.
 
 **Point of Sale is the seventeenth department (17/09/2026)** — `pos`, with `pos-till`,
-`pos-sales`, `pos-shifts`, `pos-settings` and (18/09/2026) `pos-returns`. Its records stay filed
-under `crm-sales-pos`, now filed-only — except returns, which `pos-returns` owns (`posReturns`);
+`pos-sales`, `pos-shifts`, `pos-settings`, (18/09/2026) `pos-returns` and (22/09/2026)
+`pos-promotions`. Its records stay filed
+under `crm-sales-pos`, now filed-only — except returns, which `pos-returns` owns (`posReturns`),
+and the offers, which `pos-promotions` owns (`promotions.md`);
 `docs/functionality/pos.md` has the rest.
 
 **Marketing is the eighteenth department (19/09/2026)** — `marketing` (its dashboard) and

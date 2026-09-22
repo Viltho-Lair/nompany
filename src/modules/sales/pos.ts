@@ -145,7 +145,8 @@ export const posContext = moduleContext<PosContext>({
   // `crm-sales-pos`, unchanged; the root is where the counter is run from.
   root: "pos",
   // Returns own their rows under `pos-returns` (18/09/2026).
-  sub: { pos: "crm-sales-pos", returns: "pos-returns" },
+  // Returns and promotions each own their rows under their own key.
+  sub: { pos: "crm-sales-pos", returns: "pos-returns", promotions: "pos-promotions" },
   // INVENTORY'S, and therefore nullable: a studio with no Inventory has nothing
   // to sell, and the screen says so rather than failing.
   foreign: {

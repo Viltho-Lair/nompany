@@ -755,6 +755,11 @@ export const SECTION_DEFS = [
     // record of its own — asked for, signed by a manager, paid out — filed
     // where it is written. Its sales stay filed under `crm-sales-pos`.
     { key: "pos-returns", name: "Returns" },
+    // PROMOTIONS (22/09/2026). Owns its rows, like Returns: a promotion, its
+    // coupons, the redemptions they wrote and the log of who changed what are
+    // records of their own. What a promotion took off a SALE is frozen on the
+    // receipt beside the till's own discounts, never read back from here.
+    { key: "pos-promotions", name: "Promotions" },
   ] },
 
   // MARKETING IS ITS OWN DEPARTMENT — the owner, 19/09/2026, the eighteenth,
@@ -1122,6 +1127,10 @@ export const SECTION_COLLECTIONS = {
   // Returns against a till's sales (and, later, against invoices), owned by
   // the Returns screen's own section.
   "pos-returns": ["posReturns"],
+  // PROMOTIONS (22/09/2026): the offers themselves, the coupons that unlock
+  // one, every redemption (its own row because a coupon's limits are counted
+  // from them), and the change log an active offer writes on every edit.
+  "pos-promotions": ["posPromotions", "posCoupons", "posCouponRedemptions", "posPromotionLog"],
   // THE CAMPAIGN REGISTER OWNS ITS ROWS, born under its own section, so nothing
   // is filed anywhere else (19/09/2026).
   "marketing-campaigns": ["marketingCampaigns"],

@@ -72,6 +72,7 @@ const ar: SectionMap = {
   "pos-shifts": "سجل الورديات",
   "pos-settings": "الإعدادات",
   "pos-returns": "المرتجعات",
+  "pos-promotions": "العروض",
   "crm-sales-settings": "الإعدادات",
 
   // NEW ROOT, no children yet (see keys.ts) — declared for ordering alone.

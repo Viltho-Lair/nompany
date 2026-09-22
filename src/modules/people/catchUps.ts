@@ -105,6 +105,35 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     verbs: ["view", "create"],
   },
   {
+    id: "pos-promotions-2026-09-22",
+    // Promotions (22/09/2026). Whoever could see the till sees which offers
+    // are running; writing one is the till MANAGERS act, so it keys off the
+    // verb that already means "manages the counter".
+    note: "The till's people see the offers running on it",
+    from: "crmSales.pos",
+    to: ["pos.promotions"],
+    verbs: ["view"],
+  },
+  {
+    id: "pos-promotions-write-2026-09-22",
+    note: "The till's managers write the offers",
+    from: "crmSales.pos",
+    fromVerb: "edit",
+    to: ["pos.promotions"],
+    verbs: ["create", "edit"],
+  },
+  {
+    id: "pos-promotions-apply-2026-09-22",
+    // CHOOSING AN OFFER IS CHANGING WHAT THE CUSTOMER PAYS, so whoever already
+    // holds the right to change a price at the till holds these two — and a
+    // cashier who may not discount may not take one off either.
+    note: "Whoever may change a price at the till may choose or take off an offer",
+    from: "crmSales.pos",
+    fromVerb: "discount",
+    to: ["pos.promotions"],
+    verbs: ["applyManual", "removeAuto"],
+  },
+  {
     id: "hr-lifecycle-2026-09-17",
     // HR split into five sub-sections (17/09/2026) and the employment spine —
     // contracts, probation, notice, exit — arrived with them. Whoever already

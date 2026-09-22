@@ -172,6 +172,7 @@ export const SECTION_BY_ROUTE: Record<string, string> = {
   "pos/shifts": "pos-shifts",
   "pos/settings": "pos-settings",
   "pos/returns": "pos-returns",
+  "pos/promotions": "pos-promotions",
   "pos/customer": "pos",
   "pos/dashboard": "pos",
   "pos/export": "pos",
