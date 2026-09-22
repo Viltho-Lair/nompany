@@ -9,9 +9,10 @@ Tendering & Estimating, Projects, Engineering & Documents, Procurement & Subcont
 Inventory & Warehouse, Manufacturing & Production, Field Operations & Service, Logistics &
 Fleet, Assets & Equipment, Maintenance, Quality & HSE, Human Resources, Finance &
 Accounting, Reports & BI, Marketing. (**Marketing is the eighteenth, 19/09/2026** — the owner's
-Marketing plan has seventeen subsections; Campaigns, Forms and Budget & spend have screens, so only
-`marketing-campaigns`, `marketing-forms` and `marketing-budget` are declared and the rest join as
-their screens ship. **`marketing-budget` owns NO collection** — a cost is a Finance bill or expense
+Marketing plan has seventeen subsections; Campaigns, Forms, Budget & spend and Audiences & consent
+have screens, so only `marketing-campaigns`, `marketing-forms`, `marketing-budget` and
+`marketing-audiences` are declared and the rest join as their screens ship. **The consent ledger is
+APPEND-ONLY and its `value` is sealed** (`docs/functionality/audiences.md`). **`marketing-budget` owns NO collection** — a cost is a Finance bill or expense
 carrying a `campaignId`, read where Finance files it (`docs/functionality/marketing-budget.md`). Leads stay Sales tickets and Marketing reads
 them — `docs/functionality/marketing.md`. **Maintenance is the fifteenth, 11/09/2026**, decided with the
 owner — `docs/functionality/maintenance.md`. The equipment register stays under Assets.

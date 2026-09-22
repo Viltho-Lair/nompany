@@ -233,6 +233,10 @@ const OWN_AREAS = [
   // an edit verb here would be a second right over two others' acts. What this
   // decides is who may see what the company spends on its marketing.
   { key: "marketing.budget", group: "Marketing", label: "Budget & spend", verbs: ["view"] },
+  // AUDIENCES & CONSENT (21/09/2026). EDIT records a consent or a withdrawal by
+  // hand — the ledger is append-only, so there is no update and no delete: a
+  // consent somebody could erase is not evidence of anything.
+  { key: "marketing.audiences", group: "Marketing", label: "Audiences & consent", verbs: ["view", "edit"] },
   { key: "marketing.campaigns", group: "Marketing", label: "Campaigns",
     verbs: ["view", "create", "edit", "delete"],
     extra: [{ key: "assign", label: "Choose who owns a campaign" }] },

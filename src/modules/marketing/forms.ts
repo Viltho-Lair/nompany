@@ -18,6 +18,8 @@ import { repo } from "@/platform/db/repo";
 import { listSections } from "@/platform/db/sections";
 import { getStudioBySlug } from "@/modules/main/studios";
 import { raiseLead } from "@/modules/sales/sales";
+import { log } from "@/platform/http/observability";
+import { recordFormConsent } from "./audiences";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { putMedia, getMedia, deleteMedia } from "@/lib/media";
 import { cleanAnswers } from "@/lib/questionnaire";
@@ -322,6 +324,12 @@ export async function submitForm(slug: string, code: string, body: Record<string
   // is no submission to notice it, which is the cap's own job.)
   await releaseAbandoned({ studio, section, form, answers, kept });
 
+  // THE TICK IS RECORDED WHETHER OR NOT A LEAD IS RAISED (21/09/2026). A survey
+  // that makes no lead still asked for permission to hold somebody's address,
+  // and a consent recorded only where Sales happened to be switched on would be
+  // a ledger with holes in exactly the places nobody looks.
+  await consentFor({ studio, sections, form, settings, def, answers: kept, responseId: response.id });
+
   const action = actionFor(settings, kept);
   if (action) {
     try {
@@ -351,6 +359,49 @@ async function releaseAbandoned(
     await deleteMedia(mediaId).catch(() => {});
   }
   if (freed) await countStorage({ studio, section }, form.id, -freed);
+}
+
+/**
+ * WHAT THE PUBLIC AGREED TO, from the form's own consent question.
+ *
+ * THE EVIDENCE IS THE QUESTION'S TEXT AS IT STOOD WHEN THEY ANSWERED, copied
+ * rather than pointed at: a studio rewording its form next year must not
+ * silently rewrite what somebody consented to.
+ *
+ * NOTHING IS RECORDED WITHOUT A TICK. A form may carry a consent question that
+ * this person never reached (a branch), or left alone where it was optional —
+ * `answerProblem` has already refused a REQUIRED one that was skipped, so what
+ * arrives here unticked was genuinely optional and genuinely declined.
+ */
+async function consentFor(
+  { studio, sections, form, settings, def, answers, responseId }:
+  { studio: Found["studio"]; sections: Section[]; form: MarketingForm; settings: FormSettings;
+    def: FormDefinition; answers: Record<string, unknown>; responseId: string },
+) {
+  const audiences = sections.find((s) => s.key === "marketing-audiences");
+  if (!audiences || audiences.enabled === false) return;
+  const ticked = def.pages.flatMap((p) => p.questions).find((q) => q.type === "legal"
+    && String(answers[q.id] ?? "") === String((q.options || [])[0] ?? ""))
+    ;
+  if (!ticked) return;
+  const at = (id: string) => (id ? String(answers[id] ?? "").trim() : "");
+  const email = at(settings.leadFields.email);
+  const phone = at(settings.leadFields.phone);
+  if (!email && !phone) return;
+  try {
+    await recordFormConsent({ studio, section: audiences }, {
+      evidence: String(ticked.label || ""),
+      formId: form.id,
+      responseId,
+      email,
+      phone,
+    });
+  } catch (e) {
+    // The answer is stored and the consent is on it; a ledger row that failed
+    // to write is a gap somebody can close by hand, and a silent catch would
+    // hide that it ever happened.
+    log.error("[forms] consent not recorded", { formId: form.id, responseId, error: String(e) });
+  }
 }
 
 async function leadFor(

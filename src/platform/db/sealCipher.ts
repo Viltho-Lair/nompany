@@ -98,6 +98,10 @@ const BY_COLLECTION: Record<string, Set<string>> = {
   // email, what they want. Sealed WHOLE: the answers are one field, and nothing
   // queries inside them (responses are found by `formId`).
   marketingFormResponses: new Set(["answers"]),
+  // A CONSENT ROW IS AN EMAIL ADDRESS OR A TELEPHONE NUMBER belonging to a
+  // member of the public (21/09/2026). `evidence` is the studio's own wording
+  // and is left clear, so a ledger can be read without opening every row.
+  marketingConsents: new Set(["value"]),
 };
 
 export function isSealedField(collection: string, field: string): boolean {

@@ -152,6 +152,14 @@ and the campaign's deadline, and counts toward the campaign's results. The lead 
 raised by the person who built the form. The answer is stored first, so a lead that fails to raise
 never loses it. Sales switched off: no lead, and the switch is disabled in Settings.
 
+## What the consent tick now does
+
+Since 2026-09-22 a ticked consent question writes to the **consent ledger**
+(`docs/functionality/audiences.md`): the email and phone answers the form collected are recorded
+as allowed, with the question's own wording as the evidence and the form and response named. It is
+written whether or not the answer becomes a lead, and a studio with Audiences switched off simply
+records nothing.
+
 ## Sharing
 
 - **Link**, with a Copy button.
@@ -176,7 +184,7 @@ shape holds it at full, and existing roles that work campaigns catch up to it ve
 - The studio's own colour on the form; only its name and logo are shown.
 - Notifying somebody of each answer on a form that does not make leads.
 - A form's answers are kept for ever; no retention period or erasure request yet
-  (Audiences & Consent in the Marketing plan).
+  (Audiences & Consent in the Marketing plan, which now holds the consent ledger itself).
 - Duplicating a FORM (a question duplicates; a form does not), and saving a form as the studio's
   own template.
 - Choosing where "Other" appears on a multi-select, and branching on scales and numbers.

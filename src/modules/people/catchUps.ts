@@ -204,6 +204,16 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     verbs: ["view", "export", "act"],
   },
   {
+    id: "marketing-audiences-2026-09-21",
+    // The consent ledger arrived (21/09/2026). Whoever reads what the public
+    // answered on a form already reads these addresses — the ledger is the same
+    // people, gathered by address instead of by form.
+    note: "Whoever reads form answers reads the consent ledger",
+    from: "marketing.forms",
+    to: ["marketing.audiences"],
+    verbs: ["view"],
+  },
+  {
     id: "marketing-budget-2026-09-21",
     // Budget & Spend arrived in Marketing (21/09/2026). Whoever reads the
     // campaigns reads what they cost: the budget is already on the campaign

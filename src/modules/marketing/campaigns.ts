@@ -45,7 +45,10 @@ const QuotationRows = repo<Quotation>("quotations");
 
 export const marketingContext = moduleContext<MarketingContext>({
   root: "marketing",
-  sub: { campaigns: "marketing-campaigns", forms: "marketing-forms", budget: "marketing-budget" },
+  sub: {
+    campaigns: "marketing-campaigns", forms: "marketing-forms",
+    budget: "marketing-budget", audiences: "marketing-audiences",
+  },
   // SALES', for the leads a campaign sends and the deals they became. Foreign,
   // so a studio with Sales switched off simply has nowhere to send a lead.
   foreign: {
@@ -59,7 +62,7 @@ export const marketingContext = moduleContext<MarketingContext>({
     payables: ["finance-payables"],
     cash: ["finance-cash"],
   },
-  flags: ["campaigns", "forms", "budget"],
+  flags: ["campaigns", "forms", "budget", "audiences"],
 });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);

@@ -67,6 +67,44 @@ export type Campaign = z.infer<typeof CampaignSchema>;
  * Filed under `marketing-forms`. `definition` is the questionnaire builder's
  * shape (pages of questions), cleaned by `cleanDefinition` on every write.
  */
+/**
+ * ONE CONSENT EVENT (21/09/2026). APPEND-ONLY: a withdrawal is a NEW row, never
+ * an edit of the one that granted it, because a studio asked what it was
+ * entitled to do last July has to be able to answer — and a flag overwritten in
+ * June cannot. `modules/marketing/consent.ts` reads the ledger; the latest row
+ * for an address and channel is the state.
+ *
+ * `value` is SEALED at rest (invariant 18, platform/db/sealCipher): it is an
+ * email address or a telephone number belonging to a member of the public, and
+ * it is exactly what the rest of a client's details are sealed for.
+ */
+export const ConsentSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  /** "email" | "phone" — what kind of address `value` is. */
+  kind: z.string().max(10),
+  value: z.string().max(200),
+  channel: z.string().max(10),
+  state: z.string().max(10),
+  /** When it was decided, which is not when the row was written on an import. */
+  at: z.string(),
+  source: z.string().max(10),
+  /**
+   * THE WORDS THEY AGREED TO, copied from the form's own consent question at
+   * the moment it was answered. Not a pointer to the question: a studio editing
+   * its form next year must not silently rewrite what somebody consented to.
+   */
+  evidence: z.string().max(500),
+  /** Where it came from, for an audit: the form and the response, when it was a form. */
+  formId: z.string().max(60).optional(),
+  responseId: z.string().max(60).optional(),
+  byCollaboratorId: z.string().max(60).optional(),
+  note: z.string().max(500).optional(),
+  createdAt: z.string().optional(),
+});
+export type Consent = z.infer<typeof ConsentSchema>;
+
 export const MarketingFormSchema = z.object({
   id: z.string(),
   studioId: z.string(),

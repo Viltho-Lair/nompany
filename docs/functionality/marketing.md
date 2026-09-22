@@ -1,16 +1,18 @@
 # Marketing
 
 The eighteenth department (2026-09-19), from the owner's *Marketing Section — ERP Requirements
-& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Three of the
+& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Four of the
 seventeen are built: Campaigns**, because the plan makes the campaign the parent of everything
-else, **Forms** (2026-09-19, `docs/functionality/forms.md`) **and Budget & spend** (2026-09-21,
-`docs/functionality/marketing-budget.md`). A sub-section appears in the sidebar only when its
-screen exists (invariant 16), so the other fourteen are not declared yet; they are listed at the
-end of this file.
+else, **Forms** (2026-09-19, `docs/functionality/forms.md`), **Budget & spend** (2026-09-21,
+`docs/functionality/marketing-budget.md`) **and Audiences & consent** (2026-09-22,
+`docs/functionality/audiences.md`). A sub-section appears in the sidebar only when its screen
+exists (invariant 16), so the other thirteen are not declared yet; they are listed at the end of
+this file.
 
 Section keys: `marketing` (the dashboard), `marketing-campaigns` (the register, which owns
-the `marketingCampaigns` collection), `marketing-forms` and `marketing-budget` (which owns
-nothing — its costs are Finance's bills and expenses). Code: `src/modules/marketing/` (`model.ts` holds the rules,
+the `marketingCampaigns` collection), `marketing-forms`, `marketing-budget` (which owns
+nothing — its costs are Finance's bills and expenses) and `marketing-audiences` (the consent
+ledger, `marketingConsents`). Code: `src/modules/marketing/` (`model.ts` holds the rules,
 pure and shared with the screen; `campaigns.ts` the service). `pricing.ts` in the same folder is
 the public site's price list and is not part of the department.
 
@@ -22,6 +24,7 @@ the public site's price list and is not part of the department.
 | `marketing.campaigns.view/create/edit/delete` | The register. Moving a campaign along its ladder is **edit**; running it again (cloning) is **create**; sending a lead to Sales is **edit**. |
 | `marketing.campaigns.assign` | Choosing who owns a campaign (2026-09-19). Without it the owner is whoever raised the campaign. |
 | `marketing.budget.view` | Budget & spend (2026-09-21). View alone: setting a budget is editing the campaign, and filing a cost is editing the bill. |
+| `marketing.audiences.view/edit` | The consent ledger (2026-09-22). Edit adds an entry; nothing can be changed or removed, because the ledger is append-only. |
 
 The **winner-of-work** shape (Sales Manager, Marketing Manager, Digital Marketing Specialist and
 every other marketing title in the role library) holds both, the campaigns at full, and the assign
@@ -83,14 +86,17 @@ than what went out. Nothing on it is gated by the analytics tier.
 
 ## Not built yet
 
-The other fourteen subsections of the plan, and everything the dashboard's plan needs from them:
+The other thirteen subsections of the plan, and everything the dashboard's plan needs from them:
 
 - **Planning & Calendar** (plans by period, briefs, a view-only calendar across channels).
 - **Budget & Spend** is built (`marketing-budget.md`): a bill and an expense name their campaign,
   and the screen reads them against the budget. Not built there: **committed** spend (a purchase
   order cannot name a campaign), spend over time, and alerts to anybody.
-- **Audiences & Consent**: lists, segments, per-channel consent ledger, suppression, preference
-  centre, data-subject requests. Nothing records marketing consent yet.
+- **Audiences & Consent** is part-built (`audiences.md`): the consent ledger records what the
+  public ticked on a form, and what a studio records by hand, append-only and sealed at rest. Not
+  built there: lists and segments, per-channel consent (one tick cannot mean four channels), a
+  public preference centre, data-subject requests, and anything that CHECKS the ledger — nothing
+  sends, so nothing asks it yet.
 - **Email**, **Messaging** (SMS, WhatsApp, push), **Social Media**, **Paid Ads**: nothing is sent,
   posted or imported. The owner, 2026-09-19: companies use their own email and SMS
   tools for now, and nompany does not resell messaging or ad credits (both ledger rows, for later).

@@ -15,6 +15,8 @@ export type MarketingContext = ModuleContext & {
   formsSection: Section;
   /** Budget & spend (21/09/2026). Owns nothing: the costs are Finance's. */
   budgetSection: Section;
+  /** Audiences & consent (21/09/2026), which owns the consent ledger. */
+  audiencesSection: Section;
   /** Sales' tickets and clients — where a lead is written, and what a campaign's results read. */
   ticketsSection: Section | null;
   clientsSection: Section | null;
@@ -28,4 +30,6 @@ export type MarketingContext = ModuleContext & {
   canManageForms: boolean;
   canViewBudget: boolean;
   canManageBudget: boolean;
+  canViewAudiences: boolean;
+  canManageAudiences: boolean;
 };
