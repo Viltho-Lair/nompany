@@ -21,7 +21,7 @@ declared as clearance, the stricter reading).
 
 **An adapter** is one entry in `EINVOICE_ADAPTERS`, keyed by that name, meeting one contract:
 given the invoice, the studio and the rules, answer `submitted | accepted | rejected | failed`
-with the authority's id, QR and message. **The registry is empty.**
+with the authority's id, QR and message. **One entry: Jordan's** (below).
 
 ## What it does
 
@@ -37,6 +37,26 @@ with the authority's id, QR and message. **The registry is empty.**
 - **With an adapter**, Send (`finance.receivables.edit`) stores the answer on the invoice
   (`einvoice`: status, adapter, attempts, uuid, QR, message); a transport failure is kept as
   `failed` with its reason so a retry is the obvious next act.
+- **THE AUTHORITY'S QR PRINTS ITSELF** (22/09/2026) once one has accepted the invoice —
+  bottom of every printed sheet, opposite the reference barcode, drawn server-side by the
+  `qrcode` dependency this product already carries so the studio route's bundle pays nothing.
+  **It is not a layout element and deliberately so:** a fiscal QR is required by law rather
+  than chosen by design, exactly like the country's official values that print above it, so a
+  studio cannot lay out an invoice without one. A failure to draw is an absent QR rather than
+  a failed print. (`invoice.einvoiceQr` and `invoice.einvoiceUuid` exist as placeholders too,
+  for a studio that wants the payload as text.)
+- **A DAILY CRON SENDS AGAIN WHAT THE WIRE LOST** (`/api/cron/einvoice-retry`, 07:00) — and
+  **only** that. `failed` is a timeout or a 500 and the same document may well be accepted
+  next time; `rejected` is the authority having read it and said no, so sending it again is
+  the same rejection daily for ever — a studio hammering its own tax office with something a
+  person has to fix. `unsubmitted` is left alone too: an invoice nobody has tried to send is
+  waiting on a person's decision, and a cron that submitted them would be quietly deciding to
+  file a studio's taxes. **Six attempts and it stops**, because a failure that repeats has
+  stopped being bad luck; the count is on the queue row. The job runs as each studio's own
+  OWNER — `asStudio` answers `forbidden` without a real collaborator, so a blank id would have
+  retried nothing while reporting a clean run. Once a day is coarse for a transport failure
+  and is what the platform allows; the Send button is the answer to anything urgent, which is
+  what makes this a safety net rather than the mechanism.
 
 ## Jordan (22/09/2026)
 
@@ -89,10 +109,15 @@ again. The queue shows them differently.
   sent at all — which is the gate keeping an unproven adapter out of somebody's books. What it
   needs to become trustworthy: a taxpayer's sandbox **Client-Id**, **Secret-Key** and **income
   source sequence**, and one accepted submission.
+- **CREDIT NOTES ARE HELD UNTIL A FIRST INVOICE IS ACCEPTED** — the owner's decision,
+  22/09/2026, and a deliberate hole rather than an oversight. A credit note would inherit
+  every assumption the invoice makes (`currencyID="JO"`, element order, the scheme
+  attributes, a 107-page guide read structurally rather than line by line), so writing it now
+  means writing the same mistake twice and fixing it twice. Until it exists a Jordanian studio
+  reports its sales and not its refunds, which OVER-declares output tax.
 - **Clearance does not gate issuing.** In a clearance country an invoice should not be valid
   until accepted; without an adapter, gating would stop the studio invoicing at all, so issuing
   is unchanged and the queue shows what is outstanding.
-- **No automatic retry** (a cron) and no printing of the returned QR on the invoice.
 - **A discount is not emitted as an allowance.** A till receipt records what an offer and what
   the cashier took off, per line and per sale (`promotions.md`, `pos.md`); an invoice records no
   discount at all. So when an adapter is written, mapping those onto UBL `AllowanceCharge` with

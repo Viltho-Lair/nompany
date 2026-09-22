@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 
 register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
 
-const { einvoiceStatusOf, needsAction, adapterFor, EINVOICE_ADAPTERS } = await import("../src/modules/finance/einvoice.ts");
+const { einvoiceStatusOf, needsAction, adapterFor, EINVOICE_ADAPTERS, shouldRetry, MAX_RETRY_ATTEMPTS } = await import("../src/modules/finance/einvoice.ts");
 const { studioEInvoiceRules } = await import("../src/shared/compliance/rules.ts");
 
 let fails = 0;
@@ -42,6 +42,30 @@ ok("nothing is required where the country requires nothing", einvoiceStatusOf(is
 ok("an accepted invoice needs nothing more",
   !needsAction(einvoiceStatusOf({ ...issued, einvoice: { status: "accepted" } }, SA)));
 ok("a rejected one does", needsAction(einvoiceStatusOf({ ...issued, einvoice: { status: "rejected" } }, SA)));
+
+console.log("\n== what a scheduled retry sends again, and what it leaves alone");
+// THE DISTINCTION THE WHOLE CRON RESTS ON. `failed` is the WIRE — a timeout,
+// a 500 — and the same document may well be accepted next time. `rejected` is
+// the AUTHORITY having read the document and said no, so sending it again is
+// the same rejection, daily, for ever: a studio hammering its own tax office
+// with something a person has to fix.
+ok("a transport failure is sent again", shouldRetry({ state: "failed", attempts: 1 }) === true);
+ok("AN AUTHORITY'S REJECTION IS NOT", shouldRetry({ state: "rejected", attempts: 1 }) === false);
+// And the subtler half: an invoice nobody has tried to send is waiting on a
+// PERSON, not on the network. A cron that submitted these would be quietly
+// deciding to file a studio's taxes for them.
+ok("an unsubmitted invoice is left for a person", shouldRetry({ state: "unsubmitted" }) === false);
+ok("so is one already accepted", shouldRetry({ state: "accepted", attempts: 1 }) === false);
+ok("and one still pending", shouldRetry({ state: "pending", attempts: 1 }) === false);
+
+// A CEILING, because a failure that repeats has stopped being bad luck.
+ok("a first failure is retried", shouldRetry({ state: "failed", attempts: 0 }) === true);
+ok("…and so is the fifth", shouldRetry({ state: "failed", attempts: 5 }) === true);
+ok("the sixth is where it stops", shouldRetry({ state: "failed", attempts: 6 }) === false);
+ok("…and it does not start again after", shouldRetry({ state: "failed", attempts: 99 }) === false);
+ok("the ceiling is six", MAX_RETRY_ATTEMPTS === 6, String(MAX_RETRY_ATTEMPTS));
+ok("a row with no attempts counted reads as none", shouldRetry({ state: "failed" }) === true);
+ok("a row that is nothing at all is not retried", shouldRetry({}) === false);
 
 console.log(fails ? `\neinvoice model: ${fails} FAILURES\n` : "\neinvoice model: all passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.

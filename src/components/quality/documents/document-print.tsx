@@ -29,6 +29,8 @@ type Ready = {
   document: StoredDocument;
   reference: string;
   watermark: "" | "DRAFT" | "CANCELLED";
+  /** The tax authority's QR, already drawn server-side. Empty until one accepts. */
+  einvoiceQr?: string;
   missing: string[];
 };
 type Payload =
@@ -169,10 +171,22 @@ export function DocumentPrint({
           {/* THE REFERENCE AS A BARCODE on every printed sheet, in the bottom
               corner inside the margin, so a return or a payment finds this
               document by scanning it (the owner, 18/09/2026). Print only: on
-              screen it sits in the toolbar above. The QR waits for the country
-              packages — docs/progress.md, Open decisions. */}
+              screen it sits in the toolbar above. */}
           {ready.reference && (
             <div className="print-barcode"><Barcode value={ready.reference} height={34} module={1.1} /></div>
+          )}
+          {/* THE TAX AUTHORITY'S QR (22/09/2026), beside the barcode and drawn
+              server-side. NOT a layout element and deliberately so: a fiscal QR
+              is required by law rather than chosen by design, exactly like the
+              country's official values that print above it — a studio cannot be
+              allowed to lay out a compliant invoice without it. It appears only
+              once an authority has accepted this invoice, so an unsubmitted one
+              prints exactly as it always did. */}
+          {ready.einvoiceQr && (
+            /* eslint-disable-next-line @next/next/no-img-element -- a data URI,
+               already sized, printed rather than laid out: next/image would add
+               an optimiser round trip for bytes that are already here. */
+            <img className="print-qr" src={ready.einvoiceQr} alt="" aria-hidden width={110} height={110} />
           )}
           <Editor
             key={`${language}:${ready.reference}`}

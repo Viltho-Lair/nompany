@@ -91,6 +91,37 @@ export function einvoiceStatusOf(
   return invoice.einvoice?.status || "unsubmitted";
 }
 
+/**
+ * HOW MANY TIMES THE WIRE IS GIVEN THE BENEFIT OF THE DOUBT before a repeated
+ * transport failure stops looking like bad luck and starts looking like a wrong
+ * endpoint or a dead credential.
+ */
+export const MAX_RETRY_ATTEMPTS = 6;
+
+/**
+ * WHETHER A SCHEDULED RUN SHOULD SEND THIS ONE AGAIN — the whole policy of the
+ * retry cron, pure, so it can be argued with without a studio.
+ *
+ * ONLY A TRANSPORT FAILURE. `failed` is the wire: a timeout, a 500, a name that
+ * would not resolve, and the same document sent again may well be accepted.
+ * `rejected` is the AUTHORITY having looked at the document and said no — the
+ * same document sent again is the same rejection, and sending it daily for ever
+ * is a studio hammering its own tax authority with something a person has to
+ * fix. It waits in the queue with the authority's own words on it instead.
+ *
+ * AND `unsubmitted` IS LEFT ALONE, which is the subtler half: an invoice nobody
+ * has tried to send is waiting on a person's decision rather than on the
+ * network, and a cron that started submitting them would be quietly deciding to
+ * file a studio's taxes for them.
+ */
+export function shouldRetry(
+  row: { state?: string; attempts?: number },
+  max: number = MAX_RETRY_ATTEMPTS,
+): boolean {
+  if (row?.state !== "failed") return false;
+  return (Number(row?.attempts) || 0) < max;
+}
+
 /** Whether an invoice in this state still needs somebody to act. */
 export const needsAction = (s: ReturnType<typeof einvoiceStatusOf>) =>
   s === "unsubmitted" || s === "pending" || s === "rejected" || s === "failed";

@@ -22,6 +22,7 @@ import { repo } from "@/platform/db/repo";
 import type { Section } from "@/platform/db/sections";
 import { updateStudio } from "@/modules/main/studios";
 import { documentsDict } from "@/shared/studio/documents";
+import QRCode from "qrcode";
 import { DOCS, REVISIONS, createDoc, saveContent, savePageSetup } from "./qualityDocs";
 import { SETUP_SNAPSHOT } from "./qualityDocRevisions";
 import { mergeValuesFor, resolveBlocks, bindSubject } from "./quality";
@@ -127,11 +128,28 @@ export async function printDocument(
   document.headerContent = fill(issued.headerContent);
   document.footerContent = fill(issued.footerContent);
 
+  // THE AUTHORITY'S QR, RENDERED ON THE SERVER. `qrcode` is a dependency this
+  // product already carries (two-factor, form links), and drawing it here keeps
+  // it out of the studio route's bundle — a printed page is the one surface
+  // that can afford a round trip and cannot afford thirty kilobytes.
+  //
+  // EMPTY UNTIL AN AUTHORITY ACCEPTS ONE, and empty for ever where none is
+  // required. A failure to draw is an absent QR rather than a failed print: an
+  // invoice that will not open is worse than one a studio must reprint.
+  const qrPayload = values["invoice.einvoiceQr"] || "";
+  let einvoiceQr = "";
+  if (qrPayload) {
+    try {
+      einvoiceQr = await QRCode.toDataURL(qrPayload, { margin: 0, width: 220, errorCorrectionLevel: "M" });
+    } catch { einvoiceQr = ""; }
+  }
+
   return {
     state: "ready",
     kind,
     language,
     templateId,
+    einvoiceQr,
     reference: values[kind === "invoice" ? "invoice.reference" : "quotation.number"] || "",
     watermark: recordWatermark(kind, values[statusKey]),
     missing: [...missing],

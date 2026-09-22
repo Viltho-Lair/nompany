@@ -1430,6 +1430,24 @@ html.dark { color-scheme: dark; }
   }
 }
 
+/* THE TAX AUTHORITY'S QR (22/09/2026), opposite the barcode. Same posture —
+   hidden on screen, fixed in print so it repeats on every sheet — and on the
+   START edge so the two never collide on a narrow page. It appears only once an
+   authority has accepted the invoice, so most documents print without it. */
+.print-qr { display: none; }
+@media print {
+  .print-qr {
+    display: block;
+    position: fixed;
+    bottom: 5mm;
+    inset-inline-start: 8mm;
+    z-index: 40;
+    background: #fff;
+    width: 22mm;
+    height: 22mm;
+  }
+}
+
 .print-watermark {
   position: fixed;
   inset: 0;

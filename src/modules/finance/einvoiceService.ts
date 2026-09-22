@@ -25,7 +25,18 @@ export async function einvoiceQueue(ctx: FinanceContext) {
   if (!rules) return { required: false as const };
   const invoices = await Invoices.find(cash(ctx));
   const queue = invoices
-    .map((inv) => ({ id: inv.id, reference: inv.reference, issueDate: inv.issueDate, clientName: inv.clientName, state: einvoiceStatusOf(inv, rules), message: inv.einvoice?.message || "" }))
+    .map((inv) => ({
+      id: inv.id,
+      reference: inv.reference,
+      issueDate: inv.issueDate,
+      clientName: inv.clientName,
+      state: einvoiceStatusOf(inv, rules),
+      message: inv.einvoice?.message || "",
+      // HOW OFTEN THIS HAS BEEN TRIED. The retry cron stops at a ceiling, and
+      // somebody reading the queue asks the same question of a row that keeps
+      // failing — one number answers both.
+      attempts: inv.einvoice?.attempts || 0,
+    }))
     .filter((r) => needsAction(r.state))
     .sort((a, b) => String(a.issueDate || "").localeCompare(String(b.issueDate || "")));
   return {

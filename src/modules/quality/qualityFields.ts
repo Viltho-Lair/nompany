@@ -364,6 +364,16 @@ STATIC_FIELDS.push(
     ["invoice.status", "Status", "status"],
     ["invoice.notes", "Notes", "notes"],
     ["invoice.currency", "Currency", "currency"],
+    // WHAT THE TAX AUTHORITY GAVE BACK when it accepted this invoice
+    // (22/09/2026). Dotted into the stored e-invoice state; empty until one is
+    // accepted, and empty for ever in a country that requires nothing.
+    //
+    // THE QR IS NOT PLACED BY A LAYOUT. It is printed automatically, like the
+    // country's official values, because it is required by law rather than
+    // chosen by design — see components/quality/documents/document-print. The
+    // placeholder exists so a studio that WANTS the payload as text can have it.
+    ["invoice.einvoiceQr", "E-invoice QR", "einvoice.qr"],
+    ["invoice.einvoiceUuid", "E-invoice number", "einvoice.uuid"],
   ].map(([key, label, path]) => ({
     key, label, path, kind: "scalar",
     group: "Finance", department: "finance", subject: "invoice",
