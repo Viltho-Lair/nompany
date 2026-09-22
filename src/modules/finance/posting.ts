@@ -12,7 +12,7 @@
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
   postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
-  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, postTaxReturn, postTaxPayment, postZakatProvision, postZakatPayment, postYearEnd, postClaim, postClaimPayment, postAdvance, postAdvanceReturn, postDeferral, postRecognition, postLease, postLeaseMonth, postAllocation, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
+  postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, postTaxReturn, postTaxPayment, postZakatProvision, postZakatPayment, postYearEnd, postClaim, postClaimPayment, postAdvance, postAdvanceReturn, postDeferral, postRecognition, postLease, postLeaseMonth, postAllocation, postShift, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
 import type { PostOptions } from "./ledger";
@@ -57,6 +57,7 @@ export async function postDocument(
   }
 
   switch (kind) {
+    case "pos-shift": return postShift(ctx, documentId, options);
     case "invoice": return postInvoice(ctx, documentId, options);
     case "credit-note": return postCreditNote(ctx, documentId, options);
     case "expense": return postExpense(ctx, documentId, options);

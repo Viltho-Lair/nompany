@@ -46,6 +46,10 @@ export type FinanceContext = ModuleContext & {
   sheetsSection: Section | null;
   /** HR's employee section, where a payroll run lives. Null on a studio with no HR. */
   hrEmployeesSection: Section | null;
+  /** The till's shifts and receipts, read to post a shift at close. Null without POS. */
+  posSection: Section | null;
+  /** Where a till return is filed — the refunds a shift paid out. */
+  posReturnsSection: Section | null;
   /** Procurement's supplier register, which the payment hold reads. Null on a studio with no Procurement. */
   vendorsSection: Section | null;
   /** Where a bill's approval is filed. */

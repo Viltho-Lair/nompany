@@ -36,7 +36,11 @@ import {
 } from "./depreciation";
 import type { CodeLine } from "./depreciation";
 import type { WithholdingRule } from "./withholding";
-import { roundMoney, toMinor, fromMinor } from "@/shared/money";
+import { roundMoney, roundSum, toMinor, fromMinor } from "@/shared/money";
+// THE TILL'S OWN ARITHMETIC, pure and shared: what a closed shift did, as
+// figures. Which ACCOUNT each lands in is this file's business and nothing
+// there knows a chart of accounts exists.
+import { shiftLedgerFigures, shiftHasLedgerEntry } from "@/modules/sales/posModel";
 import { closingLines } from "./statements";
 import {
   DEFERRED_REVENUE, PREPAID_EXPENSES, deferralLines, recognitionLines, monthsFrom, evenShares,
@@ -651,7 +655,9 @@ export const ENTRY_SOURCE_KINDS = [
   "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding",
   "tax-return", "tax-payment", "zakat-provision", "zakat-payment", "year-end",
   "claim", "claim-payment", "advance", "advance-return",
-  "deferral", "recognition", "lease", "lease-month", "allocation", "manual",
+  "deferral", "recognition", "lease", "lease-month", "allocation",
+  "pos-shift",
+  "manual",
 ] as const;
 
 export type EntrySourceKind = (typeof ENTRY_SOURCE_KINDS)[number];
@@ -896,6 +902,7 @@ const AR = "1100";       // Accounts Receivable
 const REVENUE = "4000";
 const VAT_PAYABLE = "2100";
 const VAT_RECOVERABLE = "1400";
+const CASH = "1000";     // the drawer itself — a till's cash never passes a bank
 const BANK = "1010";     // the default cash account a payment lands in / an
                          // expense leaves from. A studio with more than one bank
                          // account will want this configurable — noted for when
@@ -2199,5 +2206,157 @@ export async function postAllocation(ctx: FinanceContext, sourceId: string, opti
     memo: `Allocation ${a.period}: ${a.rule.name}`,
     source: { kind: "allocation", id: sourceId },
     lines: allocationLines(a.rule, a.rawSplit, a.natural, ctx.studio.currency),
+  }, options);
+}
+
+// ---- the till's own entry ---------------------------------------------------
+
+const PosShifts = repo<Row>("posShifts");
+const PosReturns = repo<Row>("posReturns");
+
+/**
+ * WHERE A TILL'S MONEY LANDS. Cash stays cash; a card or a transfer is money the
+ * bank owes the studio, so both land in the bank account — which is what the
+ * till's own report already assumes when it counts only `expectedCash` into the
+ * drawer.
+ */
+const POS_MONEY_CODE: Record<string, string> = { cash: CASH, card: BANK, transfer: BANK };
+
+/**
+ * ONE ENTRY PER SHIFT, WRITTEN WHEN THE DRAWER IS COUNTED.
+ *
+ * WHY AT CLOSE AND NOT PER SALE. A shop rings up hundreds of sales a day and
+ * the books want the day, not the queue — one entry a shift is the figure an
+ * accountant reconciles against the counted drawer, and it is the only moment
+ * the shift's own total is final. Per-sale entries would also multiply the
+ * journal by a factor nobody reads.
+ *
+ * WHAT IT POSTS: the money taken, split by where it landed; revenue at the net;
+ * and the tax. Refunds paid out of this shift are posted on the SAME entry and
+ * on their own lines — they reverse revenue and tax rather than netting into
+ * them, because "took 900 and refunded 100" and "took 800" are the same drawer
+ * and different trading, and only the first can be audited.
+ *
+ * WHAT IT DOES NOT POST, and this is a real gap rather than an omission: COST
+ * OF SALES. The sale already moved the stock and the movement carries its unit
+ * cost, so the figure is available — but NOTHING IN THIS PRODUCT EVER DEBITS
+ * INVENTORY. A goods receipt posts nothing, so 1200 has never been debited, and
+ * crediting it here would drive an asset account negative and report a margin
+ * against stock the books never bought. Cost of sales waits on goods receipts
+ * posting, which is its own change. `docs/functionality/pos.md` says so too.
+ *
+ * A SHIFT IS POSTED ONCE. `alreadyPosted` on the shift's own id, the same guard
+ * every other document gets; closing is the only caller and closing happens
+ * once, but the guard is what makes a re-run safe.
+ */
+export async function postShift(ctx: FinanceContext, shiftId: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  if (!ctx.posSection) return { error: "no-pos" };
+
+  const shift = (await PosShifts.find({ studio: ctx.studio, section: ctx.posSection }))
+    .find((s) => s.id === shiftId) as (Row & {
+      number?: string; status?: string; closedAt?: string; openedAt?: string;
+      report?: Parameters<typeof shiftLedgerFigures>[0];
+    }) | undefined;
+  if (!shift) return { error: "notfound" };
+  // AN OPEN DRAWER IS NOT A DAY'S TRADING YET. Its figures move with every
+  // sale, and an entry posted now is one the next scan makes wrong.
+  if (shift.status !== "Closed") return { error: "not-postable", status: String(shift.status || "") };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "pos-shift", shiftId)) return { error: "already-posted" };
+
+  // THE STORED REPORT IS THE FACT, not the receipts again. It was written when
+  // the drawer was counted and it is what the printed slip shows; deriving the
+  // entry from the sales a second time would be a second answer, free to
+  // disagree with the slip the moment either changes.
+  const report = shift.report;
+  if (!report) return { error: "no-report" };
+
+  // THE REFUNDS THIS SHIFT PAID OUT, with their own tax split — the report
+  // carries amounts by method and the reversal needs net and tax, which only
+  // the return records hold. A credit on an account left no drawer, so it is
+  // not this entry's business.
+  const returns = ctx.posReturnsSection
+    ? (await PosReturns.find({ studio: ctx.studio, section: ctx.posReturnsSection }, {
+      where: { refundShiftId: shiftId },
+    })) as (Row & { status?: string; source?: string; method?: string; subtotal?: number; vat?: number; total?: number })[]
+    : [];
+  const refunds = returns
+    // A RETURN AGAINST AN INVOICE IS NOT THIS ENTRY'S TO REVERSE. It drafts a
+    // CREDIT NOTE (`posReturns.completeReturn`), and the note posts its own
+    // reversal against Accounts Receivable — booking it here as well would
+    // reverse one sale twice. Only a return against a till RECEIPT belongs to
+    // the till's own entry.
+    //
+    // THE COST: the drawer paid that cash out and this entry does not mention
+    // it, so the shift's expected cash (which nets every refund, `shiftReport`)
+    // is lower than the cash this entry books. That is the two documents
+    // dividing one day correctly, not a discrepancy — and it is written down
+    // because a cash figure that disagrees with a counted drawer is exactly the
+    // thing somebody will otherwise report as a bug.
+    .filter((r) => (r.source || "receipt") === "receipt")
+    .filter((r) => r.status === "Approved" && r.method !== "credit")
+    .map((r) => ({
+      method: String(r.method || ""),
+      subtotal: Number(r.subtotal) || 0,
+      vat: Number(r.vat) || 0,
+      total: Number(r.total) || 0,
+    }));
+
+  const figures = shiftLedgerFigures(report, refunds);
+  // AN EMPTY DRAWER OPENED AND CLOSED IS NOT AN ENTRY.
+  if (!shiftHasLedgerEntry(figures)) return { error: "nothing-to-post" };
+
+  const codes = [...new Set([
+    REVENUE,
+    ...Object.keys(figures.moneyIn).map((m) => POS_MONEY_CODE[m] || BANK),
+    ...Object.keys(figures.moneyOut).map((m) => POS_MONEY_CODE[m] || BANK),
+    ...(figures.vat > 0 || figures.refundVat > 0 ? [VAT_PAYABLE] : []),
+  ])];
+  const { byCode, missing } = await codesToIds(ctx, codes);
+  if (missing.length) return { error: "chart", missing };
+
+  const lines: { accountId: unknown; debit?: number; credit?: number }[] = [];
+  // ONE LINE PER ACCOUNT rather than per method: two methods landing in the
+  // bank are one movement of the bank balance.
+  const byAccount = (amounts: Record<string, number>) => {
+    const out: Record<string, number> = {};
+    for (const [method, amount] of Object.entries(amounts)) {
+      if (!amount) continue;
+      const code = POS_MONEY_CODE[method] || BANK;
+      out[code] = roundSum((out[code] || 0) + amount);
+    }
+    return out;
+  };
+  for (const [code, amount] of Object.entries(byAccount(figures.moneyIn))) {
+    // A NEGATIVE DEBIT IS A CREDIT. A shift can give back more cash in change
+    // than it took in cash — said out loud, because the alternative is an entry
+    // that refuses to balance for an honest reason.
+    if (amount > 0) lines.push({ accountId: byCode.get(code), debit: amount });
+    else lines.push({ accountId: byCode.get(code), credit: -amount });
+  }
+  if (figures.revenue > 0) lines.push({ accountId: byCode.get(REVENUE), credit: figures.revenue });
+  if (figures.vat > 0) lines.push({ accountId: byCode.get(VAT_PAYABLE), credit: figures.vat });
+
+  // MONEY BACK OUT, on its own lines — a refund reverses revenue and tax
+  // rather than netting into them, because "took 900 and refunded 100" and
+  // "took 800" are the same drawer and different trading.
+  if (figures.refundNet > 0) lines.push({ accountId: byCode.get(REVENUE), debit: figures.refundNet });
+  if (figures.refundVat > 0) lines.push({ accountId: byCode.get(VAT_PAYABLE), debit: figures.refundVat });
+  for (const [code, amount] of Object.entries(byAccount(figures.moneyOut))) {
+    if (amount > 0) lines.push({ accountId: byCode.get(code), credit: amount });
+  }
+  return postEntry(ctx, {
+    // THE DAY THE DRAWER WAS COUNTED, not today: a shift closed at two in the
+    // morning belongs to the trading it recorded, and a late posting run must
+    // not move a day's takings into the next month.
+    date: String(shift.closedAt || shift.openedAt || "").slice(0, 10),
+    memo: `Till shift ${shift.number || ""}`.trim(),
+    source: { kind: "pos-shift", id: shiftId },
+    lines,
   }, options);
 }

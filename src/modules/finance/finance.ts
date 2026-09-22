@@ -114,6 +114,12 @@ export const financeContext = moduleContext<FinanceContext>({
   foreign: {
     projectsList: ["projects-list", "projects"], sheets: ["inventory-sheets", "inventory"],
     hrEmployees: ["hr-employees", "hr"],
+    // THE TILL'S SHIFTS AND SALES, and the returns paid out of them — read to
+    // post one entry per shift at close (22/09/2026). Filed under the POS keys
+    // they have always been filed under, so this is a read across a boundary
+    // exactly as payroll's is, not a move.
+    pos: ["crm-sales-pos", "pos"],
+    posReturns: ["pos-returns", "pos"],
     // PROCUREMENT'S SUPPLIER REGISTER, for the payment hold's paperwork check.
     // Foreign and nullable — the same line Projects declares for the same
     // register, falling back to Inventory for a studio that predates it.

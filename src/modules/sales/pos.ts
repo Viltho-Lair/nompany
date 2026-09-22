@@ -607,7 +607,38 @@ export async function closeShift(ctx: PosContext, id: string, body: Record<strin
   }));
   if (!closed) return { error: "notfound" as const };
   if (closed.status !== "Closed" || closed.closedByCollaboratorId !== ctx.collaborator.id) return { error: "closed" as const };
-  return { shift: closed, report };
+
+  // THE DAY'S TRADING REACHES THE BOOKS (22/09/2026). Until now a shop could
+  // sell all day, count its drawer and leave the ledger showing nothing —
+  // `pos.md` has named this gap since the section shipped.
+  //
+  // IT NEVER FAILS THE CLOSE. The drawer was counted; that happened, and the
+  // count is the fact the shift exists to record. If the ledger cannot take the
+  // entry — a chart missing an account, a locked period — the reason is
+  // RETURNED for the screen to show, not thrown away and not allowed to undo a
+  // close that already succeeded. The same posture `autoPost` argues for every
+  // other document, and the reason the answer is on the response rather than in
+  // a log: a silent log is how "the books are complete" becomes untrue quietly.
+  const posted = await postShiftToLedger(ctx, closed.id);
+  return { shift: closed, report, ledger: posted };
+}
+
+/**
+ * POST THE CLOSED SHIFT, with the studio's authority rather than the cashier's.
+ * Somebody closing a drawer has been authorised to close it; the accounts the
+ * entry touches were chosen by `postShift`, not by them, and asking a cashier
+ * for `finance.ledger.post` would leave the books complete only for studios
+ * whose till staff happen to hold ledger rights.
+ *
+ * A STUDIO WITH NO FINANCE POSTS NOTHING, and says so rather than failing: the
+ * ledger is a section a studio can be without.
+ */
+async function postShiftToLedger(ctx: PosContext, shiftId: string) {
+  const { financeContext } = await import("@/modules/finance/finance");
+  const { autoPost } = await import("@/modules/finance/posting");
+  const finance = await financeContext.asStudio(ctx.studio.id, ctx.collaborator.id);
+  if (finance.error) return { posted: false as const, reason: String(finance.error) };
+  return autoPost(finance, "pos-shift", shiftId);
 }
 
 // ---- selling ----------------------------------------------------------------

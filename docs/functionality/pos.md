@@ -290,14 +290,50 @@ basket with the server's own function, and refreshes when anybody else sells on 
 `tests/pos-model.mjs` covers the arithmetic; `tests/barcode-model.mjs` the scan and the batch
 picking.
 
+## The day's trading reaches the books (22/09/2026)
+
+**One entry per shift, written when the drawer is counted.** A shop rings up hundreds of sales a
+day and the books want the day, not the queue — and close is the only moment a shift's total is
+final. `finance/ledger.postShift`, dispatched as `pos-shift` like every other document, and
+posted through `autoPost` with the STUDIO's authority: somebody closing a drawer has been
+authorised to close it, and asking a cashier for `finance.ledger.post` would leave the books
+complete only for studios whose till staff hold ledger rights.
+
+**It posts from the STORED REPORT, not from the receipts again.** The report is the fact recorded
+at close and it is what the printed slip shows; a second derivation would be free to disagree
+with the slip. `shiftLedgerFigures` (`posModel`, pure) turns that report into figures and knows
+no account codes; `ledger.ts` maps figures to accounts and knows no tills.
+
+**What it posts:** money in by where it landed (cash to 1000, card and transfer to 1010 — a card
+payment is money the bank owes the studio), revenue at the net to 4000, tax to 2100. **Cash in is
+net of change**, which is what the drawer actually kept.
+
+**A refund reverses; it does not net.** Returns **against a till receipt** paid out of the shift
+are posted on the SAME entry and on their own lines — debit revenue and tax, credit the money that left. "Took 900 and
+refunded 100" and "took 800" are the same drawer and different trading, and only the first can be
+audited. The refund's own net/tax split comes from the return records, because the report carries
+amounts by method alone. A refund taken as a credit on an account left no drawer and is not this
+entry's business.
+
+**It never fails the close.** The drawer was counted; that happened. A chart missing an account
+or a locked period comes back as a reason on the response for the screen to show, and the close
+stands. **An empty drawer opened and closed posts nothing** and says so.
+
+**Posted once**, guarded on the shift's own id like every other document.
+
 ## Not built yet
 
 - **An invoice does not take stock out**: its item lines are what a return puts back, but raising
   or issuing the invoice moves nothing — a Documents client's goods leave through a sales order
   or a delivery, which the invoice does not name. So returning against an invoice ADDS stock
   whatever path it left by.
-- **A cash or card refund against an invoice posts nothing** to the books beyond the credit note;
-  the money out of the drawer is in the shift report only (the till has no ledger entry yet).
+- **A cash or card refund against an INVOICE is not in the shift's entry**, deliberately: it
+  drafts a credit note and the note posts its own reversal against Accounts Receivable, so
+  booking it at the till too would reverse one sale twice. The consequence is that the drawer's
+  expected cash (which nets every refund) is lower than the cash the shift's entry books, by
+  exactly those refunds. That is two documents dividing one day correctly — but nothing yet
+  posts the cash that actually left the drawer for one, so until the credit note is issued and
+  paid, that money is in the shift report alone.
 - **Voiding** a sale, and exchanges (a return and a sale as one act).
 - **A printed return slip.** (The people who answer are told on the Approvals page and the bell.)
 - **A credit note for a returned sale**: a return is not a tax document yet — in Saudi Arabia a
@@ -307,8 +343,11 @@ picking.
   off in Inventory).
 - **Two returns asked at the same moment for the same last unit** can both be recorded as
   waiting; the approval re-checks, so only one can be approved.
-- **The ledger**: a shift posts nothing to the books yet — no revenue, VAT, cash or cost of sales
-  entry. (Planned as one entry per shift.)
+- **Cost of sales.** A shift posts revenue, tax and money (above) and does NOT post what the
+  goods cost, because **nothing in this product ever debits Inventory** — a goods receipt posts
+  nothing, so account 1200 has never been debited, and crediting it here would drive an asset
+  negative and report a margin against stock the books never bought. It waits on goods receipts
+  posting, which is its own change.
 - **Sending the receipt by WhatsApp** as a PDF from the till's share menu; the server does not
   render a PDF. **The WhatsApp Business API is on hold.**
 - **Any country's fiscal layer**: no QR code, signature, counter chain or reporting to a tax

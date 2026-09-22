@@ -163,11 +163,29 @@ type Membership = { studio: StudioRef; collaborator: CollaboratorRef; access: Pe
 export type ModuleResolver<C> = {
   (user: unknown, slug: string): Promise<C | ContextError>;
   /**
-   * THE SAME CONTEXT, WITH THE STUDIO'S AUTHORITY rather than a caller's — for
-   * an approval finishing the record it approved (`modules/approvals/effects`),
-   * and nothing else. `collaboratorId` is who gave the last yes, so what the
-   * record writes (a stock movement, a credit note) still names a person.
-   * Built from the studio id, because the approvals engine has no slug to hand.
+   * THE SAME CONTEXT, WITH THE STUDIO'S AUTHORITY rather than a caller's —
+   * for a CONSEQUENCE of an act somebody was already authorised to perform.
+   * `collaboratorId` is who performed it, so what is written still names a
+   * person. Built from the studio id, because the engines that need this have
+   * no slug to hand.
+   *
+   * THE AUTHORITY IS THE ORIGINAL ACT'S. Somebody closing a till drawer has
+   * been authorised to close it; the accounts the resulting entry touches were
+   * chosen by `postShift` and not by them. Asking for the consequence's own
+   * right here would leave the books complete only for studios whose cashiers
+   * happen to hold ledger rights — the argument `finance/posting.autoPost`
+   * makes at length.
+   *
+   * USE IT ONLY WHERE THAT HOLDS. It is not a way around a permission; it is a
+   * way of not asking twice for one decision.
+   */
+  asStudio(studioId: string, collaboratorId: string): Promise<C | ContextError>;
+  /**
+   * THE APPROVALS ENGINE'S NAME FOR `asStudio` — an approval finishing the
+   * record it approved (`modules/approvals/effects`), where the collaborator
+   * is whoever gave the last yes. Kept because fifteen call sites read as what
+   * they are with this word, and renaming an authority path for a cosmetic gain
+   * is churn on the one path that must not be got wrong.
    */
   asApprover(studioId: string, collaboratorId: string): Promise<C | ContextError>;
 };
@@ -187,7 +205,7 @@ export function moduleContext<C extends ModuleContext = ModuleContext>(spec: Mod
     return build(context as unknown as Membership);
   } as ModuleResolver<C>;
 
-  resolve.asApprover = async (studioId: string, collaboratorId: string) => {
+  resolve.asStudio = async (studioId: string, collaboratorId: string) => {
     const studio = await getStudioById(studioId);
     if (!studio) return { error: "notfound" };
     const [collaborator, roles, sections] = await Promise.all([
@@ -204,6 +222,9 @@ export function moduleContext<C extends ModuleContext = ModuleContext>(spec: Mod
       sections,
     });
   };
+  // ONE IMPLEMENTATION, TWO NAMES — the approvals engine reads better with its
+  // own word, and an alias cannot drift from what it points at.
+  resolve.asApprover = resolve.asStudio;
 
   return resolve;
 

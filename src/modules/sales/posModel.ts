@@ -357,3 +357,74 @@ export function shiftReport(
 }
 
 export type ShiftReport = ReturnType<typeof shiftReport>;
+
+
+/** One return paid out of a drawer, as the ledger needs to read it. */
+export type ShiftRefund = { method: string; subtotal: number; vat: number; total: number };
+
+/**
+ * WHAT A CLOSED SHIFT DID, as figures a ledger entry is built from — money in
+ * by method, what was earned, what was taxed, and the same three for what was
+ * paid back.
+ *
+ * IT READS THE STORED REPORT, not the receipts again. The report is the fact
+ * recorded when the drawer was counted and it is what the printed slip shows;
+ * deriving the entry from the receipts a second time would be a second answer,
+ * free to disagree with the slip the moment either changes. This is the same
+ * rule `priceBasket` follows for a sale — one function, one figure.
+ *
+ * NO ACCOUNT CODES HERE. Which account cash lands in is the chart's business
+ * and the chart is Finance's; this file knows tills. The join is one map in
+ * `modules/finance/ledger`.
+ *
+ * MONEY IN IS NET OF CHANGE for cash and nothing else: change comes out of the
+ * drawer, and a card payment never gives any.
+ */
+export function shiftLedgerFigures(
+  report: {
+    byMethod?: readonly { method: string; amount: number }[];
+    cashTaken?: unknown;
+    subtotal?: unknown;
+    vat?: unknown;
+  } | null | undefined,
+  refunds: readonly ShiftRefund[] = [],
+) {
+  const moneyIn: Record<string, number> = {};
+  for (const m of report?.byMethod || []) {
+    const method = String(m?.method || "");
+    if (!method) continue;
+    moneyIn[method] = roundSum((moneyIn[method] || 0) + num(m?.amount));
+  }
+  // The report already took the change out for us, and it is the figure the
+  // drawer was counted against.
+  if ("cash" in moneyIn || num(report?.cashTaken) !== 0) moneyIn.cash = roundSum(num(report?.cashTaken));
+
+  const moneyOut: Record<string, number> = {};
+  for (const r of refunds) {
+    const method = String(r?.method || "");
+    if (!method) continue;
+    moneyOut[method] = roundSum((moneyOut[method] || 0) + num(r?.total));
+  }
+
+  return {
+    moneyIn,
+    moneyOut,
+    revenue: roundSum(num(report?.subtotal)),
+    vat: roundSum(num(report?.vat)),
+    refundNet: roundSum(refunds.reduce((s, r) => s + num(r?.subtotal), 0)),
+    refundVat: roundSum(refunds.reduce((s, r) => s + num(r?.vat), 0)),
+  };
+}
+
+export type ShiftLedgerFigures = ReturnType<typeof shiftLedgerFigures>;
+
+/**
+ * WHETHER THERE IS ANYTHING TO POST. An empty drawer opened and closed is a
+ * fact about the rota, not about the books — and a ledger entry with no lines
+ * fails the balance check for a reason that reads like a bug.
+ */
+export function shiftHasLedgerEntry(f: ShiftLedgerFigures): boolean {
+  return f.revenue !== 0 || f.vat !== 0 || f.refundNet !== 0 || f.refundVat !== 0
+    || Object.values(f.moneyIn).some((v) => v !== 0)
+    || Object.values(f.moneyOut).some((v) => v !== 0);
+}

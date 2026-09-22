@@ -38,5 +38,10 @@ export const PUT = route(spec, async (pos) => {
   if (!pos.body.id) return { error: "missing" };
   const result = await closeShift(pos, String(pos.body.id), pos.body);
   if (refused(result)) return result;
-  return { ok: true, shift: result.shift, report: result.report };
+  // WHETHER THE DAY REACHED THE BOOKS, said out loud. The close succeeded
+  // either way — a chart missing an account must not stop a drawer being
+  // counted — so the only way anybody learns the entry did not post is if this
+  // travels with the answer. A silent log is how "the books are complete"
+  // becomes untrue quietly.
+  return { ok: true, shift: result.shift, report: result.report, ledger: result.ledger };
 });
