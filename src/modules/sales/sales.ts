@@ -20,8 +20,9 @@ import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS, DEFAULT_LIVE_COLUMNS, cleanLiveColumns, normaliseProbability } from "./tickets";
-import { stageProblem, stagePatch, stageDef } from "./pipeline";
+import { stageProblem, stagePatch, stageDef, isWon, isClosed } from "./pipeline";
 import { leadState, leadDueAt, ticketVisible, assignProblem, assignPatch } from "./leads";
+import { scoreLead } from "./scoring";
 import { notifyCollaboratorIds, notifyHolders } from "@/modules/people/holders";
 import { NOTIFY } from "@/platform/notify/notifications";
 import { cleanRates } from "@/shared/pricing";
@@ -578,6 +579,10 @@ export async function listTickets(ctx: Pick<SalesContext,
     campaignRows(studio, ctx.campaignsSection),
   ]);
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
+  // WHAT EACH COMPANY HAS DONE BEFORE, counted ONCE for the whole list rather
+  // than per lead: scoring asks it of every row, and a per-row scan would be
+  // the ticket list squared on a studio with a thousand deals.
+  const history = leadHistory(tickets);
   const campaignNameById = Object.fromEntries(campaigns.map((c) => [c.id, campaignLabel(c)]));
   // AN UNASSIGNED LEAD IS THE MANAGER'S QUEUE, hidden from everybody who cannot
   // assign it (./leads, the owner's rule).
@@ -586,7 +591,7 @@ export async function listTickets(ctx: Pick<SalesContext,
   return [...tickets]
     .filter((t) => ticketVisible(t, canAssign))
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-    .map((t) => composeTicket(t, { nameById, rfqs, quotations, approvals, projects, campaignNameById, at }));
+    .map((t) => composeTicket(t, { nameById, rfqs, quotations, approvals, projects, campaignNameById, at, history }));
 }
 
 // WHAT A BOARD'S TICKET ACTUALLY IS — the stored row plus its client's name and
@@ -594,9 +599,31 @@ export async function listTickets(ctx: Pick<SalesContext,
 // pointing at it. Extracted so there is ONE copy: the list builds every row
 // through it, and ticketById builds one, which is what makes patching a single
 // row on the client safe rather than a way to blank four columns.
+/**
+ * WHAT EACH CLIENT HAS ALREADY DONE, for scoring: deals won, and deals open
+ * right now. Derived from the tickets the list has read anyway — a lead is
+ * scored on the studio's own history with that company, and reading it again
+ * per row would be the same answer bought many times.
+ */
+function leadHistory(tickets: readonly SalesTicket[]) {
+  const out: Record<string, { wonBefore: number; openDeals: number }> = {};
+  for (const t of tickets) {
+    const id = String(t.clientId || "");
+    if (!id) continue;
+    const row = out[id] || { wonBefore: 0, openDeals: 0 };
+    // A LEAD IS NOT AN OPEN DEAL WITH ITSELF: counting every waiting lead as
+    // "somebody is already talking to them" would give every second lead from
+    // one company half the returning points for the first one's existence.
+    if (isWon(t.status || "")) row.wonBefore += 1;
+    else if (!isClosed(t.status || "") && (t.status || "") !== "Lead") row.openDeals += 1;
+    out[id] = row;
+  }
+  return out;
+}
+
 function composeTicket(
   t: SalesTicket,
-  { nameById, rfqs, quotations, approvals, projects, campaignNameById, at }: {
+  { nameById, rfqs, quotations, approvals, projects, campaignNameById, at, history = {} }: {
     nameById: Record<string, string>;
     rfqs: Rfq[];
     quotations: Quotation[];
@@ -604,6 +631,7 @@ function composeTicket(
     projects: Project[];
     campaignNameById: Record<string, string>;
     at: string;
+    history?: Record<string, { wonBefore: number; openDeals: number }>;
   },
 ): TicketView {
   const { quotedValue, ...rest } = ticketSummary(t, rfqs, quotations, approvals, projects);
@@ -615,6 +643,12 @@ function composeTicket(
     campaignName: t.campaignId ? campaignNameById[t.campaignId] || "" : "",
     leadState: leadState(t, at),
     leadDueAt: leadDueAt(t),
+    // SCORED ONLY WHILE IT IS A LEAD. Past that stage a salesperson's own
+    // judgement (`probability`) is the better number, and a score sitting on a
+    // deal halfway to signature would be read as disagreeing with them.
+    lead: (t.status || "Lead") === "Lead"
+      ? scoreLead(t, { ...(history[String(t.clientId || "")] || {}), now: at })
+      : null,
   };
 }
 
@@ -643,7 +677,10 @@ export async function ticketById(ctx: SalesContext, id: string) {
 
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
   const campaignNameById = Object.fromEntries(campaigns.map((c) => [c.id, campaignLabel(c)]));
-  return composeTicket(ticket, { nameById, rfqs, quotations, approvals, projects, campaignNameById, at: new Date().toISOString() });
+  return composeTicket(ticket, {
+    nameById, rfqs, quotations, approvals, projects, campaignNameById,
+    at: new Date().toISOString(), history: leadHistory(await Tickets.find({ studio, section: ticketsSection })),
+  });
 }
 
 // ONE quotation, in full, for the Sales-side viewer. Sales may read the document

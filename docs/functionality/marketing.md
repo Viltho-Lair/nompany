@@ -102,9 +102,10 @@ The other thirteen subsections of the plan, and everything the dashboard's plan 
   tools for now, and nompany does not resell messaging or ad credits (both ledger rows, for later).
 - **Web, Forms & Landing Pages**: forms are built (`forms.md`). Not built: landing pages, visitor
   tracking with a consent banner, reading the UTM tags back when a visitor arrives.
-- **Leads & Scoring**: leads are Sales tickets (the owner, 2026-09-19) and campaigns send them
-  (`leads.md`). Not built: scoring, lifecycle stages beyond the pipeline's, lead enrichment and
-  duplicate merging.
+- **Leads & Scoring**: leads are Sales tickets (the owner, 2026-09-19), campaigns send them, and
+  **scoring is built** (2026-09-22, `leads.md`): seven declared factors, a band, and the reasons
+  on the chip. Not built: lifecycle stages beyond the pipeline's, lead enrichment, duplicate
+  merging, and studio-set weights.
 - **Journeys**, **Content & Brand Assets**, **Events & Webinars**, **Promotions & Loyalty**,
   **Research & Feedback**, **Partners, PR & Influencers**, **Reports & Attribution**.
 - On the dashboard: marketing-sourced revenue, ROI, cost per lead, CAC, the funnel, the budget

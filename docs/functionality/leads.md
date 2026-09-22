@@ -27,6 +27,36 @@ why each was sent, and tells the assigners once for the batch (`customer-insight
 A ticket Sales raises itself is unchanged: it is assigned to the person who raised it, as every
 existing ticket already is.
 
+## Scoring: which to work first
+
+Built 2026-09-22 (`modules/sales/scoring.ts`, pure). The queue used to be ordered by how **late**
+a lead was, which answers "what have I neglected" rather than "what is worth doing first" — so a
+lead with a company, a budget and a telephone number sat behind one with an address and nothing
+else, because the second arrived an hour earlier.
+
+**A score out of 100, from seven declared factors**, each weighted and each carrying the reason it
+did or did not fire: can be reached (25, half for one route rather than two), a company rather
+than only a person (15), said what they can spend (15), has bought before (15, half where a deal
+is merely open), said what they want (10, half for an industry without services), told us about
+the job (10), came from a campaign (10). **Hot from 70, warm from 40, cold below.**
+
+**It shows its working.** The chip on each lead opens to list what earned points and — as usefully
+— what is **Not known**, so "cold" is a thing somebody can act on rather than a verdict. A manager
+who disagrees can see exactly which rule they disagree with.
+
+**It measures quality, not urgency.** Lateness is judged separately and still sorts first: a
+deadline the studio set for itself outranks how good a lead looks, or the promise is worthless.
+**A lead is scored only while it is at the Lead stage**; past that, the salesperson's own
+`probability` is the better number and two figures disagreeing on one row help nobody.
+
+**It predicts nothing.** There is no model and no training: these are facts the studio already
+holds, weighted by rules a person can read. Learning from closed history is a different feature
+with a different name.
+
+**A company's history counts once.** Deals won and deals open are read from the ticket list the
+screen has already loaded, so scoring costs no extra read — and a waiting lead is not treated as
+"a deal already open" with itself.
+
 ## Two fields
 
 - **Raised by** (`createdByCollaboratorId`): who created the ticket. Never changes.
@@ -71,7 +101,13 @@ and a role that can delete campaigns gains `marketing.campaigns.assign` (`catchU
 
 ## Not built yet
 
-- Assignment by rotation or by rules; only by hand, as decided.
+- Assignment by rotation or by rules; only by hand, as decided. Scoring orders the queue; it does
+  not choose who gets the lead.
+- The studio cannot change the scoring weights, add a factor or turn one off — they are declared
+  in code. Nor is a score stored or its history kept, so "was this lead hot when it arrived" has
+  no answer.
+- Nothing scores a lead on what happened AFTER it arrived (a reply, a visit, a second form), and
+  nothing decays a score as a lead ages.
 - A deadline for leads Sales raises itself; only campaign leads have one.
 - The daily notice runs once a day, so a lead a few hours late is shown on the screens at once but
   is only notified the next morning's run.

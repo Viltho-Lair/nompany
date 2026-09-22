@@ -19,6 +19,14 @@ type Strings = {
   sourceLocked: string;
   nobody: string;
   state: (s: string) => string;
+  /** Lead scoring (22/09/2026, modules/sales/scoring). */
+  band: (b: string) => string;
+  scoreOf: (n: number) => string;
+  factor: (key: string) => string;
+  why: string;
+  missing: string;
+  spread: (hot: number, warm: number, cold: number) => string;
+  sortedByScore: string;
   dueBy: (when: string) => string;
   deadline: string;
   refuse: Record<string, string>;
@@ -43,6 +51,21 @@ const en: Strings = {
     "late-action": "Past its deadline — nobody has acted",
   } as Record<string, string>)[s] || "",
   dueBy: (when) => `Deadline ${when}`,
+  band: (b) => ({ hot: "Hot", warm: "Warm", cold: "Cold" })[b] || b,
+  scoreOf: (n) => `${n} out of 100`,
+  factor: (key) => ({
+    reachable: "Can be reached",
+    company: "A company, not only a person",
+    budget: "Said what they can spend",
+    returning: "Has bought before",
+    wants: "Said what they want",
+    told: "Told us about the job",
+    campaign: "Came from a campaign",
+  })[key] || key,
+  why: "Why",
+  missing: "Not known",
+  spread: (hot, warm, cold) => `${hot} hot · ${warm} warm · ${cold} cold`,
+  sortedByScore: "Strongest first. A lead that is late is marked, whatever it scores.",
   deadline: "Deadline to act",
   refuse: {
     assignee: "That person is not in this studio.",
@@ -72,6 +95,21 @@ const ar: Strings = {
     "late-action": "تجاوز المهلة — لم يتصرف أحد",
   } as Record<string, string>)[s] || "",
   dueBy: (when) => `المهلة ${when}`,
+  band: (b) => ({ hot: "قوي", warm: "متوسط", cold: "ضعيف" })[b] || b,
+  scoreOf: (n) => `${n} من 100`,
+  factor: (key) => ({
+    reachable: "يمكن الوصول إليه",
+    company: "شركة وليس شخصاً فقط",
+    budget: "ذكر ميزانيته",
+    returning: "سبق أن اشترى",
+    wants: "ذكر ما يريده",
+    told: "شرح لنا العمل المطلوب",
+    campaign: "جاء من حملة",
+  })[key] || key,
+  why: "السبب",
+  missing: "غير معروف",
+  spread: (hot, warm, cold) => `${hot} قوي · ${warm} متوسط · ${cold} ضعيف`,
+  sortedByScore: "الأقوى أولاً، ويبقى المتأخر مُعلَّماً مهما كانت درجته.",
   deadline: "مهلة التصرف",
   refuse: {
     assignee: "هذا الشخص ليس في هذا الاستوديو.",

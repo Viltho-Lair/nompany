@@ -58,6 +58,7 @@ export type PosContext = ModuleContext & {
 // mistake `quotationApproved` exists to undo.
 
 import type { SalesTicket } from "./schema";
+import type { LeadScore } from "./scoring";
 
 /** What the RFQ column says, folded from the latest RFQ and its quotation. */
 export type RfqSummary = {
@@ -146,4 +147,10 @@ export type TicketView = SalesTicket & Omit<TicketSummary, "quotedValue"> & {
   /** `leadState` and `leadDueAt` from ./leads, judged by the server's clock. */
   leadState: string;
   leadDueAt: string;
+  /**
+   * HOW GOOD THIS LEAD LOOKS and why (./scoring), on a ticket still AT the Lead
+   * stage and null past it — after that a salesperson's own `probability` is the
+   * better number and two figures disagreeing on one row help nobody.
+   */
+  lead: LeadScore | null;
 };
