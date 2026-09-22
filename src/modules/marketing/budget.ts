@@ -132,19 +132,26 @@ export async function marketingBudget(ctx: MarketingContext) {
       || b.spent - a.spent
       || a.name.localeCompare(b.name));
 
-  const attributed = report.spent - report.unattributed;
+  // THE STUDIO'S TOTAL INCLUDES WHAT NAMES A DELETED CAMPAIGN, and that is the
+  // whole point of keeping `unattributed` rather than dropping it. Measured in
+  // the sandbox: deleting one campaign took the spent tile from 8,800 to 6,300
+  // while its bill sat untouched in Payables, so the screen reported the studio
+  // as having spent less BY TIDYING ITS REGISTER — the exact failure
+  // `projectCosting` wrote down as "money nobody filed properly is still the
+  // project's money". The per-campaign rows cannot show it (it belongs to no
+  // campaign now), so the screen names it on its own line beneath the tiles.
   return {
     currency: base,
     asOf: new Date().toISOString().slice(0, 10),
     campaigns: rows,
     totals: {
       budget: report.budget,
-      spent: attributed,
-      remaining: report.remaining === null ? null : report.budget - attributed,
+      spent: report.spent,
+      remaining: report.remaining,
       unattributed: report.unattributed,
       over: rows.filter((r) => r.over).length,
       nearly: rows.filter((r) => r.nearly).length,
-      ...campaignReturn(attributed, rows.reduce((s, r) => ({
+      ...campaignReturn(report.spent, rows.reduce((s, r) => ({
         leads: s.leads + r.leads, won: s.won + r.won, wonValue: s.wonValue + r.wonValue,
       }), { leads: 0, won: 0, wonValue: 0 })),
     },

@@ -73,7 +73,11 @@ export default function StudioMarketingBudget({ slug }) {
           <a className={btnGhost} href={`/${slug}/marketing-campaigns`}>{tr.openCampaigns}</a>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* FOUR ACROSS ONLY FROM `xl`, where the house pattern says `lg`. At
+            1024 the sidebar leaves ~430px for the row, and `StatTile` CLIPS its
+            value rather than ellipsing it — so a budget of 12,000.00 renders as
+            "12,000.0", which reads as a complete and wrong number. */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatTile label={tr.budget} value={cash(totals.budget)} accent="rgb(var(--chart-1))" />
           <StatTile label={tr.spent} value={cash(totals.spent)} accent="rgb(var(--chart-2))"
             sub={totals.remaining === null ? tr.noBudget : tr.ofBudget(pct(totals.budget ? totals.spent / totals.budget : 0))} />
