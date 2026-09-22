@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { Icon } from "@/components/studio2/icons";
-import { panel, h2, sub, microLabel, money, fmtDate, StatTile } from "@/components/studio2/ui";
+import { panel, h2, sub, microLabel, money, fmtDate, StatTile, tileRow } from "@/components/studio2/ui";
 import { mainDict } from "@/shared/studio/main";
 import { useStudioLocale as useLocale } from "@/components/studio2/locale";
 import { useReload } from "@/components/studio2/useReload";
@@ -90,7 +90,7 @@ export default function StudioMain({ slug }) {
             {tr.nothingShared}
           </p>
         ) : (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className={`mt-4 ${tileRow}`}>
             {tiles.map((tile) => (
               <StatTile key={tile.label} label={tile.label} value={tile.value} tone={tile.tone} href={href(tile.key)} />
             ))}

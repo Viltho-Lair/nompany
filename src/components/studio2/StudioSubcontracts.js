@@ -17,7 +17,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, money, fmtDate, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { supplierOptions, projectOptions, costCodeOptions, supplierName } from "@/components/studio2/pickerOptions";
 
@@ -163,7 +163,7 @@ export default function StudioSubcontracts({ slug }) {
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-4">
+                <div className={`mt-4 ${tileRow}`}>
                   <StatTile label={tr.packageValue} value={<span className="num">{money(pos.value)}</span>} />
                   <StatTile label={tr.certifiedToDate} value={<span className="num">{money(pos.certifiedToDate)}</span>}
                     sub={`${tr.remainingToCertify}: ${money(pos.remaining)}`}

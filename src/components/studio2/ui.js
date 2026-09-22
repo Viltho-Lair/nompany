@@ -332,6 +332,19 @@ export function Empty({ title, body }) {
 // A linked figure on a dashboard. `href` is optional — a tile for a section the
 // viewer cannot open still shows its figure, just without going anywhere.
 //
+/**
+ * THE ROW A SET OF TILES SITS IN — one class string, because ten screens wrote
+ * their own and they disagreed.
+ *
+ * FOUR ACROSS ONLY FROM `xl`, and never from `sm` or `lg`. The studio's sidebar
+ * takes ~285px, so at a 1024px window a four-column row leaves each tile about
+ * 110px — and `StatTile` CLIPS its value rather than ellipsing it, so a budget
+ * of 12,000.00 rendered as "12,000.0": a complete and WRONG number, which is
+ * worse than an obviously cut one. Measured in the sandbox, 22/09/2026. Two
+ * rows were worse still at `sm:grid-cols-4`, four across from 640px.
+ */
+export const tileRow = "grid gap-4 sm:grid-cols-2 xl:grid-cols-4";
+
 // The tile carries the dashboard's one spot of COLOUR: a full-height accent rail
 // in a chart-ramp hue, injected by StatRow so a KPI row reads as a set instead of
 // four identical grey boxes (which is the "basic and ugly" the plain label+number

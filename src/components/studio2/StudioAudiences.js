@@ -12,7 +12,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { panel, h2, sub, btn, btnGhost, Dialog, fmtDate, StatTile } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, Dialog, fmtDate, StatTile, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { audiencesDict } from "@/shared/studio/audiences";
 
@@ -93,7 +93,7 @@ export default function StudioAudiences({ slug }) {
           )}
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className={`mt-4 ${tileRow}`}>
           <StatTile label={tr.subjects} value={String(totals.subjects || 0)} accent="rgb(var(--chart-1))" />
           <StatTile label={tr.emailAllowed} value={String(totals.emailGiven || 0)} accent="rgb(var(--chart-2))"
             sub={`${totals.emailWithdrawn || 0} · ${tr.emailStopped}`} />

@@ -9,7 +9,7 @@
 // see LockedBody for why that split is where the boundary belongs.
 
 import { Children, cloneElement, isValidElement } from "react";
-import { panel, StatTile, WidgetTitle } from "@/components/studio2/ui";
+import { panel, StatTile, WidgetTitle, tileRow } from "@/components/studio2/ui";
 // The one part of this file that needs the reader's language, and therefore a
 // client — kept out of here so the rest stays server-renderable.
 import LockedBody from "@/components/dashboard/LockedBody";
@@ -46,7 +46,7 @@ export function StatRow({ children, className = "" }) {
       : child,
   );
   return (
-    <div className={`dash-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-4 ${className}`}>
+    <div className={`dash-stagger ${tileRow} ${className}`}>
       {tinted}
     </div>
   );

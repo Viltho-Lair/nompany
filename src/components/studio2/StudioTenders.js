@@ -21,7 +21,7 @@ import { tenderingDict } from "@/shared/studio/tendering";
 import { statusLabel } from "@/shared/studio/statuses";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money, fmtDate, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import {
@@ -329,7 +329,7 @@ export default function StudioTenders({ slug, view = "", initial, initialError =
           screen, so the four tiles showed twice, once on each; the register page
           is the list. */}
       {view !== "tendering-register" && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={tileRow}>
           <StatTile label={tr.tenders} value={<span className="num">{live.length}</span>} sub={tr.nOpenTenders(live.length)} />
           <StatTile label={tr.closingSoon} value={<span className="num">{closingSoon}</span>}
             tone={closingSoon > 0 ? "text-amber-700 dark:text-amber-300" : ""} accent="rgb(var(--chart-2))" />

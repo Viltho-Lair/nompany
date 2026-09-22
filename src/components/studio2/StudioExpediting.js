@@ -14,7 +14,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, Empty, Dialog, StatTile, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, Empty, Dialog, StatTile, fmtDate, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 
 function refusal(tr, token) {
@@ -88,7 +88,7 @@ export default function StudioExpediting({ slug }) {
         <p className={sub}>{tr.expeditingSub}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className={tileRow}>
         <StatTile label={tr.lateCount} value={<span className="num">{view.late}</span>}
           tone={view.late > 0 ? "text-rose-600 dark:text-rose-300" : ""} />
         <StatTile label={tr.dueSoonCount} value={<span className="num">{view.dueSoon}</span>}

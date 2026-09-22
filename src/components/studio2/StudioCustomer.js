@@ -20,7 +20,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict } from "@/shared/studio/sales";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money, fmtDate, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 
@@ -175,7 +175,7 @@ export default function StudioCustomer({ slug, clientId }) {
           A tile computed from records they cannot open would leak exactly what
           the gate exists to hide, so a missing right removes the tile rather
           than showing a zero. */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={tileRow}>
         {may.deals && (
           <>
             <StatTile label={tr.wonValue} value={money(deals.wonValue)} />

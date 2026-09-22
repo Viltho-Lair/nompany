@@ -18,7 +18,7 @@ import { posDict } from "@/shared/studio/pos";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Field } from "@/components/fields/Field";
-import { panel, th, btn, btnGhost, btnRow, Dialog, money, fmtDateTime, StatTile } from "@/components/studio2/ui";
+import { panel, th, btn, btnGhost, btnRow, Dialog, money, fmtDateTime, StatTile, tileRow } from "@/components/studio2/ui";
 import { StatRow } from "@/components/dashboard";
 import { PRINT_CSS, Receipt, PeriodPicker, usePosPeriod, rangeQuery } from "@/components/studio2/posParts";
 
@@ -104,7 +104,7 @@ export default function StudioPosSales({ slug }) {
         <PeriodPicker tr={tr} value={period} />
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={tileRow}>
         <Field label={tr.search} type="search" hintOverlay hint={tr.searchHint} value={filters.q} onChange={set("q")} />
         <Field label={tr.till} as="select" value={filters.terminalIds} onChange={set("terminalIds")}
           options={[{ value: "", label: tr.all }, ...tills.map((t) => ({ value: t.id, label: t.name }))]} />

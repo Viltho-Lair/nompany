@@ -5,7 +5,7 @@ import { Field } from "@/components/fields/Field";
 import { payrollDict } from "@/shared/studio/payroll";
 import PayslipSheet from "@/components/studio2/PayslipSheet";
 import { useReload } from "@/components/studio2/useReload";
-import { panel, btn, btnGhost, btnRow, btnRowPrimary, th, money, Dialog, StatTile, Empty } from "@/components/studio2/ui";
+import { panel, btn, btnGhost, btnRow, btnRowPrimary, th, money, Dialog, StatTile, Empty, tileRow } from "@/components/studio2/ui";
 
 // PAYROLL — what people are paid, and the runs that pay them.
 //
@@ -262,7 +262,7 @@ export default function PayrollPanel({ slug, locale = "en" }) {
       </div>
 
       {/* ---- the summary ------------------------------------------------------ */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={tileRow}>
         <StatTile label={tr.lastRun} value={latest ? money(latest.totals?.net) : "—"}
           sub={latest ? `${monthLabel(latest.period, locale)} · ${tr.status(latest.status)}` : tr.noRunYet} />
         <StatTile label={tr.onPayroll} value={withPay.length}
