@@ -98,7 +98,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   posReturns: "PosReturn",
   posPromotions: "PosPromotion",
   posCoupons: "PosCoupon",
-  posCouponRedemptions: "PosCouponRedemption",
+  posRedemptions: "PosRedemption",
   posPromotionLog: "PosPromotionLogEntry",
   boqItems: "BoqItem",
   tenderRates: "TenderRate",

@@ -19,6 +19,8 @@ export const PRINT_CSS = `@media print {
   @page { size: 80mm auto; margin: 4mm; }
 }`;
 
+const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
 // THE SLIP, laid out for an 80 mm printer. It prints what the server stored —
 // never the basket — so a reprint reads exactly as the first.
 export function Receipt({ tr, receipt, studio, terms, tillName }) {
@@ -45,6 +47,15 @@ export function Receipt({ tr, receipt, studio, terms, tillName }) {
           <p className={line}><span>{l.count} × {money(l.price, cur)}</span><span>{money(l.gross ?? l.count * l.price, cur)}</span></p>
           {/* A LINE'S OWN DISCOUNT is printed on the line; the basket's share is
               printed once, below, as the customer was offered it. */}
+          {/* THE SHOP'S OFFERS, EACH BY NAME AND BEFORE THE CASHIER'S DISCOUNT,
+              because that is the order they were taken in. A customer reading
+              the slip can see which offer earned them what. */}
+          {(l.promotions || []).map((a, j) => (
+            <p key={`${a.promotionId}:${j}`} className={line}>
+              <span>{(locale === "ar" && a.promotionNameAr) || a.promotionName}</span>
+              <span>−{money(a.discount, cur)}</span>
+            </p>
+          ))}
           {l.lineDiscount > 0 && (
             <p className={line}>
               <span>{tr.discount}{l.discount?.kind === "percent" ? ` ${l.discount.value}%` : ""}</span>
@@ -52,6 +63,14 @@ export function Receipt({ tr, receipt, studio, terms, tillName }) {
             </p>
           )}
         </div>
+      ))}
+      {/* AN OFFER ON THE WHOLE SALE has no line to sit on, so it is named once
+          here — the same place the basket's own discount is printed. */}
+      {(receipt.promotions || []).filter((a) => !a.lineKey).map((a, i) => (
+        <p key={`${a.promotionId}:${i}`} className={line}>
+          <span>{(locale === "ar" && a.promotionNameAr) || a.promotionName}</span>
+          <span>−{money(a.discount, cur)}</span>
+        </p>
       ))}
       {receipt.basketDiscount > 0 && (
         <p className={line}>
@@ -71,7 +90,14 @@ export function Receipt({ tr, receipt, studio, terms, tillName }) {
         <p key={i} className={line}><span>{tr.paidBy(p.method)}{p.reference ? ` ${p.reference}` : ""}</span><span>{money(p.amount, cur)}</span></p>
       ))}
       {receipt.change > 0 && <p className={line}><span>{tr.change}</span><span>{money(receipt.change, cur)}</span></p>}
-      {receipt.discountTotal > 0 && <p className="mt-2 text-center font-bold">{tr.youSaved} {money(receipt.discountTotal, cur)} {cur}</p>}
+      {/* WHAT THEY SAVED IS EVERYTHING THEY SAVED — the shop's offers and the
+          cashier's discount together. The slip separates them above; this line
+          is the one figure the customer came for. */}
+      {(receipt.discountTotal > 0 || receipt.promotionDiscount > 0) && (
+        <p className="mt-2 text-center font-bold">
+          {tr.youSaved} {money(num(receipt.discountTotal) + num(receipt.promotionDiscount), cur)} {cur}
+        </p>
+      )}
       <p className="mt-3 text-center">{terms.footer || tr.thankYou}</p>
       {/* THE NUMBER AS A BARCODE, so a return finds this sale by scanning the slip. */}
       <div className="mt-2 flex justify-center"><Barcode value={receipt.number} height={36} module={1.2} /></div>

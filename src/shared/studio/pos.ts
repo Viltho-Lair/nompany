@@ -111,6 +111,28 @@ type Strings = {
   thisDevice: string;
   tillLimit: (n: number) => string;
 
+  // THE SHOP'S OWN OFFERS at the counter (22/09/2026). An offer's own name is
+  // what the studio typed and prints as typed; these are the words around it.
+  offers: string;
+  offersAction: string;
+  offersLead: string;
+  noOffersNow: string;
+  offerAuto: string;
+  offerManual: string;
+  offerApply: string;
+  offerRemove: string;
+  offerRestore: string;
+  offerSaves: (amount: string) => string;
+  couponCode: string;
+  couponHint: string;
+  couponApply: string;
+  couponNeedsCustomer: string;
+  couponOn: (name: string) => string;
+  offersChanged: string;
+  offersChangedLead: (was: string, next: string) => string;
+  sellAnyway: string;
+  couponReason: (reason: string) => string;
+
   refusal: (code: string, extra?: Record<string, unknown>) => string;
 };
 
@@ -215,6 +237,40 @@ const en: Strings = {
   thisDevice: "This device",
   tillLimit: (n) => (n === 1 ? "Your plan includes 1 till." : `Your plan includes ${n} tills.`),
 
+  offers: "Offers",
+  offersAction: "Offers",
+  offersLead: "What this basket earns, and the offers the cashier may choose.",
+  noOffersNow: "No offer applies to this basket right now.",
+  offerAuto: "Applied",
+  offerManual: "Choose",
+  offerApply: "Apply",
+  offerRemove: "Take off",
+  offerRestore: "Put back",
+  offerSaves: (amount) => `Saves ${amount}`,
+  couponCode: "Coupon code",
+  couponHint: "Type or scan the code on the voucher.",
+  couponApply: "Add coupon",
+  couponNeedsCustomer: "Take the customer's number first — a coupon is redeemed against a customer.",
+  couponOn: (name) => `Coupon accepted: ${name}`,
+  offersChanged: "The offers changed",
+  offersChangedLead: (was, next) => `The basket showed ${was} off and now earns ${next}. Check the total before selling.`,
+  sellAnyway: "Sell at the new total",
+  couponReason: (reason) => {
+    switch (reason) {
+      case "unknown-coupon": return "No coupon has that code.";
+      case "void": return "That coupon has been cancelled.";
+      case "expired": return "That coupon has expired.";
+      case "needs-customer": return "Take the customer's number first — a coupon is redeemed against a customer.";
+      case "not-yours": return "That coupon belongs to another customer.";
+      case "already-used": return "That coupon has already been used.";
+      case "used-up": return "That coupon has been used as often as it allows.";
+      case "customer-limit": return "This customer has used that coupon as often as it allows.";
+      case "not-live": return "The offer that coupon unlocks is not running.";
+      case "forbidden": return "You do not have permission to do that.";
+      default: return "That coupon cannot be used.";
+    }
+  },
+
   refusal: (code, x = {}) => {
     switch (code) {
       case "not-a-till": return "This device is not paired to a till.";
@@ -237,6 +293,9 @@ const en: Strings = {
       case "duplicate": return "Another till already has that name.";
       case "name": return "Give the till a name.";
       case "lines": return "The basket is empty.";
+      case "coupon": return `${String(x.code || "")}: ${en.couponReason(String(x.reason || ""))}`.trim();
+      case "coupon-taken": return `Coupon ${String(x.code || "")} was used a moment ago and cannot be used again.`;
+      case "promotions-changed": return "The offers on this basket changed while it was open. Check the total and sell again.";
       case "no-inventory": return "This studio has no Inventory to sell from.";
       case "forbidden": return "You do not have the right to do that.";
       default: return "That did not work. Try again.";
@@ -346,6 +405,40 @@ const ar: Strings = {
   thisDevice: "هذا الجهاز",
   tillLimit: (n) => (n === 1 ? "تشمل خطتك صندوقا واحدا." : `تشمل خطتك ${n} صناديق.`),
 
+  offers: "العروض",
+  offersAction: "العروض",
+  offersLead: "ما تستحقه هذه السلة، والعروض التي يختارها أمين الصندوق.",
+  noOffersNow: "لا ينطبق أي عرض على هذه السلة الآن.",
+  offerAuto: "مطبق",
+  offerManual: "اختيار",
+  offerApply: "تطبيق",
+  offerRemove: "إزالة",
+  offerRestore: "إرجاع",
+  offerSaves: (amount) => `يوفر ${amount}`,
+  couponCode: "رمز القسيمة",
+  couponHint: "اكتب الرمز المطبوع على القسيمة أو امسحه.",
+  couponApply: "إضافة قسيمة",
+  couponNeedsCustomer: "خذ رقم العميل أولا — تُصرف القسيمة باسم عميل.",
+  couponOn: (name) => `قُبلت القسيمة: ${name}`,
+  offersChanged: "تغيرت العروض",
+  offersChangedLead: (was, next) => `كانت السلة تظهر خصما قدره ${was} وأصبحت تستحق ${next}. راجع الإجمالي قبل البيع.`,
+  sellAnyway: "البيع بالإجمالي الجديد",
+  couponReason: (reason) => {
+    switch (reason) {
+      case "unknown-coupon": return "لا توجد قسيمة بهذا الرمز.";
+      case "void": return "أُلغيت هذه القسيمة.";
+      case "expired": return "انتهت صلاحية هذه القسيمة.";
+      case "needs-customer": return "خذ رقم العميل أولا — تُصرف القسيمة باسم عميل.";
+      case "not-yours": return "هذه القسيمة تخص عميلا آخر.";
+      case "already-used": return "استُخدمت هذه القسيمة من قبل.";
+      case "used-up": return "استُخدمت هذه القسيمة بالعدد المسموح به.";
+      case "customer-limit": return "استخدم هذا العميل القسيمة بالعدد المسموح به.";
+      case "not-live": return "العرض الذي تفتحه هذه القسيمة غير جار.";
+      case "forbidden": return "لا تملك صلاحية القيام بذلك.";
+      default: return "لا يمكن استخدام هذه القسيمة.";
+    }
+  },
+
   refusal: (code, x = {}) => {
     switch (code) {
       case "not-a-till": return "هذا الجهاز غير مرتبط بصندوق.";
@@ -368,6 +461,9 @@ const ar: Strings = {
       case "duplicate": return "يوجد صندوق آخر بهذا الاسم.";
       case "name": return "أعط الصندوق اسما.";
       case "lines": return "السلة فارغة.";
+      case "coupon": return `${String(x.code || "")}: ${ar.couponReason(String(x.reason || ""))}`.trim();
+      case "coupon-taken": return `استُخدمت القسيمة ${String(x.code || "")} قبل لحظات ولا يمكن استخدامها مرة أخرى.`;
+      case "promotions-changed": return "تغيرت عروض هذه السلة وهي مفتوحة. راجع الإجمالي ثم أعد البيع.";
       case "no-inventory": return "لا يوجد مخزون في هذا الاستوديو للبيع منه.";
       case "forbidden": return "لا تملك صلاحية القيام بذلك.";
       default: return "لم تنجح العملية. حاول مرة أخرى.";

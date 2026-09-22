@@ -17,6 +17,7 @@ import TillCashierSwitch from "@/components/security/TillCashierSwitch";
 import { securityDict } from "@/shared/security";
 import { findByBarcode } from "@/modules/inventory/barcodes";
 import { posTotals, settle, priceBasket, discountPercentOf, cleanDiscount, PAYMENT_METHODS } from "@/modules/sales/posModel";
+import { evaluate, offerProblem } from "@/modules/sales/posPromotionsModel";
 import { PRINT_CSS, Receipt, ShiftReport } from "@/components/studio2/posParts";
 
 // THE TILL — a full-screen page (shared/studioRoute), because a cashier works a
@@ -49,6 +50,16 @@ export default function StudioPos({ slug }) {
   // THE CUSTOMER'S NUMBER, when they give one, and who it turned out to be.
   const [phone, setPhone] = useState("");
   const [customer, setCustomer] = useState(null);
+  // THE SHOP'S OWN OFFERS (22/09/2026): the ones the cashier chose, the
+  // automatic ones they took off, and the coupons they typed. Three lists
+  // rather than one applied set, because the engine decides what applies — the
+  // cashier only says what they want considered.
+  const [chosen, setChosen] = useState([]);
+  const [dropped, setDropped] = useState([]);
+  const [coupons, setCoupons] = useState([]);
+  const [offersOpen, setOffersOpen] = useState(false);
+  // What the server said the basket earns when it disagreed with this screen.
+  const [changed, setChanged] = useState(null);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [closing, setClosing] = useState(false);
@@ -78,14 +89,21 @@ export default function StudioPos({ slug }) {
   // The till's records are filed under the till's own section.
   useLiveUpdates(slug, "crm-sales-pos", reload);
 
-  const call = useCallback(async (path, method, body) => {
+  // `handle` is given the refusal before it becomes a banner, and says whether
+  // it dealt with it: the offers moving under an open basket is a question for
+  // the cashier, not an error at the bottom of the screen.
+  const call = useCallback(async (path, method, body, handle) => {
     setBusy(true);
     const res = await fetch(`/api/studios/${slug}/pos${path}`, {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok || !out?.ok) { setError(tr.refusal(out?.error || "", out)); return null; }
+    if (!res.ok || !out?.ok) {
+      if (handle && handle(out || {})) { setError(""); return null; }
+      setError(tr.refusal(out?.error || "", out));
+      return null;
+    }
     setError("");
     return out;
   }, [slug, tr]);
@@ -95,18 +113,87 @@ export default function StudioPos({ slug }) {
   const shift = terminal ? (data?.openShifts || []).find((s) => s.terminalId === terminal.id) : null;
   const terms = data?.terms;
 
+  // HOW THEY ARE PAYING, read from the rows as typed rather than from `paying`
+  // below: a payment_method condition must not wait on a total that waits on
+  // the offers. Only the method matters, and the method is not a figure.
+  const methods = useMemo(() => payments.map((p) => p.method), [payments]);
+
+  // WHO IS STANDING THERE, as the offers' eligibility reads it: a number nobody
+  // has seen before is a first purchase, and a number not yet looked up is
+  // nobody — the offers that need a customer simply do not apply yet.
+  const shopper = useMemo(() => {
+    if (!phone.trim()) return null;
+    if (!customer || customer.error) return null;
+    return customer.known
+      ? { id: customer.clientId || "", tagIds: customer.tagIds || [], firstPurchase: Number(customer.visits) === 0 }
+      : { id: "", tagIds: [], firstPurchase: true };
+  }, [phone, customer]);
+
+  // WHAT THIS BASKET EARNS — the same `evaluate` the server runs, on the rules
+  // the payload carried, so the screen and the receipt cannot disagree about a
+  // price. The server runs it again at the sale (with the usage counters, which
+  // a till is not given) and answers back if anything moved.
+  const promoCtx = useMemo(() => (!terms ? null : {
+    now: new Date().toISOString(),
+    timezone: data?.timezone || "",
+    currency: terms.currency,
+    tillId: data?.terminal?.id,
+    channel: "pos",
+    customer: shopper,
+    may: { applyManual: Boolean(data?.can?.applyManual), removeAuto: Boolean(data?.can?.removeAuto) },
+    selected: chosen,
+    removed: dropped,
+    coupons: coupons.map((c) => c.claim),
+    paymentMethods: methods,
+  }), [data, terms, shopper, chosen, dropped, coupons, methods]);
+
+  const offers = useMemo(() => {
+    const promotions = data?.promotions || [];
+    if (!terms || !promoCtx || !promotions.length || !basket.length) return null;
+    const items = new Map((data.items || []).map((i) => [i.id, i]));
+    const lines = basket.map((b, i) => {
+      const item = items.get(b.itemId) || {};
+      return {
+        // KEYED BY POSITION, exactly as the server keys the lines it is sent.
+        key: String(i),
+        itemId: b.itemId, description: b.description,
+        count: num(b.count), price: num(b.price),
+        ...(b.taxCategory ? { taxCategory: b.taxCategory } : {}),
+        unit: item.unit || "", itemType: item.itemType || "", vendorId: item.vendorId || "",
+        excluded: item.excludedFromPromotions === true,
+      };
+    });
+    return evaluate({ lines, promotions }, promoCtx);
+  }, [data, terms, basket, promoCtx]);
+
+  // WHAT THE CASHIER MAY STILL CHOOSE: the offers this basket would earn if
+  // they picked them, and the ones they took off. `not-chosen` is the engine's
+  // own word for "waiting to be picked", so the list cannot drift from what
+  // applying one would actually do.
+  const offerable = useMemo(() => {
+    const promotions = data?.promotions || [];
+    if (!promoCtx || !promotions.length) return [];
+    return promotions
+      .map((p) => ({ promotion: p, problem: offerProblem(p, promoCtx) }))
+      .filter((x) => x.problem === "" || x.problem === "not-chosen" || x.problem === "removed");
+  }, [data, promoCtx]);
+
   // PRICED EXACTLY AS THE SERVER PRICES IT — the same priceBasket, so the net
   // on each row, the totals and the receipt the server writes are one figure.
+  // The offers are handed in as a figure per line: the cashier's own discount
+  // is of what is left after them, never of the shelf price.
   const priced = useMemo(() => {
     if (!terms) return null;
-    const lines = basket.map((b) => ({
+    const byKey = new Map((offers?.lines || []).map((l) => [l.key, l.promotionDiscount]));
+    const lines = basket.map((b, i) => ({
       itemId: b.itemId, description: b.description,
       count: num(b.count), price: num(b.price), taxCategory: b.taxCategory,
       ...(b.listPrice > 0 ? { listPrice: b.listPrice } : {}),
+      ...(byKey.get(String(i)) > 0 ? { promotionDiscount: byKey.get(String(i)) } : {}),
       ...(cleanDiscount(b.discount) ? { discount: cleanDiscount(b.discount) } : {}),
     }));
     return priceBasket(lines, cleanDiscount(basketOff), terms.currency);
-  }, [basket, basketOff, terms]);
+  }, [basket, basketOff, terms, offers]);
   const totals = useMemo(() => (priced ? { ...posTotals(priced.lines, terms), discounts: priced.discountTotal } : null), [priced, terms]);
   // THE CAP, said before the server says it. A holder of the settings right is
   // not held to it (modules/sales/pos), so neither is the warning.
@@ -157,7 +244,27 @@ export default function StudioPos({ slug }) {
     setCustomer(res.ok && out?.ok ? out : { error: out?.error || "" });
   }
 
-  async function completeSale() {
+  // `agreed` is what this screen last showed the offers taking off. The server
+  // re-prices with the counters a till is not given, and a basket that earns
+  // something else is put back to the cashier rather than rung up quietly.
+  // A COUPON IS A ROW, so it is the one thing the till cannot decide for
+  // itself. Nothing is taken here — the use is claimed when the sale is
+  // written, so a code typed and abandoned leaves the coupon untouched.
+  async function addCoupon(code) {
+    const typed = String(code || "").trim().toUpperCase();
+    if (!typed || coupons.some((c) => c.claim.code === typed)) return "";
+    const customerId = shopper?.id || "";
+    const res = await fetch(
+      `/api/studios/${slug}/pos/coupon?code=${encodeURIComponent(typed)}&customerId=${encodeURIComponent(customerId)}`,
+      { cache: "no-store" },
+    );
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok || !out?.ok) return tr.couponReason(String(out?.reason || ""));
+    setCoupons((cs) => [...cs, { claim: out.claim, name: out.name, nameAr: out.nameAr }]);
+    return "";
+  }
+
+  async function completeSale(agreed) {
     const out = await call("/receipts", "POST", {
       shiftId: shift.id,
       lines: basket.map((b) => ({
@@ -166,14 +273,28 @@ export default function StudioPos({ slug }) {
       })),
       ...(cleanDiscount(basketOff) ? { discount: cleanDiscount(basketOff) } : {}),
       ...(phone.trim() ? { phone: phone.trim() } : {}),
+      ...(chosen.length ? { promotionIds: chosen } : {}),
+      ...(dropped.length ? { removedPromotionIds: dropped } : {}),
+      ...(coupons.length ? { couponCodes: coupons.map((c) => c.claim.code) } : {}),
+      // AGREED ONLY ONCE THE CASHIER HAS SEEN THE NEW FIGURE: sending it again
+      // unchanged would make the check a formality that passes itself.
+      ...(agreed === undefined ? { promotionDiscountShown: offers?.discountTotal || 0 } : {}),
       payments: paying,
+    }, (refusal) => {
+      if (refusal.error !== "promotions-changed") return false;
+      setChanged({ was: Number(refusal.was) || 0, now: Number(refusal.now) || 0 });
+      return true;
     });
     if (!out) return;
+    setChanged(null);
     setReceipt(out.receipt);
     setBasket([]);
     setBasketOff({ kind: "percent", value: "" });
     setPhone("");
     setCustomer(null);
+    setChosen([]);
+    setDropped([]);
+    setCoupons([]);
     setPayments([{ method: "cash", amount: "", reference: "" }]);
   }
 
@@ -231,10 +352,15 @@ export default function StudioPos({ slug }) {
             <section className={`${card} p-4`}>
               <ScanBox tr={tr} items={data.items} onHit={addHit} disabled={!data.can.sell} />
               <Basket tr={tr} rows={basket} priced={priced?.lines || []} currency={terms.currency} canReprice={data.can.discount}
+                applied={offers?.applied || []} locale={locale}
                 onChange={(key, patch) => setBasket((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)))}
                 onRemove={(key) => setBasket((rows) => rows.filter((r) => r.key !== key))} />
               {basket.length > 0 && (
-                <button type="button" className={`${btnGhost} mt-3`} onClick={() => { setBasket([]); setBasketOff({ kind: "percent", value: "" }); }}>{tr.clear}</button>
+                <button type="button" className={`${btnGhost} mt-3`}
+                  onClick={() => {
+                    setBasket([]); setBasketOff({ kind: "percent", value: "" });
+                    setChosen([]); setDropped([]); setCoupons([]);
+                  }}>{tr.clear}</button>
               )}
             </section>
 
@@ -259,7 +385,13 @@ export default function StudioPos({ slug }) {
                   )}
                 </div>
               )}
-              <Totals tr={tr} totals={totals} terms={terms} />
+              {/* THE OFFERS THIS BASKET EARNED, and the way to change them. */}
+              {(offers || (data.promotions || []).length > 0) && basket.length > 0 && (
+                <OffersPanel tr={tr} offers={offers} currency={terms.currency}
+                  canOpen={Boolean(data.can.applyManual || (data.promotions || []).length)}
+                  onOpen={() => setOffersOpen(true)} />
+              )}
+              <Totals tr={tr} totals={totals} terms={terms} promotions={offers?.discountTotal || 0} />
               {overCap && <p className="text-xs text-amber-700 dark:text-amber-300">{tr.overCap(cap, overCap.description)}</p>}
               <div>
                 <p className="mb-2 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.pay}</p>
@@ -302,7 +434,7 @@ export default function StudioPos({ slug }) {
               )}
               <button type="button" className={`${btn} mt-auto py-3 text-base`}
                 disabled={busy || !basket.length || !data.can.sell || !settled || Boolean(settled.problem) || Boolean(overCap)}
-                onClick={completeSale}>
+                onClick={() => completeSale()}>
                 {busy ? tr.selling : tr.complete}
               </button>
               {!data.can.sell && <p className="text-xs text-slate-500 dark:text-slate-400">{tr.noSell}</p>}
@@ -318,6 +450,36 @@ export default function StudioPos({ slug }) {
           <div className="mt-4 flex gap-2">
             <button type="button" className={btn} onClick={() => window.print()}>{tr.printReceipt}</button>
             <button type="button" className={btnGhost} onClick={() => setReceipt(null)}>{tr.newSale}</button>
+          </div>
+        </Dialog>
+      )}
+
+      {offersOpen && (
+        <Dialog title={tr.offers} onClose={() => setOffersOpen(false)} width="max-w-[460px]">
+          <OffersDialog
+            tr={tr} locale={locale} currency={terms.currency}
+            offerable={offerable} applied={offers?.applied || []}
+            chosen={chosen} dropped={dropped} coupons={coupons}
+            can={data.can} hasCustomer={Boolean(shopper)}
+            onChoose={(id) => setChosen((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))}
+            onDrop={(id) => setDropped((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs, id]))}
+            onCoupon={addCoupon}
+            onDropCoupon={(code) => setCoupons((cs) => cs.filter((c) => c.claim.code !== code))}
+            onDone={() => setOffersOpen(false)} />
+        </Dialog>
+      )}
+
+      {/* THE OFFERS MOVED WHILE THE BASKET WAS OPEN. The cashier is shown both
+          figures and sells again knowingly — the sale is never rung up at a
+          total nobody has seen. */}
+      {changed && (
+        <Dialog title={tr.offersChanged} onClose={() => setChanged(null)} width="max-w-[420px]">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            {tr.offersChangedLead(money(changed.was, terms.currency), money(changed.now, terms.currency))}
+          </p>
+          <div className="mt-4 flex gap-2">
+            <button type="button" className={btn} disabled={busy} onClick={() => completeSale(changed.now)}>{tr.sellAnyway}</button>
+            <button type="button" className={btnGhost} onClick={() => setChanged(null)}>{tr.cancel}</button>
           </div>
         </Dialog>
       )}
@@ -551,7 +713,11 @@ function DiscountInput({ tr, value, currency, onChange, wide = false }) {
   );
 }
 
-function Basket({ tr, rows, priced = [], currency, canReprice, onChange, onRemove }) {
+// AN OFFER'S NAME IS WHAT THE STUDIO TYPED, in the reader's language where
+// they typed both. It is data, so it is never translated — only chosen between.
+const offerName = (a, locale) => (locale === "ar" && a.promotionNameAr ? a.promotionNameAr : a.promotionName);
+
+function Basket({ tr, rows, priced = [], currency, canReprice, applied = [], locale, onChange, onRemove }) {
   if (!rows.length) {
     return (
       <div className="py-10 text-center">
@@ -575,7 +741,17 @@ function Basket({ tr, rows, priced = [], currency, canReprice, onChange, onRemov
       <tbody>
         {rows.map((r, i) => (
           <tr key={r.key} className="border-b border-slate-100 dark:border-white/5">
-            <td className="py-2">{r.description}<TaxTag category={r.taxCategory} /></td>
+            <td className="py-2">
+              {r.description}<TaxTag category={r.taxCategory} />
+              {/* WHICH OFFER TOUCHED THIS LINE, said on the line itself — a
+                  cashier asked "why is this cheaper" points at the row. */}
+              {applied.filter((a) => a.lineKey === String(i)).map((a, j) => (
+                <span key={`${a.promotionId}:${j}`}
+                  className="ms-2 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-600 text-emerald-700 dark:text-emerald-300">
+                  {offerName(a, locale)}
+                </span>
+              ))}
+            </td>
             <td className="py-2">
               <div className="flex items-center justify-center gap-1">
                 <button type="button" className={btnRow} onClick={() => onChange(r.key, { count: Math.max(1, num(r.count) - 1) })}>−</button>
@@ -618,13 +794,19 @@ function Basket({ tr, rows, priced = [], currency, canReprice, onChange, onRemov
   );
 }
 
-function Totals({ tr, totals, terms }) {
+function Totals({ tr, totals, terms, promotions = 0 }) {
   const locale = useStudioLocale();
   const tax = taxDict(locale);
   if (!totals) return null;
   const row = "flex justify-between gap-4 text-sm text-slate-500 dark:text-slate-400";
   return (
     <div className="space-y-1">
+      {/* THE SHOP'S OFFERS AND THE CASHIER'S DISCOUNT ARE TWO LINES. They are
+          two different acts by two different people, and a shop that cannot
+          tell them apart cannot tell what its offers cost it. */}
+      {promotions > 0 && (
+        <p className={row}><span>{tr.offers}</span><span className="num">−{money(promotions, terms.currency)}</span></p>
+      )}
       {totals.discounts > 0 && (
         <p className={row}><span>{tr.discounts}</span><span className="num">−{money(totals.discounts, terms.currency)}</span></p>
       )}
@@ -660,5 +842,125 @@ function CloseShift({ tr, busy, currency, onCancel, onClose }) {
         <button type="button" className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </Dialog>
+  );
+}
+
+// WHAT THE BASKET EARNED, on the paying side of the screen where the total is.
+// A receipt-level offer has no line to sit on, so it is named here; a line-level
+// one is named here AND on its row, because a cashier is asked both "why is the
+// total that" and "why is this item cheaper".
+function OffersPanel({ tr, offers, currency, canOpen, onOpen }) {
+  const locale = useStudioLocale();
+  const applied = offers?.applied || [];
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.offers}</p>
+        {canOpen && <button type="button" className={btnRow} onClick={onOpen}>{tr.offersAction}</button>}
+      </div>
+      {applied.length === 0
+        ? <p className="text-xs text-slate-400">{tr.noOffersNow}</p>
+        : (
+          <ul className="space-y-1">
+            {applied.map((a, i) => (
+              <li key={`${a.promotionId}:${a.lineKey || ""}:${i}`} className="flex justify-between gap-3 text-sm text-slate-600 dark:text-slate-300">
+                <span className="min-w-0 truncate">{offerName(a, locale)}</span>
+                <span className="num shrink-0 text-emerald-700 dark:text-emerald-300">−{money(a.discount, currency)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+    </div>
+  );
+}
+
+// THE COUNTER'S TWO ACTS, behind their own rights: choosing an offer the till
+// does not apply by itself, and taking off one it did. Neither is a discount —
+// a discount is a price the cashier types, and it answers elsewhere.
+function OffersDialog({
+  tr, locale, currency, offerable, applied, chosen, dropped, coupons,
+  can, hasCustomer, onChoose, onDrop, onCoupon, onDropCoupon, onDone,
+}) {
+  const [code, setCode] = useState("");
+  const [problem, setProblem] = useState("");
+  const [asking, setAsking] = useState(false);
+  const took = new Map();
+  applied.forEach((a) => took.set(a.promotionId, (took.get(a.promotionId) || 0) + Number(a.discount || 0)));
+  const label = (p) => (locale === "ar" && p.nameAr ? p.nameAr : p.name);
+
+  return (
+    <div>
+      <p className="text-xs text-slate-500 dark:text-slate-400">{tr.offersLead}</p>
+
+      {offerable.length === 0
+        ? <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{tr.noOffersNow}</p>
+        : (
+          <ul className="mt-3 space-y-2">
+            {offerable.map(({ promotion: p }) => {
+              const on = took.has(p.id);
+              const off = dropped.includes(p.id);
+              const picked = chosen.includes(p.id);
+              return (
+                <li key={p.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 dark:border-white/10">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-600 text-[var(--geex-ink)]">{label(p)}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      {p.code}
+                      {on ? ` · ${tr.offerSaves(money(took.get(p.id), currency))}` : ""}
+                    </span>
+                  </span>
+                  {/* AN OFFER WAITING TO BE PICKED IS APPLIED; AN OFFER ALREADY
+                      APPLIED IS TAKEN OFF. Two different rights, so the button
+                      that appears is the one the reader may press. */}
+                  {p.requiresManualSelection && !on
+                    ? (can.applyManual && (
+                      <button type="button" className={btnRow} onClick={() => onChoose(p.id)}>
+                        {picked ? tr.offerRemove : tr.offerApply}
+                      </button>
+                    ))
+                    : off
+                      ? (can.removeAuto && <button type="button" className={btnRow} onClick={() => onDrop(p.id)}>{tr.offerRestore}</button>)
+                      : (can.removeAuto && on && <button type="button" className={btnRowDanger} onClick={() => onDrop(p.id)}>{tr.offerRemove}</button>)}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+      <div className="mt-4">
+        <p className="mb-1 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.couponCode}</p>
+        {coupons.length > 0 && (
+          <ul className="mb-2 space-y-1">
+            {coupons.map((c) => (
+              <li key={c.claim.code} className="flex items-center justify-between gap-2 text-sm text-slate-600 dark:text-slate-300">
+                <span className="min-w-0 truncate">{tr.couponOn(locale === "ar" && c.nameAr ? c.nameAr : c.name)}</span>
+                <button type="button" className={btnRowDanger} onClick={() => onDropCoupon(c.claim.code)}>{tr.offerRemove}</button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {/* EVERY COUPON IS REDEEMED AGAINST A CUSTOMER, public ones included —
+            without one a per-customer limit cannot be enforced. Said here
+            rather than refused after typing. */}
+        {!hasCustomer
+          ? <p className="text-xs text-amber-700 dark:text-amber-300">{tr.couponNeedsCustomer}</p>
+          : (
+            <div className="flex items-end gap-2">
+              <div className="flex-1"><Field label={tr.couponCode} value={code} hint={tr.couponHint} onChange={(v) => { setCode(v); setProblem(""); }} /></div>
+              <button type="button" className={btnGhost} disabled={asking || !code.trim()}
+                onClick={async () => {
+                  setAsking(true);
+                  const said = await onCoupon(code);
+                  setAsking(false);
+                  setProblem(said);
+                  if (!said) setCode("");
+                }}>{tr.couponApply}</button>
+            </div>
+          )}
+        {problem && <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{problem}</p>}
+      </div>
+
+      <div className="mt-4"><button type="button" className={btn} onClick={onDone}>{tr.done}</button></div>
+    </div>
   );
 }

@@ -36,7 +36,7 @@ import { roundMoney } from "@/shared/money";
 import {
   cleanPosLines, cleanPayments, posTotals, settle, shiftReport, unitsOf,
   cleanDiscount, priceBasket, discountPercentOf,
-  type PosLine, type PosPayment, type ShiftReport,
+  type PosLine, type PosPayment, type PosDiscount, type ShiftReport,
 } from "./posModel";
 import type { TaxBreakdown } from "@/shared/documentTotals";
 import {
@@ -45,6 +45,8 @@ import {
 } from "./posReports";
 import type { PosContext } from "./types";
 import { clientSlug } from "./salesClients";
+import { priceWithPromotions, recordRedemptions, claimCoupons, livePromotions } from "./posPromotions";
+import type { AppliedPromotion } from "./posPromotionsModel";
 import { refundsByShift } from "./posReturns";
 import { normalizePhone, maskPhone } from "@/shared/phone";
 import { studioLocale } from "@/shared/locale";
@@ -121,7 +123,12 @@ export type PosReceipt = {
   vatRate: number;
   taxMethod: string;
   pricesIncludeTax: boolean;
-  lines: (PosLine & { units: number; picks: { batchId: string; qty: number }[] })[];
+  lines: (PosLine & {
+    units: number;
+    picks: { batchId: string; qty: number }[];
+    /** The shop's offers that touched this line, frozen (22/09/2026). */
+    promotions?: AppliedPromotion[];
+  })[];
   payments: PosPayment[];
   paid: number;
   change: number;
@@ -129,6 +136,18 @@ export type PosReceipt = {
   vat: number;
   total: number;
   breakdown: TaxBreakdown[];
+  // THE CASHIER'S OWN DISCOUNT, written since 18/09/2026 and declared here only
+  // now: the type said nothing while `createSale` wrote all three.
+  /** The basket discount as the cashier typed it. */
+  discount?: PosDiscount;
+  /** What that basket discount came to. */
+  basketDiscount?: number;
+  /** Line discounts and the basket discount together. */
+  discountTotal?: number;
+  // THE SHOP'S OWN OFFERS (22/09/2026), frozen at the sale. A return reads
+  // these; nothing re-reads the offers themselves.
+  promotions?: AppliedPromotion[];
+  promotionDiscount?: number;
 };
 
 const Terminals = repo<PosTerminal>("posTerminals");
@@ -167,6 +186,9 @@ export const posContext = moduleContext<PosContext>({
 });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+/** A list of ids or codes as the screen sent them — bounded, blanks dropped. */
+const cleanIds = (v: unknown, max = 20): string[] =>
+  (Array.isArray(v) ? v : []).map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, max);
 const now = () => new Date().toISOString();
 const scope = (ctx: PosContext) => ({ studio: ctx.studio, section: ctx.posSection });
 
@@ -236,14 +258,31 @@ export async function posView(ctx: PosContext) {
       barcode: i.barcode || "",
       sellPrice: Number(i.sellPrice) || 0,
       ...(i.taxCategory ? { taxCategory: i.taxCategory } : {}),
+      // WHAT AN OFFER MATCHES ON (22/09/2026). Still not the cost: a type and a
+      // vendor id are what the engine calls a category and a brand until items
+      // carry their own, and the screen cannot price an offer without them.
+      ...(i.itemType ? { itemType: i.itemType } : {}),
+      ...(i.vendorId ? { vendorId: i.vendorId } : {}),
+      ...((i as { excludedFromPromotions?: unknown }).excludedFromPromotions === true
+        ? { excludedFromPromotions: true } : {}),
     })),
     hasInventory: Boolean(ctx.itemsSection && ctx.stockSection),
+    // THE OFFERS THIS TILL PRICES WITH, so the screen runs the same engine the
+    // server will: what is shown and what is charged come from one function.
+    // Sent whole — the rules are what the screen must evaluate, and a summary
+    // would be a second, poorer copy of them.
+    promotions: ctx.promotionsSection ? await livePromotions(ctx) : [],
+    timezone: String((ctx.studio as { timezone?: unknown }).timezone || ""),
     can: {
       sell: can(ctx.access, "crmSales.pos.create"),
       // Managing the tills is the Settings screen's now; the till links there.
       manage: can(ctx.access, "pos.settings.edit"),
       discount: can(ctx.access, "crmSales.pos.discount"),
       closeShift: can(ctx.access, "crmSales.pos.closeShift"),
+      // THE TWO ACTS AT THE COUNTER: choosing an offer the till does not apply
+      // by itself, and taking off one it did.
+      applyManual: can(ctx.access, "pos.promotions.applyManual"),
+      removeAuto: can(ctx.access, "pos.promotions.removeAuto"),
       // A customer's number can be taken only where CRM keeps clients.
       customers: Boolean(ctx.clientsSection),
     },
@@ -420,7 +459,12 @@ export async function customerLookup(ctx: PosContext, raw: unknown) {
   const client = await findCustomer(ctx, phone);
   if (!client) return { known: false, masked };
   const visits = (await Receipts.find(scope(ctx), { where: { clientId: client.id } })).length;
-  return { known: true, masked, clientId: client.id, name: client.name, autoNamed: client.autoNamed === true, visits };
+  // `tagIds` and the visit count are what an offer's eligibility reads — who
+  // this is, never what they have bought. The till evaluates with them.
+  const tagIds = Array.isArray((client as { tagIds?: unknown }).tagIds)
+    ? (client as unknown as { tagIds: string[] }).tagIds.map((t) => String(t || "")).filter(Boolean)
+    : [];
+  return { known: true, masked, clientId: client.id, name: client.name, autoNamed: client.autoNamed === true, visits, tagIds };
 }
 
 /** The client a sale's number names — found, or made. Called after every check, just before the write. */
@@ -582,10 +626,87 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
     });
   }
 
+  // ---- the shop's own offers ----------------------------------------------
+  // PRICED AT THE INSTANT THE SALE IS MADE, and with the payments in hand, so
+  // an offer that ended while the basket sat open does not apply and one that
+  // needs a card knows there is one. The screen showed a figure from the same
+  // function a moment ago; anything that moved between then and now is answered
+  // back to it (`promotionsChanged`) rather than charged silently.
+  const at = now();
+  const payments = cleanPayments(body?.payments, terms.currency);
+
+  // THE CUSTOMER IS LOOKED UP BUT NOT YET CREATED. Eligibility needs to know
+  // who is standing there — a tag, a first purchase — while the rule that a
+  // failed sale leaves no client behind still holds: the write is below.
+  const phone = String(body?.phone ?? "").trim() ? normalizePhone(body?.phone, ctx.studio.country) : "";
+  if (String(body?.phone ?? "").trim()) {
+    if (!ctx.clientsSection) return { error: "no-clients" as const };
+    if (!phone) return { error: "phone" as const };
+  }
+  const known = phone ? await findCustomer(ctx, phone) : null;
+  const shopper = phone
+    ? {
+      id: known?.id || "",
+      tagIds: Array.isArray((known as { tagIds?: unknown } | null)?.tagIds) ? (known as unknown as { tagIds: string[] }).tagIds : [],
+      // A NUMBER NOBODY HAS SEEN BEFORE IS A FIRST PURCHASE. For one we know,
+      // it is whether any receipt names them.
+      firstPurchase: known ? (await Receipts.find(scope(ctx), { where: { clientId: known.id } })).length === 0 : true,
+    }
+    : null;
+
+  const offers = ctx.promotionsSection
+    ? await priceWithPromotions(ctx, {
+      lines: lines.map((l, i) => {
+        const item = byId.get(l.itemId);
+        return {
+          key: String(i),
+          itemId: l.itemId,
+          description: l.description,
+          count: l.count,
+          price: l.price,
+          ...(l.listPrice !== undefined ? { listPrice: l.listPrice } : {}),
+          ...(l.taxCategory ? { taxCategory: l.taxCategory } : {}),
+          unit: String(item?.unit || ""),
+          itemType: String(item?.itemType || ""),
+          vendorId: String(item?.vendorId || ""),
+          excluded: (item as { excludedFromPromotions?: unknown } | undefined)?.excludedFromPromotions === true,
+        };
+      }),
+      at,
+      currency: terms.currency,
+      terminalId: shift.terminalId,
+      customer: shopper,
+      selected: cleanIds(body?.promotionIds),
+      removed: cleanIds(body?.removedPromotionIds),
+      couponCodes: cleanIds(body?.couponCodes),
+      customerId: known?.id || "",
+      paymentMethods: payments.map((p) => p.method),
+    })
+    : null;
+  if (offers && "error" in offers) return offers;
+  if (offers) {
+    offers.priced.lines.forEach((p, i) => {
+      if (p.promotionDiscount > 0) lines[i].promotionDiscount = p.promotionDiscount;
+    });
+    // WHAT THE TILL LAST SHOWED, ANSWERED BACK. A sale is refused rather than
+    // rung up for a different figure: the cashier sees what changed and asks
+    // again (the owner's rule for expiry at completion).
+    const shown = Number(body?.promotionDiscountShown);
+    if (Number.isFinite(shown) && Math.abs(shown - offers.priced.discountTotal) > 0.0001) {
+      return {
+        error: "promotions-changed" as const,
+        was: shown,
+        now: offers.priced.discountTotal,
+        applied: offers.priced.applied,
+      };
+    }
+  }
+
   // ---- discounts ----------------------------------------------------------
   // A DISCOUNT IS THE SAME POWER AS A LOWER PRICE, so it answers to the same
-  // right; and the cap is measured against the item's own price, so neither a
-  // typed price nor a stack of discounts can walk round it.
+  // right; and the cap is measured against the item's own price AFTER the
+  // shop's offers, so neither a typed price nor a stack of discounts can walk
+  // round it, and an automatic offer never spends the cashier's allowance.
   const basket = cleanDiscount(body?.discount);
   const discounted = Boolean(basket) || lines.some((l) => l.discount);
   if (discounted && !mayReprice) return { error: "forbidden" as const };
@@ -620,22 +741,28 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
   }
 
   const totals = posTotals(lines, terms);
-  const payments = cleanPayments(body?.payments, terms.currency);
   const settled = settle(totals.total, payments, terms.currency);
   if (settled.problem) return { error: settled.problem, total: totals.total, paid: settled.paid };
 
-  // THE CUSTOMER, LAST OF THE CHECKS AND FIRST OF THE WRITES: a number that
-  // is not one refuses the sale before anything is written, and a new client
-  // is made only for a sale that is otherwise certain to go through.
+  // THE CUSTOMER, LAST OF THE CHECKS AND FIRST OF THE WRITES: a new client is
+  // made only for a sale that is otherwise certain to go through. The lookup
+  // above read one; this is what writes one.
   let clientId = "";
-  if (String(body?.phone ?? "").trim()) {
-    if (!ctx.clientsSection) return { error: "no-clients" as const };
-    const phone = normalizePhone(body?.phone, ctx.studio.country);
-    if (!phone) return { error: "phone" as const };
+  if (phone) {
     const customer = await customerFor(ctx, phone);
     if ("error" in customer) return customer;
     clientId = customer.id;
   }
+
+  // A COUPON IS CLAIMED BEFORE THE SALE IS WRITTEN and released if the write
+  // never happens. There is no transaction spanning the two — a module gets
+  // compare-and-set on one row and nothing wider — so the order is chosen: a
+  // claim nobody used is a number somebody can see and put back, while a sale
+  // that redeemed a single-use coupon twice is money given away twice.
+  const claimed = offers?.coupons?.length
+    ? await claimCoupons(ctx, { coupons: offers.coupons, customerId: clientId })
+    : { ok: true as const, couponIds: {} as Record<string, string> };
+  if (!claimed.ok) return { error: claimed.error, code: claimed.code };
 
   // WHICH BATCH EACH LINE'S UNITS LEFT FROM, handed out line by line from the
   // item's picks so a recall can name the receipt line.
@@ -651,13 +778,14 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
       p.qty = Math.round((p.qty - take) * 1000) / 1000;
       want = Math.round((want - take) * 1000) / 1000;
     }
-    return { ...l, units: unitsOf(l), picks };
+    const i = lines.indexOf(l);
+    const mine = (offers?.priced.applied || []).filter((a) => a.lineKey === String(i));
+    return { ...l, units: unitsOf(l), picks, ...(mine.length ? { promotions: mine } : {}) };
   });
 
   const number = await nextReference(ctx.studio.id, {
     rows: [], field: "number", ...seriesSetting("posReceipt", ctx.studio.numbering),
   });
-  const at = now();
   const receipt = await Receipts.create(scope(ctx), {
     number,
     kind: "sale",
@@ -683,6 +811,13 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
       ...(basket ? { discount: basket, basketDiscount: basketPriced.basketDiscount } : {}),
       discountTotal: basketPriced.discountTotal,
     } : {}),
+    // WHAT THE SHOP'S OWN OFFERS DID, frozen here and read by nothing else
+    // afterwards: a return refunds what this receipt says, and editing the
+    // offer tomorrow moves none of it.
+    ...(offers && offers.priced.discountTotal > 0 ? {
+      promotions: offers.priced.applied,
+      promotionDiscount: offers.priced.discountTotal,
+    } : {}),
   });
 
   // ONE MOVEMENT PER BATCH TAKEN, plus one for units from no batch, each at the
@@ -700,6 +835,22 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
     if (pick.fromUntracked > 0) moves.push({ ...base, qty: pick.fromUntracked });
   }
   if (moves.length) await Stock.createMany(stockScope, moves);
+  // THE USES THIS SALE MADE, written after it: the caps count these rows, and
+  // a sale that never landed leaves none. A coupon claimed above is tied to its
+  // redemption here.
+  if (offers && offers.priced.applied.length) {
+    await recordRedemptions(ctx, {
+      applied: offers.priced.applied,
+      saleId: receipt.id,
+      saleNumber: number,
+      ...(clientId ? { customerId: clientId } : {}),
+      terminalId: shift.terminalId,
+      at,
+      currency: terms.currency,
+      couponIds: claimed.couponIds,
+    });
+  }
+
   // A SALE CAN TAKE AN ITEM TO ITS REORDER LEVEL — whoever holds the alert is
   // told (modules/inventory/stockAlerts).
   await alertIfLow(ctx.studio, { itemsSection: ctx.itemsSection, stockSection: ctx.stockSection }, Object.fromEntries(need));

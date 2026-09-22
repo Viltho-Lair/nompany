@@ -522,6 +522,7 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
     sellPrice: money(body?.sellPrice),
     // WHAT IT IS FOR TAX — stored only when it is not standard (shared/taxProfile).
     ...taxCategoryField(body?.taxCategory),
+    ...(body?.excludedFromPromotions === true ? { excludedFromPromotions: true } : {}),
     // WHAT A SCANNER READS. Absent when none.
     ...(barcode ? { barcode } : {}),
     // What that cost is IN. Blank means the studio's own currency, so an item
@@ -579,6 +580,7 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
   // Standard is stored as absent, so choosing it CLEARS the field rather than
   // writing "standard" beside every item that never had one.
   if (body?.taxCategory !== undefined) patch.taxCategory = taxCategoryField(body.taxCategory).taxCategory;
+  if (body?.excludedFromPromotions !== undefined) patch.excludedFromPromotions = body.excludedFromPromotions === true;
   // A CODE IS JUDGED AGAINST EVERY OTHER ITEM. Saving an item also drops any
   // packs it still carries from before they were removed (17/09/2026).
   if (body?.barcode !== undefined) {

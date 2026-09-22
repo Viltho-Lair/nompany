@@ -1130,7 +1130,7 @@ export const SECTION_COLLECTIONS = {
   // PROMOTIONS (22/09/2026): the offers themselves, the coupons that unlock
   // one, every redemption (its own row because a coupon's limits are counted
   // from them), and the change log an active offer writes on every edit.
-  "pos-promotions": ["posPromotions", "posCoupons", "posCouponRedemptions", "posPromotionLog"],
+  "pos-promotions": ["posPromotions", "posCoupons", "posRedemptions", "posPromotionLog"],
   // THE CAMPAIGN REGISTER OWNS ITS ROWS, born under its own section, so nothing
   // is filed anywhere else (19/09/2026).
   "marketing-campaigns": ["marketingCampaigns"],

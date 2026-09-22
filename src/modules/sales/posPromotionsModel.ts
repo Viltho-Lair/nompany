@@ -168,6 +168,8 @@ export type AppliedPromotion = {
   promotionId: string;
   promotionCode: string;
   promotionName: string;
+  /** The studio's Arabic name, when it typed one — a receipt prints in the reader's language. */
+  promotionNameAr?: string;
   level: ApplicationLevel;
   /** Absent for a receipt-level offer, which is spread across the lines instead. */
   lineKey?: string;
@@ -561,6 +563,7 @@ export function evaluate(
       if (!tier || !(tier.benefits || []).length) {
         applied.push({
           promotionId: p.id, promotionCode: p.code, promotionName: p.name,
+          ...(p.nameAr ? { promotionNameAr: p.nameAr } : {}),
           level, tierIndex: Math.max(0, tierIndex), benefitType: "points_multiplier",
           discount: 0, appliedBy: p.requiresManualSelection ? "user" : "system",
           ...(couponFor(p.id) ? { couponCode: couponFor(p.id)!.code } : {}),
@@ -608,6 +611,7 @@ export function evaluate(
         left.set(t.lineKey, Math.max(0, (left.get(t.lineKey) ?? 0) - t.minor));
         const entry: AppliedPromotion = {
           promotionId: p.id, promotionCode: p.code, promotionName: p.name,
+          ...(p.nameAr ? { promotionNameAr: p.nameAr } : {}),
           level,
           ...(level === "line" ? { lineKey: t.lineKey } : {}),
           tierIndex,

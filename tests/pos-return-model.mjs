@@ -74,6 +74,30 @@ ok("then the earlier one", j(R.restockPlan(receipt.lines[0], 1, 2)) === j([{ bat
 ok("across both in one return", j(R.restockPlan(receipt.lines[0], 0, 3)) === j([{ batchId: "late", qty: 1 }, { batchId: "early", qty: 2 }]));
 ok("a line from no batch goes back to no batch", j(R.restockPlan(receipt.lines[1], 0, 1)) === j([{ batchId: "", qty: 1 }]));
 
+// AN OFFER IS REFUNDED AS IT WAS CHARGED (22/09/2026). A return reads the net
+// the sale FROZE onto the line; it never re-runs the offers, so ending one
+// tomorrow refunds nothing extra and a free item refunds nothing at all.
+console.log("\n== what the shop's offers left on the line");
+const offerReceipt = {
+  currency: "SAR", vatRate: 15, pricesIncludeTax: true,
+  lines: [
+    // Two at 10, an offer took 5 off: the line was paid 15.
+    { itemId: "p", description: "P", count: 2, price: 10, gross: 20, promotionDiscount: 5, net: 15, units: 2, picks: [] },
+    // The free one. It was charged nothing, so it refunds nothing.
+    { itemId: "q", description: "Q", count: 1, price: 10, gross: 10, promotionDiscount: 10, net: 0, units: 1, picks: [] },
+  ],
+};
+const half = R.planReturn(offerReceipt, [], [{ line: 0, units: 1 }]).lines[0].refund;
+ok("half a discounted line refunds half of what was PAID, not half the shelf price", half === 7.5, String(half));
+const rest = R.planReturn(
+  offerReceipt,
+  [{ status: "Approved", receiptId: "", lines: [{ line: 0, units: 1, refund: half }] }],
+  [{ line: 0, units: 1 }],
+).lines[0].refund;
+ok("…and the other half refunds the rest exactly", rest === 7.5, String(rest));
+ok("a free item refunds nothing", R.planReturn(offerReceipt, [], [{ line: 1, units: 1 }]).lines[0].refund === 0);
+ok("a free item still goes back to stock", R.planReturn(offerReceipt, [], [{ line: 1, units: 1 }]).lines[0].units === 1);
+
 console.log("\n== the drawer");
 const rep = P.shiftReport(
   [{ total: 50, vat: 0, subtotal: 50, payments: [{ method: "cash", amount: 50 }] }],

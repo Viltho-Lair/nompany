@@ -119,6 +119,13 @@ export const ItemSchema = z.object({
    * no document already written. Absent means standard.
    */
   taxCategory: z.enum(TAX_CATEGORIES).optional(),
+  /**
+   * NEVER DISCOUNTED BY AN OFFER (22/09/2026). The studio's own switch — a
+   * fixed-price item, a gift voucher, anything sold at a price it may not
+   * move. Promotions read it and skip the line; the cashier's own discount is
+   * a separate power and is not affected. Absent means an offer may price it.
+   */
+  excludedFromPromotions: z.boolean().optional(),
   /** What a scanner reads for ONE of the item's own unit (./barcodes). */
   barcode: z.string().max(64).optional(),
   /** Free text on the item. Written by editItem, never declared until now. */

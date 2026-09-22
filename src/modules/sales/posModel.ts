@@ -33,13 +33,21 @@ export type PosLine = {
   // A return refunds `net`, never a re-priced figure (see priceBasket).
   /** The item's own price when the sale was made — what a discount is measured against. */
   listPrice?: number;
+  /**
+   * WHAT THE SHOP'S OWN OFFERS TOOK OFF THIS LINE (22/09/2026), worked out by
+   * the promotions engine BEFORE the cashier's own discount and handed in here.
+   * It is the shop deciding to charge less, which is a different act from a
+   * cashier giving something away — so it is stored apart, and the cap on what
+   * a cashier may give is measured after it (see discountPercentOf).
+   */
+  promotionDiscount?: number;
   /** count × price, rounded. */
   gross?: number;
   /** What the line's own discount took off. */
   lineDiscount?: number;
   /** This line's part of the basket discount. */
   basketShare?: number;
-  /** What the customer paid for the line: gross − lineDiscount − basketShare. */
+  /** What the customer paid: gross − promotionDiscount − lineDiscount − basketShare. */
   net?: number;
 };
 
@@ -122,11 +130,15 @@ export function priceBasket(
 ): { lines: PosLine[]; lineDiscounts: number; basketDiscount: number; discountTotal: number } {
   const first = lines.map((l) => {
     const gross = roundMoney(num(l.count) * num(l.price), currency);
+    // THE SHOP'S OFFERS COME OFF FIRST and are already decided: a cashier's
+    // percentage is of what is left after them, never of the shelf price.
+    const promotion = Math.min(gross, roundMoney(num(l.promotionDiscount), currency));
+    const room = roundSum(gross - promotion);
     const d = l.discount;
     const off = !d ? 0
-      : d.kind === "percent" ? roundMoney((gross * Math.min(100, d.value)) / 100, currency)
-        : Math.min(gross, roundMoney(d.value, currency));
-    return { line: l, gross, lineDiscount: off, after: roundSum(gross - off) };
+      : d.kind === "percent" ? roundMoney((room * Math.min(100, d.value)) / 100, currency)
+        : Math.min(room, roundMoney(d.value, currency));
+    return { line: l, gross, promotion, lineDiscount: off, after: roundSum(gross - promotion - off) };
   });
   const base = roundSum(first.reduce((s, x) => s + x.after, 0));
   const basketDiscount = !basket || base <= 0 ? 0
@@ -148,6 +160,7 @@ export function priceBasket(
       ...x.line,
       listPrice: x.line.listPrice ?? x.line.price,
       gross: x.gross,
+      ...(x.promotion > 0 ? { promotionDiscount: x.promotion } : {}),
       lineDiscount: x.lineDiscount,
       basketShare: share,
       net: roundSum(x.after - share),
@@ -162,16 +175,24 @@ const amountOf = (l: PosLine, currency: unknown) =>
   typeof l.net === "number" ? l.net : roundMoney(num(l.count) * num(l.price), currency);
 
 /**
- * HOW FAR BELOW ITS OWN PRICE A LINE WENT, as a percentage — typed price,
- * line discount and basket share together, against the item's price at the
- * time. This is what a studio's cap is checked against, so a lower typed price
- * cannot walk round a cap on discounts.
+ * HOW FAR BELOW ITS OWN PRICE A LINE WENT AT THE CASHIER'S HAND, as a
+ * percentage — a typed price, the line's discount and its basket share
+ * together. This is what a studio's cap is checked against, so a lower typed
+ * price cannot walk round a cap on discounts.
+ *
+ * WHAT THE SHOP'S OWN OFFERS TOOK OFF IS NOT COUNTED (the owner, 22/09/2026).
+ * The measure was the whole gap between the shelf price and what was paid,
+ * which was right while a cashier was the only thing that could move a price —
+ * and became a defect the day an offer could: an automatic 20% against a 10%
+ * cap refused the sale, with the cashier having discounted nothing. The cap
+ * limits what a PERSON gives away.
  */
 export function discountPercentOf(l: PosLine, currency: unknown): number {
   const list = roundMoney(num(l.count) * num(l.listPrice ?? l.price), currency);
-  if (!(list > 0)) return 0;
+  const base = roundSum(list - Math.min(list, roundMoney(num(l.promotionDiscount), currency)));
+  if (!(base > 0)) return 0;
   const paid = amountOf(l, currency);
-  return Math.max(0, Math.round(((list - paid) / list) * 10000) / 100);
+  return Math.max(0, Math.round(((base - paid) / base) * 10000) / 100);
 }
 
 /**
