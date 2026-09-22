@@ -14,7 +14,7 @@ import { repo } from "@/platform/db/repo";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { getMedia, deleteMedia } from "@/lib/media";
 import {
-  ASSET_KINDS, isAssetKind, assetProblem, replaceProblem, assetDeleteProblem,
+  ASSET_KINDS, cleanKind, assetProblem, replaceProblem, assetDeleteProblem,
   libraryOf, assetSummary, versionsOf,
 } from "./assets";
 import { isFinal } from "./model";
@@ -35,7 +35,7 @@ function assetFields(body: Record<string, unknown>) {
   const out: Partial<MarketingAsset> = {};
   const has = (k: string) => body?.[k] !== undefined;
   if (has("name")) out.name = str(body.name, 200);
-  if (has("kind")) out.kind = isAssetKind(body.kind) ? String(body.kind) : "other";
+  if (has("kind")) out.kind = cleanKind(body.kind);
   if (has("notes")) out.notes = str(body.notes, 2000);
   if (has("campaignId")) out.campaignId = str(body.campaignId, 60);
   if (has("version")) out.version = str(body.version, 40);

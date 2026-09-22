@@ -40,6 +40,16 @@ ok("...and a file", A.assetProblem({ name: "x", kind: "artwork", mediaId: "" }) 
 // A CAMPAIGN IS NOT REQUIRED: the studio's own logo belongs to no campaign.
 ok("a campaign is not required", A.assetProblem({ name: "Logo", kind: "logo", mediaId: "m1" }) === "");
 
+// THE COERCION MUST NOT ANSWER THE QUESTION THE RULE ASKS. Mapping any unknown
+// kind straight to "other" made the kind refusal unreachable — found by opening
+// the API, where a body carrying kind "psd" got past the kind check and failed
+// on the file instead. The same shape as Events' capacity bug an hour earlier.
+ok("nothing said becomes the catch-all", A.cleanKind("") === "other" && A.cleanKind(undefined) === "other");
+ok("a real kind is kept", A.cleanKind("logo") === "logo");
+ok("an unknown kind is KEPT so the rule can refuse it", A.cleanKind("psd") === "psd");
+ok("...and the rule does refuse it",
+  A.assetProblem({ name: "x", kind: A.cleanKind("psd"), mediaId: "m" }) === "kind");
+
 console.log("\n== versions");
 const chain = [asset("a", { supersededById: "b" }), asset("b", { supersededById: "c" }), asset("c")];
 ok("the current list is what has not been replaced",

@@ -55,6 +55,24 @@ export function assetProblem(a: { name?: string; kind?: string; mediaId?: string
   return "";
 }
 
+/**
+ * WHAT A KIND COERCES TO. `""` MEANS NOTHING WAS SAID, which becomes the
+ * catch-all; anything else that is not a kind is KEPT so `assetProblem` can
+ * refuse it.
+ *
+ * MAPPING AN UNKNOWN KIND STRAIGHT TO "other" made that refusal UNREACHABLE —
+ * found by opening the API, where a body carrying `kind: "psd"` got past the
+ * kind check and failed on the file instead. The same shape as Events' capacity
+ * bug an hour earlier: a coercion that answers the question the rule was there
+ * to ask. An integration sending "png" should be told its kind is wrong, not
+ * have its file quietly filed under Other.
+ */
+export function cleanKind(v: unknown): string {
+  const s = text(v).trim();
+  if (!s) return "other";
+  return isAssetKind(s) ? s : s.slice(0, 20);
+}
+
 /** The current assets — what a replaced version is not. */
 export const currentAssets = <T extends AssetLike>(list: unknown): T[] => R.currentOf<T>(list);
 

@@ -91,6 +91,23 @@ it replaced is the library's own content changing rather than anything being
 taken away. Whoever works the campaigns catches up to this right verb for verb,
 and the winner-of-work shape holds it at full.
 
+## What has not been proven
+
+**The upload path has never been run.** `BLOB_READ_WRITE_TOKEN` is present but
+EMPTY in `.env.local`, so `put()` throws and `/api/media` answers 500 to every
+upload on a local sandbox. That is not this feature's defect and not a
+production one — it is an environment limit that applies to **every upload in
+the product**: a form's file question, the tender pack, HR documents and the
+quality workflow are all equally unverifiable locally.
+
+So what HAS been exercised against a running studio is everything that does not
+need a stored file: the library reads, the refusals (a missing name, a missing
+file, a media id that is not this studio's, an unrecognised kind), replacing
+with ids that do not exist, and deleting one that does not. **Creating a real
+asset, the version chain end to end, and deleting a file have been proven by
+the model test alone.** Anybody who can upload should exercise those four
+before trusting them.
+
 ## Not built yet
 
 - **No preview.** An image is a link, not a thumbnail, and a PDF does not render
