@@ -14,7 +14,7 @@ const spec = {
   auth: "studio",
   context: posContext,
   name: "pos-promotions",
-  status: { duplicate: 409, "codes-exhausted": 409, "no-section": 409 },
+  status: { duplicate: 409, "codes-exhausted": 409, "no-section": 409, plan: 402 },
 } as const;
 
 export const GET = route(spec, async (pos) => {

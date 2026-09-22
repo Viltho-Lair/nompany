@@ -71,6 +71,16 @@ const FIELDS = [
   // Settings; this is how many a studio on the package may pair.
   { key: "maxTills", label: "Tills", type: "number", zeroLabel: "No limit", hint: "How many point-of-sale tills a studio may pair. 0 means no limit; a package saved before this field existed allows 1." },
 
+  // THE SHOP'S OWN OFFERS (22/09/2026). Two switches because they sell
+  // separately: having Promotions at all, and having the parts that take a
+  // person to set up. Both default ON, so an existing package is unchanged.
+  { key: "promotionsEnabled", label: "Promotions", type: "switch", hint: "Lets a studio write offers that take money off a sale at the till." },
+  {
+    key: "promotionsAdvanced", label: "Coupons, tiers and schedules", type: "switch",
+    showWhen: { field: "promotionsEnabled", equals: true },
+    hint: "Coupon codes, tiered ladders and day-and-hour schedules. Off, a studio writes plain offers only; offers it already has keep working.",
+  },
+
   { key: "includes", label: "Includes", type: "lines", placeholder: "Full platform — every department\nUp to 9 employees\nEnglish & Arabic, RTL-ready" },
   { key: "includesAr", label: "Includes (Arabic)", type: "lines" },
 

@@ -19,6 +19,8 @@ import type { PosContext } from "./types";
 import type { Item } from "@/modules/inventory/types";
 import { expiryWarningDays, type PosTerminal } from "./pos";
 import { listClientTags } from "@/modules/administration/clientTags";
+import { promotionPlanOf } from "@/lib/plans";
+import { activationPreflight, askToActivate } from "./promotionApproval";
 import { nextReference } from "@/modules/main/references";
 import { seriesSetting } from "@/modules/administration/numbering";
 import {
@@ -95,6 +97,9 @@ export async function promotionsView(ctx: PosContext) {
     // HOW SOON "ENDING SOON" IS — the studio's own answer, in POS settings,
     // because it is this section's badge and nothing else reads it.
     expiryWarningDays: expiryWarningDays(ctx),
+    // WHAT THE PACKAGE SELLS. The screen draws what can be WRITTEN; nothing
+    // here changes what an existing offer charges.
+    plan: await promotionPlanOf(ctx.studio),
     can: {
       create: can(ctx.access, "pos.promotions.create"),
       edit: can(ctx.access, "pos.promotions.edit"),
@@ -457,6 +462,36 @@ export async function couponLookup(
   };
 }
 
+// ---- what the plan sells ----------------------------------------------------
+//
+// GATED AT THE WRITE, NEVER AT THE READ (the owner's instruction, 22/09/2026:
+// gating belongs in the ERP settings under /super). A studio that moves to a
+// package without coupons keeps every coupon it has and keeps redeeming them
+// correctly; what it loses is the ability to write NEW ones. A gate that
+// stopped an offer applying would change what somebody at a counter is charged
+// because of a billing change.
+
+/** Which parts of an offer this studio's package does not sell it. */
+async function planProblem(
+  ctx: PosContext,
+  offer?: Pick<Promotion, "tiers" | "schedule"> & { requiresCoupon?: boolean },
+): Promise<{ error: "plan"; part: string } | null> {
+  const plan = await promotionPlanOf(ctx.studio);
+  if (!plan.enabled) return { error: "plan" as const, part: "promotions" };
+  if (plan.advanced || !offer) return null;
+  // A LADDER IS TWO OR MORE RUNGS. One tier with no threshold is a plain
+  // offer written in the only shape the engine has, not an advanced feature.
+  const tiers = offer.tiers || [];
+  const laddered = tiers.length > 1 || tiers.some((t) => t.thresholdType !== "none");
+  if (laddered) return { error: "plan" as const, part: "tiers" };
+  const schedule = offer.schedule;
+  if (schedule && ((schedule.days || []).length || (schedule.windows || []).length)) {
+    return { error: "plan" as const, part: "schedules" };
+  }
+  if (offer.requiresCoupon) return { error: "plan" as const, part: "coupons" };
+  return null;
+}
+
 // ---- writing an offer -------------------------------------------------------
 //
 // AN ACTIVE OFFER IS NOT EDITED (the brief, and it is the right rule): a rate
@@ -519,6 +554,8 @@ export async function createPromotion(ctx: PosContext, body: Record<string, unkn
   if (!ctx.promotionsSection) return { error: "no-section" as const };
 
   const cleaned = { ...cleanPromotion(body), status: "draft" as const };
+  const gated = await planProblem(ctx, cleaned);
+  if (gated) return gated;
   const problems = promotionProblems(cleaned);
   if (problems.length) return { error: "refused" as const, detail: problems.join(", ") };
 
@@ -548,6 +585,8 @@ export async function editPromotion(ctx: PosContext, id: string, body: Record<st
   if (before.status === "archived") return { error: "archived" as const };
 
   const cleaned = { ...cleanPromotion({ ...before, ...body }), status: before.status };
+  const gated = await planProblem(ctx, cleaned);
+  if (gated) return gated;
   const problems = promotionProblems(cleaned);
   if (problems.length) return { error: "refused" as const, detail: problems.join(", ") };
 
@@ -595,6 +634,23 @@ export async function movePromotion(ctx: PosContext, id: string, to: string) {
   if (next === "active") {
     const problems = promotionProblems(before);
     if (problems.length) return { error: "refused" as const, detail: problems.join(", ") };
+  }
+
+  // GOING LIVE MAY NEED A SIGNATURE. The studio decides, in Approvals
+  // settings, above what the offer could cost; until somebody answers, the
+  // offer stays exactly where it is — nothing is half-activated.
+  if (next === "active") {
+    const requester = { studio: ctx.studio, collaborator: ctx.collaborator, roles: ctx.roles };
+    const pre = await activationPreflight(requester, before);
+    if ("error" in pre) return pre;
+    if (pre.needed) {
+      const asked = await askToActivate(requester, before);
+      if (asked.error) return { ...asked, error: asked.error };
+      if (asked.approval) {
+        await log(ctx, before, { action: "status", detail: "asked", from: before.status, to: next });
+        return { asked: true as const, approval: asked.approval, promotion: before };
+      }
+    }
   }
 
   const updated = await Promotions.update(scope(ctx), before.id, (row) => ({
@@ -682,6 +738,11 @@ export async function createCoupons(ctx: PosContext, body: Record<string, unknow
   const denied = requirePermission(ctx.access, "pos.promotions.create");
   if (denied) return denied;
   if (!ctx.promotionsSection) return { error: "no-section" as const };
+
+  // COUPONS ARE THE ADVANCED HALF, so minting is what the package gates —
+  // redeeming a code already issued is not.
+  const gated = await planProblem(ctx, { tiers: [], schedule: null, requiresCoupon: true });
+  if (gated) return gated;
 
   const promotion = await Promotions.byId(scope(ctx), String(body?.promotionId || ""));
   if (!promotion) return { error: "notfound" as const };

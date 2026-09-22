@@ -60,6 +60,16 @@ export type ApprovalTypeDef = {
 
 export const APPROVAL_TYPES: readonly ApprovalTypeDef[] = [
   { key: "quotation", section: "quotations-register", label: "Quotation approval", requestable: true },
+  // AN OFFER GOING LIVE (Point of Sale → Promotions). Writing one costs
+  // nothing; activating it is what starts taking money off sales. What it is
+  // worth is the MOST it could cost — its per-sale cap times the number of
+  // times it may be used — and an offer that caps neither is worth an amount
+  // nobody knows, so it walks every step. It had no approve right of its own,
+  // so its default step names whoever may write one until a studio saves.
+  {
+    key: "promotion", section: "pos-promotions", label: "Promotion", requestable: true, amounted: true,
+    legacy: [{ permission: "pos.promotions.edit", from: 0, label: "Promotions" }],
+  },
   { key: "client-po", section: "crm-sales-tickets", label: "Client purchase order", requestable: true },
   { key: "material-po", section: "procurement-orders", label: "Material purchase order", requestable: true },
   { key: "delivery", section: "logistics-shipments", label: "Delivery request", requestable: true },

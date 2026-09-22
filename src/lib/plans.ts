@@ -49,6 +49,11 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
     // Tills a studio may pair (18/09/2026). Absent is ONE — see catalog.ts —
     // and 0 is no limit, the convention every other cap here uses.
     maxTills: pkg?.maxTills === undefined || pkg?.maxTills === null ? 1 : Number(pkg.maxTills) || 0,
+    // THE SHOP'S OWN OFFERS (22/09/2026). Absent is ON for both — see
+    // catalog.ts: a package saved before these existed sold a studio the
+    // section it already has, and a gate must not take back what was given.
+    promotionsEnabled: pkg?.promotionsEnabled === undefined ? true : Boolean(pkg.promotionsEnabled),
+    promotionsAdvanced: pkg?.promotionsAdvanced === undefined ? true : Boolean(pkg.promotionsAdvanced),
     tierId: tier?.id || "",
     tierName: tier?.name || DEFAULT_TIER,
     tierColor: tier?.color || "",
@@ -111,6 +116,25 @@ export async function tillLimitOf(studio: Row | null | undefined) {
   const { packages, tiers } = await loadCatalogues();
   const { maxTills } = planOf(studio, packages, tiers);
   return maxTills > 0 ? maxTills : null;
+}
+
+/**
+ * WHAT THIS STUDIO'S PACKAGE SELLS IT OF THE OFFERS. Two answers, not one:
+ * `enabled` is whether it has Promotions at all, and `advanced` is whether it
+ * gets coupons, tiered ladders and schedules — the parts that take somebody an
+ * afternoon to set up.
+ *
+ * GATED AT THE WRITE, NEVER AT THE READ. A studio that drops to a package
+ * without the advanced parts keeps every offer it already has and keeps
+ * CHARGING them correctly; what it loses is the ability to write new ones. A
+ * gate that stopped an existing offer applying would change what a customer at
+ * the counter is charged because of a billing change, which is nobody's idea
+ * of a plan limit.
+ */
+export async function promotionPlanOf(studio: Row | null | undefined) {
+  const { packages, tiers } = await loadCatalogues();
+  const plan = planOf(studio, packages, tiers);
+  return { enabled: plan.promotionsEnabled, advanced: plan.promotionsAdvanced };
 }
 
 // THE LIMIT THAT BITES. Returns null when the package sets no ceiling.

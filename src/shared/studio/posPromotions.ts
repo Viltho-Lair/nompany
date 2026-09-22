@@ -48,6 +48,7 @@ type Strings = {
   add: string;
   done: string;
   activeNotEditable: string;
+  sentForApproval: string;
 
   // the editor
   preset: string;
@@ -229,6 +230,7 @@ const en: Strings = {
   remove: "Remove",
   add: "Add",
   done: "Done",
+  sentForApproval: "Sent for approval. The offer goes live when it is signed.",
   activeNotEditable: "A live offer is not edited — pause it, change it, then put it back. What it charges the next customer is not changed by accident.",
 
   preset: "Start from",
@@ -413,6 +415,9 @@ const en: Strings = {
       case "customer": return "A personal code needs a customer.";
       case "status": return "That is not a status an offer has.";
       case "no-section": return "This studio has no Promotions section.";
+      case "plan": return x.part === "promotions"
+        ? "This studio's plan does not include offers."
+        : "This studio's plan does not include coupons, tiered offers or schedules. Offers it already has keep working.";
       default: return "That did not work. Try again.";
     }
   },
@@ -458,6 +463,7 @@ const ar: Strings = {
   remove: "إزالة",
   add: "إضافة",
   done: "تم",
+  sentForApproval: "أرسل للاعتماد. يفعل العرض بعد التوقيع عليه.",
   activeNotEditable: "العرض المفعل لا يعدل — أوقفه مؤقتا ثم غيره ثم أعده. ما يدفعه العميل التالي لا يتغير بالصدفة.",
 
   preset: "ابدأ من",
@@ -642,6 +648,9 @@ const ar: Strings = {
       case "customer": return "الرمز الشخصي يلزمه عميل.";
       case "status": return "ليست هذه حالة من حالات العرض.";
       case "no-section": return "لا يوجد قسم عروض في هذا الاستوديو.";
+      case "plan": return x.part === "promotions"
+        ? "خطة هذا الاستوديو لا تشمل العروض."
+        : "خطة هذا الاستوديو لا تشمل القسائم ولا العروض المتدرجة ولا الجداول. وتبقى العروض الموجودة تعمل.";
       default: return "لم تنجح العملية. حاول مرة أخرى.";
     }
   },

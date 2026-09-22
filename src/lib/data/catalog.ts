@@ -180,6 +180,14 @@ const KINDS: Record<string, CatalogKind> = {
         // an ABSENT value is 1, not "no limit" — a package saved before this
         // field existed must not quietly sell unlimited tills. 0 is no limit.
         maxTills: b.maxTills === undefined || b.maxTills === "" ? 1 : num(b.maxTills),
+        // THE SHOP'S OWN OFFERS (22/09/2026), sold in two steps. The first is
+        // whether a studio has Promotions at all; the second is whether it gets
+        // the parts that take a person to set up — coupons, tiered ladders and
+        // day-and-hour schedules. Both ABSENT mean ON, because every studio
+        // that already has the section has them and a package saved before
+        // these fields existed must not quietly take them away.
+        promotionsEnabled: b.promotionsEnabled === undefined ? true : Boolean(b.promotionsEnabled),
+        promotionsAdvanced: b.promotionsAdvanced === undefined ? true : Boolean(b.promotionsAdvanced),
       };
     },
   },

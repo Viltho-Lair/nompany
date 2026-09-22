@@ -24,6 +24,7 @@ const spec = {
     duplicate: 409,
     "codes-exhausted": 409,
     "no-section": 409,
+    plan: 402,
   },
 } as const;
 

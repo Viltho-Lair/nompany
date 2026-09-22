@@ -48,6 +48,7 @@ export default function StudioPosPromotions({ slug }) {
   const [detail, setDetail] = useState(null);
   const [range, setRange] = useState({ from: "", to: "" });
   const [report, setReport] = useState(null);
+  const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/pos/promotions`, { cache: "no-store" });
@@ -126,6 +127,7 @@ export default function StudioPosPromotions({ slug }) {
   return (
     <div className="space-y-5">
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+      {notice && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{notice}</p>}
 
       <section className={panel}>
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -211,7 +213,15 @@ export default function StudioPosPromotions({ slug }) {
                               )}
                               {data.can.edit && (MOVES[p.status] || []).map((to) => (
                                 <button key={to} type="button" className={btnRow} disabled={busy}
-                                  onClick={async () => { if (await call("", "PATCH", { id: p.id, status: to })) load(); }}>
+                                  onClick={async () => {
+                                    const out = await call("", "PATCH", { id: p.id, status: to });
+                                    if (!out) return;
+                                    // ASKED, NOT DONE: activating may go for a
+                                    // signature, and the row stays where it is
+                                    // until somebody answers on Approvals.
+                                    if (out.asked) setNotice(tr.sentForApproval);
+                                    load();
+                                  }}>
                                   {{ active: tr.activate, paused: tr.pause, ended: tr.end, archived: tr.archive }[to]}
                                 </button>
                               ))}
