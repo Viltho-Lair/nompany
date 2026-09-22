@@ -104,8 +104,28 @@ The other thirteen subsections of the plan, and everything the dashboard's plan 
   tracking with a consent banner, reading the UTM tags back when a visitor arrives.
 - **Leads & Scoring**: leads are Sales tickets (the owner, 2026-09-19), campaigns send them, and
   **scoring is built** (2026-09-22, `leads.md`): seven declared factors, a band, and the reasons
-  on the chip. Not built: lifecycle stages beyond the pipeline's, lead enrichment, duplicate
-  merging, and studio-set weights.
+  on the chip. **The order the owner agreed for the rest, 2026-09-22** — worth more at the top
+  than at the bottom, and each is a reason rather than a wish:
+
+  - [x] **Score a lead on arrival** (2026-09-22). Seven factors, hot/warm/cold, reasons shown.
+  - [ ] **Engagement — what happened AFTER it arrived.** Somebody who answered three forms is a
+        different prospect from somebody who filled one in and vanished, and the score cannot
+        tell them apart. The data is already there: responses carry addresses and the consent
+        ledger groups every address the studio holds, so "answered two forms in a fortnight" is
+        computable today. **This is the next one.**
+  - [ ] **Decay with age.** A three-month-old lead scores what it did on arrival, so one that has
+        gone cold still looks hot. A few lines, once engagement lands — do it after, or a decaying
+        score will hide the engagement that should have lifted it.
+  - [ ] **Studio-set weights.** Deliberately NOT yet: fixed weights are what make a score
+        comparable between leads and arguable by a manager, and editable ones invite tuning until
+        the number agrees with whoever is tuning. The honest trigger is a studio naming a factor
+        that is wrong for its trade — a contractor and a clinic will not value "said what they can
+        spend" alike.
+  - [ ] **Score history.** Only when the scoring should LEARN from closed deals. Until then a
+        stored score is a figure free to part company with the truth, which this codebase has been
+        caught by before.
+
+  Also not built: lifecycle stages beyond the pipeline's, lead enrichment, and duplicate merging.
 - **Journeys**, **Content & Brand Assets**, **Events & Webinars**, **Promotions & Loyalty**,
   **Research & Feedback**, **Partners, PR & Influencers**, **Reports & Attribution**.
 - On the dashboard: marketing-sourced revenue, ROI, cost per lead, CAC, the funnel, the budget
