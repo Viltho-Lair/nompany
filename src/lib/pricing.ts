@@ -290,3 +290,49 @@ export function fmtCurrencyAmount(amount: number | string, code: string) {
   const digits = code === "SAR" ? 2 : 0;
   return Number(amount).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: digits });
 }
+
+/* THE HEADCOUNTS THE COMMERCIAL MODEL DECLARES — the one place anything may
+   learn where the free tier ends or where a paid plan begins.
+   ---------------------------------------------------------------------------
+   THE SAME NUMBER WAS TYPED IN SIXTEEN PLACES. `PLANS` says the free tier ends
+   at nine; so did eight English marketing strings and their eight Arabic twins,
+   each written by hand — "free for teams of one to nine", "up to 9 employees",
+   "free until you are ten people" — plus `planOf`'s `maxMembers`, read from a
+   package somebody types into /super. Nothing joined them, so moving the
+   boundary meant finding every sentence that mentions it, and missing one meant
+   the site advertising a limit the product no longer has. That is exactly how
+   the platform page came to promise sixteen departments beside eighteen.
+
+   THE COPY IS NOT INTERPOLATED FROM THESE, DELIBERATELY. A sentence built from
+   `Free for teams of one to ${n}` reads well in English and badly in Arabic,
+   where the numeral agrees with what it counts; the marketing copy keeps its
+   prose and `tests/marketing-model.mjs` asserts that no string states a
+   headcount this model does not declare. That is the same shape the departments
+   claim already uses — a word map and an assertion rather than a template —
+   and it is why the Arabic reads like Arabic. */
+export const PLAN_HEADCOUNTS = {
+  /** The last headcount that pays nothing. */
+  get freeUpTo(): number {
+    const free = PLANS.find((p) => p.free);
+    return Number(free?.maxUsers) || 0;
+  },
+  /** The first headcount that pays. */
+  get paidFrom(): number {
+    const free = PLANS.find((p) => p.free);
+    return (Number(free?.maxUsers) || 0) + 1;
+  },
+  /** Where the invoiced-on-headcount tier starts. */
+  get invoicedFrom(): number {
+    const top = PLANS.find((p) => p.invoicedMonthly);
+    return Number(top?.minUsers) || 0;
+  },
+  /** Every boundary the model declares, for the guard in the marketing suite. */
+  get declared(): number[] {
+    const out = new Set<number>();
+    for (const p of PLANS) {
+      if (Number.isFinite(p.minUsers)) out.add(Number(p.minUsers));
+      if (p.maxUsers != null && Number.isFinite(p.maxUsers)) out.add(Number(p.maxUsers));
+    }
+    return [...out].sort((a, b) => a - b);
+  },
+};

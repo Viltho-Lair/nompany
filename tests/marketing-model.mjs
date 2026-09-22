@@ -931,5 +931,70 @@ for (const path of ["/", "/platform", "/pricing", "/security", "/about", "/conta
 }
 ok("no page's metadata spells a department count", spelledSomewhere.length === 0, spelledSomewhere.join(", "));
 
+console.log("\n== no page may state a headcount the plan model does not declare");
+// THE SAME NUMBER, TYPED SIXTEEN TIMES. `PLANS` says the free tier ends at
+// nine; so did eight English strings and their eight Arabic twins — "free for
+// teams of one to nine", "up to 9 employees", "free until you are ten people".
+// Nothing joined them, so moving the boundary meant finding every sentence that
+// mentions it, and missing one meant advertising a limit the product no longer
+// has. That is how /platform came to promise sixteen departments beside
+// eighteen (22/09/2026).
+//
+// THE COPY IS NOT INTERPOLATED, deliberately: a template reads well in English
+// and badly in Arabic, where the numeral agrees with what it counts. So the
+// prose stays prose and this refuses any headcount the model has not declared —
+// the same shape the departments claim uses.
+const { PLAN_HEADCOUNTS } = await import("@/lib/pricing");
+const HOME = await import("@/shared/marketing/home");
+const STATS = await import("@/shared/marketing/stats");
+const CUST = await import("@/shared/marketing/customers");
+const ABOUT = await import("@/shared/marketing/about");
+const LAND = await import("@/shared/landing");
+
+// Number-words that could name a headcount, both languages. Digits are read as
+// digits; these are the ones a sentence spells out.
+const WORD_TO_N = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  "واحد": 1, "اثنين": 2, "تسعة": 9, "عشرة": 10,
+};
+// A number is a HEADCOUNT only when it is counting people.
+const PEOPLE = "(?:people|persons?|users?|employees?|staff|أشخاص|شخص|مستخدم(?:ين|ا)?|موظف(?:ين|ا|ا)?)";
+const DIGITS = new RegExp(`(\\d{1,4})\\s*${PEOPLE}`, "gi");
+const WORDS = new RegExp(`(${Object.keys(WORD_TO_N).join("|")})\\s*${PEOPLE}`, "gi");
+
+const strings = [];
+const collect = (v) => {
+  if (typeof v === "string") strings.push(v);
+  else if (Array.isArray(v)) v.forEach(collect);
+  else if (v && typeof v === "object") Object.values(v).forEach(collect);
+};
+for (const locale of ["en", "ar"]) {
+  collect(HOME.homeCopy(locale));
+  collect(STATS.statsCopy(locale));
+  collect(CUST.customersCopy(locale));
+  collect(ABOUT.aboutCopy(locale));
+  collect(LAND.landingDict(locale));
+  for (const key of Object.keys(C.CLAIMS)) collect(C.claimText(key, locale));
+}
+
+const declaredSeats = new Set(PLAN_HEADCOUNTS.declared);
+const offenders = [];
+for (const str of strings) {
+  for (const m of String(str).matchAll(DIGITS)) {
+    const n = Number(m[1]);
+    if (!declaredSeats.has(n)) offenders.push(`${n} in "${String(str).slice(0, 60)}…"`);
+  }
+  for (const m of String(str).matchAll(WORDS)) {
+    const n = WORD_TO_N[m[1].toLowerCase()];
+    if (n && !declaredSeats.has(n)) offenders.push(`"${m[1]}" (${n}) in "${String(str).slice(0, 60)}…"`);
+  }
+}
+ok("every headcount in the copy is one the plan model declares",
+  offenders.length === 0, offenders.slice(0, 3).join(" · "));
+ok("...and the model still ends the free tier where the claim says",
+  PLAN_HEADCOUNTS.freeUpTo === 9 && PLAN_HEADCOUNTS.paidFrom === 10,
+  `free≤${PLAN_HEADCOUNTS.freeUpTo}, paid from ${PLAN_HEADCOUNTS.paidFrom}`);
+ok("...and names one place the invoiced tier starts", PLAN_HEADCOUNTS.invoicedFrom === 250);
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nmarketing model: all passed\n");
 process.exit(fails ? 1 : 0);
