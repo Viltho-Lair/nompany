@@ -103,9 +103,17 @@ ok("the unit price is restated net, so the line reads consistently",
   inclusive.lines[0].unitPrice === 100, String(inclusive.lines[0].unitPrice));
 
 console.log("\n== the document says what kind of sale it is");
-ok("general sales is 012", doc({ lines: [{ description: "x", qty: 1, unitPrice: 1 }] }).invoiceTypeCode === "012");
-ok("income is 011",
-  J.jofotaraDocument({ invoice: { reference: "a", issueDate: "2026-09-22", lines: [{ description: "x", qty: 1, unitPrice: 1 }] }, supplier, invoiceType: "income", uuid: "u" }).invoiceTypeCode === "011");
+// THESE TWO ASSERTED 012 AND 011 AS THE ELEMENT VALUE, from a third-party
+// tutorial, and ISTD's own guide says otherwise: the element is ALWAYS 388, and
+// Jordan's code — one of ten, in five pairs — rides in the `name` attribute,
+// which ./ublXml writes from the SELLER's registration rather than from the
+// invoice. A document cannot know it; a taxpayer does.
+ok("every invoice carries 388", doc({ lines: [{ description: "x", qty: 1, unitPrice: 1 }] }).invoiceTypeCode === "388");
+ok("…whatever the studio's tax treatment",
+  J.jofotaraDocument({ invoice: { reference: "a", issueDate: "2026-09-22", lines: [{ description: "x", qty: 1, unitPrice: 1 }] }, supplier, invoiceType: "income", uuid: "u" }).invoiceTypeCode === "388");
+ok("the ten codes are the guide's five pairs",
+  J.JO_TYPE_CODES.join(",") === "011,021,111,121,311,321,411,421,511,521", J.JO_TYPE_CODES.join(","));
+ok("a code the guide does not list is refused", !J.isJoTypeCode("012") && J.isJoTypeCode("011"));
 
 console.log("\n== what is refused before it is ever sent");
 // A REJECTION FROM ISTD ARRIVES AS A CODE a studio cannot act on; these four
@@ -136,6 +144,57 @@ console.log("\n== an invoice with nothing on it does not throw");
 const bare = J.jofotaraDocument({ invoice: {}, supplier, invoiceType: "general-sales", uuid: "u" });
 ok("no lines is an empty document rather than a crash",
   bare.lines.length === 0 && bare.payableAmount === 0, j(bare.payableAmount));
+
+console.log("\n== the XML, against ISTD's own guide");
+// EVERY ASSERTION HERE IS ONE THE FIRST DRAFT GOT WRONG. They were written from
+// general UBL knowledge and a third-party tutorial, and all eight looked right
+// to somebody who knows UBL and did not know JORDAN'S UBL. The guide
+// (الدليل التقني للربط مع نظام الفوترة الوطني, istd.gov.jo) is the source.
+const X = await import("@/modules/finance/ublXml");
+const seller = { typeCode: "011", incomeSource: "99123456" };
+const xml = X.ublInvoiceXml(
+  doc({ lines: [{ description: "Widget", qty: 2, unitPrice: 50 }] }),
+  seller,
+);
+
+ok("ProfileID is first and says reporting:1.0",
+  xml.includes("<cbc:ProfileID>reporting:1.0</cbc:ProfileID>"), xml.slice(0, 120));
+ok("the invoice type element is 388 with Jordan's code as its name",
+  xml.includes('<cbc:InvoiceTypeCode name="011">388</cbc:InvoiceTypeCode>'));
+ok("amounts carry currencyID=\"JO\", which is the guide's and not ISO 4217",
+  xml.includes('currencyID="JO"') && !xml.includes('currencyID="JOD"'));
+ok("the document currency element is still JOD",
+  xml.includes("<cbc:DocumentCurrencyCode>JOD</cbc:DocumentCurrencyCode>")
+  && xml.includes("<cbc:TaxCurrencyCode>JOD</cbc:TaxCurrencyCode>"));
+ok("a line carries TaxTotal with a RoundingAmount, not ClassifiedTaxCategory",
+  xml.includes("<cbc:RoundingAmount") && !xml.includes("ClassifiedTaxCategory"));
+ok("a tax category id carries its UN/ECE scheme attributes",
+  xml.includes('<cbc:ID schemeAgencyID="6" schemeID="UN/ECE 5305">S</cbc:ID>')
+  && xml.includes('<cbc:ID schemeAgencyID="6" schemeID="UN/ECE 5153">VAT</cbc:ID>'));
+ok("a line's discount is an AllowanceCharge inside Price, reason DISCOUNT",
+  /<cac:Price>.*<cac:AllowanceCharge>.*<cbc:AllowanceChargeReason>DISCOUNT<\/cbc:AllowanceChargeReason>/.test(xml));
+ok("the income source sequence rides in SellerSupplierParty",
+  xml.includes("<cac:SellerSupplierParty><cac:Party><cac:PartyIdentification><cbc:ID>99123456</cbc:ID>"));
+ok("payment means is present with its UN/ECE list",
+  xml.includes('<cbc:PaymentMeansCode listID="UN/ECE 4461">10</cbc:PaymentMeansCode>'));
+
+console.log("\n== the things that corrupt a document quietly");
+const nasty = X.ublInvoiceXml(
+  doc({ clientName: 'Smith & Co <"O\'Brien">', lines: [{ description: "A & B", qty: 1, unitPrice: 1 }] }),
+  seller,
+);
+ok("an ampersand in a customer's name is escaped, not passed through",
+  nasty.includes("Smith &amp; Co") && !/Smith & Co/.test(nasty));
+ok("angle brackets and quotes too",
+  nasty.includes("&lt;") && nasty.includes("&quot;") && nasty.includes("&apos;"));
+// A FIXED WIDTH MATTERS to anything that hashes or signs: 18.6 and 18.600 are
+// the same number and two different documents.
+ok("amounts are written to the dinar's three decimals",
+  /<cbc:PayableAmount currencyID="JO">\d+\.\d{3}<\/cbc:PayableAmount>/.test(nasty),
+  (nasty.match(/<cbc:PayableAmount[^<]*<\/cbc:PayableAmount>/) || [""])[0]);
+ok("and quantities likewise", /<cbc:InvoicedQuantity unitCode="PCE">\d+\.\d{3}</.test(nasty));
+ok("the document is one line, because whitespace is significant to a signature",
+  !xml.includes("\n"), String(xml.split("\n").length));
 
 console.log(fails ? `\njofotara model: ${fails} FAILURES\n` : "\njofotara model: all passed\n");
 process.exitCode = fails ? 1 : 0;

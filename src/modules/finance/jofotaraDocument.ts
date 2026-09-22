@@ -73,17 +73,27 @@ export type UblInvoice = {
 };
 
 /**
- * JORDAN'S CODE FOR THE KIND OF SALE. A studio registered for general sales tax
- * issues a general-sales invoice; one registered for income tax only issues an
- * income invoice. **The studio says which** — it is a fact about their
- * registration, not something derivable from an invoice, and guessing it is how
- * a submission is refused for a reason nobody can read on this end.
+ * JORDAN'S CODE FOR THE KIND OF SALE — the `name` ATTRIBUTE on
+ * `cbc:InvoiceTypeCode`, whose element value is always 388 (see ./ublXml).
+ *
+ * THE FIRST DRAFT HAD THIS WRONG TWICE, from a third-party tutorial: it used
+ * 011/012/013 and put them in the element. ISTD's own guide lists five PAIRS —
+ * 011/021, 111/121, 311/321, 411/421, 511/521 — where the pair distinguishes
+ * how the sale is settled (cash or receivable), and 388 is the element.
+ *
+ * **THE STUDIO SAYS WHICH.** It is a fact about their registration and their
+ * settlement, not something derivable from an invoice, and guessing it is how a
+ * submission is refused for a reason nobody on this end can read. The five
+ * pairs are offered as they are; naming them here would be this file inventing
+ * meanings the guide states in Arabic and I have not confirmed one by one.
  */
-export const JO_TYPE_CODE: Record<JoInvoiceType, string> = {
-  income: "011",
-  "general-sales": "012",
-  "special-sales": "013",
-};
+export const JO_TYPE_CODES = [
+  "011", "021", "111", "121", "311", "321", "411", "421", "511", "521",
+] as const;
+export type JoTypeCode = (typeof JO_TYPE_CODES)[number];
+
+export const isJoTypeCode = (v: unknown): v is JoTypeCode =>
+  (JO_TYPE_CODES as readonly string[]).includes(String(v ?? ""));
 
 /**
  * WHAT A LINE IS, FOR TAX. UBL's category codes, from the same `taxCategory`
@@ -121,7 +131,7 @@ export function jofotaraDocument(input: {
     id?: unknown;
   };
   supplier: UblParty;
-  /** The studio's registration kind — see JO_TYPE_CODE. */
+  /** Kept for the tax treatment; the WIRE code is the seller's (see ./ublXml). */
   invoiceType: JoInvoiceType;
   /** True when the studio's prices already include tax (a till's do; an invoice's do not). */
   pricesIncludeTax?: boolean;
@@ -189,7 +199,7 @@ export function jofotaraDocument(input: {
     id: str(invoice.reference, 60),
     uuid,
     issueDate: str(invoice.issueDate, 10).slice(0, 10),
-    invoiceTypeCode: JO_TYPE_CODE[invoiceType],
+    invoiceTypeCode: "388",
     documentCurrencyCode: currency,
     supplier,
     customer: {

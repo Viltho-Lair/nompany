@@ -21,8 +21,18 @@ ok("A SAUDI STUDIO'S COUNTRY REQUIRES E-INVOICING, through ZATCA", SA?.system ==
 ok("so does a Jordanian one's, through JoFotara", JO?.system === "JoFotara" && JO?.mode === "clearance");
 ok("a country with no rule requires nothing", studioEInvoiceRules({ country: "Germany" }) === null);
 
-ok("NO ADAPTER IS BUILT — the owner's framework-only decision", Object.keys(EINVOICE_ADAPTERS).length === 0);
-ok("...so a Saudi studio is not connected", adapterFor(SA) === null);
+// THIS ASSERTED "NO ADAPTER IS BUILT" from 18/09/2026, when the owner chose
+// framework only, until Jordan's landed on 22/09/2026 at their instruction —
+// and it FAILED the moment it did, which is the assertion doing its job. What
+// it pins now is the same property one country along: a country whose adapter
+// nobody has written is NOT CONNECTED, and the product says so rather than
+// implying an invoice was sent.
+ok("JORDAN HAS AN ADAPTER, and it is keyed by the name its country file declares",
+  Boolean(EINVOICE_ADAPTERS.jofotara) && adapterFor(JO)?.key === "jofotara");
+ok("...and Saudi Arabia still has none, so a Saudi studio is not connected",
+  !EINVOICE_ADAPTERS.zatca && adapterFor(SA) === null);
+ok("the registry answers only for names a country declares",
+  adapterFor({ ...JO, adapter: "invented" }) === null);
 
 const issued = { status: "Sent", issueDate: "2026-09-01" };
 ok("an issued invoice not yet sent needs action", einvoiceStatusOf(issued, SA) === "unsubmitted" && needsAction("unsubmitted"));

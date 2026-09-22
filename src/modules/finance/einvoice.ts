@@ -1,24 +1,35 @@
-// E-INVOICING — THE FRAMEWORK, AND NO COUNTRY'S ADAPTER YET (the owner,
-// 18/09/2026: "framework only; keep e-invoicing adapters as an option for the
-// future"). A country's definition says whether its invoices must reach its tax
-// authority (`rules.einvoice` in shared/compliance); an ADAPTER is the code that
-// would submit them — build the document, sign it, send it, keep the answer.
-// This file holds the contract an adapter meets, the registry it goes into, and
-// the one question every screen asks: where is this invoice with the authority?
+// E-INVOICING — THE FRAMEWORK, AND JORDAN'S ADAPTER. A country's definition
+// says whether its invoices must reach its tax authority (`rules.einvoice` in
+// shared/compliance); an ADAPTER is the code that submits them — build the
+// document, sign it, send it, keep the answer. This file holds the contract an
+// adapter meets, the registry it goes into, and the one question every screen
+// asks: where is this invoice with the authority?
 //
-// THE REGISTRY IS EMPTY, and the product says so rather than implying invoices
-// are being sent. A studio in a country that requires e-invoicing sees, on its
-// Tax screen and in its setup notice, that nompany does not submit them yet —
-// so it keeps using the authority's own portal until an adapter lands.
+// (It read "AND NO COUNTRY'S ADAPTER YET" from 18/09/2026, when the owner chose
+// framework only, until Jordan's landed on 22/09/2026 at their instruction.)
+//
+// JORDAN HAS AN ADAPTER (22/09/2026); every other country's is still absent,
+// and the product says so rather than implying invoices are being sent. A
+// studio in a country with no adapter sees, on its Tax screen and in its setup
+// notice, that nompany does not submit for it yet — so it keeps using the
+// authority's own portal until one lands.
+//
+// AND JORDAN'S IS NOT CERTIFIED. It is written against a third-party tutorial
+// and has never run against ISTD's sandbox; a studio must enter its OWN
+// credentials before anything is submitted at all, which is the gate that keeps
+// an unproven adapter from quietly failing in somebody's books.
 //
 // ADDING A COUNTRY IS ADDING ONE ADAPTER HERE, keyed by the `adapter` name its
 // definition already declares ("zatca", "jofotara"). Nothing else changes: the
 // queue, the retry and the states below are the country-neutral half.
 //
-// PURE. No store, no clock, no network — an adapter's `submit` is the only
-// thing that would reach outside, and it is handed everything it needs.
+// EVERYTHING DECLARED HERE IS PURE — no store, no clock, no network. An
+// adapter's `submit` is the only thing that reaches outside, and it is handed
+// everything it needs; the registry below imports one, so this MODULE is no
+// longer network-free even though nothing written in it does I/O.
 
 import type { EInvoiceRules } from "@/shared/compliance/definition";
+import { jofotaraAdapter } from "./jofotara";
 
 /** Where an invoice stands with its authority. Stored on the invoice once an attempt is made. */
 export const EINVOICE_STATUSES = ["pending", "submitted", "accepted", "rejected", "failed"] as const;
@@ -50,7 +61,13 @@ export type EInvoiceAdapter = {
  * THE ADAPTERS BUILT, by the key a country's definition names. Empty on
  * purpose — see the header. Recorded in docs/progress.md as the future option.
  */
-export const EINVOICE_ADAPTERS: Readonly<Record<string, EInvoiceAdapter>> = Object.freeze({});
+export const EINVOICE_ADAPTERS: Readonly<Record<string, EInvoiceAdapter>> = Object.freeze({
+  // JORDAN (22/09/2026). Built against a third-party tutorial rather than
+  // ISTD's own guide, and NOT yet run against any endpoint, sandbox or
+  // otherwise — the setup notice says so, and `einvoicing.md` records what
+  // confirming it needs.
+  jofotara: jofotaraAdapter,
+});
 
 export function adapterFor(rules: EInvoiceRules | null): EInvoiceAdapter | null {
   return rules ? EINVOICE_ADAPTERS[rules.adapter] || null : null;
