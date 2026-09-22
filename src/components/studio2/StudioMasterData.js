@@ -46,12 +46,15 @@ const NoticesPanel = nextDynamic(() => import("@/components/studio2/NoticesPanel
   { loading: () => <ScreenSkeleton /> });
 const ApiKeysPanel = nextDynamic(() => import("@/components/studio2/ApiKeysPanel"),
   { loading: () => <ScreenSkeleton /> });
+const ClientTagsPanel = nextDynamic(() => import("@/components/studio2/ClientTagsPanel"),
+  { loading: () => <ScreenSkeleton /> });
 import { numberingDict } from "@/shared/studio/numbering";
 import { unitsDict } from "@/shared/studio/units";
 import { costCodesDict } from "@/shared/studio/costCodes";
 import { taxonomyDict } from "@/shared/studio/taxonomy";
 import { noticesDict } from "@/shared/studio/notices";
 import { apiKeysDict } from "@/shared/studio/apiKeys";
+import { clientTagsDict } from "@/shared/studio/clientTags";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub } from "@/components/studio2/ui";
 import { useReload } from "@/components/studio2/useReload";
@@ -68,6 +71,7 @@ export default function StudioMasterData({ slug }) {
   // refused by the settings route rather than by the master-data endpoint the
   // other two tabs use — the same split Locations already has a note about.
   const [numbering, setNumbering] = useState(null);
+  const [clientTags, setClientTags] = useState(null);
   const [units, setUnits] = useState(null);
   // ALSO A FIELD OF THE STUDIO RECORD, so it rides in the same fetch as
   // numbering and units rather than costing a third round trip.
@@ -149,6 +153,13 @@ export default function StudioMasterData({ slug }) {
     setLibrary(out);
   }, [slug]);
 
+  const loadClientTags = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/administration/client-tags`, { cache: "no-store" });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) return;                       // the tab simply does not render
+    setClientTags(out.tags || []);
+  }, [slug]);
+
   const loadApiKeys = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/administration/api-keys`, { cache: "no-store" });
     const out = await res.json().catch(() => ({}));
@@ -157,8 +168,8 @@ export default function StudioMasterData({ slug }) {
   }, [slug]);
 
   const loadAll = useCallback(async () => {
-    await Promise.all([load(), loadDepartments(), loadSettings(), loadLibrary(), loadApiKeys()]);
-  }, [load, loadDepartments, loadSettings, loadLibrary, loadApiKeys]);
+    await Promise.all([load(), loadDepartments(), loadSettings(), loadLibrary(), loadApiKeys(), loadClientTags()]);
+  }, [load, loadDepartments, loadSettings, loadLibrary, loadApiKeys, loadClientTags]);
 
   useReload(loadAll);
   // Both tabs are Master data's own rows — `locations` and `departments` under
@@ -167,6 +178,21 @@ export default function StudioMasterData({ slug }) {
   // screen fetches from is not where its records live, and this hook wants the
   // second.
   useLiveUpdates(slug, "administration-master", loadAll);
+
+  // ONE DOOR FOR THE TAG REGISTER. It answers `true` or `false` rather than
+  // the row, because the panel only needs to know whether to close its form —
+  // the list comes back through the live update the write triggers.
+  const sendTag = useCallback(async (method, payload) => {
+    setError(""); setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/administration/client-tags`, {
+      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok || !out.ok) { setError(clientTagsDict(locale).refusal(out.error || "")); return false; }
+    await loadClientTags();
+    return true;
+  }, [slug, locale, loadClientTags]);
 
   const send = useCallback(async (kind, method, payload) => {
     setError(""); setBusy(true);
@@ -273,7 +299,7 @@ export default function StudioMasterData({ slug }) {
           second register. Both tabs answer to administration.master, so there
           is no per-tab gate — what differs is the CRUD ladder inside each. */}
       <div role="tablist" aria-label={tr.masterData} className="flex gap-2 border-b border-slate-200 dark:border-white/10">
-        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab], ["units", unitsDict(locale).tab], ["categories", taxonomyDict(locale).tab], ["cost-codes", costCodesDict(locale).tab], ["notices", noticesDict(locale).tab], ["api-keys", apiKeysDict(locale).tab]].map(([key, label]) => (
+        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab], ["units", unitsDict(locale).tab], ["categories", taxonomyDict(locale).tab], ["cost-codes", costCodesDict(locale).tab], ["notices", noticesDict(locale).tab], ["api-keys", apiKeysDict(locale).tab], ["client-tags", clientTagsDict(locale).tab]].map(([key, label]) => (
           <button
             key={key}
             role="tab"
@@ -306,6 +332,22 @@ export default function StudioMasterData({ slug }) {
             busy={busy}
             send={send}
           />
+        </>
+      ) : tab === "client-tags" ? (
+        <>
+          <div>
+            <h2 className={h2}>{clientTagsDict(locale).tab}</h2>
+          </div>
+          {!clientTags ? <ScreenSkeleton loadingLabel={tr.loadingMasterData} /> : (
+            <ClientTagsPanel
+              rows={clientTags}
+              canManage={data.canManageLocations}
+              canCreate={data.canCreateLocations}
+              canDelete={data.canDeleteLocations}
+              busy={busy}
+              send={sendTag}
+            />
+          )}
         </>
       ) : tab === "departments" ? (
         <>

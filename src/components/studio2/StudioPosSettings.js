@@ -36,6 +36,10 @@ export default function StudioPosSettings({ slug }) {
       pricesIncludeTax: Boolean(body.terms.pricesIncludeTax), footer: body.terms.footer || "",
       // Blank means no limit, and saves as null so an emptied box lifts the cap.
       maxDiscountPercent: body.terms.maxDiscountPercent ?? "",
+      // HOW SOON "ENDING SOON" IS on the offers screen. Here rather than on the
+      // studio because nothing outside Point of Sale reads it (the owner's
+      // rule, 22/09/2026: a setting several sections share is the studio's).
+      promotionExpiryWarningDays: body.terms.promotionExpiryWarningDays ?? "",
     });
   }, [slug, setForm]);
 
@@ -143,6 +147,9 @@ export default function StudioPosSettings({ slug }) {
             onChange={(v) => setForm((f) => ({ ...f, footer: v }))} />
           <Field label={till.maxDiscount} type="number" min="0" max="100" value={form.maxDiscountPercent} disabled={!canEdit}
             hint={till.maxDiscountHint} onChange={(v) => setForm((f) => ({ ...f, maxDiscountPercent: v }))} />
+          <Field label={till.expiryWarning} type="number" min="0" max="365" value={form.promotionExpiryWarningDays}
+            disabled={!canEdit} hint={till.expiryWarningHint}
+            onChange={(v) => setForm((f) => ({ ...f, promotionExpiryWarningDays: v }))} />
         </div>
         {canEdit && (
           <button type="button" className={`${btn} mt-5`} disabled={busy}

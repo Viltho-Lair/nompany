@@ -110,6 +110,8 @@ type Strings = {
   notPaired: string;
   thisDevice: string;
   tillLimit: (n: number) => string;
+  expiryWarning: string;
+  expiryWarningHint: string;
 
   // THE SHOP'S OWN OFFERS at the counter (22/09/2026). An offer's own name is
   // what the studio typed and prints as typed; these are the words around it.
@@ -237,6 +239,8 @@ const en: Strings = {
   thisDevice: "This device",
   tillLimit: (n) => (n === 1 ? "Your plan includes 1 till." : `Your plan includes ${n} tills.`),
 
+  expiryWarning: "Warn about an offer ending",
+  expiryWarningHint: "How many days before its end an offer is marked \"ending soon\". Blank is seven.",
   offers: "Offers",
   offersAction: "Offers",
   offersLead: "What this basket earns, and the offers the cashier may choose.",
@@ -284,6 +288,7 @@ const en: Strings = {
       case "phone": return "That is not a phone number.";
       case "no-clients": return "This studio keeps no client register, so a customer's number cannot be recorded.";
       case "customers-unavailable": return "Customers cannot be registered right now. Leave the number blank to sell.";
+      case "warning-days": return "The warning window is a number of days between 0 and 365.";
       case "discount-cap": return x.name ? `${String(x.name)} is discounted by more than ${x.max}%, the most this till allows.` : "The largest discount must be between 0 and 100%.";
       case "closed": return "That shift is already closed.";
       case "shift-open": return "This till already has an open shift.";
@@ -405,6 +410,8 @@ const ar: Strings = {
   thisDevice: "هذا الجهاز",
   tillLimit: (n) => (n === 1 ? "تشمل خطتك صندوقا واحدا." : `تشمل خطتك ${n} صناديق.`),
 
+  expiryWarning: "التنبيه قبل انتهاء العرض",
+  expiryWarningHint: "كم يوما قبل انتهاء العرض يوسم بـ«ينتهي قريبا». الفراغ يعني سبعة.",
   offers: "العروض",
   offersAction: "العروض",
   offersLead: "ما تستحقه هذه السلة، والعروض التي يختارها أمين الصندوق.",
@@ -452,6 +459,7 @@ const ar: Strings = {
       case "phone": return "هذا ليس رقم هاتف.";
       case "no-clients": return "لا يحفظ هذا الاستوديو سجلا للعملاء، فلا يمكن تسجيل رقم العميل.";
       case "customers-unavailable": return "لا يمكن تسجيل العملاء الآن. اترك الرقم فارغا لإتمام البيع.";
+      case "warning-days": return "مدة التنبيه عدد من الأيام بين 0 و365.";
       case "discount-cap": return x.name ? `خصم ${String(x.name)} أكبر من ${x.max}%، وهو أقصى ما يسمح به هذا الصندوق.` : "يجب أن يكون أكبر خصم بين 0 و100%.";
       case "closed": return "هذه الوردية مغلقة بالفعل.";
       case "shift-open": return "لهذا الصندوق وردية مفتوحة بالفعل.";

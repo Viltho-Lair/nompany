@@ -26,6 +26,7 @@ import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict, liveColumnLabel } from "@/shared/studio/sales";
+import { clientTagsDict } from "@/shared/studio/clientTags";
 import { useReload } from "@/components/studio2/useReload";
 import { stageDef, stageProblem } from "@/modules/sales/pipeline";
 import { LeadQueue, assignLead } from "@/components/studio2/LeadParts";
@@ -242,6 +243,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
             onClose={closeEditing}
           >
             <ClientForm row={editing.row} cities={data.salesCities || []} positions={data.salesContactPositions || []}
+              tags={data.clientTags || []}
               onCancel={closeEditing}
               onSave={(payload) => send("clients", editing.row ? "PUT" : "POST", editing.row ? { ...payload, id: editing.row.id } : payload)} />
           </Dialog>
@@ -854,8 +856,10 @@ function ClientLogoField({ value, onChange }) {
   );
 }
 
-function ClientForm({ row, cities, positions, onSave, onCancel }) {
-  const tr = salesDict(useStudioLocale());
+function ClientForm({ row, cities, positions, tags = [], onSave, onCancel }) {
+  const locale = useStudioLocale();
+  const tr = salesDict(locale);
+  const tagTr = clientTagsDict(locale);
   const [f, setF] = useState({
     name: row?.name || "", industry: row?.industry || "", website: row?.website || "",
     logo: row?.logo || "", notes: row?.notes || "",
@@ -864,6 +868,9 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
   // form sends the WHOLE list back, so anything it doesn't show would be lost.
   const [contacts, setContacts] = useState(row?.contacts || []);
   const [locations, setLocations] = useState(row?.locations || []);
+  // IDS, NOT NAMES. The register may rename a tag tomorrow and this client
+  // keeps it — see modules/administration/clientTags.
+  const [tagIds, setTagIds] = useState(row?.tagIds || []);
   const [busy, setBusy] = useState(false);
 
   return (
@@ -897,12 +904,35 @@ function ClientForm({ row, cities, positions, onSave, onCancel }) {
         ]}
       />
 
+      {/* THE REGISTER'S OWN TAGS, and nothing typed here: a tag nobody put in
+          Master data is a tag no offer can ask for. An empty register says so
+          rather than offering a box that would write a name. */}
+      <div className="mt-5">
+        <p className="mb-1 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tagTr.tags}</p>
+        {tags.length === 0 ? <p className="text-xs text-slate-400">{tagTr.noTags}</p> : (
+          <div className="flex flex-wrap gap-2">
+            {tags.map((t) => {
+              const on = tagIds.includes(t.id);
+              return (
+                <button key={t.id} type="button" aria-pressed={on}
+                  className={`rounded-full px-3 py-1 text-xs font-600 ${on
+                    ? "bg-brand-500/15 text-brand-700 ring-2 ring-brand-500 dark:text-brand-300"
+                    : "bg-slate-500/10 text-slate-600 dark:text-slate-300"}`}
+                  onClick={() => setTagIds((ids) => (on ? ids.filter((x) => x !== t.id) : [...ids, t.id]))}>
+                  {locale === "ar" && t.nameAr ? t.nameAr : t.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <Field label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((p) => ({ ...p, notes: v }))} className="mt-5" />
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !f.name.trim()} onClick={async () => {
           setBusy(true);
-          await onSave({ name: f.name, industry: f.industry, website: f.website, logo: f.logo, notes: f.notes, contacts, locations });
+          await onSave({ name: f.name, industry: f.industry, website: f.website, logo: f.logo, notes: f.notes, contacts, locations, tagIds });
           setBusy(false);
         }}>{busy ? tr.saving : tr.saveClient}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>

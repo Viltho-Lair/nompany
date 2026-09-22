@@ -1,5 +1,6 @@
 import { route } from "@/platform/http/route";
 import { valuesFor } from "@/modules/administration/taxonomy";
+import { listClientTags } from "@/modules/administration/clientTags";
 import {
   salesContext, listClients, listTickets, assignablePeople, saveSalesSettings, canAssignLeads, campaignChoices,
   TICKET_STATUSES, TICKET_URGENCIES, TICKET_INDUSTRIES, TICKET_LIVE_COLUMNS,
@@ -19,13 +20,19 @@ export const GET = route(spec, async (sales) => {
   // form's picker. Empty is exactly what a studio with none would receive.
   const ticketsOn = sales.on("crm-sales-tickets") || sales.on("crm-sales-live");
   const clientsOn = sales.on("crm-sales-clients") || ticketsOn;
-  const [clients, tickets, people, campaigns] = await Promise.all([
+  const [clients, tickets, people, campaigns, clientTags] = await Promise.all([
     clientsOn ? listClients(sales) : Promise.resolve([]),
     ticketsOn ? listTickets(sales) : Promise.resolve([]),
     assignablePeople(sales),
     // THE OPEN CAMPAIGNS a ticket may name as its source — only when Marketing
     // is switched on, since a switched-off department leaves nothing behind.
     sales.on("marketing") ? campaignChoices(sales) : Promise.resolve([]),
+    // THE TAG REGISTER, for the client form's picker — names, never ids on
+    // screen. Administration's rows, read here the way Operations reads its
+    // locations: reading a collection is not owning it.
+    clientsOn && sales.masterSection
+      ? listClientTags({ studio: sales.studio, section: sales.masterSection })
+      : Promise.resolve([]),
   ]);
   return {
     // ONE FLAG PER SUB-SECTION. Tickets, Clients and Settings are separate
@@ -67,6 +74,10 @@ export const GET = route(spec, async (sales) => {
     },
     // Which columns the Live view shows, and everything it could show.
     liveColumns: sales.liveColumns,
+    // HOW THIS STUDIO GROUPS ITS CUSTOMERS. The form offers exactly these
+    // and nothing typed — a tag nobody put in Master data is a tag no offer
+    // can ask for.
+    clientTags,
     salesCities: sales.salesCities,
     salesContactPositions: sales.salesContactPositions,
     vocabulary: {

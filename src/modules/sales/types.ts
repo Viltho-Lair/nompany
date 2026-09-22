@@ -25,6 +25,8 @@ export type SalesContext = ModuleContext & {
   campaignsSection: Section | null;
   /** Marketing's consent ledger, which lead scoring counts (22/09/2026). */
   audiencesSection: Section | null;
+  /** Administration's Master data, where the client-tag register lives. Null without it. */
+  masterSection: Section | null;
   canViewTickets: boolean;
   canManageTickets: boolean;
   canViewClients: boolean;

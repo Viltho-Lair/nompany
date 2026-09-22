@@ -141,6 +141,9 @@ export const salesContext = moduleContext<SalesContext>({
     // catalogue it names. Read on ONE path only — an edit that actually carries
     // rates — and never otherwise.
     inventoryItems: ["inventory-items", "inventory"],
+    // ADMINISTRATION'S MASTER DATA, where the client-tag register lives. Read
+    // for the picker's names; reading a collection is not owning it.
+    master: "administration-master",
     // MARKETING'S CAMPAIGNS, a lead's source (19/09/2026). Read for a name and a
     // reference only — never a budget — so a ticket can say which campaign
     // brought it and the form can offer the open ones.

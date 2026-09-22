@@ -22,6 +22,8 @@ type Strings = {
   averageSale: string;
   unitsSold: string;
   openDrawers: string;
+  offersRunning: string;
+  offersEndingSoon: (days: number) => string;
   takingsByDay: string;
   topProducts: string;
   topProductsHint: string;
@@ -109,6 +111,8 @@ const en: Strings = {
   averageSale: "Average sale",
   unitsSold: "Units sold",
   openDrawers: "Drawers open now",
+  offersRunning: "Offers running",
+  offersEndingSoon: (days) => (days === 1 ? "Ending within a day" : `Ending within ${days} days`),
   takingsByDay: "Takings by day",
   topProducts: "Best sellers",
   topProductsHint: "The ten items that sold the most units in this period.",
@@ -192,6 +196,8 @@ const ar: Strings = {
   averageSale: "متوسط البيعة",
   unitsSold: "الوحدات المبيعة",
   openDrawers: "الأدراج المفتوحة الآن",
+  offersRunning: "العروض الجارية",
+  offersEndingSoon: (days) => (days === 1 ? "تنتهي خلال يوم" : `تنتهي خلال ${days} أيام`),
   takingsByDay: "الإيرادات حسب اليوم",
   topProducts: "الأكثر مبيعا",
   topProductsHint: "أكثر عشرة أصناف بيعا بعدد الوحدات في هذه الفترة.",

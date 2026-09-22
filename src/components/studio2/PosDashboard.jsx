@@ -72,7 +72,7 @@ export default function PosDashboard({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error === "forbidden" ? tr.refused : error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { totals = {}, items = [], terms = {}, may = {}, openShifts = 0, reorder = null } = data;
+  const { totals = {}, items = [], terms = {}, may = {}, openShifts = 0, reorder = null, offers = null } = data;
   const cur = terms.currency || "";
   const amount = (n) => `${money(n || 0, cur)}${cur ? ` ${cur}` : ""}`;
   const top = items.slice(0, 10);
@@ -100,6 +100,14 @@ export default function PosDashboard({ slug }) {
         <StatTile label={tr.unitsSold} value={<span className="num">{totals.items ?? 0}</span>} />
         <StatTile label={tr.tax} value={amount(totals.vat)} />
         <StatTile label={tr.openDrawers} value={<span className="num">{openShifts}</span>} href={may.shifts ? `/${slug}/pos-shifts` : ""} />
+        {/* ABSENT, NOT NOUGHT, when the offers are not this reader's to see or
+            the department is switched off — a nought would be a claim about
+            what the shop is running. */}
+        {offers && (
+          <StatTile label={tr.offersRunning} value={<span className="num">{offers.running}</span>}
+            sub={offers.endingSoon > 0 ? `${offers.endingSoon} · ${tr.offersEndingSoon(offers.withinDays)}` : ""}
+            href={`/${slug}/pos-promotions`} />
+        )}
       </StatRow>
 
       <DashGrid>

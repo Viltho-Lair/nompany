@@ -46,7 +46,8 @@ import {
 import type { PosContext } from "./types";
 import { clientSlug } from "./salesClients";
 import { priceWithPromotions, recordRedemptions, claimCoupons, livePromotions } from "./posPromotions";
-import type { AppliedPromotion } from "./posPromotionsModel";
+import { promotionValidAt, daysUntilEnd, type AppliedPromotion } from "./posPromotionsModel";
+import { studioTimezone } from "@/shared/timezone";
 import { refundsByShift } from "./posReturns";
 import { normalizePhone, maskPhone } from "@/shared/phone";
 import { studioLocale } from "@/shared/locale";
@@ -240,6 +241,9 @@ export function tillTerms(ctx: PosContext) {
     pricesIncludeTax: typeof s.pricesIncludeTax === "boolean" ? s.pricesIncludeTax : profile.pricesIncludeTax,
     footer: str(s.footer, 300),
     maxDiscountPercent: typeof s.maxDiscountPercent === "number" ? s.maxDiscountPercent : null,
+    // Blank on the settings screen means "the default"; the offers screen
+    // resolves it through `expiryWarningDays` and never reads this directly.
+    promotionExpiryWarningDays: typeof s.promotionExpiryWarningDays === "number" ? s.promotionExpiryWarningDays : null,
   };
 }
 
@@ -1043,10 +1047,17 @@ export async function posDashboard(ctx: PosContext, raw: Record<string, unknown>
   // WHAT IS RUNNING LOW, for whoever holds the stock alert — the list the owner
   // asked to see beside the takings (modules/inventory/stockAlerts).
   const alerts = can(ctx.access, STOCK_ALERT_RIGHT as PermissionKey) && ctx.itemsSection && ctx.stockSection;
-  const [receipts, names, shifts, items, movements] = await Promise.all([
+  // THE SHOP'S OWN OFFERS, read only by somebody who may open them and only
+  // where the department is switched on. A tile for a department a studio has
+  // turned off is a switched-off department sold back as a number (the
+  // owner's rule, 17/09/2026), and a tile the reader may not open would be a
+  // figure derived from records they are refused.
+  const mayOffers = Boolean(ctx.promotionsSection) && can(ctx.access, "pos.promotions.view");
+  const [receipts, names, shifts, items, movements, offers] = await Promise.all([
     allReceipts(ctx), namesFor(ctx), Shifts.find(scope(ctx), { where: { status: "Open" } }),
     alerts ? Items.find({ studio: ctx.studio, section: ctx.itemsSection! }) : Promise.resolve([] as Item[]),
     alerts ? Stock.find({ studio: ctx.studio, section: ctx.stockSection! }) : Promise.resolve([] as Movement[]),
+    mayOffers ? livePromotions(ctx) : Promise.resolve(null),
   ]);
   const kept = filterReceipts(receipts, { from: filter.from, to: filter.to });
   // DAY BY DAY across the period, by the instant each sale was rung — the
@@ -1058,6 +1069,18 @@ export async function posDashboard(ctx: PosContext, raw: Record<string, unknown>
     sales: kept.map((r) => ({ at: r.at, total: r.total })),
     openShifts: shifts.length,
     reorder: alerts ? reorderList(items, balances(movements)) : null,
+    // NULL IS "NOT YOURS TO KNOW", which the screen draws as an ABSENT tile
+    // rather than a nought — a nought is a claim about the studio's offers.
+    offers: offers === null ? null : (() => {
+      const at = now();
+      const warn = expiryWarningDays(ctx);
+      const running = offers.filter((p) => promotionValidAt(p, at, studioTimezone(ctx.studio as { timezone?: unknown })));
+      const soon = offers.filter((p) => {
+        const left = daysUntilEnd(p, at);
+        return left !== null && left >= 0 && left <= warn;
+      });
+      return { running: running.length, endingSoon: soon.length, withinDays: warn };
+    })(),
     may: {
       sales: can(ctx.access, "pos.sales.view"),
       shifts: can(ctx.access, "pos.shifts.view"),
