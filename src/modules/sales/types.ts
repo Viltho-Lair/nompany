@@ -23,6 +23,8 @@ export type SalesContext = ModuleContext & {
   projectsSection: Section | null;
   /** Marketing's campaigns — a lead's source. Read for names only; null without Marketing. */
   campaignsSection: Section | null;
+  /** Marketing's consent ledger, which lead scoring counts (22/09/2026). */
+  audiencesSection: Section | null;
   canViewTickets: boolean;
   canManageTickets: boolean;
   canViewClients: boolean;

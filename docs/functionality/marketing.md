@@ -108,14 +108,12 @@ The other thirteen subsections of the plan, and everything the dashboard's plan 
   than at the bottom, and each is a reason rather than a wish:
 
   - [x] **Score a lead on arrival** (2026-09-22). Seven factors, hot/warm/cold, reasons shown.
-  - [ ] **Engagement — what happened AFTER it arrived.** Somebody who answered three forms is a
-        different prospect from somebody who filled one in and vanished, and the score cannot
-        tell them apart. The data is already there: responses carry addresses and the consent
-        ledger groups every address the studio holds, so "answered two forms in a fortnight" is
-        computable today. **This is the next one.**
+  - [x] **Engagement — what happened AFTER it arrived** (2026-09-22). Repeat form answers, counted
+        from the consent ledger: once earns nothing, twice half, three times the whole of it. A
+        studio that cannot answer it (no ledger) has the factor dropped from the total instead of
+        scored nought.
   - [ ] **Decay with age.** A three-month-old lead scores what it did on arrival, so one that has
-        gone cold still looks hot. A few lines, once engagement lands — do it after, or a decaying
-        score will hide the engagement that should have lifted it.
+        gone cold still looks hot. Engagement has landed, so this is **the next one**.
   - [ ] **Studio-set weights.** Deliberately NOT yet: fixed weights are what make a score
         comparable between leads and arguable by a manager, and editable ones invite tuning until
         the number agrees with whoever is tuning. The honest trigger is a studio naming a factor

@@ -34,11 +34,28 @@ a lead was, which answers "what have I neglected" rather than "what is worth doi
 lead with a company, a budget and a telephone number sat behind one with an address and nothing
 else, because the second arrived an hour earlier.
 
-**A score out of 100, from seven declared factors**, each weighted and each carrying the reason it
-did or did not fire: can be reached (25, half for one route rather than two), a company rather
-than only a person (15), said what they can spend (15), has bought before (15, half where a deal
-is merely open), said what they want (10, half for an industry without services), told us about
-the job (10), came from a campaign (10). **Hot from 70, warm from 40, cold below.**
+**A score out of 100, from eight declared factors**, each weighted and each carrying the reason it
+did or did not fire: can be reached (20, half for one route rather than two), a company rather
+than only a person (12), said what they can spend (15), has bought before (15, half where a deal
+is merely open), **has come back (15)**, said what they want (8, half for an industry without
+services), told us about the job (8), came from a campaign (7). **Hot from 70, warm from 40, cold
+below.**
+
+**Coming back is what engagement means** (2026-09-22). One form answer IS the lead, so it earns
+nothing; twice earns half and three times or more the whole of it. Counted from the **consent
+ledger** (`audiences.md`), which already holds one row per form answer per address — so the count
+costs one read of a small collection and no new field anywhere. Only rows the PUBLIC created
+count: a consent a studio records by hand is the studio's own act, and counting it would let a
+studio raise a lead's score by filing paperwork about it. An address's email and telephone rows
+are taken at the higher of the two rather than summed, or a single answer would read as two
+visits.
+
+**A factor the studio cannot answer leaves the total rather than scoring nought.** A studio with
+Audiences switched off has no ledger, so engagement is unanswerable there — and marking every lead
+zero for a question nobody could ask would drag every score down and move the bands with it.
+Instead the score is the percentage of what CAN be asked (85 rather than 100 in that studio), the
+chip does not list the factor as missing, and the same lead reads slightly higher rather than
+lower. This is why the score is "out of what we can know" rather than "out of a hundred".
 
 **It shows its working.** The chip on each lead opens to list what earned points and — as usefully
 — what is **Not known**, so "cold" is a thing somebody can act on rather than a verdict. A manager
@@ -105,9 +122,12 @@ and a role that can delete campaigns gains `marketing.campaigns.assign` (`catchU
   not choose who gets the lead.
 - The studio cannot change the scoring weights, add a factor or turn one off — they are declared
   in code. Nor is a score stored or its history kept, so "was this lead hot when it arrived" has
-  no answer.
-- Nothing scores a lead on what happened AFTER it arrived (a reply, a visit, a second form), and
-  nothing decays a score as a lead ages.
+  no answer. **The weights moved when engagement arrived and every score moved with them**, which
+  cost nothing precisely because none is stored.
+- **Engagement counts form answers only.** A reply to an email, a telephone call returned, a visit
+  to a page — none of it is recorded anywhere yet, so none of it can count.
+- Nothing decays a score as a lead ages: a lead that was hot three months ago still looks hot.
+  That is the next scoring step (`marketing.md`).
 - A deadline for leads Sales raises itself; only campaign leads have one.
 - The daily notice runs once a day, so a lead a few hours late is shown on the screens at once but
   is only notified the next morning's run.

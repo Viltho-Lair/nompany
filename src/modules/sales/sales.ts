@@ -23,6 +23,8 @@ import { TICKET_STATUSES, DEFAULT_STATUS, TICKET_URGENCIES, DEFAULT_URGENCY, TIC
 import { stageProblem, stagePatch, stageDef, isWon, isClosed } from "./pipeline";
 import { leadState, leadDueAt, ticketVisible, assignProblem, assignPatch } from "./leads";
 import { scoreLead } from "./scoring";
+import { subjectKey } from "@/modules/marketing/consent";
+import type { Consent } from "@/modules/marketing/schema";
 import { notifyCollaboratorIds, notifyHolders } from "@/modules/people/holders";
 import { NOTIFY } from "@/platform/notify/notifications";
 import { cleanRates } from "@/shared/pricing";
@@ -64,6 +66,11 @@ const Clients = repo<Client>(CLIENTS);
 // MARKETING'S, READ ONLY — which campaign a ticket names (./leads).
 type CampaignRef = { id: string; reference?: string; name?: string; status?: string; leadDeadlineHours?: number | null };
 const Campaigns = repo<CampaignRef>("marketingCampaigns");
+// MARKETING'S CONSENT LEDGER, READ ONLY TO COUNT (22/09/2026). Scoring asks one
+// question of it — how many times has this address come back — and reads no
+// evidence, no note and nobody's wording. The rows are the same addresses the
+// lead itself already carries.
+const Consents = repo<Consent>("marketingConsents");
 const campaignLabel = (c: CampaignRef) => [c.reference, c.name].filter(Boolean).join(" · ");
 async function campaignRows(studio: SalesContext["studio"], section: SalesContext["campaignsSection"]): Promise<CampaignRef[]> {
   return section ? Campaigns.find({ studio, section }) : [];
@@ -138,6 +145,10 @@ export const salesContext = moduleContext<SalesContext>({
     // reference only — never a budget — so a ticket can say which campaign
     // brought it and the form can offer the open ones.
     campaigns: ["marketing-campaigns"],
+    // AND THE CONSENT LEDGER (22/09/2026), which scoring counts and reads
+    // nothing else from. Nullable: a studio without Audiences simply cannot
+    // answer the engagement question, and the score drops the factor.
+    audiences: ["marketing-audiences"],
   },
   flags: ["tickets", "clients", "settings"],
   extend: ({ settingsSection }) => ({
@@ -563,11 +574,11 @@ function ticketSummary(
 
 export async function listTickets(ctx: Pick<SalesContext,
   | "studio" | "ticketsSection" | "clientsSection" | "rfqSection" | "access" | "campaignsSection"
-  | "quotationsSection" | "approvalsSection" | "projectsSection">) {
+  | "quotationsSection" | "approvalsSection" | "projectsSection" | "audiencesSection" | "on">) {
   const {
     studio, ticketsSection, clientsSection, rfqSection, quotationsSection, approvalsSection, projectsSection,
   } = ctx;
-  const [tickets, clients, rfqs, quotations, approvals, projects, campaigns] = await Promise.all([
+  const [tickets, clients, rfqs, quotations, approvals, projects, campaigns, consents] = await Promise.all([
     Tickets.find({ studio, section: ticketsSection }),
     Clients.find({ studio, section: clientsSection }),
     rfqSection ? Rfqs.find({ studio, section: rfqSection }) : [],
@@ -577,12 +588,19 @@ export async function listTickets(ctx: Pick<SalesContext,
     // tickets, the same way one without Approvals gets no approval button.
     projectsSection ? Projects.find({ studio, section: projectsSection }) : [],
     campaignRows(studio, ctx.campaignsSection),
+    // A SWITCHED-OFF DEPARTMENT IS NOT READ, the owner's rule: no rows, and
+    // engagement becomes a question this studio cannot answer rather than a
+    // question it answers with nought.
+    ctx.audiencesSection && ctx.on("marketing-audiences")
+      ? Consents.find({ studio, section: ctx.audiencesSection })
+      : Promise.resolve([] as Consent[]),
   ]);
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
   // WHAT EACH COMPANY HAS DONE BEFORE, counted ONCE for the whole list rather
   // than per lead: scoring asks it of every row, and a per-row scan would be
   // the ticket list squared on a studio with a thousand deals.
   const history = leadHistory(tickets);
+  const seen = engagementByAddress(consents);
   const campaignNameById = Object.fromEntries(campaigns.map((c) => [c.id, campaignLabel(c)]));
   // AN UNASSIGNED LEAD IS THE MANAGER'S QUEUE, hidden from everybody who cannot
   // assign it (./leads, the owner's rule).
@@ -591,7 +609,7 @@ export async function listTickets(ctx: Pick<SalesContext,
   return [...tickets]
     .filter((t) => ticketVisible(t, canAssign))
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
-    .map((t) => composeTicket(t, { nameById, rfqs, quotations, approvals, projects, campaignNameById, at, history }));
+    .map((t) => composeTicket(t, { nameById, rfqs, quotations, approvals, projects, campaignNameById, at, history, seen }));
 }
 
 // WHAT A BOARD'S TICKET ACTUALLY IS — the stored row plus its client's name and
@@ -599,6 +617,44 @@ export async function listTickets(ctx: Pick<SalesContext,
 // pointing at it. Extracted so there is ONE copy: the list builds every row
 // through it, and ticketById builds one, which is what makes patching a single
 // row on the client safe rather than a way to blank four columns.
+/**
+ * HOW OFTEN EACH ADDRESS HAS COME BACK, from the consent ledger — one row is
+ * written per form answer (modules/marketing/audiences), so counting the rows
+ * for an address counts the times that person has answered something.
+ *
+ * NULL WHEN IT CANNOT BE ASKED. A studio with Audiences switched off, or one
+ * whose forms predate the ledger, has no rows at all — and "no rows" must not
+ * read as "nobody has ever come back", or every lead in that studio would be
+ * marked down for a question the studio was never able to answer. The scorer
+ * drops the factor from the total instead (./scoring).
+ */
+function engagementByAddress(rows: readonly Consent[]): Map<string, number> | null {
+  if (!rows.length) return null;
+  const out = new Map<string, number>();
+  for (const row of rows) {
+    // ONLY WHAT THE PUBLIC DID. A consent somebody recorded by hand is the
+    // studio's own act, and counting it would let a studio raise a lead's score
+    // by filing paperwork about it.
+    if (String(row.source || "") !== "form") continue;
+    const subject = subjectKey(row.kind, row.value);
+    if (!subject) continue;
+    out.set(subject, (out.get(subject) || 0) + 1);
+  }
+  return out;
+}
+
+/** How many times this lead's own addresses have been seen. Null when unanswerable. */
+function engagementOf(t: SalesTicket, seen: Map<string, number> | null): number | null {
+  if (!seen) return null;
+  // THE HIGHER OF THE TWO, never the sum: one person answering one form gives
+  // an email row AND a phone row, and adding them would score every single
+  // answer as though it were two visits.
+  return Math.max(
+    seen.get(subjectKey("email", t.contactEmail)) || 0,
+    seen.get(subjectKey("phone", t.contactPhone)) || 0,
+  );
+}
+
 /**
  * WHAT EACH CLIENT HAS ALREADY DONE, for scoring: deals won, and deals open
  * right now. Derived from the tickets the list has read anyway — a lead is
@@ -623,7 +679,7 @@ function leadHistory(tickets: readonly SalesTicket[]) {
 
 function composeTicket(
   t: SalesTicket,
-  { nameById, rfqs, quotations, approvals, projects, campaignNameById, at, history = {} }: {
+  { nameById, rfqs, quotations, approvals, projects, campaignNameById, at, history = {}, seen = null }: {
     nameById: Record<string, string>;
     rfqs: Rfq[];
     quotations: Quotation[];
@@ -632,6 +688,7 @@ function composeTicket(
     campaignNameById: Record<string, string>;
     at: string;
     history?: Record<string, { wonBefore: number; openDeals: number }>;
+    seen?: Map<string, number> | null;
   },
 ): TicketView {
   const { quotedValue, ...rest } = ticketSummary(t, rfqs, quotations, approvals, projects);
@@ -647,7 +704,7 @@ function composeTicket(
     // judgement (`probability`) is the better number, and a score sitting on a
     // deal halfway to signature would be read as disagreeing with them.
     lead: (t.status || "Lead") === "Lead"
-      ? scoreLead(t, { ...(history[String(t.clientId || "")] || {}), now: at })
+      ? scoreLead(t, { ...(history[String(t.clientId || "")] || {}), engagement: engagementOf(t, seen), now: at })
       : null,
   };
 }
@@ -677,9 +734,17 @@ export async function ticketById(ctx: SalesContext, id: string) {
 
   const nameById = Object.fromEntries(clients.map((c) => [c.id, c.name]));
   const campaignNameById = Object.fromEntries(campaigns.map((c) => [c.id, campaignLabel(c)]));
+  const [allTickets, consents] = await Promise.all([
+    Tickets.find({ studio, section: ticketsSection }),
+    ctx.audiencesSection && ctx.on("marketing-audiences")
+      ? Consents.find({ studio, section: ctx.audiencesSection })
+      : Promise.resolve([] as Consent[]),
+  ]);
   return composeTicket(ticket, {
     nameById, rfqs, quotations, approvals, projects, campaignNameById,
-    at: new Date().toISOString(), history: leadHistory(await Tickets.find({ studio, section: ticketsSection })),
+    at: new Date().toISOString(),
+    history: leadHistory(allTickets),
+    seen: engagementByAddress(consents),
   });
 }
 
