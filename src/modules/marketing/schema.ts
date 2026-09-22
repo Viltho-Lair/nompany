@@ -177,6 +177,43 @@ export const MarketingEventSchema = z.object({
 export type MarketingEvent = z.infer<typeof MarketingEventSchema>;
 
 /**
+ * A BRAND ASSET OR A PIECE OF CONTENT (22/09/2026, ./assets). Filed under
+ * `marketing-content`.
+ *
+ * IT HOLDS A `mediaId`, NEVER THE BYTES. The file is in Blob behind
+ * `/api/media`, which verifies membership before it writes and again
+ * before it serves — the same storage the tender pack uses, and the same reason:
+ * the access decision stays in code rather than being delegated to a store that
+ * cannot express "private".
+ *
+ * `supersededById` IS THE REVISION CHAIN (lib/revisions), shared with
+ * Tendering's bid documents rather than copied from them. A replaced asset is
+ * MARKED and kept, because "which logo was on the autumn adverts" has to stay
+ * answerable after somebody uploads a new one.
+ */
+export const MarketingAssetSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  name: z.string().max(200),
+  /** An ASSET_KINDS token: what it is FOR, not what program made it. */
+  kind: z.string().max(20),
+  notes: z.string().max(2000),
+  /** The campaign it was made for, or "" — the studio's own brand belongs to none. */
+  campaignId: z.string().max(60),
+  /** The file, in Blob. Never a URL: the route serves the bytes after a check. */
+  mediaId: z.string().max(120),
+  /** What the studio calls this version. Free text: "v2", "final", "Rev B". */
+  version: z.string().max(40),
+  /** The asset that replaced this one, or "". */
+  supersededById: z.string().max(60),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type MarketingAsset = z.infer<typeof MarketingAssetSchema>;
+
+/**
  * A FORM THE STUDIO BUILDS AND THE PUBLIC ANSWERS (19/09/2026, ./formsModel).
  * Filed under `marketing-forms`. `definition` is the questionnaire builder's
  * shape (pages of questions), cleaned by `cleanDefinition` on every write.

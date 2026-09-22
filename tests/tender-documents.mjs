@@ -178,8 +178,25 @@ console.log("\n== the file stays pure");
 
 const { readFileSync } = await import("node:fs");
 const src = readFileSync(new URL("../src/modules/tendering/documents.ts", import.meta.url), "utf8");
-ok("modules/tendering/documents imports nothing",
-  [...src.matchAll(/from\s+"([^"]+)"/g)].length === 0);
+
+// THIS ASSERTED "IMPORTS NOTHING" UNTIL 22/09/2026, when the revision chain was
+// EXTRACTED to lib/revisions so Marketing's brand assets could use it rather
+// than carry a second copy. What the rule was ever for is that this module is
+// read by the grid, the register and the route alike, so nothing that reaches
+// the database may be dragged into the browser behind it — and a pure module
+// that imports nothing itself does not do that.
+//
+// SO THE GUARD STILL BITES, and is narrower rather than weaker: exactly one
+// import is allowed, by name, and the file it names is held to the original
+// rule. A `@/platform/db/...` import here still fails, which is the case this
+// existed to catch.
+const imports = [...src.matchAll(/from\s+"([^"]+)"/g)].map((m) => m[1]);
+ok("modules/tendering/documents imports only the shared revision chain",
+  imports.every((i) => i === "@/lib/revisions"), imports.join(", "));
+
+const chainSrc = readFileSync(new URL("../src/lib/revisions.ts", import.meta.url), "utf8");
+ok("...and lib/revisions itself imports nothing",
+  [...chainSrc.matchAll(/from\s+"([^"]+)"/g)].length === 0);
 
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

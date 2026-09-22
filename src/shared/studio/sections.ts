@@ -66,6 +66,7 @@ const ar: SectionMap = {
   "marketing-audiences": "الجماهير والموافقات",
   "marketing-planning": "التخطيط والتقويم",
   "marketing-events": "الفعاليات والندوات",
+  "marketing-content": "المحتوى وأصول العلامة",
   "marketing-forms": "النماذج",
   pos: "نقطة البيع",
   "pos-till": "الصندوق",

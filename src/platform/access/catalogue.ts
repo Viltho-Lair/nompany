@@ -256,6 +256,12 @@ const OWN_AREAS = [
   //
   // IT DOES NOT OPEN THE REGISTRANTS. Their names are form ANSWERS and answer
   // to marketing.forms.view; this right shows how many signed up, never who.
+  // CONTENT & BRAND ASSETS (22/09/2026). Replacing an asset with a newer
+  // version is an EDIT of the library rather than a verb of its own: a version
+  // is the asset's own content, and marking one as replaced is not a bigger
+  // kind of delete — the old file stays and stays readable.
+  { key: "marketing.content", group: "Marketing", label: "Content & brand assets",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "marketing.events", group: "Marketing", label: "Events & webinars",
     verbs: ["view", "create", "edit", "delete"] },
   { key: "marketing.campaigns", group: "Marketing", label: "Campaigns",

@@ -245,6 +245,8 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["marketing.planning", "full"],
       // …and the events and webinars it puts on (22/09/2026).
       ["marketing.events", "full"],
+      // …and the artwork and copy made for them (22/09/2026).
+      ["marketing.content", "full"],
       // …and builds the forms that bring leads in (19/09/2026).
       ["marketing.forms", "full"],
       ["engineeringDocs.rfq", "edit"],

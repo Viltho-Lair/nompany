@@ -233,6 +233,15 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     verbs: ["view", "export", "act"],
   },
   {
+    id: "marketing-content-2026-09-22",
+    // Content & brand assets arrived (22/09/2026). The artwork is the campaign's
+    // own work product, so whoever works the campaigns works the library that
+    // holds it, verb for verb.
+    note: "Whoever works the campaigns works the assets made for them",
+    from: "marketing.campaigns",
+    to: ["marketing.content"],
+  },
+  {
     id: "marketing-events-2026-09-22",
     // Events & webinars arrived (22/09/2026). An event is a campaign's work
     // made of a date and a room, so whoever works the campaigns works these,

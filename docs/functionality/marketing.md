@@ -1,7 +1,7 @@
 # Marketing
 
 The eighteenth department (2026-09-19), from the owner's *Marketing Section — ERP Requirements
-& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Seven of the
+& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Eight of the
 seventeen are built: Campaigns**, because the plan makes the campaign the parent of everything
 else, **Forms** (2026-09-19, `docs/functionality/forms.md`), **Budget & spend** (2026-09-21,
 `docs/functionality/marketing-budget.md`) **and Audiences & consent** (2026-09-22,
@@ -26,6 +26,7 @@ the public site's price list and is not part of the department.
 | `marketing.campaigns.assign` | Choosing who owns a campaign (2026-09-19). Without it the owner is whoever raised the campaign. |
 | `marketing.budget.view` | Budget & spend (2026-09-21). View alone: setting a budget is editing the campaign, and filing a cost is editing the bill. |
 | `marketing.audiences.view/edit` | The consent ledger (2026-09-22). Edit adds an entry; nothing can be changed or removed, because the ledger is append-only. |
+| `marketing.content.view/create/edit/delete` | Content & brand assets (2026-09-22). Marking an asset as replaced by a newer version is an **edit**: the old file stays and stays readable. |
 | `marketing.events.view/create/edit/delete` | Events & webinars (2026-09-22). Marking who attended is an **edit**. It does NOT open the registrants: their names are form answers and answer to `marketing.forms.view`. |
 | `marketing.planning.view/create/edit/delete` | The calendar and the plans (2026-09-22). The CALENDAR is view alone — moving a campaign in time is editing that campaign — and the other three verbs write the plan for a period, which is this section's own record. Filing a campaign under a plan answers to `marketing.campaigns.edit`. |
 
@@ -163,7 +164,12 @@ The other twelve subsections of the plan, and everything the dashboard's plan ne
   else in the product knows. Not built there: nothing is sent (no invitation, reminder or calendar
   invite), no waiting list, no check-in from a phone, no walk-in who is not already a form reply,
   and events are not drawn on the marketing calendar.
-- **Journeys**, **Content & Brand Assets**, **Promotions & Loyalty**,
+- **Content & Brand Assets** is built (2026-09-22, `content-assets.md`): the artwork, copy and
+  logos made for each campaign, with a version chain **shared with Tendering's bid documents**
+  rather than copied from them, so a replaced file is kept and stays readable. Not built there:
+  no preview, no folders, tags or search, no approval, and nothing records where an asset was
+  actually used.
+- **Journeys**, **Promotions & Loyalty**,
   **Research & Feedback**, **Partners, PR & Influencers**, **Reports & Attribution**.
 - On the dashboard: marketing-sourced revenue, ROI, cost per lead, CAC, the funnel, the budget
   line, geography and lead quality. The global filters, role presets and saved views.

@@ -21,6 +21,8 @@ export type MarketingContext = ModuleContext & {
   planningSection: Section;
   /** Events & webinars (22/09/2026). It owns the events; the sign-ups are Forms'. */
   eventsSection: Section;
+  /** Content & brand assets (22/09/2026). It owns the records; the files are in Blob. */
+  contentSection: Section;
   /** Sales' tickets and clients — where a lead is written, and what a campaign's results read. */
   ticketsSection: Section | null;
   clientsSection: Section | null;
@@ -40,4 +42,6 @@ export type MarketingContext = ModuleContext & {
   canManagePlanning: boolean;
   canViewEvents: boolean;
   canManageEvents: boolean;
+  canViewContent: boolean;
+  canManageContent: boolean;
 };

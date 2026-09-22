@@ -8,8 +8,12 @@
 // line has no idea a document was reissued. So the paperwork has to be the
 // thing that says so, and `changesSincePricing` is where it does.
 //
-// NO IMPORTS, deliberately, and asserted by a test. The grid, the register and
-// the route all read the same answers.
+// ONE IMPORT, deliberately, and asserted by a test: the shared revision chain
+// (lib/revisions), which imports nothing itself. The rule is that nothing
+// reaching the database may be dragged into the browser behind this file — the
+// grid, the register and the route all read the same answers.
+
+import * as R from "@/lib/revisions";
 
 export type DocKind = "received" | "addendum" | "submitted";
 
@@ -47,61 +51,46 @@ const text = (v: unknown) => String(v ?? "");
 
 // ---- supersession ----------------------------------------------------------
 
+// THE CHAIN ITSELF IS `lib/revisions` NOW (22/09/2026), because Marketing's
+// brand assets need the same three rules for the same reason — "which logo was
+// on the autumn adverts" is "what did we price against" asked about a different
+// file. What stays here is what was ever tender-specific: a document may only
+// be replaced within its own TENDER, and this module's refusal tokens, which
+// its screen and its dictionary already read.
+
 /** Superseded means something replaced it. It is still here, and still read. */
-export const isSuperseded = (doc: Doc | null | undefined): boolean =>
-  Boolean(doc && text(doc.supersededById));
+export const isSuperseded = (doc: Doc | null | undefined): boolean => R.isSuperseded(doc);
 
-export const currentDocuments = <T extends Doc>(docs: unknown): T[] =>
-  rows<T>(docs).filter((d) => !isSuperseded(d));
+export const currentDocuments = <T extends Doc>(docs: unknown): T[] => R.currentOf<T>(docs);
 
-export const supersededDocuments = <T extends Doc>(docs: unknown): T[] =>
-  rows<T>(docs).filter((d) => isSuperseded(d));
+export const supersededDocuments = <T extends Doc>(docs: unknown): T[] => R.supersededOf<T>(docs);
 
 /**
  * What THIS document replaced, newest first — the revision history read
  * backwards along the chain.
- *
- * Walked with a seen-set rather than trusted to terminate. `supersedeProblem`
- * refuses the moves that would make a loop, but this function is also handed
- * whatever the store holds, and one bad row must not hang a render.
  */
 export function chainFor<T extends Doc>(docs: unknown, docId: string): T[] {
-  const all = rows<T>(docs);
-  const out: T[] = [];
-  const seen = new Set<string>([docId]);
-  let target = docId;
-  for (;;) {
-    const prior = all.find((d) => text(d.supersededById) === target && !seen.has(text(d.id)));
-    if (!prior) return out;
-    out.push(prior);
-    seen.add(text(prior.id));
-    target = text(prior.id);
-  }
+  return R.chainFor<T>(docs, docId);
 }
 
 /**
  * Why one document may not be marked as replaced by another.
  *
- * THE REPLACEMENT MUST ITSELF BE CURRENT. That is the rule that makes a chain a
- * chain: revisions run in one direction, and allowing an already-superseded
- * document to replace something is what lets A←B←C←A close into a loop nobody
- * can read. Refusing it means no cycle can be written in the first place,
- * rather than being detected afterwards by a walk that has to guess.
+ * THE REPLACEMENT MUST ITSELF BE CURRENT — the rule that makes a chain a chain,
+ * and the reason a cycle can never be WRITTEN rather than having to be detected
+ * afterwards. It lives in `lib/revisions`; the tender boundary is handed in.
+ *
+ * `other-parent` BECOMES `other-tender` HERE, deliberately: this module's tokens
+ * are what its screen translates, so lifting the logic out moved no string a
+ * person reads.
  */
 export function supersedeProblem(
   docs: unknown,
   docId: string,
   replacementId: string,
 ): "missing" | "self" | "already-superseded" | "superseded-replacement" | "other-tender" | null {
-  const all = rows<Doc>(docs);
-  const doc = all.find((d) => text(d.id) === docId);
-  const rep = all.find((d) => text(d.id) === replacementId);
-  if (!doc || !rep) return "missing";
-  if (docId === replacementId) return "self";
-  if (isSuperseded(doc)) return "already-superseded";
-  if (isSuperseded(rep)) return "superseded-replacement";
-  if (text(doc.tenderId) !== text(rep.tenderId)) return "other-tender";
-  return null;
+  const problem = R.supersedeProblem<Doc>(docs, docId, replacementId, (d) => text(d.tenderId));
+  return problem === "other-parent" ? "other-tender" : problem;
 }
 
 /**
@@ -113,12 +102,7 @@ export function supersedeProblem(
  * nothing links to is an upload somebody got wrong, and that one goes.
  */
 export function deleteProblem(docs: unknown, docId: string): "missing" | "in-chain" | null {
-  const all = rows<Doc>(docs);
-  const doc = all.find((d) => text(d.id) === docId);
-  if (!doc) return "missing";
-  if (isSuperseded(doc)) return "in-chain";
-  if (all.some((d) => text(d.supersededById) === docId)) return "in-chain";
-  return null;
+  return R.deleteProblem(docs, docId);
 }
 
 // ---- clarifications --------------------------------------------------------

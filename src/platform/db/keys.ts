@@ -791,6 +791,10 @@ export const SECTION_DEFS = [
     // keeps them, because the form tool has done registration since it shipped
     // and a second list of the same people would be free to disagree with it.
     { key: "marketing-events", name: "Events & webinars" },
+    // CONTENT & BRAND ASSETS (22/09/2026): what was MADE for a campaign, and
+    // the studio's own brand files. It owns the asset records; the files
+    // themselves are in Blob behind /api/media.
+    { key: "marketing-content", name: "Content & brand assets" },
   ] },
 
   // THE FIRST OF TENDERING'S FIVE. The root was declared for ordering alone at
@@ -1149,6 +1153,7 @@ export const SECTION_COLLECTIONS = {
   // THE EVENT ITSELF, and its attendance. Not its registrations — those are
   // `marketingFormResponses`, filed under Forms.
   "marketing-events": ["marketingEvents"],
+  "marketing-content": ["marketingAssets"],
   // tendering. The register OWNS its records — unlike crm-sales-contracts,
   // which is a destination over somebody else's rows — so deleting the section
   // takes the tenders with it (invariant 11, children first).
