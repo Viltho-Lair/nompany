@@ -38,7 +38,13 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
     packageName: pkg?.name || DEFAULT_PACKAGE,
     packageColor: pkg?.color || "green",
     // 0 means no limit — the same convention the console prints as "No limit".
-    maxMembers: Number(pkg?.maxEmployees || 0),
+    //
+    // AND ANYTHING THAT IS NOT A NUMBER IS 0, not NaN. `Number(pkg.maxEmployees
+    // || 0)` passed a non-numeric stored value straight through: the ceiling
+    // then read NaN, which `memberLimitOf` happens to treat as no limit
+    // (NaN > 0 is false) — so the door behaved — while the /super studios table
+    // rendered "3 / NaN" at whoever was checking how full a plan was.
+    maxMembers: Number.isFinite(Number(pkg?.maxEmployees)) ? Number(pkg?.maxEmployees) || 0 : 0,
     // Live chat: on or off, and how many conversations a month it allows.
     // 0 allowed means unlimited, the same convention every other cap here uses.
     chatEnabled: Boolean(pkg?.chatEnabled),
