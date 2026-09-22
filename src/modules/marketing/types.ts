@@ -19,6 +19,8 @@ export type MarketingContext = ModuleContext & {
   audiencesSection: Section;
   /** Planning & calendar (22/09/2026). The bars are campaigns; the PLANS are its own. */
   planningSection: Section;
+  /** Events & webinars (22/09/2026). It owns the events; the sign-ups are Forms'. */
+  eventsSection: Section;
   /** Sales' tickets and clients — where a lead is written, and what a campaign's results read. */
   ticketsSection: Section | null;
   clientsSection: Section | null;
@@ -36,4 +38,6 @@ export type MarketingContext = ModuleContext & {
   canManageAudiences: boolean;
   canViewPlanning: boolean;
   canManagePlanning: boolean;
+  canViewEvents: boolean;
+  canManageEvents: boolean;
 };

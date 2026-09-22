@@ -69,6 +69,17 @@ const RESOURCES = [
     patch: (id) => ({ id, name: `Enquiry renamed ${F.rand()}` }),
     check: (row, sent) => row?.name === sent.name,
   },
+  // MARKETING EVENTS. An event nobody has attended and that has not run yet
+  // deletes; the whole lifecycle therefore runs on a date well ahead.
+  {
+    name: "marketingEvents",
+    module: "marketing/events",
+    field: "event",
+    list: (b) => b?.events || [],
+    make: () => ({ name: `Open day ${F.rand()}`, kind: "event", startsAt: "2099-10-15T18:00" }),
+    patch: (id) => ({ id, name: `Open day renamed ${F.rand()}` }),
+    check: (row, sent) => row?.name === sent.name,
+  },
   // MARKETING. A fresh campaign is a Draft, and a Draft deletes.
   {
     name: "marketingCampaigns",

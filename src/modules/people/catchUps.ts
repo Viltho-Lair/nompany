@@ -233,6 +233,15 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     verbs: ["view", "export", "act"],
   },
   {
+    id: "marketing-events-2026-09-22",
+    // Events & webinars arrived (22/09/2026). An event is a campaign's work
+    // made of a date and a room, so whoever works the campaigns works these,
+    // verb for verb. A role that may only read campaigns gains only the read.
+    note: "Whoever works the campaigns works the events that promote them",
+    from: "marketing.campaigns",
+    to: ["marketing.events"],
+  },
+  {
     id: "marketing-plans-2026-09-22",
     // Plans arrived hours after the calendar (22/09/2026) and gave the section
     // its first collection. WRITING a plan is widened verb for verb from the

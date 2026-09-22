@@ -786,6 +786,11 @@ export const SECTION_DEFS = [
     // AUDIENCES & CONSENT (21/09/2026): who may be contacted, on what evidence.
     // It owns the consent ledger, which is append-only.
     { key: "marketing-audiences", name: "Audiences & consent" },
+    // EVENTS & WEBINARS (22/09/2026): what is on, who signed up and who came.
+    // It owns the EVENTS; the registrations are form answers, read where Forms
+    // keeps them, because the form tool has done registration since it shipped
+    // and a second list of the same people would be free to disagree with it.
+    { key: "marketing-events", name: "Events & webinars" },
   ] },
 
   // THE FIRST OF TENDERING'S FIVE. The root was declared for ordering alone at
@@ -1141,6 +1146,9 @@ export const SECTION_COLLECTIONS = {
   // THE PLAN FOR A PERIOD (22/09/2026). The calendar beside it owns nothing;
   // this is what Planning stores in its own right.
   "marketing-planning": ["marketingPlans"],
+  // THE EVENT ITSELF, and its attendance. Not its registrations — those are
+  // `marketingFormResponses`, filed under Forms.
+  "marketing-events": ["marketingEvents"],
   // tendering. The register OWNS its records — unlike crm-sales-contracts,
   // which is a destination over somebody else's rows — so deleting the section
   // takes the tenders with it (invariant 11, children first).

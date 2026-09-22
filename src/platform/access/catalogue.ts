@@ -249,6 +249,15 @@ const OWN_AREAS = [
   // first: a shipped catch-up's id is stored on every role it has answered for.
   { key: "marketing.planning", group: "Marketing", label: "Planning & calendar",
     verbs: ["view", "create", "edit", "delete"] },
+  // EVENTS & WEBINARS (22/09/2026). Full CRUD over the event; marking who
+  // ATTENDED is an EDIT of the event rather than a verb of its own, because
+  // attendance is the event's own content and a second right over it would be
+  // free to disagree with the first about who runs the door.
+  //
+  // IT DOES NOT OPEN THE REGISTRANTS. Their names are form ANSWERS and answer
+  // to marketing.forms.view; this right shows how many signed up, never who.
+  { key: "marketing.events", group: "Marketing", label: "Events & webinars",
+    verbs: ["view", "create", "edit", "delete"] },
   { key: "marketing.campaigns", group: "Marketing", label: "Campaigns",
     verbs: ["view", "create", "edit", "delete"],
     extra: [{ key: "assign", label: "Choose who owns a campaign" }] },

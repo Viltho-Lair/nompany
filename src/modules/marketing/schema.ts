@@ -133,6 +133,50 @@ export const MarketingPlanSchema = z.object({
 export type MarketingPlan = z.infer<typeof MarketingPlanSchema>;
 
 /**
+ * AN EVENT OR A WEBINAR (22/09/2026, ./events). Filed under `marketing-events`.
+ *
+ * IT STORES NO REGISTRATIONS. `formId` names the registration form and the
+ * replies are counted where Forms keeps them — the form tool has done
+ * registration since it shipped, and a second list of the same people would be
+ * free to disagree with the first.
+ *
+ * WHAT IT DOES OWN IS `attended`, because nothing else in the product knows
+ * it: registering and turning up are different facts, and the gap between them
+ * is the only number an event exists to produce.
+ */
+export const MarketingEventSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  name: z.string().max(200),
+  description: z.string().max(4000),
+  /** An EVENT_KINDS token: a room, or a wire. */
+  kind: z.string().max(20),
+  /** ISO stamps, not dates: an event starts at a time, unlike a campaign. */
+  startsAt: z.string(),
+  endsAt: z.string(),
+  /** Where to go, or where to join. One field: it is the same question. */
+  location: z.string().max(500),
+  /** How many may come. NULL is no limit, which is not a limit of nought. */
+  capacity: z.number().nullable(),
+  /** The campaign this is part of, or "". */
+  campaignId: z.string().max(60),
+  /** The registration form, or "". Its replies are this event's sign-ups. */
+  formId: z.string().max(60),
+  /**
+   * THE RESPONSE IDS OF THE PEOPLE WHO CAME. Ids rather than names: the names
+   * are sealed form answers (invariant 18) and belong to Forms, so an event
+   * holding a copy would put a stranger's details in a second, unsealed place.
+   */
+  attended: z.array(z.string().max(60)),
+  ownerCollaboratorId: z.string().max(60),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type MarketingEvent = z.infer<typeof MarketingEventSchema>;
+
+/**
  * A FORM THE STUDIO BUILDS AND THE PUBLIC ANSWERS (19/09/2026, ./formsModel).
  * Filed under `marketing-forms`. `definition` is the questionnaire builder's
  * shape (pages of questions), cleaned by `cleanDefinition` on every write.

@@ -163,6 +163,7 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   workRequests: "WorkRequest",
   marketingCampaigns: "MarketingCampaign",
   marketingPlans: "MarketingPlan",
+  marketingEvents: "MarketingEvent",
   marketingForms: "MarketingForm",
   marketingFormResponses: "MarketingFormResponse",
   marketingConsents: "MarketingConsent",

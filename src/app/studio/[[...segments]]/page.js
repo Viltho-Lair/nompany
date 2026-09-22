@@ -199,6 +199,11 @@ const StudioMarketingCalendar = nextDynamic(
   () => import("@/components/studio2/StudioMarketingCalendar"),
   { loading: () => <ScreenSkeleton /> },
 );
+// Events & webinars (22/09/2026): what is on, who signed up, and who came.
+const StudioMarketingEvents = nextDynamic(
+  () => import("@/components/studio2/StudioMarketingEvents"),
+  { loading: () => <ScreenSkeleton /> },
+);
 // Audiences & consent (21/09/2026): who the studio may contact, and why.
 const StudioAudiences = nextDynamic(
   () => import("@/components/studio2/StudioAudiences"),
@@ -986,6 +991,8 @@ async function renderStudio(params) {
           ? <StudioCampaigns slug={studio.slug} />
         : active?.key === "marketing-planning"
           ? <StudioMarketingCalendar slug={studio.slug} />
+        : active?.key === "marketing-events"
+          ? <StudioMarketingEvents slug={studio.slug} />
         : active?.key === "marketing-audiences"
           ? <StudioAudiences slug={studio.slug} />
         : active?.key === "marketing-budget"

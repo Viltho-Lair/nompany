@@ -1,7 +1,7 @@
 # Marketing
 
 The eighteenth department (2026-09-19), from the owner's *Marketing Section — ERP Requirements
-& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Six of the
+& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Seven of the
 seventeen are built: Campaigns**, because the plan makes the campaign the parent of everything
 else, **Forms** (2026-09-19, `docs/functionality/forms.md`), **Budget & spend** (2026-09-21,
 `docs/functionality/marketing-budget.md`) **and Audiences & consent** (2026-09-22,
@@ -26,6 +26,7 @@ the public site's price list and is not part of the department.
 | `marketing.campaigns.assign` | Choosing who owns a campaign (2026-09-19). Without it the owner is whoever raised the campaign. |
 | `marketing.budget.view` | Budget & spend (2026-09-21). View alone: setting a budget is editing the campaign, and filing a cost is editing the bill. |
 | `marketing.audiences.view/edit` | The consent ledger (2026-09-22). Edit adds an entry; nothing can be changed or removed, because the ledger is append-only. |
+| `marketing.events.view/create/edit/delete` | Events & webinars (2026-09-22). Marking who attended is an **edit**. It does NOT open the registrants: their names are form answers and answer to `marketing.forms.view`. |
 | `marketing.planning.view/create/edit/delete` | The calendar and the plans (2026-09-22). The CALENDAR is view alone — moving a campaign in time is editing that campaign — and the other three verbs write the plan for a period, which is this section's own record. Filing a campaign under a plan answers to `marketing.campaigns.edit`. |
 
 The **winner-of-work** shape (Sales Manager, Marketing Manager, Digital Marketing Specialist and
@@ -157,7 +158,12 @@ The other twelve subsections of the plan, and everything the dashboard's plan ne
         caught by before.
 
   Also not built: lifecycle stages beyond the pipeline's, lead enrichment, and duplicate merging.
-- **Journeys**, **Content & Brand Assets**, **Events & Webinars**, **Promotions & Loyalty**,
+- **Events & Webinars** is built (2026-09-22, `events.md`): an event with its date, place and
+  capacity, its sign-ups counted from the registration form it names, and the attendance nothing
+  else in the product knows. Not built there: nothing is sent (no invitation, reminder or calendar
+  invite), no waiting list, no check-in from a phone, no walk-in who is not already a form reply,
+  and events are not drawn on the marketing calendar.
+- **Journeys**, **Content & Brand Assets**, **Promotions & Loyalty**,
   **Research & Feedback**, **Partners, PR & Influencers**, **Reports & Attribution**.
 - On the dashboard: marketing-sourced revenue, ROI, cost per lead, CAC, the funnel, the budget
   line, geography and lead quality. The global filters, role presets and saved views.
