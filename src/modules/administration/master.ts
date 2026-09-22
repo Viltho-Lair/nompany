@@ -60,7 +60,14 @@ const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 // shifts or permits to be in the way, so a location deletes freely.
 export const masterContext = moduleContext<MasterContext>({
   root: "administration-master",
-  foreign: { fieldService: "field-service", projectsList: "projects-list" },
+  foreign: {
+    fieldService: "field-service",
+    projectsList: "projects-list",
+    // INVENTORY'S ITEMS, read for ONE question: what this studio already calls
+    // its goods, so the category register can offer those names back
+    // (./itemCategories). Nullable — no Inventory, nothing to suggest from.
+    inventoryItems: ["inventory-items", "inventory"],
+  },
 });
 
 export async function listLocations(

@@ -35,8 +35,17 @@ export type ApplicationLevel = (typeof APPLICATION_LEVELS)[number];
 export const CHANNELS = ["pos", "online", "both"] as const;
 export type Channel = (typeof CHANNELS)[number];
 
+// A CONDITION TYPE IS A TOKEN STORED ON EVERY OFFER USING IT, so one is ADDED
+// and never repurposed. `item_category` (22/09/2026) is the studio's OWN
+// category register; `category_in_list` beside it reads `itemType`, which is
+// the chosen vendor's product line — see modules/administration/itemCategories.
+// Changing what the older token compares against would have silently re-scoped
+// every offer already written with it, from "this supplier's line" to "this
+// category", and those are different sets of goods. That is a widening nobody
+// asked for and nobody would see happen.
 export const CONDITION_TYPES = [
   "item_in_list", "item_not_in_list", "category_in_list", "brand_in_list",
+  "item_category",
   "min_quantity", "min_amount", "payment_method", "customer_tag",
 ] as const;
 export type ConditionType = (typeof CONDITION_TYPES)[number];
@@ -124,8 +133,18 @@ export type BasketLine = {
   listPrice?: number;
   taxCategory?: "zero" | "exempt";
   unit?: string;
-  /** The item's own free-text type, which is what "category" means until items have one. */
+  /** The item's own free-text type — the chosen VENDOR's product line (`category_in_list`). */
   itemType?: string;
+  /**
+   * THE STUDIO'S CATEGORY AND EVERY ONE ABOVE IT, nearest first
+   * (`shared/departments/tree` → `pathIds`), computed where the items are read.
+   *
+   * THE PATH RATHER THAN THE ID, because an offer on "Tools" has to match a line
+   * filed under "Tools › Power tools › Drills" — and this engine is pure, so it
+   * cannot walk a register it was never handed. Matching an ancestor is then a
+   * plain intersection instead of a tree walk inside the hot path.
+   */
+  categoryPath?: string[];
   /** The item's vendor, which is what "brand" means until items have one. */
   vendorId?: string;
   /** The studio (or its country) says this item is never discounted. */
@@ -287,6 +306,12 @@ const matchesItemConditions = (p: Promotion, line: BasketLine): boolean => {
     if (c.type === "item_in_list" && !list(v.itemIds).includes(line.itemId)) return false;
     if (c.type === "item_not_in_list" && list(v.itemIds).includes(line.itemId)) return false;
     if (c.type === "category_in_list" && !list(v.categories).includes(String(line.itemType || ""))) return false;
+    // AN ANCESTOR COUNTS. "Tools" matches a drill filed three levels under it;
+    // the line carries its whole path, so this is an intersection.
+    if (c.type === "item_category") {
+      const want = new Set(list(v.categoryIds));
+      if (!list(line.categoryPath).some((id) => want.has(id))) return false;
+    }
     if (c.type === "brand_in_list" && !list(v.brands).includes(String(line.vendorId || ""))) return false;
   }
   return true;
@@ -682,6 +707,7 @@ function cleanConditionValue(type: ConditionType, raw: unknown): Record<string, 
     case "item_in_list": case "item_not_in_list": return { itemIds: list(v.itemIds).slice(0, 500) };
     case "category_in_list": return { categories: list(v.categories).slice(0, 100) };
     case "brand_in_list": return { brands: list(v.brands).slice(0, 100) };
+    case "item_category": return { categoryIds: list(v.categoryIds).slice(0, 200) };
     // THE UNIT IS PART OF THE CONDITION, never implied: three kilos and three
     // pieces are different offers and the number alone cannot tell them apart.
     case "min_quantity": return { qty: Math.max(0, num(v.qty)), unit: str(v.unit, 12) };
@@ -795,6 +821,7 @@ export function promotionProblems(p: Omit<Promotion, "id" | "code">): string[] {
     if (c.type === "min_amount" && !(num(c.value.amount) > 0)) problems.push("min-amount");
     if ((c.type === "item_in_list" || c.type === "item_not_in_list") && !list(c.value.itemIds).length) problems.push("items");
     if (c.type === "customer_tag" && !list(c.value.tagIds).length) problems.push("tags");
+    if (c.type === "item_category" && !list(c.value.categoryIds).length) problems.push("categories");
   }
   (p.tiers || []).forEach((t, i) => {
     if (t.thresholdType !== "none" && !(num(t.thresholdValue) > 0)) problems.push(`tier-${i}-threshold`);

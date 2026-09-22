@@ -259,5 +259,55 @@ ok("a spent single-use code is still refused",
 ok("a per-customer limit cannot bite somebody with no history",
   P.couponProblem({ ...fresh, perCustomerLimit: 1, redeemedByCustomer: 0 }, NOW, "", true) === "");
 
+// THE STUDIO'S OWN CATEGORIES (22/09/2026). `item_category` is a NEW token
+// beside `category_in_list`, which reads the chosen VENDOR's product line —
+// repurposing the old one would have silently re-scoped every offer already
+// written with it. Both are asserted here so neither can drift into the other.
+console.log("\n== an offer on a category, and on everything under it");
+const catOffer = (categoryIds) => ({
+  id: "cat", code: "PRM-CAT", name: "Category offer", status: "active",
+  startsAt: "2026-01-01T00:00:00.000Z", endsAt: null, applicationLevel: "line", priority: 10,
+  conditions: [{ type: "item_category", value: { categoryIds } }],
+  tiers: [{ thresholdType: "none", thresholdValue: 0, benefits: [{ type: "percentage_off", value: { percent: 10 }, appliesTo: "matched_lines" }] }],
+});
+// A drill filed three deep: Tools > Power tools > Drills.
+const drill = { ...line("d", 100, 1), categoryPath: ["drills", "power-tools", "tools"] };
+const apple = { ...line("a", 100, 1), categoryPath: ["fruit"] };
+
+const onLeaf = run([drill, apple], [catOffer(["drills"])]);
+ok("an offer on the leaf takes off the leaf's line alone",
+  onLeaf.discountTotal === 10 && onLeaf.lines[0].promotionDiscount === 10 && onLeaf.lines[1].promotionDiscount === 0,
+  j(onLeaf.lines.map((l) => l.promotionDiscount)));
+
+const onRoot = run([drill, apple], [catOffer(["tools"])]);
+ok("…and an offer on the ROOT still matches the drill three levels under it",
+  onRoot.lines[0].promotionDiscount === 10 && onRoot.lines[1].promotionDiscount === 0,
+  j(onRoot.lines.map((l) => l.promotionDiscount)));
+
+const onOther = run([drill, apple], [catOffer(["fruit"])]);
+ok("a sibling branch is not matched", onOther.lines[0].promotionDiscount === 0 && onOther.lines[1].promotionDiscount === 10);
+
+const unfiled = run([line("u", 100, 1)], [catOffer(["tools"])]);
+ok("an item filed under nothing matches no category offer", unfiled.discountTotal === 0);
+
+const deleted = run([drill], [catOffer(["gone"])]);
+ok("a category nobody has any more matches nothing rather than everything", deleted.discountTotal === 0);
+
+console.log("\n== the two tokens are not each other");
+const supplierLine = { ...line("s", 100, 1), itemType: "Helmets", categoryPath: ["safety"] };
+const byVendorLine = run([supplierLine], [{ ...catOffer(["safety"]), conditions: [{ type: "category_in_list", value: { categories: ["Helmets"] } }] }]);
+ok("`category_in_list` still reads the supplier's line", byVendorLine.discountTotal === 10);
+const byCategory = run([supplierLine], [catOffer(["safety"])]);
+ok("`item_category` reads the studio's register", byCategory.discountTotal === 10);
+const crossed = run([supplierLine], [catOffer(["Helmets"])]);
+ok("a category offer naming the supplier's WORD matches nothing — they are different sets",
+  crossed.discountTotal === 0);
+
+console.log("\n== what is stored");
+const cleanedCat = P.cleanPromotion({ name: "x", startsAt: NOW, conditions: [{ type: "item_category", value: { categoryIds: ["a", "b"] } }] });
+ok("a category condition stores its ids", j(cleanedCat.conditions[0].value) === j({ categoryIds: ["a", "b"] }));
+ok("a category condition naming nothing is refused",
+  P.promotionProblems({ ...cleanedCat, conditions: [{ type: "item_category", value: { categoryIds: [] } }] }).includes("categories"));
+
 console.log(fails ? `\npos promotions model: ${fails} FAILURES\n` : "\npos promotions model: all passed\n");
 process.exitCode = fails ? 1 : 0;

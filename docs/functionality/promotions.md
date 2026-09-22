@@ -78,6 +78,23 @@ changed. How soon "soon" is, is Point of Sale's own setting
 (`promotionExpiryWarningDays`, default seven), because nothing outside the department reads
 it.
 
+### Two conditions that look alike and are not (22/09/2026)
+
+`item_category` matches the STUDIO's own category register (`master-data.md`), and it
+matches an ANCESTOR too: an offer on "Tools" prices a drill filed under Tools › Power tools
+› Drills. The line carries its whole path (`categoryPath`, walked once per request by
+`categoryPathsFor`) because this engine is pure and cannot walk a register it was never
+handed.
+
+`category_in_list` beside it matches `itemType`, which is the chosen SUPPLIER's product
+line. It is kept, unchanged, and relabelled on screen to say so.
+
+**THE OLDER TOKEN WAS NOT REPURPOSED, and that was the whole decision.** Pointing
+`category_in_list` at the new register would have silently re-scoped every offer already
+written with it — from "this supplier's line" to "this category", which are different sets of
+goods. A migration mapping name to id would have looked like a rename and been a widening.
+So the new token is additive, no offer changed meaning, and nothing needed migrating.
+
 ## How a basket is priced
 
 `modules/sales/posPromotionsModel.ts` is pure and does no I/O. `evaluate(basket, context)` is
@@ -179,9 +196,9 @@ what somebody at a counter is charged because of a billing change.
 - **`points_multiplier` is stored and spends nothing.** There is no loyalty ledger, so the
   benefit is carried through the model and takes no money off.
 - **`free_shipping` does not exist** — Logistics prices a delivery, and nothing joins the two.
-- **Item CATEGORY and BRAND are `itemType` and `vendorId`.** Items carry no category axis of
-  their own yet; it is a future plan in `docs/progress.md`, and when it lands the two
-  conditions read it instead.
+- **BRAND is still `vendorId`.** An item carries no brand of its own, so "an item from one
+  of these suppliers" is as close as an offer gets. When brands become a register of their
+  own it is the same shape the category axis took, in its own change.
 - **No usage counters reach the till screen.** A cap already spent shows the offer on screen
   and the server refuses it at the sale; the cashier is asked to confirm the new total. Sending
   the counters with every `posView` would be a read of every redemption row on every open of

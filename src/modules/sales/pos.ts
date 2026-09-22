@@ -47,6 +47,7 @@ import type { PosContext } from "./types";
 import { clientSlug } from "./salesClients";
 import {
   priceWithPromotions, recordRedemptions, claimCoupons, releaseCoupons, livePromotions,
+  categoriesFor, categoryPathsFor,
 } from "./posPromotions";
 import { promotionValidAt, daysUntilEnd, type AppliedPromotion } from "./posPromotionsModel";
 import { studioTimezone } from "@/shared/timezone";
@@ -265,10 +266,14 @@ export async function posView(ctx: PosContext) {
   const till = await requireTill(ctx);
   if (isRefusal(till)) return { ...till, canPair: can(ctx.access, "pos.settings.edit") };
 
-  const [shifts, items] = await Promise.all([
+  const [shifts, items, categories] = await Promise.all([
     Shifts.find(scope(ctx), { where: { status: "Open", terminalId: till.id } }),
     ctx.itemsSection ? Items.find({ studio: ctx.studio, section: ctx.itemsSection }) : Promise.resolve([]),
+    categoriesFor(ctx),
   ]);
+  // WALKED ONCE for the whole payload — the screen runs the same engine the
+  // server does, so it needs each item's ancestry, not just its category.
+  const pathOf = categoryPathsFor(categories);
 
   return {
     terms: tillTerms(ctx),
@@ -292,6 +297,8 @@ export async function posView(ctx: PosContext) {
       // vendor id are what the engine calls a category and a brand until items
       // carry their own, and the screen cannot price an offer without them.
       ...(i.itemType ? { itemType: i.itemType } : {}),
+      ...(pathOf((i as { categoryId?: unknown }).categoryId).length
+        ? { categoryPath: pathOf((i as { categoryId?: unknown }).categoryId) } : {}),
       ...(i.vendorId ? { vendorId: i.vendorId } : {}),
       ...((i as { excludedFromPromotions?: unknown }).excludedFromPromotions === true
         ? { excludedFromPromotions: true } : {}),
@@ -707,6 +714,7 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
           ...(l.taxCategory ? { taxCategory: l.taxCategory } : {}),
           unit: String(item?.unit || ""),
           itemType: String(item?.itemType || ""),
+          categoryId: String((item as { categoryId?: unknown } | undefined)?.categoryId || ""),
           vendorId: String(item?.vendorId || ""),
           excluded: (item as { excludedFromPromotions?: unknown } | undefined)?.excludedFromPromotions === true,
         };

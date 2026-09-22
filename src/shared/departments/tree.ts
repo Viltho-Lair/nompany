@@ -111,6 +111,34 @@ export function depthOf<T extends DepartmentNode>(rows: readonly T[], id: string
   return depth;
 }
 
+/**
+ * A row and every ancestor above it, nearest first — the walk `depthOf` does,
+ * keeping what it passes instead of counting it.
+ *
+ * WHY IT IS HERE AND NOT IN THE THING THAT NEEDS IT (22/09/2026). Item
+ * categories nest, and an offer on "Tools" has to match a line filed under
+ * "Tools › Power tools › Drills". The engine that decides that is PURE and does
+ * no I/O, so it cannot walk a tree it was never handed — the line carries this
+ * path instead, computed once where the items are read. Everything in this file
+ * is already generic over `{ id, parentId }`; a second copy of "who is above
+ * me" would be a second answer to the question the access scope already asks.
+ *
+ * Malformed data survives the same way the rest of this file survives it: a
+ * dangling parent ends the walk, and a cycle stops at the row it repeats.
+ */
+export function pathIds<T extends DepartmentNode>(rows: readonly T[], id: string): string[] {
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  let cursor: string | undefined = id;
+  while (cursor && byId.has(cursor) && !seen.has(cursor)) {
+    seen.add(cursor);
+    out.push(cursor);
+    cursor = byId.get(cursor)?.parentId || "";
+  }
+  return out;
+}
+
 /** How many levels a register may have. Four covers every org chart in the research. */
 export const MAX_DEPARTMENT_DEPTH = 4;
 

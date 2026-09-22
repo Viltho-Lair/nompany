@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { btn, btnGhost, btnRow, btnRowDanger, money } from "@/components/studio2/ui";
+import { pathIds } from "@/shared/departments/tree";
 import {
   evaluate, emptyPromotion, presetDraft, PRESET_KEYS,
   CONDITION_TYPES, BENEFIT_TYPES, APPLIES_TO, THRESHOLD_TYPES, CHANNELS,
@@ -93,6 +94,13 @@ export function OfferEditor({ tr, locale, data, promotion, busy, onSave, onCance
   const tillOptions = (data.tills || []).map((t) => ({ value: t.id, label: [t.code, t.name].filter(Boolean).join(" · ") }));
   const unitOptions = (data.units || []).map((u) => ({ value: u, label: u }));
   const tagOptions = (data.tags || []).map((t) => ({ value: t.id, label: locale === "ar" && t.nameAr ? t.nameAr : t.name }));
+  // INDENTED BY DEPTH, because choosing "Tools" and choosing "Tools › Drills"
+  // are different offers and a flat list hides which is which. Picking a parent
+  // matches everything under it — the engine reads the line's whole path.
+  const categoryOptions = (data.categories || []).map((c) => ({
+    value: c.id,
+    label: `${"\u00a0\u00a0".repeat(Math.max(0, Number(c.depth) || 0))}${locale === "ar" && c.nameAr ? c.nameAr : c.name}`,
+  }));
 
   const tiers = draft.tiers || [];
   const conditions = draft.conditions || [];
@@ -251,6 +259,10 @@ export function OfferEditor({ tr, locale, data, promotion, busy, onSave, onCance
               {(c.type === "item_in_list" || c.type === "item_not_in_list") && (
                 <Multi label={tr.items} hint={tr.itemsHint} options={itemOptions}
                   value={c.value?.itemIds} onChange={(itemIds) => setValue({ itemIds })} />
+              )}
+              {c.type === "item_category" && (
+                <Multi label={tr.categories} hint={tr.categoriesHint} options={categoryOptions}
+                  value={c.value?.categoryIds} onChange={(categoryIds) => setValue({ categoryIds })} />
               )}
               {c.type === "category_in_list" && (
                 <Multi label={tr.types} options={typeOptions} value={c.value?.categories}
@@ -431,6 +443,13 @@ export function OfferPreview({ tr, data, promotion }) {
   // Memoised because the preview re-prices on it: a fresh [] every render
   // would re-run the engine on every keystroke anywhere in the editor.
   const items = useMemo(() => data.items || [], [data.items]);
+  // THE PREVIEW WALKS THE TREE ITSELF because the offers payload carries the
+  // register (for the picker) rather than a path per item — one shape serving
+  // both, rather than the same tree sent twice in two forms.
+  const pathOf = useMemo(() => {
+    const rows = data.categories || [];
+    return (id) => (id ? pathIds(rows, String(id)) : []);
+  }, [data.categories]);
   const currency = data.currency || "";
 
   const priced = useMemo(() => {
@@ -443,6 +462,7 @@ export function OfferPreview({ tr, data, promotion }) {
           key: String(i), itemId: l.itemId, description: item.name || "",
           count: num(l.count), price: num(l.price),
           unit: item.unit || "", itemType: item.itemType || "", vendorId: item.vendorId || "",
+          categoryPath: pathOf(item.categoryId),
           excluded: item.excludedFromPromotions === true,
         };
       }),
@@ -461,7 +481,7 @@ export function OfferPreview({ tr, data, promotion }) {
       coupons: promotion.requiresCoupon ? [{ code: "PREVIEW", promotionId: promotion.id || "preview" }] : [],
       paymentMethods: ["cash", "card", "transfer"],
     });
-  }, [lines, promotion, items, currency, data.timezone]);
+  }, [lines, promotion, items, currency, data.timezone, pathOf]);
 
   return (
     <section className={box}>

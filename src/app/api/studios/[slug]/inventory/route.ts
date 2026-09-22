@@ -1,4 +1,5 @@
 import { route } from "@/platform/http/route";
+import { listItemCategories } from "@/modules/administration/itemCategories";
 import { can, type PermissionKey } from "@/platform/access";
 import { STOCK_ALERT_RIGHT } from "@/modules/inventory/stockAlerts";
 import {
@@ -36,7 +37,7 @@ export const GET = route(
   // create, issue, cancel); what is gone is a list nothing listed.
   const on = g.on;
   const shipmentsOn = on("logistics-shipments");
-  const [vendors, items, movements, orders, projects, shipments, airlines, sheets] = await Promise.all([
+  const [vendors, items, movements, orders, projects, shipments, airlines, sheets, categories] = await Promise.all([
     on("inventory-items") ? listVendors(g) : Promise.resolve([]),
     on("inventory-items") || on("inventory-stock") ? listItems(g) : Promise.resolve([]),
     on("inventory-stock") ? listMovements(g) : Promise.resolve([]),
@@ -45,6 +46,10 @@ export const GET = route(
     shipmentsOn ? listShipments(g) : Promise.resolve([]),
     shipmentsOn ? listAirlines(g) : Promise.resolve([]),
     on("inventory-sheets") ? listProjectSheets(g) : Promise.resolve([]),
+    // ADMINISTRATION'S CATEGORY REGISTER, for the item form's own picker.
+    // Reference data every section reads and none owns — the same borrow
+    // Operations makes for locations. Null section, empty list, no picker.
+    g.masterSection ? listItemCategories({ studio: g.studio, section: g.masterSection }) : Promise.resolve([]),
   ]);
 
   return {
@@ -70,7 +75,7 @@ export const GET = route(
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.
     manage: g.manage,
-    vendors, items, movements, orders, projects, shipments, airlines, sheets,
+    vendors, items, movements, orders, projects, shipments, airlines, sheets, categories,
     summary: {
       items: items.length,
       low: items.filter((i) => i.low).length,

@@ -5,6 +5,8 @@ import { marginPct } from "@/shared/pricing";
 import { useStudioLocale } from "@/components/studio2/locale";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { inventoryDict } from "@/shared/studio/inventory";
+import { itemCategoriesDict } from "@/shared/studio/itemCategories";
+import { orderedTree } from "@/shared/departments/tree";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -126,7 +128,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   // owner — so the coarse flag here answers a question nobody asks any more.
   const {
     canManageStock, canManageItems, canManageAwb,
-    vendors, items, movements, orders, projects, shipments, airlines, summary, vocabulary, nav,
+    vendors, items, movements, orders, projects, shipments, airlines, summary, vocabulary, nav, categories = [],
     currency: studioCurrency = "",
   } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN — here by the canManageX flag
@@ -139,7 +141,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
   const wrap = (children) => <div className="space-y-6">{banner}{children}</div>;
 
   if (view === "inventory-items") {
-    return wrap(<Items slug={slug} items={items} vendors={vendors} units={vocabulary.units} serviceActions={vocabulary.serviceActions || []}
+    return wrap(<Items slug={slug} items={items} vendors={vendors} units={vocabulary.units} categories={categories} serviceActions={vocabulary.serviceActions || []}
       studioCurrency={studioCurrency} canManage={canManageItems} busy={busy} send={send} reload={load} />);
   }
   if (view === "inventory-stock") {
@@ -214,7 +216,7 @@ function message(out, tr) {
 }
 
 // ---- registered items (the catalogue) --------------------------------------
-function Items({ slug, items, vendors, units, serviceActions, studioCurrency, canManage, busy, send, reload }) {
+function Items({ slug, items, vendors, units, categories = [], serviceActions, studioCurrency, canManage, busy, send, reload }) {
   const tr = inventoryDict(useStudioLocale());
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(null);
@@ -271,7 +273,7 @@ function Items({ slug, items, vendors, units, serviceActions, studioCurrency, ca
         <Dialog title={form.row ? `Edit ${form.row.name}` : tr.addItem}
           description={tr.catalogueEntryWhatThing}
           onClose={closeForm}>
-          <ItemForm row={form.row} vendors={vendors} units={units} serviceActions={serviceActions} studioCurrency={studioCurrency} busy={busy} onCancel={closeForm}
+          <ItemForm row={form.row} vendors={vendors} units={units} categories={categories} serviceActions={serviceActions} studioCurrency={studioCurrency} busy={busy} onCancel={closeForm}
             onSave={async (v) => { if (await send("items", form.row ? "PUT" : "POST", form.row ? { ...v, id: form.row.id } : v)) setForm(null); }} />
         </Dialog>
       )}
@@ -491,14 +493,16 @@ function ItemImage({ value, onChange }) {
   );
 }
 
-function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "", busy, onSave, onCancel }) {
+function ItemForm({ row, vendors, units, categories = [], serviceActions = [], studioCurrency = "", busy, onSave, onCancel }) {
   const locale = useStudioLocale();
   const tr = inventoryDict(locale);
+  const catTr = itemCategoriesDict(locale);
   const tax = taxDict(locale);
   const [f, setF] = useState({
     name: row?.name || "", sku: row?.sku || "", modelNumber: row?.modelNumber || "",
     unit: row?.unit || units[0], vendorId: row?.vendorId || "",
     itemType: row?.itemType || "", deliveryWeeks: row?.deliveryWeeks ?? "",
+    categoryId: row?.categoryId || "",
     scope: Array.isArray(row?.scope) ? row.scope : [],
     reorderLevel: row?.reorderLevel || "", unitCost: row?.unitCost || "", notes: row?.notes || "",
     sellPrice: row?.sellPrice || "",
@@ -516,6 +520,11 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
   const sellHint = margin == null ? undefined : tr.marginIs(margin);
   const vendor = vendors.find((v) => v.id === f.vendorId);
   const types = Array.isArray(vendor?.itemTypes) ? vendor.itemTypes : [];
+  // INDENTED BY DEPTH, the same shape the register's own screen draws.
+  const categoryOptions = orderedTree(categories).map((c) => ({
+    value: c.id,
+    label: `${"\u00a0\u00a0".repeat(Math.max(0, Number(c.depth) || 0))}${locale === "ar" && c.nameAr ? c.nameAr : c.name}`,
+  }));
 
   // BOUGHT IN SOMEBODY ELSE'S MONEY: it has to be shipped in and cleared, and
   // neither of those is free. Blank means the studio's own currency, so it is
@@ -551,6 +560,18 @@ function ItemForm({ row, vendors, units, serviceActions = [], studioCurrency = "
           disabled={!f.vendorId || types.length === 0}
           options={types.map((t) => ({ value: t.type, label: `${t.type}${t.weeks !== "" && t.weeks != null ? ` (${t.weeks} wk)` : ""}` }))}
           hint={!f.vendorId ? tr.pickVendorFirst : types.length === 0 ? tr.vendorNoItemTypes : undefined} />
+        {/* THE STUDIO'S OWN SHELF, and deliberately right beside the supplier's
+            Type so the difference is visible rather than explained: that one is
+            the vendor's product line and sets the lead time, this one is what
+            the shop calls it. An offer prices against THIS
+            (docs/functionality/promotions.md). Absent until Master data has a
+            register, which is an honest empty rather than a free-text box that
+            would grow a second, unjoined vocabulary. */}
+        <Field label={catTr.category} as="select" value={f.categoryId}
+          onChange={(v) => setF((s) => ({ ...s, categoryId: v }))}
+          disabled={categoryOptions.length === 0}
+          options={[{ value: "", label: catTr.noCategory }, ...categoryOptions]}
+          hint={categoryOptions.length === 0 ? catTr.empty : undefined} />
         <div className="grid grid-cols-[1fr,7.5rem] gap-3">
           <Field label={tr.unitCost} type="number" min="0" value={f.unitCost} onChange={(v) => setF((s) => ({ ...s, unitCost: v }))} inputProps={{ step: "0.01" }} />
           {/* What that cost is IN. Blank means the studio's own currency, so an

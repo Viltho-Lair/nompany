@@ -160,6 +160,10 @@ export default function StudioPos({ slug }) {
         count: num(b.count), price: num(b.price),
         ...(b.taxCategory ? { taxCategory: b.taxCategory } : {}),
         unit: item.unit || "", itemType: item.itemType || "", vendorId: item.vendorId || "",
+        // WALKED BY THE SERVER, carried whole: the screen runs the same engine,
+        // and a tree walk in the browser would be a second answer to "what is
+        // this filed under".
+        categoryPath: item.categoryPath || [],
         excluded: item.excludedFromPromotions === true,
       };
     });

@@ -48,6 +48,8 @@ const ApiKeysPanel = nextDynamic(() => import("@/components/studio2/ApiKeysPanel
   { loading: () => <ScreenSkeleton /> });
 const ClientTagsPanel = nextDynamic(() => import("@/components/studio2/ClientTagsPanel"),
   { loading: () => <ScreenSkeleton /> });
+const ItemCategoriesPanel = nextDynamic(() => import("@/components/studio2/ItemCategoriesPanel"),
+  { loading: () => <ScreenSkeleton /> });
 import { numberingDict } from "@/shared/studio/numbering";
 import { unitsDict } from "@/shared/studio/units";
 import { costCodesDict } from "@/shared/studio/costCodes";
@@ -55,6 +57,7 @@ import { taxonomyDict } from "@/shared/studio/taxonomy";
 import { noticesDict } from "@/shared/studio/notices";
 import { apiKeysDict } from "@/shared/studio/apiKeys";
 import { clientTagsDict } from "@/shared/studio/clientTags";
+import { itemCategoriesDict } from "@/shared/studio/itemCategories";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub } from "@/components/studio2/ui";
 import { useReload } from "@/components/studio2/useReload";
@@ -72,6 +75,7 @@ export default function StudioMasterData({ slug }) {
   // other two tabs use — the same split Locations already has a note about.
   const [numbering, setNumbering] = useState(null);
   const [clientTags, setClientTags] = useState(null);
+  const [itemCategories, setItemCategories] = useState(null);
   const [units, setUnits] = useState(null);
   // ALSO A FIELD OF THE STUDIO RECORD, so it rides in the same fetch as
   // numbering and units rather than costing a third round trip.
@@ -160,6 +164,13 @@ export default function StudioMasterData({ slug }) {
     setClientTags(out.tags || []);
   }, [slug]);
 
+  const loadItemCategories = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/administration/item-categories`, { cache: "no-store" });
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) return;                       // the tab simply does not render
+    setItemCategories({ rows: out.categories || [], suggestions: out.suggestions || [] });
+  }, [slug]);
+
   const loadApiKeys = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/administration/api-keys`, { cache: "no-store" });
     const out = await res.json().catch(() => ({}));
@@ -168,8 +179,11 @@ export default function StudioMasterData({ slug }) {
   }, [slug]);
 
   const loadAll = useCallback(async () => {
-    await Promise.all([load(), loadDepartments(), loadSettings(), loadLibrary(), loadApiKeys(), loadClientTags()]);
-  }, [load, loadDepartments, loadSettings, loadLibrary, loadApiKeys, loadClientTags]);
+    await Promise.all([
+      load(), loadDepartments(), loadSettings(), loadLibrary(), loadApiKeys(),
+      loadClientTags(), loadItemCategories(),
+    ]);
+  }, [load, loadDepartments, loadSettings, loadLibrary, loadApiKeys, loadClientTags, loadItemCategories]);
 
   useReload(loadAll);
   // Both tabs are Master data's own rows — `locations` and `departments` under
@@ -193,6 +207,21 @@ export default function StudioMasterData({ slug }) {
     await loadClientTags();
     return true;
   }, [slug, locale, loadClientTags]);
+
+  // ONE DOOR FOR THE CATEGORY REGISTER, the shape the tag register's uses: it
+  // answers true or false, because the panel only needs to know whether to close
+  // its form — the rows come back through the write's own live update.
+  const sendCategory = useCallback(async (method, payload) => {
+    setError(""); setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/administration/item-categories`, {
+      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok || !out.ok) { setError(itemCategoriesDict(locale).refusal(out.error || "", out)); return false; }
+    await loadItemCategories();
+    return true;
+  }, [slug, locale, loadItemCategories]);
 
   const send = useCallback(async (kind, method, payload) => {
     setError(""); setBusy(true);
@@ -299,7 +328,7 @@ export default function StudioMasterData({ slug }) {
           second register. Both tabs answer to administration.master, so there
           is no per-tab gate — what differs is the CRUD ladder inside each. */}
       <div role="tablist" aria-label={tr.masterData} className="flex gap-2 border-b border-slate-200 dark:border-white/10">
-        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab], ["units", unitsDict(locale).tab], ["categories", taxonomyDict(locale).tab], ["cost-codes", costCodesDict(locale).tab], ["notices", noticesDict(locale).tab], ["api-keys", apiKeysDict(locale).tab], ["client-tags", clientTagsDict(locale).tab]].map(([key, label]) => (
+        {[["locations", tr.locationsTab], ["departments", tr.departments], ["numbering", numberingDict(locale).tab], ["units", unitsDict(locale).tab], ["categories", taxonomyDict(locale).tab], ["cost-codes", costCodesDict(locale).tab], ["notices", noticesDict(locale).tab], ["api-keys", apiKeysDict(locale).tab], ["client-tags", clientTagsDict(locale).tab], ["item-categories", itemCategoriesDict(locale).tab]].map(([key, label]) => (
           <button
             key={key}
             role="tab"
@@ -332,6 +361,23 @@ export default function StudioMasterData({ slug }) {
             busy={busy}
             send={send}
           />
+        </>
+      ) : tab === "item-categories" ? (
+        <>
+          <div>
+            <h2 className={h2}>{itemCategoriesDict(locale).tab}</h2>
+          </div>
+          {!itemCategories ? <ScreenSkeleton loadingLabel={tr.loadingMasterData} /> : (
+            <ItemCategoriesPanel
+              rows={itemCategories.rows}
+              suggestions={itemCategories.suggestions}
+              canManage={data.canManageLocations}
+              canCreate={data.canCreateLocations}
+              canDelete={data.canDeleteLocations}
+              busy={busy}
+              send={sendCategory}
+            />
+          )}
         </>
       ) : tab === "client-tags" ? (
         <>

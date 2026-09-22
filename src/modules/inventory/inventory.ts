@@ -507,6 +507,7 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
     // Picked from the vendor's own list of what it supplies; the estimate comes
     // with it rather than being typed again per item.
     itemType: str(body?.itemType, 80),
+    ...(str(body?.categoryId, 60) ? { categoryId: str(body.categoryId, 60) } : {}),
     deliveryWeeks: weeks(body?.deliveryWeeks),
     // Scope: which of the studio's own service actions does this thing need
     // once it lands? Chosen from studio.serviceActions, not a fixed pair.
@@ -570,6 +571,7 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
   if (body?.unit !== undefined && unitsFor(studio.units, studio.unitsOff).includes(String(body.unit))) patch.unit = String(body.unit);
   if (body?.modelNumber !== undefined) patch.modelNumber = str(body.modelNumber, 80);
   if (body?.itemType !== undefined) patch.itemType = str(body.itemType, 80);
+  if (body?.categoryId !== undefined) patch.categoryId = str(body.categoryId, 60);
   if (body?.deliveryWeeks !== undefined) patch.deliveryWeeks = weeks(body.deliveryWeeks);
   if (body?.scope !== undefined) patch.scope = cleanScope(body.scope, studio);
   if (body?.serials !== undefined) patch.serials = cleanSerials(body.serials);

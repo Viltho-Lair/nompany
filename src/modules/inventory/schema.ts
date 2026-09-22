@@ -80,6 +80,17 @@ export const ItemSchema = z.object({
   unit: z.string(),
   vendorId: z.string().max(60),
   itemType: z.string().max(80),
+  /**
+   * WHAT THE STUDIO CALLS THIS, as an id into Administration's category
+   * register (22/09/2026). BESIDE `itemType`, never replacing it: that one is
+   * the chosen VENDOR's product line and it fills `deliveryWeeks` from the
+   * vendor's own row, so repurposing it would break procurement's lead times.
+   *
+   * An id rather than a name, so the register may be renamed and re-nested
+   * without touching an item. A category deleted afterwards simply stops
+   * resolving — see modules/administration/itemCategories.
+   */
+  categoryId: z.string().max(60).optional(),
   deliveryWeeks: z.number(),
   scope: z.array(z.string()).optional(),
   createdAt: z.string().optional(),

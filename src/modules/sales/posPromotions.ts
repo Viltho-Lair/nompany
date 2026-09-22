@@ -19,6 +19,8 @@ import type { PosContext } from "./types";
 import type { Item } from "@/modules/inventory/types";
 import { expiryWarningDays, type PosTerminal } from "./pos";
 import { listClientTags } from "@/modules/administration/clientTags";
+import { listItemCategories, type ItemCategory } from "@/modules/administration/itemCategories";
+import { pathIds, orderedTree } from "@/shared/departments/tree";
 import { promotionPlanOf } from "@/lib/plans";
 import { activationPreflight, askToActivate } from "./promotionApproval";
 import { nextReference } from "@/modules/main/references";
@@ -64,7 +66,7 @@ export async function promotionsView(ctx: PosContext) {
   const denied = requirePermission(ctx.access, "pos.promotions.view");
   if (denied) return denied;
 
-  const [rows, items, tills, vendors, tags] = await Promise.all([
+  const [rows, items, tills, vendors, tags, categories] = await Promise.all([
     Promotions.find(scope(ctx)),
     ctx.itemsSection ? Items.find({ studio: ctx.studio, section: ctx.itemsSection }) : Promise.resolve([]),
     Terminals.find({ studio: ctx.studio, section: ctx.posSection }),
@@ -72,12 +74,14 @@ export async function promotionsView(ctx: PosContext) {
     // THE TAG NAMES, NOT THE IDS. An eligibility rule stores ids; a picker
     // offering ids is a picker nobody can use.
     ctx.masterSection ? listClientTags({ studio: ctx.studio, section: ctx.masterSection }) : Promise.resolve([]),
+    categoriesFor(ctx),
   ]);
   return {
     promotions: [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
     items: items.map((i) => ({
       id: i.id, name: i.name, sku: i.sku || "", unit: i.unit || "",
       itemType: i.itemType || "", vendorId: i.vendorId || "",
+      categoryId: (i as { categoryId?: unknown }).categoryId ? String((i as { categoryId?: unknown }).categoryId) : "",
       sellPrice: Number(i.sellPrice) || 0,
       excludedFromPromotions: (i as { excludedFromPromotions?: unknown }).excludedFromPromotions === true,
     })),
@@ -92,6 +96,11 @@ export async function promotionsView(ctx: PosContext) {
       .filter((v) => items.some((i) => i.vendorId === v.id))
       .map((v) => ({ id: v.id, name: v.name })),
     tags: tags.map((t) => ({ id: t.id, name: t.name, nameAr: t.nameAr || "" })),
+    // IN TREE ORDER, with the depth the picker indents by — the same ordering
+    // the register's own screen draws, so the two cannot disagree about shape.
+    categories: orderedTree(categories).map((c) => ({
+      id: c.id, name: c.name, nameAr: c.nameAr || "", parentId: c.parentId || "", depth: c.depth,
+    })),
     timezone: studioTimezone(ctx.studio as { timezone?: unknown }),
     currency: String(ctx.studio.currency || ""),
     // HOW SOON "ENDING SOON" IS — the studio's own answer, in POS settings,
@@ -135,6 +144,34 @@ export type PosRedemption = {
 // of these were written here first and moved out the same day: a per-day cap and
 // a shift report ask the same question, and two copies of "which day is it" are
 // two answers free to disagree. `shared/timezone` is the one.
+
+/** The studio's category register, or none when it keeps no Master data. */
+export async function categoriesFor(ctx: PosContext): Promise<ItemCategory[]> {
+  if (!ctx.masterSection) return [];
+  return listItemCategories({ studio: ctx.studio, section: ctx.masterSection });
+}
+
+/**
+ * A CATEGORY AND EVERY ONE ABOVE IT, per category id — the lookup a basket
+ * line's `categoryPath` is filled from.
+ *
+ * WALKED ONCE PER REQUEST rather than per line: a register is a few dozen rows
+ * and a basket can be a hundred, so the walk belongs outside the loop. An
+ * unknown id yields an empty path, which is an offer that matches nothing —
+ * the same containment a deleted category gets everywhere else.
+ */
+export function categoryPathsFor(categories: readonly ItemCategory[]) {
+  const cache = new Map<string, string[]>();
+  return (categoryId: unknown): string[] => {
+    const id = String(categoryId || "");
+    if (!id) return [];
+    const hit = cache.get(id);
+    if (hit) return hit;
+    const path = pathIds(categories, id);
+    cache.set(id, path);
+    return path;
+  };
+}
 
 /** Every offer that could price a basket on this till — the live ones, ordered. */
 export async function livePromotions(ctx: PosContext): Promise<PosPromotion[]> {
@@ -200,6 +237,11 @@ export async function priceWithPromotions(
 ): Promise<PricedOffers | OfferRefusal> {
   const timezone = studioTimezone(ctx.studio as { timezone?: unknown });
   const promotions = await livePromotions(ctx);
+  // THE CATEGORY WALK HAPPENS HERE, at the one door every sale passes, rather
+  // than in `createSale` — which already holds the items and would otherwise
+  // have to learn what a category register is to hand them over.
+  const pathOf = categoryPathsFor(await categoriesFor(ctx));
+  const lines = input.lines.map((l) => ({ ...l, categoryPath: pathOf((l as { categoryId?: unknown }).categoryId) }));
   // THE CODES BECOME CLAIMS HERE, because the engine does no I/O. A code that
   // cannot be used refuses the sale by name rather than pricing it at full
   // price and leaving the customer to notice.
@@ -218,7 +260,7 @@ export async function priceWithPromotions(
     customerId: input.customer?.id,
     day: studioDay(input.at, timezone),
   });
-  const priced = evaluate({ lines: input.lines, promotions }, {
+  const priced = evaluate({ lines, promotions }, {
     now: input.at,
     timezone,
     currency: input.currency,

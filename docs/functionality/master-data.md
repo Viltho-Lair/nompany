@@ -1,8 +1,9 @@
 # Master data
 
 The studio's own reference records — the lists every section reads and no section owns.
-`/<slug>/administration-master`, nine tabs: Locations, Departments, Numbering, Units,
-Categories, Cost codes, Notices, API keys, Client tags. (This line said "four tabs" long
+`/<slug>/administration-master`, ten tabs: Locations, Departments, Numbering, Units,
+Categories (the studio's word lists), Cost codes, Notices, API keys, Client tags, Item
+categories. (This line said "four tabs" long
 after the other four had landed, and "eight" the day the ninth arrived.)
 
 ## What it is
@@ -171,6 +172,38 @@ what it can see is safe against deletion in a way no write-time check is. Sweepi
 client on a delete would be a write across a collection this section does not own, and a
 half-finished sweep is worse than an unresolved id.
 
+### Item categories — and what they are NOT (22/09/2026)
+
+What the studio calls its goods. An item carries `categoryId`; an offer's condition carries
+category ids (`promotions.md`); the register carries the names. It **nests**, four levels,
+through `shared/departments/tree` rather than a second copy of those walks.
+
+**THE THING IT IS NOT IS THE INTERESTING PART.** An item already has a field that looks like
+a category — `itemType` — and it is the chosen SUPPLIER's product line: the item form
+populates that dropdown from the vendor's own `itemTypes` list and picking one fills the
+lead time from the vendor's row. Two suppliers selling helmets produce two unrelated
+strings, and an item with no vendor has no type at all.
+
+So `itemType` is fine for procurement and poor for pricing an offer: "20% off Helmets"
+written against it means *"20% off things whose supplier calls them Helmets"*, and silently
+misses identical goods bought from somebody who typed it differently. **`itemType` is
+therefore untouched** — a category is a NEW field beside it, and `deliveryWeeks` still
+works.
+
+**A register, not a taxonomy**, for the reason client tags give one tab along: a taxonomy
+value is stored by NAME, so renaming one strands every record using it. A category is stored
+by id, so a studio renames and re-nests freely.
+
+**NOT SEEDED, and offered rather than imported.** A starter list would be a guess about a
+trade. The studio already has an honest answer to "what do we sell" — the distinct
+`itemType` values on its own items — and those are offered for a person to pick from.
+Importing them automatically would be wrong rather than merely presumptuous: a supplier's
+line is frequently not a category, and two spellings of one category would arrive as two.
+
+**A category with children is refused deletion**, because a dangling parent reads as TOP
+LEVEL (tree.ts), so deleting a middle row would quietly promote its whole subtree. Deleting a
+leaf re-files nothing: the items keep the id and stop resolving it.
+
 ## Not built yet
 
 - **A place inside a place.** There is no `parentId` on a location, so a site, its buildings
@@ -182,6 +215,11 @@ half-finished sweep is worse than an unresolved id.
 - **Checking in by location.** Nothing compares where a technician is with where the site is.
   When it comes it is a studio setting, off by default, with recorded consent — Jordan's PDPL
   (Law No. 24 of 2023) names location as personal data.
+- **Nothing lists which items carry a category**, and no bulk re-filing. Categorising a
+  shelf of two hundred items is two hundred visits to the item form.
+- **Reports, Inventory and Procurement do not read categories yet.** Only Promotions does.
+  Stock value by category, and a purchase history by category, are the obvious next readers
+  and neither exists.
 - **Nothing lists which clients carry a tag.** The register says what the tags are; finding
   everybody wearing one means opening the clients list, and there is no filter for it.
 - **A tag cannot be merged into another.** Two tags that turn out to mean the same thing are

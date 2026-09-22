@@ -96,6 +96,8 @@ type Strings = {
   qty: string;
   unit: string;
   types: string;
+  categories: string;
+  categoriesHint: string;
   vendors: string;
   tags: string;
   methods: string;
@@ -283,8 +285,9 @@ const en: Strings = {
   conditionType: (t) => ({
     item_in_list: "One of these items is in the basket",
     item_not_in_list: "None of these items is in the basket",
-    category_in_list: "An item of one of these types",
+    category_in_list: "An item on one of these supplier lines",
     brand_in_list: "An item from one of these suppliers",
+    item_category: "An item in one of these categories",
     min_quantity: "At least this many units",
     min_amount: "At least this much spent",
     customer_tag: "The customer carries one of these tags",
@@ -295,7 +298,9 @@ const en: Strings = {
   itemsHint: "The offer matches the lines carrying these items.",
   qty: "Units",
   unit: "Counted in",
-  types: "Types",
+  types: "Supplier lines",
+  categories: "Categories",
+  categoriesHint: "Choosing a category also matches everything filed under it.",
   vendors: "Suppliers",
   tags: "Tags",
   methods: "Payment methods",
@@ -409,6 +414,7 @@ const en: Strings = {
       case "archived": return "An archived offer cannot be changed.";
       case "transition": return `An offer cannot go from ${String(x.from || "")} to ${String(x.to || "")}.`;
       case "refused": return `Something is missing or wrong: ${String(x.detail || "")}.`;
+      case "categories": return "Name at least one category.";
       case "duplicate": return `The code ${String(x.code || "")} is already in use.`;
       case "code": return "A code is 3 to 24 letters, digits or hyphens.";
       case "codes-exhausted": return "Codes could not be generated. Try a smaller batch or a different prefix.";
@@ -516,8 +522,9 @@ const ar: Strings = {
   conditionType: (t) => ({
     item_in_list: "وجود أحد هذه الأصناف في السلة",
     item_not_in_list: "عدم وجود أي من هذه الأصناف في السلة",
-    category_in_list: "صنف من أحد هذه الأنواع",
+    category_in_list: "صنف من أحد خطوط المورد هذه",
     brand_in_list: "صنف من أحد هؤلاء الموردين",
+    item_category: "صنف في إحدى هذه الفئات",
     min_quantity: "هذا العدد من الوحدات على الأقل",
     min_amount: "هذا المبلغ على الأقل",
     customer_tag: "حمل العميل أحد هذه الوسوم",
@@ -528,7 +535,9 @@ const ar: Strings = {
   itemsHint: "يطابق العرض السطور التي تحمل هذه الأصناف.",
   qty: "الوحدات",
   unit: "تعد بـ",
-  types: "الأنواع",
+  types: "خطوط الموردين",
+  categories: "الفئات",
+  categoriesHint: "اختيار فئة يطابق أيضا كل ما يندرج تحتها.",
   vendors: "الموردون",
   tags: "الوسوم",
   methods: "طرق الدفع",
@@ -642,6 +651,7 @@ const ar: Strings = {
       case "archived": return "العرض المؤرشف لا يغير.";
       case "transition": return `لا ينتقل العرض من ${String(x.from || "")} إلى ${String(x.to || "")}.`;
       case "refused": return `هناك ما ينقص أو ما هو خطأ: ${String(x.detail || "")}.`;
+      case "categories": return "حدد فئة واحدة على الأقل.";
       case "duplicate": return `الرمز ${String(x.code || "")} مستخدم بالفعل.`;
       case "code": return "الرمز من 3 إلى 24 حرفا أو رقما أو شرطة.";
       case "codes-exhausted": return "تعذر توليد الرموز. جرب دفعة أصغر أو بادئة أخرى.";

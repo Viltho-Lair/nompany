@@ -69,6 +69,8 @@ export type LibraryCostCode = {
 export type MasterContext = ModuleContext & {
   /** Field Operations, read only to ask whether a shift or permit names a location. */
   fieldServiceSection: Section | null;
+  /** Inventory's items, read only to suggest category names from what a studio already sells. */
+  inventoryItemsSection: Section | null;
   /**
    * Projects' list section, read only to ask which cost codes the jobs are
    * actually using. Nullable for the usual reason — a studio with no Projects
