@@ -237,6 +237,11 @@ const OWN_AREAS = [
   // hand — the ledger is append-only, so there is no update and no delete: a
   // consent somebody could erase is not evidence of anything.
   { key: "marketing.audiences", group: "Marketing", label: "Audiences & consent", verbs: ["view", "edit"] },
+  // PLANNING & CALENDAR (22/09/2026). VIEW ALONE, on the pipeline's argument:
+  // moving a campaign in time is editing that campaign's dates and answers to
+  // marketing.campaigns.edit. What this right decides is who may see the whole
+  // schedule at once.
+  { key: "marketing.planning", group: "Marketing", label: "Planning & calendar", verbs: ["view"] },
   { key: "marketing.campaigns", group: "Marketing", label: "Campaigns",
     verbs: ["view", "create", "edit", "delete"],
     extra: [{ key: "assign", label: "Choose who owns a campaign" }] },

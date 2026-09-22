@@ -48,6 +48,7 @@ export const marketingContext = moduleContext<MarketingContext>({
   sub: {
     campaigns: "marketing-campaigns", forms: "marketing-forms",
     budget: "marketing-budget", audiences: "marketing-audiences",
+    planning: "marketing-planning",
   },
   // SALES', for the leads a campaign sends and the deals they became. Foreign,
   // so a studio with Sales switched off simply has nowhere to send a lead.
@@ -62,7 +63,7 @@ export const marketingContext = moduleContext<MarketingContext>({
     payables: ["finance-payables"],
     cash: ["finance-cash"],
   },
-  flags: ["campaigns", "forms", "budget", "audiences"],
+  flags: ["campaigns", "forms", "budget", "audiences", "planning"],
 });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);

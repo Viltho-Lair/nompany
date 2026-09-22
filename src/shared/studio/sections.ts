@@ -64,6 +64,7 @@ const ar: SectionMap = {
   "marketing-campaigns": "الحملات",
   "marketing-budget": "الميزانية والإنفاق",
   "marketing-audiences": "الجماهير والموافقات",
+  "marketing-planning": "التخطيط والتقويم",
   "marketing-forms": "النماذج",
   pos: "نقطة البيع",
   "pos-till": "الصندوق",

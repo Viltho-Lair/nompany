@@ -1,13 +1,14 @@
 # Marketing
 
 The eighteenth department (2026-09-19), from the owner's *Marketing Section — ERP Requirements
-& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Four of the
+& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Five of the
 seventeen are built: Campaigns**, because the plan makes the campaign the parent of everything
 else, **Forms** (2026-09-19, `docs/functionality/forms.md`), **Budget & spend** (2026-09-21,
 `docs/functionality/marketing-budget.md`) **and Audiences & consent** (2026-09-22,
-`docs/functionality/audiences.md`). A sub-section appears in the sidebar only when its screen
-exists (invariant 16), so the other thirteen are not declared yet; they are listed at the end of
-this file.
+`docs/functionality/audiences.md`), **and Planning & calendar** (2026-09-22,
+`docs/functionality/marketing-calendar.md`). A sub-section appears in the sidebar only when its
+screen exists (invariant 16), so the other twelve are not declared yet; they are listed at the end
+of this file.
 
 Section keys: `marketing` (the dashboard), `marketing-campaigns` (the register, which owns
 the `marketingCampaigns` collection), `marketing-forms`, `marketing-budget` (which owns
@@ -25,6 +26,7 @@ the public site's price list and is not part of the department.
 | `marketing.campaigns.assign` | Choosing who owns a campaign (2026-09-19). Without it the owner is whoever raised the campaign. |
 | `marketing.budget.view` | Budget & spend (2026-09-21). View alone: setting a budget is editing the campaign, and filing a cost is editing the bill. |
 | `marketing.audiences.view/edit` | The consent ledger (2026-09-22). Edit adds an entry; nothing can be changed or removed, because the ledger is append-only. |
+| `marketing.planning.view` | The calendar (2026-09-22). View alone: moving a campaign in time is editing that campaign. |
 
 The **winner-of-work** shape (Sales Manager, Marketing Manager, Digital Marketing Specialist and
 every other marketing title in the role library) holds both, the campaigns at full, and the assign
@@ -84,11 +86,19 @@ date, and open campaigns by channel. **Spend is not on the dashboard**: it is it
 (`marketing-budget.md`), and the dashboard's own budget figure is still what was planned rather
 than what went out. Nothing on it is gated by the analytics tier.
 
+**THE DASHBOARD IS DELIBERATELY LEFT UNTIL LAST — the owner, 2026-09-22.** Marketing-sourced
+revenue, ROI and cost per lead became computable the day Budget & spend shipped, and rebuilding
+the dashboard on them NOW would design it around the four subsections that happen to exist rather
+than the seventeen the department will have. The owner's instruction is to wait until the rest is
+in hand and the figures have been used in anger, then build one dashboard from what the system
+actually knows. Until then it keeps saying, in words, that its figures are a plan.
+
 ## Not built yet
 
-The other thirteen subsections of the plan, and everything the dashboard's plan needs from them:
+The other twelve subsections of the plan, and everything the dashboard's plan needs from them:
 
-- **Planning & Calendar** (plans by period, briefs, a view-only calendar across channels).
+- **Planning & Calendar** is part-built (`marketing-calendar.md`): the calendar across channels,
+  with what starts, what ends and what collides. Not built there: plans by period, and briefs.
 - **Budget & Spend** is built (`marketing-budget.md`): a bill and an expense name their campaign,
   and the screen reads them against the budget. Not built there: **committed** spend (a purchase
   order cannot name a campaign), spend over time, and alerts to anybody.

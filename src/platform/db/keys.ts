@@ -773,6 +773,9 @@ export const SECTION_DEFS = [
     // Finance says it cost. It owns NO COLLECTION — the costs are bills and
     // expenses, read where Finance files them.
     { key: "marketing-budget", name: "Budget & spend" },
+    // PLANNING & CALENDAR (22/09/2026): what runs when, across channels. Owns
+    // NO COLLECTION — every bar is a campaign, read where the register keeps it.
+    { key: "marketing-planning", name: "Planning & calendar" },
     // AUDIENCES & CONSENT (21/09/2026): who may be contacted, on what evidence.
     // It owns the consent ledger, which is append-only.
     { key: "marketing-audiences", name: "Audiences & consent" },

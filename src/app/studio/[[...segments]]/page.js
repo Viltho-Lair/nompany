@@ -194,6 +194,11 @@ const StudioCampaigns = nextDynamic(
   { loading: () => <ScreenSkeleton /> },
 );
 // Forms (19/09/2026): the list, and one form's editor at /marketing-forms/<id>.
+// Planning & calendar (22/09/2026): what runs when, across channels.
+const StudioMarketingCalendar = nextDynamic(
+  () => import("@/components/studio2/StudioMarketingCalendar"),
+  { loading: () => <ScreenSkeleton /> },
+);
 // Audiences & consent (21/09/2026): who the studio may contact, and why.
 const StudioAudiences = nextDynamic(
   () => import("@/components/studio2/StudioAudiences"),
@@ -979,6 +984,8 @@ async function renderStudio(params) {
           ? <MarketingDashboard slug={studio.slug} />
         : active?.key === "marketing-campaigns"
           ? <StudioCampaigns slug={studio.slug} />
+        : active?.key === "marketing-planning"
+          ? <StudioMarketingCalendar slug={studio.slug} />
         : active?.key === "marketing-audiences"
           ? <StudioAudiences slug={studio.slug} />
         : active?.key === "marketing-budget"
