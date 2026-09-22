@@ -84,6 +84,33 @@ ok("a thin lead lists what it lacks, biggest first", ["budget", "returning", "en
 ok("...and every unmet factor is in it", thin.missing.length === thin.factors.filter((f) => f.available && !f.met).length);
 ok("a full lead is missing nothing", everything.missing.length === 0);
 
+console.log("\n== a lead fades as it sits");
+const strong = { contactEmail: "a@b.co", contactPhone: "079", clientName: "Firm Ltd", contactName: "Ali",
+  clientBudget: 9000, serviceIds: ["s"], description: "Two floors need fitting out", campaignId: "c1" };
+const at = (days) => new Date(Date.parse("2026-06-01T00:00:00Z") + days * 86400000).toISOString();
+const aged = (days, extra = {}) => S.scoreLead({ ...strong, createdAt: "2026-06-01T00:00:00Z" },
+  { wonBefore: 1, engagement: 3, now: at(days), ...extra });
+
+ok("a fortnight old fades not at all", aged(14).score === aged(0).score && aged(14).fade.lost === 0);
+ok("...and the raw score is kept beside it", aged(14).raw === 100);
+ok("a month old has lost something", aged(30).score < aged(14).score, String(aged(30).score));
+ok("...but not much", aged(30).score > 85, String(aged(30).score));
+ok("three months old is halved", aged(90).score === 50, String(aged(90).score));
+ok("a year old is still halved, not gone", aged(365).score === 50);
+ok("the fade says how many days and what it cost", aged(90).fade.days === 90 && aged(90).fade.lost === 50);
+
+console.log("\n== what makes a lead live again");
+ok("coming back last week resets the clock",
+  aged(200, { engagedAt: at(195) }).score === 100, String(aged(200, { engagedAt: at(195) }).score));
+ok("somebody working it resets it too",
+  aged(200, { actedAt: at(199) }).score === 100);
+ok("an OLDER reset does not un-fade it", aged(200, { engagedAt: "2026-01-01T00:00:00Z" }).score === 50);
+
+ok("no clock, no fade", S.scoreLead(strong, { wonBefore: 1, engagement: 3 }).fade.multiplier === 1);
+ok("an unreadable date is not evidence of age", S.freshness(S.daysBetween("nonsense", at(400))) === 1);
+ok("a strong old lead still outranks a weak fresh one",
+  aged(365).score > S.scoreLead({ contactEmail: "x@y.co" }, { engagement: 1, now: at(0) }).score);
+
 console.log("\n== the queue's order");
 const rows = [
   { score: 50, createdAt: "2026-09-01" },

@@ -53,6 +53,14 @@ export type LeadContext = {
    * unmeasurable factor leaves the total instead (`availableMax`).
    */
   engagement?: number | null;
+  /**
+   * WHEN THEY LAST CAME BACK, if they have. Resets the lead's clock: somebody
+   * who answered another form last week is not a stale lead however long ago
+   * they first appeared.
+   */
+  engagedAt?: unknown;
+  /** When somebody in the studio last acted on it, if anybody has. */
+  actedAt?: unknown;
   /** Today, handed in. This file reads no clock. */
   now?: string;
 };
@@ -136,6 +144,50 @@ export const bandOf = (score: number): "hot" | "warm" | "cold" =>
 const SAYS_SOMETHING = 10;
 
 /**
+ * HOW A LEAD FADES (22/09/2026, the second of the four scoring steps).
+ *
+ * A fortnight's grace, because a lead a week old is not stale by any measure a
+ * sales team would recognise. After that it fades to a FLOOR of half its score
+ * by ninety days, and no further.
+ *
+ * THE FLOOR IS THE POINT. A lead does not become worthless by ageing — it
+ * becomes less likely, and a strong old lead should still outrank a weak fresh
+ * one. Halving keeps a 100 above a 45 and puts it below a 55, which is the
+ * ordering a manager would defend. Decaying to nothing would empty the queue of
+ * exactly the enquiries nobody got round to, which is the opposite of the point.
+ *
+ * WHAT RESETS THE CLOCK: another form answer from the same address, or somebody
+ * in the studio acting on the lead. Both mean the lead is live again, and
+ * measuring from the day it was RAISED would keep marking down a conversation
+ * that is actually in progress.
+ */
+export const FRESH_DAYS = 14;
+export const STALE_DAYS = 90;
+export const FADE_FLOOR = 0.5;
+
+const DAY = 86400000;
+
+/** Whole days between two instants, or null when either is unreadable. */
+export function daysBetween(from: unknown, to: unknown): number | null {
+  const a = Date.parse(String(from ?? ""));
+  const b = Date.parse(String(to ?? ""));
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return Math.max(0, Math.floor((b - a) / DAY));
+}
+
+/**
+ * THE MULTIPLIER A LEAD'S AGE EARNS IT: 1 inside the grace period, falling in a
+ * straight line to `FADE_FLOOR` at `STALE_DAYS`, and flat after that. Null days
+ * — a lead with no readable date — fade not at all, because a missing date is
+ * not evidence of age.
+ */
+export function freshness(days: number | null): number {
+  if (days === null || days <= FRESH_DAYS) return 1;
+  if (days >= STALE_DAYS) return FADE_FLOOR;
+  return 1 - (1 - FADE_FLOOR) * ((days - FRESH_DAYS) / (STALE_DAYS - FRESH_DAYS));
+}
+
+/**
  * SCORE ONE LEAD. Returns the number, its band, and every factor with what it
  * earned — including the ones that earned nothing, because "no budget stated"
  * is the most useful thing the screen can tell somebody about a cold lead.
@@ -189,10 +241,29 @@ export function scoreLead(lead: ScorableLead, context: LeadContext = {}) {
   // mean instead of every lead in that studio reading colder than it is.
   const earnedPoints = factors.reduce((s, f) => s + f.points, 0);
   const availableMax = factors.filter((f) => f.available).reduce((s, f) => s + f.max, 0);
-  const score = availableMax > 0 ? Math.round((earnedPoints / availableMax) * 100) : 0;
+  const raw = availableMax > 0 ? Math.round((earnedPoints / availableMax) * 100) : 0;
+
+  // AND THEN IT FADES. Measured from the most recent thing that happened to it,
+  // not from the day it was raised: coming back or being worked makes a lead
+  // live again.
+  const since = [text(lead.createdAt), text(context.engagedAt), text(context.actedAt)]
+    .filter(Boolean)
+    .sort()
+    .pop();
+  const days = context.now ? daysBetween(since, context.now) : null;
+  const multiplier = freshness(days);
+  const score = Math.round(raw * multiplier);
   return {
     score,
     band: bandOf(score),
+    /** What it scored on the facts alone, before its age was counted. */
+    raw,
+    /**
+     * How old the lead is by the clock that matters, and what that costs it.
+     * `days` is null when nothing datable is known, and the multiplier is then
+     * 1 — a missing date is not evidence of age.
+     */
+    fade: { days, multiplier, lost: raw - score },
     factors,
     /** What would move it most, so the screen can say what to ask for next. */
     missing: factors.filter((f) => f.available && !f.met).sort((a, b) => b.max - a.max).map((f) => f.key),

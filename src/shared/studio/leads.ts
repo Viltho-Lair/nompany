@@ -27,6 +27,8 @@ type Strings = {
   missing: string;
   spread: (hot: number, warm: number, cold: number) => string;
   sortedByScore: string;
+  /** Why a score is lower than the facts alone would give it (22/09/2026). */
+  faded: (days: number, lost: number) => string;
   dueBy: (when: string) => string;
   deadline: string;
   refuse: Record<string, string>;
@@ -61,11 +63,13 @@ const en: Strings = {
     wants: "Said what they want",
     told: "Told us about the job",
     campaign: "Came from a campaign",
+    engaged: "Has come back",
   })[key] || key,
   why: "Why",
   missing: "Not known",
   spread: (hot, warm, cold) => `${hot} hot · ${warm} warm · ${cold} cold`,
   sortedByScore: "Strongest first. A lead that is late is marked, whatever it scores.",
+  faded: (days, lost) => `−${lost} for ${days} days with nothing new`,
   deadline: "Deadline to act",
   refuse: {
     assignee: "That person is not in this studio.",
@@ -105,11 +109,13 @@ const ar: Strings = {
     wants: "ذكر ما يريده",
     told: "شرح لنا العمل المطلوب",
     campaign: "جاء من حملة",
+    engaged: "عاد مرة أخرى",
   })[key] || key,
   why: "السبب",
   missing: "غير معروف",
   spread: (hot, warm, cold) => `${hot} قوي · ${warm} متوسط · ${cold} ضعيف`,
   sortedByScore: "الأقوى أولاً، ويبقى المتأخر مُعلَّماً مهما كانت درجته.",
+  faded: (days, lost) => `−${lost} مقابل ${days} يوماً دون جديد`,
   deadline: "مهلة التصرف",
   refuse: {
     assignee: "هذا الشخص ليس في هذا الاستوديو.",

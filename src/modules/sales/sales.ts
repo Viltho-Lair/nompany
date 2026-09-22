@@ -628,9 +628,9 @@ export async function listTickets(ctx: Pick<SalesContext,
  * marked down for a question the studio was never able to answer. The scorer
  * drops the factor from the total instead (./scoring).
  */
-function engagementByAddress(rows: readonly Consent[]): Map<string, number> | null {
+function engagementByAddress(rows: readonly Consent[]): Map<string, { count: number; lastAt: string }> | null {
   if (!rows.length) return null;
-  const out = new Map<string, number>();
+  const out = new Map<string, { count: number; lastAt: string }>();
   for (const row of rows) {
     // ONLY WHAT THE PUBLIC DID. A consent somebody recorded by hand is the
     // studio's own act, and counting it would let a studio raise a lead's score
@@ -638,21 +638,28 @@ function engagementByAddress(rows: readonly Consent[]): Map<string, number> | nu
     if (String(row.source || "") !== "form") continue;
     const subject = subjectKey(row.kind, row.value);
     if (!subject) continue;
-    out.set(subject, (out.get(subject) || 0) + 1);
+    const seen = out.get(subject) || { count: 0, lastAt: "" };
+    // AND WHEN THEY LAST CAME BACK, which is what stops a lead fading while the
+    // person behind it is still answering forms (./scoring).
+    const at = String(row.at || "");
+    out.set(subject, { count: seen.count + 1, lastAt: at > seen.lastAt ? at : seen.lastAt });
   }
   return out;
 }
 
-/** How many times this lead's own addresses have been seen. Null when unanswerable. */
-function engagementOf(t: SalesTicket, seen: Map<string, number> | null): number | null {
-  if (!seen) return null;
+/** How often this lead's own addresses have been seen, and when last. Null when unanswerable. */
+function engagementOf(t: SalesTicket, seen: Map<string, { count: number; lastAt: string }> | null) {
+  if (!seen) return { engagement: null, engagedAt: "" };
+  const email = seen.get(subjectKey("email", t.contactEmail));
+  const phone = seen.get(subjectKey("phone", t.contactPhone));
   // THE HIGHER OF THE TWO, never the sum: one person answering one form gives
   // an email row AND a phone row, and adding them would score every single
-  // answer as though it were two visits.
-  return Math.max(
-    seen.get(subjectKey("email", t.contactEmail)) || 0,
-    seen.get(subjectKey("phone", t.contactPhone)) || 0,
-  );
+  // answer as though it were two visits. The DATE is the later of the two for
+  // the same reason — it is one person, seen once.
+  return {
+    engagement: Math.max(email?.count || 0, phone?.count || 0),
+    engagedAt: (email?.lastAt || "") > (phone?.lastAt || "") ? (email?.lastAt || "") : (phone?.lastAt || ""),
+  };
 }
 
 /**
@@ -688,7 +695,7 @@ function composeTicket(
     campaignNameById: Record<string, string>;
     at: string;
     history?: Record<string, { wonBefore: number; openDeals: number }>;
-    seen?: Map<string, number> | null;
+    seen?: Map<string, { count: number; lastAt: string }> | null;
   },
 ): TicketView {
   const { quotedValue, ...rest } = ticketSummary(t, rfqs, quotations, approvals, projects);
@@ -704,7 +711,15 @@ function composeTicket(
     // judgement (`probability`) is the better number, and a score sitting on a
     // deal halfway to signature would be read as disagreeing with them.
     lead: (t.status || "Lead") === "Lead"
-      ? scoreLead(t, { ...(history[String(t.clientId || "")] || {}), engagement: engagementOf(t, seen), now: at })
+      ? scoreLead(t, {
+        ...(history[String(t.clientId || "")] || {}),
+        ...engagementOf(t, seen),
+        // SOMEBODY WORKING IT MAKES IT LIVE AGAIN. `firstActionAt` is written
+        // when the assignee first does something (./leads), which is exactly
+        // the moment a lead stops being one nobody has touched.
+        actedAt: t.firstActionAt || "",
+        now: at,
+      })
       : null,
   };
 }

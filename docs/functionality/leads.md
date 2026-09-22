@@ -61,6 +61,17 @@ lower. This is why the score is "out of what we can know" rather than "out of a 
 — what is **Not known**, so "cold" is a thing somebody can act on rather than a verdict. A manager
 who disagrees can see exactly which rule they disagree with.
 
+**And it fades** (2026-09-22). A fortnight's grace, then the score falls in a straight line to
+HALF by ninety days, and no further. The floor is the point: a lead does not become worthless by
+ageing, it becomes less likely, so a strong old lead still outranks a weak fresh one. Decaying to
+nothing would empty the queue of exactly the enquiries nobody got round to.
+
+**The clock runs from the most recent thing that happened**, not from the day the lead was raised:
+another form answer from the same address, or somebody in the studio acting on it, makes it live
+again. The chip says what the age cost ("−12 for 47 days with nothing new"), because a number
+lower than its own reasons add up to would otherwise be a deduction the screen never explains.
+A lead with no readable date does not fade at all — a missing date is not evidence of age.
+
 **It measures quality, not urgency.** Lateness is judged separately and still sorts first: a
 deadline the studio set for itself outranks how good a lead looks, or the promise is worthless.
 **A lead is scored only while it is at the Lead stage**; past that, the salesperson's own
@@ -126,8 +137,11 @@ and a role that can delete campaigns gains `marketing.campaigns.assign` (`catchU
   cost nothing precisely because none is stored.
 - **Engagement counts form answers only.** A reply to an email, a telephone call returned, a visit
   to a page — none of it is recorded anywhere yet, so none of it can count.
-- Nothing decays a score as a lead ages: a lead that was hot three months ago still looks hot.
-  That is the next scoring step (`marketing.md`).
+- The fade's three numbers — a fortnight's grace, ninety days to the floor, and a floor of half —
+  are declared in code and cannot be set per studio. A trade with a six-month buying cycle will
+  want them longer.
+- Nothing fades a lead for being IGNORED as against being quiet: a lead somebody rang twice with
+  no answer looks the same as one nobody opened.
 - A deadline for leads Sales raises itself; only campaign leads have one.
 - The daily notice runs once a day, so a lead a few hours late is shown on the screens at once but
   is only notified the next morning's run.

@@ -90,6 +90,14 @@ function ScoreChip({ lead, tr }) {
               <span>{tr.factor(f.key)}</span><span className="num">+{f.points}</span>
             </span>
           ))}
+          {/* WHY THE NUMBER IS LOWER THAN THE REASONS ADD UP TO. Without this
+              line a faded lead looks like one whose facts are worse, and the
+              screen would be showing a deduction it never explains. */}
+          {lead.fade?.lost > 0 && (
+            <span className="mt-2 block border-t border-slate-100 pt-2 text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
+              {tr.faded(lead.fade.days, lead.fade.lost)}
+            </span>
+          )}
           {missing.length > 0 && (
             <span className="mt-2 block">
               <span className="block text-xs font-600 text-slate-500 dark:text-slate-400">{tr.missing}</span>

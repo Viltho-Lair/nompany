@@ -112,9 +112,9 @@ The other thirteen subsections of the plan, and everything the dashboard's plan 
         from the consent ledger: once earns nothing, twice half, three times the whole of it. A
         studio that cannot answer it (no ledger) has the factor dropped from the total instead of
         scored nought.
-  - [ ] **Decay with age.** A three-month-old lead scores what it did on arrival, so one that has
-        gone cold still looks hot. Engagement has landed, so this is **the next one**.
-  - [ ] **Studio-set weights.** Deliberately NOT yet: fixed weights are what make a score
+  - [x] **Decay with age** (2026-09-22). A fortnight's grace, then a straight line to half by
+        ninety days and no further; the clock resets when they come back or somebody works it.
+  - [ ] **Studio-set weights** — **the next one, when a studio asks.** Deliberately NOT yet: fixed weights are what make a score
         comparable between leads and arguable by a manager, and editable ones invite tuning until
         the number agrees with whoever is tuning. The honest trigger is a studio naming a factor
         that is wrong for its trade — a contractor and a clinic will not value "said what they can
