@@ -175,6 +175,14 @@ The other twelve subsections of the plan, and everything the dashboard's plan ne
 - **Email**, **Messaging** (SMS, WhatsApp, push), **Social Media**, **Paid Ads**: nothing is sent,
   posted or imported. The owner, 2026-09-19: companies use their own email and SMS
   tools for now, and nompany does not resell messaging or ad credits (both ledger rows, for later).
+  **And linking a studio's own social account is deferred too — the owner, 2026-09-23: "it does
+  take nompany from recording marketing work to performing it."** That line is the boundary every
+  built subsection of this department sits on the near side of. The OAuth seam to do it already
+  exists (`platform/auth/calendarProviders.ts` and its siblings, which link Google and Microsoft
+  calendars); what stops it is not code but what nompany would become, plus per-platform app
+  review and the fact that a calendar connection is keyed by PERSON while a company's page is the
+  studio's. The ledger row holds the detail.
+- **Journeys** needs sending, so it waits on the same decision.
 - **Web, Forms & Landing Pages**: forms are built (`forms.md`), and **reading the UTM tags back
   when a visitor arrives** shipped 2026-09-22 — a reply records the tags and the referring host,
   and the campaign on the LINK beats the one typed into the form's settings. Not built: landing
