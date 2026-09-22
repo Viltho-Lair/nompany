@@ -99,6 +99,7 @@ const SECTION_ICONS = {
   "maintenance-requests": "requisitions",
   "marketing-campaigns": "target",
   "marketing-forms": "form",
+  "marketing-budget": "money",
   "pos-till": "cash",
   "pos-sales": "invoice",
   "pos-shifts": "clock",

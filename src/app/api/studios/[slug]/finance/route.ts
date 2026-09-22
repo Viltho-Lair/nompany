@@ -47,7 +47,8 @@ export const GET = route(
     // invoice since billing schedules shipped and no form set it, so every
     // project invoice landed in "unattributed" and no milestone ever read as
     // billed.
-    referencePickers(g.studio, { projects: g.projectsListSection }, { milestones: true }),
+    referencePickers(g.studio, { projects: g.projectsListSection, campaigns: g.campaignsSection },
+      { milestones: true, campaigns: true }),
   ]) : [[], [], [], { milestones: [] }];
   const projectMargins = seeMargins ? await profitability(g, { invoices: allInvoices, expenses: allExpenses }) : [];
   const invoices = seeInvoices ? allInvoices : [];

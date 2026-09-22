@@ -121,6 +121,10 @@ export const financeContext = moduleContext<FinanceContext>({
     // INVENTORY'S ITEMS, so an invoice line can name what it sells (18/09/2026)
     // — and a return against it can put that back. Nullable like the rest.
     items: ["inventory-items", "inventory"],
+    // MARKETING'S CAMPAIGNS (21/09/2026), so a bill or an expense can say which
+    // one it belongs to. Read for a reference and a name only — never a budget
+    // — the same narrow window Sales already opens on the register.
+    campaigns: ["marketing-campaigns"],
     // APPROVALS', where a bill's approval is filed (19/09/2026). Nullable like
     // every foreign section, only while a studio awaits its planting.
     approvals: "approvals",
@@ -682,6 +686,9 @@ export async function createExpense(ctx: FinanceContext, body: Record<string, un
     ...(accountId ? { accountId } : {}),
     date: day(body?.date) || new Date().toISOString().slice(0, 10),
     projectId,
+    // THE CAMPAIGN THIS COST BELONGS TO, on a bill's terms: taken as given and
+    // attributed by the reader (modules/marketing/budget).
+    campaignId: str(body?.campaignId, 60),
     paidByCollaboratorId: str(body?.paidByCollaboratorId, 60) || collaborator.id,
     notes: str(body?.notes, 1000),
     createdByCollaboratorId: collaborator.id,
@@ -725,6 +732,7 @@ export async function editExpense(ctx: FinanceContext, id: string, body: Record<
     }
     patch.projectId = projectId;
   }
+  if (body?.campaignId !== undefined) patch.campaignId = str(body.campaignId, 60);
 
   const expense = await Expenses.update({ studio, section: cashSection }, id, patch);
   if (!expense) return { error: "notfound" };

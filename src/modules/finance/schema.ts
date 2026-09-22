@@ -174,6 +174,8 @@ export const ExpenseSchema = z.object({
   amount: z.number(),
   category: z.string(),
   projectId: z.string().max(60).optional(),
+  /** The campaign this cost belongs to, on a bill's terms (BillSchema). */
+  campaignId: z.string().max(60).optional(),
   date: z.string().optional(),
   note: z.string().max(500).optional(),
   createdAt: z.string().optional(),
@@ -341,6 +343,17 @@ export const BillSchema = z.object({
    * that rather than dropping it.
    */
   costCodeId: z.string().max(60).optional(),
+  /**
+   * WHICH MARKETING CAMPAIGN THIS COST BELONGS TO (21/09/2026).
+   *
+   * The exact mirror of `costCodeId` above and of `milestoneId` on an invoice,
+   * and UNVALIDATED HERE for their reason: `campaignSpend` attributes only ids
+   * the studio's own register still holds, so a foreign or since-deleted id
+   * lands in `unattributed` and is COUNTED rather than believed. The
+   * containment is in the reader, where it also covers a campaign deleted long
+   * after the bill was filed — which no write-time check could.
+   */
+  campaignId: z.string().max(60).optional(),
   lines: z.array(InvoiceLineSchema),        // same line shape as an invoice
   vatRate: z.number().min(0).max(100),
   /** Frozen when the bill was raised, as on an invoice. */

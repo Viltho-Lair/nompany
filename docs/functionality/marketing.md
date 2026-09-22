@@ -1,13 +1,16 @@
 # Marketing
 
 The eighteenth department (2026-09-19), from the owner's *Marketing Section — ERP Requirements
-& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Two of the
+& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Three of the
 seventeen are built: Campaigns**, because the plan makes the campaign the parent of everything
-else, **and Forms** (2026-09-19, `docs/functionality/forms.md`). A sub-section appears in the sidebar only when its screen exists (invariant 16), so the
-other fifteen are not declared yet; they are listed at the end of this file.
+else, **Forms** (2026-09-19, `docs/functionality/forms.md`) **and Budget & spend** (2026-09-21,
+`docs/functionality/marketing-budget.md`). A sub-section appears in the sidebar only when its
+screen exists (invariant 16), so the other fourteen are not declared yet; they are listed at the
+end of this file.
 
-Section keys: `marketing` (the dashboard) and `marketing-campaigns` (the register, which owns
-the `marketingCampaigns` collection). Code: `src/modules/marketing/` (`model.ts` holds the rules,
+Section keys: `marketing` (the dashboard), `marketing-campaigns` (the register, which owns
+the `marketingCampaigns` collection), `marketing-forms` and `marketing-budget` (which owns
+nothing — its costs are Finance's bills and expenses). Code: `src/modules/marketing/` (`model.ts` holds the rules,
 pure and shared with the screen; `campaigns.ts` the service). `pricing.ts` in the same folder is
 the public site's price list and is not part of the department.
 
@@ -18,6 +21,7 @@ the public site's price list and is not part of the department.
 | `marketing.dashboard.view` | The dashboard. |
 | `marketing.campaigns.view/create/edit/delete` | The register. Moving a campaign along its ladder is **edit**; running it again (cloning) is **create**; sending a lead to Sales is **edit**. |
 | `marketing.campaigns.assign` | Choosing who owns a campaign (2026-09-19). Without it the owner is whoever raised the campaign. |
+| `marketing.budget.view` | Budget & spend (2026-09-21). View alone: setting a budget is editing the campaign, and filing a cost is editing the bill. |
 
 The **winner-of-work** shape (Sales Manager, Marketing Manager, Digital Marketing Specialist and
 every other marketing title in the role library) holds both, the campaigns at full, and the assign
@@ -73,16 +77,18 @@ The section's landing page. Six figures: running now, starting this week, needin
 budget in open campaigns (counted once), leads from campaigns (with the target beneath) and won
 value from campaigns (with the expected revenue beneath). Then what needs
 somebody (late starts and overruns first), campaigns by status, what is running now with its end
-date, and open campaigns by channel. Spend is still a plan: it arrives with Budget & Spend. Nothing on it is gated by the analytics tier.
+date, and open campaigns by channel. **Spend is not on the dashboard**: it is its own screen
+(`marketing-budget.md`), and the dashboard's own budget figure is still what was planned rather
+than what went out. Nothing on it is gated by the analytics tier.
 
 ## Not built yet
 
-The other fifteen subsections of the plan, and everything the dashboard's plan needs from them:
+The other fourteen subsections of the plan, and everything the dashboard's plan needs from them:
 
 - **Planning & Calendar** (plans by period, briefs, a view-only calendar across channels).
-- **Budget & Spend**: actual and committed spend from Finance (purchase orders, bills, ad spend),
-  variance alerts. Until then a campaign's budget is a plan with nothing measured against it, and
-  a bill cannot name a campaign.
+- **Budget & Spend** is built (`marketing-budget.md`): a bill and an expense name their campaign,
+  and the screen reads them against the budget. Not built there: **committed** spend (a purchase
+  order cannot name a campaign), spend over time, and alerts to anybody.
 - **Audiences & Consent**: lists, segments, per-channel consent ledger, suppression, preference
   centre, data-subject requests. Nothing records marketing consent yet.
 - **Email**, **Messaging** (SMS, WhatsApp, push), **Social Media**, **Paid Ads**: nothing is sent,

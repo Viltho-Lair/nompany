@@ -9,8 +9,10 @@ Tendering & Estimating, Projects, Engineering & Documents, Procurement & Subcont
 Inventory & Warehouse, Manufacturing & Production, Field Operations & Service, Logistics &
 Fleet, Assets & Equipment, Maintenance, Quality & HSE, Human Resources, Finance &
 Accounting, Reports & BI, Marketing. (**Marketing is the eighteenth, 19/09/2026** — the owner's
-Marketing plan has seventeen subsections; Campaigns and Forms have screens, so only
-`marketing-campaigns` and `marketing-forms` are declared and the rest join as their screens ship. Leads stay Sales tickets and Marketing reads
+Marketing plan has seventeen subsections; Campaigns, Forms and Budget & spend have screens, so only
+`marketing-campaigns`, `marketing-forms` and `marketing-budget` are declared and the rest join as
+their screens ship. **`marketing-budget` owns NO collection** — a cost is a Finance bill or expense
+carrying a `campaignId`, read where Finance files it (`docs/functionality/marketing-budget.md`). Leads stay Sales tickets and Marketing reads
 them — `docs/functionality/marketing.md`. **Maintenance is the fifteenth, 11/09/2026**, decided with the
 owner — `docs/functionality/maintenance.md`. The equipment register stays under Assets.
 **Point of Sale is the seventeenth, 17/09/2026** — the counter is run by different people from the
@@ -803,7 +805,11 @@ of `a2044ff`, one commit later, because that commit added a golden; then 365 and
 after that. A number nobody re-measures decays silently, and nothing fails when prose
 disagrees with a test. **Treat every figure in this file as a measurement with a date,
 not as a fact, and re-measure at the commit you are writing rather than the one you were
-reading.** `ALL_PERMISSIONS.length` is **267 over 85 areas, measured 19/09/2026**, after Customer insights
+reading.** `ALL_PERMISSIONS.length` is **252 over 86 areas, measured 21/09/2026**, after Marketing's
+Budget & spend (`marketing.budget`, view alone) arrived. **The count FELL by fifteen while an
+area was ADDED**, and this line does not say why, because the two days between the measurements
+hold several sessions' work and guessing which one dropped the keys would be exactly the kind of
+prose this paragraph warns about. It read **267 over 85 on 19/09/2026**, after Customer insights
 (`crmSales.insights`, view with `export` and `act`) arrived; it said 264 over 84 earlier that day, after the old Tasks board left
 and Marketing's forms (`marketing.forms`) arrived; and 266 over 85 earlier that day (Marketing's
 dashboard and campaigns, the Approvals page, and the lead and campaign `assign` extras), 261 over 83

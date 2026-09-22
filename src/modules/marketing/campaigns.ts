@@ -45,15 +45,21 @@ const QuotationRows = repo<Quotation>("quotations");
 
 export const marketingContext = moduleContext<MarketingContext>({
   root: "marketing",
-  sub: { campaigns: "marketing-campaigns", forms: "marketing-forms" },
+  sub: { campaigns: "marketing-campaigns", forms: "marketing-forms", budget: "marketing-budget" },
   // SALES', for the leads a campaign sends and the deals they became. Foreign,
   // so a studio with Sales switched off simply has nowhere to send a lead.
   foreign: {
     tickets: ["crm-sales-tickets", "crm-sales"],
     clients: ["crm-sales-clients", "crm-sales"],
     quotations: ["crm-sales-quotations", "crm-sales"],
+    // FINANCE'S, for Budget & Spend (21/09/2026). Bills are filed under
+    // Payables; an expense is filed under Cash & Bank and BELONGS to Payables &
+    // Expenses, which is the switch ./budget asks about. Read-only, and a studio
+    // without Finance simply has no spend to show.
+    payables: ["finance-payables"],
+    cash: ["finance-cash"],
   },
-  flags: ["campaigns", "forms"],
+  flags: ["campaigns", "forms", "budget"],
 });
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -90,7 +96,7 @@ const mayAssign = (ctx: MarketingContext) => may(ctx, "marketing.campaigns.assig
  * the dashboard exist to show. Nothing about a ticket but its campaign, stage
  * and value leaves this function.
  */
-async function results(ctx: MarketingContext) {
+export async function campaignResultsFor(ctx: MarketingContext) {
   if (!ctx.ticketsSection) return campaignResults([]);
   const [tickets, quotations] = await Promise.all([
     Tickets.find({ studio: ctx.studio, section: ctx.ticketsSection }),
@@ -180,7 +186,7 @@ async function announceOwner(ctx: MarketingContext, c: Campaign, before: string)
 export async function listCampaigns(ctx: MarketingContext) {
   const denied = requirePermission(ctx.access, "marketing.campaigns.view");
   if (denied) return denied;
-  const [rows, team, got] = await Promise.all([Campaigns.find(scope(ctx)), people(ctx), results(ctx)]);
+  const [rows, team, got] = await Promise.all([Campaigns.find(scope(ctx)), people(ctx), campaignResultsFor(ctx)]);
   const aliasOf = new Map(team.map((p) => [p.id, p.alias || ""]));
   const asOf = today();
   const nameOf = new Map(rows.map((c) => [c.id, `${c.reference} · ${c.name}`]));
@@ -419,7 +425,7 @@ export async function sendLead(ctx: MarketingContext, id: string, body: Record<s
 export async function marketingDashboard(ctx: MarketingContext) {
   const denied = requirePermission(ctx.access, "marketing.dashboard.view");
   if (denied) return denied;
-  const [rows, got] = await Promise.all([Campaigns.find(scope(ctx)), results(ctx)]);
+  const [rows, got] = await Promise.all([Campaigns.find(scope(ctx)), campaignResultsFor(ctx)]);
   const asOf = today();
   const canOpen = may(ctx, "marketing.campaigns.view");
   const figures = campaignFigures(rows, asOf);

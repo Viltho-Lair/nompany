@@ -13,12 +13,19 @@ export type MarketingContext = ModuleContext & {
   campaignsSection: Section;
   /** Forms and their answers (19/09/2026). */
   formsSection: Section;
+  /** Budget & spend (21/09/2026). Owns nothing: the costs are Finance's. */
+  budgetSection: Section;
   /** Sales' tickets and clients — where a lead is written, and what a campaign's results read. */
   ticketsSection: Section | null;
   clientsSection: Section | null;
   quotationsSection: Section | null;
+  /** Finance's: bills are filed under Payables, expenses under Cash & Bank. */
+  payablesSection: Section | null;
+  cashSection: Section | null;
   canViewCampaigns: boolean;
   canManageCampaigns: boolean;
   canViewForms: boolean;
   canManageForms: boolean;
+  canViewBudget: boolean;
+  canManageBudget: boolean;
 };

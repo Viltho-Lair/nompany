@@ -229,6 +229,9 @@ type Strings = CommonStrings & {
   supplierFromRegister: string;
   purchaseOrder: string;
   costCode: string;
+  /** Which campaign a cost belongs to (21/09/2026, Budget & Spend). */
+  campaign: string;
+  noCampaign: string;
   milestone: string;
   projectNumber: string;
   projectsOpenApprovedQuotation: string;
@@ -669,6 +672,8 @@ const en: Strings = {
   supplierFromRegister: "Supplier (from the register)",
   purchaseOrder: "Purchase order",
   costCode: "Cost code",
+  campaign: "Campaign",
+  noCampaign: "— none —",
   milestone: "Billing milestone",
   projectNumber: "Project number",
   projectsOpenApprovedQuotation: "Projects open from an approved quotation. Once one exists it shows up here as a commercial record.",
@@ -1136,6 +1141,8 @@ const ar: Strings = {
   supplierFromRegister: "المورد (من السجل)",
   purchaseOrder: "أمر الشراء",
   costCode: "رمز التكلفة",
+  campaign: "الحملة",
+  noCampaign: "— بلا حملة —",
   milestone: "بند الدفعة",
   projectNumber: "رقم المشروع",
   projectsOpenApprovedQuotation: "تفتح المشاريع من عرض سعر معتمد. وما إن يوجد مشروع حتى يظهر هنا كسجل تجاري.",

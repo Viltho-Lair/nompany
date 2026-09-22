@@ -28,6 +28,8 @@ import { repo } from "@/platform/db/repo";
 import type { Section } from "@/platform/db/sections";
 import type { Vendor, Item, Order } from "@/modules/inventory/schema";
 import type { Project, ProjectCost, ProjectMilestone } from "@/modules/projects/schema";
+import type { Campaign } from "@/modules/marketing/schema";
+import { isFinal } from "@/modules/marketing/model";
 
 const Vendors = repo<Vendor>("inventoryVendors");
 const Items = repo<Item>("inventoryItems");
@@ -35,6 +37,7 @@ const Orders = repo<Order>("materialOrders");
 const Projects = repo<Project>("projects");
 const Costs = repo<ProjectCost>("projectCosts");
 const Milestones = repo<ProjectMilestone>("projectMilestones");
+const Campaigns = repo<Campaign>("marketingCampaigns");
 
 /** An order a bill may answer: placed, and not withdrawn. */
 const OPEN_ORDER = new Set(["Ordered", "Partly received", "Received"]);
@@ -46,6 +49,8 @@ export type Pickers = {
   items?: { id: string; name: string; sku: string; unit: string }[];
   orders?: { id: string; reference: string; vendorId: string; projectId: string; costCodeId: string }[];
   milestones?: { id: string; projectId: string; code: string; name: string }[];
+  /** Marketing's open campaigns, so a cost can say which one it belongs to. */
+  campaigns?: { id: string; reference: string; name: string }[];
 };
 
 type Want = Partial<Record<keyof Pickers, boolean>>;
@@ -64,19 +69,21 @@ export async function referencePickers(
     projects?: Section | null;
     items?: Section | null;
     orders?: Section | null;
+    campaigns?: Section | null;
   },
   want: Want,
 ): Promise<Pickers> {
   const read = <T>(on: boolean | undefined, section: Section | null | undefined, run: (s: Section) => Promise<T[]>) =>
     (on && section ? run(section) : Promise.resolve([] as T[]));
 
-  const [vendors, items, orders, projects, costs, milestones] = await Promise.all([
+  const [vendors, items, orders, projects, costs, milestones, campaigns] = await Promise.all([
     read(want.suppliers, sections.suppliers, (section) => Vendors.find({ studio, section })),
     read(want.items, sections.items, (section) => Items.find({ studio, section })),
     read(want.orders, sections.orders, (section) => Orders.find({ studio, section })),
     read(want.projects, sections.projects, (section) => Projects.find({ studio, section })),
     read(want.costCodes, sections.projects, (section) => Costs.find({ studio, section })),
     read(want.milestones, sections.projects, (section) => Milestones.find({ studio, section })),
+    read(want.campaigns, sections.campaigns, (section) => Campaigns.find({ studio, section })),
   ]);
 
   const out: Pickers = {};
@@ -106,6 +113,16 @@ export async function referencePickers(
     out.costCodes = costs
       .map((c) => ({ id: c.id, projectId: c.projectId, code: c.code || "", name: c.name || "" }))
       .sort(byCode);
+  }
+  if (want.campaigns) {
+    // ONLY ONE STILL RUNNING. A finished or cancelled campaign is not something
+    // to file a new cost against, and `isFinal` is Marketing's own word for
+    // that — restating the two statuses here would be a second copy of a rule
+    // the ladder already owns.
+    out.campaigns = campaigns
+      .filter((c) => !isFinal(String(c.status || "")))
+      .map((c) => ({ id: c.id, reference: c.reference || "", name: c.name || "" }))
+      .sort((a, b) => a.reference.localeCompare(b.reference));
   }
   if (want.milestones) {
     out.milestones = milestones

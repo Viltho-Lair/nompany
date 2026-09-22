@@ -194,6 +194,11 @@ const StudioCampaigns = nextDynamic(
   { loading: () => <ScreenSkeleton /> },
 );
 // Forms (19/09/2026): the list, and one form's editor at /marketing-forms/<id>.
+// Budget & spend (21/09/2026): campaigns against what Finance recorded.
+const StudioMarketingBudget = nextDynamic(
+  () => import("@/components/studio2/StudioMarketingBudget"),
+  { loading: () => <ScreenSkeleton /> },
+);
 const StudioForms = nextDynamic(
   () => import("@/components/studio2/StudioForms"),
   { loading: () => <ScreenSkeleton /> },
@@ -969,6 +974,8 @@ async function renderStudio(params) {
           ? <MarketingDashboard slug={studio.slug} />
         : active?.key === "marketing-campaigns"
           ? <StudioCampaigns slug={studio.slug} />
+        : active?.key === "marketing-budget"
+          ? <StudioMarketingBudget slug={studio.slug} />
         : active?.key === "marketing-forms"
           ? <StudioForms slug={studio.slug} />
         : active?.key === "pos-sales"

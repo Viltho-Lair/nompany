@@ -36,7 +36,8 @@ export const GET = route(
       // a bill entered on screen.
       referencePickers(fin.studio, {
         suppliers: fin.vendorsSection, projects: fin.projectsListSection, orders: fin.sheetsSection,
-      }, { suppliers: true, projects: true, costCodes: true, orders: true }),
+        campaigns: fin.campaignsSection,
+      }, { suppliers: true, projects: true, costCodes: true, orders: true, campaigns: true }),
       // Which account a bill is paid from, when there is more than one.
       fin.canManage ? storedMoneyAccounts(fin) : Promise.resolve([]),
     ]);

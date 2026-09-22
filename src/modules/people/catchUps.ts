@@ -204,6 +204,16 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     verbs: ["view", "export", "act"],
   },
   {
+    id: "marketing-budget-2026-09-21",
+    // Budget & Spend arrived in Marketing (21/09/2026). Whoever reads the
+    // campaigns reads what they cost: the budget is already on the campaign
+    // card, and this is the same figure with Finance's side of it beside it.
+    note: "Whoever reads the campaigns reads what they cost",
+    from: "marketing.campaigns",
+    to: ["marketing.budget"],
+    verbs: ["view"],
+  },
+  {
     id: "marketing-forms-2026-09-19",
     // Forms arrived in Marketing (19/09/2026). Whoever works campaigns works
     // the forms that feed them, verb for verb.

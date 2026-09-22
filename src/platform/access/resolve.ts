@@ -106,6 +106,7 @@ export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
   marketing: ["marketing.dashboard"],
   "marketing-campaigns": ["marketing.campaigns"],
   "marketing-forms": ["marketing.forms"],
+  "marketing-budget": ["marketing.budget"],
   maintenance: ["maintenance.dashboard"],
   "maintenance-requests": ["maintenance.requests"],
   "maintenance-orders": ["maintenance.orders"],

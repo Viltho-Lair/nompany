@@ -52,6 +52,8 @@ export type FinanceContext = ModuleContext & {
   approvalsSection: Section | null;
   /** Inventory's items, which an invoice line may name. Null on a studio with no Inventory. */
   itemsSection: Section | null;
+  /** Marketing's campaigns, which a bill or an expense may name (21/09/2026). */
+  campaignsSection: Section | null;
   canViewCash: boolean;
   canManageCash: boolean;
   // Payables and assets each carry their own view/manage flag off the same

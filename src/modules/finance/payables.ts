@@ -214,6 +214,9 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
     // `uncoded` rather than dropping it — which is the behaviour a refusal here
     // would trade for a bill somebody could not file at all.
     costCodeId: str(body?.costCodeId, 60),
+    // AND WHICH CAMPAIGN, on the same terms: taken as given, attributed by the
+    // reader. An agency invoice is the commonest marketing cost there is.
+    campaignId: str(body?.campaignId, 60),
     lines,
     // Defaulted to the studio's own, the same expression contracts.ts,
     // payments.ts and changeOrders.ts already use.
@@ -318,6 +321,9 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   // decision, not a change to what is owed, so a pending approval does not
   // stand in its way the way it does for the AMOUNT.
   if (body?.costCodeId !== undefined) patch.costCodeId = str(body.costCodeId, 60);
+  // Re-filed without re-approving, exactly as the code above: which campaign a
+  // cost belongs to is a filing decision, not a change to what is owed.
+  if (body?.campaignId !== undefined) patch.campaignId = str(body.campaignId, 60);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 2000);
   if (body?.status !== undefined) {
     const s = String(body.status);

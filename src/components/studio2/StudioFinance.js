@@ -17,7 +17,7 @@ import RecordLink from "@/components/studio2/RecordLink";
 import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { Field } from "@/components/fields/Field";
-import { supplierOptions, projectOptions, costCodeOptions } from "@/components/studio2/pickerOptions";
+import { supplierOptions, projectOptions, costCodeOptions, campaignOptions } from "@/components/studio2/pickerOptions";
 import StudioDate from "@/components/fields/StudioDate";
 import { useAnalyticsLevel, useSectionOn } from "@/components/studio2/analyticsLevel";
 import { assetRegister } from "@/modules/finance/analytics";
@@ -554,7 +554,8 @@ function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes
           canManage={canManage} busy={busy} send={send} />
       )}
       {tab === "expenses" && (
-        <Expenses rows={expenses} projects={projects} categories={vocabulary.expenseCategories} accounts={vocabulary.moneyAccounts}
+        <Expenses rows={expenses} projects={projects} campaigns={(data.pickers || {}).campaigns || []}
+          categories={vocabulary.expenseCategories} accounts={vocabulary.moneyAccounts}
           slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
       )}
       {tab === "projects" && <Profitability rows={profitability} slug={slug} nav={nav} />}
@@ -991,7 +992,7 @@ function PaymentForm({ invoice, methods, accounts = [], busy, onCancel, onSave }
 }
 
 // ---- expenses --------------------------------------------------------------
-function Expenses({ rows, projects, categories, accounts = [], slug, nav, canManage, busy, send }) {
+function Expenses({ rows, projects, campaigns = [], categories, accounts = [], slug, nav, canManage, busy, send }) {
   const tr = financeDict(useStudioLocale());
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -1003,6 +1004,9 @@ function Expenses({ rows, projects, categories, accounts = [], slug, nav, canMan
     { key: "date", label: tr.date, type: "date", value: row?.date || "" },
     { key: "projectId", label: tr.project, value: row?.projectId || "",
       options: [{ value: "", text: "— general —" }, ...projects.map((p) => ({ value: p.id, text: p.number }))] },
+    // AND WHICH CAMPAIGN, where the studio runs any (21/09/2026).
+    ...(campaigns.length > 0 ? [{ key: "campaignId", label: tr.campaign, value: row?.campaignId || "",
+      options: [{ value: "", text: tr.noCampaign }, ...campaignOptions({ campaigns }).map((c) => ({ value: c.value, text: c.label }))] }] : []),
     { key: "notes", label: tr.notes, area: true, value: row?.notes || "" },
     // THE ACCOUNT IT LEFT FROM, only when there is more than one to choose.
     ...(accounts.length > 1 ? [{ key: "accountId", label: tr.throughAccount, value: row?.accountId || defaultMoneyAccount(accounts),
@@ -1456,6 +1460,7 @@ function BillForm({ bill, terms, rules = [], defaultVat, vatOn, busy, pickers = 
     orderId: bill?.orderId || "",
     projectId: bill?.projectId || "",
     costCodeId: bill?.costCodeId || "",
+    campaignId: bill?.campaignId || "",
     vendorName: bill?.vendorName || "",
     vatRate: String(bill?.vatRate ?? defaultVat ?? 0),
     terms: bill?.terms || terms[0] || "on-receipt",
@@ -1513,6 +1518,14 @@ function BillForm({ bill, terms, rules = [], defaultVat, vatOn, busy, pickers = 
         <Field label={tr.costCode} as="select" value={head.costCodeId}
           onChange={(v) => setHead((h) => ({ ...h, costCodeId: v }))}
           options={costCodeOptions(pickers, head.projectId)} />
+        {/* WHICH CAMPAIGN IT BELONGS TO — the one field Budget & Spend reads
+            (modules/marketing/budget). Offered only where the studio runs
+            Marketing, because a picker with nothing in it teaches nothing. */}
+        {(pickers.campaigns || []).length > 0 && (
+          <Field label={tr.campaign} as="select" value={head.campaignId}
+            onChange={(v) => setHead((h) => ({ ...h, campaignId: v }))}
+            options={[{ value: "", label: tr.noCampaign }, ...campaignOptions(pickers)]} />
+        )}
         <Field label={tr.terms} as="select" value={head.terms} onChange={(v) => setHead((h) => ({ ...h, terms: v }))}
           options={terms.map((term) => ({ value: term, label: termLabel(tr)[term] || term }))} />
         {/* NO VAT FIELD FOR A STUDIO WITH NO RATE — it carries no tax (shared/vat). */}

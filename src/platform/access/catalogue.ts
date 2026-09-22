@@ -228,6 +228,11 @@ const OWN_AREAS = [
   // what people answered. One right: a form and its answers are one register.
   { key: "marketing.forms", group: "Marketing", label: "Forms",
     verbs: ["view", "create", "edit", "delete"] },
+  // BUDGET & SPEND (21/09/2026, modules/marketing/budget). VIEW ALONE: setting
+  // a budget is editing the campaign and filing a cost is editing the bill, so
+  // an edit verb here would be a second right over two others' acts. What this
+  // decides is who may see what the company spends on its marketing.
+  { key: "marketing.budget", group: "Marketing", label: "Budget & spend", verbs: ["view"] },
   { key: "marketing.campaigns", group: "Marketing", label: "Campaigns",
     verbs: ["view", "create", "edit", "delete"],
     extra: [{ key: "assign", label: "Choose who owns a campaign" }] },

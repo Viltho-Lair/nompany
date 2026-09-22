@@ -769,6 +769,10 @@ export const SECTION_DEFS = [
     // FORMS (19/09/2026): what a studio puts in front of the public — an
     // enquiry that becomes a Sales lead, an event registration, a survey.
     { key: "marketing-forms", name: "Forms" },
+    // BUDGET & SPEND (21/09/2026): what each campaign was allowed against what
+    // Finance says it cost. It owns NO COLLECTION — the costs are bills and
+    // expenses, read where Finance files them.
+    { key: "marketing-budget", name: "Budget & spend" },
   ] },
 
   // THE FIRST OF TENDERING'S FIVE. The root was declared for ordering alone at

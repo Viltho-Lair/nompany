@@ -26,3 +26,12 @@ export const costCodeOptions = (pickers, projectId) =>
 // better one than nothing.
 export const supplierName = (pickers, id) =>
   (pickers?.suppliers || []).find((s) => s.id === id)?.name || id || "";
+
+// A CAMPAIGN, labelled by its reference and name (21/09/2026) — what a bill or
+// an expense names when the cost belongs to a piece of marketing. Only open
+// campaigns are offered; the server decides which those are.
+export const campaignOptions = (pickers) =>
+  (pickers?.campaigns || []).map((c) => ({
+    value: c.id,
+    label: [c.reference, c.name].filter(Boolean).join(" · ") || c.id,
+  }));
