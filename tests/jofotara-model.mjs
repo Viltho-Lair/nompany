@@ -14,6 +14,11 @@
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
 
+// THE ONE KEY (17/09/2026), in the `<id>:<base64>` shape the keyring parses.
+// A fixed test key, set before anything imports the cipher: the settings block
+// below seals a secret, and sealing without a key throws rather than skipping.
+process.env.NOMPANY_DATA_KEY = `tk1:${Buffer.alloc(32, 9).toString("base64")}`;
+
 register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
 const J = await import("@/modules/finance/jofotaraDocument");
 
@@ -195,6 +200,69 @@ ok("amounts are written to the dinar's three decimals",
 ok("and quantities likewise", /<cbc:InvoicedQuantity unitCode="PCE">\d+\.\d{3}</.test(nasty));
 ok("the document is one line, because whitespace is significant to a signature",
   !xml.includes("\n"), String(xml.split("\n").length));
+
+console.log("\n== the credentials a studio enters, and what it is told back");
+// EVERY ASSERTION HERE IS ABOUT A SECRET. A credential that leaks into a
+// response is a credential in a browser's memory, a screenshot and a support
+// ticket; a credential silently erased by an ordinary save is one nobody can
+// get back without the portal. Both are one line of carelessness away.
+const S = await import("@/modules/finance/einvoiceSettings");
+
+const stored = S.cleanEInvoiceSettings({}, {
+  clientId: "abc-123", secretKey: "hunter2", incomeSource: "99123456", typeCode: "011",
+});
+ok("the secret is not stored as it was typed", stored.secretKey !== "hunter2" && Boolean(stored.secretKey),
+  String(stored.secretKey).slice(0, 12));
+ok("the rest is stored plainly, being no secret",
+  stored.clientId === "abc-123" && stored.incomeSource === "99123456" && stored.typeCode === "011", j(stored));
+
+const view = S.einvoiceSettingsView(stored);
+ok("A SCREEN IS TOLD WHETHER, NEVER WHAT", view.hasSecret === true && !("secretKey" in view), j(view));
+ok("and no part of the secret travels either",
+  !JSON.stringify(view).includes("hunter2"), JSON.stringify(view));
+ok("the client id and the sequence do come back, being what somebody must check",
+  view.clientId === "abc-123" && view.incomeSource === "99123456");
+ok("the codes offered are the guide's, so no screen invents one",
+  view.typeCodes.join(",") === "011,021,111,121,311,321,411,421,511,521");
+
+console.log("\n== a blank does not erase what the form was never shown");
+// THE FAILURE THIS PREVENTS: the form cannot send back a secret it never had,
+// so an ordinary save — changing the client id — would post an empty secret and
+// wipe the stored one. Silently, and only the portal could restore it.
+const afterEdit = S.cleanEInvoiceSettings(stored, { clientId: "abc-999", secretKey: "" });
+ok("changing the client id keeps the secret", afterEdit.secretKey === stored.secretKey, j(afterEdit.secretKey));
+ok("…and changes the client id", afterEdit.clientId === "abc-999");
+const untouched = S.cleanEInvoiceSettings(stored, { clientId: "abc-000" });
+ok("a field that is not sent is not changed",
+  untouched.incomeSource === "99123456" && untouched.secretKey === stored.secretKey, j(untouched));
+
+console.log("\n== removing one is its own act");
+const cleared = S.cleanEInvoiceSettings(stored, { clearSecret: true });
+ok("clearSecret removes it", !("secretKey" in cleared), j(cleared));
+ok("…and the view says so", S.einvoiceSettingsView(cleared).hasSecret === false);
+ok("a NEW secret replaces the old one",
+  S.cleanEInvoiceSettings(stored, { secretKey: "different" }).secretKey !== stored.secretKey);
+
+console.log("\n== what is refused on write, with the field named");
+ok("a complete set is accepted", S.einvoiceSettingsProblem({ clientId: "a", typeCode: "011" }) === "");
+ok("a code the guide does not list is refused by name",
+  S.einvoiceSettingsProblem({ typeCode: "012" }) === "type-code");
+ok("an empty code is not a refusal — it is 'not chosen yet'",
+  S.einvoiceSettingsProblem({ typeCode: "" }) === "");
+// A HALF-TYPED SANDBOX HOST would send every invoice to a host that does not
+// exist, and read as the authority being down.
+ok("a test address that is not a URL is refused",
+  S.einvoiceSettingsProblem({ endpoint: "backend.jofotara" }) === "endpoint");
+ok("http is refused too — a credential must not cross the wire in the clear",
+  S.einvoiceSettingsProblem({ endpoint: "http://example.test" }) === "endpoint");
+ok("a real https address is accepted",
+  S.einvoiceSettingsProblem({ endpoint: "https://sandbox.jofotara.gov.jo/core/invoices/" }) === "");
+ok("and an empty one is, being the authority's own", S.einvoiceSettingsProblem({ endpoint: "" }) === "");
+
+console.log("\n== nothing entered at all");
+const empty = S.einvoiceSettingsView(undefined);
+ok("an unconfigured studio reads as empty rather than throwing",
+  empty.hasSecret === false && empty.clientId === "" && empty.typeCode === "", j(empty));
 
 console.log(fails ? `\njofotara model: ${fails} FAILURES\n` : "\njofotara model: all passed\n");
 process.exitCode = fails ? 1 : 0;

@@ -24,7 +24,7 @@
 // must enter its own credentials before anything is submitted at all, and that
 // gate is what keeps an unproven adapter out of somebody's books.
 
-import { jofotaraDocument, jofotaraProblem, isJoTypeCode, type JoInvoiceType, type JoTypeCode } from "./jofotaraDocument";
+import { jofotaraDocument, jofotaraProblem, isJoTypeCode, type JoTypeCode } from "./jofotaraDocument";
 import { ublInvoiceXml } from "./ublXml";
 import type { EInvoiceAdapter } from "./einvoice";
 import { official } from "@/shared/compliance/resolve";
@@ -42,8 +42,6 @@ export type JofotaraCredentials = {
   typeCode: JoTypeCode;
   /** The income source sequence the portal issued this taxpayer. */
   incomeSource: string;
-  /** How the studio's own prices are quoted — what decides the tax treatment. */
-  activity: JoInvoiceType;
   /** Set while testing, so a sandbox submission cannot reach production by accident. */
   endpoint?: string;
 };
@@ -66,8 +64,6 @@ export function jofotaraCredentials(settings: unknown): JofotaraCredentials | nu
     // commonest registration is used and the settings screen makes them choose.
     typeCode: isJoTypeCode(c.typeCode) ? c.typeCode : "011",
     incomeSource: String(c.incomeSource || "").trim(),
-    activity: (["income", "general-sales", "special-sales"].includes(String(c.activity))
-      ? c.activity : "general-sales") as JoInvoiceType,
     endpoint: String(c.endpoint || "").trim() || undefined,
   };
 }
@@ -102,7 +98,6 @@ export const jofotaraAdapter: EInvoiceAdapter = {
         taxNumber: official(studio as Parameters<typeof official>[0], "tax_number"),
         countryCode: "JO",
       },
-      invoiceType: creds.activity,
       uuid: String((invoice as { id?: unknown }).id || ""),
     });
 

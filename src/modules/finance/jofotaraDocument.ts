@@ -24,9 +24,6 @@ const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 
 /** JoFotara's own codes for what kind of sale this is. */
-export const JO_INVOICE_TYPES = ["income", "general-sales", "special-sales"] as const;
-export type JoInvoiceType = (typeof JO_INVOICE_TYPES)[number];
-
 /** A party on the document — the studio, or the customer. */
 export type UblParty = {
   name: string;
@@ -131,14 +128,12 @@ export function jofotaraDocument(input: {
     id?: unknown;
   };
   supplier: UblParty;
-  /** Kept for the tax treatment; the WIRE code is the seller's (see ./ublXml). */
-  invoiceType: JoInvoiceType;
   /** True when the studio's prices already include tax (a till's do; an invoice's do not). */
   pricesIncludeTax?: boolean;
   /** A stable identifier for this submission. The caller mints it, so this stays pure. */
   uuid: string;
 }): UblInvoice {
-  const { invoice, supplier, invoiceType, uuid } = input;
+  const { invoice, supplier, uuid } = input;
   const currency = str(invoice.currency, 3).toUpperCase() || "JOD";
   const headlineRate = num(invoice.vatRate);
   const rawLines = Array.isArray(invoice.lines) ? invoice.lines : [];
@@ -199,6 +194,11 @@ export function jofotaraDocument(input: {
     id: str(invoice.reference, 60),
     uuid,
     issueDate: str(invoice.issueDate, 10).slice(0, 10),
+    // ALWAYS 388. Jordan's own code is the `name` attribute and comes from the
+    // SELLER's registration, which a document cannot know — ./ublXml writes it.
+    // This carried an `invoiceType` parameter for exactly one line until that
+    // line became a constant; a parameter nothing reads is a lie about what the
+    // caller controls, so it went with it.
     invoiceTypeCode: "388",
     documentCurrencyCode: currency,
     supplier,

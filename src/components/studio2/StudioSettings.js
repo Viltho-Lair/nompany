@@ -21,6 +21,7 @@ import SettingsFold from "@/components/studio2/SettingsFold";
 import SigningPinSetting from "@/components/security/SigningPinSetting";
 import EmploymentRulesPanel from "@/components/studio2/EmploymentRulesPanel";
 import OfficialValuesPanel from "@/components/studio2/OfficialValuesPanel";
+import EInvoicePanel from "@/components/studio2/EInvoicePanel";
 import { officialValuesDict } from "@/shared/studio/officialValues";
 import { useReload } from "@/components/studio2/useReload";
 import { isFiledOnlySection } from "@/platform/db/keys";
@@ -119,7 +120,14 @@ export default function StudioSettings({ slug, locale = "en" }) {
     const res = await fetch(`/api/studios/${slug}/settings`, {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
     });
-    if (!res.ok) { setError(tr.saveFailed); return false; }
+    if (!res.ok) {
+      // THE SERVER'S OWN REASON, handed back as well as shown. Every other
+      // caller here wants a boolean; a refused credential has to say which
+      // field is wrong, and "could not save" sends somebody hunting.
+      const body = await res.json().catch(() => ({}));
+      setError(tr.saveFailed);
+      return { error: body.error || "failed", detail: body.detail || "" };
+    }
     await load();
     return true;
   }, [slug, load, tr]);
@@ -357,6 +365,18 @@ export default function StudioSettings({ slug, locale = "en" }) {
       {/* OFFICIAL VALUES, per the selected country — keyed on the country so a
           change on the row above remounts it with the new country's fields. */}
       <OfficialValuesPanel key={studio.country || "none"} slug={slug} locale={locale} country={studio.country || ""} />
+
+      {/* ONLY WHERE THERE IS AN AUTHORITY TO REACH — the country's own
+          definition decides, so a studio sees its own obligations and no
+          other country's. */}
+      <EInvoicePanel
+        rules={studio.einvoiceRules || null}
+        settings={studio.einvoiceSettings}
+        hasTaxNumber={Boolean(studio.hasTaxNumber)}
+        canManage={canManage}
+        busy={false}
+        onSave={save}
+      />
 
       <LegalInfo
         rows={Array.isArray(studio.legalInfo) ? studio.legalInfo : []}

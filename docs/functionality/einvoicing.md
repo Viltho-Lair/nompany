@@ -47,6 +47,17 @@ source sequence**. nompany is software; it is not a taxpayer on anybody's behalf
 register for them. Each studio enters its own, sealed at rest with a purpose subkey of
 `NOMPANY_DATA_KEY`, and one studio's credentials never reach another's document.
 
+**THE CREDENTIALS ARE ENTERED IN STUDIO SETTINGS**, beside the country and the official values
+whose TIN the adapter reads — the panel appears only where the country's own definition names an
+authority, so a studio sees its own obligations and no other country's. Client ID, secret key,
+income source sequence, invoice code and an optional sandbox address.
+
+**The secret is write-only.** It is sealed with a purpose subkey of `NOMPANY_DATA_KEY` and the
+response says whether one is SET, never what it is — so there is nothing to redact and nothing
+to leak into a screenshot. **A blank box does not erase it:** the form was never shown the
+secret, so an ordinary save cannot post it back, and treating the blank as a deletion would wipe
+a credential every time somebody changed the client id. Removing one is its own button.
+
 **Three files, and only the last one touches the network.** `jofotaraDocument` decides what is
 sent and is pure; `ublXml` writes the standard's XML; `jofotara` posts it. Submission is
 `POST https://backend.jofotara.gov.jo/core/invoices/` with `Client-Id` and `Secret-Key`
