@@ -1,9 +1,31 @@
-// nompany pricing model. Prices are MONTHLY, quoted at Tier-1 (×1.0) in SAR;
-// USD is derived (≈ SAR / 3.75). Departments are priced per-functionality at
-// signup; the `sar` here is the "all functionalities" price for the department,
-// used as the "from" anchor on the marketing pricing page. See [[nompany-pivot]].
-
-export const SAR_PER_USD = 3.75;
+// THE COMMERCIAL MODEL — what the plans are, and who they are for.
+//
+// WHAT LEFT THIS FILE, 22/09/2026, and why it is worth knowing it was here.
+// This carried a complete SAR price list from before the pivot: a mandatory
+// CORE fee of 750, capacity multipliers in TIERS, a per-department price list
+// in DEPARTMENTS, bundles in PRESETS, computePlan() to add them up, a VAT rate,
+// a yearly discount, and a CURRENCIES table with its own hand-written exchange
+// rates — including SAR_PER_USD = 3.75 — and convertFromSar() to apply them.
+//
+// NOTHING READ ANY OF IT. Two files import from this module: the pricing board
+// takes fmtCurrencyAmount, and the registration questionnaire takes PLANS and
+// pick. Everything else was reachable from nothing — a second pricing model
+// sitting beside the real one, in a second currency, with its own frozen
+// exchange rates a metre from the live FX table that the pricing payload
+// already ships. The danger was never that it ran. It was that it looked
+// authoritative to the next person deciding where prices come from.
+//
+// WHERE PRICES ACTUALLY COME FROM: the package catalogue in /super, read by
+// buildPricing (modules/marketing/pricing) for the public page and by planOf
+// (lib/plans) for what a studio may do.
+//
+// WHAT THIS FILE STILL DECLARES is WHO each plan is for — the headcount bands
+// and the words describing them — which PLAN_HEADCOUNTS below hands to the
+// marketing copy's guard. The per-employee rates left in `bands` are the
+// authored intent that has never been entered into that catalogue, and they
+// stay because they are the only surviving record of it: deleting them would
+// destroy the numbers somebody needs in order to fill /super in. Once the
+// catalogue holds real packages, `bands` can go too.
 
 // Locale picker for the {en, ar} label objects below.
 export function pick(obj: Record<string, string> | null | undefined, locale: string) {
@@ -11,166 +33,7 @@ export function pick(obj: Record<string, string> | null | undefined, locale: str
   return obj[locale] ?? obj.en ?? "";
 }
 
-// SAR → rounded USD.
-export function toUsd(sar: number) {
-  return Math.round(sar / SAR_PER_USD);
-}
 
-// SAR → grouped string (Western digits for price clarity in both locales).
-export function fmtSar(sar: number) {
-  return sar.toLocaleString("en-US");
-}
-
-// Mandatory base fee.
-export const CORE = {
-  sar: 750,
-  name: { en: "Core platform", ar: "المنصة الأساسية" },
-  desc: {
-    en: "Users & roles, company settings, tasks, notifications, live chat and documentation.",
-    ar: "المستخدمون والصلاحيات وإعدادات الشركة والمهام والإشعارات والدردشة والتوثيق.",
-  },
-};
-
-// Capacity multipliers by active user count.
-export const TIERS = [
-  { mult: 1.0, name: { en: "Tier 1", ar: "الفئة 1" }, users: { en: "1–10 users", ar: "1–10 مستخدمين" } },
-  { mult: 2.5, name: { en: "Tier 2", ar: "الفئة 2" }, users: { en: "11–50 users", ar: "11–50 مستخدما" } },
-  { mult: 5.0, name: { en: "Tier 3", ar: "الفئة 3" }, users: { en: "50+ users", ar: "أكثر من 50 مستخدما" } },
-];
-
-// Optional departments (à-la-carte). `sar` = full-department price.
-export const DEPARTMENTS = [
-  {
-    key: "crm-sales", sar: 870,
-    name: { en: "Sales & CRM", ar: "المبيعات وإدارة العملاء" },
-    desc: { en: "Leads, tickets, clients, PO approvals and a live board.", ar: "العملاء المحتملون والتذاكر والعملاء واعتماد أوامر الشراء ولوحة مباشرة." },
-  },
-  {
-    key: "engineering-docs", sar: 900,
-    name: { en: "Technical Approvals", ar: "الاعتمادات الفنية" },
-    desc: { en: "Quotation builder, RFQs, cost control and approvals.", ar: "منشئ عروض الأسعار وطلبات التسعير والتحكم بالتكلفة والاعتمادات." },
-  },
-  {
-    key: "projects", sar: 1050,
-    name: { en: "Project Management", ar: "إدارة المشاريع" },
-    desc: { en: "Gantt plans, SLAs, deliveries and overtime.", ar: "خطط جانت واتفاقيات الخدمة والتسليم والعمل الإضافي." },
-  },
-  {
-    key: "inventory", sar: 870,
-    name: { en: "Inventory & AWB", ar: "المخزون وتتبع الشحن الجوي" },
-    desc: { en: "Items, stock, project sheets and shipment tracking.", ar: "الأصناف والمخزون وكشوف المشاريع وتتبع الشحنات." },
-  },
-  {
-    key: "hr", sar: 640,
-    name: { en: "HR", ar: "الموارد البشرية" },
-    desc: { en: "Employees, documents, careers and applications.", ar: "الموظفون والمستندات والوظائف وطلبات التوظيف." },
-  },
-  {
-    key: "finance", sar: 710,
-    name: { en: "Finance", ar: "المالية" },
-    desc: { en: "Project ledgers, cash sheets and spend analytics.", ar: "دفاتر المشاريع وكشوف النقد وتحليلات الإنفاق." },
-  },
-  {
-    key: "field-service", sar: 510,
-    name: { en: "Operations", ar: "العمليات" },
-    desc: { en: "Work schedules, permit watch and live GPS tracking.", ar: "جداول العمل ومتابعة التصاريح والتتبع المباشر بالموقع." },
-  },
-];
-
-// Curated bundles, priced at a discount to the à-la-carte sum. `moduleKeys` maps
-// each preset to the department keys it pre-selects in the checkout picker.
-export const PRESETS = [
-  {
-    key: "starter", sar: 1190, popular: false,
-    moduleKeys: ["crm-sales"],
-    name: { en: "Starter", ar: "البداية" },
-    tagline: { en: "Light CRM to start selling.", ar: "إدارة عملاء مبسطة للبدء بالبيع." },
-    includes: {
-      en: ["Core platform", "Sales dashboard & pipeline", "Tickets & leads", "Clients / CRM directory"],
-      ar: ["المنصة الأساسية", "لوحة المبيعات والمسار", "التذاكر والعملاء المحتملون", "دليل العملاء"],
-    },
-  },
-  {
-    key: "field-service", sar: 2650, popular: true,
-    moduleKeys: ["projects", "inventory", "field-service"],
-    name: { en: "Operations Suite", ar: "باقة العمليات" },
-    tagline: { en: "Run projects, stock and the field.", ar: "أدر المشاريع والمخزون والميدان." },
-    includes: {
-      en: ["Core platform", "Project Management (all)", "Inventory & AWB (all)", "Operations (all)"],
-      ar: ["المنصة الأساسية", "إدارة المشاريع (كاملة)", "المخزون والشحن الجوي (كامل)", "العمليات (كاملة)"],
-    },
-  },
-  {
-    key: "full", sar: 5040, popular: false,
-    moduleKeys: ["crm-sales", "engineering-docs", "projects", "inventory", "hr", "finance", "field-service"],
-    name: { en: "Full Suite", ar: "الباقة الكاملة" },
-    tagline: { en: "The entire ERP, every department.", ar: "النظام الكامل، كل الأقسام." },
-    includes: {
-      en: ["Core platform", "All 7 departments", "Every functionality", "Priority support"],
-      ar: ["المنصة الأساسية", "جميع الأقسام السبعة", "كل الوظائف", "دعم ذو أولوية"],
-    },
-  },
-];
-
-export const ALL_DEPARTMENT_KEYS = DEPARTMENTS.map((d) => d.key);
-
-// Seat (employee/login) cap for a company's chosen package. An unset/unknown
-// package falls back to the free Micro tier; the Large tier (maxUsers null) is
-// unlimited. Used to gate adding/joining a studio ("company is full").
-export function seatLimitForPackage(packageKey: string | null | undefined) {
-  const plan = PLANS.find((p) => p.key === packageKey) || PLANS.find((p) => p.key === "micro");
-  return plan && plan.maxUsers != null ? plan.maxUsers : Infinity;
-}
-
-// The "Most Popular" PLAN (headcount package), computed from ACTUAL subscribers:
-// the package each company chose at signup (company.packageKey, set from the
-// pricing "Get Started" flow). Returns the most-chosen plan key, or null when no
-// subscriber has a recorded package yet (callers fall back to the hardcoded flag).
-export function mostPopularPlanKey(companies: { status?: string; packageKey?: string }[] | null | undefined) {
-  const counts: Record<string, number> = {};
-  for (const c of companies || []) {
-    if (!c || c.status === "canceled") continue;
-    if (c.packageKey) counts[c.packageKey] = (counts[c.packageKey] || 0) + 1;
-  }
-  let best: string | null = null;
-  let bestN = 0;
-  for (const [k, n] of Object.entries(counts)) {
-    if (Number(n) > bestN) { best = k; bestN = Number(n); }
-  }
-  return best;
-}
-
-// Compute the monthly plan total: (Core + selected departments) × tier multiplier.
-// `moduleKeys` are department keys (Core is always included). Returns SAR amounts
-// plus USD. Pure + client-safe, so the picker can show a live total.
-export function computePlan(moduleKeys: string[] = [], tierMult: number = 1) {
-  const keys = Array.isArray(moduleKeys) ? moduleKeys : [];
-  const selected = DEPARTMENTS.filter((d) => keys.includes(d.key));
-  const subtotal = CORE.sar + selected.reduce((sum, d) => sum + d.sar, 0);
-  const total = Math.round(subtotal * (Number(tierMult) || 1));
-  return { subtotal, total, usd: toUsd(total), moduleCount: selected.length };
-}
-
-// Resolve a tier multiplier from its index (0/1/2) safely.
-export function tierMultByIndex(i: number) {
-  return TIERS[i]?.mult ?? 1;
-}
-
-// ---- Per-employee subscription plans (public /pricing page) ----------------
-// A simpler headcount-based model shown on the marketing pricing page. Prices
-// are SAR per EMPLOYEE / month and INCLUDE 15% VAT. Each plan caps how many
-// employees a company can add; the monthly "cap" = max seats × per-seat rate.
-// Yearly billing is 15% cheaper than monthly (applied after VAT).
-// NB: distinct from the à-la-carte CORE/DEPARTMENTS model above, which still
-// drives the in-app /subscribe checkout — the two are not yet reconciled.
-export const VAT_RATE = 0.15;
-export const YEARLY_DISCOUNT = 0.15;
-
-// Four EU SME tiers. Small + Medium are single cards with a headcount SLIDER;
-// the per-employee rate steps up across bands and the card shows the TOTAL
-// monthly price for the chosen count. Micro is free; Large is invoiced at
-// month-end by actual headcount (no fixed price shown).
-// ---- what a headcount plan is ----------------------------------------------
 /** One price band: everybody up to `upTo` employees pays `rate` each. */
 export type PlanBand = { upTo: number; rate: number; label: string };
 
@@ -253,36 +116,6 @@ export const PLANS: Plan[] = [
   },
 ];
 
-// The per-employee SAR rate for a headcount (steps up across the plan's bands).
-export function rateForCount(plan: Plan, count: number) {
-  if (!Array.isArray(plan.bands) || !plan.bands.length) return 0;
-  const b = plan.bands.find((x) => count <= x.upTo) || plan.bands[plan.bands.length - 1];
-  return b.rate;
-}
-
-// TOTAL monthly price (SAR) for a headcount in the chosen billing period
-// (yearly = 15% off) = count × per-employee rate.
-export function planTotal(plan: Plan, count: number, yearly: boolean) {
-  const total = rateForCount(plan, count) * count;
-  return yearly ? total * (1 - YEARLY_DISCOUNT) : total;
-}
-
-// ---- Currency selection (marketing pricing page) ---------------------------
-// Prices are authored in SAR; the page lets visitors view them in a few
-// currencies. `rate` = units of that currency per 1 SAR (approximate, static).
-// SAR/AED are USD-pegged; EUR/GBP are rough static rates flagged "approximate".
-export const CURRENCIES = [
-  { code: "SAR", rate: 1 },
-  { code: "USD", rate: 1 / SAR_PER_USD },       // ≈ 0.2667
-  { code: "AED", rate: 3.6725 / SAR_PER_USD },  // ≈ 0.9793
-  { code: "EUR", rate: 1 / 4.10 },              // ≈ 0.2439
-  { code: "GBP", rate: 1 / 4.80 },              // ≈ 0.2083
-];
-
-export function convertFromSar(sar: number, code: string) {
-  const c = CURRENCIES.find((x) => x.code === code) || CURRENCIES[0];
-  return sar * c.rate;
-}
 
 // Format an amount (already in the target currency) — SAR keeps up to 2 decimals
 // like the authored prices; converted currencies round to whole units.
@@ -290,6 +123,7 @@ export function fmtCurrencyAmount(amount: number | string, code: string) {
   const digits = code === "SAR" ? 2 : 0;
   return Number(amount).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: digits });
 }
+
 
 /* THE HEADCOUNTS THE COMMERCIAL MODEL DECLARES — the one place anything may
    learn where the free tier ends or where a paid plan begins.
