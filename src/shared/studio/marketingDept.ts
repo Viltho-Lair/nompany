@@ -26,6 +26,8 @@ type Strings = {
   description: string;
   /** The plan for a period this campaign belongs to (22/09/2026). */
   plan: string;
+  /** "12 of 20" — an actual against its target (22/09/2026). */
+  ofTarget: (actual: string, target: string) => string;
   noPlan: string;
   inPlan: (name: string) => string;
   /** The brief (22/09/2026): four questions rather than one empty box. */
@@ -165,6 +167,7 @@ const en: Strings = {
   name: "Name",
   description: "Description",
   plan: "Plan",
+  ofTarget: (actual, target) => actual + " of " + target,
   noPlan: "No plan",
   inPlan: (name) => "Part of " + name,
   briefHeading: "The brief",
@@ -299,6 +302,7 @@ const ar: Strings = {
   name: "الاسم",
   description: "الوصف",
   plan: "الخطة",
+  ofTarget: (actual, target) => actual + " من " + target,
   noPlan: "بلا خطة",
   inPlan: (name) => "ضمن " + name,
   briefHeading: "موجز الحملة",

@@ -29,6 +29,7 @@ type Strings = {
   nobody: string;
   budget: string;
   expectedLeads: string;
+  ofTarget: (actual: string, target: string) => string;
   expectedRevenue: string;
   allocated: string;
   allocatedHint: string;
@@ -85,6 +86,7 @@ const en: Strings = {
   nobody: "Nobody",
   budget: "Budget",
   expectedLeads: "Leads expected",
+  ofTarget: (actual, target) => actual + " of " + target,
   expectedRevenue: "Revenue expected",
   allocated: "Handed to campaigns",
   allocatedHint: "A sub-campaign is counted inside its parent, never twice.",
@@ -149,6 +151,7 @@ const ar: Strings = {
   nobody: "لا أحد",
   budget: "الميزانية",
   expectedLeads: "العملاء المتوقعون",
+  ofTarget: (actual, target) => actual + " من " + target,
   expectedRevenue: "الإيراد المتوقع",
   allocated: "الموزّع على الحملات",
   allocatedHint: "تُحتسب الحملة الفرعية ضمن حملتها الأم، لا مرتين.",

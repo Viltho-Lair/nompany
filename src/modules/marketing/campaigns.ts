@@ -31,6 +31,7 @@ import {
   landingUrlProblem, taggedLink, budgetSplit, attention, campaignFigures, isFinal, campaignResults,
   cleanBrief, briefWritten, briefGaps,
 } from "./model";
+import { campaignAttainment } from "./attainment";
 import { leadHours } from "@/modules/sales/leads";
 import { raiseLead, quotedTotalFor, ticketValue } from "@/modules/sales/sales";
 import { isWon } from "@/modules/sales/pipeline";
@@ -232,6 +233,10 @@ export async function listCampaigns(ctx: MarketingContext) {
     attention: attention(c, asOf),
     ownerAlias: aliasOf.get(c.ownerCollaboratorId) || "",
     results: got.get(c.id) || { leads: 0, won: 0, wonValue: 0 },
+    // WHAT IT WAS ASKED FOR, AGAINST WHAT IT BROUGHT (22/09/2026). Both have
+    // been on this card since Marketing shipped, on two separate lines, with
+    // nothing ever comparing them.
+    attainment: campaignAttainment(c, got.get(c.id) || { leads: 0, won: 0, wonValue: 0 }),
     createdByAlias: aliasOf.get(c.createdByCollaboratorId) || "",
     // THE BRIEF, AND WHETHER ANYBODY HAS WRITTEN ONE (22/09/2026). Both, because
     // "no brief" and "a brief with the last question unanswered" send a person

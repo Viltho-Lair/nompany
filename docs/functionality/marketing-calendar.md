@@ -96,13 +96,29 @@ create, edit or delete a CAMPAIGN catches up to the same verb here, verb for
 verb — the plan is the envelope above the work they already run — and a role that
 may only read campaigns gains nothing. The plan's owner is told by notification.
 
+## The period's targets, measured
+
+A plan's **expected leads** and **expected revenue** were stored from the day
+plans shipped and read by NOTHING at all — written by the form and never looked
+at again. They are measured against the campaigns filed under the plan now.
+
+**Summed from the members rather than stored**: a figure kept beside them would
+be a second number free to disagree with the rows it summarises.
+
+**A sub-campaign's leads are ADDED, not contained** — the opposite of the way its
+budget is treated a few lines above, and deliberately. A Sales ticket names
+exactly one campaign, so adding the members' leads adds each ticket once; a
+budget is an allowance handed down, so a sub-campaign's sits inside its parent's.
+That asymmetry is why `planAttainment` and `planRollup` are different functions.
+
+Customers won are counted and shown even though no plan target names one.
+
 ## Not built yet
 
 - **On the plan:** no ladder and no approval — a plan is written, not signed off, and its period
   either has passed or has not. No rollover of what a period did not spend, no comparison of one
-  period with the last, and no plan for a channel or a market inside a period. Its two targets
-  (leads, revenue) are STORED and nothing measures against them yet; the campaigns' own results
-  are on the register and the dashboard.
+  period with the last, and no plan for a channel or a market inside a period. Its targets are
+  measured now (above), but nothing alerts anybody to one being missed.
 - **Plans do not appear on the calendar.** A quarter is not drawn as a band behind the weeks it
   covers, which is the obvious next thing and was left out deliberately: the bars are campaigns,
   and a second kind of bar needs its own answer about what a plan looks like when it overlaps

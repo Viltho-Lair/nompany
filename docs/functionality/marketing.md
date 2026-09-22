@@ -91,6 +91,32 @@ rather than refused, so a pasted page loses its tail instead of the whole edit f
 **Needs attention**, judged by the server's date: a Planned campaign whose start date has passed,
 a running or paused one past its end date, and a Draft or Planned one starting within seven days.
 
+## A target, and whether it was met
+
+A campaign has carried **expected leads**, **expected customers** and **expected
+revenue** since the department shipped, and the register printed them on one line
+and printed what the campaign actually brought in on the NEXT line — with nothing
+in the product ever comparing the two. `expectedCustomers` was not summed
+anywhere at all. From 2026-09-22 each target is shown against its own actual,
+with the share.
+
+**Customers is `won`** — the deals those leads became, which the register has
+counted from Sales since leads shipped.
+
+**A target nobody set is not drawn.** Printing "0%" for it would report a studio
+as having missed something it never asked for, and a campaign with no targets
+shows nothing rather than three empty rows.
+
+**A target of NOUGHT has no share either**, and that is not pedantry: a campaign
+expecting no leads that brought five is not five hundred per cent of anything,
+and the division would render as `Infinity%`. It counts as met.
+
+**A shortfall never goes negative.** Beating a target is already in the share;
+"minus three leads short" is not a sentence.
+
+**This is not the dashboard.** Attainment belongs on the records that own the
+targets, where the person who set one can see whether it was met.
+
 ## The dashboard
 
 The section's landing page. Six figures: running now, starting this week, needing attention,

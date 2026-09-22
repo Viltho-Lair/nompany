@@ -245,6 +245,15 @@ function PlanCard({ plan, tr, dept, cash, slug, canEdit, canDelete, canFile, onE
         {[tr.campaignsIn(p.campaigns), p.unbudgeted > 0 && tr.unbudgeted(p.unbudgeted)].filter(Boolean).join(" · ")}
       </p>
 
+      {/* WHAT THE PERIOD WAS FOR, MEASURED. A plan's two targets were stored
+          from the day plans shipped and read by nothing at all until now. */}
+      {(p.attainment?.leads?.target !== null || p.attainment?.revenue?.target !== null) && (
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          <PlanTarget label={tr.expectedLeads} at={p.attainment.leads} tr={tr} />
+          <PlanTarget label={tr.expectedRevenue} at={p.attainment.revenue} tr={tr} money={cash} />
+        </div>
+      )}
+
       <div className="mt-4">
         <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.members}</p>
         {(p.members || []).length === 0 ? (
@@ -293,6 +302,19 @@ function PlanCard({ plan, tr, dept, cash, slug, canEdit, canDelete, canFile, onE
         </div>
       )}
     </section>
+  );
+}
+
+/** One of a plan's targets, against what its campaigns brought in. */
+function PlanTarget({ label, at, tr, money }) {
+  if (!at || at.target === null) return null;
+  const show = (n) => (money ? money(n) : String(n));
+  return (
+    <span className={at.met ? "text-emerald-700 dark:text-emerald-300" : "text-slate-500 dark:text-slate-400"}>
+      <span className="font-600">{label}:</span>{" "}
+      {tr.ofTarget(show(at.actual), show(at.target))}
+      {at.share !== null && <span className="num ms-1">({Math.round(at.share * 100)}%)</span>}
+    </span>
   );
 }
 

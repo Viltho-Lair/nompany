@@ -26,6 +26,27 @@ const STATUS_TONE = {
 };
 const ATTENTION_TONE = "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300";
 
+/**
+ * ONE TARGET, WITH WHAT WAS ACHIEVED AGAINST IT.
+ *
+ * A TARGET NOBODY SET IS NOT DRAWN AT ALL — the campaign simply has no
+ * expectation there, and printing "0%" for it would report a studio as having
+ * missed something it never asked for.
+ */
+function Target({ label, at, tr, money }) {
+  if (!at || at.target === null) return null;
+  const show = (n) => (money ? money(n) : String(n));
+  return (
+    <span className={at.met ? "text-emerald-700 dark:text-emerald-300" : "text-slate-500 dark:text-slate-400"}>
+      <span className="font-600">{label}:</span>{" "}
+      {tr.ofTarget(show(at.actual), show(at.target))}
+      {/* NO SHARE WHERE THERE IS NOTHING TO BE A SHARE OF — a target of nought
+          would otherwise divide into Infinity. */}
+      {at.share !== null && <span className="num ms-1">({Math.round(at.share * 100)}%)</span>}
+    </span>
+  );
+}
+
 function Chip({ tone, children }) {
   return <span className={`rounded-full px-2 py-0.5 text-xs font-600 ${tone}`}>{children}</span>;
 }
@@ -217,14 +238,17 @@ export default function StudioCampaigns({ slug }) {
                       )}
                     </p>
                   )}
-                  {(c.expectedLeads !== null || c.expectedCustomers !== null || c.expectedRevenue !== null) && (
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      {[
-                        c.expectedLeads !== null && `${tr.expectedLeads}: ${c.expectedLeads}`,
-                        c.expectedCustomers !== null && `${tr.expectedCustomers}: ${c.expectedCustomers}`,
-                        c.expectedRevenue !== null && `${tr.expectedRevenue}: ${cur(c.expectedRevenue)}`,
-                      ].filter(Boolean).join(" · ")}
-                    </p>
+                  {/* A TARGET AGAINST WHAT HAPPENED (22/09/2026). These two
+                      lived on separate lines from the day the register shipped
+                      — the targets here, the results below — and nothing in the
+                      product compared them. A target with no share is shown as
+                      "not set" rather than 0%, which would read as failure. */}
+                  {c.attainment?.hasTargets && (
+                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                      <Target label={tr.expectedLeads} at={c.attainment.leads} tr={tr} />
+                      <Target label={tr.expectedCustomers} at={c.attainment.customers} tr={tr} />
+                      <Target label={tr.expectedRevenue} at={c.attainment.revenue} tr={tr} money={cur} />
+                    </div>
                   )}
                   {/* WHAT IT BROUGHT IN, from the Sales tickets that name it. */}
                   <p className="mt-1 text-xs font-600 text-slate-700 dark:text-slate-200">

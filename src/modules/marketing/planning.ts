@@ -22,6 +22,8 @@ import { NOTIFY } from "@/platform/notify/notifications";
 import { roundMoney } from "@/shared/money";
 import { campaignSpend } from "./spend";
 import { campaignCosts } from "./budget";
+import { campaignResultsFor } from "./campaigns";
+import { planAttainment } from "./attainment";
 import { budgetTotal, isFinal } from "./model";
 import {
   PERIOD_KINDS, planPeriod, periodLabel, planProblem, planDeletable, planRollup, unplanned,
@@ -161,11 +163,15 @@ export async function listPlans(ctx: MarketingContext) {
   const denied = requirePermission(ctx.access, "marketing.planning.view");
   if (denied) return denied;
 
-  const [plans, campaigns, team, costs] = await Promise.all([
+  const [plans, campaigns, team, costs, results] = await Promise.all([
     Plans.find(scope(ctx)),
     Campaigns.find({ studio: ctx.studio, section: ctx.campaignsSection }),
     people(ctx),
     campaignCosts(ctx),
+    // WHAT THE PLAN'S CAMPAIGNS ACTUALLY BROUGHT IN. Read with the studio's
+    // authority, as the register reads it: a plan's targets were stored this
+    // morning and measured against nothing at all until now.
+    campaignResultsFor(ctx),
   ]);
   const aliasOf = new Map(team.map((p) => [p.id, p.alias || ""]));
   // OWN SPEND, NEVER `total`: a sub-campaign filed under the same plan as its
@@ -181,6 +187,10 @@ export async function listPlans(ctx: MarketingContext) {
       ownerAlias: aliasOf.get(p.ownerCollaboratorId) || "",
       createdByAlias: aliasOf.get(p.createdByCollaboratorId) || "",
       ...planRollup(p.budget, mine, spentOwn),
+      // WHAT THE PERIOD WAS ASKED FOR, AGAINST WHAT ITS CAMPAIGNS BROUGHT.
+      // SUMMED from the members rather than stored: a figure kept beside them
+      // would be a second number free to disagree with the rows it summarises.
+      attainment: planAttainment(p, mine, results),
       // NAMED, so a plan links to its campaigns rather than asserting a count.
       members: mine.map((c) => ({
         id: c.id, reference: c.reference, name: c.name, status: c.status,
