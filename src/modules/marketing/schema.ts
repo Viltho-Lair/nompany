@@ -229,6 +229,44 @@ export const FormResponseSchema = z.object({
   formId: z.string(),
   answers: z.record(z.string(), z.unknown()),
   asked: z.array(z.object({ field: z.string(), label: z.string(), type: z.string() })),
+  /**
+   * HOW THEY ARRIVED (22/09/2026, ./arrival): the five UTM tags off the address
+   * they clicked, and the HOST of the site that sent them. Optional, because
+   * every response written before this predates it and because most arrivals
+   * carry nothing — an untagged visit is the ordinary case, not a gap.
+   *
+   * NOT SEALED, and it is worth saying why the rule does not reach it
+   * (invariant 18): these are the studio's OWN campaign identifiers coming back
+   * to it, plus a referring host. Nothing here names a person. The answers
+   * beside it, which do, are sealed.
+   */
+  arrival: z.object({
+    source: z.string().max(120),
+    medium: z.string().max(120),
+    campaign: z.string().max(120),
+    content: z.string().max(120),
+    term: z.string().max(120),
+    referrer: z.string().max(120),
+  }).optional(),
+  /**
+   * THE CAMPAIGN THIS SUBMISSION WAS CREDITED TO, resolved when it arrived and
+   * STORED rather than re-derived on every read. A campaign renamed next month
+   * would otherwise stop matching the tag on a link that is still live, and the
+   * history would quietly re-attribute itself.
+   */
+  campaignId: z.string().max(60).optional(),
+  /**
+   * WHERE THAT CREDIT CAME FROM: "link" (the tag on the address they clicked),
+   * "form" (the campaign typed into this form's settings) or "none".
+   *
+   * STORED RATHER THAN WORKED OUT ON READ, and the case that forces it is the
+   * quiet one: a tag that matched NOTHING while the form's settings still
+   * supplied a campaign. The reply then carries a campaign id and a tag that
+   * named no campaign at once, and without this field the two are
+   * indistinguishable from an ordinary untagged fallback — so a studio whose
+   * live advert points at a deleted campaign would never be told.
+   */
+  attributedBy: z.string().max(10).optional(),
   /** The Sales ticket it became, when the form makes leads. */
   ticketId: z.string().optional(),
   createdAt: z.string(),

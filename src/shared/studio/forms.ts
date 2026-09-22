@@ -104,6 +104,14 @@ type Strings = {
   every: string;
   when: string;
   lead: string;
+  /** Where a reply came from, and which campaign it was credited to (22/09/2026). */
+  cameFrom: string;
+  creditedTo: string;
+  sourceDirect: string;
+  sourcesHeading: string;
+  sourcesHint: string;
+  campaignGone: string;
+  unmatchedTag: (tag: string) => string;
   // THE CANVAS (20/09/2026) — the builder rebuilt as a page of cards.
   sectionOf: (n: number, of: number) => string;
   addSection: string;
@@ -278,6 +286,13 @@ const en: Strings = {
   every: "Every response",
   when: "When",
   lead: "Sales lead",
+  cameFrom: "Came from",
+  creditedTo: "Campaign",
+  sourceDirect: "Direct",
+  sourcesHeading: "Where they came from",
+  sourcesHint: "Read off the tracked links your campaigns publish. Direct means nobody can tell — a typed address, a bookmark, a QR code, or a browser that keeps it to itself.",
+  campaignGone: "A deleted campaign",
+  unmatchedTag: (tag) => "No campaign named " + tag,
   sectionOf: (n, of) => `Section ${n} of ${of}`,
   addSection: "Add a section",
   removeSection: "Remove this section",
@@ -456,6 +471,13 @@ const ar: Strings = {
   every: "كل الإجابات",
   when: "الوقت",
   lead: "عميل محتمل",
+  cameFrom: "المصدر",
+  creditedTo: "الحملة",
+  sourceDirect: "مباشر",
+  sourcesHeading: "من أين أتوا",
+  sourcesHint: "مقروءة من الروابط المتتبَّعة التي تنشرها حملاتكم. \"مباشر\" تعني أنه لا سبيل للمعرفة — عنوان مكتوب أو مفضّلة أو رمز QR أو متصفح لا يُفصح.",
+  campaignGone: "حملة محذوفة",
+  unmatchedTag: (tag) => "لا حملة باسم " + tag,
   sectionOf: (n, of) => `القسم ${n} من ${of}`,
   addSection: "إضافة قسم",
   removeSection: "حذف هذا القسم",

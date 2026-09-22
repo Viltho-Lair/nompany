@@ -31,6 +31,7 @@ import {
   type FormDefinition, type FormSettings, type FormQuestion, type FormAction,
 } from "./formsModel";
 import { askedQuestions, askedRecord, prune, pagesForReport, fileQuestionIds } from "./formsFlow";
+import { cleanArrival, arrivalEmpty, attribute, arrivalSource, groupArrivals } from "./arrival";
 import type { Campaign, MarketingForm, FormResponse } from "./schema";
 import type { MarketingContext } from "./types";
 import type { Section } from "@/platform/db/sections";
@@ -219,10 +220,31 @@ export async function formResponses(ctx: MarketingContext, id: string) {
   // shape the summary and the CSV cannot work out for themselves (./formsFlow).
   const pages = pagesForReport(defOf(form).pages);
   const files = await fileNames(defOf(form), rows);
+  // WHICH CAMPAIGN EACH REPLY WAS CREDITED TO, by name (22/09/2026). Read only
+  // when some reply actually names one: a form nobody tagged must not cost the
+  // whole campaign register on every open.
+  const credited = new Set(rows.map((r) => String(r.campaignId || "")).filter(Boolean));
+  const campaigns = credited.size
+    ? await Campaigns.find({ studio: ctx.studio, section: ctx.campaignsSection }) : [];
+  const nameOf = new Map(campaigns.map((c) => [c.id, `${c.reference} · ${c.name}`]));
   return {
     form: { id: form.id, name: form.name },
     summary: summariseResponses(rows as never, pages as never),
-    responses: rows.map((r) => ({ id: r.id, createdAt: r.createdAt, answers: r.answers, ticketId: r.ticketId || "" })),
+    responses: rows.map((r) => ({
+      id: r.id, createdAt: r.createdAt, answers: r.answers, ticketId: r.ticketId || "",
+      source: arrivalSource(r.arrival),
+      // NAMED IF IT STILL EXISTS, and the ID KEPT either way. A campaign since
+      // deleted leaves a reply credited to something with no name — which is a
+      // fact about the history, not a row to hide.
+      campaignId: String(r.campaignId || ""),
+      campaignName: nameOf.get(String(r.campaignId || "")) || "",
+      // THE TAG THAT NAMED NOTHING, kept verbatim. A live advert pointing at a
+      // deleted or mistyped campaign loses attribution on every single click,
+      // and this is the only place in the product that can say so.
+      unmatched: r.arrival?.campaign && r.attributedBy !== "link" ? r.arrival.campaign : "",
+    })),
+    /** How many came from where, commonest first — counted, never stored. */
+    sources: groupArrivals(rows),
     // WHAT EACH UPLOAD IS CALLED, against its media id. The answer stores ids,
     // because an id is what the upload door hands back and a name a stranger
     // typed is not a handle; the screen needs both to draw a link worth
@@ -311,10 +333,32 @@ export async function submitForm(slug: string, code: string, body: Record<string
 
   const section = sections.find((s) => s.key === "marketing-forms") as Section;
   const at = now();
+
+  // WHERE THEY CAME FROM, AND WHICH CAMPAIGN GETS THE CREDIT (22/09/2026).
+  // Resolved HERE, once, and stored on the response — the tag names a campaign
+  // by its `utm_campaign`, its name as a slug or its reference, and any of
+  // those may change next month while the link that was clicked stays live.
+  // Re-deriving on every read would let the history re-attribute itself.
+  const arrival = cleanArrival(body?.arrival);
+  const campaignsSection = sections.find((s) => s.key === "marketing-campaigns");
+  // READ ONLY WHEN THERE IS SOMETHING TO RESOLVE. An untagged arrival at a form
+  // with no campaign in its settings is the commonest submission there is, and
+  // it must not cost a round trip.
+  const taggable = Boolean(campaignsSection) && (Boolean(arrival.campaign) || Boolean(settings.campaignId));
+  const campaigns = taggable
+    ? await Campaigns.find({ studio, section: campaignsSection as Section }) : [];
+  const credit = attribute(arrival, campaigns, settings.campaignId);
+
   const response = await Responses.create({ studio, section }, {
     formId: form.id,
     answers: kept,
     asked: askedRecord(asked),
+    // AN EMPTY ARRIVAL IS LEFT OFF rather than stored as six empty strings: the
+    // response then reads as "nobody recorded this", which is the truth for
+    // every submission written before today.
+    ...(arrivalEmpty(arrival) ? {} : { arrival }),
+    campaignId: credit.campaignId,
+    attributedBy: credit.basis,
     createdAt: at, updatedAt: at,
   });
 
@@ -333,7 +377,13 @@ export async function submitForm(slug: string, code: string, body: Record<string
   const action = actionFor(settings, kept);
   if (action) {
     try {
-      const ticketId = await leadFor({ studio, sections, form, settings, action, answers: kept });
+      const ticketId = await leadFor({
+        studio, sections, form, settings, action, answers: kept,
+        // THE LEAD IS CREDITED TO THE LINK THEY CLICKED, not to the form's
+        // settings. Before this, one form serving three campaigns credited
+        // every lead it raised to whichever campaign was typed into it.
+        campaign: campaigns.find((c) => c.id === credit.campaignId) || null,
+      });
       if (ticketId) await Responses.update({ studio, section }, response.id, { ticketId });
     } catch { /* the answer is stored; a lead that failed to raise is visible as a response with no ticket */ }
   }
@@ -405,8 +455,9 @@ async function consentFor(
 }
 
 async function leadFor(
-  { studio, sections, form, settings, action, answers }:
-  Omit<Found, "form"> & { form: MarketingForm; settings: FormSettings; action: FormAction; answers: Record<string, unknown> },
+  { studio, sections, form, settings, action, answers, campaign }:
+  Omit<Found, "form"> & { form: MarketingForm; settings: FormSettings; action: FormAction;
+    answers: Record<string, unknown>; campaign: Campaign | null },
 ) {
   const by = (key: string) => sections.find((s) => s.key === key) || null;
   const salesRoot = by("crm-sales");
@@ -415,9 +466,9 @@ async function leadFor(
   const clientsSection = by("crm-sales-clients") || salesRoot;
   const lead = leadFromAnswers(defOf(form), settings, answers, form.name);
   if (!lead.clientName || (!lead.contactPhone && !lead.contactEmail)) return "";
-  const campaignsSection = by("marketing-campaigns");
-  const campaign = settings.campaignId && campaignsSection
-    ? await Campaigns.byId({ studio, section: campaignsSection }, settings.campaignId) : null;
+  // THE CAMPAIGN IS HANDED IN, already resolved. It used to be read here from
+  // `settings.campaignId` alone, which is what made the tracked link's tags
+  // unreadable: the lead named the form's campaign whatever the person clicked.
   const result = await raiseLead({ studio: studio as never, ticketsSection, clientsSection }, {
     ...lead,
     campaignId: campaign?.id || "",

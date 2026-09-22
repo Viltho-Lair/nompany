@@ -1161,7 +1161,13 @@ function Responses({ slug, formId, doc, tr }) {
     return () => { current = false; };
   }, [api]);
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
-  const { summary, responses = [], files = {} } = data;
+  const { summary, responses = [], files = {}, sources = [] } = data;
+  // WHERE THEY CAME FROM, in the words of whoever is reading. The server hands
+  // back a TOKEN and a value — "direct" is not a place and cannot be a stored
+  // string, or an Arabic studio reads it in English.
+  const sourceName = (s) => (s?.token === "utm" ? s.value
+    : s?.token === "referrer" ? s.value
+    : tr.sourceDirect);
   const questions = doc.definition.pages.flatMap((p) => p.questions).filter((q) => takesAnswer(q.type));
   const show = (q, v) => {
     // A FILE ANSWER IS A LIST OF IDS, and an id is not an answer anybody can
@@ -1220,6 +1226,31 @@ function Responses({ slug, formId, doc, tr }) {
               );
             })}
           </div>
+          {/* WHICH ADVERT, POST OR SITE ACTUALLY BROUGHT THESE PEOPLE. Read
+              off the tags on the address each visitor clicked — the tags every
+              campaign has been publishing since Marketing shipped, and which
+              nothing read back until 22/09/2026. */}
+          <section className={panel}>
+            <p className="font-600 text-slate-900 dark:text-white">{tr.sourcesHeading}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{tr.sourcesHint}</p>
+            <ul className="mt-3 space-y-2">
+              {sources.map((s) => {
+                const most = Math.max(1, ...sources.map((x) => x.n));
+                return (
+                  <li key={`${s.token}:${s.value}`}>
+                    <div className="flex justify-between text-sm">
+                      <span className={s.token === "direct" ? "text-slate-500 dark:text-slate-400" : ""}>{sourceName(s)}</span>
+                      <span className="num">{s.n}</span>
+                    </div>
+                    <div className="mt-1 h-1.5 rounded-full bg-slate-100 dark:bg-white/10">
+                      <div className="h-1.5 rounded-full bg-brand-600" style={{ width: `${Math.round((s.n / most) * 100)}%` }} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
           <section className={`${panel} overflow-x-auto`}>
             <p className="mb-3 font-600 text-slate-900 dark:text-white">{tr.every}</p>
             <table className="w-full min-w-[600px] text-sm">
@@ -1227,6 +1258,8 @@ function Responses({ slug, formId, doc, tr }) {
                 <tr className="text-start text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   <th className="pb-2 pe-3 text-start">{tr.when}</th>
                   {questions.slice(0, 4).map((q) => <th key={q.id} className="pb-2 pe-3 text-start">{q.label}</th>)}
+                  <th className="pb-2 pe-3 text-start">{tr.cameFrom}</th>
+                  <th className="pb-2 pe-3 text-start">{tr.creditedTo}</th>
                   <th className="pb-2 text-start">{tr.lead}</th>
                 </tr>
               </thead>
@@ -1235,6 +1268,21 @@ function Responses({ slug, formId, doc, tr }) {
                   <tr key={r.id} className="border-t border-slate-100 dark:border-white/5">
                     <td className="py-2 pe-3 whitespace-nowrap text-slate-500 dark:text-slate-400">{fmtDateTime(r.createdAt)}</td>
                     {questions.slice(0, 4).map((q) => <td key={q.id} className="py-2 pe-3">{show(q, r.answers?.[q.id])}</td>)}
+                    <td className="py-2 pe-3 whitespace-nowrap text-slate-500 dark:text-slate-400">{sourceName(r.source)}</td>
+                    <td className="py-2 pe-3">
+                      {/* A CAMPAIGN SINCE DELETED still credited this reply, so
+                          the row says so rather than reading as unattributed. */}
+                      {r.campaignName || (r.campaignId ? tr.campaignGone : <span className="text-slate-400">—</span>)}
+                      {/* THE TAG THAT NAMED NO CAMPAIGN. A live advert with a
+                          typo in its link, or pointing at a campaign somebody
+                          deleted, loses attribution on every click — and this
+                          is the only place that can tell the studio. */}
+                      {r.unmatched && (
+                        <span className="ms-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                          {tr.unmatchedTag(r.unmatched)}
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2">
                       {r.ticketId ? <Link href={`/${slug}/crm-sales-tickets/${r.ticketId}`} className="text-brand-700 hover:underline dark:text-brand-300">→</Link> : ""}
                     </td>
