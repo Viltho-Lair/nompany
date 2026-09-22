@@ -29,12 +29,14 @@ import {
   PERIOD_KINDS, planPeriod, periodLabel, planProblem, planDeletable, planRollup, unplanned,
   type PeriodKind,
 } from "./plans";
-import { window as calendarWindow, bars, load, thisWeek, addDays } from "./calendar";
-import type { MarketingPlan } from "./schema";
+import { window as calendarWindow, bars, load, thisWeek, markers, addDays } from "./calendar";
+import type { MarketingPlan, MarketingEvent } from "./schema";
 import type { MarketingContext, Campaign } from "./types";
 
 const Campaigns = repo<Campaign>("marketingCampaigns");
 const Plans = repo<MarketingPlan>("marketingPlans");
+// EVENTS, READ ONLY — every write to one goes through its own door.
+const Events = repo<MarketingEvent>("marketingEvents");
 
 const WEEKS = 12;
 const MAX_WEEKS = 26;
@@ -59,8 +61,20 @@ export async function marketingCalendar(ctx: MarketingContext, q: Record<string,
   const weeks = Math.min(MAX_WEEKS, Math.max(1, Math.round(Number(q?.weeks) || WEEKS)));
 
   const view = calendarWindow(from, weeks);
-  const campaigns = await Campaigns.find({ studio: ctx.studio, section: ctx.campaignsSection });
+  // EVENTS ARE READ ONLY FOR SOMEBODY WHO MAY OPEN THEM (22/09/2026), and a
+  // reader who may not is not charged the round trip either — the customer-360
+  // rule, where a block the reader cannot see is never read at all. The
+  // calendar is still the calendar without them.
+  const canSeeEvents = !requirePermission(ctx.access, "marketing.events.view")
+    && Boolean(ctx.eventsSection) && ctx.on("marketing-events");
+  const [campaigns, events] = await Promise.all([
+    Campaigns.find({ studio: ctx.studio, section: ctx.campaignsSection }),
+    canSeeEvents
+      ? Events.find({ studio: ctx.studio, section: ctx.eventsSection })
+      : Promise.resolve([] as MarketingEvent[]),
+  ]);
   const { bars: shown, unscheduled } = bars(campaigns as never, view.from, view.to);
+  const onTheDay = markers(events, view.from, view.to);
 
   return {
     asOf: today,
@@ -72,7 +86,10 @@ export async function marketingCalendar(ctx: MarketingContext, q: Record<string,
       id: c.id, reference: String(c.reference || ""), name: String(c.name || ""), status: String(c.status || ""),
     })),
     load: load(shown, view.weeks),
-    week: thisWeek(shown, today),
+    events: onTheDay,
+    week: thisWeek(shown, today, 2, onTheDay),
+    /** Whether events were read at all, so an empty day is never a wrong answer. */
+    showsEvents: canSeeEvents,
     canEdit: !requirePermission(ctx.access, "marketing.campaigns.edit"),
   };
 }

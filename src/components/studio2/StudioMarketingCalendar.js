@@ -101,7 +101,11 @@ function CalendarBoard({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { bars = [], load = [], week = {}, unscheduled = [], weeks: columns = [] } = data;
+  const { bars = [], load = [], week = {}, unscheduled = [], weeks: columns = [], events = [] } = data;
+  // Grouped once rather than filtered per column: the ruler is redrawn on every
+  // shift of the window, and a filter inside the map is that work squared.
+  const eventsByWeek = new Map();
+  for (const e of events) eventsByWeek.set(e.week, [...(eventsByWeek.get(e.week) || []), e]);
   const shift = (n) => setFrom(addWeeks(data.from, n));
 
   return (
@@ -127,9 +131,26 @@ function CalendarBoard({ slug }) {
 
         {/* WHAT NEEDS A PERSON THIS WEEK, above the chart: somebody opening the
             calendar on a Monday should not have to read a timeline to find it. */}
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Summary title={tr.startingThisWeek} rows={week.starting} slug={slug} empty={tr.nothingStarting} />
           <Summary title={tr.endingThisWeek} rows={week.ending} slug={slug} empty={tr.nothingEnding} />
+          {/* ONLY WHERE EVENTS WERE READ AT ALL. A reader who may not open
+              Events is not shown an empty box implying nothing is on. */}
+          {data.showsEvents && (
+            <div className="rounded-xl bg-slate-50 p-3 dark:bg-white/5">
+              <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{tr.eventsThisWeek}</p>
+              {(week.events || []).length === 0 ? (
+                <p className="mt-1 text-xs text-slate-400">{tr.nothingOn}</p>
+              ) : (
+                week.events.map((e) => (
+                  <p key={e.id} className="mt-1 truncate text-xs text-slate-700 dark:text-slate-200">
+                    <Link href={`/${slug}/marketing-events`} className="hover:underline">{e.name}</Link>
+                    <span className="ms-1 text-slate-400">{fmtDate(e.on)}</span>
+                  </p>
+                ))
+              )}
+            </div>
+          )}
           <div className="rounded-xl bg-slate-50 p-3 dark:bg-white/5">
             <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{tr.crowded}</p>
             {(week.crowded || []).length === 0 ? (
@@ -160,12 +181,25 @@ function CalendarBoard({ slug }) {
               {/* The week ruler. Every column is a Monday, so a bar never starts
                   between two labels. */}
               <div className="flex border-b border-slate-200/70 pb-2 text-[11px] text-slate-500 dark:border-white/10 dark:text-slate-400">
-                {columns.map((day, i) => (
-                  <div key={day} className="flex-1 border-s border-slate-100 ps-1 dark:border-white/5">
-                    {fmtDate(day)}
-                    <span className="block text-slate-400">{tr.running(load[i]?.running || 0)}</span>
-                  </div>
-                ))}
+                {columns.map((day, i) => {
+                  // EVENTS SIT UNDER THE WEEK THEY FALL IN, as markers rather
+                  // than bars: a campaign OCCUPIES weeks and an event is a
+                  // point, so a day-wide bar would be an unreadable sliver and
+                  // a week-wide one would claim a week for an hour.
+                  const onThisWeek = eventsByWeek.get(day) || [];
+                  return (
+                    <div key={day} className="flex-1 border-s border-slate-100 ps-1 dark:border-white/5">
+                      {fmtDate(day)}
+                      <span className="block text-slate-400">{tr.running(load[i]?.running || 0)}</span>
+                      {onThisWeek.map((e) => (
+                        <span key={e.id} title={`${e.name} · ${fmtDate(e.on)}`}
+                          className="mt-0.5 block truncate rounded bg-violet-100 px-1 text-[10px] text-violet-800 dark:bg-violet-500/15 dark:text-violet-200">
+                          {e.name}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
 
               <ul className="mt-3 space-y-2">

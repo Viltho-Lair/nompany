@@ -21,6 +21,9 @@ type Strings = {
   nothingEnding: string;
   nothingCrowded: string;
   startingThisWeek: string;
+  /** Events on the calendar (22/09/2026). */
+  eventsThisWeek: string;
+  nothingOn: string;
   endingThisWeek: string;
   crowded: string;
   crowdedOn: (channel: string, n: number) => string;
@@ -53,6 +56,8 @@ const en: Strings = {
   nothingEnding: "Nothing ends this week",
   nothingCrowded: "Nothing overlapping",
   startingThisWeek: "Starting this week",
+  eventsThisWeek: "On this week",
+  nothingOn: "Nothing on",
   endingThisWeek: "Ending this week",
   crowded: "More than one at once",
   crowdedOn: (channel, n) => `${channel}: ${n} at the same time`,
@@ -85,6 +90,8 @@ const ar: Strings = {
   nothingEnding: "لا شيء ينتهي هذا الأسبوع",
   nothingCrowded: "لا تداخل",
   startingThisWeek: "تبدأ هذا الأسبوع",
+  eventsThisWeek: "فعاليات هذا الأسبوع",
+  nothingOn: "لا فعاليات",
   endingThisWeek: "تنتهي هذا الأسبوع",
   crowded: "أكثر من حملة في وقت واحد",
   crowdedOn: (channel, n) => `${channel}: ${n} في الوقت نفسه`,

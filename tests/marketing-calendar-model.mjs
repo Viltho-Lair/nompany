@@ -73,5 +73,39 @@ ok("no campaigns, no bars", C.bars([], w.from, w.to).bars.length === 0);
 ok("a non-array is empty", C.bars(null, w.from, w.to).unscheduled.length === 0);
 ok("a nonsense date is treated as no date", C.bars([{ id: "x", startOn: "soon" }], w.from, w.to).unscheduled.length === 1);
 
+// EVENTS ON THE CALENDAR (22/09/2026). The defects these guard: an event drawn
+// in the wrong COLUMN because the marker and the ruler worked out "which week"
+// by different arithmetic; one outside the window still drawn; and an event with
+// no start silently placed on whatever day the parser fell back to.
+console.log("\n== events, as markers rather than bars");
+const ew = C.window("2026-10-07", 4);          // Monday 05/10 → four weeks
+const evts = [
+  { id: "e1", name: "Open day", kind: "event", startsAt: "2026-10-15T18:00" },
+  { id: "e2", name: "Webinar", kind: "webinar", startsAt: "2026-10-05T09:00" },
+  { id: "e3", name: "Long past", kind: "event", startsAt: "2026-01-01T09:00" },
+  { id: "e4", name: "Far future", kind: "event", startsAt: "2027-01-01T09:00" },
+  { id: "e5", name: "No date", kind: "event", startsAt: "" },
+];
+const marks = C.markers(evts, ew.from, ew.to);
+ok("only the events inside the window", marks.map((m) => m.id).join() === "e2,e1", marks.map((m) => m.id).join());
+ok("...sorted by when", marks[0].on === "2026-10-05" && marks[1].on === "2026-10-15");
+// THE MARKER AND THE RULER MUST AGREE ABOUT WHICH WEEK A DAY IS IN, or an event
+// is drawn under the wrong column — the whole point of this join.
+ok("a marker's week is one of the ruler's own columns",
+  marks.every((m) => ew.weeks.includes(m.week)), JSON.stringify(marks.map((m) => m.week)));
+ok("Thursday the 15th belongs to the Monday the 12th column",
+  marks.find((m) => m.id === "e1").week === "2026-10-12");
+ok("a Monday belongs to its own column", marks.find((m) => m.id === "e2").week === "2026-10-05");
+ok("an event with no start is not placed at all", !marks.some((m) => m.id === "e5"));
+ok("nonsense is an empty list", C.markers(null, ew.from, ew.to).length === 0);
+
+console.log("\n== and this week's box");
+const thisWeekWithEvents = C.thisWeek([], "2026-10-12", 2, marks);
+ok("an event this week is listed", thisWeekWithEvents.events.map((e) => e.id).join() === "e1");
+ok("one in another week is not", !thisWeekWithEvents.events.some((e) => e.id === "e2"));
+// AN EVENT COMPETES WITH NO CAMPAIGN FOR A CHANNEL'S ATTENTION.
+ok("events do not enter the crowding warning", thisWeekWithEvents.crowded.length === 0);
+ok("handing no events in still works", C.thisWeek([], "2026-10-12", 2).events.length === 0);
+
 console.log(`\n${fails ? `${fails} FAILED` : "all passed"}`);
 process.exit(fails ? 1 : 0);

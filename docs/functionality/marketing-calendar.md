@@ -113,6 +113,30 @@ That asymmetry is why `planAttainment` and `planRollup` are different functions.
 
 Customers won are counted and shown even though no plan target names one.
 
+## Events on it
+
+The events a studio puts on are drawn on the same weeks the campaign bars run
+across, as **markers rather than bars** — and that is the answer this file
+waited for. A campaign OCCUPIES weeks: it is a span, and drawing it as one is
+what makes overlap visible. An event is a point — the webinar is on the
+fifteenth at six. A day-wide bar is a sliver nobody can read, and a week-wide
+one claims a week of the calendar for an hour of somebody's time.
+
+**A marker and a column cannot disagree about which week a day is in.** Both
+work it out with the same arithmetic, and the test asserts that every marker's
+week is one of the ruler's own columns — otherwise an event is drawn under the
+wrong column, which is the only way this join can be wrong and still look right.
+
+**Events are read only for somebody who may open them**
+(`marketing.events.view`), and a reader who may not is not charged the round
+trip either: the calendar is
+still the calendar without them. The screen says whether they were read at all,
+so an empty week is never mistaken for a quiet one.
+
+**An event does not enter the crowding warning.** That counts campaigns
+competing for one CHANNEL's attention, and a webinar in a room competes with
+none of them.
+
 ## Not built yet
 
 - **On the plan:** no ladder and no approval — a plan is written, not signed off, and its period
@@ -123,8 +147,8 @@ Customers won are counted and shown even though no plan target names one.
   covers, which is the obvious next thing and was left out deliberately: the bars are campaigns,
   and a second kind of bar needs its own answer about what a plan looks like when it overlaps
   another.
-- Nothing but campaigns is on it. Forms with closing dates, events and content deadlines are all
-  invisible here.
+- Forms with closing dates and content deadlines are still invisible here. Events are on it
+  (above); nothing else is.
 - No month or quarter view, and no printing or export.
 - The crowding warning counts campaigns, not sends: two campaigns that never message the same
   person on the same day still read as crowded, because nompany does not know who was messaged.

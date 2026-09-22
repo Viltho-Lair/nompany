@@ -146,6 +146,65 @@ export function load(shown: readonly Bar[], weeks: readonly string[]) {
   });
 }
 
+/** Only what an event must expose to be placed on the grid. */
+export type Dated = {
+  id?: string;
+  name?: string;
+  kind?: string;
+  /** An ISO stamp: an event starts at a time, unlike a campaign. */
+  startsAt?: string;
+};
+
+export type Marker = {
+  id: string;
+  name: string;
+  kind: string;
+  /** The day it falls on. */
+  on: string;
+  /** The Monday of the week it belongs to, so a screen can group by column. */
+  week: string;
+};
+
+/**
+ * EVENTS PLACED ON THE SAME WEEKS THE BARS RUN ACROSS (22/09/2026).
+ *
+ * A MARKER, NOT A BAR, and that is the answer this file's own "not built" note
+ * was waiting for. A campaign OCCUPIES weeks — it is a span, and drawing it as
+ * one is what makes overlap visible. An event is a point: the webinar is on the
+ * fifteenth at six. Drawing it as a bar a day wide would be a sliver nobody can
+ * read, and drawing it as a week-long bar would claim a week of the calendar
+ * for an hour of somebody's time.
+ *
+ * SORTED BY WHEN, because a week's markers are read as a running order.
+ *
+ * AN EVENT WITH NO START IS NOT ON THE CALENDAR AT ALL, the same rule the bars
+ * follow: `eventProblem` requires a start, so this only drops rows written
+ * before that rule or through some other door.
+ */
+export function markers(events: unknown, from: string, to: string): Marker[] {
+  const out: Marker[] = [];
+  // COERCED RATHER THAN TRUSTED, the rule every function in this file follows:
+  // `bars` does the same and has an assertion saying so. The type says this is
+  // an array and the type is an ASSERTION about whatever the store handed back
+  // — `t.dependencies is not iterable` white-screened the whole planner for
+  // exactly this reason, and one bad row must not take a calendar with it.
+  for (const e of (Array.isArray(events) ? events : []) as readonly Dated[]) {
+    const on = day(String(e.startsAt || "").slice(0, 10));
+    if (!on || on < from || on >= to) continue;
+    const weekday = new Date(ms(on)).getUTCDay();
+    out.push({
+      id: String(e.id || ""),
+      name: String(e.name || ""),
+      kind: String(e.kind || ""),
+      on,
+      // The Monday of its week — the same arithmetic `window` uses, so a marker
+      // and a column can never disagree about which week a day is in.
+      week: addDays(on, -((weekday + 6) % 7)),
+    });
+  }
+  return out.sort((a, b) => a.on.localeCompare(b.on) || a.name.localeCompare(b.name));
+}
+
 /**
  * WHAT A PERSON SHOULD LOOK AT THIS WEEK: campaigns starting, campaigns ending,
  * and channels carrying more than one campaign at once. `crowded` is the
@@ -153,7 +212,7 @@ export function load(shown: readonly Bar[], weeks: readonly string[]) {
  * exactly the plan, and a calendar that refused it would be wrong more often
  * than it was right.
  */
-export function thisWeek(shown: readonly Bar[], asOf: string, crowdedAt = 2) {
+export function thisWeek(shown: readonly Bar[], asOf: string, crowdedAt = 2, events: readonly Marker[] = []) {
   const start = day(asOf);
   const end = addDays(start, 6);
   const weeks = load(shown, [start]);
@@ -161,5 +220,9 @@ export function thisWeek(shown: readonly Bar[], asOf: string, crowdedAt = 2) {
     starting: shown.filter((b) => b.startOn >= start && b.startOn <= end),
     ending: shown.filter((b) => b.endOn && b.endOn >= start && b.endOn <= end),
     crowded: Object.entries(weeks[0].byChannel).filter(([, n]) => n >= crowdedAt).map(([channel, n]) => ({ channel, n })),
+    // WHAT IS ON THIS WEEK, beside what is running. An event does not enter
+    // `crowded`: that warning counts campaigns competing for one CHANNEL's
+    // attention, and a webinar in a room competes with none of them.
+    events: events.filter((e) => e.on >= start && e.on <= end),
   };
 }
