@@ -206,6 +206,10 @@ export async function priceWithPromotions(
   const entered = await resolveCoupons(ctx, input.couponCodes || [], {
     customerId: input.customerId || input.customer?.id || "",
     at: input.at,
+    // SOMEBODY IS STANDING THERE even when their row is not written yet: the
+    // till registers a new number as part of the sale. `customer` is non-null
+    // exactly when a phone was given.
+    known: Boolean(input.customer),
   });
   if (entered.problems.length) {
     return { error: "coupon" as const, code: entered.problems[0].code, reason: entered.problems[0].reason };
@@ -334,7 +338,7 @@ export async function couponByCode(ctx: PosContext, code: string): Promise<PosCo
 export async function resolveCoupons(
   ctx: PosContext,
   codes: readonly string[],
-  { customerId, at }: { customerId: string; at: string },
+  { customerId, at, known }: { customerId: string; at: string; known?: boolean },
 ): Promise<{ claims: CouponClaim[]; coupons: PosCoupon[]; problems: { code: string; reason: string }[] }> {
   const claims: CouponClaim[] = [];
   const coupons: PosCoupon[] = [];
@@ -349,6 +353,7 @@ export async function resolveCoupons(
         : null,
       at,
       customerId,
+      known ?? Boolean(customerId),
     );
     if (reason) { problems.push({ code, reason }); continue; }
     coupons.push(coupon as PosCoupon);
@@ -431,7 +436,7 @@ export async function releaseCoupons(
  */
 export async function couponLookup(
   ctx: PosContext,
-  { code, customerId }: { code: string; customerId?: string },
+  { code, customerId, known }: { code: string; customerId?: string; known?: boolean },
 ): Promise<{ claim: CouponClaim; promotionCode: string; name: string; nameAr: string } | { error: "coupon"; code: string; reason: string }> {
   const denied = requirePermission(ctx.access, "crmSales.pos.create");
   if (denied) return { error: "coupon" as const, code: "", reason: "forbidden" };
@@ -445,6 +450,7 @@ export async function couponLookup(
     coupon ? { ...coupon, redeemedByCustomer: mine ? Number(coupon.redeemedBy?.[mine] || 0) : 0 } : null,
     new Date().toISOString(),
     mine,
+    known ?? Boolean(mine),
   );
   if (reason || !coupon) return { error: "coupon" as const, code: typed, reason: reason || "unknown-coupon" };
 

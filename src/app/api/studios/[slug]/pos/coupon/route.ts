@@ -20,6 +20,10 @@ export const GET = route(
     const result = await couponLookup(pos, {
       code: params.get("code") || "",
       customerId: params.get("customerId") || "",
+      // A NUMBER THE TILL HAS TAKEN AND NOT YET REGISTERED still counts as a
+      // customer — the sale writes the client row. Without this a first-time
+      // shopper's voucher is refused at the one counter it was printed for.
+      known: params.get("known") === "1" || Boolean(params.get("customerId")),
     });
     if (refused(result)) return result;
     return { ok: true, ...result };

@@ -45,7 +45,9 @@ import {
 } from "./posReports";
 import type { PosContext } from "./types";
 import { clientSlug } from "./salesClients";
-import { priceWithPromotions, recordRedemptions, claimCoupons, livePromotions } from "./posPromotions";
+import {
+  priceWithPromotions, recordRedemptions, claimCoupons, releaseCoupons, livePromotions,
+} from "./posPromotions";
 import { promotionValidAt, daysUntilEnd, type AppliedPromotion } from "./posPromotionsModel";
 import { studioTimezone } from "@/shared/timezone";
 import { refundsByShift } from "./posReturns";
@@ -796,8 +798,17 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
   // compare-and-set on one row and nothing wider — so the order is chosen: a
   // claim nobody used is a number somebody can see and put back, while a sale
   // that redeemed a single-use coupon twice is money given away twice.
-  const claimed = offers?.coupons?.length
-    ? await claimCoupons(ctx, { coupons: offers.coupons, customerId: clientId })
+  //
+  // ONLY THE CODES WHOSE OFFER ACTUALLY APPLIED. A code resolves fine and its
+  // offer can still take nothing off — nothing in the basket matches it, a cap
+  // is spent, a higher exclusive offer closed the level — and spending a
+  // single-use voucher for nought is the one outcome a customer would notice
+  // and nobody could explain. Measured in the sandbox: a code entered against
+  // an offer that had not been activated came back redeemed.
+  const applied = new Set((offers?.priced.applied || []).map((a) => a.promotionId));
+  const spending = (offers?.coupons || []).filter((c) => applied.has(c.promotionId));
+  const claimed = spending.length
+    ? await claimCoupons(ctx, { coupons: spending, customerId: clientId })
     : { ok: true as const, couponIds: {} as Record<string, string> };
   if (!claimed.ok) return { error: claimed.error, code: claimed.code };
 
@@ -823,39 +834,49 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
   const number = await nextReference(ctx.studio.id, {
     rows: [], field: "number", ...seriesSetting("posReceipt", ctx.studio.numbering),
   });
-  const receipt = await Receipts.create(scope(ctx), {
-    number,
-    kind: "sale",
-    status: "Completed",
-    terminalId: shift.terminalId,
-    shiftId: shift.id,
-    at,
-    cashierCollaboratorId: ctx.collaborator.id,
-    ...(clientId ? { clientId } : {}),
-    currency: terms.currency,
-    vatRate: terms.vatRate,
-    taxMethod: terms.taxMethod,
-    pricesIncludeTax: terms.pricesIncludeTax,
-    lines: stored,
-    payments,
-    paid: settled.paid,
-    change: settled.change,
-    subtotal: totals.subtotal,
-    vat: totals.vat,
-    total: totals.total,
-    breakdown: totals.breakdown,
-    ...(basketPriced.discountTotal > 0 ? {
-      ...(basket ? { discount: basket, basketDiscount: basketPriced.basketDiscount } : {}),
-      discountTotal: basketPriced.discountTotal,
-    } : {}),
-    // WHAT THE SHOP'S OWN OFFERS DID, frozen here and read by nothing else
-    // afterwards: a return refunds what this receipt says, and editing the
-    // offer tomorrow moves none of it.
-    ...(offers && offers.priced.discountTotal > 0 ? {
-      promotions: offers.priced.applied,
-      promotionDiscount: offers.priced.discountTotal,
-    } : {}),
-  });
+  // AND PUT THE USES BACK IF THE WRITE ITSELF FAILS. The claim above is the
+  // only thing between here and a spent voucher for a sale that does not
+  // exist; the store gives no transaction spanning the two, so the
+  // compensation is written out rather than assumed.
+  let receipt;
+  try {
+    receipt = await Receipts.create(scope(ctx), {
+      number,
+      kind: "sale",
+      status: "Completed",
+      terminalId: shift.terminalId,
+      shiftId: shift.id,
+      at,
+      cashierCollaboratorId: ctx.collaborator.id,
+      ...(clientId ? { clientId } : {}),
+      currency: terms.currency,
+      vatRate: terms.vatRate,
+      taxMethod: terms.taxMethod,
+      pricesIncludeTax: terms.pricesIncludeTax,
+      lines: stored,
+      payments,
+      paid: settled.paid,
+      change: settled.change,
+      subtotal: totals.subtotal,
+      vat: totals.vat,
+      total: totals.total,
+      breakdown: totals.breakdown,
+      ...(basketPriced.discountTotal > 0 ? {
+        ...(basket ? { discount: basket, basketDiscount: basketPriced.basketDiscount } : {}),
+        discountTotal: basketPriced.discountTotal,
+      } : {}),
+      // WHAT THE SHOP'S OWN OFFERS DID, frozen here and read by nothing else
+      // afterwards: a return refunds what this receipt says, and editing the
+      // offer tomorrow moves none of it.
+      ...(offers && offers.priced.discountTotal > 0 ? {
+        promotions: offers.priced.applied,
+        promotionDiscount: offers.priced.discountTotal,
+      } : {}),
+    });
+  } catch (err) {
+    if (spending.length) await releaseCoupons(ctx, { coupons: spending, customerId: clientId });
+    throw err;
+  }
 
   // ONE MOVEMENT PER BATCH TAKEN, plus one for units from no batch, each at the
   // item's cost that day so what the sale cost can be read later.

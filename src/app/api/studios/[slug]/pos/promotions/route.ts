@@ -17,6 +17,9 @@ const spec = {
   auth: "studio",
   context: posContext,
   name: "pos-promotions",
+  // WITHOUT THIS `pos.body` IS EMPTY and every write refuses "name, starts" —
+  // a refusal that reads like a broken form rather than an unparsed request.
+  body: true,
   status: {
     active: 409,
     archived: 409,

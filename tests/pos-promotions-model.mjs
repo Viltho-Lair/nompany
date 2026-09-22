@@ -240,5 +240,24 @@ ok("a per-customer ceiling holds", P.couponProblem({ ...base, perCustomerLimit: 
 ok("an expired coupon says so", P.couponProblem({ ...base, expiresAt: "2026-09-01T00:00:00.000Z" }, NOW, "c1") === "expired");
 ok("an unknown code is not a coupon", P.couponProblem(null, NOW, "c1") === "unknown-coupon");
 
+// A CUSTOMER WHO DOES NOT EXIST YET (22/09/2026). The till registers a new
+// phone number as part of the sale and writes the client row LAST, so at the
+// moment a coupon is judged there is a person at the counter and no id for
+// them. Reading that absence as "no customer" refused every first-time
+// shopper's voucher — which is the shopper a voucher campaign is aimed at.
+// Found by ringing one up in the sandbox.
+console.log("\n== a coupon for somebody who is not a client yet");
+const fresh = { status: "live", redeemed: 0 };
+ok("a public code is refused with nobody at the counter",
+  P.couponProblem(fresh, NOW, "") === "needs-customer");
+ok("…and admitted for a customer the sale is about to create",
+  P.couponProblem(fresh, NOW, "", true) === "");
+ok("a PERSONAL code is still refused — it names a client this is not",
+  P.couponProblem({ ...fresh, customerId: "c1" }, NOW, "", true) === "not-yours");
+ok("a spent single-use code is still refused",
+  P.couponProblem({ ...fresh, singleUse: true, redeemed: 1 }, NOW, "", true) === "already-used");
+ok("a per-customer limit cannot bite somebody with no history",
+  P.couponProblem({ ...fresh, perCustomerLimit: 1, redeemedByCustomer: 0 }, NOW, "", true) === "");
+
 console.log(fails ? `\npos promotions model: ${fails} FAILURES\n` : "\npos promotions model: all passed\n");
 process.exitCode = fails ? 1 : 0;

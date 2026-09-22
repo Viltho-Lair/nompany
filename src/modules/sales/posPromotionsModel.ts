@@ -856,13 +856,24 @@ export function couponProblem(
   coupon: CouponLike | null | undefined,
   at: string,
   customerId: string,
+  // A CUSTOMER WHO DOES NOT EXIST YET IS STILL A CUSTOMER (22/09/2026). The
+  // till registers a new phone number as part of the sale, and the client row
+  // is written last — after every check — so at the moment a coupon is judged
+  // there is a person at the counter and no id for them. Passing their
+  // ABSENCE as "no customer" refused every first-time shopper's voucher,
+  // which is exactly the shopper a voucher campaign is aimed at.
+  //
+  // It is safe: a PERSONAL code names an existing client, so it can never be
+  // theirs and is refused below on the same line as before; and a per-customer
+  // limit cannot have been reached by somebody with no history.
+  known = Boolean(customerId),
 ): string {
   if (!coupon) return "unknown-coupon";
   if (coupon.status === "void") return "void";
   if (coupon.expiresAt && new Date(coupon.expiresAt).getTime() <= new Date(at).getTime()) return "expired";
   // EVERY COUPON NEEDS A CUSTOMER, public ones included: without one a
   // per-customer limit is unenforceable and a personal code is unverifiable.
-  if (!customerId) return "needs-customer";
+  if (!known) return "needs-customer";
   if (coupon.customerId && coupon.customerId !== customerId) return "not-yours";
   if (coupon.singleUse && num(coupon.redeemed) >= 1) return "already-used";
   if (coupon.maxRedemptions != null && num(coupon.redeemed) >= num(coupon.maxRedemptions)) return "used-up";

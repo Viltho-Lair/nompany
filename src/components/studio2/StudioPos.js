@@ -255,7 +255,7 @@ export default function StudioPos({ slug }) {
     if (!typed || coupons.some((c) => c.claim.code === typed)) return "";
     const customerId = shopper?.id || "";
     const res = await fetch(
-      `/api/studios/${slug}/pos/coupon?code=${encodeURIComponent(typed)}&customerId=${encodeURIComponent(customerId)}`,
+      `/api/studios/${slug}/pos/coupon?code=${encodeURIComponent(typed)}&customerId=${encodeURIComponent(customerId)}&known=1`,
       { cache: "no-store" },
     );
     const out = await res.json().catch(() => ({}));
