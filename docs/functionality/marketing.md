@@ -126,8 +126,11 @@ The other twelve subsections of the plan, and everything the dashboard's plan ne
 - **Email**, **Messaging** (SMS, WhatsApp, push), **Social Media**, **Paid Ads**: nothing is sent,
   posted or imported. The owner, 2026-09-19: companies use their own email and SMS
   tools for now, and nompany does not resell messaging or ad credits (both ledger rows, for later).
-- **Web, Forms & Landing Pages**: forms are built (`forms.md`). Not built: landing pages, visitor
-  tracking with a consent banner, reading the UTM tags back when a visitor arrives.
+- **Web, Forms & Landing Pages**: forms are built (`forms.md`), and **reading the UTM tags back
+  when a visitor arrives** shipped 2026-09-22 — a reply records the tags and the referring host,
+  and the campaign on the LINK beats the one typed into the form's settings. Not built: landing
+  pages, visitor tracking with a consent banner, and any first-touch or multi-touch attribution
+  (nothing carries a visitor from the studio's own site to the form).
 - **Leads & Scoring**: leads are Sales tickets (the owner, 2026-09-19), campaigns send them, and
   **scoring is built** (2026-09-22, `leads.md`): seven declared factors, a band, and the reasons
   on the chip. **The order the owner agreed for the rest, 2026-09-22** — worth more at the top

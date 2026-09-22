@@ -174,8 +174,62 @@ records nothing.
 opens or closes it. **A form with responses cannot be deleted**: close it instead. The winner-of-work
 shape holds it at full, and existing roles that work campaigns catch up to it verb for verb.
 
+## Where the person came from
+
+Every campaign publishes tagged links — `taggedLink` puts the five UTM tags on
+the landing address — and until 2026-09-22 **nothing read one back**. A visitor
+arrived at `/f/<slug>/<code>?utm_source=newsletter&utm_campaign=spring-sale`,
+the form threw the whole query away, and the lead was credited to whichever
+campaign somebody had typed into that form's settings. So one form serving three
+campaigns credited every lead it raised to one of them, and lead scoring's
+campaign factor, the leads-per-campaign on the register and cost-per-lead in
+Budget & spend all rested on a hand-typed field rather than on the link that was
+actually clicked.
+
+**A submission now records how it arrived**: the five tags, and the HOST of the
+site that sent them. The host alone, reduced at the boundary — a full referring
+URL is somebody else's page address and frequently carries their own query
+string, and "which site sent them" is answered completely by the host.
+
+**The link beats the form's settings.** `utm_campaign` is matched against the
+studio's own campaigns the same three ways `taggedLink` may have written it: the
+campaign's own typed tag, its name as a slug, then its reference — read back
+through the same `utmSlug` that writes it, so the two halves cannot drift. The
+settings field is still the fallback and still the right one: somebody arriving
+from a bookmark, a printed QR code or an untagged link came from the campaign the
+form was built for.
+
+**A tag that names nothing is REPORTED, not swallowed.** A live advert with a
+typo in its link, or one pointing at a campaign somebody has since deleted, loses
+attribution on every click — and the Responses tab is the only place in the
+product that can say so. It is shown even when the form's settings supplied a
+campaign anyway, which is why the basis is stored on the reply rather than worked
+out on read: a credited campaign plus an unmatched tag is otherwise
+indistinguishable from an ordinary untagged fallback.
+
+**"Direct" is not a place.** It is what is left when nobody can tell, covering a
+typed address, a bookmark, a QR code and every browser that withholds a referrer
+alike. It is a token, so an Arabic studio reads it in Arabic.
+
+**A forged tag can only ever name a campaign that studio already has**, because
+the tag is resolved by looking its campaigns up rather than by being believed —
+containment by construction. What that cannot prevent is somebody crediting
+their own submission to the wrong campaign of that studio's, and no
+URL-parameter scheme can.
+
+**Nothing is backfilled.** A reply written before this carries no arrival and no
+credited campaign, and the screen shows a dash rather than inventing one.
+
 ## Not built yet
 
+- **On the arrival:** the tags are read on the FORM only. A visitor who lands on
+  the studio's own website first, then reaches the form, arrives with no tags —
+  there is no visitor tracking and no consent banner, so nothing carries them
+  across. First-touch and multi-touch attribution need that; what exists is
+  last-touch on the form itself.
+- **Nothing reads the arrival but the Responses tab.** It is not on the campaign
+  register, not in Budget & spend and not in Customer insights, and the studio
+  cannot filter or export by it.
 - Signature, picture choice and ranking questions (the questionnaire has them; the public page does
   not draw them).
 - **Uploaded files are not encrypted at rest.** Answers are (invariant 18); the bytes behind a
