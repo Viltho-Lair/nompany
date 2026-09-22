@@ -41,23 +41,27 @@ const Expenses = repo<Expense>("expenses");
  * this right decides is who may SEE what the company spends on its marketing —
  * the same split as `tendering.rates` and `projects.costs`.
  */
-export async function marketingBudget(ctx: MarketingContext) {
-  const denied = requirePermission(ctx.access, "marketing.budget.view");
-  if (denied) return denied;
-
+/**
+ * EVERY COST THAT NAMES A CAMPAIGN, IN THE STUDIO'S OWN MONEY.
+ *
+ * ITS OWN FUNCTION BECAUSE TWO SCREENS ASK IT (22/09/2026): Budget & spend by
+ * campaign, and Planning's plan for a period by the campaigns it holds. Copying
+ * the currency handling into the second one would be two answers to "what did
+ * this cost", free to disagree the first time a rate rule changed — the same
+ * argument that keeps the spend arithmetic itself in one pure file.
+ */
+export async function campaignCosts(ctx: MarketingContext) {
   const { studio } = ctx;
   const base = String(studio.currency || "").toUpperCase();
-  // A SWITCHED-OFF PART IS NOT READ, and the screen is told which sources
+  // A SWITCHED-OFF PART IS NOT READ, and the caller is told which sources
   // answered — "no spend" and "nothing was read" are different sentences.
-  const reads = { finance: Boolean(ctx.payablesSection) && ctx.on("finance-payables") };
+  const sources = { finance: Boolean(ctx.payablesSection) && ctx.on("finance-payables") };
 
-  const [campaigns, bills, expenses, results] = await Promise.all([
-    Campaigns.find({ studio, section: ctx.campaignsSection }),
-    reads.finance ? Bills.find({ studio, section: ctx.payablesSection! }) : Promise.resolve([] as Bill[]),
-    reads.finance && ctx.cashSection
+  const [bills, expenses] = await Promise.all([
+    sources.finance ? Bills.find({ studio, section: ctx.payablesSection! }) : Promise.resolve([] as Bill[]),
+    sources.finance && ctx.cashSection
       ? Expenses.find({ studio, section: ctx.cashSection })
       : Promise.resolve([] as Expense[]),
-    campaignResultsFor(ctx),
   ]);
 
   // ONLY WHAT NAMES A CAMPAIGN is converted or counted — a studio's whole
@@ -88,6 +92,20 @@ export async function marketingBudget(ctx: MarketingContext) {
   // AN EXPENSE IS IN THE STUDIO'S OWN MONEY — it carries no currency of its own
   // (schema.ts), so there is nothing to convert and nothing to get wrong.
   for (const e of claimed) spend.push({ campaignId: e.campaignId, amount: Number(e.amount) || 0, kind: "expense" });
+
+  return { base, sources, spend, unconverted };
+}
+
+export async function marketingBudget(ctx: MarketingContext) {
+  const denied = requirePermission(ctx.access, "marketing.budget.view");
+  if (denied) return denied;
+
+  const [campaigns, results, costs] = await Promise.all([
+    Campaigns.find({ studio: ctx.studio, section: ctx.campaignsSection }),
+    campaignResultsFor(ctx),
+    campaignCosts(ctx),
+  ]);
+  const { base, sources: reads, spend, unconverted } = costs;
 
   // A DRAFT AND A CANCELLED BILL ARE NOT SPEND, filtered above on the same list
   // `projectCosting` uses and for its reason: a draft was raised against nobody

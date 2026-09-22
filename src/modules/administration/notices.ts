@@ -92,6 +92,12 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     ar: { title: "أسند إليكم عميل محتمل", body: "{reference} · {title}" },
   },
   {
+    type: "plan.assigned",
+    fields: ["name"],
+    en: { title: "You own a marketing plan", body: "{name}" },
+    ar: { title: "خطة تسويق مسندة إليكم", body: "{name}" },
+  },
+  {
     type: "campaign.assigned",
     fields: ["reference", "name"],
     en: { title: "You own a campaign", body: "{reference} · {name}" },

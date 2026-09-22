@@ -36,13 +36,14 @@ import { raiseLead, quotedTotalFor, ticketValue } from "@/modules/sales/sales";
 import { isWon } from "@/modules/sales/pipeline";
 import type { SalesTicket } from "@/modules/sales/schema";
 import type { Quotation } from "@/modules/technical/types";
-import type { Campaign } from "./schema";
+import type { Campaign, MarketingPlan } from "./schema";
 import type { MarketingContext } from "./types";
 
 const Campaigns = repo<Campaign>("marketingCampaigns");
 // SALES', READ ONLY here — every write to a ticket goes through Sales' own door.
 const Tickets = repo<SalesTicket>("salesTickets");
 const QuotationRows = repo<Quotation>("quotations");
+const Plans = repo<MarketingPlan>("marketingPlans");
 
 export const marketingContext = moduleContext<MarketingContext>({
   root: "marketing",
@@ -138,6 +139,11 @@ function campaignFields(body: Record<string, unknown>, currency: unknown, canAss
   // in one sitting, not four independently versioned fields.
   if (has("brief")) out.brief = { ...cleanBrief(body.brief), updatedAt: now(), updatedByCollaboratorId: byId };
   if (has("parentId")) out.parentId = str(body.parentId, 60);
+  // WHICH PLAN IT BELONGS TO (22/09/2026), checked against the plans that exist
+  // in `shapeProblem`. Filing a campaign under a plan is editing the CAMPAIGN,
+  // so it rides on this right rather than on `marketing.planning.edit`: whoever
+  // owns the work decides which period it is being done for.
+  if (has("planId")) out.planId = str(body.planId, 60);
   if (has("startOn")) out.startOn = day(body.startOn);
   if (has("endOn")) out.endOn = day(body.endOn);
   if (has("ownerCollaboratorId")) out.ownerCollaboratorId = str(body.ownerCollaboratorId, 60);
@@ -165,6 +171,12 @@ async function shapeProblem(ctx: MarketingContext, next: Partial<Campaign> & { i
   const problem = campaignProblem(next, rows);
   if (problem) return problem;
   if (next.landingUrl && landingUrlProblem(next.landingUrl)) return "landing-url";
+  // THE PLAN MUST EXIST. Validated at the write, unlike a bill's `campaignId`,
+  // which the reader attributes — both ends are Marketing's own here, and the
+  // plan refuses to be deleted while a campaign names it, so the link can never
+  // dangle from either side. Read only when one was named: a campaign filed
+  // under no plan is the ordinary case and must not cost a round trip.
+  if (next.planId && !(await Plans.byId({ studio: ctx.studio, section: ctx.planningSection }, next.planId))) return "plan";
   // THE OWNER MUST BE ONE OF THIS STUDIO'S PEOPLE — an id from anywhere else
   // would notify nobody and read as an owner nobody can find.
   if (next.ownerCollaboratorId && !(await people(ctx)).some((p) => p.id === next.ownerCollaboratorId)) return "owner";
@@ -195,14 +207,24 @@ async function announceOwner(ctx: MarketingContext, c: Campaign, before: string)
 export async function listCampaigns(ctx: MarketingContext) {
   const denied = requirePermission(ctx.access, "marketing.campaigns.view");
   if (denied) return denied;
-  const [rows, team, got] = await Promise.all([Campaigns.find(scope(ctx)), people(ctx), campaignResultsFor(ctx)]);
+  const [rows, team, got, plans] = await Promise.all([
+    Campaigns.find(scope(ctx)), people(ctx), campaignResultsFor(ctx),
+    // THE PLANS A CAMPAIGN MAY BE FILED UNDER (22/09/2026). Read here rather
+    // than fetched by the screen from the plans route, which would make the
+    // picker answer to `marketing.planning.view` — filing is an edit of the
+    // CAMPAIGN, and a studio where the campaign manager cannot see the list of
+    // periods would have a field it could never fill.
+    Plans.find({ studio: ctx.studio, section: ctx.planningSection }),
+  ]);
   const aliasOf = new Map(team.map((p) => [p.id, p.alias || ""]));
   const asOf = today();
   const nameOf = new Map(rows.map((c) => [c.id, `${c.reference} · ${c.name}`]));
+  const planOf = new Map(plans.map((p) => [p.id, p.name]));
 
   const campaigns = rows.map((c) => ({
     ...c,
     parentName: c.parentId ? nameOf.get(c.parentId) || "" : "",
+    planName: c.planId ? planOf.get(c.planId) || "" : "",
     children: rows.filter((x) => x.parentId === c.id).length,
     split: budgetSplit(c, rows),
     link: c.landingUrl ? taggedLink(c.landingUrl, utmOf(c)) : "",
@@ -226,6 +248,9 @@ export async function listCampaigns(ctx: MarketingContext) {
     campaigns, asOf,
     currency: String(ctx.studio.currency || ""),
     people: team,
+    plans: plans
+      .map((p) => ({ id: p.id, name: p.name, startOn: p.startOn, endOn: p.endOn }))
+      .sort((a, b) => (b.startOn || "").localeCompare(a.startOn || "")),
     canCreate: may(ctx, "marketing.campaigns.create"),
     canEdit: may(ctx, "marketing.campaigns.edit"),
     canDelete: may(ctx, "marketing.campaigns.delete"),

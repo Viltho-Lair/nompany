@@ -806,7 +806,11 @@ of `a2044ff`, one commit later, because that commit added a golden; then 365 and
 after that. A number nobody re-measures decays silently, and nothing fails when prose
 disagrees with a test. **Treat every figure in this file as a measurement with a date,
 not as a fact, and re-measure at the commit you are writing rather than the one you were
-reading.** `ALL_PERMISSIONS.length` is **252 over 86 areas, measured 21/09/2026**, after Marketing's
+reading.** `ALL_PERMISSIONS.length` is **258 over 88 areas, measured 22/09/2026**, after
+`marketing.planning` gained create/edit/delete with plans by period. **Three of the six are that
+area's; the other three and BOTH new areas came from work between the two measurements, and this
+line does not guess which** — that is the prose this paragraph warns about. It read **252 over 86
+on 21/09/2026**, after Marketing's
 Budget & spend (`marketing.budget`, view alone) arrived. **The count FELL by fifteen while an
 area was ADDED**, and this line does not say why, because the two days between the measurements
 hold several sessions' work and guessing which one dropped the keys would be exactly the kind of

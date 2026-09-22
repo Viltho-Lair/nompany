@@ -19,6 +19,8 @@ import { panel, h2, sub, btnGhost, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { marketingCalendarDict } from "@/shared/studio/marketingCalendar";
 import { marketingDeptDict } from "@/shared/studio/marketingDept";
+import { marketingPlansDict } from "@/shared/studio/marketingPlans";
+import StudioMarketingPlans from "@/components/studio2/StudioMarketingPlans";
 
 const SPANS = ["4", "8", "12", "26"];
 
@@ -33,7 +35,46 @@ const STATUS_TONE = {
   Completed: "bg-slate-300 dark:bg-white/20",
 };
 
-export default function StudioMarketingCalendar({ slug }) {
+/**
+ * THE SECTION'S TWO HALVES (22/09/2026). The calendar reads campaigns and
+ * writes nothing; the plan above them is this section's own record. One screen
+ * with a tab strip rather than two nav rows, because a plan and the weeks it
+ * covers are one question asked twice and a second sidebar entry would hold no
+ * separately grantable right (invariant 16) — both answer to
+ * `marketing.planning`.
+ *
+ * THE UNCHOSEN TAB IS NOT MOUNTED, so opening the calendar costs no read of
+ * the plans and vice versa. Each half fetches its own.
+ */
+export default function StudioMarketingPlanning({ slug }) {
+  const locale = useStudioLocale();
+  const tr = marketingPlansDict(locale);
+  const [tab, setTab] = useState("calendar");
+  return (
+    <div className="space-y-4">
+      <div role="tablist" aria-label={tr.title} className="flex gap-2 border-b border-slate-200 dark:border-white/10">
+        {[["calendar", tr.tabCalendar], ["plans", tr.tabPlans]].map(([key, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`-mb-px border-b-2 px-4 py-2 font-display text-sm font-600 transition-colors ${
+              tab === key
+                ? "border-brand-600 text-slate-900 dark:text-white"
+                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === "plans" ? <StudioMarketingPlans slug={slug} /> : <CalendarBoard slug={slug} />}
+    </div>
+  );
+}
+
+function CalendarBoard({ slug }) {
   const locale = useStudioLocale();
   const tr = marketingCalendarDict(locale);
   const dept = marketingDeptDict(locale);

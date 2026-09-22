@@ -240,8 +240,8 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
       ["marketing.budget", "view"],
       // …and who the studio may contact (21/09/2026).
       ["marketing.audiences", "edit"],
-      // …and what runs when (22/09/2026).
-      ["marketing.planning", "view"],
+      // …and what runs when, and the plan for the period (22/09/2026).
+      ["marketing.planning", "full"],
       // …and builds the forms that bring leads in (19/09/2026).
       ["marketing.forms", "full"],
       ["engineeringDocs.rfq", "edit"],

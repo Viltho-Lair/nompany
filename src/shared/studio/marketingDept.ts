@@ -24,6 +24,10 @@ type Strings = {
   filterAll: string;
   name: string;
   description: string;
+  /** The plan for a period this campaign belongs to (22/09/2026). */
+  plan: string;
+  noPlan: string;
+  inPlan: (name: string) => string;
   /** The brief (22/09/2026): four questions rather than one empty box. */
   briefHeading: string;
   briefHint: string;
@@ -160,6 +164,9 @@ const en: Strings = {
   filterAll: "All",
   name: "Name",
   description: "Description",
+  plan: "Plan",
+  noPlan: "No plan",
+  inPlan: (name) => "Part of " + name,
   briefHeading: "The brief",
   briefHint: "Four questions, so the campaign can be judged afterwards on what it set out to do.",
   briefAudience: "Who is it for?",
@@ -291,6 +298,9 @@ const ar: Strings = {
   filterAll: "الكل",
   name: "الاسم",
   description: "الوصف",
+  plan: "الخطة",
+  noPlan: "بلا خطة",
+  inPlan: (name) => "ضمن " + name,
   briefHeading: "موجز الحملة",
   briefHint: "أربعة أسئلة، ليُحكم على الحملة لاحقاً بما قصدته.",
   briefAudience: "لمن هي موجّهة؟",

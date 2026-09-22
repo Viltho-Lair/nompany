@@ -180,6 +180,18 @@ export const SECTION_BY_ROUTE: Record<string, string> = {
   "marketing/dashboard": "marketing",
   "marketing/campaigns": "marketing-campaigns",
   "marketing/forms": "marketing-forms",
+  // THREE OF THESE SHIPPED WITHOUT A ROW AND NOTHING NOTICED UNTIL 22/09/2026,
+  // because this table's own guard (tests/section-routes-model) was red and
+  // was being read as a known failure. An unlisted address is not refused when
+  // its department is switched off — so a studio that had turned Marketing's
+  // audiences, spend or calendar off could still read all three through the
+  // API while the sidebar showed nothing. NAME THE SWITCH, NOT THE STORAGE:
+  // marketing-budget owns no collection and marketing-planning owns only its
+  // plans, and both still name the part a studio switched off.
+  "marketing/audiences": "marketing-audiences",
+  "marketing/budget": "marketing-budget",
+  "marketing/calendar": "marketing-planning",
+  "marketing/plans": "marketing-planning",
   "reports/builder": "reports",
   "reports/executive": "reports",
   "reports/export": "reports",

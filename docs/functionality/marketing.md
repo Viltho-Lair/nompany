@@ -1,7 +1,7 @@
 # Marketing
 
 The eighteenth department (2026-09-19), from the owner's *Marketing Section — ERP Requirements
-& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Five of the
+& Implementation Plan*: seventeen subsections behind one dashboard, in six phases. **Six of the
 seventeen are built: Campaigns**, because the plan makes the campaign the parent of everything
 else, **Forms** (2026-09-19, `docs/functionality/forms.md`), **Budget & spend** (2026-09-21,
 `docs/functionality/marketing-budget.md`) **and Audiences & consent** (2026-09-22,
@@ -26,7 +26,7 @@ the public site's price list and is not part of the department.
 | `marketing.campaigns.assign` | Choosing who owns a campaign (2026-09-19). Without it the owner is whoever raised the campaign. |
 | `marketing.budget.view` | Budget & spend (2026-09-21). View alone: setting a budget is editing the campaign, and filing a cost is editing the bill. |
 | `marketing.audiences.view/edit` | The consent ledger (2026-09-22). Edit adds an entry; nothing can be changed or removed, because the ledger is append-only. |
-| `marketing.planning.view` | The calendar (2026-09-22). View alone: moving a campaign in time is editing that campaign. |
+| `marketing.planning.view/create/edit/delete` | The calendar and the plans (2026-09-22). The CALENDAR is view alone — moving a campaign in time is editing that campaign — and the other three verbs write the plan for a period, which is this section's own record. Filing a campaign under a plan answers to `marketing.campaigns.edit`. |
 
 The **winner-of-work** shape (Sales Manager, Marketing Manager, Digital Marketing Specialist and
 every other marketing title in the role library) holds both, the campaigns at full, and the assign
@@ -111,9 +111,10 @@ actually knows. Until then it keeps saying, in words, that its figures are a pla
 The other twelve subsections of the plan, and everything the dashboard's plan needs from them:
 
 - **Planning & Calendar** is part-built (`marketing-calendar.md`): the calendar across channels,
-  with what starts, what ends and what collides, and the brief per campaign (four questions, in
-  this file). Not built there: plans by period — a plan with its own objectives and budget, above
-  the campaigns that spend it.
+  with what starts, what ends and what collides; the brief per campaign (four questions, in this
+  file); and **plans by period** — a month or a quarter with its own objectives and budget, which
+  its campaigns are filed under by name. Not built there: the plan's targets are stored and
+  nothing measures against them, and a plan is not drawn on the calendar.
 - **Budget & Spend** is built (`marketing-budget.md`): a bill and an expense name their campaign,
   and the screen reads them against the budget. Not built there: **committed** spend (a purchase
   order cannot name a campaign), spend over time, and alerts to anybody.

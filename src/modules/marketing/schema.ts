@@ -28,6 +28,18 @@ export const CampaignSchema = z.object({
   channels: z.array(z.string()),
   /** A top-level campaign's id, or "" — one level deep (`campaignProblem`). */
   parentId: z.string().max(60),
+  /**
+   * THE PLAN THIS CAMPAIGN BELONGS TO (22/09/2026), or "".
+   *
+   * NAMED, NEVER INFERRED FROM THE DATES. A campaign running from the 20th of
+   * March to the 10th of April falls inside two quarters, so a plan that
+   * claimed every campaign in its window would count that budget twice and
+   * neither quarter's total would be the truth. VALIDATED at the write (unlike
+   * a bill's `campaignId`, which the reader attributes) because both ends are
+   * Marketing's own: deleting a plan is refused while a campaign names it, so
+   * the link cannot be left dangling.
+   */
+  planId: z.string().max(60).optional(),
   startOn: z.string(),
   endOn: z.string(),
   /** Whose campaign it is: a CollaboratorID, or "" (invariant 6). */
@@ -83,6 +95,42 @@ export const CampaignSchema = z.object({
   updatedAt: z.string(),
 });
 export type Campaign = z.infer<typeof CampaignSchema>;
+
+/**
+ * A PLAN FOR A PERIOD (22/09/2026, ./plans). Filed under `marketing-planning`,
+ * the section that until now owned nothing — the calendar reads campaigns, and
+ * a plan is the first thing Planning stores in its own right.
+ *
+ * NO REFERENCE. A plan is named by its period ("Q1 2027") and there is never a
+ * second one for the same period to tell it apart from; a numbering series
+ * would be a counter nobody quotes and an invariant-10 obligation for nothing.
+ *
+ * NO LADDER EITHER. A campaign has a ladder because it RUNS; a plan's period
+ * either has passed or has not, which its dates already say. A status would be
+ * a second answer to that, free to disagree with the calendar.
+ */
+export const MarketingPlanSchema = z.object({
+  id: z.string(),
+  studioId: z.string(),
+  sectionId: z.string(),
+  name: z.string().max(200),
+  /** A PERIOD_KINDS token — how the dates were chosen, kept so the screen can say it. */
+  periodKind: z.string().max(20),
+  startOn: z.string(),
+  endOn: z.string(),
+  /** What the period is FOR, in words. The one field a spreadsheet of budgets never has. */
+  objectives: z.string().max(4000),
+  /** The envelope. Null is "nobody has set one", which is not an envelope of nought. */
+  budget: z.number().nullable(),
+  expectedLeads: z.number().nullable(),
+  expectedRevenue: z.number().nullable(),
+  /** Whose plan it is: a CollaboratorID, or "" (invariant 6). */
+  ownerCollaboratorId: z.string().max(60),
+  createdByCollaboratorId: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type MarketingPlan = z.infer<typeof MarketingPlanSchema>;
 
 /**
  * A FORM THE STUDIO BUILDS AND THE PUBLIC ANSWERS (19/09/2026, ./formsModel).

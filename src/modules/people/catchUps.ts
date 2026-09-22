@@ -204,6 +204,19 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     verbs: ["view", "export", "act"],
   },
   {
+    id: "marketing-plans-2026-09-22",
+    // Plans arrived hours after the calendar (22/09/2026) and gave the section
+    // its first collection. WRITING a plan is widened verb for verb from the
+    // campaigns it governs: whoever may create a campaign may create the plan
+    // above it, and a role that may only read campaigns gains nothing here.
+    // A SECOND ENTRY rather than an edit of the one below, whose id is already
+    // stamped on every role it has answered for.
+    note: "Whoever works the campaigns writes the plan above them",
+    from: "marketing.campaigns",
+    to: ["marketing.planning"],
+    verbs: ["create", "edit", "delete"],
+  },
+  {
     id: "marketing-planning-2026-09-22",
     // The calendar arrived (22/09/2026). It shows the campaigns and nothing
     // else, so whoever may read the register may read it laid out in time.

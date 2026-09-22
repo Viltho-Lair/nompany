@@ -49,12 +49,64 @@ is editing that campaign and answers to `marketing.campaigns.edit`. What this ri
 may see the whole schedule at once. The winner-of-work shape holds it, and **whoever may view the
 campaigns catches up to it** — the calendar shows them and nothing else.
 
+## The plan for a period
+
+A second tab on the same screen, and the first thing this section STORES
+(`marketingPlans`). A plan is a name, a period, what the period is for, an
+envelope and two targets: it is the unit above the campaign, which until now was
+the largest thing Marketing had.
+
+**The period is whole, and it is resolved on the server.** Choose Month, Quarter,
+Half year or Year and give any day inside it; the plan is stored with concrete
+dates covering the whole of it, so two plans called Q1 cannot disagree about when
+Q1 starts. **Custom** takes the two dates as typed, for the season that is not a
+calendar period.
+
+**A campaign NAMES its plan; nothing is inferred from dates.** A campaign running
+from the 20th of March to the 10th of April falls inside two quarters, so a plan
+that claimed every campaign in its window would count that budget twice and
+neither quarter's total would be the truth. The link is set on the CAMPAIGN
+(`marketing.campaigns.edit`) — in the register's form, or with one click from the
+plan — because filing work under a period is a decision about the work.
+
+**What the explicit link costs is paid back in the open.** Every plan lists the
+live campaigns running inside its dates that belong to NO plan, by name, with a
+button to file each one. A plan reading "60,000 handed out" beside four campaigns
+nobody filed is a figure that is true and misleading at once. Cancelled campaigns
+are left out — they are not running, and nagging about filing them would be work
+for nothing.
+
+**The four figures, and what each one is.** *Budget* is the envelope. *Handed to
+campaigns* is what its campaigns are allowed between them, with a sub-campaign
+counted INSIDE its parent and never twice. *Not yet allocated* is the difference.
+*Spent* is Finance's own figure — the bills and expenses naming those campaigns,
+read through Budget & spend's own reader rather than a second copy of the currency
+handling — and *Remaining* is the budget less that. **No budget is its own
+sentence**, never a row of noughts: a plan nobody has budgeted and a plan budgeted
+at nothing are different answers, so every figure derived from one is null.
+
+**Deleting is refused while a campaign names it.** The link is validated when it
+is written, so a plan removed out from under its campaigns would leave them
+pointing at nothing, and no reader could tell that from a typo. Unfiling the
+campaigns is a decision somebody makes on purpose.
+
+**Rights.** `marketing.planning` gained create/edit/delete when the section
+stopped owning nothing; the calendar half is still view alone. Whoever may
+create, edit or delete a CAMPAIGN catches up to the same verb here, verb for
+verb — the plan is the envelope above the work they already run — and a role that
+may only read campaigns gains nothing. The plan's owner is told by notification.
+
 ## Not built yet
 
-- **Plans by period**, the remaining part of the plan's "Planning & Calendar": a plan for a month
-  or a quarter with its own objectives and budget, above the campaigns that spend it. The brief
-  per campaign is built and lives on the campaign (`marketing.md`); the calendar and the brief
-  are the two parts of this subsection that exist.
+- **On the plan:** no ladder and no approval — a plan is written, not signed off, and its period
+  either has passed or has not. No rollover of what a period did not spend, no comparison of one
+  period with the last, and no plan for a channel or a market inside a period. Its two targets
+  (leads, revenue) are STORED and nothing measures against them yet; the campaigns' own results
+  are on the register and the dashboard.
+- **Plans do not appear on the calendar.** A quarter is not drawn as a band behind the weeks it
+  covers, which is the obvious next thing and was left out deliberately: the bars are campaigns,
+  and a second kind of bar needs its own answer about what a plan looks like when it overlaps
+  another.
 - Nothing but campaigns is on it. Forms with closing dates, events and content deadlines are all
   invisible here.
 - No month or quarter view, and no printing or export.

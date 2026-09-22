@@ -75,7 +75,7 @@ export default function StudioCampaigns({ slug }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { campaigns = [], people = [], currency = "", canCreate, canEdit, canDelete, canAssign, canSendLeads } = data;
+  const { campaigns = [], people = [], plans = [], currency = "", canCreate, canEdit, canDelete, canAssign, canSendLeads } = data;
   const cur = (n) => `${money(n || 0, currency)}${currency ? ` ${currency}` : ""}`;
   const shown = filter === "all" ? campaigns
     : campaigns.filter((c) => (filter === "open" ? !isFinal(c.status) : isFinal(c.status)));
@@ -90,12 +90,14 @@ export default function StudioCampaigns({ slug }) {
     expectedRevenue: blank(c.expectedRevenue), landingUrl: c.landingUrl, utmSource: c.utmSource, utmMedium: c.utmMedium,
     utmCampaign: c.utmCampaign, utmContent: c.utmContent, utmTerm: c.utmTerm, hasChildren: c.children > 0,
     leadDeadlineHours: blank(c.leadDeadlineHours),
+    planId: c.planId || "",
     brief: c.brief || { audience: "", message: "", offer: "", success: "" },
   } : {
     name: "", description: "", objective: "leads", channels: [], parentId: "", startOn: "", endOn: "",
     ownerCollaboratorId: "", budget: "", expectedLeads: "", expectedCustomers: "", expectedRevenue: "",
     landingUrl: "", utmSource: "", utmMedium: "", utmCampaign: "", utmContent: "", utmTerm: "", hasChildren: false,
     leadDeadlineHours: "",
+    planId: "",
     brief: { audience: "", message: "", offer: "", success: "" },
   });
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
@@ -191,6 +193,7 @@ export default function StudioCampaigns({ slug }) {
                     )}
                   </p>
                   {c.parentName && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.subCampaignOf(c.parentName)}</p>}
+                  {c.planName && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.inPlan(c.planName)}</p>}
                   {c.description && <p className="mt-1 max-w-prose whitespace-pre-line text-sm text-slate-600 dark:text-slate-300">{c.description}</p>}
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <Chip tone="bg-brand-500/10 text-brand-800 dark:text-brand-200">{tr.objectiveName(c.objective)}</Chip>
@@ -284,6 +287,16 @@ export default function StudioCampaigns({ slug }) {
                 <Field label={tr.parent} as="select" value={form.parentId} onChange={set("parentId")}
                   options={[{ value: "", label: tr.noParent },
                     ...parents(form.id).map((p) => ({ value: p.id, label: `${p.reference} · ${p.name}` }))]} />
+              )}
+              {/* WHICH PERIOD'S PLAN THIS BELONGS TO (22/09/2026). Offered only
+                  where a studio has written one — a select with nothing in it
+                  reads as a broken field rather than an unused feature — and
+                  "no plan" stays a real choice, because most campaigns will
+                  have none until somebody plans a quarter. */}
+              {plans.length > 0 && (
+                <Field label={tr.plan} as="select" value={form.planId} onChange={set("planId")}
+                  options={[{ value: "", label: tr.noPlan },
+                    ...plans.map((p) => ({ value: p.id, label: p.name }))]} />
               )}
             </div>
             <fieldset>

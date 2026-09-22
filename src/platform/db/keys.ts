@@ -773,8 +773,10 @@ export const SECTION_DEFS = [
     // Finance says it cost. It owns NO COLLECTION — the costs are bills and
     // expenses, read where Finance files them.
     { key: "marketing-budget", name: "Budget & spend" },
-    // PLANNING & CALENDAR (22/09/2026): what runs when, across channels. Owns
-    // NO COLLECTION — every bar is a campaign, read where the register keeps it.
+    // PLANNING & CALENDAR (22/09/2026): what runs when, across channels, and
+    // the plan for the period above it. The CALENDAR owns nothing — every bar
+    // is a campaign, read where the register keeps it — but a plan is this
+    // section's own record.
     { key: "marketing-planning", name: "Planning & calendar" },
     // AUDIENCES & CONSENT (21/09/2026): who may be contacted, on what evidence.
     // It owns the consent ledger, which is append-only.
@@ -1127,6 +1129,9 @@ export const SECTION_COLLECTIONS = {
   // questions it answers, so deleting the section takes both (children first).
   "marketing-forms": ["marketingForms", "marketingFormResponses"],
   "marketing-audiences": ["marketingConsents"],
+  // THE PLAN FOR A PERIOD (22/09/2026). The calendar beside it owns nothing;
+  // this is what Planning stores in its own right.
+  "marketing-planning": ["marketingPlans"],
   // tendering. The register OWNS its records — unlike crm-sales-contracts,
   // which is a destination over somebody else's rows — so deleting the section
   // takes the tenders with it (invariant 11, children first).
