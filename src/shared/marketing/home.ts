@@ -40,7 +40,16 @@ type HomeStrings = {
 
 const en: HomeStrings = {
   whatEyebrow: "What it is",
-  whatTitle: "One system, not nine that talk to each other",
+  // NO NUMBER HERE, DELIBERATELY. This said "not nine that talk to each other"
+  // — a count of the separate tools a company would otherwise stitch together,
+  // written when the product had nine departments. It aged twice over: the page
+  // three sections down says EIGHTEEN departments (derived, so always true), so
+  // the headline undersold the product by half; and the same page offers "free
+  // for teams of one to nine" PEOPLE, so a reader met two unrelated nines in one
+  // scroll and naturally tried to connect them. The sentence is stronger
+  // against the body's own argument — "most companies run a different tool for
+  // each department" — and there is now no number in it to go stale.
+  whatTitle: "One system, not one per department",
   whatBody:
     "Most companies run a different tool for each department and spend their week reconciling them. nompany is one system with one data model underneath it: a quotation becomes a contract, the contract opens a project, the project raises requisitions and bills, and the same record carries through all of it. Nothing is re-typed, because there is nothing to re-type it into.",
   customersTitle: "Companies running on nompany",
@@ -63,7 +72,7 @@ const en: HomeStrings = {
 // market. NO DIACRITICS: nobody types a kasra into a search box.
 const ar: HomeStrings = {
   whatEyebrow: "ما هو",
-  whatTitle: "نظام واحد. لا تسعة أنظمة تتبادل البيانات فيما بينها",
+  whatTitle: "نظام واحد، لا نظام لكل قسم",
   whatBody:
     "أغلب الشركات تشغل أداة مختلفة لكل قسم، ثم تقضي أسبوعها في المطابقة بينها. نومباني نظام واحد يقوم على نموذج بيانات واحد: عرض السعر يصبح عقدا، والعقد يفتح مشروعا، والمشروع يصدر طلبات شراء وفواتير، والسجل نفسه يمر بهذا كله. لا تكرار في الإدخال، لأنه لا يوجد مكان ثان يدخل فيه.",
   customersTitle: "شركات تعمل على نومباني",

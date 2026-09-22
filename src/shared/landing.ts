@@ -59,6 +59,8 @@ type Strings = {
   pvPerMaxUsers: string;
   pvTitle: string;
   pvYearly: string;
+  /** The yearly badge. `{n}` is the discount percentage; drawn only when there IS one. */
+  pvSave: (n: number) => string;
   sales: string;
   searchCodeNameCountry: string;
   searchCurrencies: string;
@@ -141,6 +143,7 @@ const en: Strings = {
   pvPerMaxUsers: "for up to {n} users / month",
   pvTitle: "Pricing that scales with your team",
   pvYearly: "Yearly",
+  pvSave: (n) => `Save ${n}%`,
   sales: "Sales",
   searchCodeNameCountry: "Search code, name or country",
   searchCurrencies: "Search currencies",
@@ -215,6 +218,7 @@ const ar: Strings = {
   pvPerMaxUsers: "حتى {n} مستخدما / شهريا",
   pvTitle: "أسعار تنمو مع فريقك",
   pvYearly: "سنوي",
+  pvSave: (n) => `وفر ${n}%`,
   sales: "المبيعات",
   searchCodeNameCountry: "ابحث بالرمز أو الاسم أو الدولة",
   searchCurrencies: "ابحث في العملات",

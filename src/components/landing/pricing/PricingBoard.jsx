@@ -264,13 +264,21 @@ export function PricingBoard({ initial = null, locale = "en" }) {
                 )}
                 <span className="relative z-10 inline-flex items-center gap-2">
                   {option.label}
-                  {option.id === "yearly" && (
+                  {/* ONLY WHEN THERE IS A SAVING TO NAME. `discountPct` comes
+                      from the catalogue settings in /super, which default to
+                      zero — so this badge published "Save 0%" on both language
+                      versions of the pricing page: a nought dressed as an
+                      offer, and the same defect as the empty package card
+                      beside it. Nought off is not a discount, it is the absence
+                      of one, and the toggle says "Yearly" perfectly well alone.
+                      It was also hard-coded English on a bilingual site. */}
+                  {option.id === "yearly" && discountPct > 0 && (
                     <span
                       className={`rounded-full px-2 py-0.5 text-[0.65rem] font-600 ${
                         isActive ? "bg-white/20 text-white" : "bg-mint/15 text-mint"
                       }`}
                     >
-                      Save {discountPct}%
+                      {tr.pvSave(discountPct)}
                     </span>
                   )}
                 </span>
