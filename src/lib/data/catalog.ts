@@ -303,9 +303,20 @@ export async function ensureDefaultPlan() {
 
   let pkg = byName(packages, DEFAULT_PACKAGE);
   if (!pkg) {
+    // PRIVATE, AND THAT IS THE WHOLE POINT OF THIS ROW. It exists so a studio
+    // being created has a plan to be pointed at; it is not an offer. Minted
+    // `isPublic: true` it went straight onto the public pricing page — where
+    // `buildPricing` filters on exactly this flag — and, carrying no price, no
+    // user range and nothing included, it published "Free · 0 · for up to 0
+    // users" as the company's entire price list from the first studio ever
+    // created on the Postgres database until somebody read the page.
+    //
+    // A real free plan is a package somebody FILLS IN at /super, with a user
+    // range and what it includes, and switches on deliberately. This is the
+    // fallback underneath it, and the two were the same row.
     pkg = await createCatalogItem("packages", {
       name: DEFAULT_PACKAGE, minEmployees: 0, maxEmployees: 0, cost: 0,
-      durationMonths: 0, isPublic: true, color: "green", supportTicketsPerMonth: 0,
+      durationMonths: 0, isPublic: false, color: "green", supportTicketsPerMonth: 0,
     });
   }
   let tier = byName(tiers, DEFAULT_TIER);

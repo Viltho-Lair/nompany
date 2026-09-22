@@ -834,6 +834,7 @@ for (const [name, pick] of Object.entries(COPY_MODULES)) {
 console.log("\n== an enquiry reaches the right mailbox");
 
 const EQ = await import("@/shared/marketing/enquiry");
+const PRICE = await import("@/modules/marketing/pricing");
 
 // THE SENDER SAYS WHICH DESK, and nothing else on the form does.
 //
@@ -874,6 +875,33 @@ ok("a complete enquiry passes",
 const long = EQ.normaliseEnquiry({ name: "x".repeat(999), email: "a@b.co", company: "c", message: "y".repeat(99999) });
 ok("fields are cut to their limits",
   long.name.length === EQ.LIMITS.name && long.message.length === EQ.LIMITS.message);
+
+console.log("\n== an unfilled package is not a price list");
+// THE DEFECT: `ensureDefaultPlan` mints a package called "Free" so a new studio
+// has a plan to be pointed at — no price, no user range, nothing included — and
+// it was minted PUBLIC. `buildPricing` filters on `isPublic`, so that
+// bookkeeping row WAS the public price list: www.nompany.com/api/pricing served
+// exactly one card reading 0 users, 0 monthly, 0 yearly, and the page rendered
+// "Free · 0 USD · for up to 0 users". Found 22/09/2026 by reading the live site.
+const seeded = { usersLabel: "", usersLabelAr: "", includes: [], includesAr: [],
+  minEmployees: 0, maxEmployees: 0, perEmployee: 0, monthly: 0, categories: [] };
+ok("the seeded default package is not an offer", PRICE.offersSomething(seeded) === false);
+ok("...and neither is one whose categories are all free of charge",
+  PRICE.offersSomething({ ...seeded, categories: [{ monthly: 0, perEmployee: 0 }] }) === false);
+
+// A REAL FREE PLAN MUST SURVIVE IT — it is the one this product leads with, so
+// a rule that swept it away would be worse than the defect.
+ok("a free plan with a user range is an offer",
+  PRICE.offersSomething({ ...seeded, maxEmployees: 9 }) === true);
+ok("a free plan that says who it is for is an offer",
+  PRICE.offersSomething({ ...seeded, usersLabel: "up to nine people" }) === true);
+ok("...in Arabic too", PRICE.offersSomething({ ...seeded, usersLabelAr: "حتى تسعة أشخاص" }) === true);
+ok("a free plan that lists what it includes is an offer",
+  PRICE.offersSomething({ ...seeded, includes: ["Every department"] }) === true);
+ok("a priced plan is an offer", PRICE.offersSomething({ ...seeded, monthly: 30 }) === true);
+ok("...priced per head", PRICE.offersSomething({ ...seeded, perEmployee: 4 }) === true);
+ok("...or priced in one of its categories",
+  PRICE.offersSomething({ ...seeded, categories: [{ monthly: 0 }, { monthly: 12 }] }) === true);
 
 console.log(fails ? `\n${fails} FAILED\n` : "\nmarketing model: all passed\n");
 process.exit(fails ? 1 : 0);
