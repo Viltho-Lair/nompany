@@ -95,7 +95,10 @@ with Previous. It is worked out in the READER's own time — "today" is the shop
 server is handed two instants, `[from, to)`. Weeks start on Sunday.
 
 **Dashboard.** Takings, number of sales, the average sale, units sold, tax and the drawers open
-now — never gated. **Best sellers** (the ten items with the most units, `pos.top-products`) and
+now — never gated — plus **offers running**, with how many end inside the studio's warning
+window (22/09/2026). That tile is ABSENT, never nought, when the reader may not open the offers
+or the department is switched off: a nought there would be a claim about what the shop is
+running. **Best sellers** (the ten items with the most units, `pos.top-products`) and
 **takings by day** (`pos.takings-by-day`, any period longer than a day) are plan-gated widgets.
 **Everything sold** lists every item sold in the period, most units first, with value and how
 many receipts it was on — not gated.
@@ -238,6 +241,14 @@ not change prices.
   nothing; the list stays open.
 - **The server prices the basket from the items**, never from the screen. A typed price is used
   only when the seller holds `discount`; an item with no price is refused unless they do.
+- **The shop's own offers come off FIRST** (22/09/2026, `promotions.md`). They are a different
+  act by a different person from the cashier's discount, so they are a different figure, printed
+  on their own line on the receipt and totalled separately on the screen. The cashier's
+  percentage is then of what is LEFT, never of the shelf price — so an automatic offer never
+  spends the cashier's allowance, and the cap below is measured against the same figure the
+  server measures it against. The till runs the offers through the same `evaluate` the server
+  runs at the sale; a basket that earns something different by the time it is rung up comes back
+  as `promotions-changed` with both figures, for the cashier to confirm.
 - **Discounts** (the owner, 18/09/2026): a % or an amount on any line, and one more on the whole
   basket, behind `discount`. `priceBasket` (`posModel`) is the one place a discount becomes money,
   run by the screen and the server alike: the line's own discount first, then the basket's, which

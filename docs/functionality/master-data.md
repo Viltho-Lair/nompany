@@ -1,9 +1,9 @@
 # Master data
 
 The studio's own reference records — the lists every section reads and no section owns.
-`/<slug>/administration-master`, eight tabs: Locations, Departments, Numbering, Units,
-Categories, Cost codes, Notices, API keys. (This line said "four tabs" long after the other
-four had landed.)
+`/<slug>/administration-master`, nine tabs: Locations, Departments, Numbering, Units,
+Categories, Cost codes, Notices, API keys, Client tags. (This line said "four tabs" long
+after the other four had landed, and "eight" the day the ninth arrived.)
 
 ## What it is
 
@@ -148,6 +148,29 @@ every problem rather than the first, so the studio hears about its own edit whil
 still their edit. The screen keeps no copy of the rules: `modules/administration/units` is
 pure, the server refuses on it, and the panel shows what came back.
 
+### Client tags — a register, not a taxonomy (22/09/2026)
+
+How a studio groups the people it sells to. A client carries `tagIds`; an offer's
+eligibility carries `tagIds` (`promotions.md`); the register carries the names.
+
+**A REGISTER RATHER THAN A TAXONOMY, and that is the whole design decision.** A taxonomy
+(Categories, the tab beside it) is additions-only for a good reason: its values are stored
+BY NAME on the records that use them, so renaming "Annual" would strand every leave request
+naming it. A tag is stored BY ID, so the name is free to change and nothing follows it.
+That is what makes the owner's instruction — "there can be default but can be
+changed/renamed" — possible at all.
+
+**Seeded on first read, never overwritten.** Six starter tags, each one a counter can act
+on; `clientTagsSeededAt` is marked on the section in the same breath, so a studio that
+clears the register on its first afternoon does not find it back the next morning. The
+condition is "has never been written", not "is empty".
+
+**Deleting a tag untags nobody.** The clients keep the id and stop resolving it — the same
+containment a deleted cost code or a deleted milestone gets: a reader that attributes only
+what it can see is safe against deletion in a way no write-time check is. Sweeping every
+client on a delete would be a write across a collection this section does not own, and a
+half-finished sweep is worse than an unresolved id.
+
 ## Not built yet
 
 - **A place inside a place.** There is no `parentId` on a location, so a site, its buildings
@@ -159,6 +182,10 @@ pure, the server refuses on it, and the panel shows what came back.
 - **Checking in by location.** Nothing compares where a technician is with where the site is.
   When it comes it is a studio setting, off by default, with recorded consent — Jordan's PDPL
   (Law No. 24 of 2023) names location as personal data.
+- **Nothing lists which clients carry a tag.** The register says what the tags are; finding
+  everybody wearing one means opening the clients list, and there is no filter for it.
+- **A tag cannot be merged into another.** Two tags that turn out to mean the same thing are
+  deleted one at a time, which leaves the clients carrying the dead id.
 - **The report-only CSP lists two Google hosts.** Maps also loads from other `*.gstatic.com`
   and `*.googleapis.com` hosts; they need adding before the policy is enforced.
 - **Tracking's own map copy** ("just now", "min ago", "last seen") is still hard-coded English.

@@ -25,6 +25,24 @@ change orders and sales orders stay FILED under the four old rows (`engineering-
 `crm-sales-quotations`, `engineering-docs-live`, `engineering-docs-settings`), now filed-only;
 **do not delete them**, and do not rename `crmSales.quotations` or `engineeringDocs.rfq`.)
 
+**A SETTING SEVERAL SECTIONS CAN USE IS THE STUDIO'S — the owner, 22/09/2026:** *"timezones
+must not be set through a section settings it must be globally in the studio, in studio
+settings, something general which can be used by multiple sections must not be in a section
+settings."* The studio's **time zone** is the first of these (`shared/timezone.ts`, Studio
+settings beside the currency): a shop's offers, a per-day cap, a shift's own date and a
+nightly job all ask which day it is, and a section keeping its own answer is a second clock
+free to disagree. Point of Sale had written exactly that helper and it was DELETED the same
+day rather than left beside the shared one. **And its mirror: a setting only one department
+reads stays in that department's settings** — how soon an offer is "ending soon" is Point of
+Sale's, because nothing outside it reads it.
+
+**WHAT A PACKAGE SELLS IS DECIDED IN `/super`, NOT IN A SECTION SCREEN — the owner,
+22/09/2026.** Tills per package were already there; Promotions and its advanced half
+(coupons, tiered ladders, schedules) joined them. **A gate bites at the WRITE and never at
+the read**: a studio that changes plan keeps every offer it has and keeps charging them
+correctly, because a plan change must not alter what somebody at a counter is charged. Every
+such field is ABSENT-MEANS-ON, so no existing package loses anything the day the field ships.
+
 **ALL MAINTENANCE IS MAINTENANCE'S — the owner, 11/09/2026: "SLA is preventive maintenance
 contract."** Service contracts (SLA) are `maintenance-contracts`; their rows stay in `slas` under
 `projects-sla`, which is now a **FILED-ONLY section** (`FILED_ONLY_SECTION_KEYS`, keys.ts): kept
@@ -806,8 +824,10 @@ of `a2044ff`, one commit later, because that commit added a golden; then 365 and
 after that. A number nobody re-measures decays silently, and nothing fails when prose
 disagrees with a test. **Treat every figure in this file as a measurement with a date,
 not as a fact, and re-measure at the commit you are writing rather than the one you were
-reading.** `ALL_PERMISSIONS.length` is **258 over 88 areas, measured 22/09/2026**, after
-`marketing.planning` gained create/edit/delete with plans by period. **Three of the six are that
+reading.** `ALL_PERMISSIONS.length` is **263 over 89 areas, measured 22/09/2026**, after Point
+of Sale's Promotions — `pos.promotions`, view/create/edit with `applyManual` and `removeAuto` as
+extras, which is five keys and one area exactly. It read **258 over 88** earlier the same day,
+after `marketing.planning` gained create/edit/delete with plans by period. **Three of the six are that
 area's; the other three and BOTH new areas came from work between the two measurements, and this
 line does not guess which** — that is the prose this paragraph warns about. It read **252 over 86
 on 21/09/2026**, after Marketing's
