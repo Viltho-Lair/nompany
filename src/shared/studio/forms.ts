@@ -106,6 +106,11 @@ type Strings = {
   lead: string;
   /** Where a reply came from, and which campaign it was credited to (22/09/2026). */
   cameFrom: string;
+  /** What a scale answer means, rather than eleven bars (22/09/2026). */
+  npsScore: (n: number) => string;
+  npsBands: (promoters: number, passives: number, detractors: number) => string;
+  outOf: (average: number, max: number) => string;
+  noScore: string;
   creditedTo: string;
   sourceDirect: string;
   sourcesHeading: string;
@@ -287,6 +292,13 @@ const en: Strings = {
   when: "When",
   lead: "Sales lead",
   cameFrom: "Came from",
+  npsScore: (n) => (n > 0 ? "NPS +" + n : "NPS " + n),
+  // One of each reads "1 promoters" otherwise, on a line whose whole job is
+  // to be read at a glance.
+  npsBands: (p, s, d) => [[p, "promoter"], [s, "passive"], [d, "detractor"]]
+    .map(([n, word]) => n + " " + word + (n === 1 ? "" : "s")).join(" · "),
+  outOf: (average, max) => average + " out of " + max,
+  noScore: "No answers yet",
   creditedTo: "Campaign",
   sourceDirect: "Direct",
   sourcesHeading: "Where they came from",
@@ -472,6 +484,10 @@ const ar: Strings = {
   when: "الوقت",
   lead: "عميل محتمل",
   cameFrom: "المصدر",
+  npsScore: (n) => "مؤشر الترشيح " + (n > 0 ? "+" + n : String(n)),
+  npsBands: (p, s, d) => p + " مروّجون · " + s + " محايدون · " + d + " منتقدون",
+  outOf: (average, max) => average + " من " + max,
+  noScore: "لا إجابات بعد",
   creditedTo: "الحملة",
   sourceDirect: "مباشر",
   sourcesHeading: "من أين أتوا",

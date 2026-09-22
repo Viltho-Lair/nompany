@@ -17,6 +17,9 @@
 import type { AnswerValue } from "@/lib/questionnaire";
 import type { LogicPage, LogicQuestion } from "@/lib/questionnaireLogic";
 import { allQuestions } from "@/lib/questionnaireLogic";
+import {
+  SCALE_TYPES, scaleBounds, scalePoints, averageOf, npsOf, type NpsSummary,
+} from "@/lib/questionnaireScales";
 
 type ResponseLike = {
   answers?: Record<string, AnswerValue>;
@@ -34,8 +37,24 @@ export type FieldSummary = {
   answered: number;
   /** How many were shown the question and left it — or were never shown it at all. */
   skipped: number;
-  /** Commonest first. Empty for free text, which is not a choice. */
+  /**
+   * Commonest first. Empty for free text, which is not a choice.
+   *
+   * EXCEPT ON A SCALE, where they are in SCALE ORDER and every point appears
+   * including the ones nobody picked (./questionnaireScales). Sorting an NPS
+   * question by frequency put "9" above "2" and drew something unreadable as a
+   * scale; omitting an unpicked point drew a four-bar chart of a five-point
+   * one.
+   */
   tallies: Tally[];
+  /**
+   * WHAT THE NUMBERS MEAN, on the three types where they mean something.
+   * Absent on every other type, so a screen that does not know about scales is
+   * unaffected and one that does can say "4.2 out of 5" instead of five bars.
+   */
+  scale?: { min: number; max: number; average: number | null };
+  /** Promoters, passives, detractors and the score — on `nps` alone. */
+  nps?: NpsSummary;
   /** Free-text replies, newest response first, for the types that have no choices. */
   texts: string[];
   /** True when the live form no longer asks this — the answers predate its removal. */
@@ -118,6 +137,11 @@ export function summariseResponses(
     const labels = labelsOf(q);
     const counts = new Map<string, number>();
     const texts: string[] = [];
+    // A SCALE'S ANSWERS ARE KEPT AS GIVEN, not only tallied: the mean and the
+    // NPS bands need the values themselves, and a tally has already thrown the
+    // order and the arithmetic away.
+    const scaleValues: string[] = [];
+    const isScale = SCALE_TYPES.has(type);
     let answered = 0;
 
     for (const r of rows) {
@@ -128,16 +152,24 @@ export function summariseResponses(
         if (texts.length < MAX_TEXTS) texts.push(given.join(", "));
         continue;
       }
+      if (isScale) scaleValues.push(...given);
       // A multi-select counts once per pick, so the tallies sum to more than
       // `answered` — which is correct and is why the two are reported apart.
       for (const value of given) counts.set(value, (counts.get(value) || 0) + 1);
     }
 
-    const tallies = [...counts]
-      .map(([value, count]) => ({ value, label: labels.get(value) || value, count }))
-      .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+    // A SCALE IS DRAWN IN SCALE ORDER, every point present; everything else is
+    // commonest first, which is the finding on a list of choices.
+    const bounds = isScale ? scaleBounds(type, q as { min?: unknown; max?: unknown } | null) : null;
+    const tallies = bounds
+      ? scalePoints(scaleValues, bounds).map((p) => ({ value: p.value, label: labels.get(p.value) || p.value, count: p.count }))
+      : [...counts]
+        .map(([value, count]) => ({ value, label: labels.get(value) || value, count }))
+        .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
 
     return {
+      ...(bounds ? { scale: { ...bounds, average: averageOf(scaleValues) } } : {}),
+      ...(type === "nps" ? { nps: npsOf(scaleValues) } : {}),
       field,
       // A retired question whose label nothing recorded is named by its field,
       // which is at least something an author can search the form for.

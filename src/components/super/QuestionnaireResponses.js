@@ -166,7 +166,12 @@ export default function QuestionnaireResponses({ id }) {
 
 // ---- one question, counted ---------------------------------------------------
 function FieldBlock({ f, total }) {
-  const top = f.tallies[0]?.count || 1;
+  // THE LARGEST COUNT, ASKED OF THE WHOLE LIST. This read `tallies[0]` because
+  // the tallies were always commonest-first; a SCALE is in scale order now
+  // (lib/questionnaireScales), so the first bar is the lowest point and is
+  // frequently nought — which would have divided every bar by 1 and drawn them
+  // all full.
+  const top = Math.max(1, ...f.tallies.map((t) => t.count));
   return (
     <div className={`${card} p-4`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -185,6 +190,28 @@ function FieldBlock({ f, total }) {
           {f.answered} answered · {f.skipped} not
         </p>
       </div>
+
+      {/* WHAT THE NUMBERS MEAN. A scale answer is a point, not a choice, and
+          eleven bars do not say whether people would recommend you. */}
+      {f.nps && (
+        <p className="mt-3 text-sm">
+          <span className="font-600">
+            {f.nps.score === null ? "No score yet" : `NPS ${f.nps.score > 0 ? "+" : ""}${f.nps.score}`}
+          </span>
+          {f.nps.answered > 0 && (
+            <span className="ms-2 text-xs text-[var(--ad-muted-foreground)]">
+              {f.nps.promoters} promoters · {f.nps.passives} passives · {f.nps.detractors} detractors
+            </span>
+          )}
+        </p>
+      )}
+      {f.scale && !f.nps && (
+        <p className="mt-3 text-sm font-600">
+          {f.scale.average === null
+            ? "No answers yet"
+            : `${f.scale.average} out of ${f.scale.max}`}
+        </p>
+      )}
 
       {f.tallies.length > 0 && (
         <ul className="mt-3 space-y-1.5">

@@ -123,6 +123,10 @@ The other twelve subsections of the plan, and everything the dashboard's plan ne
   built there: lists and segments, per-channel consent (one tick cannot mean four channels), a
   public preference centre, data-subject requests, and anything that CHECKS the ledger — nothing
   sends, so nothing asks it yet.
+- **Research & Feedback** is part-built through Forms: a survey is a form, and since 2026-09-22
+  its scale questions MEAN something — a Net Promoter Score with its bands, and an average for a
+  rating (`forms.md`). Not built: any trend over time, the score broken down by campaign or
+  source, and follow-up driven by which band somebody landed in.
 - **Email**, **Messaging** (SMS, WhatsApp, push), **Social Media**, **Paid Ads**: nothing is sent,
   posted or imported. The owner, 2026-09-19: companies use their own email and SMS
   tools for now, and nompany does not resell messaging or ad credits (both ledger rows, for later).

@@ -1206,6 +1206,26 @@ function Responses({ slug, formId, doc, tr }) {
                 <section key={f.field} className={panel}>
                   <p className="font-600 text-slate-900 dark:text-white">{f.label || "—"}{f.retired ? ` · ${tr.retired}` : ""}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">{tr.answered(f.answered, f.skipped)}</p>
+                  {/* THE SCORE, NOT THE BARS. An NPS question drew eleven bars
+                      sorted by how often each score came up and said nothing
+                      about whether anybody would recommend the studio. */}
+                  {f.nps && (
+                    <p className="mt-2 text-sm">
+                      <span className="font-800 text-[var(--geex-ink)]">
+                        {f.nps.score === null ? tr.noScore : tr.npsScore(f.nps.score)}
+                      </span>
+                      {f.nps.answered > 0 && (
+                        <span className="ms-2 text-xs text-slate-500 dark:text-slate-400">
+                          {tr.npsBands(f.nps.promoters, f.nps.passives, f.nps.detractors)}
+                        </span>
+                      )}
+                    </p>
+                  )}
+                  {f.scale && !f.nps && (
+                    <p className="mt-2 text-sm font-800 text-[var(--geex-ink)]">
+                      {f.scale.average === null ? tr.noScore : tr.outOf(f.scale.average, f.scale.max)}
+                    </p>
+                  )}
                   {f.tallies.length > 0 ? (
                     <ul className="mt-3 space-y-2">
                       {f.tallies.map((t) => (

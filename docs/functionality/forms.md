@@ -220,8 +220,47 @@ URL-parameter scheme can.
 **Nothing is backfilled.** A reply written before this carries no arrival and no
 credited campaign, and the screen shows a dash rather than inventing one.
 
+## What a scale answer means
+
+`nps`, `rating` and `opinion-scale` have been question types since the
+questionnaire was built, and until 2026-09-22 the summary counted them exactly
+as it counts a multiple-choice: one bar per distinct answer, **sorted by how
+often each came up**. So an NPS question drew eleven bars with "9" above "2"
+because more people said 9 — unreadable as a scale — **no Net Promoter Score was
+computed anywhere in the product**, and "how did we do out of five" had no
+average. The type declared its meaning and the summary discarded it.
+
+**A scale is drawn in scale order, and every point appears** including the ones
+nobody picked. The gaps are the shape: a rating where nobody chose 3 is a
+different finding from one where 3 was never offered, and a tally list that
+omits the unpicked value draws a four-bar chart of a five-point scale.
+
+**NPS uses the standard bands** — 0–6 detractors, 7–8 passives, 9–10 promoters —
+and the score is the percentage of promoters less the percentage of detractors,
+so it runs from −100 to +100 and passives count only by diluting both shares.
+A **rating** gets its mean instead, shown as "4.2 out of 5".
+
+**Null rather than nought, and here it is not pedantry.** An NPS of 0 is a
+genuine result — the promoters and the detractors cancelled exactly — so a
+defaulted zero would report a form nobody has answered as performing averagely.
+An average of 0 on a 1–5 rating is OUTSIDE the scale, and would render as a bar
+shorter than the worst possible answer. Both say "no answers yet" instead.
+
+**An answer outside the bounds is still counted.** The public page clamps, so
+one cannot arrive that way — but a question whose bounds were edited afterwards
+can leave one behind, and it falls into the band it borders and appears after
+the scale's own points rather than being dropped. A response missing from a
+total is how a figure stops adding up.
+
+**This is shared with nompany's own questionnaires** (`/super`), which get the
+same score and the same chart: one arithmetic, or the two drift.
+
 ## Not built yet
 
+- **On scales:** no trend over time (an NPS for this month against last), no
+  breakdown of the score by campaign or by source, and no follow-up question
+  driven by the band somebody landed in. The score is of every reply the form
+  has ever had.
 - **On the arrival:** the tags are read on the FORM only. A visitor who lands on
   the studio's own website first, then reaches the form, arrives with no tags —
   there is no visitor tracking and no consent banner, so nothing carries them
