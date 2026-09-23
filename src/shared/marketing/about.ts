@@ -11,6 +11,11 @@ import { defaultLocale, type Locale } from "@/shared/locale";
 // for this page. A profile written from a second draft is a permanent
 // inconsistency nobody can fix from here.
 //
+// THE DEPARTMENT LIST IS WORDS, NOT A NUMBER (23/09/2026). It named ten
+// departments for a fortnight while the product grew to eighteen; it is written
+// out again from SECTION_DEFS, and it names no count, for company.ts's reason.
+// When a department ships, it joins this sentence in the same commit.
+//
 // IT SAYS WHERE THE COMPANY IS BY SAYING THERE IS NOWHERE YET. That is a real
 // answer to a question buyers ask, and the alternative is what the site did
 // before: assert a city address in the Organization schema, machine-readable,
@@ -21,6 +26,8 @@ type AboutStrings = {
   lead: string;
   whatHeading: string;
   whatBody: string;
+  fitHeading: string;
+  fitBody: string;
   whereHeading: string;
   whereBody: string;
   whyHeading: string;
@@ -34,7 +41,10 @@ const en: AboutStrings = {
   lead: "A small company building one system for the work a company actually does.",
   whatHeading: "What we make",
   whatBody:
-    "nompany is an ERP: one place for sales, tendering, projects, engineering documents, procurement, inventory, field operations, logistics, people and finance, with a single data model underneath so a quotation can become a contract, a project and an invoice without being typed out four times. It is built for small and medium companies across the region, in Arabic and English, and it is free until you are ten people.",
+    "nompany is an ERP: one place for sales and quotations, tendering, projects, engineering documents, procurement, inventory, manufacturing, field service, logistics, assets and maintenance, quality and safety, people, finance, marketing, a point of sale and reporting — with a single data model underneath, so a quotation can become a contract, a project and an invoice without being typed out four times. It is built for small and medium companies across the region, in Arabic and English, and it is free until you are ten people.",
+  fitHeading: "How it fits your company",
+  fitBody:
+    "You choose which departments you run when you set up, and your field of work fills in the first answers — a contractor starts differently from a clinic or a shop, and anything left off can be switched on later. Your org chart and the roles in it start from your own trade rather than a generic list, every right can be narrowed to a single action, and approvals follow the limits you set. Each person works in the language they choose, Arabic or English, fully right-to-left or left-to-right.",
   whereHeading: "Where we are",
   whereBody:
     "Nowhere, yet — and we would rather say so than imply otherwise. The company is not incorporated and has no registered office; it will be based in Jordan. We serve the region rather than a single country, the product ships in Arabic and English with genuine right-to-left throughout, and prices are shown in the currency you choose rather than in one country's. When there is an address, it will be on this page.",
@@ -51,7 +61,10 @@ const ar: AboutStrings = {
   lead: "شركة صغيرة تبني نظاما واحدا للعمل الذي تقوم به الشركات فعلا.",
   whatHeading: "ما الذي نصنعه",
   whatBody:
-    "نومباني نظام تخطيط موارد: مكان واحد للمبيعات والمناقصات والمشاريع والوثائق الهندسية والمشتريات والمخزون والعمليات الميدانية والخدمات اللوجستية والموارد البشرية والمالية، بنموذج بيانات واحد تحته، فيصبح عرض السعر عقدا ومشروعا وفاتورة دون أن يعاد إدخاله أربع مرات. مبني للشركات الصغيرة والمتوسطة في المنطقة، بالعربية والإنجليزية، ومجاني حتى تصبحوا عشرة.",
+    "نومباني نظام تخطيط موارد: مكان واحد للمبيعات وعروض الأسعار والمناقصات والمشاريع والوثائق الهندسية والمشتريات والمخزون والتصنيع والخدمة الميدانية والخدمات اللوجستية والأصول والصيانة والجودة والسلامة والموارد البشرية والمالية والتسويق ونقاط البيع والتقارير، بنموذج بيانات واحد تحته، فيصبح عرض السعر عقدا ومشروعا وفاتورة دون أن يعاد إدخاله أربع مرات. مبني للشركات الصغيرة والمتوسطة في المنطقة، بالعربية والإنجليزية، ومجاني حتى تصبحوا عشرة.",
+  fitHeading: "كيف يناسب شركتك",
+  fitBody:
+    "تختار الأقسام التي تعمل بها عند الإعداد، ومجال عملك يملأ الإجابات الأولى — فالمقاول يبدأ بشكل مختلف عن العيادة أو المتجر، وما تركته يمكن تفعيله لاحقا. وهيكلك التنظيمي والأدوار فيه تبدأ من مجالك لا من قائمة عامة، وكل صلاحية يمكن حصرها في إجراء واحد، والاعتمادات تتبع الحدود التي تضعها. وكل شخص يعمل باللغة التي يختارها، العربية أو الإنجليزية، من اليمين إلى اليسار أو العكس بالكامل.",
   whereHeading: "أين نحن",
   whereBody:
     "لا عنوان لنا بعد، ونفضل قول ذلك على التلميح بغيره. الشركة غير مسجلة ولا مقر رسمي لها، وستتخذ من الأردن مقرا. نخدم المنطقة لا بلدا واحدا، والمنتج يصدر بالعربية والإنجليزية بدعم حقيقي للكتابة من اليمين إلى اليسار، والأسعار تظهر بالعملة التي تختارها لا بعملة بلد بعينه. وحين يوجد عنوان، سيكون على هذه الصفحة.",

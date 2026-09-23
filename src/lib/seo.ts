@@ -112,12 +112,12 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
     en: {
       title: "About nompany",
       description:
-        "A small company building one ERP for small and medium companies across the region — sales, tendering, projects, procurement, inventory, people and finance on one data model, in Arabic and English.",
+        "A small company building one ERP for small and medium companies across the region — every department, from sales and projects to manufacturing, HR and finance, on one data model, in Arabic and English.",
     },
     ar: {
       title: "عن نومباني",
       description:
-        "شركة صغيرة تبني نظام تخطيط موارد للشركات الصغيرة والمتوسطة في المنطقة — المبيعات والمناقصات والمشاريع والمشتريات والمخزون والموارد البشرية والمالية على نموذج بيانات واحد، بالعربية والإنجليزية.",
+        "شركة صغيرة تبني نظام تخطيط موارد للشركات الصغيرة والمتوسطة في المنطقة — كل الأقسام، من المبيعات والمشاريع إلى التصنيع والموارد البشرية والمالية، على نموذج بيانات واحد، بالعربية والإنجليزية.",
     },
   },
   "/customers": {

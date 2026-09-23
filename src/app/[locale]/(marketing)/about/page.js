@@ -50,6 +50,7 @@ export default async function AboutPage({ params }) {
 
   const sections = [
     { heading: tr.whatHeading, body: tr.whatBody },
+    { heading: tr.fitHeading, body: tr.fitBody },
     { heading: tr.whereHeading, body: tr.whereBody },
     { heading: tr.whyHeading, body: tr.whyBody },
   ];
