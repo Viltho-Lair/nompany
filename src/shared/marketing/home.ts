@@ -58,13 +58,13 @@ const en: HomeStrings = {
   departmentsLead:
     "Not a roadmap. Every one of these opens onto a screen you can use today, and this list is read from the software itself rather than written here — so it cannot promise a department that does not exist.",
   departmentsCta: "See what each one does",
-  pricingTitle: "Free until you are ten people",
+  pricingTitle: "Your first 3 months are free",
   pricingLead:
-    "The whole product, every department, for teams of one to nine. Paid plans start at ten, priced per employee per month. No card to begin, and no call to sit through.",
+    "The whole product, every department, free for the first 3 months for teams of one to nine. Paid plans start at ten, priced per employee per month. No card to begin, and no call to sit through.",
   pricingCta: "See pricing",
   closingTitle: "Run your whole company from one place",
   closingLead:
-    "Open a studio, choose the departments you run and invite your team, each person in their own language. There is nothing to install, and it is free until you are ten people.",
+    "Open a studio, choose the departments you run and invite your team, each person in their own language. There is nothing to install, and the first 3 months are free.",
 };
 
 // HAND-WRITTEN, NEVER MACHINE-TRANSLATED — Arabic-speaking buyers detect
@@ -81,13 +81,13 @@ const ar: HomeStrings = {
   departmentsLead:
     "ليست خطة مستقبلية. لكل قسم منها شاشة تستطيع فتحها اليوم. والقائمة نفسها تقرأ من البرنامج لا تكتب هنا، فلا تعد بقسم غير موجود.",
   departmentsCta: "اطلع على ما يفعله كل قسم",
-  pricingTitle: "مجاني حتى تصبحوا عشرة",
+  pricingTitle: "أول 3 أشهر مجانا",
   pricingLead:
-    "المنتج كاملا، بكل أقسامه، للفرق من واحد إلى تسعة. والخطط المدفوعة تبدأ من عشرة، بسعر لكل موظف شهريا. بلا بطاقة للبدء، وبلا مكالمة تجلس فيها.",
+    "المنتج كاملا، بكل أقسامه، مجانا لأول 3 أشهر للفرق من واحد إلى تسعة. والخطط المدفوعة تبدأ من عشرة، بسعر لكل موظف شهريا. بلا بطاقة للبدء، وبلا مكالمة تجلس فيها.",
   pricingCta: "اطلع على الأسعار",
   closingTitle: "أدر شركتك كلها من مكان واحد",
   closingLead:
-    "افتح مساحة عمل، واختر الأقسام التي تعمل بها، وادع فريقك، كل شخص بلغته. لا شيء لتثبيته، ومجاني حتى تصبحوا عشرة.",
+    "افتح مساحة عمل، واختر الأقسام التي تعمل بها، وادع فريقك، كل شخص بلغته. لا شيء لتثبيته، وأول 3 أشهر مجانا.",
 };
 
 const home = { en, ar };

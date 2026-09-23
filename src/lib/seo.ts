@@ -43,12 +43,12 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
     en: {
       title: "Run your company's whole operation from one platform",
       description:
-        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics. Free for teams of one to nine; paid plans from ten people up.",
+        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics. Free for the first 3 months for teams of one to nine; paid plans from ten people up.",
     },
     ar: {
       title: "أدر عمليات شركتك بالكامل من منصة واحدة",
       description:
-        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. مجاني للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر.",
+        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. مجاني لأول 3 أشهر للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر.",
     },
   },
   "/platform": {
@@ -70,14 +70,14 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
   },
   "/pricing": {
     en: {
-      title: "Pricing — free for teams of one to nine",
+      title: "Pricing — free for 3 months for teams of one to nine",
       description:
-        "One price per employee per month. Free for teams of one to nine; paid plans from ten people up. Every plan carries the whole product.",
+        "One price per employee per month. Free for the first 3 months for teams of one to nine; paid plans from ten people up. Every plan carries the whole product.",
     },
     ar: {
-      title: "الأسعار — مجاني للفرق من واحد إلى تسعة",
+      title: "الأسعار — أول 3 أشهر مجانا للفرق من واحد إلى تسعة",
       description:
-        "سعر واحد لكل موظف شهريا. مجاني للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر. كل خطة تحمل المنتج كاملا.",
+        "سعر واحد لكل موظف شهريا. مجاني لأول 3 أشهر للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر. كل خطة تحمل المنتج كاملا.",
     },
   },
   "/security": {

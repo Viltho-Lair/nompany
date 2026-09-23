@@ -50,9 +50,14 @@ export type Claim = {
 export const CLAIMS = {
   // FREE FOR TEAMS UP TO NINE. The free plan's own band, not a marketing round
   // number: PLANS[0] is `free`, minUsers 1, maxUsers 9.
+  //
+  // AND FREE FOR THE FIRST THREE MONTHS, NOT FOR EVER — the owner, 23/09/2026.
+  // The site said "always free" and "with no time limit" while the free package
+  // in /super carries durationMonths 3. Every sentence that described the free
+  // tier as endless was rewritten the same day.
   "free-under-ten": {
-    en: "Free for teams of one to nine",
-    ar: "مجاني للفرق من واحد إلى تسعة",
+    en: "Free for the first 3 months, for teams of one to nine",
+    ar: "مجاني لأول 3 أشهر، للفرق من واحد إلى تسعة",
     source: { module: "@/lib/pricing", export: "PLANS" },
     stated: { how: "composed" },
   },
