@@ -1,4 +1,5 @@
 import { requirePermission } from "@/platform/access";
+import { deletionFinalisesAt } from "@/shared/studioDeletion";
 import { NO_SCREEN_YET } from "@/platform/access";
 import { REQUIRED_SECTIONS } from "@/platform/db/sections";
 import { renameStudio } from "@/modules/main/studios";
@@ -123,9 +124,9 @@ export const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // A studio is not deleted the moment it is asked for. Thirty days of grace,
-// during which the owner can change their mind and everything keeps working.
-export const GRACE_DAYS = 30;
-export const GRACE_MS = GRACE_DAYS * 24 * 60 * 60 * 1000;
+// during which the owner can change their mind and everything keeps working —
+// counted in shared/studioDeletion, which the job that finally deletes the
+// studio reads too, so the countdown here and the deletion cannot disagree.
 
 // Working hours are a fixed SHAPE, not free JSON: seven known days, each open or
 // closed with a from/to. Anything else in the payload is dropped, so a bad
@@ -202,9 +203,7 @@ const clean = (studio: Record<string, unknown>) => ({
   leaveTypes: valuesFor("leaveTypes", studio.taxonomies),
   language: studioLocale(studio),
   deletionRequestedAt: studio.deletionRequestedAt || "",
-  deletionFinalisesAt: studio.deletionRequestedAt
-    ? new Date(Date.parse(String(studio.deletionRequestedAt)) + GRACE_MS).toISOString()
-    : "",
+  deletionFinalisesAt: deletionFinalisesAt(studio.deletionRequestedAt),
   workingHours: studio.workingHours || null,
   // WHETHER THIS STUDIO HAS AGREED TO BE NAMED PUBLICLY, and when. The screen
   // needs the timestamp, not a boolean: a switch that says only "on" cannot

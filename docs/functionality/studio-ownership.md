@@ -69,6 +69,23 @@ into).
 leaving the rest would strand studios whose owner does not exist — rows nobody can
 reach, since ownership is what grants the owner role.
 
+**Deleting a studio** is the owner's alone and takes **thirty days**
+(`shared/studioDeletion`). Asking sets `deletionRequestedAt`; the settings screen counts
+down to the date, everything keeps working, and cancelling undoes it completely. On the
+day, the daily job `cron/studio-deletions` deletes the studio through
+`cascadeDeleteStudio`, five per run, oldest request first, **re-reading each studio right
+before deleting it** so a last-minute cancellation holds. Before the cascade it deletes the
+studio's **uploaded files** (`listMediaForStudio`: their records live at `g:media:<id>`,
+outside the studio's prefix, so the cascade never reached them) and gives its **billing
+record an expiry ten years out** (the terms' retention for invoices, the owner's choice
+24/09/2026). The report lists each due studio with how many files it would lose.
+
+**The job only reports until `STUDIO_DELETIONS=on` is set** (invariant 17): it returns
+the studios that are due and deletes nothing. Setting the variable is the second
+confirmation, given after the owner has read a report naming the studios. **Until
+24/09/2026 nothing acted on the date at all**: the countdown ran out and the studio stayed
+whole, while the owner believed deletion was built.
+
 ## Two studios owned by one person share nothing
 
 Owning both changes the tenant boundary not at all, and the suite asserts it
@@ -94,6 +111,11 @@ screen and the API come to disagree about which studio is "theirs". Their golden
 re-recorded deliberately.
 
 ## Not built yet
+
+- **Deletion is switched off.** `STUDIO_DELETIONS` is not set anywhere, so the job reports
+  and deletes nothing until the owner turns it on.
+- **Finding a studio's files reads every media record**, because nothing indexes them by
+  studio. That's fine at today's volume; an index is the fix once it isn't.
 
 - **The cap is only checked at creation.** `/super` changing a studio's package back to
   the default does not re-check it, so an operator can leave somebody holding three free

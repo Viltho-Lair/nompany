@@ -28,7 +28,7 @@
 // redirect-to-CDN path for public files.
 import { randomUUID, createHash } from "node:crypto";
 import { put, del } from "@vercel/blob";
-import { getJSON, setJSON, delKeys, touchTTL } from "@/platform/db/store";
+import { getJSON, getJSONMany, setJSON, delKeys, touchTTL, scanPrefix } from "@/platform/db/store";
 import { MEDIA } from "@/platform/db/keys";
 
 // MAX_BYTES predates Blob and survives the move, but not for the reason it was
@@ -179,6 +179,27 @@ export async function deleteMedia(id: string) {
     await del(record.url);
   }
   return (await delKeys(key(id))) === 1;
+}
+
+/**
+ * EVERY FILE ONE STUDIO UPLOADED, by media id. Used when a studio is finally
+ * deleted (cron/studio-deletions), because the records live under g:media:,
+ * outside the studio's own prefix, and the cascade that empties that prefix
+ * never reaches them — a deleted studio's files outlived it until 24/09/2026.
+ *
+ * A SCAN OF ONE BOUNDED PREFIX, THEN A FILTER ON THE RECORD'S OWN studioId —
+ * never a pattern that could match another tenant's file. Reads every media
+ * record once; at today's volume that is small, and it runs a few times a day
+ * at most. An index by studio is the fix the day it is not.
+ */
+export async function listMediaForStudio(studioId: string): Promise<string[]> {
+  if (!studioId) return [];
+  const keys = await scanPrefix(MEDIA.all);
+  if (!keys.length) return [];
+  const records = await getJSONMany<MediaRecord>(keys);
+  return keys
+    .map((k, i) => (records[i]?.studioId === studioId ? k.slice(MEDIA.all.length) : ""))
+    .filter((id) => /^[a-f0-9]{32}$/i.test(id));
 }
 
 // Time-limit a blob's RECORD (used for short-lived exports/attachments).

@@ -24,9 +24,10 @@ import { GOOGLE_DATA_BLOCKS } from "./legalGoogleData";
 // text is authoritative). The page chrome is localized via the i18n dictionary.
 // Mirror any change here into legal/privacy-policy.md.
 export const PRIVACY_META: LegalMeta = {
-  version: "1.0",
+  version: "1.1",
   effective: "04/09/2026",
-  updated: "04/09/2026",
+  // 1.1 (24/09/2026): the summary of Terms §10 follows its new deletion rule.
+  updated: "24/09/2026",
 };
 
 export const PRIVACY_SECTIONS: LegalSection[] = [
@@ -101,7 +102,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: "retention",
     title: "7. How long it is kept",
     blocks: [
-      { type: "p", text: "Personal data is kept only for as long as it is needed for the purpose it was collected for, or for as long as the law requires. The full schedule — including the thirty-day export window after termination, deletion within ninety days, the rolling thirty-five-day backup expiry, ten years for invoices and tax records, and twelve months for authentication and security logs — is set out in Section 10 of the Terms and is not restated here, so that there is only ever one set of periods to read." },
+      { type: "p", text: "Personal data is kept only for as long as it is needed for the purpose it was collected for, or for as long as the law requires. The full schedule — including deletion of a studio thirty days after its owner asks, the rolling thirty-five-day backup expiry, ten years for invoices and tax records, and twelve months for authentication and security logs — is set out in Section 10 of the Terms and is not restated here, so that there is only ever one set of periods to read." },
       { type: "p", lead: "Connected-service data is the exception, and it is shorter.", text: "No calendar content is stored at all, and the stored authorisation is deleted the moment you disconnect or revoke it. Section 4 above is the detail." },
     ],
   },

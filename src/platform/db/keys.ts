@@ -337,6 +337,10 @@ export const IDEM = {
 // S.media (declared below, still unused) and out of Redis entirely.
 export const MEDIA = {
   blob: (id: string) => `${P}g:media:${id}`,
+  // EVERY MEDIA RECORD, as one bounded prefix — how a deleted studio's files
+  // are found (lib/media listMediaForStudio). Records carry their studioId but
+  // nothing indexes them by it, so the scan reads the records and filters.
+  all: `${P}g:media:`,
   // THE BLOB OBJECT'S PATHNAME — a SECOND namespace, and the one the bytes
   // actually live in now. `blob()` above namespaces the Redis record; for the
   // whole time the bytes were base64 inside that record, prefixing it was
