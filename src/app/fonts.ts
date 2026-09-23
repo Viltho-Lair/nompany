@@ -1,4 +1,4 @@
-import { Cabin, IBM_Plex_Sans, IBM_Plex_Sans_Arabic, Inter, Saira, Sora, Tajawal } from "next/font/google";
+import { Cabin, IBM_Plex_Sans, Inter, Noto_Sans_Arabic, Saira, Sora, Tajawal } from "next/font/google";
 
 /* THE SEVEN FAMILIES, SELF-HOSTED.
    ------------------------------------------------------------------
@@ -56,9 +56,17 @@ export const cabin = Cabin({
   subsets: ["latin"], weight: ["400", "500", "600", "700"],
   display: "swap", variable: "--f-cabin", preload: false,
 });
-export const plexArabic = IBM_Plex_Sans_Arabic({
+/* ARABIC TEXT IS NOTO SANS ARABIC, NOT IBM PLEX SANS ARABIC — the owner,
+   23/09/2026: "default fonts in Arabic look broken and pixelated." Plex Arabic
+   was loading correctly (measured on the live /ar/pricing: the face, the
+   weights, all present), so nothing was missing: its strokes are thin and its
+   hinting is poor, and at 12–16px on Windows it rasterises jagged and uneven.
+   Noto Sans Arabic was compared side by side on the same live page and renders
+   full and even at those sizes. It is a variable font, so every weight the CSS
+   asks for exists and none is synthesised. Tajawal stays the display face. */
+export const notoArabic = Noto_Sans_Arabic({
   subsets: ["arabic"], weight: ["400", "500", "600", "700"],
-  display: "swap", variable: "--f-plex-ar", preload: false,
+  display: "swap", variable: "--f-noto-ar", preload: false,
 });
 export const tajawal = Tajawal({
   subsets: ["arabic"], weight: ["400", "500", "700", "800"],
@@ -72,5 +80,5 @@ export const tajawal = Tajawal({
  *  Arabic faces from the surface that needs them most. */
 export const FONT_VARS = [
   saira.variable, plexSans.variable, sora.variable, inter.variable,
-  cabin.variable, plexArabic.variable, tajawal.variable,
+  cabin.variable, notoArabic.variable, tajawal.variable,
 ].join(" ");

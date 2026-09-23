@@ -42,8 +42,8 @@
 }
 
 [dir="rtl"] {
-  --font-display: var(--f-tajawal), var(--f-plex-ar), system-ui, sans-serif;
-  --font-body: var(--f-plex-ar), var(--f-tajawal), system-ui, sans-serif;
+  --font-display: var(--f-tajawal), var(--f-noto-ar), system-ui, sans-serif;
+  --font-body: var(--f-noto-ar), var(--f-tajawal), system-ui, sans-serif;
 }
 
 /* ------------------------------------------------------------------
@@ -156,8 +156,8 @@
    sit on the element or on an ancestor. */
 .landing-page[dir="rtl"],
 [dir="rtl"] .landing-page {
-  --font-display: var(--f-tajawal), var(--f-plex-ar), system-ui, sans-serif;
-  font-family: var(--f-plex-ar), var(--f-tajawal), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--f-tajawal), var(--f-noto-ar), system-ui, sans-serif;
+  font-family: var(--f-noto-ar), var(--f-tajawal), ui-sans-serif, system-ui, sans-serif;
 }
 
 .landing-page ::selection {
@@ -883,7 +883,7 @@ html.studio-chrome .bar-scroll::-webkit-scrollbar {
     width: var(--doc-width, 210mm);
     max-width: 100%;
     padding: var(--doc-top, 28mm) var(--doc-right, 18mm) var(--doc-bottom, 22mm) var(--doc-left, 18mm);
-    font-family: var(--f-plex), var(--f-plex-ar), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--f-plex), var(--f-noto-ar), ui-sans-serif, system-ui, sans-serif;
   }
 
   /* THE RUNNING BANDS. A table header group and footer group are the only
