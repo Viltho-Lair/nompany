@@ -210,6 +210,16 @@ function FinanceTax({ slug }) {
   );
 }
 
+// THE FROM/TO QUERY BOTH REPORT SCREENS SEND, and only the dates that are
+// whole dates — a half-typed field stays off the wire rather than reaching the
+// server as a range it has to refuse. ONE COPY, because the Reports screen's
+// own copy had lost its backslashes (`/^d{4}-…/` matches "dddd", never a
+// date), so its From/To filters were never sent at all while Group books'
+// copy, a hundred lines below, worked.
+function datedQuery(range) {
+  return new URLSearchParams(Object.entries(range).filter(([, v]) => /^\d{4}-\d{2}-\d{2}$/.test(v))).toString();
+}
+
 // REPORTS — the statements from the ledger, and what each project made. The
 // statements come from `/finance/reports` on `finance.reports.view`; the
 // project margins from the same read the dashboard uses.
@@ -223,7 +233,7 @@ function FinanceReports({ slug, initial }) {
   // THE WINDOW every statement is read over; the balance sheet is as at its end.
   const [range, setRange] = useState({ from: "", to: "" });
   const load = useCallback(async () => {
-    const qs = new URLSearchParams(Object.entries(range).filter(([, v]) => /^d{4}-d{2}-d{2}$/.test(v))).toString();
+    const qs = datedQuery(range);
     const res = await fetch(`/api/studios/${slug}/finance/reports${qs ? `?${qs}` : ""}`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { setError(tr.noAccessThis); return; }
@@ -319,7 +329,7 @@ function GroupBooks({ slug, range }) {
   const [name, setName] = useState("");
   const [adding, setAdding] = useState("");
   const load = useCallback(async () => {
-    const qs = new URLSearchParams(Object.entries(range).filter(([, v]) => /^\d{4}-\d{2}-\d{2}$/.test(v))).toString();
+    const qs = datedQuery(range);
     const res = await fetch(`/api/studios/${slug}/finance/group${qs ? `?${qs}` : ""}`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { setProblem(g.problem(String(body.error || ""))); return; }
