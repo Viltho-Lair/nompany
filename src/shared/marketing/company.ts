@@ -16,10 +16,14 @@ import { defaultLocale, type Locale } from "@/shared/locale";
 //
 // WHAT IT CLAIMS IS WHAT THE PRODUCT DOES, and every clause is checkable in this
 // repository rather than aspirational: every department on one data model
-// (SECTION_DEFS), Arabic and English (the whole studio mirrors), and the chain a
-// record actually walks — quotation → contract → project → invoice — which is
-// the sentence `/platform` opens with and the thing the engagement layer exists
-// to make true.
+// (SECTION_DEFS), Arabic and English (the whole studio mirrors), and work passing
+// between departments without being re-keyed, which is what the one data model
+// and the engagement layer exist to make true.
+//
+// IT NAMED ONE CHAIN AND NO LONGER DOES — the owner, 23/09/2026. "A quotation
+// becomes a contract, a project and an invoice" is the contractor's flow; a shop,
+// a clinic or a manufacturer read it as somebody else's product. The benefit is
+// stated for every trade instead, and /platform is where the chains are shown.
 //
 // IT NAMES NO COUNT. "Fourteen departments" would have read better and would go
 // stale the first time a section is added or folded — which has happened twice
@@ -66,7 +70,7 @@ type CompanyStrings = {
    proves the departments, and this says why they are worth having together. */
 const en: CompanyStrings = {
   description:
-    "nompany is an ERP for small and medium companies across the region — every department on one data model, in Arabic and English, so a quotation becomes a contract, a project and an invoice without being typed out four times.",
+    "nompany is an ERP for small and medium companies across the region — every department on one data model, in Arabic and English, so work moves from one team to the next without anybody typing it out again.",
 };
 
 // HAND-WRITTEN, NO DIACRITICS, and not a transliteration of the English: the
@@ -75,7 +79,7 @@ const en: CompanyStrings = {
 // here, because a searcher typing the brand phonetically matches none of them.
 const ar: CompanyStrings = {
   description:
-    "نومباني نظام تخطيط موارد للشركات الصغيرة والمتوسطة في المنطقة — كل الأقسام على نموذج بيانات واحد، بالعربية والإنجليزية، فيصير عرض السعر عقدا ثم مشروعا ثم فاتورة دون إعادة كتابته أربع مرات.",
+    "نومباني نظام تخطيط موارد للشركات الصغيرة والمتوسطة في المنطقة — كل الأقسام على نموذج بيانات واحد، بالعربية والإنجليزية، فينتقل العمل من فريق إلى آخر دون أن يعيد أحد كتابته.",
 };
 
 const company = { en, ar };

@@ -62,9 +62,9 @@ const en: HomeStrings = {
   pricingLead:
     "The whole product, every department, for teams of one to nine. Paid plans start at ten, priced per employee per month. No card to begin, and no call to sit through.",
   pricingCta: "See pricing",
-  closingTitle: "Start with your next quotation",
+  closingTitle: "Run your whole company from one place",
   closingLead:
-    "Open a studio, invite the people who need it, and give the rest their own language. There is nothing to install and nothing to migrate on day one.",
+    "Open a studio, choose the departments you run and invite your team, each person in their own language. There is nothing to install, and it is free until you are ten people.",
 };
 
 // HAND-WRITTEN, NEVER MACHINE-TRANSLATED — Arabic-speaking buyers detect
@@ -85,9 +85,9 @@ const ar: HomeStrings = {
   pricingLead:
     "المنتج كاملا، بكل أقسامه، للفرق من واحد إلى تسعة. والخطط المدفوعة تبدأ من عشرة، بسعر لكل موظف شهريا. بلا بطاقة للبدء، وبلا مكالمة تجلس فيها.",
   pricingCta: "اطلع على الأسعار",
-  closingTitle: "ابدأ بعرض سعرك القادم",
+  closingTitle: "أدر شركتك كلها من مكان واحد",
   closingLead:
-    "افتح مساحة عمل، وادع من يحتاجها، واترك لكل واحد لغته. لا تثبيت، ولا ترحيل بيانات في اليوم الأول.",
+    "افتح مساحة عمل، واختر الأقسام التي تعمل بها، وادع فريقك، كل شخص بلغته. لا شيء لتثبيته، ومجاني حتى تصبحوا عشرة.",
 };
 
 const home = { en, ar };
