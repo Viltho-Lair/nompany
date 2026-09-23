@@ -42,7 +42,7 @@ function priceRows(packages, tiers) {
       rows.push({ key: priceKey.package(p.id), item: p.name, part: "", base: p.costPerEmployee, max: p.maxEmployees, unit: "per employee", isPublic: p.isPublic });
     }
   }
-  for (const t of tiers) rows.push({ key: priceKey.tier(t.id), item: t.name, part: "Tier", base: t.cost, max: 0, unit: "", isPublic: t.isPublic });
+  for (const t of tiers) rows.push({ key: priceKey.tier(t.id), item: t.name, part: "Tier", base: t.cost, max: 0, unit: "per month", isPublic: t.isPublic });
   return rows;
 }
 

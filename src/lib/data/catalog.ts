@@ -71,7 +71,20 @@ function cleanLines(v: unknown) {
 // prices are shown before tax, and the invoice adds Jordan's). A setting rather
 // than a constant because a rate is the state's to change, and one stored here
 // is what the pricing page's note and the invoice will both read.
-export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0, baseCurrency: "USD", taxPercent: 16 };
+//
+// TRIAL AND GRACE, IN MONTHS (the owner, 23/09/2026): a new studio is on trial
+// for three months, and an unpaid one keeps working for three months before it
+// goes read-only. Settings rather than constants because both are commercial
+// decisions that will change; shared/subscription reads them as arguments.
+export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0, baseCurrency: "USD", taxPercent: 16, trialMonths: 3, graceMonths: 3 };
+
+// A whole number of months, 0–36. Absent is the default, never nought: a
+// settings object saved before these existed must not end every trial today.
+const months = (v: unknown, fallback: number) => {
+  if (v === undefined || v === null || v === "") return fallback;
+  const n = Math.trunc(Number(v));
+  return Number.isFinite(n) ? Math.min(36, Math.max(0, n)) : fallback;
+};
 
 const CODE = (v: unknown, fallback: string) => {
   const c = String(v ?? "").trim().toUpperCase();
@@ -79,7 +92,7 @@ const CODE = (v: unknown, fallback: string) => {
 };
 
 export async function getCatalogSettings() {
-  const stored = (await getJSON<{ yearlyDiscountPct?: unknown; baseCurrency?: unknown; taxPercent?: unknown }>(REG.catalogSettings)) || {};
+  const stored = (await getJSON<{ yearlyDiscountPct?: unknown; baseCurrency?: unknown; taxPercent?: unknown; trialMonths?: unknown; graceMonths?: unknown }>(REG.catalogSettings)) || {};
   return {
     ...DEFAULT_CATALOG_SETTINGS, ...stored,
     yearlyDiscountPct: pct(stored.yearlyDiscountPct),
@@ -87,6 +100,8 @@ export async function getCatalogSettings() {
     // ABSENT IS THE DEFAULT, not nought: a settings object saved before this
     // field existed must not publish nompany's prices as tax-free.
     taxPercent: stored.taxPercent === undefined ? DEFAULT_CATALOG_SETTINGS.taxPercent : pct(stored.taxPercent),
+    trialMonths: months(stored.trialMonths, DEFAULT_CATALOG_SETTINGS.trialMonths),
+    graceMonths: months(stored.graceMonths, DEFAULT_CATALOG_SETTINGS.graceMonths),
   };
 }
 
@@ -95,6 +110,8 @@ export async function saveCatalogSettings(patch: Record<string, unknown>) {
     yearlyDiscountPct: pct(patch?.yearlyDiscountPct),
     baseCurrency: CODE(patch?.baseCurrency, DEFAULT_CATALOG_SETTINGS.baseCurrency),
     taxPercent: patch?.taxPercent === undefined ? DEFAULT_CATALOG_SETTINGS.taxPercent : pct(patch.taxPercent),
+    trialMonths: months(patch?.trialMonths, DEFAULT_CATALOG_SETTINGS.trialMonths),
+    graceMonths: months(patch?.graceMonths, DEFAULT_CATALOG_SETTINGS.graceMonths),
   };
   await setJSON(REG.catalogSettings, next);
   return next;

@@ -76,12 +76,14 @@ function rateInto(rates: Rates, base: string, currency: string): number | null {
 }
 
 /**
- * EVERY PUBLIC CARD PRICED IN ONE REGION, or null when any figure on any card
+ * EVERY PUBLIC CARD AND TIER PRICED IN ONE REGION, or null when any figure
  * cannot be priced there. All or nothing: a page showing three cards in dinars
  * and one in dollars would be a price list nobody could compare across.
  */
-function cardsIn(
+function listIn(
   packages: Record<string, any>[],
+  tiers: Record<string, any>[],
+  serviceNames: Map<string, string>,
   region: Pick<PriceRegion, "currency" | "priceLevel" | "prices">,
   rate: number | null,
   discountPct: number,
@@ -134,13 +136,34 @@ function cardsIn(
     // cannot reach the public by anybody forgetting to switch it off.
     .filter(offersSomething);
 
-  return unpriced ? null : cards;
+  // A TIER COSTS SO MUCH A MONTH, ON TOP OF THE PACKAGE (the owner,
+  // 23/09/2026). Its services are named rather than counted, because "12
+  // services" tells a buyer nothing about whether the one they need is in it.
+  const tierList = tiers
+    .filter((t) => t.isPublic)
+    .map((t) => {
+      const monthly = price(priceKey.tier(t.id), t.cost);
+      return {
+        id: t.id,
+        name: t.name,
+        services: (Array.isArray(t.serviceIds) ? t.serviceIds : [])
+          .map((id: string) => serviceNames.get(id))
+          .filter(Boolean) as string[],
+        durationMonths: Number(t.durationMonths) || 0,
+        monthly,
+        yearly: yearlyPrice(monthly, discountPct, currency),
+      };
+    });
+
+  return unpriced ? null : { cards, tiers: tierList };
 }
 
 export async function buildPricing(countryHeader?: string | null) {
-  const [packages, settings, snap, regions] = await Promise.all([
-    listCatalog("packages"), getCatalogSettings(), getExchangeSnapshot(), listPriceRegions(),
+  const [packages, tiers, services, settings, snap, regions] = await Promise.all([
+    listCatalog("packages"), listCatalog("tiers"), listCatalog("services"),
+    getCatalogSettings(), getExchangeSnapshot(), listPriceRegions(),
   ]);
+  const serviceNames = new Map(services.map((sv) => [String(sv.id), String(sv.name || "")]));
   const base = settings.baseCurrency;
   const discount = settings.yearlyDiscountPct;
 
@@ -154,8 +177,9 @@ export async function buildPricing(countryHeader?: string | null) {
   candidates.push({ region: { id: "", name: "", nameAr: "", isDefault: false, currency: base, priceLevel: 100, prices: {} }, priced: "base" });
 
   for (const { region, priced } of candidates) {
-    const cards = cardsIn(packages, region, rateInto(snap.rates, base, region.currency), discount);
-    if (!cards) continue;
+    const list = listIn(packages, tiers, serviceNames, region, rateInto(snap.rates, base, region.currency), discount);
+    if (!list) continue;
+    const { cards, tiers: tierList } = list;
     return {
       // The currency every figure below is in, and the region it belongs to.
       currency: region.currency,
@@ -165,6 +189,8 @@ export async function buildPricing(countryHeader?: string | null) {
       // "region" is the visitor's own; anything else is a fallback, said out loud.
       priced,
       cards,
+      // Priced per month, bought beside a package.
+      tiers: tierList,
       yearlyDiscountPct: discount,
       // Added on top at checkout and on the invoice, never inside a card's figure.
       taxPercent: settings.taxPercent,

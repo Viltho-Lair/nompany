@@ -455,6 +455,50 @@ export function PricingBoard({ initial = null, locale = "en" }) {
       </motion.div>
 
 
+      {/* TIERS, BOUGHT BESIDE A PACKAGE and priced per month (the owner,
+          23/09/2026), in the same region's currency as the cards above. The
+          monthly/yearly switch moves these too — one switch, one period, for
+          everything on the page. Services are listed by name because a count
+          cannot tell a buyer whether the one they need is in. */}
+      {!loading && (live?.tiers || []).length > 0 && (
+        <div className="mt-16">
+          <SectionHeading align="center" title={tr.pvTiersTitle} description={tr.pvTiersLead} />
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {live.tiers.map((tier) => {
+              const amount = yearly ? tier.yearly : tier.monthly;
+              return (
+                <article key={tier.id} className="surface flex flex-col rounded-2xl p-6">
+                  <h3 className="font-display text-lg font-600">{tier.name}</h3>
+                  <p className="mt-4 flex items-baseline gap-1.5 font-display font-600 tabular-nums">
+                    {tier.monthly > 0 ? (
+                      <>
+                        <span className="text-3xl">{money(amount)}</span>
+                        <Sym />
+                        <span className="text-sm font-400 text-fg-dim">{yearly ? tr.pvPerYear : tr.pvPerMonth}</span>
+                      </>
+                    ) : (
+                      <span className="text-2xl">{tr.pvTierIncluded}</span>
+                    )}
+                  </p>
+                  {tier.durationMonths > 0 && (
+                    <span className="mt-3 inline-flex w-fit rounded-full bg-ink/50 px-3 py-1 text-xs text-fg-muted">
+                      {tr.pvMonths(tier.durationMonths)}
+                    </span>
+                  )}
+                  {tier.services.length > 0 && (
+                    <ul className="mt-5 space-y-2">
+                      {tier.services.map((name) => (
+                        <li key={name} className="text-sm text-fg-muted">{name}</li>
+                      ))}
+                    </ul>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* TAX IS ADDED ON TOP (the owner, 23/09/2026), so every figure above is
           before it — said once, under the cards, with the rate /super holds. */}
       {!loading && cards.length > 0 && live?.taxPercent > 0 && (

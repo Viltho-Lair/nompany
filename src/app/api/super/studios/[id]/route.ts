@@ -1,6 +1,8 @@
 import { route } from "@/platform/http/route";
 import { getStudioById, updateStudio } from "@/modules/main/studios";
 import { listCatalog } from "@/lib/data/catalog";
+import { loadCatalogues, costsNothing } from "@/lib/plans";
+import { recordEvent } from "@/lib/data/subscriptions";
 import { hasConsented } from "@/shared/marketing/showcase";
 
 export const runtime = "nodejs";
@@ -17,7 +19,7 @@ export const dynamic = "force-dynamic";
 // name on its own — see shared/marketing/showcase.
 export const PUT = route(
   { auth: "super", body: true, name: "super/studios/[id]" },
-  async ({ params, body }) => {
+  async ({ params, body, admin }) => {
     const studio = await getStudioById(params.id);
     if (!studio) return { error: "notfound" };
 
@@ -51,6 +53,20 @@ export const PUT = route(
 
     const updated = await updateStudio(params.id, patch);
     if (!updated) return { error: "notfound" };
+
+    // A NEW PLAN MAY BE A FREE ONE, OR STOP BEING ONE, and whether a studio can
+    // lapse turns on exactly that (shared/subscription). Recorded as an event so
+    // the change is in the studio's billing history, not only on its row. One
+    // save is one event; there is no payment in it for a retry to double.
+    if (patch.packageId !== undefined || patch.tierId !== undefined) {
+      const { packages, tiers } = await loadCatalogues();
+      const pkg = packages.find((p) => p.id === updated.packageId) || null;
+      const tier = tiers.find((t) => t.id === updated.tierId) || null;
+      await recordEvent(updated.id, {
+        id: `plan:${updated.packageId || "-"}:${updated.tierId || "-"}:${Date.now()}`,
+        type: "plan-changed", free: costsNothing(pkg, tier),
+      }, `super:${admin.id}`);
+    }
     return {
       ok: true,
       studio: {

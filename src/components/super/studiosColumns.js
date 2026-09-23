@@ -8,6 +8,8 @@ export const STUDIOS_COLUMNS = [
   { field: "owner", headerName: "Owner", flex: 2, minWidth: 200 },
   { field: "packageName", headerName: "Plan", width: 140, skeleton: "pill" },
   { field: "tierName", headerName: "Tier", width: 130, skeleton: "pill" },
+  { field: "subStatus", headerName: "Subscription", width: 150, skeleton: "pill" },
+  { field: "paidUntil", headerName: "Paid until", width: 130, skeleton: "number" },
   { field: "members", headerName: "Members", width: 120, skeleton: "number" },
   { field: "created", headerName: "Created", width: 150, skeleton: "number" },
 ];

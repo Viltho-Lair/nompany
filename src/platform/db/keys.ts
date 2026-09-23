@@ -293,6 +293,16 @@ export const FX = {
   lock: `${P}fx:lock`,
 };
 
+// ---- a studio's subscription to nompany --------------------------------------
+// ONE DOCUMENT PER STUDIO holding the subscription AND its history, so an event
+// and the line recording it are one compare-and-set rather than two writes that
+// can part company. Under g: rather than s:<id>: deliberately: what a customer
+// paid and when outlives the studio (invoices are tax records), so no studio
+// cascade reaches it and the orphan sweep's scopes do not include it.
+export const BILLING = {
+  subscription: (studioId: string) => `${P}g:subscription:${studioId}`,
+};
+
 // ---- idempotency -----------------------------------------------------------
 // ONE ANSWER PER KEY, so a retry cannot bill twice.
 //

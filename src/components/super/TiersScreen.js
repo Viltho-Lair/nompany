@@ -31,7 +31,7 @@ export default function TiersScreen() {
   const TIER_FIELDS = [
     { key: "name", label: "Name", type: "text", placeholder: "Basic" },
     { key: "serviceIds", label: "ERP services", type: "services" },
-    { key: "cost", label: "Cost", type: "number", prefix: base ? `${base} ` : "", hint: "The base price. Each region's own price is set under Regional pricing." },
+    { key: "cost", label: "Cost", type: "number", prefix: base ? `${base} ` : "", hint: "The base price per month, on top of the package. Each region's own price is set under Regional pricing." },
     { key: "durationMonths", label: "Duration (months)", type: "number", suffix: " mo", zeroLabel: "Endless", hint: "0 means endless — the tier never expires." },
     // WHAT DASHBOARD ANALYTICS A STUDIO ON THIS TIER SELLS. Two controls, not one:
     // a master switch that turns the content on, and — only when it is on — a

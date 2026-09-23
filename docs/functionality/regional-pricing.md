@@ -42,6 +42,10 @@ are **before tax**; this is the rate added on top.
   buyer shops for the cheapest region. The line above the cards says "Prices for
   Jordan, in JOD"; the default region says only its currency. A tax note under the cards
   gives the rate. The home page's structured data uses the default region.
+- **Tiers are on the pricing page too**, under the package cards, in the same region's
+  currency. **A tier's cost is per month, on top of the package** (the owner,
+  23/09/2026). The monthly/yearly switch moves them with the cards, a tier costing
+  nothing reads "Included", and its services are listed by name.
 - **Nine regions are planted the first time the list is read** (the owner chose Steam's
   shape): Jordan (JOD), Saudi Arabia (SAR), UAE (AED), Qatar (QAR), Kuwait (KWD),
   Middle East & North Africa (USD), Europe (EUR, the euro area), United Kingdom (GBP) and
@@ -68,9 +72,6 @@ are **before tax**; this is the rate added on top.
   tested and called by nothing, and no customer has a stored region.
 - **No regional price has been fixed.** Until the owner fixes them in `/super/regions`,
   the live page shows rounded conversions in each region's currency.
-- **Tiers are priced per region but not shown on the public page.** Whether a tier's
-  cost is monthly or a one-off for its duration is not recorded anywhere, and the page
-  would have to say which.
 - **Region names on the page are the stored words**, with no translation beyond `nameAr`.
 - **A plan price change does not notify existing customers**, because there are none on
   a paid plan yet.

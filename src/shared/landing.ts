@@ -49,6 +49,14 @@ type Strings = {
   pvPricesFallback: (currency: string) => string;
   /** Prices exclude tax; this names the rate added on top. */
   pvTaxNote: (n: number) => string;
+  /** The tiers band under the package cards. */
+  pvTiersTitle: string;
+  pvTiersLead: string;
+  pvPerMonth: string;
+  pvPerYear: string;
+  /** A tier priced at nothing: it comes with the package. */
+  pvTierIncluded: string;
+  pvMonths: (n: number) => string;
   pvEmployees: string;
   pvEyebrow: string;
   /** Under the free card's price, from the package's own `durationMonths`
@@ -138,6 +146,12 @@ const en: Strings = {
   pvPricesFor: (region, currency) => `Prices for ${region}, in ${currency}`,
   pvPricesFallback: (currency) => `Prices in ${currency}`,
   pvTaxNote: (n) => `Prices exclude ${n}% sales tax, added at checkout.`,
+  pvTiersTitle: "Tiers",
+  pvTiersLead: "Add a tier to any package. Each is billed per month, on top of the package.",
+  pvPerMonth: "/ month",
+  pvPerYear: "/ year",
+  pvTierIncluded: "Included",
+  pvMonths: (n) => (n === 1 ? "1 month" : `${n} months`),
   pvEmployees: "employees",
   pvEyebrow: "Pricing",
   pvFreeNote: (m) => (m > 0 ? `Free for ${m === 1 ? "1 month" : `${m} months`}` : "Always free"),
@@ -215,6 +229,12 @@ const ar: Strings = {
   pvPricesFor: (region, currency) => `الأسعار في ${region}، بعملة ${currency}`,
   pvPricesFallback: (currency) => `الأسعار بعملة ${currency}`,
   pvTaxNote: (n) => `الأسعار لا تشمل ضريبة المبيعات ${n}%، وتضاف عند الدفع.`,
+  pvTiersTitle: "المستويات",
+  pvTiersLead: "أضف مستوى إلى أي باقة. يحتسب كل مستوى شهريا، فوق سعر الباقة.",
+  pvPerMonth: "/ شهريا",
+  pvPerYear: "/ سنويا",
+  pvTierIncluded: "مشمول",
+  pvMonths: (n) => (n === 1 ? "شهر واحد" : n === 2 ? "شهران" : n <= 10 ? `${n} أشهر` : `${n} شهرا`),
   pvEmployees: "موظفا",
   pvEyebrow: "الأسعار",
   // The numeral agrees with what it counts: one and two take their own

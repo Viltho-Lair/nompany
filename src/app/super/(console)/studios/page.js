@@ -6,11 +6,20 @@ import { listUsers, getProfilesByIds } from "@/platform/auth/users";
 import { withRequest } from "@/platform/http/observability";
 import { loadCatalogues, planOf } from "@/lib/plans";
 import StudiosTable from "@/components/super/StudiosTable";
+import { listSubscriptions } from "@/lib/data/subscriptions";
 // The pair that decides a public listing, asked through the shared predicate so
 // the console and the public feed cannot disagree about what consent is.
 import { hasConsented } from "@/shared/marketing/showcase";
 
 export const dynamic = "force-dynamic";
+
+// The subscription statuses in words. Kept here rather than imported from
+// SubscriptionPanel: that is a client module, and a Server Component importing
+// one gets a reference to it, not its object.
+const SUB_LABEL = {
+  trial: "Trial", active: "Active", complimentary: "Complimentary",
+  past_due: "Past due", read_only: "Read-only", cancelled: "Cancelled",
+};
 export const metadata = { title: "Studios" };
 
 // Every studio on the platform, from the registry — real rows, not sample data.
@@ -40,9 +49,11 @@ async function renderStudios() {
     readArr(REG.studios), loadCatalogues(), listUsers(),
   ]);
   const userById = new Map(users.map((u) => [u.id, u]));
-  const [lists, profiles] = await Promise.all([
+  const [lists, profiles, subs] = await Promise.all([
     listCollaboratorsMany(studios.map((s) => s.id)),
     getProfilesByIds(studios.map((s) => String(s.ownerUserId || ""))),
+    // ONE BATCHED READ for every studio's subscription, like the two beside it.
+    listSubscriptions(studios.map((s) => s.id)),
   ]);
   const extra = studios.map((s, i) => ({
     members: lists[i].length,
@@ -74,6 +85,10 @@ async function renderStudios() {
         featuredOrder: Number(s.featuredOrder) || 0,
         hasConsented: hasConsented(s),
         ...plan,
+        subStatus: subs[i].status,
+        subKind: subs[i].subscription.kind,
+        paidUntil: subs[i].subscription.paidUntil,
+        paidUntilLabel: fmtDate(subs[i].subscription.paidUntil),
       };
     })
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
@@ -92,7 +107,9 @@ async function renderStudios() {
     return [...map.values()].sort((a, b) => b.studios - a.studios);
   };
   const byPackage = groupBy("packageName");
-  const byStatus = groupBy("status");
+  // BY SUBSCRIPTION, not by the registry's own `status` field, which reads
+  // "active" on every studio and so answered nothing.
+  const byStatus = groupBy("subStatus");
   const totalMembers = rows.reduce((n, r) => n + r.members, 0);
 
   return (
@@ -121,7 +138,7 @@ async function renderStudios() {
 
         <Col span={6}>
           <Card className="h-full">
-            <CardHead title="Table with Footer Totals" sub="Studios by status" />
+            <CardHead title="Table with Footer Totals" sub="Studios by subscription" />
             <div className="w-full overflow-x-auto">
               <table className="ad-table">
                 <thead>
@@ -130,7 +147,7 @@ async function renderStudios() {
                 <tbody>
                   {byStatus.map((r) => (
                     <tr key={r.label}>
-                      <td className="font-500 capitalize">{r.label}</td>
+                      <td className="font-500">{SUB_LABEL[r.label] || r.label}</td>
                       <td className="text-[var(--ad-muted-foreground)]">{r.studios.toLocaleString()}</td>
                       <td className="text-end font-500">{r.members.toLocaleString()}</td>
                     </tr>

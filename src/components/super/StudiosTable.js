@@ -6,6 +6,8 @@ import SuperDataGrid from "@/components/super/SuperDataGrid";
 import { STUDIOS_COLUMNS, STUDIOS_PAGE_SIZE } from "@/components/super/studiosColumns";
 import { planTagStyle } from "@/lib/planColors";
 import SelectMenu from "@/components/fields/SelectMenu";
+import { Badge } from "@/app/super/_components/ui";
+import SubscriptionPanel, { STATUS } from "@/components/super/SubscriptionPanel";
 
 // Every studio, searchable, with its plan editable in place.
 //
@@ -21,6 +23,11 @@ import SelectMenu from "@/components/fields/SelectMenu";
 // and that is correct: the author picks it, it is content, and two studios on
 // different plans have to be told apart at a glance. Every other colour on this
 // screen is a token.
+
+const fmtDay = (d) => {
+  const t = Date.parse(`${d}T00:00:00Z`);
+  return d && Number.isFinite(t) ? new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "—";
+};
 
 const Tag = ({ name, color }) => (
   <span className="plan-tag inline-flex rounded-full px-2.5 py-1 text-xs font-600" style={planTagStyle(color)}>
@@ -72,6 +79,25 @@ export default function StudiosTable({ rows, packages, tiers }) {
       },
       packageName: { renderCell: ({ row }) => <Tag name={row.packageName} color={row.packageColor} /> },
       tierName: { renderCell: ({ row }) => <Tag name={row.tierName} color={row.tierColor} /> },
+      // WORKED OUT ON THE SERVER from the dates (shared/subscription), never
+      // stored — so this column cannot say "active" about a studio whose
+      // paid-until date has passed.
+      subStatus: {
+        renderCell: ({ row }) => {
+          const st = STATUS[row.subStatus] || STATUS.active;
+          return <Badge tone={st.tone}>{st.label}</Badge>;
+        },
+      },
+      paidUntil: {
+        align: "right",
+        headerAlign: "right",
+        valueGetter: (_v, row) => row.paidUntil || "",
+        renderCell: ({ row }) => (
+          <Num className="whitespace-nowrap text-[var(--ad-muted-foreground)]">
+            {row.subKind === "comp" ? "—" : row.paidUntilLabel}
+          </Num>
+        ),
+      },
       members: {
         align: "right",
         headerAlign: "right",
@@ -139,6 +165,10 @@ export default function StudiosTable({ rows, packages, tiers }) {
           packages={packages}
           tiers={tiers}
           onClose={() => setOpen(null)}
+          // A recorded payment moves this row's status and paid-until at once.
+          onSubscriptionChanged={(patch) => setLive((rs) => rs.map((r) => (r.id === open.id
+            ? { ...r, ...patch, paidUntilLabel: fmtDay(patch.paidUntil) }
+            : r)))}
           onSaved={(patch) => {
             setLive((rs) => rs.map((r) => (r.id === patch.id ? { ...r, ...patch } : r)));
             setOpen(null);
@@ -149,7 +179,7 @@ export default function StudiosTable({ rows, packages, tiers }) {
   );
 }
 
-function StudioDialog({ studio, packages, tiers, onClose, onSaved }) {
+function StudioDialog({ studio, packages, tiers, onClose, onSaved, onSubscriptionChanged }) {
   const [packageId, setPackageId] = useState(studio.packageId);
   const [tierId, setTierId] = useState(studio.tierId);
   // OUR HALF OF THE FEATURED-COMPANIES DECISION. Consent is the studio's and is
@@ -206,7 +236,7 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved }) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={studio.name}>
       <div className="absolute inset-0 bg-[rgb(var(--ad-foreground-rgb)/0.4)]" onClick={onClose} />
       <div
-        className="relative w-full max-w-[560px] overflow-hidden rounded-geex border shadow-[var(--ad-shadow-lg)]"
+        className="relative flex max-h-[92vh] w-full max-w-[720px] flex-col overflow-hidden rounded-geex border shadow-[var(--ad-shadow-lg)]"
         style={{ backgroundColor: "var(--ad-card)", borderColor: "var(--ad-border)", color: "var(--ad-card-foreground)" }}
       >
         <div className="flex items-center gap-3 border-b px-5 py-4" style={{ borderColor: "var(--ad-border)" }}>
@@ -219,7 +249,7 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved }) {
           </button>
         </div>
 
-        <div className="space-y-5 px-5 py-5">
+        <div className="space-y-5 overflow-y-auto px-5 py-5">
           {/* Static: this is the studio's own record, shown for context. */}
           <div className="grid gap-4 sm:grid-cols-2">
             <Static label="Owner" value={studio.ownerName} />
@@ -288,6 +318,15 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved }) {
                 does not reshuffle the page between visits.
               </p>
             </div>
+          </div>
+
+          {/* THE SUBSCRIPTION saves itself, action by action, rather than
+              waiting for this dialog's Save: each one is an event with its own
+              id, and holding a payment until somebody also saved the featured
+              switch would be how one gets lost. */}
+          <div className="border-t pt-5" style={{ borderColor: "var(--ad-border)" }}>
+            <h4 className="mb-3 text-sm font-700">Subscription</h4>
+            <SubscriptionPanel studioId={studio.id} onChanged={onSubscriptionChanged} />
           </div>
 
           {error && <p className="text-sm text-[var(--ad-destructive-ink)]">{error}</p>}

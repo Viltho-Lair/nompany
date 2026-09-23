@@ -528,6 +528,34 @@ function CatalogSettings({ config, onClose }) {
             <p className="mt-1.5 text-xs text-[var(--ad-muted-foreground)]">
               Added on top of every price at checkout. Regional prices are set under Regional pricing.
             </p>
+
+            {/* HOW LONG A NEW STUDIO TRIES, AND HOW LONG AN UNPAID ONE KEEPS
+                WORKING. Read by the subscription rules as they stand when a
+                trial starts or a date is checked — a studio already mid-trial
+                keeps the end date it was given. */}
+            <div className="mt-5 grid grid-cols-2 gap-4">
+              <div>
+                <label className={label} htmlFor="trial-months">Trial</label>
+                <div className="flex items-center gap-2">
+                  <input id="trial-months" className={input} type="number" min="0" max="36" step="1"
+                    value={value.trialMonths ?? 3}
+                    onChange={(e) => { setValue({ ...value, trialMonths: e.target.value }); setSaved(false); }} />
+                  <span className="text-sm text-[var(--ad-muted-foreground)]">months</span>
+                </div>
+              </div>
+              <div>
+                <label className={label} htmlFor="grace-months">Grace</label>
+                <div className="flex items-center gap-2">
+                  <input id="grace-months" className={input} type="number" min="0" max="36" step="1"
+                    value={value.graceMonths ?? 3}
+                    onChange={(e) => { setValue({ ...value, graceMonths: e.target.value }); setSaved(false); }} />
+                  <span className="text-sm text-[var(--ad-muted-foreground)]">months</span>
+                </div>
+              </div>
+            </div>
+            <p className="mt-1.5 text-xs text-[var(--ad-muted-foreground)]">
+              A new studio&apos;s trial, and how long an unpaid studio keeps working before it becomes read-only.
+            </p>
           </div>
         )}
 

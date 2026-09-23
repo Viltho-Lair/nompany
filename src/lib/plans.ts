@@ -5,6 +5,7 @@
 // behind on every studio sold under the old wording.
 
 import { listCatalog, DEFAULT_PACKAGE, DEFAULT_TIER } from "@/lib/data/catalog";
+import { getSubscription } from "@/lib/data/subscriptions";
 import type { Row } from "@/platform/db/store";
 
 // PACKAGE_TONE went with the named-colour model — packages carry a hex now and
@@ -77,6 +78,19 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
   };
 }
 
+/**
+ * DOES THIS PLAN COST ANYTHING? A subscription on a plan that costs nothing
+ * never lapses once its trial is over — there is nothing to pay. Read from the
+ * BASE list: a region may fix its own price, but a plan that is free in the base
+ * list is the free plan everywhere.
+ */
+export function costsNothing(pkg: Row | null | undefined, tier: Row | null | undefined) {
+  const bands = Array.isArray(pkg?.categories) ? (pkg.categories as Row[]) : [];
+  const pkgPrice = Number(pkg?.costPerEmployee) || 0;
+  const bandPrice = bands.some((c) => Number(c?.costPerEmployee) > 0);
+  return pkgPrice <= 0 && !bandPrice && (Number(tier?.cost) || 0) <= 0;
+}
+
 // One read of both catalogues, for callers that need to resolve several studios.
 export async function loadCatalogues() {
   const [packages, tiers] = await Promise.all([listCatalog("packages"), listCatalog("tiers")]);
@@ -143,9 +157,21 @@ export async function promotionPlanOf(studio: Row | null | undefined) {
   return { enabled: plan.promotionsEnabled, advanced: plan.promotionsAdvanced };
 }
 
-// THE LIMIT THAT BITES. Returns null when the package sets no ceiling.
+// THE LIMIT THAT BITES. Returns null when nothing sets a ceiling.
+//
+// THE SEATS PAID FOR WIN, then the package's own ceiling (the owner,
+// 23/09/2026: a studio at its seats is blocked from adding members until it
+// upgrades). The package alone was not enough: a COMPOUND package is priced by
+// headcount bands and has no package-level ceiling on its form, so a studio on
+// one had no member limit at all. The band bought becomes the subscription's
+// seats, and that is what counts here.
 export async function memberLimitOf(studio: Row | null | undefined) {
-  const { packages, tiers } = await loadCatalogues();
+  const [{ packages, tiers }, doc] = await Promise.all([
+    loadCatalogues(),
+    studio?.id ? getSubscription(String(studio.id)) : Promise.resolve(null),
+  ]);
+  const seats = doc?.subscription.seats || 0;
+  if (seats > 0) return seats;
   const { maxMembers } = planOf(studio, packages, tiers);
   return maxMembers > 0 ? maxMembers : null;
 }
