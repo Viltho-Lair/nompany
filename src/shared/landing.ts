@@ -43,7 +43,12 @@ type Strings = {
   pvBandText: string;
   pvBandTitle: string;
   pvBilledYearly: string;
-  pvCurrency: string;
+  /** "Prices for Jordan, in JOD" — which region's list the visitor is reading. */
+  pvPricesFor: (region: string, currency: string) => string;
+  /** Said when the visitor's own region could not be priced and another list is shown. */
+  pvPricesFallback: (currency: string) => string;
+  /** Prices exclude tax; this names the rate added on top. */
+  pvTaxNote: (n: number) => string;
   pvEmployees: string;
   pvEyebrow: string;
   pvFreeNote: string;
@@ -127,7 +132,9 @@ const en: Strings = {
   pvBandText: "Create your free account — no card required.",
   pvBandTitle: "Ready to run your company on one platform?",
   pvBilledYearly: "billed yearly",
-  pvCurrency: "Currency",
+  pvPricesFor: (region, currency) => `Prices for ${region}, in ${currency}`,
+  pvPricesFallback: (currency) => `Prices in ${currency}`,
+  pvTaxNote: (n) => `Prices exclude ${n}% sales tax, added at checkout.`,
   pvEmployees: "employees",
   pvEyebrow: "Pricing",
   pvFreeNote: "Always free",
@@ -202,7 +209,9 @@ const ar: Strings = {
   pvBandText: "أنشئ حسابك المجاني — بلا بطاقة.",
   pvBandTitle: "جاهز لإدارة شركتك على منصة واحدة؟",
   pvBilledYearly: "يفوتر سنويا",
-  pvCurrency: "العملة",
+  pvPricesFor: (region, currency) => `الأسعار في ${region}، بعملة ${currency}`,
+  pvPricesFallback: (currency) => `الأسعار بعملة ${currency}`,
+  pvTaxNote: (n) => `الأسعار لا تشمل ضريبة المبيعات ${n}%، وتضاف عند الدفع.`,
   pvEmployees: "موظفا",
   pvEyebrow: "الأسعار",
   pvFreeNote: "مجاني دائما",

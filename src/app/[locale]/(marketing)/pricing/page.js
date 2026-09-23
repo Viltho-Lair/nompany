@@ -22,10 +22,12 @@ import { headers } from "next/headers";
    its own numbers on mount would have reproduced that exactly while
    looking finished.
 
-   THE INTERACTIVE PARTS STAY INTERACTIVE. Monthly/yearly, the currency
-   picker and the per-card band selector all still work — they are an
-   enhancement over a page that already shows real numbers, which is the
-   right order.
+   THE PRICES ARE THE VISITOR'S REGION'S (23/09/2026). The country
+   header picks the region and `buildPricing` returns its fixed prices,
+   so the figures rendered here are the ones the checkout charges; there
+   is no currency picker any more. Monthly/yearly and the per-card band
+   selector still work — an enhancement over a page that already shows
+   real numbers, which is the right order.
 
    Schema: Offer per public package, priced from the same payload the
    page renders, so the markup and the page cannot disagree. */
@@ -48,7 +50,7 @@ export default async function PricingPage({ params }) {
       { name: dict.nav.home, url: urlFor(locale, "") },
       { name: dict.nav.pricing, url: urlFor(locale, "/pricing") },
     ]),
-    softwareApplicationLd(pricing.cards, pricing.base, locale),
+    softwareApplicationLd(pricing.cards, pricing.currency, locale),
   ].filter(Boolean);
 
   return (

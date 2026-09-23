@@ -1,7 +1,8 @@
 import { listCatalog, getCatalogSettings, yearlyPrice } from "@/lib/data/catalog";
+import { listPriceRegions } from "@/lib/data/priceRegions";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { crossRate } from "@/shared/currencies";
-import { currencyForCountry } from "@/lib/countryCurrency";
+import { priceKey, regionForCountry, regionalPrice, totalFor, type PriceRegion } from "@/shared/priceRegions";
 
 // THE PUBLIC PRICE LIST, BUILT ONCE.
 //
@@ -10,16 +11,22 @@ import { currencyForCountry } from "@/lib/countryCurrency";
 // server so the figures are in the HTML rather than arriving from a fetch
 // nothing but a browser will make. Building it twice would be two price lists.
 //
-// THE BASE IS THE CURRENCY THE PRICE LIST IS AUTHORED IN, and it is DATA rather
-// than a constant here: `catalogSettings.baseCurrency`. It was `const BASE =
-// "SAR"`, which made one country's money the origin every rate converted from,
-// in a product built in Jordan and sold regionally and then globally.
+// IT IS THE VISITOR'S REGION'S PRICE LIST, NOT A CONVERSION (23/09/2026, the
+// owner, after Steam). Until now this returned one list in the base currency and
+// a table of today's rates, and the page multiplied — so a displayed price was
+// a guess at what the base price came to that morning, and the code itself
+// said "nothing is charged in it". Now each region carries prices fixed in its
+// own currency (`shared/priceRegions`), the page shows the region the visitor
+// connects from, and there is no picker: the price on the card is the price.
 //
-// Changing the setting does NOT re-price anything — it declares what the figures
-// already typed into /super MEAN. Whatever it says is what the server renders
-// first and what the JSON-LD quotes, so the page and its own markup cannot
-// disagree about the price; that property is the reason the pricing rebuild
-// renders the base rather than a geo-guess, and it holds for any base.
+// THE BASE LIST STILL MATTERS: it is what a region's price is SUGGESTED from
+// until somebody fixes one, at today's rate and the region's price level.
+//
+// AND AN UNPRICEABLE REGION FALLS BACK RATHER THAN GUESSING. A region with an
+// unset price and no exchange rate to suggest one from cannot show a real
+// figure, so the payload falls to the default region, and failing that to the
+// base list itself — and says which in `priced`, so nothing downstream mistakes
+// a fallback for the visitor's own prices.
 
 export type PricingPayload = Awaited<ReturnType<typeof buildPricing>>;
 
@@ -61,66 +68,108 @@ export function offersSomething(card: {
   return money || range || words;
 }
 
-export async function buildPricing(countryHeader?: string | null) {
-  const [packages, settings, snap] = await Promise.all([
-    listCatalog("packages"), getCatalogSettings(), getExchangeSnapshot(),
-  ]);
+type Rates = Parameters<typeof crossRate>[0];
 
-  // THE PACKAGES ARE THE CARDS. No band matching: a compound package carries
-  // its own categories, so the page renders what /super holds rather than
-  // lining it up against a hardcoded list of four ranges. That matching was why
-  // prices were not reaching the site — a package whose max employees did not
-  // land exactly on 25, 49, 99 or 249 priced nothing.
+/** The rate from the base list's currency into a region's, or null when today's table has none. */
+function rateInto(rates: Rates, base: string, currency: string): number | null {
+  return currency === base ? 1 : crossRate(rates, base, currency);
+}
+
+/**
+ * EVERY PUBLIC CARD PRICED IN ONE REGION, or null when any figure on any card
+ * cannot be priced there. All or nothing: a page showing three cards in dinars
+ * and one in dollars would be a price list nobody could compare across.
+ */
+function cardsIn(
+  packages: Record<string, any>[],
+  region: Pick<PriceRegion, "currency" | "priceLevel" | "prices">,
+  rate: number | null,
+  discountPct: number,
+) {
+  const { currency } = region;
+  let unpriced = false;
+  const price = (key: string, base: unknown) => {
+    const p = regionalPrice({ region, key, baseAmount: Number(base) || 0, rate });
+    if (!p) unpriced = true;
+    return p ? p.amount : 0;
+  };
+
   const cards = packages
-    .filter((p: any) => p.isPublic)
-    .map((p: any) => ({
-      id: p.id,
-      type: p.type || "compound",
-      name: p.name, nameAr: p.nameAr,
-      tagline: p.tagline, taglineAr: p.taglineAr,
-      usersLabel: p.usersLabel, usersLabelAr: p.usersLabelAr,
-      includes: Array.isArray(p.includes) ? p.includes : [],
-      includesAr: Array.isArray(p.includesAr) ? p.includesAr : [],
-      popular: Boolean(p.popular),
-      durationMonths: Number(p.durationMonths) || 0,
-      minEmployees: Number(p.minEmployees) || 0,
-      maxEmployees: Number(p.maxEmployees) || 0,
-      // Monthly and yearly are both worked out HERE, with the same function
-      // /super uses, so no caller has to know how a discount is applied.
-      categories: (Array.isArray(p.categories) ? p.categories : []).map((c: any) => ({
-        id: c.id, label: c.label,
-        minEmployees: c.minEmployees, maxEmployees: c.maxEmployees,
-        perEmployee: c.costPerEmployee,
-        monthly: c.cost,
-        yearly: yearlyPrice(c.cost, settings.yearlyDiscountPct, settings.baseCurrency),
-      })),
-      perEmployee: Number(p.costPerEmployee) || 0,
-      monthly: Number(p.cost) || 0,
-      yearly: yearlyPrice(Number(p.cost) || 0, settings.yearlyDiscountPct, settings.baseCurrency),
-    }))
+    .filter((p) => p.isPublic)
+    .map((p) => {
+      const perEmployee = price(priceKey.package(p.id), p.costPerEmployee);
+      const monthly = totalFor(perEmployee, Number(p.maxEmployees) || 0, currency);
+      return {
+        id: p.id,
+        type: p.type || "compound",
+        name: p.name, nameAr: p.nameAr,
+        tagline: p.tagline, taglineAr: p.taglineAr,
+        usersLabel: p.usersLabel, usersLabelAr: p.usersLabelAr,
+        includes: Array.isArray(p.includes) ? p.includes : [],
+        includesAr: Array.isArray(p.includesAr) ? p.includesAr : [],
+        popular: Boolean(p.popular),
+        durationMonths: Number(p.durationMonths) || 0,
+        minEmployees: Number(p.minEmployees) || 0,
+        maxEmployees: Number(p.maxEmployees) || 0,
+        // Monthly and yearly are both worked out HERE, with the same function
+        // /super uses, so no caller has to know how a discount is applied.
+        categories: (Array.isArray(p.categories) ? p.categories : []).map((c: any) => {
+          const rateEach = price(priceKey.band(p.id, c.id), c.costPerEmployee);
+          const bandMonthly = totalFor(rateEach, Number(c.maxEmployees) || 0, currency);
+          return {
+            id: c.id, label: c.label,
+            minEmployees: c.minEmployees, maxEmployees: c.maxEmployees,
+            perEmployee: rateEach,
+            monthly: bandMonthly,
+            yearly: yearlyPrice(bandMonthly, discountPct, currency),
+          };
+        }),
+        perEmployee,
+        monthly,
+        yearly: yearlyPrice(monthly, discountPct, currency),
+      };
+    })
     // AND IT MUST HAVE SOMETHING TO SAY. `isPublic` is a switch somebody sets;
     // this is a property of the card itself, which is why an unfilled package
     // cannot reach the public by anybody forgetting to switch it off.
     .filter(offersSomething);
 
-  // Today's rate from the authored base out to every currency the snapshot quotes. A table,
-  // so switching currency is arithmetic in the browser rather than a round trip.
-  const rates: Record<string, number> = {};
-  if (snap.rates) {
-    for (const code of Object.keys(snap.rates)) {
-      const r = crossRate(snap.rates, settings.baseCurrency, code);
-      if (r != null) rates[code] = r;
-    }
-  }
+  return unpriced ? null : cards;
+}
 
-  return {
-    base: settings.baseCurrency,
-    cards,
-    yearlyDiscountPct: settings.yearlyDiscountPct,
-    rates,
-    // Where this reader is, turned into a currency. A DEFAULT, not a decision:
-    // the picker overrides it, and nothing is charged in it.
-    currency: currencyForCountry(countryHeader),
-    stale: Boolean(snap.stale),
-  };
+export async function buildPricing(countryHeader?: string | null) {
+  const [packages, settings, snap, regions] = await Promise.all([
+    listCatalog("packages"), getCatalogSettings(), getExchangeSnapshot(), listPriceRegions(),
+  ]);
+  const base = settings.baseCurrency;
+  const discount = settings.yearlyDiscountPct;
+
+  // The visitor's region, then the default, then the base list as it stands —
+  // the first of the three that can price every card.
+  const own = regionForCountry(regions, countryHeader);
+  const fallback = regions.find((r) => r.isDefault) || null;
+  const candidates: { region: Pick<PriceRegion, "currency" | "priceLevel" | "prices"> & { id: string; name: string; nameAr: string; isDefault: boolean }; priced: "region" | "default" | "base" }[] = [];
+  if (own) candidates.push({ region: own, priced: "region" });
+  if (fallback && fallback !== own) candidates.push({ region: fallback, priced: "default" });
+  candidates.push({ region: { id: "", name: "", nameAr: "", isDefault: false, currency: base, priceLevel: 100, prices: {} }, priced: "base" });
+
+  for (const { region, priced } of candidates) {
+    const cards = cardsIn(packages, region, rateInto(snap.rates, base, region.currency), discount);
+    if (!cards) continue;
+    return {
+      // The currency every figure below is in, and the region it belongs to.
+      currency: region.currency,
+      // isDefault travels so the page does not announce "Prices for Rest of
+      // world" — a catch-all is a currency, not a place anybody is in.
+      region: { id: region.id, name: region.name, nameAr: region.nameAr, isDefault: region.isDefault },
+      // "region" is the visitor's own; anything else is a fallback, said out loud.
+      priced,
+      cards,
+      yearlyDiscountPct: discount,
+      // Added on top at checkout and on the invoice, never inside a card's figure.
+      taxPercent: settings.taxPercent,
+    };
+  }
+  // Unreachable: the base candidate prices every card at a rate of 1.
+  throw new Error("pricing: the base list could not be priced");
 }

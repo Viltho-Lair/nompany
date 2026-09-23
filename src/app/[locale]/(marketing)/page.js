@@ -29,15 +29,16 @@ export default async function HomePage({ params }) {
   // address and no premises anybody can walk into. Nobody buys an ERP from a
   // map result, and the design asks this page for Organization + WebSite
   // (both from the root layout) + SoftwareApplication with the real offers.
-  // No geo header is read: home renders the base currency, and the pricing
-  // page is where a visitor is offered their own.
+  // No geo header is read: home renders the DEFAULT region's prices (the one
+  // every unnamed country falls to), and the pricing page is where a visitor
+  // sees their own region's.
   // Through the minute cache (lib/data/publicLanding): three catalogue reads
   // per visit otherwise, for prices that change when somebody edits /super.
   const pricing = await landingPricing();
 
   return (
     <>
-      <JsonLd data={softwareApplicationLd(pricing.cards, pricing.base, locale)} />
+      <JsonLd data={softwareApplicationLd(pricing.cards, pricing.currency, locale)} />
       {/* RENDERED HERE, ON THE SERVER, and handed down as a slot. OverviewView
           is a client component and cannot render an async server component as a
           child — but it can render one it was given, which keeps the customer

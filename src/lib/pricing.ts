@@ -27,6 +27,8 @@
 // destroy the numbers somebody needs in order to fill /super in. Once the
 // catalogue holds real packages, `bands` can go too.
 
+import { currencyDecimals } from "@/shared/money";
+
 // Locale picker for the {en, ar} label objects below.
 export function pick(obj: Record<string, string> | null | undefined, locale: string) {
   if (!obj) return "";
@@ -117,11 +119,14 @@ export const PLANS: Plan[] = [
 ];
 
 
-// Format an amount (already in the target currency) — SAR keeps up to 2 decimals
-// like the authored prices; converted currencies round to whole units.
+// Format an amount already in its currency, up to that currency's own decimals.
+//
+// IT KEPT TWO DECIMALS FOR SAR AND NONE FOR ANYTHING ELSE, which was right while
+// every other currency was a converted estimate rounded up to a whole unit. A
+// regional price is the amount CHARGED (23/09/2026), and a dinar price of
+// 3.100 printed as "3" would advertise less than the checkout takes.
 export function fmtCurrencyAmount(amount: number | string, code: string) {
-  const digits = code === "SAR" ? 2 : 0;
-  return Number(amount).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: digits });
+  return Number(amount).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: currencyDecimals(code) });
 }
 
 

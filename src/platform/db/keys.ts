@@ -65,6 +65,7 @@ export const ID = {
   questionnaire: () => makeId("qst"),
   package: () => makeId("pkg"),
   tier: () => makeId("tir"),
+  priceRegion: () => makeId("rgn"),
   erpService: () => makeId("svc"),
   qpage: () => makeId("qpg"),
   question: () => makeId("qsn"),
@@ -147,6 +148,10 @@ export const REG = {
   // discount the public pricing page applies. One small object, platform-level
   // like the packages it qualifies.
   catalogSettings: `${P}g:catalogSettings`,
+  // WHERE A PACKAGE COSTS WHAT (23/09/2026): the price regions, each a set of
+  // countries sharing one currency and carrying the prices fixed for it.
+  // Platform-level beside the catalogue it prices; one small list read whole.
+  priceRegions: `${P}g:priceRegions`,
   // THE PLATFORM EVENT LOG — the /super console's equivalent of a studio's
   // s:<StudioID>:events. A Redis Stream, capped and cursor-addressable, so the
   // console resumes exactly like a studio board does. It is platform data: it

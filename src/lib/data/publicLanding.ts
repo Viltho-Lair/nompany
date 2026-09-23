@@ -42,8 +42,8 @@ import { publicCached } from "./publicSettings";
    price, a featured company switched off) shows within a minute, which is short
    enough that nobody wonders whether the save worked. */
 
-/** Pricing in the base currency — what home renders. No country: the pricing
- *  page is where a visitor is offered their own, and it is not cached here. */
+/** Pricing in the DEFAULT region — what home renders. No country: the pricing
+ *  page is where a visitor sees their own region's, and it is not cached here. */
 export const landingPricing = publicCached(async () => buildPricing(null), "landing-pricing");
 
 export const featuredCompanies = publicCached(

@@ -68,6 +68,7 @@ Three rules that keep this folder worth reading:
 | [plan-history.md](plan-history.md) | What changed in a project plan, when and by whom: one entry per editing session rather than per autosave, and why a view change is not a change |
 | [pipeline.md](pipeline.md) | The sales funnel: the stages a deal moves through, the moves that are refused, how long it has sat where it is, and why it ended |
 | [pos.md](pos.md) | The point of sale: tills, shifts and receipts, why the server prices the basket, tax taken out of a shelf price, stock by expiry, and the end-of-day report |
+| [regional-pricing.md](regional-pricing.md) | What nompany's own packages and tiers cost in each region: regions, fixed and suggested prices, the region-only pricing page, and the payment-method rule the checkout will call |
 | [pricing.md](pricing.md) | What a quotation line is priced at: the customer's agreed rate, the studio's sell price, or cost — and how each is shown |
 | [procurement-dashboard.md](procurement-dashboard.md) | What is waiting, what is late, and what does not add up |
 | [projects.md](projects.md) | Where work is delivered: the register, the plan, and the sub-screens that have their own files |

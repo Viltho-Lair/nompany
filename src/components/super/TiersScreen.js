@@ -11,10 +11,16 @@ import { useReload } from "@/components/studio2/useReload";
 // splitting them across two pages would make that ordering invisible.
 export default function TiersScreen() {
   const [services, setServices] = useState([]);
+  // THE BASE LIST'S CURRENCY, read rather than assumed. The cost field was
+  // prefixed "SAR " while the catalogue's base currency defaults to USD, so a
+  // tier priced at 50 read as fifty riyals and meant fifty dollars.
+  const [base, setBase] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch("/api/super/catalog/services", { cache: "no-store" });
     if (res.ok) setServices((await res.json()).items || []);
+    const settings = await fetch("/api/super/catalog-settings", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    setBase(settings?.settings?.baseCurrency || "");
   }, []);
   useReload(load);
 
@@ -25,7 +31,7 @@ export default function TiersScreen() {
   const TIER_FIELDS = [
     { key: "name", label: "Name", type: "text", placeholder: "Basic" },
     { key: "serviceIds", label: "ERP services", type: "services" },
-    { key: "cost", label: "Cost", type: "number", prefix: "SAR " },
+    { key: "cost", label: "Cost", type: "number", prefix: base ? `${base} ` : "", hint: "The base price. Each region's own price is set under Regional pricing." },
     { key: "durationMonths", label: "Duration (months)", type: "number", suffix: " mo", zeroLabel: "Endless", hint: "0 means endless — the tier never expires." },
     // WHAT DASHBOARD ANALYTICS A STUDIO ON THIS TIER SELLS. Two controls, not one:
     // a master switch that turns the content on, and — only when it is on — a

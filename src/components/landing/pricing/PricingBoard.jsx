@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLandingLocale } from "@/components/landing/locale";
 import { landingDict } from "@/shared/landing";
 import { AnimatePresence, motion } from "motion/react";
 import { fmtCurrencyAmount } from "@/lib/pricing";
-import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
 import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
 import { MagneticButton } from "../ui/MagneticButton";
 import { SectionHeading } from "../ui/SectionHeading";
@@ -24,7 +23,7 @@ import { SectionHeading } from "../ui/SectionHeading";
    server and hands the result in as `initial`, so the prices are in the
    first byte of HTML: for a crawler, for a reader with JavaScript off,
    and for anyone on a slow connection. Everything interactive here —
-   the monthly/yearly switch, the currency picker, the band selector —
+   the monthly/yearly switch and the band selector —
    is an enhancement over a page that already shows real numbers.
 
    Nothing on a card is authored here any more: the name, the tagline,
@@ -51,7 +50,6 @@ const copyFor = (tr) => ({
   eyebrow: tr.pvEyebrow,
   title: tr.pvTitle,
   lead: tr.pvLead,
-  currency: tr.pvCurrency,
   monthly: tr.pvMonthly,
   yearly: tr.pvYearly,
   freePrice: tr.pvFreePrice,
@@ -78,49 +76,26 @@ export function PricingBoard({ initial = null, locale = "en" }) {
   const tr = landingDict(useLandingLocale());
   const COPY = copyFor(tr);
   const [yearly, setYearly] = useState(false);
-  // THE SERVER ALWAYS RENDERS THE BASE CURRENCY, and the reader's own is
-  // applied after mount.
+  // THE PRICES ARE THE VISITOR'S REGION'S, AND THERE IS NO PICKER (23/09/2026,
+  // the owner, after Steam). This used to render the base list, then switch to
+  // the visitor's currency after mount and multiply by today's rate — a price
+  // that was a guess at the conversion, which the checkout would never have
+  // charged. The server now hands over one region's list with the figures
+  // already fixed in its currency (modules/marketing/pricing), so what is
+  // rendered first is what is charged, and the JSON-LD quotes the same numbers.
   //
-  // The prices are authored in ONE currency and that currency is what has to
-  // reach the HTML: the measurement that started this rebuild was that it
-  // appeared nowhere in the served markup of a product with a published price
-  // list. Opening in a geo-guessed currency during the first render would put a
-  // different one there and quietly reproduce the defect — with the JSON-LD
-  // still quoting the base, so the page and its own markup would disagree about
-  // what the product costs.
+  // No picker, deliberately: offering every region's list is how a buyer
+  // shops for the cheapest one, and the checkout prices by the country of the
+  // payment method anyway (shared/priceRegions).
   //
-  // WHICH currency that is comes from `catalogSettings.baseCurrency` and is
-  // carried here on `initial.base`. It used to be the literal "SAR", which made
-  // one country's money the origin in a product built in Jordan and sold
-  // regionally and then globally. The argument above is unchanged and holds for
-  // any base; only the hard-coding is gone.
-  //
-  // The switch below is a DEFAULT for a person, not a decision: it runs once,
-  // only if the snapshot actually quotes that currency, and never after the
-  // picker has been touched — reaching in afterwards would fight the reader.
-  const [currency, setCurrency] = useState(initial?.base || "USD");
-  const pickedOwn = useRef(false);
-  useEffect(() => {
-    if (pickedOwn.current) return;
-    const own = initial?.currency;
-    if (own && own !== (initial?.base || "USD") && initial?.rates?.[own]) setCurrency(own);
-  }, [initial]);
-
   // ALREADY HERE, rendered on the server by the route that mounts this. It
   // used to be fetched on mount, so the price list existed only after
   // JavaScript ran — invisible to every engine and to anyone whose script
   // never arrived.
   const live = initial;
+  const currency = live?.currency || "USD";
+  const regionName = (locale === "ar" && live?.region?.nameAr) || live?.region?.name || "";
 
-  // Only currencies today's snapshot actually quotes. Listing all 166 when a
-  // third of them have no rate would offer prices that cannot be worked out.
-  const currencyOptions = useMemo(() => {
-    const quoted = live?.rates ? Object.keys(live.rates) : null;
-    const pool = quoted?.length
-      ? CURRENCIES_FROM_EXCHANGE_API.filter((c) => quoted.includes(c.code))
-      : CURRENCIES_FROM_EXCHANGE_API.filter((c) => ["SAR", "USD", "AED", "EUR", "GBP"].includes(c.code));
-    return pool;
-  }, [live]);
   // Selected category index per compound card (0 = the first, the default).
   const [bandIdx, setBandIdx] = useState({});
 
@@ -164,18 +139,10 @@ export function PricingBoard({ initial = null, locale = "en" }) {
   // The saving is whatever the gear in /super says, not a number baked in
   // here — two places claiming a discount is how they end up disagreeing.
   const discountPct = live?.yearlyDiscountPct ?? 0;
-  // Converted with TODAY's rate when we have one, and only then — an unquoted
-  // currency simply stays in SAR rather than being converted by a guess.
-  //
-  // ROUNDED UP, to a whole unit. A price is a promise about what will be
-  // charged, and rounding down would advertise a figure fractionally below it.
-  // Up also means the number carries no decimals to argue about, which is why
-  // the "approximately" mark is gone with it.
-  const rate = live?.rates?.[currency];
-  const money = (sar) => {
-    const amount = rate != null ? Math.ceil(sar * rate) : sar;
-    return fmtCurrencyAmount(amount, currency);
-  };
+  // THE FIGURE IS ALREADY IN THE REGION'S CURRENCY — nothing is converted
+  // here any more, so nothing is rounded here either: the amount shown is the
+  // amount the region was priced at, to that currency's own decimals.
+  const money = (amount) => fmtCurrencyAmount(amount, currency);
 
   // Package key carried to signup — banded plans include the chosen band.
   const packageKeyFor = (plan) =>
@@ -222,7 +189,7 @@ export function PricingBoard({ initial = null, locale = "en" }) {
           all until this was passed. */}
       <SectionHeading as="h1" align="center" eyebrow={COPY.eyebrow} title={COPY.title} description={COPY.lead} />
 
-      {/* Controls — currency selector + billing toggle. The sliding pill is a
+      {/* Controls — whose prices these are + billing toggle. The sliding pill is a
           shared layoutId, so it glides between states. */}
       <motion.div
         // Rise only — an entrance that starts at opacity 0 is written into the
@@ -233,14 +200,13 @@ export function PricingBoard({ initial = null, locale = "en" }) {
         transition={{ duration: 0.5, delay: 0.15, ease: EASE_OUT_EXPO }}
         className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
       >
-        <CurrencyPicker
-          value={currency}
-          options={currencyOptions}
-          // A DELIBERATE CHOICE, marked as one. Once the reader has picked a
-          // currency, the geo default must never reach in and change it back.
-          onChange={(code) => { pickedOwn.current = true; setCurrency(code); }}
-          label={COPY.currency}
-        />
+        {/* WHOSE PRICES THESE ARE, said rather than picked. A fallback list
+            (the visitor's region could not be priced today) says only its
+            currency, because naming a region the visitor is not in would be
+            the wrong claim. */}
+        <p className="text-xs text-fg-muted">
+          {live?.priced === "region" && !live?.region?.isDefault && regionName ? tr.pvPricesFor(regionName, currency) : tr.pvPricesFallback(currency)}
+        </p>
         <div className="flex items-center gap-1 rounded-full border border-line bg-ink-soft/70 p-1">
           {[
             { id: "monthly", label: COPY.monthly },
@@ -341,14 +307,14 @@ export function PricingBoard({ initial = null, locale = "en" }) {
                 <h3 className="font-display text-lg font-600">{plan.name}</h3>
                 <p className="mt-2 min-h-[2.5rem] text-sm text-fg-muted">{plan.tagline}</p>
 
-                {/* Price — swaps with a vertical slide when currency, billing
+                {/* Price — swaps with a vertical slide when billing
                     period or band changes. The fixed heights here and on the
                     band switch below keep all four CTAs on one line. */}
                 <div className="mt-6">
                   <div className="flex h-11 items-baseline gap-1.5 overflow-hidden">
                     <AnimatePresence mode="popLayout" initial={false}>
                       <motion.span
-                        key={`${plan.key}-${yearly}-${bi}-${currency}`}
+                        key={`${plan.key}-${yearly}-${bi}`}
                         initial={{ y: 26, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: -26, opacity: 0 }}
@@ -489,6 +455,12 @@ export function PricingBoard({ initial = null, locale = "en" }) {
       </motion.div>
 
 
+      {/* TAX IS ADDED ON TOP (the owner, 23/09/2026), so every figure above is
+          before it — said once, under the cards, with the rate /super holds. */}
+      {!loading && cards.length > 0 && live?.taxPercent > 0 && (
+        <p className="mt-6 text-center text-xs text-fg-dim">{tr.pvTaxNote(live.taxPercent)}</p>
+      )}
+
       {/* Assurances — all three are statements the pricing model actually backs. */}
       <motion.div
         variants={stagger(0.08)}
@@ -524,122 +496,5 @@ export function PricingBoard({ initial = null, locale = "en" }) {
         </MagneticButton>
       </motion.div>
     </section>
-  );
-}
-
-/* ------------------------------------------------------------------
-   Currency picker — the page's own control, not the browser's.
-
-   A native <select> was the honest first answer: it is accessible for
-   free and a phone renders it well. But it also renders as the operating
-   system's list, which on this page sat inside a dark, thin-bordered,
-   display-typeface layout and looked like something from another site.
-
-   So this is built: the same pill, a panel in the same ink and line
-   colours, and a search box — because the list is over a hundred rows
-   and scrolling to JOD is not a design. Searching matches code, name or
-   country, since somebody hunting the riyal may know any of the three.
-
-   Keyboard and screen readers are handled rather than assumed: it is a
-   combobox with a listbox, Escape closes, arrows move, Enter picks, and
-   a click anywhere outside dismisses it.
-   ------------------------------------------------------------------ */
-function CurrencyPicker({ value, options, onChange, label }) {
-  const tr = landingDict(useLandingLocale());
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [active, setActive] = useState(0);
-  const boxRef = useRef(null);
-  const searchRef = useRef(null);
-
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter(
-      (c) => c.code.toLowerCase().includes(q)
-        || c.name.toLowerCase().includes(q)
-        || (c.country || "").toLowerCase().includes(q),
-    );
-  }, [options, query]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDown = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    // The search takes focus on open, so typing works without aiming at it.
-    searchRef.current?.focus();
-    return () => { window.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey); };
-  }, [open]);
-
-  useEffect(() => { setActive(0); }, [query]);
-
-  const choose = (code) => { onChange(code); setOpen(false); setQuery(""); };
-
-  const onKeyDown = (e) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(i + 1, results.length - 1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
-    else if (e.key === "Enter" && results[active]) { e.preventDefault(); choose(results[active].code); }
-  };
-
-  return (
-    <div className="relative" ref={boxRef}>
-      {/* THE WHOLE PILL IS THE CONTROL. The old select was a small inline
-          element inside its label, so only the three letters of the code
-          opened it — the word "Currency" and the chevron did nothing. */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={label}
-        className="inline-flex w-full items-center gap-2 rounded-full border border-line bg-ink-soft/70 px-4 py-2 transition-colors hover:border-fg-dim/60 sm:w-auto"
-      >
-        <span className="text-[0.7rem] uppercase tracking-[0.16em] text-fg-dim">{label}</span>
-        <span className="font-display text-sm font-600 text-fg">{value}</span>
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden
-          className={`ms-auto text-fg-dim transition-transform ${open ? "rotate-180" : ""}`}>
-          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      {open && (
-        <div className="absolute left-0 z-50 mt-2 w-[min(20rem,calc(100vw-3rem))] overflow-hidden rounded-2xl border border-line bg-ink-soft shadow-2xl">
-          <div className="border-b border-line p-2">
-            <input
-              ref={searchRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={onKeyDown}
-              placeholder={tr.searchCodeNameCountry}
-              aria-label={tr.searchCurrencies}
-              className="w-full rounded-xl bg-ink/60 px-3 py-2 text-sm text-fg placeholder:text-fg-dim/70 focus:outline-none focus:ring-1 focus:ring-fg-dim/40"
-            />
-          </div>
-          <ul role="listbox" aria-label={label} className="max-h-64 overflow-y-auto py-1">
-            {results.length === 0 && (
-              <li className="px-3 py-6 text-center text-sm text-fg-dim">{tr.nothingMatches}</li>
-            )}
-            {results.map((c, i) => (
-              <li key={c.code} role="option" aria-selected={c.code === value}>
-                <button
-                  type="button"
-                  onMouseEnter={() => setActive(i)}
-                  onClick={() => choose(c.code)}
-                  className={`flex w-full items-center gap-3 px-3 py-2 text-start transition-colors ${
-                    i === active ? "bg-fg/10" : ""
-                  }`}
-                >
-                  <span className={`w-11 shrink-0 font-display text-sm font-600 ${c.code === value ? "text-fg" : "text-fg-dim"}`}>{c.code}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-fg-dim">{c.name}</span>
-                  {c.code === value && <span className="text-xs text-fg">{tr.selected}</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
   );
 }

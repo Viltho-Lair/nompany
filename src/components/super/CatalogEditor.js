@@ -515,6 +515,19 @@ function CatalogSettings({ config, onClose }) {
               Taken off the total cost when the public pricing page is switched to yearly.
               0 means a year costs twelve months.
             </p>
+
+            {/* Prices are shown before tax; this is the rate the invoice adds and
+                the pricing page names under the cards. */}
+            <label className={`${label} mt-5`} htmlFor="tax-percent">Sales tax</label>
+            <div className="flex items-center gap-2">
+              <input id="tax-percent" className={input} type="number" min="0" max="100" step="0.01"
+                value={value.taxPercent ?? 16}
+                onChange={(e) => { setValue({ ...value, taxPercent: e.target.value }); setSaved(false); }} />
+              <span className="text-sm text-[var(--ad-muted-foreground)]">%</span>
+            </div>
+            <p className="mt-1.5 text-xs text-[var(--ad-muted-foreground)]">
+              Added on top of every price at checkout. Regional prices are set under Regional pricing.
+            </p>
           </div>
         )}
 

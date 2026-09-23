@@ -66,7 +66,12 @@ function cleanLines(v: unknown) {
 //
 // Changing this does NOT re-price anything — it declares what the numbers already
 // typed into /super MEAN. Set it to the currency those figures are written in.
-export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0, baseCurrency: "USD" };
+//
+// THE SALES TAX nompany adds on top of every price (23/09/2026, the owner:
+// prices are shown before tax, and the invoice adds Jordan's). A setting rather
+// than a constant because a rate is the state's to change, and one stored here
+// is what the pricing page's note and the invoice will both read.
+export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0, baseCurrency: "USD", taxPercent: 16 };
 
 const CODE = (v: unknown, fallback: string) => {
   const c = String(v ?? "").trim().toUpperCase();
@@ -74,11 +79,14 @@ const CODE = (v: unknown, fallback: string) => {
 };
 
 export async function getCatalogSettings() {
-  const stored = (await getJSON<{ yearlyDiscountPct?: unknown; baseCurrency?: unknown }>(REG.catalogSettings)) || {};
+  const stored = (await getJSON<{ yearlyDiscountPct?: unknown; baseCurrency?: unknown; taxPercent?: unknown }>(REG.catalogSettings)) || {};
   return {
     ...DEFAULT_CATALOG_SETTINGS, ...stored,
     yearlyDiscountPct: pct(stored.yearlyDiscountPct),
     baseCurrency: CODE(stored.baseCurrency, DEFAULT_CATALOG_SETTINGS.baseCurrency),
+    // ABSENT IS THE DEFAULT, not nought: a settings object saved before this
+    // field existed must not publish nompany's prices as tax-free.
+    taxPercent: stored.taxPercent === undefined ? DEFAULT_CATALOG_SETTINGS.taxPercent : pct(stored.taxPercent),
   };
 }
 
@@ -86,6 +94,7 @@ export async function saveCatalogSettings(patch: Record<string, unknown>) {
   const next = {
     yearlyDiscountPct: pct(patch?.yearlyDiscountPct),
     baseCurrency: CODE(patch?.baseCurrency, DEFAULT_CATALOG_SETTINGS.baseCurrency),
+    taxPercent: patch?.taxPercent === undefined ? DEFAULT_CATALOG_SETTINGS.taxPercent : pct(patch.taxPercent),
   };
   await setJSON(REG.catalogSettings, next);
   return next;

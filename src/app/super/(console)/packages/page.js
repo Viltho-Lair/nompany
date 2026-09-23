@@ -44,7 +44,7 @@ const FIELDS = [
   },
   { key: "minEmployees", label: "Min employees", type: "number", showWhen: NOT_COMPOUND },
   { key: "maxEmployees", label: "Max employees", type: "number", showWhen: NOT_COMPOUND, zeroLabel: "No limit", hint: "0 means no upper limit." },
-  { key: "costPerEmployee", label: "Cost per employee", type: "number", showWhen: NOT_COMPOUND },
+  { key: "costPerEmployee", label: "Cost per employee", type: "number", showWhen: NOT_COMPOUND, hint: "The base price. Each region's own price is set under Regional pricing." },
   {
     key: "cost", label: "Total cost", type: "computed",
     multiply: ["costPerEmployee", "maxEmployees"],
