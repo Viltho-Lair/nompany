@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { motion, useMotionValueEvent, useScroll } from "motion/react";
 import { chromeCopy } from "@/shared/marketing/chrome";
 import { useEffect, useState } from "react";
@@ -33,9 +34,14 @@ export function TopNav({ locale = "en" }) {
   // this, so a page added here appears in both or in neither — the failure mode
   // being avoided is a phone menu that quietly offers less than the desktop.
   //
-  // Plain anchors, not next/link, on purpose: this nav sits inside a
-  // client-rendered shell and a hard navigation is what leaves it for the
-  // server-rendered route.
+  // next/link, NOT plain anchors. These were `<a>` "on purpose", back when every
+  // page brought its own shell and there was nothing to keep — so each click was
+  // a full document load that repainted the header, re-asked for the session
+  // and flashed the skeleton. Every public page now sits under the one chrome
+  // `(marketing)/layout.js` mounts, and a client navigation is what lets that
+  // chrome survive the click. A Link is still a real `<a href>` in the HTML:
+  // openable in a new tab and followable by a crawler. The LANGUAGE links stay
+  // plain anchors — a locale switch changes `dir` and `lang` above this shell.
   const PAGE_LINKS = [
     { href: `/${locale}/platform`, label: nav.platform },
     { href: `/${locale}/pricing`, label: nav.pricing },
@@ -84,6 +90,12 @@ export function TopNav({ locale = "en" }) {
         window.addEventListener("keydown", onKey);
         return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
     }, [navOpen]);
+    // AND FOLLOWING A LINK CLOSES BOTH. The links are client navigations now, so
+    // this nav survives the click — a full reload used to close an open menu for
+    // free, and the menu's own stopPropagation keeps the listeners above from
+    // seeing a click inside it. Closed at the click rather than by an effect on
+    // the pathname, which would be a setState-in-effect for the same result.
+    const closeMenus = () => { setNavOpen(false); setMenuOpen(false); };
     useEffect(() => {
         let alive = true;
         fetch("/api/identity/me", { cache: "no-store" })
@@ -136,21 +148,17 @@ export function TopNav({ locale = "en" }) {
             A guard was the wrong fix anyway: home has an address, so the mark
             that means "home" should be openable in a new tab and readable by a
             crawler — the same argument PAGE_LINKS above already makes, and a
-            plain anchor for the same reason it gives (a hard navigation is what
-            leaves the client-rendered shell for the server-rendered route). */}
-        <a href={`/${locale}`} className="flex shrink-0 items-center gap-2.5 pr-1 sm:pr-2" aria-label={tr.nompanyHome}>
+            Link for the same reason it gives (the chrome survives the click). */}
+        <Link href={`/${locale}`} className="flex shrink-0 items-center gap-2.5 pr-1 sm:pr-2" aria-label={tr.nompanyHome}>
           <LogoMark size={26} priority/>
           <Wordmark className="hidden sm:block"/>
-        </a>
+        </Link>
 
         {/* REAL PAGES FIRST, then whatever is still an in-page view.
             Platform and Pricing have addresses now, so they are links: a
             <button> that swaps a client view cannot be opened in a new tab,
             cannot be linked to from anywhere, and is invisible to a crawler —
-            which is why the price list reached no engine while it lived here.
-            They are plain anchors rather than next/link on purpose: this nav
-            sits on the landing page, and a hard navigation is what leaves the
-            client-rendered shell for the server-rendered route. */}
+            which is why the price list reached no engine while it lived here. */}
         {/* THE COLLAPSED MENU, next to the logo. Below `md` this is the whole
             navigation; above it, the bar below is. Both render from PAGE_LINKS
             and the same view list, so the two layouts cannot drift into
@@ -171,10 +179,10 @@ export function TopNav({ locale = "en" }) {
           {navOpen && (
             <div role="menu" className="surface absolute start-0 z-50 mt-3 w-56 overflow-hidden rounded-2xl py-2">
               {PAGE_LINKS.map((l) => (
-                <a key={l.href} role="menuitem" href={l.href}
+                <Link key={l.href} role="menuitem" href={l.href} onClick={closeMenus}
                    className="block px-4 py-2.5 text-sm text-fg-muted transition-colors hover:bg-line/40 hover:text-fg">
                   {l.label}
-                </a>
+                </Link>
               ))}
               {/* THE PRIMARY CALL TO ACTION FOLLOWS THE MENU DOWN. "Start free"
                   is the only one this site has, and it lives in the bar above
@@ -182,10 +190,10 @@ export function TopNav({ locale = "en" }) {
                   the screen the harder the site is to act on. Shown to signed-out
                   visitors only, the same rule the bar's copy of it follows. */}
               {account === undefined || account ? null : (
-                <a role="menuitem" href={`/${locale}/signup`}
+                <Link role="menuitem" href={`/${locale}/signup`} onClick={closeMenus}
                    className="mt-1 block border-t border-line px-4 pb-1 pt-3 text-sm font-medium text-fg transition-colors hover:bg-line/40">
                   {tr.startFree}
-                </a>
+                </Link>
               )}
               {/* THE LANGUAGES ARE ROWS, NOT A SECOND DROPDOWN.
                   `LangMenu` opens a popup, and a popup inside this popup was
@@ -220,13 +228,13 @@ export function TopNav({ locale = "en" }) {
 
         <div className="ml-auto hidden items-center gap-1 rounded-full bg-ink/40 p-1 lg:flex">
           {PAGE_LINKS.map((l) => (
-            <a
+            <Link
               key={l.href}
               href={l.href}
               className="relative rounded-full px-2 py-1.5 text-xs font-medium text-fg-muted transition-colors duration-300 hover:text-fg sm:px-3.5 sm:text-sm"
             >
               {l.label}
-            </a>
+            </Link>
           ))}
         </div>
 
@@ -266,9 +274,9 @@ export function TopNav({ locale = "en" }) {
               {menuOpen && (
                   <div role="menu" className="surface absolute end-0 z-50 mt-2 w-56 overflow-hidden rounded-xl py-1 text-left">
                     <p className="truncate px-4 py-2 text-xs text-fg-dim">{account.email}</p>
-                    <a role="menuitem" href={`/${locale}/account`} className="block px-4 py-2.5 text-sm text-fg-muted transition-colors hover:bg-line/40 hover:text-fg">
+                    <Link role="menuitem" href={`/${locale}/account`} onClick={closeMenus} className="block px-4 py-2.5 text-sm text-fg-muted transition-colors hover:bg-line/40 hover:text-fg">
                       {tr.goToAccount}
-                    </a>
+                    </Link>
                     <button role="menuitem" type="button"
                       onClick={async () => {
                           await fetch("/api/identity/logout", { method: "POST" });
@@ -281,9 +289,9 @@ export function TopNav({ locale = "en" }) {
               )}
             </div>
         ) : (
-            <a href={`/${locale}/login`} className="inline-flex shrink-0 items-center rounded-full border border-line px-3 py-2 text-xs font-medium text-fg-muted transition-colors duration-300 hover:border-iris/50 hover:text-fg focus-visible:ring-2 focus-visible:ring-iris-bright focus-visible:ring-offset-2 focus-visible:ring-offset-ink focus-visible:outline-none sm:px-4 sm:text-sm">
+            <Link href={`/${locale}/login`} className="inline-flex shrink-0 items-center rounded-full border border-line px-3 py-2 text-xs font-medium text-fg-muted transition-colors duration-300 hover:border-iris/50 hover:text-fg focus-visible:ring-2 focus-visible:ring-iris-bright focus-visible:ring-offset-2 focus-visible:ring-offset-ink focus-visible:outline-none sm:px-4 sm:text-sm">
               {tr.logIn}
-            </a>
+            </Link>
         )}
 
         {/* "Start free" follows the same rule as "Log in": both are for people

@@ -1,12 +1,16 @@
 import { buildMetadata, softwareApplicationLd } from "@/lib/seo";
 import { landingPricing } from "@/lib/data/publicLanding";
 import JsonLd from "@/components/JsonLd";
-import LandingPage from "@/components/landing/LandingPage";
+import { OverviewView } from "@/components/landing/views/OverviewView";
 import { FeaturedCompanies } from "@/components/landing/sections/FeaturedCompanies";
 import { PlatformStats } from "@/components/landing/sections/PlatformStats";
 
-// The public landing page. It renders its own header/footer and background, so
-// `Nav` and `Footer` opt out of this route (see the `isLanding` checks there).
+// The public landing page. It lives in the `(marketing)` group and wears the
+// ONE chrome its layout mounts. It used to bring its own nav, footer and
+// background (`LandingPage.js`, deleted), and a shell a page carries is a
+// different subtree on every page — so a click between home and any other
+// public page tore the header down and built it again. `Nav` and `Footer`
+// still opt out of this route (see the `isLanding` checks there).
 //
 // NO `force-dynamic`: this page reads nothing per-request now that the settings
 // read has gone (the schema comes from the pricing catalogue, which is the same
@@ -34,15 +38,14 @@ export default async function HomePage({ params }) {
   return (
     <>
       <JsonLd data={softwareApplicationLd(pricing.cards, pricing.base, locale)} />
-      {/* RENDERED HERE, ON THE SERVER, and handed down as a slot. LandingPage
+      {/* RENDERED HERE, ON THE SERVER, and handed down as a slot. OverviewView
           is a client component and cannot render an async server component as a
           child — but it can render one it was given, which keeps the customer
           names in the HTML instead of arriving after a fetch. The band returns
           null when no studio has both consented and been featured, so the home
           page simply does not have that section rather than having an empty
           one. */}
-      <LandingPage
-        locale={locale}
+      <OverviewView
         customers={<FeaturedCompanies locale={locale} />}
         stats={<PlatformStats locale={locale} />}
       />

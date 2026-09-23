@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { dirFor } from "@/shared/locale";
 import { LandingLocaleProvider } from "@/components/landing/locale";
 import { AmbientBackground } from "@/components/landing/AmbientBackground";
@@ -29,6 +30,8 @@ import { SiteFooter } from "./SiteFooter";
 ================================================================== */
 
 export function MarketingShell({ locale = "en", children }) {
+  const pathname = usePathname() || "";
+  const isHome = pathname.replace(/\/$/, "") === `/${locale}`;
   return (
     <div dir={dirFor(locale)} className="landing-page relative min-h-screen">
       <LandingLocaleProvider locale={locale}>
@@ -46,8 +49,14 @@ export function MarketingShell({ locale = "en", children }) {
         <PointerProvider>
           <AmbientBackground />
           <TopNav locale={locale} />
-          {/* The nav is fixed, so the content needs its height back. */}
-          <main className="pt-28 lg:pt-32">{children}</main>
+          {/* The nav is fixed, so the content needs its height back — except
+              on the home page, where the hero sits under the nav by design.
+              Decided HERE rather than by the home page bringing a shell of its
+              own: that is what it used to do, and it meant the header was torn
+              down and rebuilt on every click between home and any other page.
+              A <div>, not a <main>: `[locale]/layout.js` already wraps every
+              page in the one main landmark a document may have. */}
+          <div className={isHome ? undefined : "pt-28 lg:pt-32"}>{children}</div>
           <SiteFooter locale={locale} />
         </PointerProvider>
       </LandingLocaleProvider>
