@@ -14,7 +14,8 @@ import { getDict } from "@/shared/i18n";
 
    AND IT STATES WHAT IS NOT CLAIMED — no ISO, no SOC 2, no national
    assessment, no published penetration test, no residency guarantee, no
-   registered entity. A buyer asks all six early. "No, and here is what
+   registered entity, and the known gaps in what is built. A buyer asks all
+   of it early. "No, and here is what
    we do have" is worth more than silence, and much more than a page that
    implies an audit by saying nothing. */
 
@@ -52,19 +53,26 @@ export default async function SecurityPage({ params }) {
 
         <section className="mt-14">
           <h2 className="font-display text-2xl font-600">{tr.practicesHeading}</h2>
-          <div className="mt-8 border-t border-steel-400/20 dark:border-white/10">
-            {tr.practices.map((p) => (
-              <article
-                key={p.title}
-                className="grid gap-3 border-b border-steel-400/20 py-7 md:grid-cols-[minmax(0,18rem)_1fr] md:gap-10 dark:border-white/10"
-              >
-                <h3 className="font-display text-base font-600 text-brand-950 dark:text-white">
-                  {p.title}
-                </h3>
-                <p className="text-steel-700 dark:text-slate-300">{p.body}</p>
-              </article>
-            ))}
-          </div>
+          {tr.groups.map((g) => (
+            <div key={g.heading} className="mt-10">
+              <h3 className="font-display text-sm font-600 uppercase tracking-wide text-brand-700 dark:text-brand-300">
+                {g.heading}
+              </h3>
+              <div className="mt-4 border-t border-steel-400/20 dark:border-white/10">
+                {g.practices.map((p) => (
+                  <article
+                    key={p.title}
+                    className="grid gap-3 border-b border-steel-400/20 py-7 md:grid-cols-[minmax(0,18rem)_1fr] md:gap-10 dark:border-white/10"
+                  >
+                    <h4 className="font-display text-base font-600 text-brand-950 dark:text-white">
+                      {p.title}
+                    </h4>
+                    <p className="text-steel-700 dark:text-slate-300">{p.body}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ))}
         </section>
 
         {/* NOT A DISCLAIMER IN SMALL PRINT. It sits at the same weight as the
