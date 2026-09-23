@@ -21,11 +21,22 @@
 //
 // WHAT THIS FILE STILL DECLARES is WHO each plan is for — the headcount bands
 // and the words describing them — which PLAN_HEADCOUNTS below hands to the
-// marketing copy's guard. The per-employee rates left in `bands` are the
-// authored intent that has never been entered into that catalogue, and they
-// stay because they are the only surviving record of it: deleting them would
-// destroy the numbers somebody needs in order to fill /super in. Once the
-// catalogue holds real packages, `bands` can go too.
+// marketing copy's guard.
+//
+// THE RATES LEFT, 24/09/2026. `bands` carried a per-employee rate each, kept as
+// the only record of prices nobody had yet entered into /super. The catalogue
+// holds the real packages now — Standard, Small in three bands, Medium in two,
+// Large per employee — and the rates here had already drifted from it (150/175
+// against a live 140/150/160; 200/225 against 170/170). A price that lives in
+// two places is wrong in one of them, so the bands keep their HEADCOUNTS and
+// labels, which the registration questionnaire still names a package by, and
+// every figure is the catalogue's alone.
+//
+// THE NAMES AND BANDS ARE STILL A HAND-KEPT MIRROR of the catalogue, and that
+// is the remaining debt: the questionnaire should name a package by its
+// catalogue id, and this list should then shrink to the headcounts the claims
+// guard reads. Until then, a package renamed or re-banded in /super is renamed
+// or re-banded here in the same breath.
 
 import { currencyDecimals } from "@/shared/money";
 
@@ -36,8 +47,9 @@ export function pick(obj: Record<string, string> | null | undefined, locale: str
 }
 
 
-/** One price band: everybody up to `upTo` employees pays `rate` each. */
-export type PlanBand = { upTo: number; rate: number; label: string };
+/** One headcount band, up to `upTo` employees. It carries NO price — see the
+ *  header: what a band costs is the catalogue's, in /super. */
+export type PlanBand = { upTo: number; label: string };
 
 /**
  * A HEADCOUNT PACKAGE from the public pricing page. Distinct from the in-app
@@ -69,8 +81,8 @@ export const PLANS: Plan[] = [
   {
     key: "micro",
     free: true, minUsers: 1, maxUsers: 4,
-    name: { en: "Micro", ar: "متناهية الصغر" },
-    tagline: { en: "Micro-businesses — fewer than 5 employees.", ar: "المنشآت متناهية الصغر — أقل من 5 موظفين." },
+    name: { en: "Standard", ar: "أساسي" },
+    tagline: { en: "Free — 1 to 4 employees.", ar: "مجاني من 1 إلى 4 موظفين." },
     users: { en: "1–4 users", ar: "1–4 مستخدمين" },
     cta: "start",
     features: {
@@ -81,20 +93,20 @@ export const PLANS: Plan[] = [
   {
     key: "small",
     minUsers: 5, maxUsers: 49, defaultUsers: 15,
-    bands: [{ upTo: 25, rate: 150, label: "5–25" }, { upTo: 49, rate: 175, label: "26–49" }],
+    bands: [{ upTo: 9, label: "5–9" }, { upTo: 24, label: "10–24" }, { upTo: 49, label: "25–49" }],
     name: { en: "Small", ar: "صغيرة" },
     tagline: { en: "Small companies — 5 to 49 employees.", ar: "الشركات الصغيرة — من 5 إلى 49 موظفا." },
     users: { en: "5–49 users", ar: "5–49 مستخدما" },
     cta: "choose",
     features: {
-      en: ["Everything in Micro", "5–49 employees", "Priced by your team size", "Priority email support"],
-      ar: ["كل ما في متناهية الصغر", "من 5 إلى 49 موظفا", "التسعير حسب حجم فريقك", "دعم بريدي ذو أولوية"],
+      en: ["Everything in Standard", "5–49 employees", "Priced by your team size", "Priority email support"],
+      ar: ["كل ما في الأساسي", "من 5 إلى 49 موظفا", "التسعير حسب حجم فريقك", "دعم بريدي ذو أولوية"],
     },
   },
   {
     key: "medium",
     minUsers: 50, maxUsers: 249, defaultUsers: 75, popular: true,
-    bands: [{ upTo: 99, rate: 200, label: "50–99" }, { upTo: 249, rate: 225, label: "100–249" }],
+    bands: [{ upTo: 99, label: "50–99" }, { upTo: 249, label: "100–249" }],
     name: { en: "Medium", ar: "متوسطة" },
     tagline: { en: "Medium-sized companies — 50 to 249 employees.", ar: "الشركات المتوسطة — من 50 إلى 249 موظفا." },
     users: { en: "50–249 users", ar: "50–249 مستخدما" },

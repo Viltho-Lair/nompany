@@ -1,23 +1,24 @@
 // Questionnaire (post-signup) shared data: the package keys the entry-point CTAs
-// carry (Small/Medium split into their two headcount bands), a human label for
+// carry (Small into its three headcount bands, Medium into its two), a human label for
 // each, and the ERP-systems option list for Page 3.
 import { PLANS, pick } from "@/lib/pricing";
 
 // Package keys carried on ?package= from the header / pricing CTAs into signup.
-// Banded plans split into "-1" / "-2" (band index); micro + large are single.
-export const PACKAGE_KEYS = ["micro", "small-1", "small-2", "medium-1", "medium-2", "large"];
+// Banded plans split into "-1" / "-2" / "-3" (band index); the free package
+// (key "micro", named Standard since 24/09/2026) and large are single.
+export const PACKAGE_KEYS = ["micro", "small-1", "small-2", "small-3", "medium-1", "medium-2", "large"];
 export function isPackageKey(k: unknown) { return PACKAGE_KEYS.includes(String(k || "")); }
 
 // The pricing plan key behind a package key ("small-2" → "small").
 export function planKeyOf(key: unknown) { return String(key || "").split("-")[0]; }
 
-// Only Micro is free; every other package requires payment.
+// Only Standard (key "micro") is free; every other package requires payment.
 export function isFreePackage(key: string) {
   const plan = PLANS.find((p) => p.key === planKeyOf(key));
   return Boolean(plan?.free);
 }
 
-// Human label for a package key, e.g. "Small · 10–25" (with the band range).
+// Human label for a package key, e.g. "Small · 10–24" (with the band range).
 export function packageLabel(key: string, locale = "en") {
   const [base, bandStr] = String(key || "").split("-");
   const plan = PLANS.find((p) => p.key === base);
