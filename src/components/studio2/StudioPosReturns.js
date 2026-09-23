@@ -24,10 +24,12 @@ import { PAYMENT_METHODS } from "@/modules/sales/posModel";
 const td = "py-2.5 pe-3 align-middle";
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
-export default function StudioPosReturns({ slug }) {
+// `initial` is the /pos/returns body the studio page answered in its own render,
+// so the returns list paints at once; absent, it fetches on mount as before.
+export default function StudioPosReturns({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = posReturnsDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,7 +41,12 @@ export default function StudioPosReturns({ slug }) {
     setError("");
     setData(body);
   }, [slug]);
+  // The loader the page already answered for is skipped by IDENTITY, not by a
+  // flag, so React's development double-effect cannot spend it (useReload says
+  // why); a new slug builds a new loader and fetches as before.
+  const skip = useRef(initial !== undefined ? load : null);
   useEffect(() => {
+    if (load === skip.current) return;
     let current = true;
     (async () => { if (current) await load(); })();
     return () => { current = false; };

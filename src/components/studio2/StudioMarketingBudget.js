@@ -16,8 +16,9 @@
 // screen would refresh for a budget edit and sit still for the bill that
 // actually moved the figure — worse than a screen nobody expects to move.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { useReload } from "@/components/studio2/useReload";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { panel, h2, sub, btnGhost, money, StatTile, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
@@ -27,11 +28,14 @@ import { marketingDeptDict } from "@/shared/studio/marketingDept";
 const FILTERS = ["all", "attention", "spending", "open"];
 const OPEN = new Set(["Draft", "Planned", "Active", "Paused"]);
 
-export default function StudioMarketingBudget({ slug }) {
+// `initial` IS THIS SCREEN'S OWN ROUTE BODY, answered inside the studio page's
+// render, so the register paints with its rows rather than a skeleton and a
+// second request. Absent — refused, or over the payload ceiling — it fetches.
+export default function StudioMarketingBudget({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = marketingBudgetDict(locale);
   const dept = marketingDeptDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
 
@@ -43,11 +47,7 @@ export default function StudioMarketingBudget({ slug }) {
     setData(body);
   }, [slug, tr]);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => { if (alive) await reload(); })();
-    return () => { alive = false; };
-  }, [reload]);
+  useReload(reload, initial);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;

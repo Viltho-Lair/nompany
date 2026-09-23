@@ -15,7 +15,7 @@
 // The totals differ between readers for the same reason, and that is correct:
 // each is told the truth about the part of this company they are entitled to.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict } from "@/shared/studio/sales";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -63,9 +63,13 @@ function Row({ href, code, title, pill, right, sub: subline }) {
   );
 }
 
-export default function StudioCustomer({ slug, clientId }) {
+// `initial` IS THIS CUSTOMER'S OWN /sales/customer BODY, answered inside the
+// studio page's render for the clientId it was first given, so the record page
+// paints at once. It seeds the FIRST customer only: clicking through to another
+// changes the reader, and that one is fetched exactly as before.
+export default function StudioCustomer({ slug, clientId, initial }) {
   const tr = salesDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   // The rate editor's working copy. Null when closed — opening takes a copy of
   // what is stored, so cancelling genuinely cancels rather than leaving the
@@ -95,7 +99,12 @@ export default function StudioCustomer({ slug, clientId }) {
     setData(body);
   }, [tr]);
 
+  // The first read is skipped when the page brought the body — by the reader's
+  // identity, as useReload does, so a development double-effect cannot spend it
+  // and a DIFFERENT customer is never mistaken for the one that was answered.
+  const skipFirst = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === skipFirst.current) return undefined;
     let current = true;
     (async () => {
       const answer = await read();

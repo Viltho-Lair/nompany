@@ -22,8 +22,9 @@ const STATE_TONE = {
   Declined: "bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400",
 };
 
-export default function StudioWorkRequests({ slug }) {
-  const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/requests");
+// `initial` is this screen's own GET body from the studio page (useMaintenance).
+export default function StudioWorkRequests({ slug, initial }) {
+  const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/requests", initial);
   // The requests are this section's rows; whether one is ACCEPTED is derived
   // from a work order naming it, written under Work orders — so a colleague
   // accepting a request has to move this list, and only the second watch can

@@ -12,7 +12,7 @@
 // and which reviews fall due. The analysis — the charts and the named list — is
 // the paid widgets, registered in lib/dashboardWidgets like every other.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { engineeringDict } from "@/shared/studio/engineering";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -26,10 +26,14 @@ import { engineSectionKey } from "@/platform/access";
 
 // NAMED `*Dashboard.jsx` DELIBERATELY: the widget-gate scan reads that filename
 // pattern to prove every registry key is drawn by something.
-export default function EngineeringDashboard({ slug }) {
+//
+// `initial` IS THIS SCREEN'S OWN ROUTE BODY, answered inside the studio page's
+// render, so the dashboard paints with its figures rather than a second
+// skeleton. Absent — refused, or over the payload ceiling — it fetches as before.
+export default function EngineeringDashboard({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = engineeringDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   // Tier AND the studio's switches: a card whose section is off is not drawn.
   const gate = useWidgetGate();
@@ -45,7 +49,12 @@ export default function EngineeringDashboard({ slug }) {
     setData(body);
   }, []);
 
+  // The reader the page already answered for is skipped by IDENTITY, not by a
+  // flag, so React's development double-effect cannot spend it (useReload says
+  // why); a new slug builds a new reader and fetches as before.
+  const skip = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === skip.current) return;
     let current = true;
     (async () => {
       const answer = await read();

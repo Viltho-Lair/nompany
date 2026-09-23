@@ -42,10 +42,13 @@ import { useReload } from "@/components/studio2/useReload";
 
 const cellHead = "px-3 py-2 text-start text-[11px] font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 
-export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
+// `initial` is this quotation's own /sales/quotations?id= body, answered inside
+// the studio page's render, so the document paints at once; absent — refused,
+// gone, or over the ceiling — it fetches and says why, as before.
+export default function SalesQuotationViewer({ slug, ticketId, quotationId, initial }) {
   const tr = technicalDict(useStudioLocale());
   const dt = documentsDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -60,7 +63,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId }) {
     setData(await res.json());
   }, [slug, quotationId]);
 
-  useReload(load);
+  useReload(load, initial);
   // Technical is still working on it while Sales is reading it, so a revision or
   // a status change lands here without a refresh. Watches "crm-sales", not
   // "engineering-docs" — the quotation moved WITH the section (restructure.ts's

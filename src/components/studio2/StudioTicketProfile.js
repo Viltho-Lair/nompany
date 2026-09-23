@@ -58,14 +58,17 @@ const btnActionOff = `${btnAction} bg-slate-200 text-slate-500 dark:bg-white/10 
 const btnApprove = `${btnAction} bg-emerald-600 text-white hover:bg-emerald-700`;
 const btnApproved = `${btnAction} bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300`;
 
-export default function StudioTicketProfile({ slug, ticketId }) {
+// `initial` is the /sales body the studio page answered in its own render —
+// the same body the Sales board is handed, since this page reads its ticket out
+// of that list — so the record paints at once; absent, it fetches as before.
+export default function StudioTicketProfile({ slug, ticketId, initial }) {
   const locale = useStudioLocale();
   const tr = miscDict(locale);
   // The ticket form's refusals are Sales' words; the page itself speaks misc.
   const salesTr = salesDict(locale);
   const leadTr = leadsDict(locale);
   const [formError, setFormError] = useState("");
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [acting, setActing] = useState("");
@@ -80,7 +83,7 @@ export default function StudioTicketProfile({ slug, ticketId }) {
     setData(await res.json());
   }, [slug]);
 
-  useReload(load);
+  useReload(load, initial);
   useLiveUpdates(slug, "crm-sales", load);
   useLiveUpdates(slug, "engineering-docs", load);
   // An approver answering is what turns "Send for Approval" into "Quotation

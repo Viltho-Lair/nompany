@@ -26,9 +26,12 @@ const card = `${panel} min-h-0`;
 // The board and the legacy profile both need the projects payload plus the two
 // live channels a project changes on (its own, and Approvals — the number
 // arrives when the client's PO is approved). One hook, one fetch.
-export function useProjectData(slug) {
+//
+// `initial` is that payload when the studio page already answered it in its own
+// render; the first fetch is then skipped, and every reload is as before.
+export function useProjectData(slug, initial) {
   const tr = projectsDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -37,7 +40,7 @@ export function useProjectData(slug) {
     setData(await res.json());
   }, [slug, tr]);
 
-  useReload(load);
+  useReload(load, initial);
   useLiveUpdates(slug, "projects", load);
   // An approved Client PO issues the project number shown here.
   useLiveUpdates(slug, "approvals", load);

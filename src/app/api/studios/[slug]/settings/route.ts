@@ -5,7 +5,8 @@ import { renameStudio } from "@/modules/main/studios";
 import { isKnownCurrency, crossRate } from "@/shared/currencies";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { currentUser } from "@/platform/auth/identity";
-import { studioContext } from "@/lib/studios";
+import { studioContext, type StudioMembership } from "@/lib/studios";
+import { route } from "@/platform/http/route";
 import { updateStudio, tradeSuggestionFor } from "@/modules/main/studios";
 import { studioLocale, isLocale, defaultLocale } from "@/shared/i18n";
 import { ALL_PERMISSIONS } from "@/platform/access/catalogue";
@@ -253,15 +254,12 @@ async function favouriteRates(studio: Record<string, unknown>) {
   return { base, rates, updatedAt: snap.updatedAt || 0, stale: Boolean(snap.stale) };
 }
 
-export async function GET(request: Request, ctx: { params: Promise<Record<string, string>> }) {
-  const user = await currentUser();
-  if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
-  const { slug } = await ctx.params;
-
-  const context = await studioContext(user, slug);
-  if (context.error) {
-    return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
-  }
+// ON THE ROUTE WRAPPER, so the studio page can answer this GET inside its own
+// render (`firstPayload`) and Settings paints with the studio rather than a
+// loading line. Statuses are the hand-written ladder's: `notfound` 404,
+// `forbidden` 403, and the view refusal below is `forbidden` too. The route is
+// exempt from the section switch by name (sectionRoutes), as it must be.
+export const GET = route<StudioMembership>({ auth: "studio", name: "settings", keys: false }, async (context) => {
   // ENFORCED AT LAST. This route checked membership and stopped there, so
   // administration.settings.view was grantable and granted nobody anything --
   // for as long as the Studio settings screen was reached by a route that
@@ -276,7 +274,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   if (deniedView) return Response.json(deniedView, { status: 403 });
 
   const { studio, collaborator } = context;
-  return Response.json({
+  return {
     studio: clean(studio),
     // Today's rate for each favourite, against the STUDIO's currency. Only the
     // handful of numbers the page shows go over the wire — /super ships the
@@ -314,8 +312,8 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // Asking for deletion is the OWNER's call, not an admin's: it ends the
     // studio for everybody in it.
     isOwner: collaborator.role === "owner",
-  });
-}
+  };
+});
 
 export async function PUT(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const user = await currentUser();

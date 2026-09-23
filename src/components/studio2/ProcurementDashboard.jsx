@@ -11,7 +11,7 @@
 // the registers themselves refuse, and somebody holding one register sees one
 // group of tiles rather than an empty grid of six.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -31,9 +31,11 @@ import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel
 // shape out in prose here — with an ellipsis standing in for the key — made the
 // ellipsis itself look like a widget key and failed the check's other half. The
 // second comment in this codebase to trip the guard it was explaining.
-export default function ProcurementDashboard({ slug }) {
+// `initial` is this screen's own GET body, answered by the studio page in its
+// render, so the screen paints with its rows; absent, it fetches on mount as before.
+export default function ProcurementDashboard({ slug, initial }) {
   const tr = procurementDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   // ANALYTICS IS SOLD, so the one paid widget asks the registry whether this
   // studio's tier includes it. The exception tiles above are the free floor and
@@ -58,7 +60,12 @@ export default function ProcurementDashboard({ slug }) {
     setData(body);
   }, []);
 
+  // THE FIRST READ IS SKIPPED WHEN THE PAGE BROUGHT ITS ANSWER, by the identity
+  // of the reader it was first handed (useReload says why identity and not a
+  // flag). A reader that changes afterwards still fetches.
+  const firstRead = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === firstRead.current) return;
     let current = true;
     (async () => {
       const answer = await read();

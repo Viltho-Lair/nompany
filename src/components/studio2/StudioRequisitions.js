@@ -13,7 +13,7 @@
 // for the same reason: a signature given against a provisional figure
 // authorises a number that is going to change.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -46,9 +46,11 @@ function refusal(tr, token) {
 
 const emptyLine = () => ({ description: "", unit: "", qty: "", estUnitCost: "", itemId: "" });
 
-export default function StudioRequisitions({ slug }) {
+// `initial` is this screen's own GET body, answered by the studio page in its
+// render, so the screen paints with its rows; absent, it fetches on mount as before.
+export default function StudioRequisitions({ slug, initial }) {
   const tr = procurementDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);
@@ -64,7 +66,12 @@ export default function StudioRequisitions({ slug }) {
     setData(body);
   }, []);
 
+  // THE FIRST READ IS SKIPPED WHEN THE PAGE BROUGHT ITS ANSWER, by the identity
+  // of the reader it was first handed (useReload says why identity and not a
+  // flag). A reader that changes afterwards still fetches.
+  const firstRead = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === firstRead.current) return;
     let current = true;
     (async () => {
       const answer = await read();

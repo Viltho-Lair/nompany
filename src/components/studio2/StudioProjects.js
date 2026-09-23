@@ -110,9 +110,12 @@ const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioData
 //   projects-sla        -> a pointer: service contracts are Maintenance's now
 //   projects-overtimes  -> hours logged outside the plan
 //   projects-settings   -> requirement weights, default OT department, stages
-export default function StudioProjects({ slug, view = "projects" }) {
+//
+// `initial` is the /projects body the studio page answered in its own render —
+// one read for every view — so the screen paints at once; absent, it fetches.
+export default function StudioProjects({ slug, view = "projects", initial }) {
   const tr = projectsDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const focus = useFocusedRecord("project");
   const level = useAnalyticsLevel();
@@ -122,7 +125,7 @@ export default function StudioProjects({ slug, view = "projects" }) {
     if (!res.ok) { setError(tr.accessProjectsStudio); return; }
     setData(await res.json());
   }, [slug]);
-  useReload(load);
+  useReload(load, initial);
   // Project rows move from several desks at once — stay current.
   useLiveUpdates(slug, "projects", load);
   // A quotation being approved is what makes a new project openable — and a

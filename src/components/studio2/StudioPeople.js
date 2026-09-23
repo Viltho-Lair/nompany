@@ -20,22 +20,26 @@ const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display te
 // People & requests — who is in THIS studio, and who is asking to be.
 // Everything shown here is the person's studio-local identity (their alias and
 // role inside this studio); nothing about them in any other studio is visible.
-export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) {
+//
+// `initial` is the /collaborators body the studio page answered in its own
+// render, so the list paints at once. Only the list: the join requests and the
+// roles are not in it, so they are still asked for on mount.
+export default function StudioPeople({ slug, canAdminister, myCollaboratorId, initial }) {
   const tr = peopleDict(useStudioLocale());
   const [requests, setRequests] = useState([]);
-  const [people, setPeople] = useState([]);
+  const [people, setPeople] = useState(initial?.collaborators || []);
   const [roles, setRoles] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initial === undefined);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const load = useCallback(async () => {
-    setError("");
-    const calls = [fetch(`/api/studios/${slug}/collaborators`, { cache: "no-store" })];
-    if (canAdminister) calls.push(fetch(`/api/studios/${slug}/requests`, { cache: "no-store" }));
-    const [colRes, reqRes] = await Promise.all(calls);
-    if (colRes.ok) setPeople((await colRes.json()).collaborators || []);
+  const loadPeople = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/collaborators`, { cache: "no-store" });
+    if (res.ok) setPeople((await res.json()).collaborators || []);
+  }, [slug]);
+
+  const loadRest = useCallback(async () => {
     // The roles this studio has defined, so a row can name what somebody holds
     // and the picker can offer the rest. Read-only here — they are authored on
     // the access screen.
@@ -43,11 +47,19 @@ export default function StudioPeople({ slug, canAdminister, myCollaboratorId }) 
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setRoles(d?.roles || []))
       .catch(() => {});
-    if (reqRes?.ok) setRequests((await reqRes.json()).requests || []);
-    setLoading(false);
+    if (!canAdminister) return;
+    const res = await fetch(`/api/studios/${slug}/requests`, { cache: "no-store" });
+    if (res.ok) setRequests((await res.json()).requests || []);
   }, [slug, canAdminister]);
 
-  useReload(load);
+  const load = useCallback(async () => {
+    setError("");
+    await Promise.all([loadPeople(), loadRest()]);
+    setLoading(false);
+  }, [loadPeople, loadRest]);
+
+  // With the list already on hand, mount asks only for what it did not bring.
+  useReload(initial !== undefined ? loadRest : load);
   // A join request or a membership change — show it as it happens.
   useLiveUpdates(slug, "people", load);
 

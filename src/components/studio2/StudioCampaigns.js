@@ -7,8 +7,9 @@
 // sub-campaigns, whether it needs somebody — is the server's, so this list and
 // the dashboard cannot disagree.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate, money } from "@/components/studio2/ui";
@@ -53,9 +54,12 @@ function Chip({ tone, children }) {
 
 const blank = (v) => (v === null || v === undefined ? "" : String(v));
 
-export default function StudioCampaigns({ slug }) {
+// `initial` IS THIS SCREEN'S OWN ROUTE BODY, answered inside the studio page's
+// render, so the register paints with its rows rather than a skeleton and a
+// second request. Absent — refused, or over the payload ceiling — it fetches.
+export default function StudioCampaigns({ slug, initial }) {
   const tr = marketingDeptDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState("open");
@@ -72,11 +76,7 @@ export default function StudioCampaigns({ slug }) {
     setData(body);
   }, [slug, tr]);
 
-  useEffect(() => {
-    let current = true;
-    (async () => { if (current) await reload(); })();
-    return () => { current = false; };
-  }, [reload]);
+  useReload(reload, initial);
   useLiveUpdates(slug, "marketing-campaigns", reload);
 
   // THE SERVER'S REFUSAL, IN WORDS; a token with no sentence is shown as itself

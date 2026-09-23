@@ -15,8 +15,9 @@
 // receipts and deals; re-running it because one ticket moved would cost the
 // whole read for a change that cannot move a pattern until a period closes.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { useReload } from "@/components/studio2/useReload";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { panel, h2, sub, btn, btnGhost, Dialog, fmtDate, money } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
@@ -48,12 +49,16 @@ function Chip({ pattern, tr }) {
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-600 ${TONE[pattern] || TONE.dormant}`}>{tr.pattern(pattern)}</span>;
 }
 
-export default function CustomerInsightsDashboard({ slug }) {
+// `initial` IS THIS SCREEN'S OWN /sales/insights BODY for the DEFAULT choices
+// (month, value, not current), answered inside the studio page's render, so the
+// dashboard paints at once. Changing a choice changes the reader and fetches, as
+// it always did. Absent — refused, or over the ceiling — it fetches on mount.
+export default function CustomerInsightsDashboard({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = insightsDict(locale);
   const gate = useWidgetGate();
   const [opts, setOpts] = useState({ unit: "month", measure: "value", current: false });
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [pattern, setPattern] = useState("");
   const [query, setQuery] = useState("");
@@ -76,11 +81,7 @@ export default function CustomerInsightsDashboard({ slug }) {
     setData(body);
   }, [slug, params, tr]);
 
-  useEffect(() => {
-    let current = true;
-    (async () => { if (current) await reload(); })();
-    return () => { current = false; };
-  }, [reload]);
+  useReload(reload, initial);
 
   const customers = useMemo(() => data?.customers || [], [data]);
   const filtered = useMemo(() => {

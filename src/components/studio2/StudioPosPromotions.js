@@ -10,7 +10,7 @@
 // STATUS IS MOVED, NEVER TYPED. Activating is the act that costs money, so it
 // is its own button and its own request — never a field inside the editor.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { posPromotionsDict } from "@/shared/studio/posPromotions";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -34,10 +34,12 @@ const MOVES = {
   archived: [],
 };
 
-export default function StudioPosPromotions({ slug }) {
+// `initial` is the /pos/promotions body the studio page answered in its own
+// render, so the offers paint at once; absent, it fetches on mount as before.
+export default function StudioPosPromotions({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = posPromotionsDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState("offers");
@@ -58,7 +60,12 @@ export default function StudioPosPromotions({ slug }) {
     setData(body);
   }, [slug]);
 
+  // The loader the page already answered for is skipped by IDENTITY, not by a
+  // flag, so React's development double-effect cannot spend it (useReload says
+  // why); a new slug builds a new loader and fetches as before.
+  const skip = useRef(initial !== undefined ? load : null);
   useEffect(() => {
+    if (load === skip.current) return;
     let current = true;
     (async () => { if (current) await load(); })();
     return () => { current = false; };

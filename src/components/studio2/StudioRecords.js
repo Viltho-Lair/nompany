@@ -29,7 +29,7 @@
 // generic write is the shape that once let a rejected change order approve
 // itself — and the screen must not smuggle it back in through a field.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { restDict } from "@/shared/studio/rest";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -230,9 +230,11 @@ function SortHead({ label, col, sort, onSort }) {
   );
 }
 
-export default function StudioRecords({ slug, typeKey }) {
+// `initial` is the records/<typeKey> body the studio page answered in its own
+// render, so the register paints at once; absent, it fetches on mount as before.
+export default function StudioRecords({ slug, typeKey, initial }) {
   const tr = restDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   // `{ id, values }` — `id` absent means a record being created. One dialog for
@@ -299,7 +301,12 @@ export default function StudioRecords({ slug, typeKey }) {
     setData(body);
   }, []);
 
+  // The reader the page already answered for is skipped by IDENTITY, not by a
+  // flag, so React's development double-effect cannot spend it (useReload says
+  // why). Another type builds another reader, which fetches as before.
+  const skip = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === skip.current) return;
     // GUARDED AGAINST THE ANSWER ARRIVING AFTER THE SCREEN MOVED ON. This
     // component is remounted with a different `typeKey` by a nav click, so two
     // reads can be in flight and the slower one must not win.

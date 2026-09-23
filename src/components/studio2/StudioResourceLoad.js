@@ -12,7 +12,7 @@
 // screen imports it rather than restating it. A person told "three clashes" here
 // has to find the same three when they open the plan.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { resourceLoadDict } from "@/shared/studio/resourceLoad";
@@ -20,9 +20,13 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { panel, h2, sub, btn, btnGhost, th, Empty, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 
-export default function StudioResourceLoad({ slug, backHref }) {
+// `initial` is the unwindowed resources body the studio page answered in its own
+// render, so the report paints at once. The first read is skipped by the
+// identity of the reader it was handed, the way useReload does it; this effect
+// keeps its own cancellation flag, which useReload has no place for.
+export default function StudioResourceLoad({ slug, backHref, initial }) {
   const tr = resourceLoadDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [range, setRange] = useState({ from: "", to: "" });
 
   const read = useCallback(async (window) => {
@@ -34,7 +38,9 @@ export default function StudioResourceLoad({ slug, backHref }) {
     return res.ok ? res.json() : { ok: false };
   }, [slug]);
 
+  const skip = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === skip.current) return undefined;
     let current = true;
     (async () => {
       const out = await read({ from: "", to: "" });

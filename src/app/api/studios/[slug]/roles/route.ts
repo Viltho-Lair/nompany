@@ -1,6 +1,6 @@
 import type { PermissionKey } from "@/platform/access";
 import { currentUser } from "@/platform/auth/identity";
-import type { Guarded } from "@/platform/http/route";
+import { route, type Guarded } from "@/platform/http/route";
 import type { StudioMembership } from "@/lib/studios";
 import { studioContext } from "@/lib/studios";
 import { requirePermission, escalates, AREAS } from "@/platform/access";
@@ -36,11 +36,13 @@ const body = async (request: Request): Promise<Record<string, unknown>> => {
   try { return await request.json(); } catch { return {}; }
 };
 
-export async function GET(request: Request, ctx: { params: Promise<Record<string, string>> }) {
-  const g = await open(ctx);
-  if (g.fail) return g.fail;
-  return Response.json({
-    roles: await listRoles(g.context.studio.id, studioLocale(g.context.studio)),
+// THE READ IS ON THE ROUTE WRAPPER, so the studio page can answer it inside its
+// own render (`firstPayload`) and the Access screen paints with its roles. The
+// writes keep `open` for now. Refusals are unchanged: `notfound` is 404 and
+// `forbidden` 403 in the status table, the ladder `open` writes by hand.
+export const GET = route<StudioMembership>({ auth: "studio", name: "roles", keys: false }, async (context) => {
+  return {
+    roles: await listRoles(context.studio.id, studioLocale(context.studio)),
     // The catalogue travels with them so the editor can render every area and
     // its verbs without a second call, and can never offer a key the server
     // would refuse.
@@ -48,7 +50,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // compile-time and an engine right is minted from a row, so without the
     // second half the screen could not offer a single one of the studio's
     // record types and they stayed owner-only. See `grantableTypeAreas`.
-    areas: [...AREAS, ...await grantableTypeAreas(g.context, studioLocale(g.context.studio))],
+    areas: [...AREAS, ...await grantableTypeAreas(context, studioLocale(context.studio))],
     // THE ORG CHART TRAVELS TOO, because the editor groups roles by it now.
     //
     // Served from here rather than fetched separately: the departments route
@@ -62,12 +64,12 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // NEVER SEEDS. departmentsAsStored is the non-writing reader; a list route
     // must not create an org chart as a side effect of being read.
     departments: await departmentsAsStored(
-      g.context.studio,
-      g.context.sections.find((s) => s.key === "administration-master") || null,
+      context.studio,
+      context.sections.find((s) => s.key === "administration-master") || null,
     ),
-    canEdit: !requirePermission(g.context.access, "administration.members.edit"),
-  });
-}
+    canEdit: !requirePermission(context.access, "administration.members.edit"),
+  };
+});
 
 // Refuse a role that contains anything its author cannot do themselves. Writing
 // it into a role and then assigning it would otherwise be a way around the

@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { useReload } from "@/components/studio2/useReload";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { moneyText } from "@/shared/money";
 import { budgetsDict } from "@/shared/studio/budgets";
@@ -18,9 +19,12 @@ const lastMonth = (from) => {
   return y ? new Date(Date.UTC(y, m - 1 + 11, 1)).toISOString().slice(0, 7) : "";
 };
 
-export default function BudgetsPanel({ slug, locale }) {
+// `initial` is the /finance/budgets body the studio page answered in its own
+// render (handed down through StudioFinance), so the budgets paint at once;
+// absent, the panel fetches on mount exactly as before.
+export default function BudgetsPanel({ slug, locale, initial }) {
   const tr = budgetsDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -31,7 +35,7 @@ export default function BudgetsPanel({ slug, locale }) {
     if (!res.ok) { setProblem(String(body.error || "failed")); return; }
     setProblem(""); setData(body);
   }, [slug]);
-  useReload(load);
+  useReload(load, initial);
   // Budgets live under their own section; the actuals move with every posting.
   useLiveUpdates(slug, "finance-budgets", load);
   useLiveUpdates(slug, "finance-ledger", load);
@@ -48,7 +52,7 @@ export default function BudgetsPanel({ slug, locale }) {
     return true;
   };
 
-  if (!data) return problem ? <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p> : <p className="text-sm text-slate-500">…</p>;
+  if (!data) return problem ? <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p> : <ScreenSkeleton />;
   const { budgets = [], accounts = [], dimensionValues = {}, canCreate, canEdit, canDelete } = data;
   const open = (b) => setEditing(b
     ? { id: b.id, name: b.name, from: b.from, dimension: b.dimension || "", value: b.value || "",

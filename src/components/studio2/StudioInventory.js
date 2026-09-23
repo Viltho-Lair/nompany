@@ -80,9 +80,13 @@ const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioData
   loading: () => <StudioDataGridSkeleton columns={7} pageSize={10} />,
 });
 
-export default function StudioInventory({ slug, view = "inventory" }) {
+// `initial` is the /inventory body the studio page answered in its own render —
+// ONE read for every view here, so whichever view is open paints with its rows
+// rather than a second skeleton. Absent — refused, or over the ceiling — it
+// fetches on mount as before.
+export default function StudioInventory({ slug, view = "inventory", initial }) {
   const tr = inventoryDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const level = useAnalyticsLevel();
@@ -92,7 +96,7 @@ export default function StudioInventory({ slug, view = "inventory" }) {
     if (!res.ok) { setError(tr.accessInventoryStudio); return; }
     setData(await res.json());
   }, [slug]);
-  useReload(load);
+  useReload(load, initial);
   // Stock, deliveries and orders change from the floor — stay current.
   useLiveUpdates(slug, "inventory", load);
 

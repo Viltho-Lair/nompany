@@ -82,8 +82,9 @@ const pill = (on) => `rounded-full px-3 py-1 text-sm font-600 transition-colors 
   ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
   : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5"}`;
 
-export default function StudioWorkOrders({ slug }) {
-  const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/orders");
+// `initial` is this screen's own GET body from the studio page (useMaintenance).
+export default function StudioWorkOrders({ slug, initial }) {
+  const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/orders", initial);
   // The orders and their time entries are this section's rows; the request
   // each order answers is shown by reference, and requests are written under
   // Work requests.

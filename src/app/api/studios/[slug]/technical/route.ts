@@ -1,4 +1,4 @@
-import { refused } from "@/platform/http/route";
+import { refused, route } from "@/platform/http/route";
 import { sectionOffRefusal } from "@/platform/http/sectionRoutes";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import { nextNumberForSequence } from "@/modules/technical/technical";
@@ -16,23 +16,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // One read for the whole Technical screen.
-export async function GET(request: Request, ctx: { params: Promise<Record<string, string>> }) {
-  const user = await currentUser();
-  if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
-  const { slug } = await ctx.params;
-
-  const tech = await technicalContext(user, slug);
-  if (tech.error) {
-    const status = tech.error === "notfound" || tech.error === "no-section" ? 404 : 403;
-    return Response.json({ error: tech.error }, { status });
-  }
-  // A PART THE STUDIO SWITCHED OFF DOES NOT ANSWER — the same table `route()`
-  // uses, asked by hand because this route predates the wrapper.
-  {
-    const off = sectionOffRefusal(request, tech.sections);
-    if (off) return off;
-  }
-
+//
+// ON THE ROUTE WRAPPER NOW, and the reason is the studio page: it answers this
+// GET inside its own render (`firstPayload`), so the Quotations screens paint
+// with their lists instead of mounting empty and asking. The refusals are the
+// ones this wrote by hand — `technicalContext` can only answer `notfound` and
+// `no-section` (404) or `forbidden` (403), which is the status table's
+// reading too — and the switched-off check it asked of `sectionOffRefusal` is
+// the wrapper's own, run before the handler. PUT below still predates it.
+export const GET = route({ auth: "studio", context: technicalContext, name: "technical", keys: false }, async ({ request, ...tech }) => {
   // WHOSE PRICES. A quotation is written FOR somebody, and what that customer
   // has been promised beats the studio's list price (shared/pricing.ts). The
   // screen lists the catalogue once with no customer in mind; a builder opened
@@ -62,7 +54,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     technicalClients(tech),
   ]);
   const quotations = quotationsShown ? allQuotations : [];
-  return Response.json({
+  return {
     // One flag per sub-section: RFQ and Quotations are separately granted, so
     // they are separately answered.
     canManage: tech.canManage,
@@ -124,8 +116,8 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
       // an id and a name, nothing else. See technicalClients.
       clients,
       liveColumnOptions: QUOTATION_LIVE_COLUMNS },
-  });
-}
+  };
+});
 
 // Technical Settings — Live view columns and the quotation numbering sequences.
 export async function PUT(request: Request, ctx: { params: Promise<Record<string, string>> }) {

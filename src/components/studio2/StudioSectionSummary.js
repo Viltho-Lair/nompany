@@ -18,10 +18,14 @@ import { useReload } from "@/components/studio2/useReload";
 // never reads its own clock, so a figure and the date it was measured against
 // cannot disagree. The same rule the tender register and the operations week
 // window follow.
-export default function StudioSectionSummary({ slug, sectionKey, locale = "en" }) {
+//
+// `initial` is the records/summary?section= body the studio page answered in
+// its own render, so the panel lands with the dashboard rather than after it;
+// absent, it fetches on mount as before.
+export default function StudioSectionSummary({ slug, sectionKey, locale = "en", initial }) {
   const tr = summaryDict(locale);
-  const [data, setData] = useState(null);
-  const [state, setState] = useState("loading");
+  const [data, setData] = useState(initial ?? null);
+  const [state, setState] = useState(initial !== undefined ? "ready" : "loading");
 
   const load = useCallback(async () => {
     const res = await fetch(
@@ -33,7 +37,7 @@ export default function StudioSectionSummary({ slug, sectionKey, locale = "en" }
     setState("ready");
   }, [slug, sectionKey]);
 
-  useReload(load);
+  useReload(load, initial);
 
   if (state === "loading") {
     return <div className="mt-5 h-24 rounded-xl skel" aria-busy="true" />;

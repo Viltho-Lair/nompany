@@ -38,10 +38,12 @@ const ladderLabel = (tr) => ({ none: tr.ladderNone, view: tr.ladderView, edit: t
 // the "why" checker reads one out loud.
 const verbLabel = (tr) => ({ view: tr.verbView, create: tr.verbCreate, edit: tr.verbEdit, delete: tr.verbDelete });
 
-export default function StudioRoles({ slug }) {
+// `initial` is the /roles body the studio page answered in its own render, so the
+// editor paints with the roles; absent, it fetches on mount exactly as before.
+export default function StudioRoles({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = peopleDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   // Fetched here rather than passed down: this is a client component and the
   // page that renders it is a server one, so asking is cheaper than plumbing.
   const [people, setPeople] = useState([]);
@@ -54,7 +56,7 @@ export default function StudioRoles({ slug }) {
     if (!res.ok) { setError(tr.couldnLoadRoles); return; }
     setData(await res.json());
   }, [slug]);
-  useReload(load);
+  useReload(load, initial);
   useEffect(() => {
     fetch(`/api/studios/${slug}/collaborators`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))

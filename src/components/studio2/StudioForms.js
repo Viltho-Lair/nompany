@@ -2,10 +2,11 @@
 // approved: templates along the top, the studio's forms below. A form opens in
 // its editor (StudioFormEditor) at /<slug>/marketing-forms/<id>.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { Icon } from "@/components/studio2/icons";
@@ -20,11 +21,14 @@ const STATUS_TONE = {
 };
 const TEMPLATE_ICON = { blank: "plus", enquiry: "mail", event: "calendar", feedback: "star" };
 
-export default function StudioForms({ slug }) {
+// `initial` IS THIS SCREEN'S OWN ROUTE BODY, answered inside the studio page's
+// render, so the register paints with its rows rather than a skeleton and a
+// second request. Absent — refused, or over the payload ceiling — it fetches.
+export default function StudioForms({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = formsDict(locale);
   const router = useRouter();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -35,11 +39,7 @@ export default function StudioForms({ slug }) {
     if (!res.ok) { setError(tr.refuse[body.error] || body.error || "failed"); return; }
     setError(""); setData(body);
   }, [slug, tr]);
-  useEffect(() => {
-    let current = true;
-    (async () => { if (current) await reload(); })();
-    return () => { current = false; };
-  }, [reload]);
+  useReload(reload, initial);
   useLiveUpdates(slug, "marketing-forms", reload);
 
   const create = async () => {

@@ -88,9 +88,13 @@ const latestComment = (row) => {
 //   technical-rfq        -> the RFQ queue and conversion
 //   technical-settings   -> quotation numbering + Live view columns
 // technical-live renders full-screen outside the studio frame.
-export default function StudioTechnical({ slug, view = "quotations", sectionNames = {} }) {
+//
+// `initial` is the /technical body the studio page answered in its own render
+// (the customer-less read — a builder's priced catalogue is still asked for when
+// it opens), so every Quotations view paints at once; absent, it fetches.
+export default function StudioTechnical({ slug, view = "quotations", sectionNames = {}, initial }) {
   const tr = technicalDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const level = useAnalyticsLevel();
   const focusQuote = useFocusedRecord("quotation");
   const [error, setError] = useState("");
@@ -110,7 +114,7 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
     if (!res.ok) { setError(tr.accessTechnicalStudio); return; }
     setData(await res.json());
   }, [slug]);
-  useReload(load);
+  useReload(load, initial);
 
   // A CATALOGUE PRICED FOR THE CUSTOMER THIS QUOTATION IS FOR.
   //

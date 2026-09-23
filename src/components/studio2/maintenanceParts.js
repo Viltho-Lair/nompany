@@ -6,7 +6,7 @@
 // which machine and where — with Navigate beside the place when it has a pin,
 // the same menu Master data's locations use.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { maintenanceDict } from "@/shared/studio/maintenance";
 import NavigateMenu from "@/components/studio2/NavigateMenu";
@@ -18,10 +18,13 @@ import { placeCoordinates } from "@/shared/places";
  * literals at each call site: tests/restructure.mjs reads every
  * `useLiveUpdates` key out of the source to prove something is written under
  * it, and a key passed through a variable is one it cannot check (invariant 14).
+ *
+ * `initial` is the screen's own GET body, answered by the studio page in its
+ * render and handed down by each screen, so the rows paint at once.
  */
-export function useMaintenance(slug, path) {
+export function useMaintenance(slug, path, initial) {
   const tr = maintenanceDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -36,7 +39,12 @@ export function useMaintenance(slug, path) {
     setData(body);
   }, []);
 
+  // THE FIRST READ IS SKIPPED WHEN THE PAGE BROUGHT ITS ANSWER, by the identity
+  // of the reader it was first handed (useReload says why identity and not a
+  // flag). A reader that changes afterwards still fetches.
+  const firstRead = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === firstRead.current) return;
     let current = true;
     (async () => {
       const answer = await read();

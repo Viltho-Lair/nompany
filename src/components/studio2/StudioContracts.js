@@ -42,11 +42,19 @@ import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
 
-export default function StudioContracts({ slug }) {
+// `initial` IS BOTH OF THIS SCREEN'S ROUTE BODIES — `{ contracts, changeOrders }`,
+// each the GET the loader below would have fetched — answered inside the studio
+// page's render, so the register paints at once. Two bodies because `load` makes
+// two reads; a refused variations read is `[]` here exactly as it is there.
+// Absent (the contracts read refused, or over the ceiling), it fetches as before.
+export default function StudioContracts({ slug, initial }) {
   const tr = salesDict(useStudioLocale());
-  const [contracts, setContracts] = useState(null);
-  const [changeOrders, setChangeOrders] = useState([]);
-  const [rights, setRights] = useState({});
+  const first = initial?.contracts ? initial : undefined;
+  const [contracts, setContracts] = useState(first ? (first.contracts.contracts || []) : null);
+  const [changeOrders, setChangeOrders] = useState(first?.changeOrders?.changeOrders || []);
+  const [rights, setRights] = useState(first
+    ? { canCreate: first.contracts.canCreate ?? false, canEdit: first.contracts.canEdit ?? false }
+    : {});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(null);
@@ -75,7 +83,7 @@ export default function StudioContracts({ slug }) {
     });
   }, [slug]);
 
-  useReload(load);
+  useReload(load, first);
   // CONTRACTS AND VARIATIONS LIVE WITH THE QUOTATIONS. A contract is what a won
   // quotation becomes, so `contracts` and `changeOrders` are both written under
   // `crm-sales-quotations`; the register this screen IS owns only the

@@ -22,8 +22,9 @@ import { useMaintenance, toLocalInput, fromLocalInput } from "@/components/studi
 const th = "px-3 py-2 text-start text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 const td = "px-3 py-2.5 align-top";
 
-export default function StudioMachines({ slug }) {
-  const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/assets");
+// `initial` is this screen's own GET body from the studio page (useMaintenance).
+export default function StudioMachines({ slug, initial }) {
+  const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/assets", initial);
   // Every figure here is derived from the work orders, which are written
   // under Work orders — so that is the section this screen listens to.
   useLiveUpdates(slug, "maintenance-orders", reload);

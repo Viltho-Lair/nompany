@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { qualityDict } from "@/shared/studio/quality";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useReload } from "@/components/studio2/useReload";
 import { ArrowLeft, FilePlus2, FileText, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,18 +25,23 @@ const STATUS_BADGE: Record<string, string> = {
  * because ownership was the only thing it could know about a document. Here a
  * document belongs to the studio and the register is the studio's — who may see
  * it was settled before this screen rendered.
+ *
+ * `initial` is the /quality/docs body the studio page answered in its own
+ * render, so the register paints at once; absent, it fetches on mount as before.
  */
 export function DocumentList({
   studio,
   canCreate,
   canDelete,
+  initial,
 }: {
   studio: { slug: string; name?: string };
   canCreate: boolean;
   canDelete: boolean;
+  initial?: { documents: StoredDocument[] };
 }) {
   const tr = qualityDict(useStudioLocale());
-  const [documents, setDocuments] = useState<StoredDocument[] | null>(null);
+  const [documents, setDocuments] = useState<StoredDocument[] | null>(initial?.documents ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -49,9 +55,7 @@ export function DocumentList({
     setDocuments(payload.documents);
   }, [studio.slug]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useReload(load, initial);
 
   async function create() {
     setBusy(true);

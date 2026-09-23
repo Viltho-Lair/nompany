@@ -13,7 +13,7 @@
 // appears is a button the route accepts. Two copies of "a confirmed order
 // cannot go back to draft" would be two copies free to disagree.
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { salesOrdersDict } from "@/shared/studio/salesOrders";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -43,19 +43,26 @@ function refusal(tr, token) {
   }
 }
 
-export default function StudioOrders({ slug }) {
+// `initial` IS THIS SCREEN'S OWN /sales/orders BODY, answered inside the studio
+// page's render, so the register paints with its orders instead of a skeleton.
+// Every piece of state below starts from it through the same reading `apply`
+// gives a fetched body. Absent — refused, or over the ceiling — it fetches.
+export default function StudioOrders({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = salesOrdersDict(locale);
   const tax = taxDict(locale);
-  const [orders, setOrders] = useState(null);
-  const [rights, setRights] = useState({});
-  const [pickers, setPickers] = useState({});
+  const [orders, setOrders] = useState(initial === undefined ? null : (initial?.ok ? initial.orders : []));
+  const [rights, setRights] = useState(initial === undefined ? {} : {
+    canCreate: !!initial?.canCreate, canEdit: !!initial?.canEdit, canDelete: !!initial?.canDelete,
+  });
+  const [pickers, setPickers] = useState(initial?.pickers || {});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);
   // WHETHER ORDERS CARRY TAX, and what a new one starts at — the studio's rate
   // (shared/vat). A studio with none gets no VAT field at all.
-  const [vat, setVat] = useState({ on: false, rate: 0 });
+  const [vat, setVat] = useState(initial === undefined ? { on: false, rate: 0 }
+    : { on: !!initial?.vatEnabled, rate: Number(initial?.defaultVatRate) || 0 });
 
   const read = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/sales/orders`);
@@ -71,7 +78,11 @@ export default function StudioOrders({ slug }) {
     });
   }, []);
 
+  // The first read is skipped when the page brought the body — by the reader's
+  // identity, as useReload does, so a development double-effect cannot spend it.
+  const skipFirst = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === skipFirst.current) return undefined;
     let current = true;
     (async () => {
       const data = await read();

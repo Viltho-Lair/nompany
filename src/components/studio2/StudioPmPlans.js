@@ -24,8 +24,9 @@ const STATUS_TONE = {
 };
 const MOVE_ACTION = { Active: "resume", Paused: "pause", Retired: "retire" };
 
-export default function StudioPmPlans({ slug }) {
-  const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/plans");
+// `initial` is this screen's own GET body from the studio page (useMaintenance).
+export default function StudioPmPlans({ slug, initial }) {
+  const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/plans", initial);
   // The plans are this section's rows; what each has open, last finished and
   // its compliance are derived from the orders it raised, written under Work
   // orders — so an order moving there has to move this list.

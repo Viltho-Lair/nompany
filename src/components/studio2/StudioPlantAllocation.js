@@ -31,10 +31,14 @@ import { Field } from "@/components/fields/Field";
 // attempted and falls back to a plain reference field when it is refused, which
 // is the honest shape: the allocation is still writable, it just cannot offer a
 // list the reader is not allowed to see.
-export default function StudioPlantAllocation({ slug }) {
+//
+// `initial` is the /assets/allocations body the studio page answered in its own
+// render, so the board paints at once; absent, it fetches on mount as before.
+// The job picker is NOT part of it — it stays the optional second read below.
+export default function StudioPlantAllocation({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = assetsDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [deals, setDeals] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,7 +49,7 @@ export default function StudioPlantAllocation({ slug }) {
     if (!res.ok) { setError(tr.noAccessTo(tr.title)); return; }
     setData(await res.json());
   }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
-  useReload(load);
+  useReload(load, initial);
 
   // OPTIONAL, AND ITS FAILURE IS NOT AN ERROR. `null` means "not offered" and an
   // array means "offered" — distinguished deliberately, because an empty array

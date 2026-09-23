@@ -28,10 +28,12 @@ import { useReload } from "@/components/studio2/useReload";
 // find one number, not three.
 const STALE_DAYS = 30;
 
-export default function StudioPipeline({ slug }) {
+// `initial` is the /sales/pipeline body the studio page answered in its own
+// render, so the board paints at once; absent, it fetches on mount as before.
+export default function StudioPipeline({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = salesDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -41,7 +43,7 @@ export default function StudioPipeline({ slug }) {
     setData(body);
   }, [slug]);
 
-  useReload(load);
+  useReload(load, initial);
   // THE BOARD OWNS NO COLLECTION — a deal on it is a `salesTicket`, and those
   // live under Tickets. So the key to watch is where the rows are WRITTEN, not
   // the section this screen is in: `crm-sales-pipeline` would never fire, and

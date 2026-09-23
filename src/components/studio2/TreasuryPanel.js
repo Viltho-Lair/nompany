@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { treasuryDict } from "@/shared/studio/treasury";
 import { useReload } from "@/components/studio2/useReload";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 
 // CASH THAT HAS NOT MOVED YET.
 //
@@ -15,9 +16,13 @@ import { useReload } from "@/components/studio2/useReload";
 // Three things, one question: post-dated cheques (ubiquitous in this product's
 // region and modelled nowhere), the forecast they feed, and the letters of
 // guarantee holding a studio's money at the bank.
-export default function TreasuryPanel({ slug, locale = "en" }) {
+//
+// `initial` is the /finance/treasury body the studio page answered in its own
+// render, handed down by Cash & Bank to the tab it opens on and only on its
+// first mount; absent, the panel fetches on mount exactly as before.
+export default function TreasuryPanel({ slug, locale = "en", initial }) {
   const tr = treasuryDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const [cheque, setCheque] = useState(null);
@@ -31,7 +36,7 @@ export default function TreasuryPanel({ slug, locale = "en" }) {
     setData(body);
   }, [slug, setData, setProblem]);
 
-  useReload(load);
+  useReload(load, initial);
 
   const send = useCallback(async (payload) => {
     setBusy(true); setProblem("");
@@ -45,7 +50,7 @@ export default function TreasuryPanel({ slug, locale = "en" }) {
     return true;
   }, [slug, load, tr, setBusy, setProblem]);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const {
     from, opening, cheques = [], guarantees = [], lockedUp = {}, buckets = [],

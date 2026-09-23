@@ -67,6 +67,13 @@ export type RouteSpec<A = RouteArgs> = {
   name?: string;
   status?: Record<string, number>;
   /**
+   * `false` keeps API keys out: a bearer token is ignored and only the session
+   * cookie counts. For a route that took a session alone before it moved onto
+   * the wrapper — moving it must not quietly open it to every key, and a GET
+   * that checks no right (the member list) would answer ANY key's scope.
+   */
+  keys?: boolean;
+  /**
    * THE CONTEXT BUILDER IS WHAT TYPES THE HANDLER. A studio route names its
    * department's builder here, and `route` infers the handler's argument from
    * whatever that builder returns — so `salesContext` gives the handler a
@@ -325,7 +332,7 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
     // authenticate a console request or an account-page request than a slug can
     // authorise one.
     if (auth === "studio" && params.slug) {
-      const token = bearerFrom(base.request as Request);
+      const token = spec.keys === false ? "" : bearerFrom(base.request as Request);
       if (token) return resolveByKey(base, params, token);
     }
 
@@ -454,7 +461,7 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
       // A CHEAP GATE DECIDES WHETHER TO ENTER AT ALL. `bearerFrom` refuses
       // anything that is not shaped like one of our keys without a lookup, so
       // an ordinary session request pays a regex and nothing else.
-      const token = auth === "studio" ? bearerFrom(request) : "";
+      const token = auth === "studio" && spec.keys !== false ? bearerFrom(request) : "";
       const resolvedKey = token ? await resolveKey(token) : null;
       // A TOKEN THAT DOES NOT RESOLVE IS REFUSED HERE rather than falling
       // through to the cookie. Somebody presenting a revoked key and holding a
@@ -507,13 +514,17 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
     const build = spec.context || studioContext;
     const context = (await build(user as { id?: unknown }, slug)) as A & { error?: string; sections?: unknown };
     if (!context || context.error) return undefined;
-    const switchKey = switchKeyForPath(path);
+    // The switch is decided from the PATH, as the live request's pathname is —
+    // a screen that opens on a query string (`calendar?weeks=12`) must not
+    // read as a different route.
+    const url = new URL(path, "http://studio.internal");
+    const switchKey = switchKeyForPath(url.pathname);
     if (switchKey && Array.isArray(context.sections)
       && !switchboard(context.sections as never)(switchKey)) return undefined;
     // A REAL REQUEST OBJECT, because handlers read `request.url` for their
     // query string. A GET with no body, so nothing a GET handler asks of it can
     // differ from the browser's own call.
-    const request = new Request(new URL(path, "http://studio.internal"));
+    const request = new Request(url);
     const out = await handler({ request, params: { ...params, slug }, user, ...context } as A & RouteArgs);
     if (isResponse(out)) return out.ok ? out.json().catch(() => undefined) : undefined;
     if (isErrorShape(out)) return undefined;

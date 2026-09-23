@@ -26,9 +26,11 @@ import { panel, h2, sub, btnRow, btnRowPrimary, money, fmtDate } from "@/compone
 
 const FILTERS = ["", "Draft", "Ordered", "Partly received", "Received", "Cancelled"];
 
-export default function StudioPurchaseOrders({ slug }) {
+// `initial` is the orders GET body, answered by the studio page in its render,
+// so the register paints with its rows; absent, it fetches on mount as before.
+export default function StudioPurchaseOrders({ slug, initial }) {
   const tr = procurementDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState("");
@@ -41,7 +43,7 @@ export default function StudioPurchaseOrders({ slug }) {
     setData(body);
   }, [slug]);
 
-  useReload(load);
+  useReload(load, initial);
   useLiveUpdates(slug, "inventory-sheets", load);
 
   const move = async (id, status) => {

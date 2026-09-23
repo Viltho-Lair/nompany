@@ -25,14 +25,18 @@ const ShopFloorPanel = nextDynamic(() => import("@/components/studio2/ShopFloorP
 // against a station's own capacity. This is the join, and the join is the
 // feature — see `modules/manufacturing/mrp` for the arithmetic and the two
 // limitations it states out loud.
-export default function StudioProduction({ slug }) {
+//
+// `initial` is the /manufacturing/planning body the studio page answered in its
+// own render, so the planner paints at once; absent, it fetches on mount as
+// before. The first BOM is picked from it exactly as the loader picks it.
+export default function StudioProduction({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = productionDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState("planning");
-  const [bomId, setBomId] = useState("");
+  const [bomId, setBomId] = useState(initial?.boms?.[0]?.id || "");
   const [draft, setDraft] = useState({ itemId: "", qtyPer: "" });
 
   const load = useCallback(async () => {
@@ -43,7 +47,7 @@ export default function StudioProduction({ slug }) {
     setBomId((b) => b || body.boms?.[0]?.id || "");
   }, [slug, setData, setBomId, setProblem]);
 
-  useReload(load);
+  useReload(load, initial);
   // THE ROWS ARE WRITTEN UNDER `manufacturing` — the BOM lines on the root, and
   // every engine register beneath it — so the root is the watch key, and
   // LiveProvider fans an event out to the watchers of every ancestor of its
@@ -62,7 +66,7 @@ export default function StudioProduction({ slug }) {
     return true;
   }, [slug, load, setBusy, setProblem]);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const {
     requirements = [], noBom = [], noQuantity = [], stations = [], unstationed = [],

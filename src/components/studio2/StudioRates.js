@@ -9,7 +9,7 @@
 // changes what the NEXT bid starts from and reprices nothing already written.
 // The screen says so, because the opposite assumption is the dangerous one.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { tenderingDict } from "@/shared/studio/tendering";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -17,9 +17,11 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, money } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 
-export default function StudioRates({ slug }) {
+// `initial` is the /tendering/rates body the studio page answered in its own
+// render, so the library paints at once; absent, it fetches on mount as before.
+export default function StudioRates({ slug, initial }) {
   const tr = tenderingDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);
@@ -35,7 +37,12 @@ export default function StudioRates({ slug }) {
     setData(body);
   }, []);
 
+  // The reader the page already answered for is skipped by IDENTITY, not by a
+  // flag, so React's development double-effect cannot spend it (useReload says
+  // why); a new slug builds a new reader and fetches as before.
+  const skip = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === skip.current) return;
     let current = true;
     (async () => {
       const answer = await read();

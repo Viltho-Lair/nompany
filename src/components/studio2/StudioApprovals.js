@@ -22,14 +22,19 @@ const alert = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-ros
 //
 // `view` is the active sub-section: the list is the parent, Approval settings
 // its one child.
-export default function StudioApprovals({ slug, view = "approvals" }) {
-  if (view === "approvals-settings") return <ApprovalSettings slug={slug} />;
-  return <ApprovalList slug={slug} />;
+//
+// `initial` is the body of whichever of the two GETs this view reads, answered
+// inside the studio page's render, so the list paints with what is waiting
+// rather than a second skeleton. It goes to the one sub-screen the view draws
+// and no other; absent — refused, or over the ceiling — that screen fetches.
+export default function StudioApprovals({ slug, view = "approvals", initial }) {
+  if (view === "approvals-settings") return <ApprovalSettings slug={slug} initial={initial} />;
+  return <ApprovalList slug={slug} initial={initial} />;
 }
 
-function ApprovalList({ slug }) {
+function ApprovalList({ slug, initial }) {
   const tr = approvalsDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [tab, setTab] = useState(null);
   const [error, setError] = useState("");
 
@@ -38,7 +43,7 @@ function ApprovalList({ slug }) {
     if (!res.ok) { setError(tr.cannotLoad); return; }
     setData(await res.json());
   }, [slug, tr]);
-  useReload(load);
+  useReload(load, initial);
   // Somebody answered, or asked — pick it up without a refresh.
   useLiveUpdates(slug, "approvals", load);
 
@@ -236,9 +241,9 @@ function ApprovalCard({ slug, approval: a, tr, onAnswer }) {
 
 // APPROVAL SETTINGS — who answers each type, step by step. The owner and Admins,
 // and whoever they give `approvals.settings` to in Access.
-function ApprovalSettings({ slug }) {
+function ApprovalSettings({ slug, initial }) {
   const tr = approvalsDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(null);
 
@@ -248,7 +253,7 @@ function ApprovalSettings({ slug }) {
     if (!res.ok) { setError(tr.cannotLoad); return; }
     setData(await res.json());
   }, [slug, tr]);
-  useReload(load);
+  useReload(load, initial);
 
   if (error && !data) return <p className={alert}>{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;

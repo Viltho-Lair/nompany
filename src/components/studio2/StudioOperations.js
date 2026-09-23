@@ -59,10 +59,15 @@ const dayName = (iso) => fmtWeekday(iso);
 // coverage, which is why a shift can clash with another or with approved leave.
 // `view` is the ACTIVE SUB-SECTION key: the parent renders a dashboard and each
 // sub-section selects its screen. The remaining tabs are tabs of one screen.
-export default function StudioOperations({ slug, view = "field-service" }) {
+//
+// `initial` is the body of the `endpoint` below for THIS view — the schedule's
+// own door or the root's — answered inside the studio page's render, so the
+// screen paints with its rota or dashboard rather than a second skeleton.
+// Absent — refused, or over the ceiling — it fetches on mount as before.
+export default function StudioOperations({ slug, view = "field-service", initial }) {
   const locale = useStudioLocale();
   const tr = operationsDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   // THE SCHEDULE SCREEN'S THREE PANELS — the rota, Permits and Locations. Permits
   // and Locations moved here off the Operations landing (the landing is now just
   // the dashboard), so all three are peers reached from the bottom bar and flip
@@ -113,7 +118,7 @@ export default function StudioOperations({ slug, view = "field-service" }) {
     if (!res.ok) { setError(tr.accessOperationsStudio); return; }
     setData(await res.json());
   }, [slug, endpoint]);
-  useReload(load);
+  useReload(load, initial);
   // Shifts and permits change from more than one desk — stay current.
   useLiveUpdates(slug, "field-service", load);
 

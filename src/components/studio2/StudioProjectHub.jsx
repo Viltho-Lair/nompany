@@ -97,10 +97,13 @@ export function HubTrailing({ tab, children }) {
   return slot ? createPortal(children, slot) : null;
 }
 
-export default function StudioProjectHub({ slug, projectId }) {
+// `initial` is the /projects body the studio page answered in its own render. It
+// is what the bar, the overview and the board are drawn from, so the hub opens
+// with the project on it; the other tabs still read their own routes.
+export default function StudioProjectHub({ slug, projectId, initial }) {
   const pathname = usePathname();
   const active = tabOf(pathname);
-  const project = useProjectData(slug);
+  const project = useProjectData(slug, initial);
 
   // Tabs visited so far, in the order they were first opened. Mounting only
   // these keeps a first visit to one tab from loading the other five's data.

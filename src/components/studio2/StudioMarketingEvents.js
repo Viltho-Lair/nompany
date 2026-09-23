@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { useReload } from "@/components/studio2/useReload";
 import { useStudioLocale } from "@/components/studio2/locale";
 import {
   panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Dialog, Empty, fmtDateTime,
@@ -35,10 +36,13 @@ const STATE_TONE = {
   past: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300",
 };
 
-export default function StudioMarketingEvents({ slug }) {
+// `initial` IS THIS SCREEN'S OWN ROUTE BODY, answered inside the studio page's
+// render, so the register paints with its rows rather than a skeleton and a
+// second request. Absent — refused, or over the payload ceiling — it fetches.
+export default function StudioMarketingEvents({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = marketingEventsDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -52,11 +56,7 @@ export default function StudioMarketingEvents({ slug }) {
     setData(body);
   }, [slug, tr]);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => { if (alive) await reload(); })();
-    return () => { alive = false; };
-  }, [reload]);
+  useReload(reload, initial);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
@@ -283,7 +283,17 @@ function Door({ eventId, tr, slug, onSaved, onError }) {
     return () => { alive = false; };
   }, [eventId, slug, tr, onError]);
 
-  if (!rows) return <p className="mt-2 text-xs text-slate-400">{tr.loading}</p>;
+  // A ROW-SIZED PLACEHOLDER, not ScreenSkeleton: this sits inside one expanded
+  // event, and a whole screen's title, figures and table would burst out of it.
+  if (!rows) {
+    return (
+      <div className="mt-2 space-y-2" aria-busy="true">
+        <span className="sr-only">{tr.loading}</span>
+        <span className="skel skel-text block h-3 w-48" />
+        <span className="skel skel-text block h-3 w-36" />
+      </div>
+    );
+  }
   if (!rows.length) return <p className="mt-2 text-xs text-slate-400">{tr.noRegistrants}</p>;
 
   const flip = (id) => setCame((s) => {

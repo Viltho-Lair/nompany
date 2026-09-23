@@ -19,9 +19,12 @@ import PermitsPanel from "@/components/studio2/PermitsPanel";
 //
 // WATCHES `field-service`, the section the permits are WRITTEN under
 // (invariant 14), not this section, which owns no collection.
-export default function StudioPermits({ slug }) {
+//
+// `initial` is the /quality/permits body the studio page answered in its own
+// render, so the register paints at once; absent, it fetches on mount as before.
+export default function StudioPermits({ slug, initial }) {
   const tr = operationsDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -33,7 +36,7 @@ export default function StudioPermits({ slug }) {
     setData(body);
   }, [slug]);
 
-  useReload(load);
+  useReload(load, initial);
   useLiveUpdates(slug, "field-service", load);
 
   // THE PANEL'S WRITER, against this register's route. True on success, so the

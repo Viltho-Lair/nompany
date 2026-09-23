@@ -11,9 +11,10 @@
 // register, which is one click away on each bar. A calendar somebody could drag
 // would be a second writer of the same field.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { useReload } from "@/components/studio2/useReload";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { panel, h2, sub, btnGhost, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
@@ -46,10 +47,16 @@ const STATUS_TONE = {
  * THE UNCHOSEN TAB IS NOT MOUNTED, so opening the calendar costs no read of
  * the plans and vice versa. Each half fetches its own.
  */
-export default function StudioMarketingPlanning({ slug }) {
+// `initial` IS THE CALENDAR'S OWN ROUTE BODY (its default window, weeks=12 and
+// no `from`), answered inside the studio page's render so the board paints at once.
+// IT IS SPENT ON THE FIRST TAB SWITCH: the calendar unmounts behind the plans
+// tab, and remounting it with the page's body would show that snapshot and skip
+// the fetch, so coming back reads fresh exactly as it always did.
+export default function StudioMarketingPlanning({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = marketingPlansDict(locale);
   const [tab, setTab] = useState("calendar");
+  const [first, setFirst] = useState(initial);
   return (
     <div className="space-y-4">
       <div role="tablist" aria-label={tr.title} className="flex gap-2 border-b border-slate-200 dark:border-white/10">
@@ -58,7 +65,7 @@ export default function StudioMarketingPlanning({ slug }) {
             key={key}
             role="tab"
             aria-selected={tab === key}
-            onClick={() => setTab(key)}
+            onClick={() => { setTab(key); setFirst(undefined); }}
             className={`-mb-px border-b-2 px-4 py-2 font-display text-sm font-600 transition-colors ${
               tab === key
                 ? "border-brand-600 text-slate-900 dark:text-white"
@@ -69,18 +76,18 @@ export default function StudioMarketingPlanning({ slug }) {
           </button>
         ))}
       </div>
-      {tab === "plans" ? <StudioMarketingPlans slug={slug} /> : <CalendarBoard slug={slug} />}
+      {tab === "plans" ? <StudioMarketingPlans slug={slug} /> : <CalendarBoard slug={slug} initial={first} />}
     </div>
   );
 }
 
-function CalendarBoard({ slug }) {
+function CalendarBoard({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = marketingCalendarDict(locale);
   const dept = marketingDeptDict(locale);
   const [from, setFrom] = useState("");
   const [weeks, setWeeks] = useState("12");
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
 
   const params = `weeks=${weeks}${from ? `&from=${from}` : ""}`;
@@ -92,11 +99,7 @@ function CalendarBoard({ slug }) {
     setData(body);
   }, [slug, params, tr]);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => { if (alive) await reload(); })();
-    return () => { alive = false; };
-  }, [reload]);
+  useReload(reload, initial);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;

@@ -45,10 +45,13 @@ import { BottomBar } from "@/components/studio2/PanelBar";
 
 const td = "py-2 pe-3 align-middle";
 
-export default function StudioSheetViewer({ slug, projectId, sheetId, perspective = "inventory" }) {
+// `initial` is the /projects body the studio page answered in its own render —
+// every sheet arrives in it, from either perspective — so the sheet paints at
+// once; absent, it fetches on mount exactly as before.
+export default function StudioSheetViewer({ slug, projectId, sheetId, perspective = "inventory", initial }) {
   const tr = projectsDict(useStudioLocale());
   const isInventory = perspective === "inventory";
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [query, setQuery] = useState("");
@@ -98,7 +101,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
   const [ordering, setOrdering] = useState(false);
   const [ordered, setOrdered] = useState(null);
 
-  useReload(load);
+  useReload(load, initial);
   useLiveUpdates(slug, "projects", load);
   // The other department writing its column is the whole point of a shared row,
   // so this screen picks that up without a reload.

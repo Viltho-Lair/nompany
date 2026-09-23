@@ -15,7 +15,7 @@
 // anybody has to act on — a register in alphabetical order hides them behind
 // whatever happens to begin with A.
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -94,9 +94,11 @@ function Score({ tr, value }) {
   return <span className="num font-600">{value}</span>;
 }
 
-export default function StudioSuppliers({ slug }) {
+// `initial` is this screen's own GET body, answered by the studio page in its
+// render, so the screen paints with its rows; absent, it fetches on mount as before.
+export default function StudioSuppliers({ slug, initial }) {
   const tr = procurementDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [assessing, setAssessing] = useState(null);
@@ -119,7 +121,12 @@ export default function StudioSuppliers({ slug }) {
     setData(body);
   }, []);
 
+  // THE FIRST READ IS SKIPPED WHEN THE PAGE BROUGHT ITS ANSWER, by the identity
+  // of the reader it was first handed (useReload says why identity and not a
+  // flag). A reader that changes afterwards still fetches.
+  const firstRead = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === firstRead.current) return;
     let current = true;
     (async () => {
       const answer = await read();

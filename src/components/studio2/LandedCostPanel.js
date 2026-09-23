@@ -21,9 +21,13 @@ import { panel, h2, sub, btn, btnGhost, btnRow, money, fmtDate, Empty } from "@/
 // SAVING REPLACES. One record per order — a landed cost is a reconciliation
 // ("these are the invoices that belong to this shipment"), so correcting the
 // duty figure restates the set rather than appending to it.
-export default function LandedCostPanel({ slug, locale = "en", currency = "" }) {
+//
+// `initial` is the /logistics/landed-cost LIST body (no `order`) the studio page
+// answered in its own render, so the panel lands with the page; absent, it
+// fetches on mount as before. Opening one order is still its own request.
+export default function LandedCostPanel({ slug, locale = "en", currency = "", initial }) {
   const tr = logisticsDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(null);
@@ -36,7 +40,7 @@ export default function LandedCostPanel({ slug, locale = "en", currency = "" }) 
     setData(body);
   }, [slug, setData, setProblem]);
 
-  useReload(load);
+  useReload(load, initial);
 
   // ONE ORDER, WITH ITS FULL DISTRIBUTION — what a reconciliation screen needs,
   // and the reason the route answers a single order differently from the list.
@@ -72,7 +76,9 @@ export default function LandedCostPanel({ slug, locale = "en", currency = "" }) 
   }, [slug, load, tr, setBusy, setProblem]);
 
   if (problem && !data) return <p className="mt-5 text-sm text-rose-600 dark:text-rose-300">{problem}</p>;
-  if (!data) return <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">…</p>;
+  // A PANEL UNDER THE SECTION DASHBOARD, not a screen, so it reserves a panel's
+  // box the way the register summary above it does rather than a whole page.
+  if (!data) return <div className="mt-5 h-24 rounded-xl skel" aria-busy="true" />;
 
   const { orders = [], canManage } = data;
   const amount = (n) => `${money(n)}${currency ? ` ${currency}` : ""}`;

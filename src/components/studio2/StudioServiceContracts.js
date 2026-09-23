@@ -49,8 +49,9 @@ const payload = (f) => ({
   checklist: String(f.checklist || "").split("\n").map((s) => s.trim()).filter(Boolean),
 });
 
-export default function StudioServiceContracts({ slug }) {
-  const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/contracts");
+// `initial` is this screen's own GET body from the studio page (useMaintenance).
+export default function StudioServiceContracts({ slug, initial }) {
+  const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/contracts", initial);
   // THE CONTRACTS ARE WRITTEN UNDER `projects-sla` — a filed-only section
   // (keys.ts), so that is the key a write there rings — and what each visit
   // came to is read off the work orders, written under Work orders.

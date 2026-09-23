@@ -16,7 +16,7 @@
 // against the client's own document line by line; re-sorting it destroys the
 // only thing that makes that check possible.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { tenderingDict } from "@/shared/studio/tendering";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
@@ -31,10 +31,13 @@ import BoqImport from "@/components/studio2/BoqImport";
 
 const cell = "w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 outline-none focus:border-brand-500 dark:border-white/15 dark:bg-white/5 dark:text-slate-100";
 
-export default function StudioBoq({ slug, tenderId }) {
+// `initial` is the /tendering/boq?tenderId= body the studio page answered in its
+// own render for THIS tender, so the bill paints at once; absent, it fetches on
+// mount as before.
+export default function StudioBoq({ slug, tenderId, initial }) {
   const locale = useStudioLocale();
   const tr = tenderingDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(null);
@@ -55,7 +58,13 @@ export default function StudioBoq({ slug, tenderId }) {
   // The same guarded load the customer page uses, and for the same reason: this
   // is a RECORD page, so it can be pointed at a different tender while the
   // first request is still in the air.
+  //
+  // The reader the page already answered for is skipped by IDENTITY, not by a
+  // flag, so React's development double-effect cannot spend it (useReload says
+  // why). Pointed at another tender, the reader is rebuilt and fetches.
+  const skip = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === skip.current) return;
     let current = true;
     (async () => {
       const answer = await read();

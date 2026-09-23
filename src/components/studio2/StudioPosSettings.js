@@ -5,7 +5,7 @@
 // dialog on the till, under a right of its own (`pos.settings`). The settings
 // are still stored on the till's own section row, where the till reads them.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { posDeptDict } from "@/shared/studio/posDept";
 import { posDict } from "@/shared/studio/pos";
@@ -14,17 +14,32 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Field } from "@/components/fields/Field";
 import { panel, h2, btn, btnGhost, btnRow, btnRowDanger, fmtDateTime } from "@/components/studio2/ui";
 
-export default function StudioPosSettings({ slug }) {
+// THE EDITABLE COPY OF THE TERMS, taken once from the first answer — by the
+// loader and by `initial` alike, so the two cannot seed different forms.
+const formFor = (body) => ({
+  pricesIncludeTax: Boolean(body.terms.pricesIncludeTax), footer: body.terms.footer || "",
+  // Blank means no limit, and saves as null so an emptied box lifts the cap.
+  maxDiscountPercent: body.terms.maxDiscountPercent ?? "",
+  // HOW SOON "ENDING SOON" IS on the offers screen. Here rather than on the
+  // studio because nothing outside Point of Sale reads it (the owner's
+  // rule, 22/09/2026: a setting several sections share is the studio's).
+  promotionExpiryWarningDays: body.terms.promotionExpiryWarningDays ?? "",
+});
+
+// `initial` is the /pos/settings body the studio page answered in its own
+// render, so the tills and terms paint at once; absent, it fetches on mount as
+// before.
+export default function StudioPosSettings({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = posDeptDict(locale);
   const till = posDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [form, setForm] = useState(null);
+  const [form, setForm] = useState(() => (initial ? formFor(initial) : null));
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/pos/settings`, { cache: "no-store" });
@@ -32,18 +47,15 @@ export default function StudioPosSettings({ slug }) {
     if (!res.ok) { setError(body.error || "failed"); return; }
     setError("");
     setData(body);
-    setForm((f) => f || {
-      pricesIncludeTax: Boolean(body.terms.pricesIncludeTax), footer: body.terms.footer || "",
-      // Blank means no limit, and saves as null so an emptied box lifts the cap.
-      maxDiscountPercent: body.terms.maxDiscountPercent ?? "",
-      // HOW SOON "ENDING SOON" IS on the offers screen. Here rather than on the
-      // studio because nothing outside Point of Sale reads it (the owner's
-      // rule, 22/09/2026: a setting several sections share is the studio's).
-      promotionExpiryWarningDays: body.terms.promotionExpiryWarningDays ?? "",
-    });
+    setForm((f) => f || formFor(body));
   }, [slug, setForm]);
 
+  // The loader the page already answered for is skipped by IDENTITY, not by a
+  // flag, so React's development double-effect cannot spend it (useReload says
+  // why); a new slug builds a new loader and fetches as before.
+  const skip = useRef(initial !== undefined ? load : null);
   useEffect(() => {
+    if (load === skip.current) return;
     let current = true;
     (async () => { if (current) await load(); })();
     return () => { current = false; };

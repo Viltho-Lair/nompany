@@ -28,6 +28,8 @@ const MAIN_WIDGET_KEYS = ["main.activity", "main.headline-trend", "main.event-ri
 // what it does for every factory-built context.
 const spec: RouteSpec<MainContext> = {
   auth: "studio", context: mainContext as RouteSpec<MainContext>["context"], name: "main",
+  // A session alone, as before the move onto the wrapper.
+  keys: false,
 };
 
 export const GET = route(spec, async (main) => {

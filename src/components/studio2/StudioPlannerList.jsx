@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { plannerDict } from "@/shared/studio/planner";
 import { sectionName } from "@/shared/studio/sections";
@@ -25,11 +25,32 @@ const planStatus = (tr) => ({
   on_hold: { label: tr.statusOnHold, chip: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300" },
 });
 
-export default function StudioPlannerList({ slug }) {
+// WHAT THE LIST DRAWS FROM A PLANNER BODY — one function, so the fetch below and
+// the `initial` the page hands down cannot shape the same answer two ways.
+const stateFrom = (payload) => ({
+  loading: false,
+  error: false,
+  plans: Array.isArray(payload.plans) ? payload.plans : [],
+  canEdit: Boolean(payload.canEdit),
+  // The new-plan defaults, seeded into every plan the studio creates.
+  // May be `{}` when the studio has never configured them; the editor
+  // falls back to the app defaults for any absent field.
+  presets: payload.presets && typeof payload.presets === "object" ? payload.presets : {},
+});
+
+// `initial` is the /operations/planner body the studio page answered in its own
+// render, so the plans paint at once; absent, it fetches on mount as before.
+export default function StudioPlannerList({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = plannerDict(locale);
   const router = useRouter();
-  const [state, setState] = useState({ loading: true, error: false, plans: [], canEdit: false, presets: {} });
+  const [state, setState] = useState(() => (initial
+    ? stateFrom(initial)
+    : { loading: true, error: false, plans: [], canEdit: false, presets: {} }));
+  // THE SLUG THE PAGE ALREADY ANSWERED FOR is skipped by value rather than by a
+  // one-shot flag, so React's development double-effect skips both runs; a
+  // different slug clears it and fetches as before.
+  const skip = useRef(initial !== undefined ? slug : null);
   const [creating, setCreating] = useState(false);
   const [presetsOpen, setPresetsOpen] = useState(false);
 
@@ -58,6 +79,8 @@ export default function StudioPlannerList({ slug }) {
   }
 
   useEffect(() => {
+    if (slug === skip.current) return;
+    skip.current = null;
     let alive = true;
     setState((s) => ({ ...s, loading: true, error: false }));
     (async () => {
@@ -71,16 +94,7 @@ export default function StudioPlannerList({ slug }) {
           return;
         }
         const payload = await res.json();
-        setState({
-          loading: false,
-          error: false,
-          plans: Array.isArray(payload.plans) ? payload.plans : [],
-          canEdit: Boolean(payload.canEdit),
-          // The new-plan defaults, seeded into every plan the studio creates.
-          // May be `{}` when the studio has never configured them; the editor
-          // falls back to the app defaults for any absent field.
-          presets: payload.presets && typeof payload.presets === "object" ? payload.presets : {},
-        });
+        setState(stateFrom(payload));
       } catch {
         if (alive) setState({ loading: false, error: true, plans: [], canEdit: false, presets: {} });
       }

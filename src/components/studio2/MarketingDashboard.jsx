@@ -10,11 +10,12 @@
 // its `asOf` rather than this browser's clock. All of it is the free floor, so
 // nothing here is gated through the widget registry.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { marketingDeptDict } from "@/shared/studio/marketingDept";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { StatTile, money, fmtDate, btn } from "@/components/studio2/ui";
 import { StatRow, DashGrid, Widget, DashEmpty } from "@/components/dashboard";
@@ -23,9 +24,12 @@ import { CAMPAIGN_STATUSES } from "@/modules/marketing/model";
 
 // NAMED `*Dashboard.jsx` DELIBERATELY: the widget-gate scan reads exactly that
 // filename pattern, and this one gates nothing because all of it is free.
-export default function MarketingDashboard({ slug }) {
+// `initial` IS THIS SCREEN'S OWN ROUTE BODY, answered inside the studio page's
+// render, so the dashboard paints with its figures rather than a skeleton and a
+// second request. Absent — refused, or over the payload ceiling — it fetches.
+export default function MarketingDashboard({ slug, initial }) {
   const tr = marketingDeptDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -36,11 +40,7 @@ export default function MarketingDashboard({ slug }) {
     setData(body);
   }, [slug]);
 
-  useEffect(() => {
-    let current = true;
-    (async () => { if (current) await load(); })();
-    return () => { current = false; };
-  }, [load]);
+  useReload(load, initial);
   useLiveUpdates(slug, "marketing-campaigns", load);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error === "forbidden" ? tr.refused : error}</p>;

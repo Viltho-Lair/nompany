@@ -30,6 +30,145 @@ import { log } from "@/platform/http/observability";
 // function). One import per converted screen, named for the screen it feeds.
 import { GET as mainRoute } from "@/app/api/studios/[slug]/main/route";
 import { GET as salesRoute } from "@/app/api/studios/[slug]/sales/route";
+import { GET as pipelineRoute } from "@/app/api/studios/[slug]/sales/pipeline/route";
+import { GET as insightsRoute } from "@/app/api/studios/[slug]/sales/insights/route";
+import { GET as salesOrdersRoute } from "@/app/api/studios/[slug]/sales/orders/route";
+import { GET as contractsRoute } from "@/app/api/studios/[slug]/sales/contracts/route";
+import { GET as changeOrdersRoute } from "@/app/api/studios/[slug]/sales/change-orders/route";
+import { GET as customerRoute } from "@/app/api/studios/[slug]/sales/customer/route";
+import { GET as salesQuotationRoute } from "@/app/api/studios/[slug]/sales/quotations/route";
+import { GET as technicalRoute } from "@/app/api/studios/[slug]/technical/route";
+import { GET as engagementsRoute } from "@/app/api/studios/[slug]/main/engagements/route";
+import { GET as permitsRoute } from "@/app/api/studios/[slug]/quality/permits/route";
+import { GET as ratesRoute } from "@/app/api/studios/[slug]/tendering/rates/route";
+import { GET as productionRoute } from "@/app/api/studios/[slug]/manufacturing/planning/route";
+import { GET as posSettingsRoute } from "@/app/api/studios/[slug]/pos/settings/route";
+import { GET as posReturnsRoute } from "@/app/api/studios/[slug]/pos/returns/route";
+import { GET as posPromotionsRoute } from "@/app/api/studios/[slug]/pos/promotions/route";
+import { GET as allocationsRoute } from "@/app/api/studios/[slug]/assets/allocations/route";
+import { GET as engineeringDashboardRoute } from "@/app/api/studios/[slug]/engineering/dashboard/route";
+import { GET as sectionSummaryRoute } from "@/app/api/studios/[slug]/records/summary/route";
+import { GET as safetyRoute } from "@/app/api/studios/[slug]/quality/safety/route";
+import { GET as landedCostRoute } from "@/app/api/studios/[slug]/logistics/landed-cost/route";
+import { GET as recordsRoute } from "@/app/api/studios/[slug]/records/[typeKey]/route";
+import { GET as boqRoute } from "@/app/api/studios/[slug]/tendering/boq/route";
+import { GET as plannerListRoute } from "@/app/api/studios/[slug]/operations/planner/route";
+import { GET as qualityDocsRoute } from "@/app/api/studios/[slug]/quality/docs/route";
+import { GET as inventoryRoute } from "@/app/api/studios/[slug]/inventory/route";
+import { GET as collaboratorsRoute } from "@/app/api/studios/[slug]/collaborators/route";
+import { GET as rolesRoute } from "@/app/api/studios/[slug]/roles/route";
+import { GET as studioSettingsRoute } from "@/app/api/studios/[slug]/settings/route";
+import { GET as hrRoute } from "@/app/api/studios/[slug]/hr/route";
+import { GET as projectsRoute } from "@/app/api/studios/[slug]/projects/route";
+import { GET as resourceLoadRoute } from "@/app/api/studios/[slug]/operations/planner/resources/route";
+import { GET as approvalsRoute } from "@/app/api/studios/[slug]/approvals/route";
+import { GET as approvalsSettingsRoute } from "@/app/api/studios/[slug]/approvals/settings/route";
+import { GET as operationsRoute } from "@/app/api/studios/[slug]/operations/route";
+import { GET as scheduleRoute } from "@/app/api/studios/[slug]/operations/schedule/route";
+import { GET as financeRoute } from "@/app/api/studios/[slug]/finance/route";
+import { GET as billsRoute } from "@/app/api/studios/[slug]/finance/bills/route";
+import { GET as fixedAssetsRoute } from "@/app/api/studios/[slug]/finance/assets/route";
+import { GET as ledgerRoute } from "@/app/api/studios/[slug]/finance/ledger/route";
+import { GET as financeSettingsRoute } from "@/app/api/studios/[slug]/finance/settings/route";
+import { GET as treasuryRoute } from "@/app/api/studios/[slug]/finance/treasury/route";
+import { GET as financeReportsRoute } from "@/app/api/studios/[slug]/finance/reports/route";
+import { GET as budgetsRoute } from "@/app/api/studios/[slug]/finance/budgets/route";
+import { GET as procurementDashboardRoute } from "@/app/api/studios/[slug]/procurement/dashboard/route";
+import { GET as subcontractsRoute } from "@/app/api/studios/[slug]/procurement/subcontracts/route";
+import { GET as suppliersRoute } from "@/app/api/studios/[slug]/procurement/suppliers/route";
+import { GET as receivingRoute } from "@/app/api/studios/[slug]/procurement/receiving/route";
+import { GET as expeditingRoute } from "@/app/api/studios/[slug]/procurement/expediting/route";
+import { GET as procurementRfqRoute } from "@/app/api/studios/[slug]/procurement/rfq/route";
+import { GET as requisitionsRoute } from "@/app/api/studios/[slug]/procurement/requisitions/route";
+import { GET as purchaseOrdersRoute } from "@/app/api/studios/[slug]/inventory/orders/route";
+import { GET as maintenanceDashboardRoute } from "@/app/api/studios/[slug]/maintenance/dashboard/route";
+import { GET as workRequestsRoute } from "@/app/api/studios/[slug]/maintenance/requests/route";
+import { GET as workOrdersRoute } from "@/app/api/studios/[slug]/maintenance/orders/route";
+import { GET as pmPlansRoute } from "@/app/api/studios/[slug]/maintenance/plans/route";
+import { GET as machinesRoute } from "@/app/api/studios/[slug]/maintenance/assets/route";
+import { GET as serviceContractsRoute } from "@/app/api/studios/[slug]/maintenance/contracts/route";
+import { GET as marketingDashboardRoute } from "@/app/api/studios/[slug]/marketing/dashboard/route";
+import { GET as campaignsRoute } from "@/app/api/studios/[slug]/marketing/campaigns/route";
+import { GET as marketingCalendarRoute } from "@/app/api/studios/[slug]/marketing/calendar/route";
+import { GET as marketingPartnersRoute } from "@/app/api/studios/[slug]/marketing/partners/route";
+import { GET as marketingContentRoute } from "@/app/api/studios/[slug]/marketing/assets/route";
+import { GET as marketingEventsRoute } from "@/app/api/studios/[slug]/marketing/events/route";
+import { GET as audiencesRoute } from "@/app/api/studios/[slug]/marketing/audiences/route";
+import { GET as marketingBudgetRoute } from "@/app/api/studios/[slug]/marketing/budget/route";
+import { GET as formsRoute } from "@/app/api/studios/[slug]/marketing/forms/route";
+
+// THE DEPARTMENT SCREENS THAT DRAW A DIFFERENT SUB-SCREEN PER `view`, and
+// the route each view reads first. A view absent here (Finance's tax screen
+// reads two routes; Inventory's sheets are a screen of their own) fetches.
+const VIEW_FIRST_PAYLOAD = {
+  hr: () => [hrRoute, "hr"],
+  // Every Projects view, a project's quotation sheet and Inventory's sheet
+  // workspace all read the one projects list.
+  projects: () => [projectsRoute, "projects"],
+  inventory: () => [inventoryRoute, "inventory"],
+  approvals: (view) => (view === "approvals-settings"
+    ? [approvalsSettingsRoute, "approvals/settings"] : [approvalsRoute, "approvals"]),
+  "field-service": (view) => (view === "field-service-schedule"
+    ? [scheduleRoute, "operations/schedule"] : [operationsRoute, "operations"]),
+  finance: (view) => ({
+    "finance": [financeRoute, "finance"],
+    "finance-receivables": [financeRoute, "finance"],
+    "finance-payables": [billsRoute, "finance/bills"],
+    "finance-assets": [fixedAssetsRoute, "finance/assets"],
+    "finance-ledger": [ledgerRoute, "finance/ledger"],
+    "finance-settings": [financeSettingsRoute, "finance/settings"],
+    "finance-cash": [treasuryRoute, "finance/treasury"],
+    "finance-reports": [financeReportsRoute, "finance/reports"],
+    "finance-budgets": [budgetsRoute, "finance/budgets"],
+  })[view || "finance"],
+};
+
+// THE SCREENS THE RENDER CHAIN PICKS BY `active?.key` ALONE — one screen per key,
+// no second segment and no `view` — and the route each one reads first. Only a
+// key whose branch below renders exactly that screen belongs here: the payload
+// is handed to whichever screen the key draws, so a row naming the wrong route
+// would give a screen another screen's body.
+const KEYED_FIRST_PAYLOAD = {
+  "administration-members": [collaboratorsRoute, "collaborators"],
+  "administration-access": [rolesRoute, "roles"],
+  // Master data's locations list is Field Operations' own body.
+  "administration-master": [operationsRoute, "operations"],
+  "administration-settings": [studioSettingsRoute, "settings"],
+  "quality-hse-permits": [permitsRoute, "quality/permits"],
+  "tendering-rates": [ratesRoute, "tendering/rates"],
+  "manufacturing": [productionRoute, "manufacturing/planning"],
+  "pos-settings": [posSettingsRoute, "pos/settings"],
+  "pos-returns": [posReturnsRoute, "pos/returns"],
+  "pos-promotions": [posPromotionsRoute, "pos/promotions"],
+  "crm-sales-pipeline": [pipelineRoute, "sales/pipeline"],
+  // THE DEFAULT CHOICES, spelled as the screen asks on mount: the handler reads
+  // them, so a payload without them would be a different answer.
+  "crm-sales-insights": [insightsRoute, "sales/insights?unit=month&measure=value&current=0"],
+  "crm-sales-orders": [salesOrdersRoute, "sales/orders"],
+  "procurement": [procurementDashboardRoute, "procurement/dashboard"],
+  "procurement-subcontracts": [subcontractsRoute, "procurement/subcontracts"],
+  "procurement-suppliers": [suppliersRoute, "procurement/suppliers"],
+  "procurement-receiving": [receivingRoute, "procurement/receiving"],
+  "procurement-expediting": [expeditingRoute, "procurement/expediting"],
+  "procurement-rfq": [procurementRfqRoute, "procurement/rfq"],
+  "procurement-requisitions": [requisitionsRoute, "procurement/requisitions"],
+  "procurement-orders": [purchaseOrdersRoute, "inventory/orders"],
+  "maintenance": [maintenanceDashboardRoute, "maintenance/dashboard"],
+  "maintenance-requests": [workRequestsRoute, "maintenance/requests"],
+  "maintenance-orders": [workOrdersRoute, "maintenance/orders"],
+  "maintenance-plans": [pmPlansRoute, "maintenance/plans"],
+  "maintenance-assets": [machinesRoute, "maintenance/assets"],
+  "maintenance-contracts": [serviceContractsRoute, "maintenance/contracts"],
+  "marketing": [marketingDashboardRoute, "marketing/dashboard"],
+  "marketing-campaigns": [campaignsRoute, "marketing/campaigns"],
+  "marketing-planning": [marketingCalendarRoute, "marketing/calendar?weeks=12"],
+  "marketing-partners": [marketingPartnersRoute, "marketing/partners"],
+  "marketing-content": [marketingContentRoute, "marketing/assets"],
+  "marketing-events": [marketingEventsRoute, "marketing/events"],
+  "marketing-audiences": [audiencesRoute, "marketing/audiences?q=&channel=&state="],
+  "marketing-budget": [marketingBudgetRoute, "marketing/budget"],
+  "marketing-forms": [formsRoute, "marketing/forms"],
+};
 
 // ONE SCREEN IS RENDERED PER REQUEST, SO ONE SCREEN IS DOWNLOADED.
 //
@@ -432,6 +571,8 @@ async function renderStudio(params) {
   // documentation and the two Live views do (design §3).
   if (requested === "engagements") {
     if (!can(access, "engagements.view")) notFound();
+    // The first page, no cursor — "load more" still asks the route itself.
+    const engagementsInitial = await firstScreenPayload(engagementsRoute, studio.slug, "main/engagements");
     return (
       /* THE TWO ACTION RIGHTS ARE RESOLVED HERE, once, and handed down as
          flags — the same way canSeeEngagements and the Documents screen's
@@ -443,6 +584,7 @@ async function renderStudio(params) {
          flags only decide whether a control is offered. */
       <StudioEngagements
         slug={studio.slug}
+        initial={engagementsInitial}
         canLock={can(access, "engagements.lock")}
         canDelete={can(access, "engagements.delete")}
       />
@@ -511,6 +653,7 @@ async function renderStudio(params) {
 
     return (
       <DocumentList
+        initial={await firstScreenPayload(qualityDocsRoute, studio.slug, "quality/docs")}
         studio={studioProps}
         canCreate={can(access, "engineeringDocs.register.create")}
         canDelete={can(access, "engineeringDocs.register.delete")}
@@ -543,7 +686,10 @@ async function renderStudio(params) {
       segments[2] === "billing" || segments[2] === "reports" || segments[2] === "closure") &&
     sections.some((s) => s.key === "projects-list")
   ) {
-    return <StudioProjectHub slug={studio.slug} projectId={segments[1]} />;
+    return (
+      <StudioProjectHub slug={studio.slug} projectId={segments[1]}
+        initial={await firstScreenPayload(projectsRoute, studio.slug, "projects")} />
+    );
   }
 
   // A PROJECT'S PLAN — /<slug>/projects-list/<id>/plans/<planId>. The plan opens
@@ -600,6 +746,7 @@ async function renderStudio(params) {
     if (segments[1] === "resources") {
       return (
         <StudioResourceLoad
+          initial={await firstScreenPayload(resourceLoadRoute, studio.slug, "operations/planner/resources")}
           slug={studio.slug}
           backHref={`/${studio.slug}/projects-planner`}
         />
@@ -618,7 +765,7 @@ async function renderStudio(params) {
           backLabel={shellDict(locale).backToPlanner}
         />
       )
-      : <StudioPlannerList slug={studio.slug} />;
+      : <StudioPlannerList slug={studio.slug} initial={await firstScreenPayload(plannerListRoute, studio.slug, "operations/planner")} />;
   }
 
   // A second segment on a crm-sales-tickets URL names ONE ticket: /<slug>/
@@ -790,10 +937,59 @@ async function renderStudio(params) {
   const framed = !settingsHub && !deniedSection;
   const salesView = framed && screenKey === "crm-sales" && !ticketId && !quotationId && !customerId
     && !["crm-sales-pipeline", "crm-sales-insights", "crm-sales-contracts", "crm-sales-orders"].includes(active?.key);
-  const [mainInitial, salesInitial] = await Promise.all([
+  // A keyed screen is never also Main or Sales, so at most one of these reads.
+  const keyed = framed && !active?.key?.startsWith("engine-") ? KEYED_FIRST_PAYLOAD[active?.key] : null;
+  // THE RECORD PAGES, which the chain picks by an id in the address rather than
+  // by key. A ticket's own page reads the whole /sales list and finds itself in
+  // it, which is why it shares the board's route. The quotation viewer outranks
+  // the ticket it hangs off, exactly as the chain orders them.
+  const ticketPage = framed && ticketId && !quotationId;
+  const quotationPage = framed && quotationId;
+  const customerPage = framed && customerId && !ticketId;
+  const quotationsView = framed && screenKey === "quotations" && !active?.key?.startsWith("engine-");
+  const contractsView = framed && active?.key === "crm-sales-contracts";
+  const engineView = framed && active?.key?.startsWith("engine-");
+  const boqPage = framed && boqTenderId && !engineView;
+  // THE DASHBOARDS THAT CARRY A REGISTER SUMMARY BENEATH THEIR OWN SCREEN, and
+  // the generic section dashboard two roots still fall through to. Their panels
+  // are read beside the screen's payload, not after it.
+  const summaryKey = framed && !engineView
+    && ["assets", "engineering-docs", "quality-hse", "logistics"].includes(active?.key) ? active.key : "";
+  const [mainInitial, salesInitial, keyedInitial, recordInitial, technicalInitial, contractsBody, changeOrdersBody] = await Promise.all([
     framed && screenKey === "main" ? firstScreenPayload(mainRoute, studio.slug, "main") : undefined,
-    salesView ? firstScreenPayload(salesRoute, studio.slug, "sales") : undefined,
+    salesView || ticketPage ? firstScreenPayload(salesRoute, studio.slug, "sales") : undefined,
+    keyed ? firstScreenPayload(keyed[0], studio.slug, keyed[1]) : undefined,
+    quotationPage ? firstScreenPayload(salesQuotationRoute, studio.slug, `sales/quotations?id=${encodeURIComponent(quotationId)}`)
+      : customerPage ? firstScreenPayload(customerRoute, studio.slug, `sales/customer?id=${encodeURIComponent(customerId)}`)
+      : undefined,
+    quotationsView ? firstScreenPayload(technicalRoute, studio.slug, "technical") : undefined,
+    // THE CONTRACTS REGISTER READS TWO ROUTES, and hands both to one loader, so
+    // its payload is the pair. Without the contracts half there is nothing to
+    // paint and the screen fetches both; a missing change-order half it reads
+    // as none, the same as its own loader does.
+    contractsView ? firstScreenPayload(contractsRoute, studio.slug, "sales/contracts") : undefined,
+    contractsView ? firstScreenPayload(changeOrdersRoute, studio.slug, "sales/change-orders") : undefined,
   ]);
+  // Logistics' shipments are Inventory's screen under another root.
+  const viewDept = !framed || engineView ? ""
+    : isSheets ? "projects"
+    : active?.key === "logistics-shipments" ? "inventory"
+    : ["inventory", "approvals", "field-service", "finance", "hr", "projects"].includes(screenKey) ? screenKey : "";
+  const viewed = viewDept ? VIEW_FIRST_PAYLOAD[viewDept](active?.key) : null;
+  const viewInitial = viewed ? await firstScreenPayload(viewed[0], studio.slug, viewed[1]) : undefined;
+  const [engineInitial, boqInitial, summaryInitial, rootInitial, safetyInitial, landedCostInitial] = await Promise.all([
+    engineView ? firstScreenPayload(recordsRoute, studio.slug, `records/${active.key.slice("engine-".length)}`,
+      { typeKey: active.key.slice("engine-".length) }) : undefined,
+    boqPage ? firstScreenPayload(boqRoute, studio.slug, `tendering/boq?tenderId=${encodeURIComponent(boqTenderId)}`) : undefined,
+    summaryKey ? firstScreenPayload(sectionSummaryRoute, studio.slug, `records/summary?section=${encodeURIComponent(summaryKey)}`) : undefined,
+    summaryKey === "assets" ? firstScreenPayload(allocationsRoute, studio.slug, "assets/allocations")
+      : summaryKey === "engineering-docs" ? firstScreenPayload(engineeringDashboardRoute, studio.slug, "engineering/dashboard")
+      : undefined,
+    summaryKey === "quality-hse" ? firstScreenPayload(safetyRoute, studio.slug, "quality/safety") : undefined,
+    summaryKey === "logistics" ? firstScreenPayload(landedCostRoute, studio.slug, "logistics/landed-cost") : undefined,
+  ]);
+  const contractsInitial = contractsBody === undefined ? undefined
+    : { contracts: contractsBody, changeOrders: changeOrdersBody };
 
   // NO frameProps, AND NO StudioFrame AROUND WHAT FOLLOWS.
   //
@@ -833,21 +1029,21 @@ async function renderStudio(params) {
           unchanged by that, deliberately: what left is the nav row and the
           department list, not the address or the right. */
         : active?.key === "administration-members"
-        ? <StudioPeople slug={studio.slug} canAdminister={admin} myCollaboratorId={collaborator.id} />
+        ? <StudioPeople slug={studio.slug} canAdminister={admin} myCollaboratorId={collaborator.id} initial={keyedInitial} />
         : active?.key === "administration-access" ? (
           /* The per-person section grid is gone. It wrote grants, and nothing
              reads grants any more — it would have saved successfully and
              changed nothing, which is worse than a screen that refuses. Access
              is now a role here and an assignment on People. */
-          <StudioRoles slug={studio.slug} />
+          <StudioRoles slug={studio.slug} initial={keyedInitial} />
         )
-        : active?.key === "administration-master" ? <StudioMasterData slug={studio.slug} />
-        : active?.key === "administration-settings" ? <StudioSettings slug={studio.slug} locale={locale} />
+        : active?.key === "administration-master" ? <StudioMasterData slug={studio.slug} initial={keyedInitial} />
+        : active?.key === "administration-settings" ? <StudioSettings slug={studio.slug} locale={locale} initial={keyedInitial} />
         : deniedSection ? <NoSectionAccess locale={locale} notBuiltYet={notBuiltYet} />
-        : quotationId ? <SalesQuotationViewer slug={studio.slug} ticketId={ticketId} quotationId={quotationId} />
-        : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
-        : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
-        : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
+        : quotationId ? <SalesQuotationViewer slug={studio.slug} ticketId={ticketId} quotationId={quotationId} initial={recordInitial} />
+        : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} initial={salesInitial} />
+        : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" initial={viewInitial} />
+        : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" initial={viewInitial} />
         // EVERY ENGINE TYPE, BY PREFIX RATHER THAN BY KEY. A type declared this
         // morning renders this morning — naming them one by one here would put
         // the deploy back that a runtime engine was chosen to remove.
@@ -865,7 +1061,7 @@ async function renderStudio(params) {
         // `engineSectionKey` mints and nothing else uses it. `engineering-docs`
         // is the near miss and does not start with it.
         : active?.key?.startsWith("engine-")
-          ? <StudioRecords slug={studio.slug} typeKey={active.key.slice("engine-".length)} />
+          ? <StudioRecords slug={studio.slug} typeKey={active.key.slice("engine-".length)} initial={engineInitial} />
         // CRM & SALES'S QUOTATIONS ARE STILL RENDERED BY TECHNICAL, by key
         // rather than by screenKey, same pattern and same reason as Procurement's
         // Suppliers and Logistics's Shipments below. Quotations moved to CRM &
@@ -887,15 +1083,15 @@ async function renderStudio(params) {
         // branch for either — would quietly render the department dashboard
         // instead. A section that silently renders the wrong screen is how a
         // right ends up exercising nothing (invariant 16).
-        : customerId ? <StudioCustomer slug={studio.slug} clientId={customerId} />
-        : boqTenderId ? <StudioBoq slug={studio.slug} tenderId={boqTenderId} />
+        : customerId ? <StudioCustomer slug={studio.slug} clientId={customerId} initial={recordInitial} />
+        : boqTenderId ? <StudioBoq slug={studio.slug} tenderId={boqTenderId} initial={boqInitial} />
         // MANUFACTURING'S ROOT IS THE PLANNING SCREEN. It sits AFTER the
         // `engine-` prefix case above, which is what keeps its four engine
         // registers rendering as registers: every one of them plants a
         // section whose parent is `manufacturing`, so `screenKey` collapses
         // them onto this key and reaching this line first would hand a work
         // order register the planning view.
-        : active?.key === "manufacturing" ? <StudioProduction slug={studio.slug} />
+        : active?.key === "manufacturing" ? <StudioProduction slug={studio.slug} initial={keyedInitial} />
         // ASSETS' ROOT IS THE ALLOCATION SCREEN, with the register cards kept
         // BELOW it rather than replaced by it. Manufacturing's root took the
         // planning view and lost its subsection cards in the same move; Assets
@@ -910,8 +1106,8 @@ async function renderStudio(params) {
         // calibration register the allocation screen.
         : active?.key === "assets" ? (
           <div className="space-y-6">
-            <StudioPlantAllocation slug={studio.slug} />
-            <StudioSectionSummary slug={studio.slug} sectionKey="assets" locale={locale} />
+            <StudioPlantAllocation slug={studio.slug} initial={rootInitial} />
+            <StudioSectionSummary slug={studio.slug} sectionKey="assets" locale={locale} initial={summaryInitial} />
           </div>
         )
         // ENGINEERING & DOCUMENTS' ROOT IS ITS DASHBOARD, with the register cards
@@ -921,16 +1117,16 @@ async function renderStudio(params) {
         // whose parent is `engineering-docs`.
         : active?.key === "engineering-docs" ? (
           <div className="space-y-6">
-            <EngineeringDashboard slug={studio.slug} />
-            <StudioSectionSummary slug={studio.slug} sectionKey="engineering-docs" locale={locale} />
+            <EngineeringDashboard slug={studio.slug} initial={rootInitial} />
+            <StudioSectionSummary slug={studio.slug} sectionKey="engineering-docs" locale={locale} initial={summaryInitial} />
           </div>
         )
-        : active?.key === "tendering-rates" ? <StudioRates slug={studio.slug} />
+        : active?.key === "tendering-rates" ? <StudioRates slug={studio.slug} initial={keyedInitial} />
         : screenKey === "tendering" ? <StudioTenders slug={studio.slug} view={active?.key} initial={tendersInitial} initialError={tendersError} />
-        : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} />
-        : active?.key === "crm-sales-insights" ? <CustomerInsightsDashboard slug={studio.slug} />
-        : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />
-        : active?.key === "crm-sales-orders" ? <StudioOrders slug={studio.slug} />
+        : active?.key === "crm-sales-pipeline" ? <StudioPipeline slug={studio.slug} initial={keyedInitial} />
+        : active?.key === "crm-sales-insights" ? <CustomerInsightsDashboard slug={studio.slug} initial={keyedInitial} />
+        : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} initial={contractsInitial} />
+        : active?.key === "crm-sales-orders" ? <StudioOrders slug={studio.slug} initial={keyedInitial} />
         : screenKey === "crm-sales" ? <StudioSales slug={studio.slug} view={active?.key} initial={salesInitial} />
         // THE QUOTATIONS DEPARTMENT (13/09/2026): its dashboard at the root, and
         // the RFQ intake, the register and the settings beneath it — all still
@@ -946,11 +1142,11 @@ async function renderStudio(params) {
           // label for a section they cannot. Cheap enough to hand down as a
           // prop — the alternative was widening the technical payload for two
           // strings the page already holds.
-          <StudioTechnical slug={studio.slug} view={active?.key}
+          <StudioTechnical slug={studio.slug} view={active?.key} initial={technicalInitial}
             sectionNames={Object.fromEntries(sections.map((x) => [x.key, x.name]))} />
         )
-        : screenKey === "projects" ? <StudioProjects slug={studio.slug} view={active?.key} />
-        : screenKey === "hr" ? <StudioHr slug={studio.slug} view={active?.key} />
+        : screenKey === "projects" ? <StudioProjects slug={studio.slug} view={active?.key} initial={viewInitial} />
+        : screenKey === "hr" ? <StudioHr slug={studio.slug} view={active?.key} initial={viewInitial} />
         // PROCUREMENT'S SUPPLIERS AND LOGISTICS'S SHIPMENTS ARE STILL RENDERED
         // HERE, by key rather than by screenKey. Both moved out of Inventory
         // (SECTION_DEFS: Suppliers to Procurement & Subcontracting, the AWB
@@ -970,11 +1166,11 @@ async function renderStudio(params) {
         // falling through. This comment said both roots had none, and would
         // have gone on saying it.
         : active?.key === "procurement"
-          ? <ProcurementDashboard slug={studio.slug} />
+          ? <ProcurementDashboard slug={studio.slug} initial={keyedInitial} />
         // MAINTENANCE'S ROOT IS A SUMMARY NOW, not the generic card list — the
         // same move Procurement made, and what its dashboard right gates.
         : active?.key === "maintenance"
-          ? <MaintenanceDashboard slug={studio.slug} />
+          ? <MaintenanceDashboard slug={studio.slug} initial={keyedInitial} />
         // THE POINT OF SALE DEPARTMENT (17/09/2026). The till is full-screen and
         // returned above; its root is a summary, and three screens sit under it.
         : active?.key === "pos"
@@ -982,67 +1178,67 @@ async function renderStudio(params) {
         // THE MARKETING DEPARTMENT (19/09/2026): its dashboard at the root and
         // the campaign register beneath it — the one sub-section with a screen.
         : active?.key === "marketing"
-          ? <MarketingDashboard slug={studio.slug} />
+          ? <MarketingDashboard slug={studio.slug} initial={keyedInitial} />
         : active?.key === "marketing-campaigns"
-          ? <StudioCampaigns slug={studio.slug} />
+          ? <StudioCampaigns slug={studio.slug} initial={keyedInitial} />
         : active?.key === "marketing-planning"
-          ? <StudioMarketingCalendar slug={studio.slug} />
+          ? <StudioMarketingCalendar slug={studio.slug} initial={keyedInitial} />
         : active?.key === "marketing-partners"
-          ? <StudioMarketingPartners slug={studio.slug} />
+          ? <StudioMarketingPartners slug={studio.slug} initial={keyedInitial} />
         : active?.key === "marketing-content"
-          ? <StudioMarketingContent slug={studio.slug} />
+          ? <StudioMarketingContent slug={studio.slug} initial={keyedInitial} />
         : active?.key === "marketing-events"
-          ? <StudioMarketingEvents slug={studio.slug} />
+          ? <StudioMarketingEvents slug={studio.slug} initial={keyedInitial} />
         : active?.key === "marketing-audiences"
-          ? <StudioAudiences slug={studio.slug} />
+          ? <StudioAudiences slug={studio.slug} initial={keyedInitial} />
         : active?.key === "marketing-budget"
-          ? <StudioMarketingBudget slug={studio.slug} />
+          ? <StudioMarketingBudget slug={studio.slug} initial={keyedInitial} />
         : active?.key === "marketing-forms"
-          ? <StudioForms slug={studio.slug} />
+          ? <StudioForms slug={studio.slug} initial={keyedInitial} />
         : active?.key === "pos-sales"
           ? <StudioPosSales slug={studio.slug} />
         : active?.key === "pos-shifts"
           ? <StudioPosShifts slug={studio.slug} />
         : active?.key === "pos-settings"
-          ? <StudioPosSettings slug={studio.slug} />
+          ? <StudioPosSettings slug={studio.slug} initial={keyedInitial} />
         : active?.key === "pos-returns"
-          ? <StudioPosReturns slug={studio.slug} />
+          ? <StudioPosReturns slug={studio.slug} initial={keyedInitial} />
         : active?.key === "pos-promotions"
-          ? <StudioPosPromotions slug={studio.slug} />
+          ? <StudioPosPromotions slug={studio.slug} initial={keyedInitial} />
         : active?.key === "maintenance-requests"
-          ? <StudioWorkRequests slug={studio.slug} />
+          ? <StudioWorkRequests slug={studio.slug} initial={keyedInitial} />
         : active?.key === "maintenance-orders"
-          ? <StudioWorkOrders slug={studio.slug} />
+          ? <StudioWorkOrders slug={studio.slug} initial={keyedInitial} />
         : active?.key === "maintenance-plans"
-          ? <StudioPmPlans slug={studio.slug} />
+          ? <StudioPmPlans slug={studio.slug} initial={keyedInitial} />
         : active?.key === "maintenance-assets"
-          ? <StudioMachines slug={studio.slug} />
+          ? <StudioMachines slug={studio.slug} initial={keyedInitial} />
         : active?.key === "maintenance-contracts"
-          ? <StudioServiceContracts slug={studio.slug} />
+          ? <StudioServiceContracts slug={studio.slug} initial={keyedInitial} />
         : active?.key === "procurement-requisitions"
-          ? <StudioRequisitions slug={studio.slug} />
+          ? <StudioRequisitions slug={studio.slug} initial={keyedInitial} />
         : active?.key === "procurement-orders"
-          ? <StudioPurchaseOrders slug={studio.slug} />
+          ? <StudioPurchaseOrders slug={studio.slug} initial={keyedInitial} />
         : active?.key === "procurement-rfq"
-          ? <StudioRfq slug={studio.slug} />
+          ? <StudioRfq slug={studio.slug} initial={keyedInitial} />
         : active?.key === "procurement-expediting"
-          ? <StudioExpediting slug={studio.slug} />
+          ? <StudioExpediting slug={studio.slug} initial={keyedInitial} />
         : active?.key === "procurement-subcontracts"
-          ? <StudioSubcontracts slug={studio.slug} />
+          ? <StudioSubcontracts slug={studio.slug} initial={keyedInitial} />
         : active?.key === "procurement-receiving"
-          ? <StudioReceiving slug={studio.slug} />
+          ? <StudioReceiving slug={studio.slug} initial={keyedInitial} />
         : active?.key === "procurement-suppliers"
-          ? <StudioSuppliers slug={studio.slug} />
+          ? <StudioSuppliers slug={studio.slug} initial={keyedInitial} />
         // BY KEY: its parent is `quality-hse`, whose screen is the section
         // dashboard, so screenKey would collapse onto it and hide the register.
         : active?.key === "quality-hse-permits"
-          ? <StudioPermits slug={studio.slug} />
+          ? <StudioPermits slug={studio.slug} initial={keyedInitial} />
         : active?.key === "logistics-shipments"
-          ? <StudioInventory slug={studio.slug} view={active?.key} />
-        : screenKey === "inventory" ? <StudioInventory slug={studio.slug} view={active?.key} />
-        : screenKey === "finance" ? <StudioFinance slug={studio.slug} view={active?.key} />
-        : screenKey === "approvals" ? <StudioApprovals slug={studio.slug} view={active?.key} />
-        : screenKey === "field-service" ? <StudioOperations slug={studio.slug} view={active?.key} />
+          ? <StudioInventory slug={studio.slug} view={active?.key} initial={viewInitial} />
+        : screenKey === "inventory" ? <StudioInventory slug={studio.slug} view={active?.key} initial={viewInitial} />
+        : screenKey === "finance" ? <StudioFinance slug={studio.slug} view={active?.key} initial={viewInitial} />
+        : screenKey === "approvals" ? <StudioApprovals slug={studio.slug} view={active?.key} initial={viewInitial} />
+        : screenKey === "field-service" ? <StudioOperations slug={studio.slug} view={active?.key} initial={viewInitial} />
         : screenKey === "reports"
           // `allSections`, not `sections`: the visible list has already dropped
           // the switched-off rows, so a switchboard built from it would find no
@@ -1050,6 +1246,7 @@ async function renderStudio(params) {
           ? <StudioReports slug={studio.slug} access={access} sections={allSections} locale={locale} />
         : screenKey === "main" ? <StudioMain slug={studio.slug} initial={mainInitial} />
         : active ? <SectionDashboard section={active} studio={studio} locale={locale}
+            initial={{ summary: summaryInitial, safety: safetyInitial, landedCost: landedCostInitial }}
             subsections={sections.filter((s) => s.parentId === active.id)} />
         : <NothingGranted admin={admin} slug={studio.slug} locale={locale} />}
     </>
@@ -1095,7 +1292,9 @@ async function firstScreenPayload(route, slug, path, params) {
 // without ever being read. This dashboard draws a heading and read-only links
 // to sub-sections; there is no control on it to gate. If one is ever added, the
 // right comes back with it rather than waiting here for it.
-function SectionDashboard({ section, studio, subsections = [], locale = "en" }) {
+// `initial` carries the three panels' first payloads, each composed only for
+// the section that draws it — undefined for anything else, which fetches.
+function SectionDashboard({ section, studio, subsections = [], locale = "en", initial = {} }) {
   return (
     <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#20202c]">
       <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{sectionName(section.key, section.name, locale)}</h2>
@@ -1119,8 +1318,8 @@ function SectionDashboard({ section, studio, subsections = [], locale = "en" }) 
           without opening each in turn. The panel asks one route for whatever
           the section holds and renders nothing at all when it holds none, so a
           section without registers is unchanged. */}
-      <StudioSectionSummary slug={studio.slug} sectionKey={section.key} locale={locale} />
-      {section.key === "quality-hse" && <StudioSafety slug={studio.slug} locale={locale} />}
+      <StudioSectionSummary slug={studio.slug} sectionKey={section.key} locale={locale} initial={initial.summary} />
+      {section.key === "quality-hse" && <StudioSafety slug={studio.slug} locale={locale} initial={initial.safety} />}
       {/* LANDED COST SITS ON THE LOGISTICS ROOT, which is where its records are
           filed — a charge attaches to the ORDER the goods came on, and an air
           waybill is one of several ways they might have travelled, so putting it
@@ -1133,7 +1332,7 @@ function SectionDashboard({ section, studio, subsections = [], locale = "en" }) 
           that is absent on purpose — and an amount suffixed with "undefined" is
           worse than an unsuffixed one. The figures read bare until the route
           carries a currency of its own. */}
-      {section.key === "logistics" && <StudioLandedCost slug={studio.slug} locale={locale} />}
+      {section.key === "logistics" && <StudioLandedCost slug={studio.slug} locale={locale} initial={initial.landedCost} />}
     </div>
   );
 }

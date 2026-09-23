@@ -69,10 +69,13 @@ const fmt = fmtDate;
 // the moment it loads. And Positions became Roles: a job title and the access
 // that job implies were two lists for one idea, and only one of them decided
 // anything.
-export default function StudioHr({ slug, view = "hr" }) {
+//
+// `initial` is the /hr body the studio page answered in its own render — one read
+// for every HR view — so the screen paints at once; absent, it fetches as before.
+export default function StudioHr({ slug, view = "hr", initial }) {
   const locale = useStudioLocale();
   const tr = hrDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   // The active panel is remembered in ?tab= so a refresh or a deep link reopens
   // the same one; the switch itself is an in-place flip via the bottom PanelBar.
   const [tab, setTab] = usePanelParam("tab", "people",
@@ -88,7 +91,7 @@ export default function StudioHr({ slug, view = "hr" }) {
     // `tr` IS STABLE — `hrDict` returns one of two module-level objects, so
     // naming it costs no extra reload and keeps the lint budget shrinking.
   }, [slug, tr]);
-  useReload(load);
+  useReload(load, initial);
   // HR records change from more than one desk — stay current.
   useLiveUpdates(slug, "hr", load);
 

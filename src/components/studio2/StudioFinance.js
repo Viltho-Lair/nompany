@@ -128,18 +128,36 @@ const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioData
 //   finance-tax         → the VAT return and the withheld tax to claim
 //   finance-reports     → P&L, balance sheet, cash flow, project margins
 //   finance-budgets     → budgets and their variance (BudgetsPanel)
-export default function StudioFinance({ slug, view = "finance" }) {
+//
+// `initial` IS THE BODY OF THE ONE GET THIS VIEW OPENS ON, answered inside the
+// studio page's render, so the screen paints with its rows rather than a
+// second skeleton. It goes to that one sub-screen and no other — each reads a
+// different route, and a body handed to the wrong one would be drawn as if it
+// were its own. Tax has no single read (two panels, two routes), so it takes
+// none. Absent — refused, or over the ceiling — every screen fetches as before.
+export default function StudioFinance({ slug, view = "finance", initial }) {
   const locale = useStudioLocale();
-  if (view === "finance-payables") return <PayablesAndExpenses slug={slug} />;
-  if (view === "finance-assets") return <Assets slug={slug} />;
-  if (view === "finance-ledger") return <StudioLedger slug={slug} />;
-  if (view === "finance-settings") return <FinanceSettings slug={slug} />;
-  if (view === "finance-cash") return <CashAndBank slug={slug} />;
+  if (view === "finance-payables") return <PayablesAndExpenses slug={slug} initial={initial} />;
+  if (view === "finance-assets") return <Assets slug={slug} initial={initial} />;
+  if (view === "finance-ledger") return <StudioLedger slug={slug} initial={initial} />;
+  if (view === "finance-settings") return <FinanceSettings slug={slug} initial={initial} />;
+  if (view === "finance-cash") return <CashAndBank slug={slug} initial={initial} />;
   if (view === "finance-tax") return <FinanceTax slug={slug} />;
-  if (view === "finance-reports") return <FinanceReports slug={slug} />;
-  if (view === "finance-budgets") return <BudgetsPanel slug={slug} locale={locale} />;
-  if (view === "finance-receivables") return <Receivables slug={slug} />;
-  return <FinanceCash slug={slug} view={view} />;
+  if (view === "finance-reports") return <FinanceReports slug={slug} initial={initial} />;
+  if (view === "finance-budgets") return <BudgetsPanel slug={slug} locale={locale} initial={initial} />;
+  if (view === "finance-receivables") return <Receivables slug={slug} initial={initial} />;
+  return <FinanceCash slug={slug} view={view} initial={initial} />;
+}
+
+// THE PAGE'S BODY SEEDS A TABBED SCREEN'S OPENING TAB ONCE. Switching tabs
+// unmounts the panel, and remounting it still holding `initial` would paint the
+// page's old answer and skip the fetch — a fresh mount hands useReload a fresh
+// loader to skip. So the first switch spends it, and every later mount fetches
+// exactly as it always did.
+function useSeed(initial) {
+  const [seed, setSeed] = useState(initial);
+  const spend = useCallback(() => setSeed(undefined), []);
+  return [seed, spend];
 }
 
 // ONE TAB BAR for the split's small screens, the look the Cash screen's has.
@@ -160,17 +178,19 @@ function TabBar({ tabs, tab, setTab }) {
 // balance is going, cheques, guarantees, and the reconciliation that checks
 // the book against the bank. Reconciling answers to the ledger's right (it is
 // a statement about the books) and says so when the reader lacks it.
-function CashAndBank({ slug }) {
+function CashAndBank({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = financeDict(locale);
   const [tab, setTab] = useState("treasury");
+  const [seed, spend] = useSeed(initial);
+  const pick = (k) => { spend(); setTab(k); };
   return (
     <div className="space-y-6">
-      <TabBar tabs={[["treasury", treasuryDict(locale).tab], ["reconcile", tr.tabReconcile]]} tab={tab} setTab={setTab} />
+      <TabBar tabs={[["treasury", treasuryDict(locale).tab], ["reconcile", tr.tabReconcile]]} tab={tab} setTab={pick} />
       {/* THE TREASURY TAB RENDERED NOTHING from the split (f0b64c1c) until
           18/09/2026: the bar offered it and no branch drew it, so Cash & Bank
           opened on an empty page. */}
-      {tab === "treasury" && <TreasuryPanel slug={slug} locale={locale} />}
+      {tab === "treasury" && <TreasuryPanel slug={slug} locale={locale} initial={seed} />}
       {tab === "reconcile" && <ReconciliationPanel slug={slug} locale={locale} />}
     </div>
   );
@@ -193,12 +213,12 @@ function FinanceTax({ slug }) {
 // REPORTS — the statements from the ledger, and what each project made. The
 // statements come from `/finance/reports` on `finance.reports.view`; the
 // project margins from the same read the dashboard uses.
-function FinanceReports({ slug }) {
+function FinanceReports({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = financeDict(locale);
   const lt = ledgerDict(locale);
   const [tab, setTab] = useState("pl");
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   // THE WINDOW every statement is read over; the balance sheet is as at its end.
   const [range, setRange] = useState({ from: "", to: "" });
@@ -209,7 +229,7 @@ function FinanceReports({ slug }) {
     if (!res.ok) { setError(tr.noAccessThis); return; }
     setError(""); setData(body);
   }, [slug, tr, range]);
-  useReload(load);
+  useReload(load, initial);
   // The statements move with every posting, which lands under the ledger.
   useLiveUpdates(slug, "finance-ledger", load);
 
@@ -271,14 +291,16 @@ function FinanceReports({ slug }) {
 
 // RECEIVABLES — the invoices and credit notes (FinanceCash), and beside them
 // what each customer owes against its credit limit and who is due a reminder.
-function Receivables({ slug }) {
+function Receivables({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = financeDict(locale);
   const [tab, setTab] = useState("documents");
+  const [seed, spend] = useSeed(initial);
+  const pick = (k) => { spend(); setTab(k); };
   return (
     <div className="space-y-6">
-      <TabBar tabs={[["documents", tr.tabInvoices], ["credit", tr.tabCredit], ["dunning", tr.tabDunning]]} tab={tab} setTab={setTab} />
-      {tab === "documents" && <FinanceCash slug={slug} view="finance-receivables" />}
+      <TabBar tabs={[["documents", tr.tabInvoices], ["credit", tr.tabCredit], ["dunning", tr.tabDunning]]} tab={tab} setTab={pick} />
+      {tab === "documents" && <FinanceCash slug={slug} view="finance-receivables" initial={seed} />}
       {tab !== "documents" && <CreditPanel slug={slug} locale={locale} tab={tab} />}
     </div>
   );
@@ -380,16 +402,18 @@ function GroupBooks({ slug, range }) {
 // PAYABLES & EXPENSES — bills and the money already spent, two rights on one
 // screen. A reader holding only the expenses right is refused the bills and
 // lands on Expenses rather than on the refusal.
-function PayablesAndExpenses({ slug }) {
+function PayablesAndExpenses({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = financeDict(locale);
   const [tab, setTab] = useState("bills");
+  const [seed, spend] = useSeed(initial);
+  const pick = (k) => { spend(); setTab(k); };
   return (
     <div className="space-y-6">
-      <TabBar tabs={[["bills", tr.tabBills], ["run", paymentRunDict(locale).tab], ["expenses", tr.tabExpenses], ["claims", claimsDict(locale).tab]]} tab={tab} setTab={setTab} />
+      <TabBar tabs={[["bills", tr.tabBills], ["run", paymentRunDict(locale).tab], ["expenses", tr.tabExpenses], ["claims", claimsDict(locale).tab]]} tab={tab} setTab={pick} />
       {/* A READER REFUSED THE BILLS lands on Claims (anybody may hold the right to
           claim), and one refused Claims too lands on Expenses. */}
-      {tab === "bills" && <Payables slug={slug} onDenied={() => setTab("claims")} />}
+      {tab === "bills" && <Payables slug={slug} initial={seed} onDenied={() => pick("claims")} />}
       {tab === "run" && <PaymentRunPanel slug={slug} locale={locale} />}
       {tab === "claims" && <ClaimsPanel slug={slug} locale={locale} onDenied={() => setTab("expenses")} />}
       {tab === "expenses" && <FinanceCash slug={slug} view="finance-payables" only={["expenses"]} embedded />}
@@ -402,10 +426,10 @@ function PayablesAndExpenses({ slug }) {
 // who may configure Finance should not pay for the invoice list to do it, and
 // `finance.settings.view` is a right of its own precisely because the two are
 // different powers.
-function FinanceSettings({ slug }) {
+function FinanceSettings({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = financeDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -413,7 +437,7 @@ function FinanceSettings({ slug }) {
     if (!res.ok) { setError(tr.accessFinanceStudio); return; }
     setData(await res.json());
   }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
-  useReload(load);
+  useReload(load, initial);
 
   if (error) return <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton />;
@@ -454,10 +478,10 @@ function FinanceSettings({ slug }) {
 // `only` NAMES THE TABS A SCREEN SHOWS of the ones this read serves — two on
 // Receivables, one when Expenses or the project margins are embedded in
 // another screen, which also drops the summary and the setup notice there.
-function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes"], embedded = false }) {
+function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes"], embedded = false, initial }) {
   const locale = useStudioLocale();
   const tr = financeDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [tab, setTab] = useState(only[0]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -472,7 +496,7 @@ function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes
     if (!res.ok) { setError(tr.accessFinanceStudio); return; }
     setData(await res.json());
   }, [slug, cashOn]);
-  useReload(load);
+  useReload(load, initial);
   // Invoices and expenses land from elsewhere — reflect them live.
   useLiveUpdates(slug, "finance", load);
 
@@ -1165,9 +1189,12 @@ function Empty({ title, body }) {
 // each carry a copy of the load/subscribe/mutate dance the Cash screen already
 // runs. Each screen owns its own route (`bills`/`assets`), reflects the same
 // live "finance" channel, and reports errors through the shared `message()`.
-function useFinanceResource(slug, kind) {
+//
+// `initial` is that route's body when the studio page answered it in its own
+// render; the hook then starts from it and skips the first fetch.
+function useFinanceResource(slug, kind, initial) {
   const tr = financeDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -1176,7 +1203,7 @@ function useFinanceResource(slug, kind) {
     if (!res.ok) { setError(tr.noAccessThis); return; }
     setData(await res.json()); setError("");
   }, [slug, kind, tr]);
-  useReload(load);
+  useReload(load, initial);
   // Bills and assets can land from elsewhere (a PO answered, a disposal) — reflect
   // them live, on the same one EventSource the tab already holds (invariant 14).
   useLiveUpdates(slug, "finance", load);
@@ -1231,9 +1258,9 @@ function BillApproval({ slug, bill }) {
   );
 }
 
-function Payables({ slug, onDenied }) {
+function Payables({ slug, onDenied, initial }) {
   const tr = financeDict(useStudioLocale());
-  const { data, error, busy, send } = useFinanceResource(slug, "bills");
+  const { data, error, busy, send } = useFinanceResource(slug, "bills", initial);
   // REFUSED THE BILLS (an expenses-only clerk): hand the screen to Expenses.
   useEffect(() => { if (error && !data) onDenied?.(); }, [error, data, onDenied]);
 
@@ -1648,21 +1675,23 @@ const assetMethodLabel = (tr) => ({ "straight-line": tr.straightLine, "reducing-
 
 // FIXED ASSETS: the register and its depreciation, and — IFRS 16, step 6 —
 // the leases on the balance sheet, each tab its own read.
-function Assets({ slug }) {
+function Assets({ slug, initial }) {
   const locale = useStudioLocale();
   const [tab, setTab] = useState("register");
+  const [seed, spend] = useSeed(initial);
+  const pick = (k) => { spend(); setTab(k); };
   const lt = leasesDict(locale);
   return (
     <div className="space-y-6">
-      <TabBar tabs={[["register", lt.tabRegister], ["leases", lt.tab]]} tab={tab} setTab={setTab} />
-      {tab === "register" ? <AssetRegisterScreen slug={slug} /> : <LeasesPanel slug={slug} locale={locale} />}
+      <TabBar tabs={[["register", lt.tabRegister], ["leases", lt.tab]]} tab={tab} setTab={pick} />
+      {tab === "register" ? <AssetRegisterScreen slug={slug} initial={seed} /> : <LeasesPanel slug={slug} locale={locale} />}
     </div>
   );
 }
 
-function AssetRegisterScreen({ slug }) {
+function AssetRegisterScreen({ slug, initial }) {
   const tr = financeDict(useStudioLocale());
-  const { data, error, busy, send, load } = useFinanceResource(slug, "assets");
+  const { data, error, busy, send, load } = useFinanceResource(slug, "assets", initial);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingFixedAssets} />;

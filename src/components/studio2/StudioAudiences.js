@@ -9,8 +9,9 @@
 // consent somebody could change afterwards proves nothing. A withdrawal is a
 // new entry, which is why the row expands to its whole history.
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useState } from "react";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { useReload } from "@/components/studio2/useReload";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { panel, h2, sub, btn, btnGhost, Dialog, fmtDate, StatTile, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
@@ -28,10 +29,13 @@ function State({ value, tr }) {
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-600 ${TONE[value] || TONE.unknown}`}>{tr.state(value)}</span>;
 }
 
-export default function StudioAudiences({ slug }) {
+// `initial` IS THIS SCREEN'S OWN ROUTE BODY, answered inside the studio page's
+// render, so the register paints with its rows rather than a skeleton and a
+// second request. Absent — refused, or over the payload ceiling — it fetches.
+export default function StudioAudiences({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = audiencesDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
@@ -50,11 +54,7 @@ export default function StudioAudiences({ slug }) {
     setData(body);
   }, [slug, params, tr]);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => { if (alive) await reload(); })();
-    return () => { alive = false; };
-  }, [reload]);
+  useReload(reload, initial);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;

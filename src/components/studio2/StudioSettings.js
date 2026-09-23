@@ -24,6 +24,7 @@ import OfficialValuesPanel from "@/components/studio2/OfficialValuesPanel";
 import EInvoicePanel from "@/components/studio2/EInvoicePanel";
 import { officialValuesDict } from "@/shared/studio/officialValues";
 import { useReload } from "@/components/studio2/useReload";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { isFiledOnlySection } from "@/platform/db/keys";
 
 // THE SCREEN'S WORDS, HANDED DOWN RATHER THAN THREADED.
@@ -79,22 +80,25 @@ const hoursSummary = (h, words) => {
 
 const BANNER_BAD = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
 
-export default function StudioSettings({ slug, locale = "en" }) {
+// `initial` is the /settings body the studio page answered in its own render,
+// read into the same state the loader fills, so the screen paints with the
+// studio rather than a loading line. Absent, it fetches on mount as before.
+export default function StudioSettings({ slug, locale = "en", initial }) {
   // Resolved on the server and handed down with the rest of the screen's
   // props, so Settings opens in the reader's language on its first paint
   // rather than after a swap.
   const tr = settingsDict(locale);
-  const [studio, setStudio] = useState(null);
-  const [canManage, setCanManage] = useState(false);
-  const [fx, setFx] = useState(null);
+  const [studio, setStudio] = useState(initial?.studio ?? null);
+  const [canManage, setCanManage] = useState(Boolean(initial?.canManage));
+  const [fx, setFx] = useState(initial?.fx || null);
   const [logoOpen, setLogoOpen] = useState(false);
   const [hoursOpen, setHoursOpen] = useState(false);
-  const [isOwner, setIsOwner] = useState(false);
+  const [isOwner, setIsOwner] = useState(Boolean(initial?.isOwner));
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [sections, setSections] = useState([]);
+  const [sections, setSections] = useState(Array.isArray(initial?.sections) ? initial.sections : []);
   // WHAT THE STUDIO'S TRADE WOULD SWITCH, from the same read as `sections`.
-  const [suggestion, setSuggestion] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [suggestion, setSuggestion] = useState(initial?.tradeSuggestion || null);
+  const [loading, setLoading] = useState(initial === undefined);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -111,7 +115,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
     setLoading(false);
   }, [slug]);
 
-  useReload(load);
+  useReload(load, initial);
 
   // One writer for every row, so a saved value is re-read from the server
   // rather than assumed — the API cleans what it stores.
@@ -132,7 +136,7 @@ export default function StudioSettings({ slug, locale = "en" }) {
     return true;
   }, [slug, load, tr]);
 
-  if (loading) return <p className="text-sm text-slate-500 dark:text-slate-400">{tr.loading}</p>;
+  if (loading) return <ScreenSkeleton loadingLabel={tr.loading} />;
   if (!studio) return <p className={BANNER_BAD}>{tr.loadFailed}</p>;
 
   return (

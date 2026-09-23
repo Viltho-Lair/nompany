@@ -14,7 +14,7 @@
 // triage and what has stopped. A studio that cannot see its own broken machines
 // because it did not buy analytics is being sold its own problems back.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { maintenanceDict } from "@/shared/studio/maintenance";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -27,9 +27,11 @@ import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel
 // NAMED `*Dashboard.jsx` DELIBERATELY: the widget-gate scan reads exactly that
 // filename pattern to prove every registry key is drawn by something, so a
 // dashboard called anything else would leave its keys gating nothing.
-export default function MaintenanceDashboard({ slug }) {
+// `initial` is this screen's own GET body, answered by the studio page in its
+// render, so the screen paints with its rows; absent, it fetches on mount as before.
+export default function MaintenanceDashboard({ slug, initial }) {
   const tr = maintenanceDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   // Tier AND the studio's switches: a card whose section is off is not drawn.
   const gate = useWidgetGate();
@@ -46,7 +48,12 @@ export default function MaintenanceDashboard({ slug }) {
     setData(body);
   }, []);
 
+  // THE FIRST READ IS SKIPPED WHEN THE PAGE BROUGHT ITS ANSWER, by the identity
+  // of the reader it was first handed (useReload says why identity and not a
+  // flag). A reader that changes afterwards still fetches.
+  const firstRead = useRef(initial !== undefined ? read : null);
   useEffect(() => {
+    if (read === firstRead.current) return;
     let current = true;
     (async () => {
       const answer = await read();

@@ -83,10 +83,14 @@ function withMinDelay(promise, ms = MIN_SKELETON_MS) {
 // broken field (design §2). Rendered full-screen, OUTSIDE StudioFrame, the
 // same shape as the manual and the live views — see the early return in
 // studio/[[...segments]]/page.js and design §3 for why this is not a section.
-export default function StudioEngagements({ slug, canLock = false, canDelete = false }) {
+//
+// `initial` is the first page of /main/engagements, answered inside the studio
+// page's render, so the list paints at once rather than holding its skeleton for
+// a second request; absent — refused, or over the ceiling — it fetches as before.
+export default function StudioEngagements({ slug, canLock = false, canDelete = false, initial }) {
   const tr = engagementsDict(useStudioLocale());
-  const [list, setList] = useState(null); // { engagements, nextCursor } | null while loading
-  const [listLoading, setListLoading] = useState(true);
+  const [list, setList] = useState(initial ?? null); // { engagements, nextCursor } | null while loading
+  const [listLoading, setListLoading] = useState(initial === undefined);
   const [listError, setListError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -115,7 +119,7 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
     setList(await res.json());
   }, [slug]);
 
-  useReload(loadList);
+  useReload(loadList, initial);
   // No "engagements" live channel of its own — the spine dual-writes on the
   // SAME create paths CRM & Sales, Engineering & Documents and Projects
   // already publish on (a ticket or a quotation from the first, an RFQ from

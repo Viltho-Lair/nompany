@@ -12,8 +12,9 @@
 // of noughts would read as a partner whose links nobody clicked, when the truth
 // is that nobody has given them a link.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { useReload } from "@/components/studio2/useReload";
 import { useStudioLocale } from "@/components/studio2/locale";
 import {
   panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, money, Dialog, Empty,
@@ -26,10 +27,13 @@ const BLANK = {
   phone: "", website: "", terms: "", notes: "", active: true, ownerCollaboratorId: "",
 };
 
-export default function StudioMarketingPartners({ slug }) {
+// `initial` IS THIS SCREEN'S OWN ROUTE BODY, answered inside the studio page's
+// render, so the register paints with its rows rather than a skeleton and a
+// second request. Absent — refused, or over the payload ceiling — it fetches.
+export default function StudioMarketingPartners({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = marketingPartnersDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -42,11 +46,7 @@ export default function StudioMarketingPartners({ slug }) {
     setData(body);
   }, [slug, tr]);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => { if (alive) await reload(); })();
-    return () => { alive = false; };
-  }, [reload]);
+  useReload(reload, initial);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;

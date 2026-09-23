@@ -57,10 +57,13 @@ const AllocationsPanel = nextDynamic(() => import("@/components/studio2/Allocati
 // at two places and hid the third decimal of every dinar amount.
 const money = (n) => moneyText(n);
 
-export default function StudioLedger({ slug }) {
+// `initial` is the /finance/ledger body the studio page answered in its own
+// render (handed down through StudioFinance), so the trial balance paints at
+// once; absent, it fetches on mount exactly as before.
+export default function StudioLedger({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = ledgerDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [tab, setTab] = useState("trial");
 
@@ -71,7 +74,7 @@ export default function StudioLedger({ slug }) {
     setData(body);
   }, [slug, setData, setError]);
 
-  useReload(load);
+  useReload(load, initial);
   useLiveUpdates(slug, "finance-ledger", load);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;

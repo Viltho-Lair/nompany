@@ -256,6 +256,20 @@ const KNOWN_COLLISIONS = {
     { value: "operations", reason: "the unmoved API route segment (src/app/api/studios/[slug]/operations/)" },
     { value: "operations/schedule", reason: "same — the schedule sub-route, never renamed" },
   ],
+  // THE STUDIO PAGE NAMES THE API PATH EACH SCREEN READS FIRST, because it
+  // answers that GET in its own render (`firstScreenPayload`) — and those paths
+  // are the unmoved addresses the screens themselves fetch, not section keys.
+  "src/app/studio/[[...segments]]/page.js": [
+    { value: "sales", reason: "the unmoved /sales API path the Sales board and a ticket's page read first" },
+    { value: "technical", reason: "the unmoved /technical API path Quotations reads first" },
+    { value: "operations", reason: "the unmoved /operations API path Field Operations and Master data read first" },
+    { value: "operations/schedule", reason: "the unmoved schedule API path" },
+    { value: "operations/planner", reason: "the unmoved planner API path the plan list reads first" },
+    { value: "operations/planner/resources", reason: "the unmoved resource-load API path" },
+  ],
+  "src/app/api/studios/[slug]/technical/route.ts": [
+    { value: "technical", reason: "the route's log name, which is its unmoved API path" },
+  ],
   // THE MAILBOX, NOT THE SECTION. The contact form routes an enquiry to one of
   // two addresses by team size — sales@ for the larger ones, support@ for the
   // rest — and `mailboxFor` returns the literal "sales" as that choice. It is

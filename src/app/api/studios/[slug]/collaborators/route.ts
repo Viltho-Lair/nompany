@@ -1,6 +1,7 @@
 import { requirePermission, cleanAssignment, escalates } from "@/platform/access";
+import { route } from "@/platform/http/route";
 import { currentUser } from "@/platform/auth/identity";
-import { studioContext, listCollaborators, updateCollaborator } from "@/lib/studios";
+import { studioContext, listCollaborators, updateCollaborator, type StudioMembership } from "@/lib/studios";
 import { cascadeDeleteCollaborator } from "@/platform/db/cascade";
 import { getProfile } from "@/platform/auth/users";
 
@@ -9,13 +10,12 @@ export const dynamic = "force-dynamic";
 
 // The people inside THIS studio. Every row is studio-local: alias, role and
 // settings here say nothing about the same person in any other studio.
-export async function GET(request: Request, ctx: { params: Promise<Record<string, string>> }) {
-  const user = await currentUser();
-  if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
-  const { slug } = await ctx.params;
-  const context = await studioContext(user, slug);
-  if (context.error) return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
-
+//
+// ON THE ROUTE WRAPPER, so the studio page can answer this GET in its own render
+// (`firstPayload`) and People paints with its list. The refusals are the ones it
+// wrote by hand: studioContext's `notfound` is 404 and `forbidden` 403 in the
+// status table too.
+export const GET = route<StudioMembership>({ auth: "studio", name: "collaborators", keys: false }, async (context) => {
   const rows = await listCollaborators(context.studio.id);
   // The PICTURE is the one thing here that is not studio-local. A collaborator
   // row carries an alias and a role that mean nothing outside this studio, but
@@ -27,7 +27,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   const photos = await Promise.all(
     rows.map((c) => (c.userId ? getProfile(String(c.userId)).then((p) => p?.photo || "").catch(() => "") : "")),
   );
-  return Response.json({
+  return {
     collaborators: rows.map((c, i) => ({
       // NO isAdmin. It was a second answer to a question roleIds already
       // answers, and the two could disagree — which is the copying this model
@@ -49,8 +49,8 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
         return (ov.allow || []).length + (ov.deny || []).length;
       })(),
     })),
-  });
-}
+  };
+});
 
 // Edit someone's studio-local identity (alias, role, HR fields). Admin only.
 export async function PUT(request: Request, ctx: { params: Promise<Record<string, string>> }) {

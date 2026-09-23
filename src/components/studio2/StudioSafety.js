@@ -15,10 +15,14 @@ import { useReload } from "@/components/studio2/useReload";
 // IT COMPUTES NOTHING. Every figure is `modules/quality/safety`, pure and
 // asserted by tests/safety-model.mjs, and the window comes back in the response
 // so the screen never reads its own clock.
-export default function StudioSafety({ slug, locale = "en" }) {
+//
+// `initial` is the /quality/safety body the studio page answered in its own
+// render, so the panel lands with the page rather than after it; absent —
+// including a refusal, which must still draw nothing — it fetches as before.
+export default function StudioSafety({ slug, locale = "en", initial }) {
   const tr = safetyDict(locale);
-  const [data, setData] = useState(null);
-  const [state, setState] = useState("loading");
+  const [data, setData] = useState(initial ?? null);
+  const [state, setState] = useState(initial !== undefined ? "ready" : "loading");
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/quality/safety`, { cache: "no-store" });
@@ -27,7 +31,7 @@ export default function StudioSafety({ slug, locale = "en" }) {
     setState("ready");
   }, [slug]);
 
-  useReload(load);
+  useReload(load, initial);
 
   // A READER WITHOUT THE INCIDENT REGISTER SEES NO PANEL AT ALL, rather than an
   // empty one saying they may not look. The route refuses them; a box announcing

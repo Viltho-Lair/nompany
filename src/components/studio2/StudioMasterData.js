@@ -62,10 +62,13 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { h2, sub } from "@/components/studio2/ui";
 import { useReload } from "@/components/studio2/useReload";
 
-export default function StudioMasterData({ slug }) {
+// `initial` is the /operations body the studio page answered in its own render,
+// so Locations paints at once. Only that read: the other tabs' registers are
+// not in it, so they are still asked for on mount.
+export default function StudioMasterData({ slug, initial }) {
   const locale = useStudioLocale();
   const tr = operationsDict(locale);
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState("locations");
@@ -178,14 +181,19 @@ export default function StudioMasterData({ slug }) {
     setApiKeys(out);
   }, [slug]);
 
-  const loadAll = useCallback(async () => {
+  const loadRest = useCallback(async () => {
     await Promise.all([
-      load(), loadDepartments(), loadSettings(), loadLibrary(), loadApiKeys(),
+      loadDepartments(), loadSettings(), loadLibrary(), loadApiKeys(),
       loadClientTags(), loadItemCategories(),
     ]);
-  }, [load, loadDepartments, loadSettings, loadLibrary, loadApiKeys, loadClientTags, loadItemCategories]);
+  }, [loadDepartments, loadSettings, loadLibrary, loadApiKeys, loadClientTags, loadItemCategories]);
 
-  useReload(loadAll);
+  const loadAll = useCallback(async () => {
+    await Promise.all([load(), loadRest()]);
+  }, [load, loadRest]);
+
+  // With Locations already on hand, mount asks only for what it did not bring.
+  useReload(initial !== undefined ? loadRest : loadAll);
   // Both tabs are Master data's own rows — `locations` and `departments` under
   // `administration-master` — even though the locations half is READ through
   // Operations' payload, for the reason the comment above `load` gives. Where a
