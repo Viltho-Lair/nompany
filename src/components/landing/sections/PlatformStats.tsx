@@ -1,5 +1,4 @@
-import { showsFigure, statedFigure } from "@/platform/db/platformStats";
-import { cachedPlatformStats } from "@/lib/data/publicLanding";
+import { readPlatformStats, showsFigure, statedFigure } from "@/platform/db/platformStats";
 import { statsCopy, withFigure } from "@/shared/marketing/stats";
 
 /* ==================================================================
@@ -33,13 +32,12 @@ import { statsCopy, withFigure } from "@/shared/marketing/stats";
    A SERVER COMPONENT, reading the document directly. /api/stats exists
    for callers that are not this process; using it here would put the
    figures in a fetch instead of in the HTML, which is the exact defect
-   the pricing page was rebuilt to fix. Read through a minute cache
-   (lib/data/publicLanding): the figures change once a night.
+   the pricing page was rebuilt to fix.
 ================================================================== */
 
 export async function PlatformStats({ locale }: { locale: string }) {
   const tr = statsCopy(locale);
-  const stats = await cachedPlatformStats();
+  const stats = await readPlatformStats();
 
   // Each slot is a figure if the figure is worth stating, otherwise a fact.
   // Paired this way rather than as two lists so a slot cannot end up showing

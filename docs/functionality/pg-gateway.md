@@ -328,14 +328,6 @@ explicit id list (invariant 17: an explicit key list, never a predicate).
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **No instance cap is recorded anywhere in the repo** (2026-09-23). `cloudbuild.yaml` builds
-  the image and deploys nothing, so `--max-instances` lives only on the live service, if it
-  is set at all — and Cloud Run's default lets the service scale to 100 instances. That is a
-  cost ceiling AND a connection ceiling: each instance opens up to `PG_GATEWAY_POOL_MAX` (8)
-  connections, so the cap times 8 must stay under Cloud SQL's `max_connections`. The public
-  site shares this gateway with every studio, so a cap bounds the ERP as well — past it,
-  requests queue and then fail rather than cost more.
-
 - **The connector, the IAM database user and the private IP are still unverified.** The
   end-to-end run above reaches Postgres through a plain connection string, which is
   `services/pg-gateway/src/pool.ts`'s one job and the one part of it the run replaces. So

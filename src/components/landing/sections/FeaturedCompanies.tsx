@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { featuredCompanies } from "@/lib/data/publicLanding";
+import { listStudios } from "@/modules/main/studios";
+import { publicCompanies } from "@/shared/marketing/showcase";
 import { homeCopy } from "@/shared/marketing/home";
 
 /* ==================================================================
@@ -17,8 +18,6 @@ import { homeCopy } from "@/shared/marketing/home";
    public endpoint at /api/showcase exists for callers that are not this
    page; using it here would mean the home page waited on an HTTP round
    trip to its own process, and the names would arrive after the HTML.
-   The read goes through lib/data/publicLanding's minute cache, which
-   holds the public list alone — never the studio registry behind it.
 
    IT SHOWS A NAME AND A SECTOR, never a slug. A customer list keyed by
    address is a roster of tenants to try — see the note on
@@ -27,7 +26,7 @@ import { homeCopy } from "@/shared/marketing/home";
 ================================================================== */
 
 export async function FeaturedCompanies({ locale }: { locale: string }) {
-  const companies = await featuredCompanies();
+  const companies = publicCompanies(await listStudios());
   if (companies.length === 0) return null;
 
   const tr = homeCopy(locale);
