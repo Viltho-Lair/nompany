@@ -27,6 +27,7 @@ import { guardAgainstConnectionError } from "./pgClientGuard";
 import { assertNotTenantScoped, assertDdlOnly } from "./sqlGuards";
 import { TBL } from "./keys";
 import { gatewayStatement } from "./pgGateway";
+import { getGatewayIdToken } from "./pgGatewayAuth";
 import { log } from "@/platform/http/observability";
 
 // ---- the transport switch (plan Task 3) ------------------------------------
@@ -89,6 +90,26 @@ export function parseTransport(raw: string | undefined): PgTransport {
  */
 export function pgTransport(): PgTransport {
   return parseTransport(PG_TRANSPORT_RAW);
+}
+
+/**
+ * Hold the gateway's identity BEFORE entering a cache scope, so a cached read
+ * never has to fetch one from inside it.
+ *
+ * The gateway authenticates with the Vercel OIDC token, and that token is read
+ * from the REQUEST HEADERS — which Next forbids inside `unstable_cache`. The ID
+ * token minted from it is held in memory for about an hour, so a cached read
+ * only works when something outside the cache already minted one. On
+ * 23/09/2026 nothing had: removing the one uncached read from the locale layout
+ * left every cached read on a fresh instance to mint its own, each threw, and
+ * the public home page answered 500 in both languages until it was reverted.
+ * Nothing local can see this — the sandbox is `direct` and never mints at all.
+ *
+ * So every cached public read calls this first, outside the cache. On a warm
+ * instance it is a clock comparison; on `direct` it does nothing.
+ */
+export async function primeTransportIdentity(): Promise<void> {
+  if (pgTransport() === "gateway") await getGatewayIdToken();
 }
 
 let pool: Pool | null = null;

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import SiteTracker from "@/components/SiteTracker";
-import { getSiteSettings } from "@/lib/data/site";
+import { publicSiteSettings } from "@/lib/data/publicSettings";
 import { getDict, dirFor, isLocale, locales } from "@/shared/i18n";
 import { AccountLocaleProvider } from "@/components/public/locale";
 
@@ -10,8 +10,10 @@ export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
 
-// Content is admin-editable and stored in Redis, so render on demand to
-// reflect changes immediately rather than serving a build-time snapshot.
+// Content is admin-editable, so render on demand rather than serving a
+// build-time snapshot. The settings themselves come through the same minute
+// cache the root layout reads (lib/data/publicSettings) — this read was the one
+// uncached database round trip left on every marketing and account page.
 export const dynamic = "force-dynamic";
 
 export default async function LocaleLayout({ children, params }) {
@@ -19,7 +21,7 @@ export default async function LocaleLayout({ children, params }) {
   if (!isLocale(locale)) notFound();
 
   const dict = getDict(locale);
-  const settings = await getSiteSettings();
+  const settings = await publicSiteSettings();
   const dir = dirFor(locale);
 
   return (

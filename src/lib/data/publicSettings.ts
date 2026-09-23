@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { getSiteSettings } from "@/lib/data/site";
+import { primeTransportIdentity } from "@/platform/db/pg";
 
 /* THE SITE SETTINGS, READ ONCE A MINUTE INSTEAD OF ONCE A REQUEST.
    ------------------------------------------------------------------
@@ -31,8 +32,19 @@ import { getSiteSettings } from "@/lib/data/site";
 
 export const REVALIDATE_SECONDS = 60;
 
-export const publicSiteSettings = unstable_cache(
-  async () => getSiteSettings(),
-  ["site-settings"],
-  { revalidate: REVALIDATE_SECONDS, tags: ["site-settings"] },
-);
+/* THE ONE WAY A PUBLIC READ IS CACHED, because the obvious way fails in
+   production. The gateway's identity comes from the request headers, which a
+   cache scope may not read — so the identity is primed OUTSIDE the scope first
+   (`primeTransportIdentity`, which says what it cost when this was skipped).
+   A bare `unstable_cache` here works locally, where the transport is direct,
+   and 500s on Vercel. Use this instead, for every value in this file and in
+   publicLanding.ts. */
+export function publicCached<T>(read: () => Promise<T>, key: string): () => Promise<T> {
+  const cached = unstable_cache(read, [key], { revalidate: REVALIDATE_SECONDS, tags: [key] });
+  return async () => {
+    await primeTransportIdentity();
+    return cached();
+  };
+}
+
+export const publicSiteSettings = publicCached(async () => getSiteSettings(), "site-settings");

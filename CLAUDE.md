@@ -733,6 +733,8 @@ each cost a production deploy to discover:
 1. **The deployment was refused for a cron.** `store-upkeep` asked for `30 * * * *`; Hobby
    allows one run per day and rejects THE WHOLE DEPLOYMENT over it. Eight pushes built green
    in CI and produced no deployment at all, which reads as a dead Git integration.
+   (That was on Hobby. **The project is on Vercel Pro now** — the owner, 23/09/2026 — so
+   usage beyond the included amounts is BILLED, not paused.)
 2. **The OIDC token is delivered PER REQUEST, on the `x-vercel-oidc-token` header** — not in
    `process.env`. The variable exists only during the build and in a local `vercel env pull`.
    Enabling OIDC federation therefore changed nothing observable while every request was
