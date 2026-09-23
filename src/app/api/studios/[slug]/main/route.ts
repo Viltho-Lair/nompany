@@ -1,6 +1,5 @@
-import { refused } from "@/platform/http/route";
-import { currentUser } from "@/platform/auth/identity";
-import { mainContext, headlines, recent } from "@/modules/main/main";
+import { route, type RouteSpec } from "@/platform/http/route";
+import { mainContext, headlines, recent, type MainContext } from "@/modules/main/main";
 import { readAggregate } from "@/modules/main/executive";
 import { awaitingQueue } from "@/modules/main/awaiting";
 import { loadCatalogues, planOf } from "@/lib/plans";
@@ -16,17 +15,22 @@ const MAIN_WIDGET_KEYS = ["main.activity", "main.headline-trend", "main.event-ri
 // The studio's front door. Everything here is assembled from the sections this
 // person can actually see — a section they have no grant for is not read at all,
 // so no figure on this page can describe something the sidebar hides from them.
-export async function GET(request: Request, ctx: { params: Promise<Record<string, string>> }) {
-  const user = await currentUser();
-  if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
-  const { slug } = await ctx.params;
+//
+// ON THE ROUTE WRAPPER NOW, and the reason is the studio page rather than tidiness:
+// the page answers this GET inside its own render (`firstPayload`), so the front
+// door paints with its figures instead of mounting empty and asking. The refusal
+// statuses are unchanged — the wrapper maps `notfound` to 404 and `forbidden` to
+// 403, which is exactly the ladder this route used to write by hand.
+//
+// THE ONE CAST, and it is about main's context being hand-rolled rather than
+// built by the factory (main.ts says why): it answers studioContext's own
+// refusal type, which the wrapper returns before the handler runs — exactly
+// what it does for every factory-built context.
+const spec: RouteSpec<MainContext> = {
+  auth: "studio", context: mainContext as RouteSpec<MainContext>["context"], name: "main",
+};
 
-  const main = await mainContext(user, slug);
-  if (refused(main)) {
-    const status = main.error === "notfound" ? 404 : 403;
-    return Response.json({ error: main.error }, { status });
-  }
-
+export const GET = route(spec, async (main) => {
   const [figures, feed] = await Promise.all([headlines(main), recent(main)]);
 
   // WHICH EXECUTIVE WIDGETS THIS STUDIO'S TIER BOUGHT — resolved server-side,
@@ -72,12 +76,12 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     locked.push(...shown);
   }
 
-  return Response.json({
+  return {
     studio: { name: main.studio.name, slug: main.studio.slug },
     me: { alias: main.collaborator.alias || "", collaboratorId: main.collaborator.id },
     nav: main.nav,
     headlines: figures,
     recent: feed,
     executive: { widgets, locked, hidden },
-  });
-}
+  };
+});

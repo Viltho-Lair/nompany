@@ -133,9 +133,12 @@ const EMPTY_FILTERS = {
 //   crm-sales-clients   -> the clients list + form
 //   crm-sales-settings  -> services, vocabulary and the Live view columns
 // crm-sales-live renders full-screen outside the studio frame (see StudioSalesLive).
-export default function StudioSales({ slug, view = "crm-sales" }) {
+//
+// `initial` is the /sales body the studio page answered in its own render, so
+// the board paints at once; absent, it fetches on mount exactly as before.
+export default function StudioSales({ slug, view = "crm-sales", initial }) {
   const tr = salesDict(useStudioLocale());
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   // The tickets list is a paginated Data Grid now, which can't scroll to a row
   // that may sit on another page — so the ticket deep-link's scroll-and-ring
   // (useFocusedRecord("ticket")) is gone. Clients still use theirs.
@@ -152,7 +155,7 @@ export default function StudioSales({ slug, view = "crm-sales" }) {
     if (!res.ok) { setError(tr.noAccessTo(tr.salesDepartment)); return; }
     setData(await res.json());
   }, [slug, tr]);
-  useReload(load);
+  useReload(load, initial);
 
   // A colleague raised or moved a ticket - reflect it without a refresh.
   //

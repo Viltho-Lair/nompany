@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 // LOAD ONCE, AND AGAIN WHENEVER THE LOADER CHANGES.
 //
@@ -34,6 +34,24 @@ import { useEffect } from "react";
 // a loader rebuilt on every render would fetch on every render — which is the
 // bug this shape has always had and still has. Every caller already memoises;
 // this is the note that says why they must.
-export function useReload(load) {
-  useEffect(() => { load(); }, [load]);
+//
+// AND SKIP THE FIRST LOAD WHEN THE PAGE ALREADY BROUGHT THE ANSWER. The studio
+// page runs a screen's own GET inside its render (`firstPayload` on the route,
+// platform/http/route.ts) and hands the body down as `initial`, so the screen
+// paints with its data and the browser makes no second request. Fetching anyway
+// would spend exactly the round trip — and draw exactly the second skeleton —
+// that the whole change exists to remove.
+//
+// THE LOADER IT WAS HANDED FIRST IS THE ONE SKIPPED, by identity, and no other.
+// A flag flipped on the first run would be spent by React's development
+// double-invoke and the screen would fetch anyway; comparing identity survives
+// it. A loader that CHANGES afterwards (a new slug, a new language) still
+// fetches, exactly as before. `initial` undefined — the page composed nothing,
+// was refused, or the payload was over the ceiling — is the old behaviour.
+export function useReload(load, initial) {
+  const skip = useRef(initial !== undefined ? load : null);
+  useEffect(() => {
+    if (load === skip.current) return;
+    load();
+  }, [load]);
 }

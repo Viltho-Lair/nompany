@@ -27,13 +27,16 @@ const MainDashboard = nextDynamic(() => import("@/components/studio2/MainDashboa
 
 const FEED_ICON = { ticket: "ticket", quotation: "report", project: "blueprint", approval: "verified" };
 
-export default function StudioMain({ slug }) {
+// `initial` IS THIS SCREEN'S OWN ROUTE BODY, answered inside the studio page's
+// render, so the front door paints with its figures rather than a second
+// skeleton. Absent — refused, or over the payload ceiling — it fetches as before.
+export default function StudioMain({ slug, initial }) {
   const locale = useLocale();
   const tr = mainDict(locale);
   // The feed names the KIND of record that moved. A fixed four, defined by the
   // code and not by any tenant, so they translate.
   const FEED_WORD = { ticket: tr.feedTicket, quotation: tr.feedQuotation, project: tr.feedProject, approval: tr.feedApproval };
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -41,7 +44,7 @@ export default function StudioMain({ slug }) {
     if (!res.ok) { setError(tr.loadFailed); return; }
     setData(await res.json());
   }, [slug, tr]);
-  useReload(load);
+  useReload(load, initial);
   // The front door reflects every desk, so it watches the busiest of them.
   useLiveUpdates(slug, "crm-sales", load);
   useLiveUpdates(slug, "approvals", load);

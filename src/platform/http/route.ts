@@ -443,7 +443,7 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
     };
   }
 
-  return async function handle(request: Request, ctx?: { params?: Promise<Record<string, string>> }) {
+  async function handle(request: Request, ctx?: { params?: Promise<Record<string, string>> }) {
     return withRequest(spec.name || auth, async () => {
       // THE KEY'S SCOPES ARE PUT IN FORCE AROUND THE WHOLE REQUEST, before the
       // context is built and for as long as the handler runs. It has to be the
@@ -470,7 +470,62 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
         ? withApiKeyScopes(resolvedKey.scopes, () => run(request, ctx))
         : run(request, ctx);
     });
-  };
+  }
+
+  // THE SAME GET, ANSWERED INSIDE THE STUDIO PAGE'S OWN RENDER.
+  //
+  // THE DEFECT THIS EXISTS FOR. A section click was two HTTP requests, strictly
+  // one after the other: the page rendered an EMPTY screen, the screen mounted,
+  // and only then did it fetch this route — which resolved the user, the
+  // studio, the collaborator, the roles and the sections all over again,
+  // because a second request cannot share the first one's request cache. Two
+  // skeletons, one per request, and the second the longer of the two.
+  //
+  // WHY HERE AND NOT A VIEW FUNCTION PER ROUTE. The first-payload design
+  // (docs/superpowers/specs/2026-09-06-server-rendered-first-payload-design.md)
+  // extracted `tendersView` by hand, and that is right for one screen. For
+  // seventy it is seventy copies of "build the context, refuse, compose" —
+  // each free to drift from the route beside it. The route already IS the
+  // view: this runs the very handler the browser would have reached, with the
+  // very context builder, so the page and the API cannot disagree about what
+  // the screen is given.
+  //
+  // DELIBERATELY NOT WRAPPED IN `withRequest`. It must run in the PAGE's scope,
+  // where the studio, the collaborator and the roles are already in the request
+  // cache — that is the only reason re-building the context here is free. A
+  // scope of its own would turn every one of those reads back into a round trip.
+  //
+  // ANY REFUSAL IS `undefined`, never a throw and never an error body. The
+  // screen then fetches exactly as it did before this existed and shows its
+  // own message, so a refusal is rendered by one code path, not two. The till
+  // and the API-key paths are absent on purpose: the page has already sent a
+  // till session to its till, and a page is never reached by a key.
+  async function firstPayload(slug: string, path: string, params: Record<string, string> = {}): Promise<unknown> {
+    if (auth !== "studio" || !slug) return undefined;
+    const user = await currentUser();
+    if (!user) return undefined;
+    const build = spec.context || studioContext;
+    const context = (await build(user as { id?: unknown }, slug)) as A & { error?: string; sections?: unknown };
+    if (!context || context.error) return undefined;
+    const switchKey = switchKeyForPath(path);
+    if (switchKey && Array.isArray(context.sections)
+      && !switchboard(context.sections as never)(switchKey)) return undefined;
+    // A REAL REQUEST OBJECT, because handlers read `request.url` for their
+    // query string. A GET with no body, so nothing a GET handler asks of it can
+    // differ from the browser's own call.
+    const request = new Request(new URL(path, "http://studio.internal"));
+    const out = await handler({ request, params: { ...params, slug }, user, ...context } as A & RouteArgs);
+    if (isResponse(out)) return out.ok ? out.json().catch(() => undefined) : undefined;
+    if (isErrorShape(out)) return undefined;
+    if (out && typeof out === "object" && "body" in out && typeof (out as Shaped).status === "number") {
+      const shaped = out as Shaped;
+      return shaped.status < 400 ? shaped.body : undefined;
+    }
+    // What `finish` sends for a handler that returned nothing.
+    return out ?? { ok: true };
+  }
+
+  return Object.assign(handle, { firstPayload });
 
   async function run(request: Request, ctx?: { params?: Promise<Record<string, string>> }) {
     {

@@ -24,6 +24,12 @@ import { studioRequest } from "../_shell";
 import { tenderingContext, tendersView } from "@/modules/tendering/tenders";
 import { fitsInRscPayload } from "@/shared/rscPayload";
 import { log } from "@/platform/http/observability";
+// THE REST OF THE SCREENS' FIRST PAYLOADS COME FROM THEIR OWN ROUTES — the very
+// GET the screen would have fetched, answered inside this render through
+// `firstPayload` (platform/http/route.ts says why the route and not a view
+// function). One import per converted screen, named for the screen it feeds.
+import { GET as mainRoute } from "@/app/api/studios/[slug]/main/route";
+import { GET as salesRoute } from "@/app/api/studios/[slug]/sales/route";
 
 // ONE SCREEN IS RENDERED PER REQUEST, SO ONE SCREEN IS DOWNLOADED.
 //
@@ -772,6 +778,23 @@ async function renderStudio(params) {
     }
   }
 
+  // EVERY OTHER CONVERTED SCREEN'S FIRST PAYLOAD, by the same argument as the
+  // tender register's above and through one door (`firstScreenPayload`, below).
+  //
+  // EACH CONDITION MIRRORS THE BRANCH OF THE RENDER CHAIN THAT DRAWS THE SCREEN,
+  // and getting one wrong is cheap in exactly one direction: a payload composed
+  // for a screen that then does not render is a wasted read, and a screen whose
+  // payload was not composed simply fetches as it always did. Nothing can hand a
+  // screen another screen's data — each payload goes to the one component its
+  // route belongs to.
+  const framed = !settingsHub && !deniedSection;
+  const salesView = framed && screenKey === "crm-sales" && !ticketId && !quotationId && !customerId
+    && !["crm-sales-pipeline", "crm-sales-insights", "crm-sales-contracts", "crm-sales-orders"].includes(active?.key);
+  const [mainInitial, salesInitial] = await Promise.all([
+    framed && screenKey === "main" ? firstScreenPayload(mainRoute, studio.slug, "main") : undefined,
+    salesView ? firstScreenPayload(salesRoute, studio.slug, "sales") : undefined,
+  ]);
+
   // NO frameProps, AND NO StudioFrame AROUND WHAT FOLLOWS.
   //
   // The shell is the layout's now, so everything that used to be assembled
@@ -908,7 +931,7 @@ async function renderStudio(params) {
         : active?.key === "crm-sales-insights" ? <CustomerInsightsDashboard slug={studio.slug} />
         : active?.key === "crm-sales-contracts" ? <StudioContracts slug={studio.slug} />
         : active?.key === "crm-sales-orders" ? <StudioOrders slug={studio.slug} />
-        : screenKey === "crm-sales" ? <StudioSales slug={studio.slug} view={active?.key} />
+        : screenKey === "crm-sales" ? <StudioSales slug={studio.slug} view={active?.key} initial={salesInitial} />
         // THE QUOTATIONS DEPARTMENT (13/09/2026): its dashboard at the root, and
         // the RFQ intake, the register and the settings beneath it — all still
         // StudioTechnical, which was always the presales team's screen. Old
@@ -1025,12 +1048,40 @@ async function renderStudio(params) {
           // the switched-off rows, so a switchboard built from it would find no
           // row for a switched-off part and call it on (dashboards.md).
           ? <StudioReports slug={studio.slug} access={access} sections={allSections} locale={locale} />
-        : screenKey === "main" ? <StudioMain slug={studio.slug} />
+        : screenKey === "main" ? <StudioMain slug={studio.slug} initial={mainInitial} />
         : active ? <SectionDashboard section={active} studio={studio} locale={locale}
             subsections={sections.filter((s) => s.parentId === active.id)} />
         : <NothingGranted admin={admin} slug={studio.slug} locale={locale} />}
     </>
   );
+}
+
+// ONE SCREEN'S FIRST PAYLOAD: its own route's GET, answered in this render.
+//
+// `path` is the API path under the studio, exactly as the screen fetches it —
+// `"sales"` for `/api/studios/<slug>/sales` — because the route wrapper decides
+// the section switch from that path, and a handler may read its query string.
+//
+// THREE WAYS TO GET NOTHING, and each leaves the screen on the path it always
+// had: fetch on mount, with its own message. A refusal (`firstPayload` answers
+// undefined); a payload over the RSC ceiling, logged because a tenant stuck over
+// it pays the round trip on every click and nobody would otherwise know; and a
+// handler that THROWS, which here would take the whole page down where the
+// fetch path showed a message in the screen's own box.
+//
+// MUST BE CALLED INSIDE `renderStudio`, i.e. inside the page's `withRequest`.
+// The route rebuilds its module context, and that is free only because every
+// read it makes is already in this request's cache.
+async function firstScreenPayload(route, slug, path, params) {
+  try {
+    const payload = await route.firstPayload(slug, `/api/studios/${slug}/${path}`, params);
+    if (payload === undefined) return undefined;
+    if (fitsInRscPayload(payload)) return payload;
+    log.info("rsc payload over ceiling", { screen: path, slug });
+  } catch (error) {
+    log.warn("first payload failed", { screen: path, slug, error: String(error?.message || error) });
+  }
+  return undefined;
 }
 
 // EVERY section owns a dashboard, and this is the one for sections that have no
