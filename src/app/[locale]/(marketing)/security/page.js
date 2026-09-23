@@ -10,14 +10,7 @@ import { getDict } from "@/shared/i18n";
    EVERY PRACTICE NAMED HERE WAS CHECKED AGAINST THE CODE, and the file
    each rests on is carried in the copy module beside it for whoever
    edits this next. This is the one page where an unverified sentence is
-   worse than no page at all: it is read by exactly the people who check.
-
-   AND IT STATES WHAT IS NOT CLAIMED — no ISO, no SOC 2, no national
-   assessment, no published penetration test, no residency guarantee, no
-   registered entity, and the known gaps in what is built. A buyer asks all
-   of it early. "No, and here is what
-   we do have" is worth more than silence, and much more than a page that
-   implies an audit by saying nothing. */
+   worse than no page at all: it is read by exactly the people who check. */
 
 /* NO `force-dynamic`. It was here and it was a no-op: the root layout reads
    the theme cookie, so every route in this application is dynamically rendered
@@ -73,24 +66,6 @@ export default async function SecurityPage({ params }) {
               </div>
             </div>
           ))}
-        </section>
-
-        {/* NOT A DISCLAIMER IN SMALL PRINT. It sits at the same weight as the
-            list above it, because a buyer who finds out later that an implied
-            certification does not exist has learned something about the vendor
-            rather than about the certification. */}
-        <section className="mt-14 rounded-2xl border border-steel-400/25 bg-slate-50 p-7 sm:p-9 dark:border-white/10 dark:bg-white/[0.03]">
-          <h2 className="font-display text-2xl font-600">{tr.notClaimedHeading}</h2>
-          <p className="mt-3 max-w-2xl text-steel-700 dark:text-slate-300">
-            {tr.notClaimedLead}
-          </p>
-          <ul className="mt-6 space-y-2">
-            {tr.notClaimed.map((n) => (
-              <li key={n} className="text-steel-700 dark:text-slate-300">
-                {n}
-              </li>
-            ))}
-          </ul>
         </section>
 
         <section className="mt-14">

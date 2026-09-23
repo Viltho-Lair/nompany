@@ -16,16 +16,6 @@ import { defaultLocale, type Locale } from "@/shared/locale";
 // is now said the way it is. When a header, a vendor or an auth path changes,
 // this file is part of that change.
 //
-// WHAT IS NOT CLAIMED MATTERS AS MUCH AS WHAT IS. There is no ISO certification,
-// no SOC 2 report, no NCA assessment, no published penetration test and no
-// stated data residency, and the page says all five plainly. A buyer asks those
-// questions early; being told "no, and here is what we do have" is worth more
-// than silence, and far more than a page that implies an audit by omission.
-// The known gaps in what IS built (client details not yet sealed everywhere, a
-// CSP still in report-only) are on the same list for the same reason.
-// This is also the page that answers where the company is — it is not
-// incorporated anywhere yet — rather than leaving a schema field to imply it.
-//
 // NO COUNTS IN THE PROSE. "Ninety-seven places" sat here while the route count
 // moved past two hundred; a number nobody re-measures decays silently.
 
@@ -46,16 +36,13 @@ type SecurityStrings = {
   lead: string;
   practicesHeading: string;
   groups: PracticeGroup[];
-  notClaimedHeading: string;
-  notClaimedLead: string;
-  notClaimed: string[];
   contactHeading: string;
   contactLead: string;
 };
 
 const en: SecurityStrings = {
   title: "Security",
-  lead: "What actually protects your data — in the ERP, at sign-in and on this website — described so you can check it, and an equally plain list of what we do not have yet.",
+  lead: "What actually protects your data — in the ERP, at sign-in and on this website — described so you can check it.",
   practicesHeading: "What is in place",
   groups: [
     {
@@ -169,19 +156,6 @@ const en: SecurityStrings = {
       ],
     },
   ],
-  notClaimedHeading: "What we do not claim",
-  notClaimedLead:
-    "Stated plainly, because these are the first questions a serious buyer asks and the honest answer is more useful than an implication.",
-  notClaimed: [
-    "No ISO 27001 certification.",
-    "No SOC 2 report, of either type.",
-    "No NCA or other national-authority assessment.",
-    "No published penetration test.",
-    "No guaranteed data residency in a particular country, and no uptime figure — nothing measures one, so none is quoted.",
-    "Not every copy of a client's details is encrypted yet: notifications, chat messages and some internal records can still quote a client's name in plain text.",
-    "Our Content Security Policy runs in report-only mode; it is not enforced yet.",
-    "No incorporated legal entity or registered office yet.",
-  ],
   contactHeading: "Reporting something",
   contactLead:
     "If you believe you have found a vulnerability, write to us and say so in the subject line. You will get a human reply.",
@@ -190,7 +164,7 @@ const en: SecurityStrings = {
 // HAND-WRITTEN, NO DIACRITICS.
 const ar: SecurityStrings = {
   title: "الأمان",
-  lead: "ما الذي يحمي بياناتك فعلا — داخل النظام وعند تسجيل الدخول وعلى هذا الموقع — موصوفا بحيث يمكنك التحقق منه، وقائمة صريحة كذلك بما لا نملكه بعد.",
+  lead: "ما الذي يحمي بياناتك فعلا — داخل النظام وعند تسجيل الدخول وعلى هذا الموقع — موصوفا بحيث يمكنك التحقق منه.",
   practicesHeading: "ما هو قائم",
   groups: [
     {
@@ -303,19 +277,6 @@ const ar: SecurityStrings = {
         },
       ],
     },
-  ],
-  notClaimedHeading: "ما لا ندعيه",
-  notClaimedLead:
-    "مذكور صراحة، لأن هذه أول ما يسأل عنه المشتري الجاد، والجواب الصادق أنفع من التلميح.",
-  notClaimed: [
-    "لا شهادة ISO 27001.",
-    "لا تقرير SOC 2 بأي من نوعيه.",
-    "لا تقييم من هيئة وطنية للأمن السيبراني أو غيرها.",
-    "لا اختبار اختراق منشور.",
-    "لا ضمان لمكان تخزين البيانات في بلد بعينه، ولا نسبة جاهزية — لا شيء يقيسها، فلا نذكر رقما.",
-    "ليست كل نسخة من بيانات العميل مشفرة بعد: الإشعارات ورسائل المحادثة وبعض السجلات الداخلية قد تذكر اسم العميل بنص واضح.",
-    "سياسة أمان المحتوى تعمل في وضع الإبلاغ فقط، ولم تفرض بعد.",
-    "لا كيان قانوني مسجل ولا مقر رسمي حتى الآن.",
   ],
   contactHeading: "الإبلاغ عن ثغرة",
   contactLead:

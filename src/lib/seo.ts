@@ -82,14 +82,14 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
   },
   "/security": {
     en: {
-      title: "Security — what protects your data, and what we do not claim",
+      title: "Security — what protects your data",
       description:
-        "Row-level security forced at the database, membership-only authorisation, bcrypt at cost 12 with rehash on login, console MFA, session digests, an audit record for every change, and no third-party JavaScript. Plus a plain list of the certifications we do not hold.",
+        "Row-level security forced at the database, client details encrypted before they are stored, no database password to leak, role-based access down to the action, two-factor sign-in and passkeys, session digests, and an audit record for every change.",
     },
     ar: {
-      title: "الأمان — ما يحمي بياناتك، وما لا ندعيه",
+      title: "الأمان — ما يحمي بياناتك",
       description:
-        "أمن على مستوى الصف مفروض في قاعدة البيانات، وصلاحية بالعضوية وحدها، وتشفير كلمات المرور بمعامل 12، وتحقق متعدد العوامل للوحة التحكم، وسجل لكل تغيير، وبلا أي جافاسكربت من طرف ثالث. مع قائمة صريحة بما لا نملكه من شهادات.",
+        "أمن على مستوى الصف مفروض في قاعدة البيانات، وبيانات العملاء مشفرة قبل حفظها، وبلا كلمة مرور لقاعدة البيانات يمكن أن تتسرب، وصلاحيات بالأدوار حتى مستوى الإجراء، وتحقق بعاملين ومفاتيح مرور، وبصمات للجلسات، وسجل لكل تغيير.",
     },
   },
   // NO DEMO IS OFFERED, in either language, because there is none to book and
