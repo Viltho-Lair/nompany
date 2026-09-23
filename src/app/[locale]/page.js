@@ -1,5 +1,5 @@
 import { buildMetadata, softwareApplicationLd } from "@/lib/seo";
-import { buildPricing } from "@/modules/marketing/pricing";
+import { landingPricing } from "@/lib/data/publicLanding";
 import JsonLd from "@/components/JsonLd";
 import LandingPage from "@/components/landing/LandingPage";
 import { FeaturedCompanies } from "@/components/landing/sections/FeaturedCompanies";
@@ -27,7 +27,9 @@ export default async function HomePage({ params }) {
   // (both from the root layout) + SoftwareApplication with the real offers.
   // No geo header is read: home renders the base currency, and the pricing
   // page is where a visitor is offered their own.
-  const pricing = await buildPricing(null);
+  // Through the minute cache (lib/data/publicLanding): three catalogue reads
+  // per visit otherwise, for prices that change when somebody edits /super.
+  const pricing = await landingPricing();
 
   return (
     <>
