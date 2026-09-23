@@ -168,9 +168,16 @@ export function isFullScreenPath(
   if (key === "marketing-forms" && segments[1]) return granted(key);
 
   if (key === "projects-list" && segments[1] && granted(key)) {
-    // `/projects-list/<id>` is the board and `/projects-list/<id>/plans/<planId>`
-    // is one of its plans — both full-screen. `/projects-list/<id>/quotation` is
-    // the in-frame viewer, and a bare `/plans` with no plan id is not a screen.
+    // `/projects-list/<id>` and its tabs (/board, /costs, /billing, /reports,
+    // /closure) are the project hub, and `/projects-list/<id>/plans/<planId>` is
+    // one of its plans — all full-window. THE HUB IS FULL-WINDOW ON PURPOSE,
+    // every tab of it: this line said "`/projects-list/<id>` is the board" after
+    // the board had moved to /board, so the other tabs went full-window by
+    // accident, unpadded, with a page-level scrollbar. They are designed for it
+    // now (StudioProjectHub) — and one shape for all six is what stops the
+    // sidebar appearing and vanishing between Board and the rest.
+    // `/projects-list/<id>/quotation` is the in-frame viewer, and a bare
+    // `/plans` with no plan id is not a screen.
     if (segments[2] === "quotation") return false;
     if (segments[2] === "plans") return Boolean(segments[3]);
     return true;

@@ -9,19 +9,16 @@ import { useRouter } from "next/navigation";
 import { useBoardStore, boardDoc } from "@/components/kanban/store/board-store";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import {
-  useProjectData,
   deriveProject,
   ClientSection,
   ProjectSection,
   WhatWasSoldSection,
 } from "@/components/studio2/StudioProjectInfo";
-import { ProjectHubBar } from "@/components/studio2/ProjectHubTabs";
+import { HubTrailing, useProjectHubData } from "@/components/studio2/StudioProjectHub";
 
-// THE KANBAN IS THE PROJECT PROFILE. This full-screen surface renders OUTSIDE
-// StudioFrame (the studio route early-returns it, the same way it does for the
-// documentation manual and the Sales live view). The board is the main surface;
-// the project's facts move into a right sidebar and immediate actions sit on a
-// left rail — "decision-making on the left, everything reachable."
+// THE PROJECT'S KANBAN — the hub's Board tab (StudioProjectHub), full-window
+// like every tab of the hub. The board is the main surface; the project's facts
+// sit in a right sidebar.
 //
 // PERSISTENCE. The board is one Redis JSON document per project. On mount we GET
 // it, hydrate the zustand store (or an empty 4-column seed when the project has
@@ -36,9 +33,9 @@ export default function StudioProjectBoard({ slug, projectId }) {
   const seedWords = boardDict(useStudioLocale());
   const hydrate = useBoardStore((s) => s.hydrate);
 
-  // Project facts for the rail + sidebar — one fetch of the /projects endpoint a
-  // project is a row of, shared with the legacy profile via StudioProjectInfo.
-  const { data, error: infoError } = useProjectData(slug);
+  // Project facts for the sidebar — the hub's one /projects read, shared by
+  // every tab (StudioProjectHub), rather than a fetch of the board's own.
+  const { data, error: infoError } = useProjectHubData() || {};
   const { project, people, hasSheet, lineCount, client } =
     deriveProject(data, projectId);
 
@@ -102,23 +99,17 @@ export default function StudioProjectBoard({ slug, projectId }) {
   }, [board.loading, board.canEdit, slug, projectId]);
 
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--geex-page)] text-[var(--geex-ink)]">
-      {/* ---- the hub's bar: back, identity, every screen this project has ----
-          The board is one tab of the project hub now (tier 5), so its header
-          and its strip of side doors are the hub's shared bar — handed the
-          /projects read this board already made for its sidebar. */}
-      <ProjectHubBar
-        slug={slug}
-        projectId={projectId}
-        active="board"
-        data={data}
-        className="shrink-0"
-        trailing={!board.loading && !board.canEdit ? (
+    // THE BODY OF THE HUB'S BOARD TAB. The bar above it — back, identity,
+    // every screen this project has — is the hub's (StudioProjectHub), which
+    // also sizes this to the window below the bar; the board fills it.
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden text-[var(--geex-ink)]">
+      {!board.loading && !board.canEdit && (
+        <HubTrailing tab="board">
           <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
             {tr.viewOnly}
           </span>
-        ) : null}
-      />
+        </HubTrailing>
+      )}
 
       {/* ---- body: left rail · board · right sidebar ---- */}
       <div className="flex min-h-0 flex-1">

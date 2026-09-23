@@ -12,7 +12,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
-import ProjectHubTabs from "@/components/studio2/ProjectHubTabs";
 // THE LIBRARY'S OWN WORDS. It is Administration's register, and its
 // dictionary travels with it rather than being restated in Projects' —
 // one surface, one module, and no barrel over the two.
@@ -117,9 +116,6 @@ export default function StudioProjectCosts({ slug, projectId }) {
     <div className="space-y-6">
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
-      {/* THE HUB'S BAR — the project's name and every screen it has, in place
-          of a back link to a board that was the only way between them. */}
-      <ProjectHubTabs slug={slug} projectId={projectId} active="costs" />
       <h2 className={h2}>{tr.costBreakdown}</h2>
 
       <div className="grid gap-4 sm:grid-cols-3">

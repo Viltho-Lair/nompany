@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
-import { useProjectData, deriveProject } from "@/components/studio2/StudioProjectInfo";
+import { deriveProject } from "@/components/studio2/StudioProjectInfo";
 
 // THE PROJECT HUB'S BAR — the project's name and every screen it has (tier 5).
 //
@@ -31,11 +31,15 @@ export const PROJECT_TABS = [
 ];
 
 /**
- * THE BAR ITSELF, from data the caller already holds — the board and the
- * Overview read /projects for their own panels, so they hand it over rather
- * than paying for the same read twice.
+ * THE BAR ITSELF, drawn once by the hub (StudioProjectHub) from the /projects
+ * read it holds for every tab.
+ *
+ * `onNavigate` is how a tab changes WITHOUT a page navigation: the hub swaps
+ * the body and moves the address itself. The links stay real links — an
+ * href, so a middle-click or a copied address still opens that tab — and the
+ * click is taken over only when it is a plain one.
  */
-export function ProjectHubBar({ slug, projectId, active, data, trailing = null, className = "" }) {
+export function ProjectHubBar({ slug, projectId, active, data, trailing = null, onNavigate, className = "" }) {
   const tr = projectsDict(useStudioLocale());
   const { project } = deriveProject(data, projectId);
   const base = `/${slug}/projects-list/${projectId}`;
@@ -68,6 +72,12 @@ export function ProjectHubBar({ slug, projectId, active, data, trailing = null, 
               <Link
                 key={t.key}
                 href={t.segment ? `${base}/${t.segment}` : base}
+                prefetch={false}
+                onClick={(e) => {
+                  if (!onNavigate || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                  e.preventDefault();
+                  onNavigate(t.key, e.currentTarget.getAttribute("href"));
+                }}
                 aria-current={current ? "page" : undefined}
                 className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 font-display text-sm font-600 transition-colors ${current
                   ? "bg-brand-500/10 text-brand-700 dark:text-brand-300"
@@ -81,10 +91,4 @@ export function ProjectHubBar({ slug, projectId, active, data, trailing = null, 
       )}
     </div>
   );
-}
-
-/** The bar for a screen that does not otherwise read /projects. */
-export default function ProjectHubTabs({ slug, projectId, active, trailing = null }) {
-  const { data } = useProjectData(slug);
-  return <ProjectHubBar slug={slug} projectId={projectId} active={active} data={data} trailing={trailing} className="-mx-1 rounded-geex border" />;
 }

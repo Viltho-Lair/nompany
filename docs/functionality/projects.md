@@ -25,12 +25,29 @@ has children — a board and a plan. There are **three ways one begins**:
 sidebar draws — with *Edit details* opening the list's dialog (stage, manager, dates, delete;
 `/projects-list?project=<id>`) for somebody who may manage the list. The **Board** is one tab at
 `/projects-list/<id>/board`, no longer the project page; beside it are **Costs**, **Billing**,
-the **Diary** (`/reports`) and **Closure**. Every one of them draws the same bar
+the **Diary** (`/reports`) and **Closure**. They share one bar
 (`components/studio2/ProjectHubTabs`), and a tab is drawn only for somebody the `/projects`
 read says may open it: Overview, Board and Closure on `canViewList` (`projects.list.view`), the
 others on `canViewCosts`, `canViewBilling`, `canViewReports`. **`canViewList` is new**: the
 board assumed "anybody on it holds the list right", and a costs-only holder — who reaches the
 route through the same section — was shown a Closure link that refused them.
+
+**The hub is ONE page, and switching tabs is not a navigation** (23/09/2026,
+`components/studio2/StudioProjectHub`). Each tab used to be its own page address. A click
+replaced the whole window, bar included, with a loading skeleton. The server then re-checked
+the studio, the person and their access, and the new tab fetched `/projects` again just to
+draw the bar. Measured locally that took 2.9 s, which read as a reload. Now the hub holds the
+bar and the `/projects` read once. A tab click swaps only the body and moves the address with
+`history.pushState`, with no server request. Back, forward and a pasted tab address all still
+work. A tab once opened stays mounted while hidden, so returning to it is instant and keeps its
+place. Each tab's own API still checks its right.
+
+**The whole hub is full-window**, all six tabs, with the bar fixed at the top and the body
+scrolling inside itself. The board always was full-window. The other five were too, but by
+accident (`isFullScreenPath` still called the bare address "the board"), with no padding. The
+bar's `-mx-1` then made the page 4 px wider than the window, which put scrollbars on both
+axes. One shape for all six also stops the sidebar appearing and vanishing between Board and
+the other tabs.
 
 **The board is chosen by naming it, never by excluding the others.** It used to be the
 catch-all for every third segment not on a hand-typed list, which is how `/costs` once rendered

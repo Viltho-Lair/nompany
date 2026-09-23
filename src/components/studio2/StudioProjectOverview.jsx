@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { InfoPanelSkeleton } from "@/components/studio2/RecordSkeleton";
 import { projectsDict } from "@/shared/studio/projects";
-import { ProjectHubBar } from "@/components/studio2/ProjectHubTabs";
+import { HubTrailing, useProjectHubData } from "@/components/studio2/StudioProjectHub";
 import {
-  useProjectData,
   deriveProject,
   ClientSection,
   ProjectSection,
@@ -22,9 +21,12 @@ import {
 // project differently. Editing still happens in the list's dialog, which is
 // where stage, manager, dates and delete already live; this links to it rather
 // than growing a second editor.
+//
+// It is a TAB OF THE HUB (StudioProjectHub), which draws the bar and holds the
+// /projects read this page is made of — so it fetches nothing of its own.
 export default function StudioProjectOverview({ slug, projectId }) {
   const tr = projectsDict(useStudioLocale());
-  const { data, error } = useProjectData(slug);
+  const { data, error } = useProjectHubData() || {};
   const { project, people, hasSheet, lineCount, client } = deriveProject(data, projectId);
 
   const edit = data?.canManageList && project ? (
@@ -38,7 +40,7 @@ export default function StudioProjectOverview({ slug, projectId }) {
 
   return (
     <div className="space-y-6">
-      <ProjectHubBar slug={slug} projectId={projectId} active="overview" data={data} trailing={edit} className="-mx-1 rounded-geex border" />
+      {edit && <HubTrailing tab="overview">{edit}</HubTrailing>}
       {error && !data ? (
         <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>
       ) : !data ? (

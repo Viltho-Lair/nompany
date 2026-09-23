@@ -126,17 +126,10 @@ const ProcurementDashboard = nextDynamic(
   () => import("@/components/studio2/ProcurementDashboard"),
   { loading: () => <ScreenSkeleton /> },
 );
-const StudioSiteReports = nextDynamic(
-  () => import("@/components/studio2/StudioSiteReports"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioProjectClosure = nextDynamic(
-  () => import("@/components/studio2/StudioProjectClosure"),
-  { loading: () => <ScreenSkeleton /> },
-);
-// The project hub's first tab — see ProjectHubTabs.
-const StudioProjectOverview = nextDynamic(
-  () => import("@/components/studio2/StudioProjectOverview"),
+// ONE PROJECT'S PAGE, all six tabs of it — see StudioProjectHub, which loads
+// each tab as its own chunk (a client module, so those splits are real).
+const StudioProjectHub = nextDynamic(
+  () => import("@/components/studio2/StudioProjectHub"),
   { loading: () => <ScreenSkeleton /> },
 );
 const StudioExpediting = nextDynamic(
@@ -242,16 +235,6 @@ const StudioPermits = nextDynamic(
   () => import("@/components/studio2/StudioPermits"),
   { loading: () => <ScreenSkeleton /> },
 );
-const StudioProjectBilling = nextDynamic(
-  () => import("@/components/studio2/StudioProjectBilling"),
-  { loading: () => <RecordSkeleton /> },
-);
-const StudioProjectCosts = nextDynamic(
-  () => import("@/components/studio2/StudioProjectCosts"),
-  // A record page — a department skeleton would reserve a chart where a table
-  // of budgets is coming.
-  { loading: () => <RecordSkeleton /> },
-);
 const StudioRates = nextDynamic(
   () => import("@/components/studio2/StudioRates"),
   { loading: () => <ScreenSkeleton /> },
@@ -287,15 +270,6 @@ const StudioSales = nextDynamic(
 );
 const StudioTicketProfile = nextDynamic(
   () => import("@/components/studio2/StudioTicketProfile"),
-  { loading: () => <ScreenSkeleton /> },
-);
-// THE PROJECT PROFILE IS THE KANBAN BOARD NOW. Full-screen, like the manual and
-// the live views — which no longer means "rendered outside StudioFrame": the
-// shell is a layout and wraps everything, so it recognises the address instead
-// and draws no chrome (shared/studioRoute, isFullScreenPath). dnd-kit and the
-// board store ride this chunk, fetched only when a project is opened.
-const StudioProjectBoard = nextDynamic(
-  () => import("@/components/studio2/StudioProjectBoard"),
   { loading: () => <ScreenSkeleton /> },
 );
 // The project planner — a full-screen app (the list) and one plan's schedule.
@@ -538,10 +512,13 @@ async function renderStudio(params) {
     );
   }
 
-  // THE BOARD IS ONE TAB OF THE PROJECT HUB, not the project page (tier 5).
-  // /<slug>/projects-list/<id>/board is the kanban, full-screen; the project's
-  // own page is its Overview (below, framed with the other tabs), and every tab
-  // shares one bar — components/studio2/ProjectHubTabs.
+  // ONE PROJECT'S PAGE IS THE HUB, and all six of its tabs are one screen —
+  // /<slug>/projects-list/<id> (the Overview), and /overview, /board, /costs,
+  // /billing, /reports and /closure after it. StudioProjectHub draws the bar
+  // once and swaps the tabs itself, moving the address without a navigation,
+  // so the server renders this branch only when one of these addresses is
+  // loaded or linked to from elsewhere. Full-window, every tab
+  // (shared/studioRoute).
   //
   // CHOSEN BY NAMING IT, NEVER BY EXCLUDING THE OTHERS. This used to be the
   // catch-all for every third segment not on a hand-typed list, so a segment
@@ -551,14 +528,16 @@ async function renderStudio(params) {
   // this file (testNoProjectScreenIsACatchAll).
   //
   // It rides the projects-list grant: the section must be visible to this person
-  // (its /board API re-checks server-side, and the write re-checks the edit
-  // right). A refusal falls THROUGH to the framed screens below, which already
-  // answer "not granted".
+  // (every tab's API re-checks its own right server-side, and the hub draws only
+  // the tabs /projects says this person may open). A refusal falls THROUGH to
+  // the framed screens below, which already answer "not granted".
   if (
-    requested === "projects-list" && segments[1] && segments[2] === "board" &&
+    requested === "projects-list" && segments[1] &&
+    (!segments[2] || segments[2] === "overview" || segments[2] === "board" || segments[2] === "costs" ||
+      segments[2] === "billing" || segments[2] === "reports" || segments[2] === "closure") &&
     sections.some((s) => s.key === "projects-list")
   ) {
-    return <StudioProjectBoard slug={studio.slug} projectId={segments[1]} />;
+    return <StudioProjectHub slug={studio.slug} projectId={segments[1]} />;
   }
 
   // A PROJECT'S PLAN — /<slug>/projects-list/<id>/plans/<planId>. The plan opens
@@ -668,32 +647,9 @@ async function renderStudio(params) {
   // /<slug>/projects-list/<id>/quotation is the Projects version — the
   // quotation's rows without prices, with the columns Projects owns.
   const projectQuotation = projectId && segments[2] === "quotation";
-  // THE PROJECT'S OWN PAGE — its Overview, the hub's first tab. The bare
-  // address lands here; /overview is the same screen, named, so a tab can link
-  // to it without special-casing the empty segment.
-  const projectOverview = projectId && (!segments[2] || segments[2] === "overview");
-  // AND A THIRD SEGMENT OPENS ITS COST BREAKDOWN:
-  // /<slug>/projects-list/<id>/costs is what the job is allowed to cost against
-  // what it has. It resolves through the same projects-list section, which now
-  // maps to `projects.costs` as well as `projects.list` — so somebody holding
-  // only the costs right can still reach the row this hangs off.
-  const projectCosts = projectId && segments[2] === "costs";
-  // AND A THIRD OPENS ITS PAYMENT SCHEDULE:
-  // /<slug>/projects-list/<id>/billing is what the job may be billed against
-  // what it has been. It resolves through the same projects-list section, which
-  // maps to `projects.billing` as well — so somebody holding only the billing
-  // right can still reach the row this hangs off.
-  const projectBilling = projectId && segments[2] === "billing";
-  // AND A FOURTH OPENS ITS DIARY: /<slug>/projects-list/<id>/reports is what
-  // happened on site each day. It resolves through the same projects-list
-  // section, which maps to `projects.reports` as well — so a site engineer
-  // holding only that right can still reach the row this hangs off, which is
-  // the whole reason it is a separate area.
-  const projectReports = projectId && segments[2] === "reports";
-  // AND A FIFTH CLOSES IT OUT: /<slug>/projects-list/<id>/closure is the punch
-  // list, practical completion and the support clock. It adds no permission
-  // key — closure IS a project's content, so it answers to `projects.list`.
-  const projectClosure = projectId && segments[2] === "closure";
+  // THE PROJECT'S OWN PAGE AND ITS TABS are the hub, returned above before the
+  // shell's screens are chosen (StudioProjectHub) — only the quotation viewer
+  // is still one of the framed screens below.
 
   // PROJECT SHEETS ARE INVENTORY'S, and the sub-section IS the workspace:
   // /<slug>/inventory-sheets opens it empty, and /<slug>/inventory-sheets/<id>
@@ -869,11 +825,6 @@ async function renderStudio(params) {
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} />
         : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" />
         : projectQuotation ? <StudioSheetViewer slug={studio.slug} projectId={projectId} perspective="projects" />
-        : projectOverview ? <StudioProjectOverview slug={studio.slug} projectId={projectId} />
-        : projectCosts ? <StudioProjectCosts slug={studio.slug} projectId={projectId} />
-        : projectBilling ? <StudioProjectBilling slug={studio.slug} projectId={projectId} />
-        : projectReports ? <StudioSiteReports slug={studio.slug} projectId={projectId} />
-        : projectClosure ? <StudioProjectClosure slug={studio.slug} projectId={projectId} />
         // EVERY ENGINE TYPE, BY PREFIX RATHER THAN BY KEY. A type declared this
         // morning renders this morning — naming them one by one here would put
         // the deploy back that a runtime engine was chosen to remove.
