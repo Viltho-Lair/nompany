@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { rememberLocale } from "@/lib/langCookie";
 
 // Hover-/focus-expandable language control. Collapsed it shows a globe icon +
 // the current language's short code; on hover (or keyboard focus) a small
 // dropdown reveals every language — mirroring the ThemeToggle interaction.
 //
-// Each option is either a Link (main site: navigating swaps the locale) or a
+// Each option is either a link (main site: a full load to the other locale) or a
 // button (Studio: a client-side dir/lang switch), decided by whether `href` is
 // present.
 //
@@ -90,10 +89,17 @@ export default function LangMenu({
                 )}
               </>
             );
+            // A PLAIN ANCHOR, NOT next/link. The root layout writes `lang` and
+            // `dir` onto <html> on the server, and a client navigation never
+            // re-renders the root layout — so after a Link from /ar to /en,
+            // <html> still said rtl, and every `rtl:` rule (which matches ANY
+            // rtl ancestor) kept drawing Arabic: the "Start free" arrow pointed
+            // left on the English page until a refresh. Changing language is a
+            // change of document direction, so it is a full document load.
             return o.href ? (
-              <Link key={o.code} href={o.href} onClick={() => choose(o)} className={cls}>
+              <a key={o.code} href={o.href} onClick={() => choose(o)} className={cls}>
                 {inner}
-              </Link>
+              </a>
             ) : (
               <button key={o.code} type="button" onClick={() => choose(o)} className={cls}>
                 {inner}
