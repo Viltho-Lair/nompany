@@ -60,7 +60,11 @@ export function MagneticButton({ children, onClick, href, variant = "primary", s
       {/* Label leans a touch further than the shell */}
       <motion.span className="relative z-10 flex items-center gap-2.5" style={{ x: labelX }}>
         {children}
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="transition-transform duration-300 ease-out group-hover:translate-x-1">
+        {/* THE ARROW POINTS WHERE THE READER IS GOING, which is left in Arabic.
+            It pointed right in both languages — backwards on every Arabic
+            button on the site. Mirrored with the same `rtl:-scale-x-100` every
+            other arrow here uses, and the hover nudge follows it. */}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="transition-transform duration-300 ease-out group-hover:translate-x-1 rtl:-scale-x-100 rtl:group-hover:-translate-x-1">
           <path d="M2.5 8h11m0 0L9 3.5M13.5 8L9 12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </motion.span>
