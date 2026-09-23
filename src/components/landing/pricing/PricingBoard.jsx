@@ -337,7 +337,7 @@ export function PricingBoard({ initial = null, locale = "en" }) {
 
                   <p className="mt-1 min-h-[3rem] text-xs text-fg-dim">
                     {plan.free
-                      ? COPY.freeNote
+                      ? COPY.freeNote(Number(plan.durationMonths) || 0)
                       : plan.invoicedMonthly
                         ? COPY.invoicedNote
                         : COPY.perMaxUsers.replace("{n}", String(bandMax))}

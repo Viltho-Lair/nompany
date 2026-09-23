@@ -51,7 +51,10 @@ type Strings = {
   pvTaxNote: (n: number) => string;
   pvEmployees: string;
   pvEyebrow: string;
-  pvFreeNote: string;
+  /** Under the free card's price, from the package's own `durationMonths`
+   *  (0 = endless). It said "Always free" and then "Free for 3 months" as
+   *  typed words; the length is set in /super and the card now follows it. */
+  pvFreeNote: (months: number) => string;
   pvFreePrice: string;
   pvGetStarted: string;
   pvIncludes: string;
@@ -137,7 +140,7 @@ const en: Strings = {
   pvTaxNote: (n) => `Prices exclude ${n}% sales tax, added at checkout.`,
   pvEmployees: "employees",
   pvEyebrow: "Pricing",
-  pvFreeNote: "Free for 3 months",
+  pvFreeNote: (m) => (m > 0 ? `Free for ${m === 1 ? "1 month" : `${m} months`}` : "Always free"),
   pvFreePrice: "Free",
   pvGetStarted: "Get Started",
   pvIncludes: "Includes",
@@ -214,7 +217,14 @@ const ar: Strings = {
   pvTaxNote: (n) => `الأسعار لا تشمل ضريبة المبيعات ${n}%، وتضاف عند الدفع.`,
   pvEmployees: "موظفا",
   pvEyebrow: "الأسعار",
-  pvFreeNote: "مجاني لمدة 3 أشهر",
+  // The numeral agrees with what it counts: one and two take their own
+  // forms, three to ten take the plural, eleven up the singular accusative.
+  pvFreeNote: (m) =>
+    m <= 0 ? "مجاني دائما"
+      : m === 1 ? "مجاني لمدة شهر واحد"
+        : m === 2 ? "مجاني لمدة شهرين"
+          : m <= 10 ? `مجاني لمدة ${m} أشهر`
+            : `مجاني لمدة ${m} شهرا`,
   pvFreePrice: "مجاني",
   pvGetStarted: "ابدأ الآن",
   pvIncludes: "يشمل",
