@@ -784,6 +784,8 @@ const AR_FIELD_LABELS: Record<string, string> = {
   "invoice.status": "الحالة",
   "invoice.notes": "ملاحظات",
   "invoice.currency": "العملة",
+  "invoice.einvoiceQr": "رمز QR للفاتورة الإلكترونية",
+  "invoice.einvoiceUuid": "رقم الفاتورة الإلكترونية",
   "invoice.lines": "بنود الفاتورة",
   "invoice.totals": "إجماليات الفاتورة",
 };
