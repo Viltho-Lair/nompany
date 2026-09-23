@@ -46,7 +46,7 @@ export default function PlanHistory({ planApiBase, onClose }) {
   };
 
   return (
-    <aside data-planner-chrome
+    <aside
       className="absolute inset-y-0 end-0 z-30 flex w-full max-w-md flex-col border-s border-slate-200 bg-white shadow-xl">
       <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 px-4 py-3">
         <h2 className="flex-1 text-[15px] font-semibold text-slate-900">{tr.history}</h2>

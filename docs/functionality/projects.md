@@ -171,7 +171,37 @@ apart in words rather than showing an identical blank grid: a sheet with a
 (`quotationNoPricedLines`); a sheet with none is a project raised directly,
 which can never fill from this screen (`noQuotationBehindProject`).
 
+## A plan prints as a page
+
+The planner's **Print** button opens the plan's print sheet in a new tab. The sheet prints
+itself once it has drawn, and **Print** and **Close** stay on screen afterwards. Every plan
+door has one beside it, matched by name in `page.js`:
+`/projects-list/<id>/plans/<planId>/print`, `/projects-planner/<planId>/print` and
+`/projects-planner/templates/<id>/print`. The sheet reads the same API as the planner, so
+the same grant governs it, and it never writes anything (`src/components/planner/PlanPrint.tsx`).
+
+**It is not the editor printed**, which is what Print used to do with `window.print()`
+and a block of print CSS. The editor is a fixed-width table that scrolls sideways
+beside a chart whose width is set in pixels by the zoom. On paper, the table's hidden
+columns ran across the chart, and the chart was cut at wherever it had been scrolled
+to. That fallback and its CSS are deleted. A planner with no sheet to open shows no
+Print button.
+
+The sheet is **one table on A4 landscape**. Each row carries the plan's chosen columns
+(WBS and name always), and its last cell draws the task's bar in **percent of the
+plan's span**. So the waterfall is as wide as the paper leaves it (never under 40%),
+and a row's text and its bar cannot come apart across a page break. No bar prints
+narrower than 4 px, or a one-day task on a months-long plan disappears under the
+today line. The header row repeats on every page. The time scale is chosen from the
+span rather than from the plan's zoom: days up to 45 days, weeks up to 240, months
+beyond that.
+
 ## Not built yet — do not assume otherwise
+
+- **The print sheet draws no dependency arrows**, because an arrow cannot cross a table
+  row; the Predecessors column carries the same links as text. It also prints **every**
+  row, collapsed or not, and ignores the editor's search filter. There is no choice of
+  paper size or orientation: an @page rule fixes A4 landscape.
 
 - **Attaching a quotation to an existing direct project is not written.**
   The sheets are keyed by `projectId`, not by a lineage the project carries

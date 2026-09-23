@@ -143,6 +143,10 @@ type Strings = CommonStrings & {
   predecessors: string;
   presets: string;
   printPlan: string;
+  // THE PRINT SHEET (PlanPrint) — the plan as a page, not the editor printed.
+  printPreparing: string;
+  printedOn: (date: string) => string;
+  printComplete: (pct: number) => string;
   priority: string;
   projectPlan: string;
   projectSchedules: string;
@@ -364,6 +368,9 @@ const en: Strings = {
   predecessors: "Predecessors",
   presets: "Presets",
   printPlan: "Print",
+  printPreparing: "Preparing the plan for printing…",
+  printedOn: (date) => `Printed ${date}`,
+  printComplete: (pct) => `${pct}% complete`,
   priority: "Priority",
   projectPlan: "Project plan",
   projectSchedules: "Project schedules across this studio",
@@ -605,6 +612,9 @@ const ar: Strings = {
   predecessors: "السوابق",
   presets: "الإعدادات الجاهزة",
   printPlan: "طباعة",
+  printPreparing: "جارٍ تجهيز المخطط للطباعة…",
+  printedOn: (date) => `طُبع في ${date}`,
+  printComplete: (pct) => `مُنجز ${pct}٪`,
   priority: "الأولوية",
   projectPlan: "خطة المشروع",
   projectSchedules: "جداول المشاريع في هذا الاستوديو",

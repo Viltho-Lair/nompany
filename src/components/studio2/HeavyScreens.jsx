@@ -75,6 +75,12 @@ export const StudioPlanner = nextDynamic(
   () => import("@/components/studio2/StudioPlanner"),
   { loading: () => <ScreenSkeleton /> },
 );
+// A plan's print sheet — the planner's store and scheduling engine without the
+// editor, reached only by pressing Print, so it is deferred like the rest.
+export const PlanPrint = nextDynamic(
+  () => import("@/components/planner/PlanPrint"),
+  { loading: () => <ScreenSkeleton /> },
+);
 export const StudioPlannerList = nextDynamic(
   () => import("@/components/studio2/StudioPlannerList"),
   { loading: () => <ScreenSkeleton /> },

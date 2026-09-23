@@ -27,17 +27,9 @@ import { TaskTable, TaskTableHeader } from './TaskTable';
 import { TemplateDialog } from './TemplateDialog';
 import { Toolbar } from './Toolbar';
 import { PlannerReadOnlyContext } from './ReadOnlyContext';
-import { cn, formatCurrency, formatMediumDate } from '@/components/planner/lib/utils';
+import { cn, formatCurrency, formatMediumDate, PROJECT_STATUS_META } from '@/components/planner/lib/utils';
 
 type ViewMode = 'split' | 'grid' | 'timeline';
-
-// The health key is stored on the plan; its name is copy.
-const PROJECT_STATUS = {
-  on_track: { labelKey: 'phOnTrack', dot: '#5DA283' },
-  at_risk: { labelKey: 'phAtRisk', dot: '#F1BD6C' },
-  off_track: { labelKey: 'phOffTrack', dot: '#F06A6A' },
-  on_hold: { labelKey: 'phOnHold', dot: '#9CA3AF' },
-} as const;
 
 // `studioSlug` is the tenant's address, and the planner asks for it for exactly
 // one reason: the availability strip reads two STUDIO-scoped routes
@@ -276,14 +268,16 @@ export function PlannerShell({
 
   const showGrid = view !== 'timeline';
   const showChart = view !== 'grid';
-  const statusMeta = PROJECT_STATUS[meta.status];
+  const statusMeta = PROJECT_STATUS_META[meta.status];
 
-  // PRINT — opens the plan's own printable page (WBS table beside the waterfall),
-  // which fires the print itself. A new tab, so the plan stays open behind it.
-  // Falls back to printing the current view if no print route was supplied.
+  // PRINT — opens the plan's own print sheet (PlanPrint: the WBS table beside a
+  // waterfall scaled to the paper), which fires the print itself. A new tab, so
+  // the plan stays open behind it. THERE IS NO window.print() FALLBACK any more:
+  // printing this screen put the table's hidden columns across the chart and cut
+  // the chart at whatever it was scrolled to, so a planner with no sheet to open
+  // shows no Print button rather than printing that.
   const handlePrint = () => {
-    if (printHref) window.open(printHref, '_blank');
-    else window.print();
+    if (printHref) window.open(printHref, '_blank', 'noopener');
   };
 
   // The store starts empty and is hydrated on the client, so the server and the
@@ -295,9 +289,9 @@ export function PlannerShell({
   return (
     <PlannerReadOnlyContext.Provider value={readOnly}>
     <TooltipProvider delayDuration={350}>
-      <div data-planner-print-root className="flex h-full min-h-0 flex-col overflow-hidden bg-[#F9FAFB]">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#F9FAFB]">
         {/* ============================ top bar ============================ */}
-        <header data-planner-chrome className="shrink-0 border-b border-slate-200 bg-white px-4 pt-2.5">
+        <header className="shrink-0 border-b border-slate-200 bg-white px-4 pt-2.5">
           <div className="flex items-center gap-3">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 text-white">
               <BarChart3 className="h-4 w-4" />
@@ -339,10 +333,12 @@ export function PlannerShell({
 
             <AvatarStack resources={assignedResources} size={26} max={4} />
 
-            <Button variant="outline" size="sm" onClick={handlePrint}>
-              <Printer className="h-3.5 w-3.5" />
-              {tr.printPlan}
-            </Button>
+            {printHref && (
+              <Button variant="outline" size="sm" onClick={handlePrint}>
+                <Printer className="h-3.5 w-3.5" />
+                {tr.printPlan}
+              </Button>
+            )}
 
             <Button variant="outline" size="sm" onClick={() => setTemplatesOpen(true)}>
               <LayoutTemplate className="h-3.5 w-3.5" />
@@ -385,14 +381,12 @@ export function PlannerShell({
         </header>
 
         {/* =========================== toolbar =========================== */}
-        <div data-planner-chrome className="contents">
-          <Toolbar
-            onToday={scrollToToday}
-            onOpenTemplates={() => setTemplatesOpen(true)}
-            search={search}
-            onSearch={setSearch}
-          />
-        </div>
+        <Toolbar
+          onToday={scrollToToday}
+          onOpenTemplates={() => setTemplatesOpen(true)}
+          search={search}
+          onSearch={setSearch}
+        />
 
         {/* ============================ panes ============================ */}
         <div className="flex min-h-0 flex-1">
@@ -417,7 +411,6 @@ export function PlannerShell({
                     <div
                       ref={gridBodyRef}
                       onScroll={onGridScroll}
-                      data-planner-pane
                       className={cn(
                         'min-h-0 flex-1 overflow-auto',
                         view === 'grid' ? 'planner-scroll' : 'no-scrollbar',
@@ -437,7 +430,6 @@ export function PlannerShell({
                 {view === 'split' && (
                   <div
                     onPointerDown={startResize}
-                    data-planner-chrome
                     className="group relative w-px shrink-0 cursor-col-resize bg-slate-200"
                   >
                     <div className="absolute inset-y-0 -inset-x-1 group-hover:bg-primary/20" />
@@ -457,7 +449,6 @@ export function PlannerShell({
                     <div
                       ref={chartBodyRef}
                       onScroll={onChartScroll}
-                      data-planner-pane
                       className="planner-scroll min-h-0 flex-1 overflow-auto"
                     >
                       <GanttBody
@@ -497,9 +488,7 @@ export function PlannerShell({
               />
             )}
 
-            <div data-planner-chrome className="contents">
-              <StatusBar schedule={schedule} />
-            </div>
+            <StatusBar schedule={schedule} />
           </main>
 
           {inspectorOpen && (

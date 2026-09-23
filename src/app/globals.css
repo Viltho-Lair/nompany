@@ -1463,43 +1463,6 @@ html.dark { color-scheme: dark; }
   transform: rotate(-30deg);
 }
 
-/* ---- planner print: a WBS-and-waterfall sheet --------------------------- */
-/* The project planner prints like a document (window.print over these rules):
-   every control is hidden and the two scrolling panes expand to their full
-   content, so the printed page is exactly the WBS grid beside the waterfall.
-   The Print button forces the split view first, so both panes are present. */
-@media print {
-  [data-planner-chrome] { display: none !important; }
-  [data-planner-print-root] {
-    position: static !important;
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-  /* The flex chain between the root and the panes is height-constrained on
-     screen (min-h-0 + flex-1); release it so nothing clips when printing. */
-  [data-planner-print-root] .min-h-0 {
-    min-height: 0 !important;
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-  [data-planner-pane] {
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-  /* The waterfall bars are background-coloured divs, and a browser drops
-     backgrounds when it prints — which left the printed waterfall blank. Force
-     the colours through so the bars actually appear on paper. */
-  [data-planner-print-root],
-  [data-planner-print-root] * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  body { background: #fff; }
-}
-
 /* ---- date field: no double placeholder --------------------------------- */
 /* The studio's <Field> draws its own floating label, so it renders the MUI date
    picker label-less. That defeats MUI's built-in rule that fades the dd/mm/yyyy

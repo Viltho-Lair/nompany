@@ -11,65 +11,7 @@ import {
   usePlannerStore,
   planDoc,
 } from "@/components/planner/lib/store/plannerStore";
-
-// A palette for the assignee chips — a person keeps the same colour every visit
-// because it is picked by a stable hash of their collaborator id, not their
-// position in the list.
-const AVATAR_COLORS = [
-  "#4573D2", "#5DA283", "#E8A33D", "#CD5B45", "#8B5CF6",
-  "#0EA5E9", "#DB2777", "#65A30D", "#0D9488", "#F59E0B",
-];
-
-function hashInt(s) {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-function initialsOf(name) {
-  const words = String(name).trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return "?";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
-
-// The studio's working week (Sunday-first {on,from,to} per day) as the planner's
-// calendar: which weekdays are worked, and the earliest-to-latest hour window
-// across them. Fed from the studio, never edited in the plan, so a plan can
-// never describe a different week from the studio's rota.
-const DAY_INDEX = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
-function hourOf(t, fallback) {
-  const n = parseInt(String(t || "").split(":")[0], 10);
-  return Number.isFinite(n) ? n : fallback;
-}
-export function calendarFromWorkWeek(workWeek) {
-  const open = Object.entries(workWeek || {}).filter(([, v]) => v?.on);
-  if (!open.length) return null; // nothing configured — keep the store default
-  const workingWeekdays = open
-    .map(([name]) => DAY_INDEX[name])
-    .filter((n) => n !== undefined)
-    .sort((a, b) => a - b);
-  const starts = open.map(([, v]) => hourOf(v.from, 9));
-  const ends = open.map(([, v]) => hourOf(v.to, 17));
-  const dayStartHour = Math.min(...starts);
-  const dayEndHour = Math.max(Math.max(...ends), dayStartHour + 1);
-  return { workingWeekdays, dayStartHour, dayEndHour };
-}
-
-// The studio's collaborators, shaped into the planner's Resource. A task stores
-// only the collaborator id in assigneeIds; everything else here is presentation
-// rebuilt each load, so renaming a person in the studio updates the plan.
-export function peopleToResources(people, tr) {
-  return (Array.isArray(people) ? people : []).map((p) => ({
-    id: p.id,
-    name: p.name || tr.unnamed,
-    initials: initialsOf(p.name || ""),
-    role: p.role || "member",
-    color: AVATAR_COLORS[hashInt(String(p.id)) % AVATAR_COLORS.length],
-    rate: 0,
-    capacity: 100,
-  }));
-}
+import { calendarFromWorkWeek, peopleToResources } from "@/components/planner/lib/studioSeam";
 
 // THE FULL-SCREEN PLANNER. One component serves both doors: the Operations
 // `/projects-planner` app and a plan opened from a project. It renders OUTSIDE
@@ -107,7 +49,10 @@ const PlanHistory = nextDynamic(() => import("@/components/studio2/PlanHistory")
 // nothing to do with this plan, and pulling the slug back out of `planApiBase`
 // with a regex would be a second, silent parser for an address we are already
 // holding one component higher up.
-export default function StudioPlanner({ planApiBase, slug, backHref, backLabel }) {
+// `printHref` is the plan's print sheet (PlanPrint), a page of its own rather
+// than window.print() over the editor: the editor is two scrolling panes laid
+// out for a screen, and no amount of print CSS turns it into a page.
+export default function StudioPlanner({ planApiBase, slug, backHref, backLabel, printHref }) {
   const hydratePlan = usePlannerStore((s) => s.hydratePlan);
   const setResources = usePlannerStore((s) => s.setResources);
   const setCalendar = usePlannerStore((s) => s.setCalendar);
@@ -216,9 +161,9 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel }
   }, [state.loading, state.canEdit, planApiBase]);
 
   return (
-    <div data-planner-print-root className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-white">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-white">
       {/* ---- back bar: nompany chrome around the ported app ---- */}
-      <header data-planner-chrome className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
+      <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
         <Link
           href={backHref}
           className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
@@ -258,12 +203,12 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel }
           viewer makes would apply on screen and then vanish on reload, so it is
           better to say up front that nothing here is being kept. */}
       {!state.loading && !state.error && !state.canEdit && (
-        <div data-planner-chrome className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-800">
+        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-800">
           {tr.viewOnlyAccessPlan}
         </div>
       )}
       {!state.loading && state.canEdit && saveFailed && (
-        <div data-planner-chrome className="shrink-0 border-b border-rose-200 bg-rose-50 px-4 py-2 text-center text-xs font-semibold text-rose-700">
+        <div className="shrink-0 border-b border-rose-200 bg-rose-50 px-4 py-2 text-center text-xs font-semibold text-rose-700">
           {tr.lastChangeNotSaved}
         </div>
       )}
@@ -283,7 +228,7 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel }
               </p>
             </div>
           ) : (
-            <PlannerShell readOnly={!state.canEdit} studioSlug={slug} />
+            <PlannerShell readOnly={!state.canEdit} studioSlug={slug} printHref={printHref} />
           )}
         </div>
       </div>

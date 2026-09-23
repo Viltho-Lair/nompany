@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import type { ColorBy, ComputedTask, Resource, TaskStatus } from '@/components/planner/lib/types';
+import type { ColorBy, ComputedTask, ProjectMeta, Resource, TaskStatus } from '@/components/planner/lib/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -41,6 +41,34 @@ export const STATUS_META: Record<
     chip: 'bg-emerald-50 text-emerald-700',
   },
 };
+
+// The plan's own health, keyed by the stored value; its name is copy. Shared by
+// the editor's header and the print sheet, so the two cannot colour it apart.
+export const PROJECT_STATUS_META: Record<ProjectMeta['status'], { labelKey: string; dot: string }> = {
+  on_track: { labelKey: 'phOnTrack', dot: '#5DA283' },
+  at_risk: { labelKey: 'phAtRisk', dot: '#F1BD6C' },
+  off_track: { labelKey: 'phOffTrack', dot: '#F06A6A' },
+  on_hold: { labelKey: 'phOnHold', dot: '#9CA3AF' },
+};
+
+// Predecessors written the way a planner writes them: "1.2FS+2, 3". FS is the
+// default and is left unsaid; a link to a task that no longer exists is dropped
+// here (the engine reports it as an issue). The editor's cell and the print
+// sheet both read this, so the text on paper is the text that was typed.
+export function dependencyExpression(
+  task: Pick<ComputedTask, 'dependencies'>,
+  byId: Map<string, Pick<ComputedTask, 'wbs'>>,
+): string {
+  return task.dependencies
+    .map((d) => {
+      const pred = byId.get(d.predecessorId);
+      if (!pred) return null;
+      const lag = d.lag ? (d.lag > 0 ? `+${d.lag}` : `${d.lag}`) : '';
+      return `${pred.wbs}${d.type === 'FS' ? '' : d.type}${lag}`;
+    })
+    .filter(Boolean)
+    .join(', ');
+}
 
 // KEYED BY THE STORED PRIORITY. The chip is styling and the label is copy, so
 // only the label leaves the file.

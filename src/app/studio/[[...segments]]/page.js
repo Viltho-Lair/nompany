@@ -53,7 +53,7 @@ import { log } from "@/platform/http/observability";
 // screens below are unchanged because their weight has not been measured yet,
 // and moving code on a hunch is how the last split came to look like it worked.
 import {
-  DocumentList, DocumentView, DocumentPrint, StudioPlanner, StudioPlannerList, StudioPos,
+  DocumentList, DocumentView, DocumentPrint, StudioPlanner, StudioPlannerList, PlanPrint, StudioPos,
   PosDashboard, StudioPosSales, StudioPosShifts, StudioPosSettings, StudioPosReturns, StudioPosPromotions,
 } from "@/components/studio2/HeavyScreens";
 
@@ -565,15 +565,22 @@ async function renderStudio(params) {
   // full-screen in the planner, reached through the PROJECT'S grant, so no
   // Operations access is needed to see (or, for a project editor, work on) it.
   // Back goes to the project's board.
+  //
+  // EVERY PLAN DOOR HAS A /print BESIDE IT — the plan as a page (PlanPrint),
+  // reading the same API the planner reads, so the same grant governs it. It is
+  // matched by NAMING the segment, like the board above, never by exclusion.
   if (
     requested === "projects-list" && segments[1] && segments[2] === "plans" && segments[3] &&
     sections.some((s) => s.key === "projects-list")
   ) {
     const planApiBase = `/api/studios/${studio.slug}/projects/${segments[1]}/plans/${segments[3]}`;
+    const planHref = `/${studio.slug}/projects-list/${segments[1]}/plans/${segments[3]}`;
+    if (segments[4] === "print") return <PlanPrint planApiBase={planApiBase} />;
     return (
       <StudioPlanner
         slug={studio.slug}
         planApiBase={planApiBase}
+        printHref={`${planHref}/print`}
         backHref={`/${studio.slug}/projects-list/${segments[1]}`}
         backLabel={shellDict(locale).backToProject}
       />
@@ -589,10 +596,13 @@ async function renderStudio(params) {
     // A WBS TEMPLATE, edited in the planner — /projects-planner/templates/<id>.
     // It IS the planner, pointed at the template document instead of a plan.
     if (segments[1] === "templates" && segments[2]) {
+      const templateApiBase = `/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`;
+      if (segments[3] === "print") return <PlanPrint planApiBase={templateApiBase} />;
       return (
         <StudioPlanner
           slug={studio.slug}
-          planApiBase={`/api/studios/${studio.slug}/operations/planner/templates/${segments[2]}`}
+          planApiBase={templateApiBase}
+          printHref={`/${studio.slug}/projects-planner/templates/${segments[2]}/print`}
           backHref={`/${studio.slug}/projects-planner`}
           backLabel={shellDict(locale).backToPlanner}
         />
@@ -612,11 +622,13 @@ async function renderStudio(params) {
     }
     const planId = segments[1] || "";
     const planApiBase = `/api/studios/${studio.slug}/operations/planner/${planId}`;
+    if (planId && segments[2] === "print") return <PlanPrint planApiBase={planApiBase} />;
     return planId
       ? (
         <StudioPlanner
           slug={studio.slug}
           planApiBase={planApiBase}
+          printHref={`/${studio.slug}/projects-planner/${planId}/print`}
           backHref={`/${studio.slug}/projects-planner`}
           backLabel={shellDict(locale).backToPlanner}
         />

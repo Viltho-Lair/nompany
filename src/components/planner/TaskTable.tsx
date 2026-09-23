@@ -29,7 +29,7 @@ import {
 } from '@/components/planner/lib/store/plannerStore';
 import { ROW_HEIGHT } from '@/components/planner/lib/timeline';
 import { usePlannerReadOnly } from './ReadOnlyContext';
-import { cn } from '@/components/planner/lib/utils';
+import { cn, dependencyExpression } from '@/components/planner/lib/utils';
 import { Tooltip } from '@/components/planner/ui/primitives';
 import {
   AssigneeCell,
@@ -125,7 +125,6 @@ function AddRowButton() {
   return (
     <button
       type="button"
-      data-planner-chrome
       onClick={() => {
         // A MAJOR TASK — top-level, so it takes the next whole WBS number (1, 2,
         // 3…). Passing null appends a task with no parent; sub-tasks (1.1, 1.2…)
@@ -172,17 +171,8 @@ const Row = React.memo(function Row({
 
   // Predecessors are shown the way a planner writes them: "1.2FS+2, 3"
   const depExpression = React.useMemo(
-    () =>
-      task.dependencies
-        .map((d) => {
-          const pred = schedule.byId.get(d.predecessorId);
-          if (!pred) return null;
-          const lag = d.lag ? (d.lag > 0 ? `+${d.lag}` : `${d.lag}`) : '';
-          return `${pred.wbs}${d.type === 'FS' ? '' : d.type}${lag}`;
-        })
-        .filter(Boolean)
-        .join(', '),
-    [task.dependencies, schedule.byId],
+    () => dependencyExpression(task, schedule.byId),
+    [task, schedule.byId],
   );
 
   return (
