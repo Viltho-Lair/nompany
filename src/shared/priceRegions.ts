@@ -241,6 +241,9 @@ export function regionChangeProblem(input: {
   return now - since < REGION_CHANGE_DAYS * 86_400_000 ? "too-soon" : "";
 }
 
+/** Where nompany is and where its invoices are declared — the region the console opens on. */
+export const HOME_COUNTRY = "JO";
+
 // ---- the regions a catalogue starts with ------------------------------------
 
 /**
@@ -261,7 +264,7 @@ export function regionChangeProblem(input: {
 const EURO_AREA = "AD AT AX BE CY DE EE ES FI FR GF GP GR HR IE IT LT LU LV MC ME MF MQ MT NL PM PT RE SI SK SM VA XK YT";
 
 export const SEED_REGIONS: Omit<PriceRegion, "createdAt" | "updatedAt">[] = [
-  { id: "rgn_jo", name: "Jordan", nameAr: "الأردن", currency: "JOD", countries: ["JO"] },
+  { id: "rgn_jo", name: "Jordan", nameAr: "الأردن", currency: "JOD", countries: [HOME_COUNTRY] },
   { id: "rgn_sa", name: "Saudi Arabia", nameAr: "السعودية", currency: "SAR", countries: ["SA"] },
   { id: "rgn_ae", name: "United Arab Emirates", nameAr: "الإمارات", currency: "AED", countries: ["AE"] },
   { id: "rgn_qa", name: "Qatar", nameAr: "قطر", currency: "QAR", countries: ["QA"] },

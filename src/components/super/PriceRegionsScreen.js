@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Card, CardHead, CardBody, Table, Button, Badge } from "@/app/super/_components/ui";
+import { Card, CardHead, CardBody, Table, Button, Badge, Skeleton } from "@/app/super/_components/ui";
 import { useReload } from "@/components/studio2/useReload";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
-import { priceKey, regionalPrice, totalFor } from "@/shared/priceRegions";
+import { HOME_COUNTRY, priceKey, regionalPrice, totalFor } from "@/shared/priceRegions";
 
 // REGIONAL PRICING — where a package costs what (23/09/2026, the owner, after
 // Steam). A region is a set of countries sharing one currency; every package,
@@ -24,6 +24,12 @@ const input = "ad-input";
 const label = "ad-label";
 const muted = "text-sm text-[var(--ad-muted-foreground)]";
 
+// Shared by the loading frame and the loaded card, so the two cannot disagree.
+const REGIONS_SUB = "Each region has one currency and its own prices. A country no region names is priced in the default region.";
+const REGION_HEAD = ["Region", "Currency", "Countries", "Price level", ""];
+
+const TABS = [{ id: "package", label: "Packages" }, { id: "tier", label: "Tiers" }];
+
 const REFUSALS = {
   taken: (b) => `${b.country} is already in ${b.region}. A country can be in one region only.`,
   "default-required": () => "One region must stay the default — mark another region as the default first.",
@@ -36,13 +42,13 @@ function priceRows(packages, tiers) {
   for (const p of packages) {
     if (p.type === "compound" && p.categories.length) {
       for (const c of p.categories) {
-        rows.push({ key: priceKey.band(p.id, c.id), item: p.name, part: c.label || `${c.maxEmployees} employees`, base: c.costPerEmployee, max: c.maxEmployees, unit: "per employee", isPublic: p.isPublic });
+        rows.push({ kind: "package", key: priceKey.band(p.id, c.id), item: p.name, part: c.label || `${c.maxEmployees} employees`, base: c.costPerEmployee, max: c.maxEmployees, unit: "per employee", isPublic: p.isPublic });
       }
     } else {
-      rows.push({ key: priceKey.package(p.id), item: p.name, part: "", base: p.costPerEmployee, max: p.maxEmployees, unit: "per employee", isPublic: p.isPublic });
+      rows.push({ kind: "package", key: priceKey.package(p.id), item: p.name, part: "", base: p.costPerEmployee, max: p.maxEmployees, unit: "per employee", isPublic: p.isPublic });
     }
   }
-  for (const t of tiers) rows.push({ key: priceKey.tier(t.id), item: t.name, part: "Tier", base: t.cost, max: 0, unit: "per month", isPublic: t.isPublic });
+  for (const t of tiers) rows.push({ kind: "tier", key: priceKey.tier(t.id), item: t.name, part: "", base: t.cost, max: 0, unit: "per month", isPublic: t.isPublic });
   return rows;
 }
 
@@ -56,7 +62,12 @@ export default function PriceRegionsScreen() {
     if (!res.ok) { setError("Couldn't load the regions."); return; }
     const d = await res.json();
     setData(d);
-    setSelectedId((id) => (d.regions.some((r) => r.id === id) ? id : d.regions[0]?.id || ""));
+    // OPENS ON NOMPANY'S OWN REGION — the one holding Jordan — rather than on
+    // whichever row the stored list happens to start with. The list's order is
+    // just the order regions were written in, and opening on it meant the page
+    // could greet the owner with, say, Europe's euro prices.
+    const home = d.regions.find((r) => r.countries.includes(HOME_COUNTRY)) || d.regions.find((r) => r.isDefault) || d.regions[0];
+    setSelectedId((id) => (d.regions.some((r) => r.id === id) ? id : home?.id || ""));
   }, []);
   useReload(load);
 
@@ -71,7 +82,62 @@ export default function PriceRegionsScreen() {
     return body;
   }
 
-  if (!data) return <Card><CardBody><p className={muted}>{error || "Loading…"}</p></CardBody></Card>;
+  // THE FRAMES BEFORE THE DATA, the console's loading rule (dashboard/loading.js,
+  // users/loading.js). This screen used to show one card saying "Loading…" and
+  // then build the whole page at once. The Regions card, its column heads and
+  // the two cards under it are known before the fetch answers, so they render
+  // now and only their contents wait, in boxes the real rows then fill.
+  if (!data) {
+    return (
+      <div className="space-y-6" aria-busy={!error}>
+        <Card>
+          <CardHead title="Regions" sub={REGIONS_SUB} action={<Button size="sm" disabled>Add region</Button>} />
+          <CardBody full>
+            {error ? (
+              <p className={`p-5 text-sm text-[var(--ad-destructive-ink)]`} role="alert">{error}</p>
+            ) : (
+              <Table head={REGION_HEAD} caption="Loading regions">
+                {[0, 1, 2].map((i) => (
+                  <tr key={i}>
+                    <td><Skeleton className="skel-text h-3 w-28" /></td>
+                    <td><Skeleton className="skel-text h-3 w-10" /></td>
+                    <td><Skeleton className="skel-text h-3 w-40" /></td>
+                    <td><Skeleton className="skel-text h-3 w-10" /></td>
+                    <td />
+                  </tr>
+                ))}
+              </Table>
+            )}
+          </CardBody>
+        </Card>
+        {!error && (
+          <>
+            <Card>
+              <CardHead title={<Skeleton className="skel-text h-4 w-32" />} sub="Who this region is and what currency it charges in." />
+              <CardBody>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i}>
+                      <Skeleton className="skel-text h-2.5 w-20" />
+                      <Skeleton className="mt-2 h-10 w-full rounded-md" />
+                    </div>
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
+            <Card>
+              <CardHead title={<Skeleton className="skel-text h-4 w-36" />} sub={<Skeleton className="skel-text mt-1 h-2.5 w-72" />} />
+              <CardBody full>
+                <div className="space-y-3 p-5" aria-hidden="true">
+                  {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full rounded-md" />)}
+                </div>
+              </CardBody>
+            </Card>
+          </>
+        )}
+      </div>
+    );
+  }
 
   const region = data.regions.find((r) => r.id === selectedId) || null;
 
@@ -80,7 +146,7 @@ export default function PriceRegionsScreen() {
       <Card>
         <CardHead
           title="Regions"
-          sub={`Each region has one currency and its own prices. A country no region names is priced in the default region. Prices are before ${data.taxPercent}% tax.`}
+          sub={`${REGIONS_SUB} Prices are before ${data.taxPercent}% tax.`}
           action={(
             <Button size="sm" onClick={async () => {
               const out = await send("POST", { name: "New region", currency: data.baseCurrency });
@@ -89,7 +155,7 @@ export default function PriceRegionsScreen() {
           )}
         />
         <CardBody full>
-          <Table head={["Region", "Currency", "Countries", "Price level", ""]}>
+          <Table head={REGION_HEAD}>
             {data.regions.map((r) => (
               <tr key={r.id} onClick={() => setSelectedId(r.id)}
                 className={`cursor-pointer ${r.id === selectedId ? "bg-[color-mix(in_oklab,var(--ad-primary)_8%,transparent)]" : ""}`}>
@@ -183,14 +249,21 @@ function PriceTable({ region, data, onSave }) {
   // "use the suggestion", and saving an emptied box removes the fixed price.
   const [typed, setTyped] = useState(() => Object.fromEntries(rows.map((r) => [r.key, region.prices[r.key] ?? ""])));
   const [busy, setBusy] = useState(false);
+  // PACKAGES AND TIERS ON TWO TABS, not one table (the owner, 23/09/2026). They
+  // are priced differently — per employee against per month — and one list
+  // mixing them read as a single price sheet. What is typed on either tab is
+  // kept while you switch, and one Save sends both.
+  const [tab, setTab] = useState("package");
+  const shown = rows.filter((r) => r.kind === tab);
 
   const suggestion = (r) => regionalPrice({ region: { ...region, prices: {} }, key: r.key, baseAmount: r.base, rate });
   const changed = rows.filter((r) => String(typed[r.key] ?? "") !== String(region.prices[r.key] ?? ""));
 
+  // The tab on screen only: a button should not change prices you cannot see.
   function fillSuggestions() {
     setTyped((t) => {
       const next = { ...t };
-      for (const r of rows) {
+      for (const r of shown) {
         const s = suggestion(r);
         if (next[r.key] === "" && s) next[r.key] = s.amount;
       }
@@ -219,11 +292,27 @@ function PriceTable({ region, data, onSave }) {
         )}
       />
       <CardBody full>
-        {rows.length === 0 ? (
-          <p className={`p-5 ${muted}`}>No packages or tiers yet — add them on the Packages and Tiers screens first.</p>
+        <div role="tablist" aria-label="Price list" className="mx-5 mt-4 inline-flex rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)] p-1">
+          {TABS.map((t) => {
+            const edits = changed.filter((r) => r.kind === t.id).length;
+            return (
+              <button
+                key={t.id} type="button" role="tab" aria-selected={tab === t.id}
+                onClick={() => setTab(t.id)}
+                className={`rounded-lg px-3.5 py-1.5 text-sm font-600 transition-colors ${
+                  tab === t.id ? "bg-[var(--ad-primary)] text-[var(--ad-primary-foreground)]" : "text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)]"
+                }`}
+              >
+                {t.label}{edits ? ` (${edits})` : ""}
+              </button>
+            );
+          })}
+        </div>
+        {shown.length === 0 ? (
+          <p className={`p-5 ${muted}`}>{tab === "tier" ? "No tiers yet — add them on the Tiers screen first." : "No packages yet — add them on the Packages screen first."}</p>
         ) : (
-          <Table head={["Item", `Base (${data.baseCurrency})`, `Suggested (${region.currency})`, `Price (${region.currency})`, "Monthly total", ""]}>
-            {rows.map((r) => {
+          <Table className="mt-4" head={["Item", `Base (${data.baseCurrency})`, `Suggested (${region.currency})`, `Price (${region.currency})`, tab === "tier" ? "Per month" : "Monthly total", ""]}>
+            {shown.map((r) => {
               const s = suggestion(r);
               const value = typed[r.key];
               const effective = value === "" ? s?.amount ?? null : Number(value);
