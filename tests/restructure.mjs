@@ -1508,6 +1508,41 @@ export async function testEveryConsoleDestinationResolvesToARoute(t) {
     t.equal(routes.has(path), true, `${path} resolves to a page`);
   }
 
+  // AND THE SAME QUESTION ASKED OF THE REST OF THE TREE. The scan above reads
+  // `${BASE}` templates under src/app/super, which is every destination the
+  // console DRAWS — and none of the ones it SENDS. A console notification
+  // carries a plain `/super/...` string written in a server module (notifySuper,
+  // in chat/studios/users), so the bell's destinations sat outside this guard
+  // entirely: all five still pointed into `/super/application/*`, the reference
+  // admin template's route group, deleted 07/09/2026 with the other forty demo
+  // routes. Every notice the console raised after that day — a chat request, a
+  // new studio, a signup — opened a 404 from both the bell and the notifications
+  // tab, and nothing could report it, because a dead href is legal everywhere
+  // and a notification nobody clicks looks exactly like one that works. A sixth
+  // came out with them: the questionnaire rail's "Console" link, aimed at
+  // `/super/dashboard/analytics`, a page that has never existed here.
+  //
+  // An interpolated segment truncates the capture, so `/super/questionnaires/
+  // ${id}/responses` is checked as its static prefix `/super/questionnaires` —
+  // the same compromise the BASE scan makes, for the same reason.
+  const walkAll = (dir) => readdirSync(dir).flatMap((name) => {
+    const full = `${dir}/${name}`;
+    return statSync(full).isDirectory() ? walkAll(full) : [full];
+  });
+  const sent = new Set();
+  for (const f of walkAll("src").filter((n) => /\.(js|jsx|ts|tsx)$/.test(n))) {
+    const code = readFileSync(f, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    for (const [, path] of code.matchAll(/["'`](\/super\/[^"'`?#${}\s]*)/g)) {
+      sent.add(path.replace(/\/+$/, ""));
+    }
+  }
+  t.equal(sent.size > 0, true, "something outside the console links into it");
+  for (const path of [...sent].sort()) {
+    t.equal(routes.has(path), true, `${path} is sent somewhere and resolves to a page`);
+  }
+
   // The bug itself, named: this is where sign-in lands, and it must not 404.
   // SIGN-IN LANDS ON PULSE since 10/09/2026 — the owner's instruction — and both
   // doors (`(full)/page.js` and SignIn) name it. /super/dashboard is a real screen

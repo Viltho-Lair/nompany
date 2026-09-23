@@ -64,7 +64,7 @@ export async function createUser(
       type: PLATFORM.userSignedUp,
       title: "New user signed up",
       body: mail,
-      href: "/super/application/users",
+      href: "/super/users",
       refId: id,
     });
     return { user };

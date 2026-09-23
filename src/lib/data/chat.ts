@@ -121,14 +121,14 @@ export async function openRoom(
     type: PLATFORM.chatWaiting,
     title: "Someone is waiting in chat",
     body: `${room.userName} — ${room.studioName}`,
-    href: "/super/application/chat",
+    href: "/super/chat",
     refId: room.id,
   });
   await notifySuper({
     type: NOTIFY.system,
     title: "Live chat request",
     body: `${room.userName} from ${room.studioName} is waiting.`,
-    href: "/super/application/chat",
+    href: "/super/chat",
     tone: "warning",
   });
 

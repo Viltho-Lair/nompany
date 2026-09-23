@@ -463,14 +463,14 @@ export async function createStudio(
       type: PLATFORM.studioCreated,
       title: "New studio registered",
       body: `${cleanName} (/${cleanSlug}) completed onboarding.`,
-      href: `/super/application/studios`,
+      href: `/super/studios`,
       refId: id,
     });
     await notifySuper({
       type: NOTIFY.system,
       title: "New studio registered",
       body: `${cleanName} — nompany.com/${cleanSlug}`,
-      href: `/super/application/studios`,
+      href: `/super/studios`,
       tone: "success",
     });
 
