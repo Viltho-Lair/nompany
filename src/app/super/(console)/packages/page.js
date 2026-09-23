@@ -31,7 +31,7 @@ const FIELDS = [
   { key: "type", label: "Card type", type: "select", options: TYPES },
   { key: "popular", label: "Most popular", type: "switch", hint: "The badge. Give it to one package only." },
 
-  { key: "tagline", label: "Tagline", type: "text", placeholder: "Small companies — 10 to 49 employees." },
+  { key: "tagline", label: "Tagline", type: "text", placeholder: "Small companies — 5 to 49 employees." },
   { key: "taglineAr", label: "Tagline (Arabic)", type: "text" },
   { key: "usersLabel", label: "Users line", type: "text", placeholder: "10–49 users" },
   { key: "usersLabelAr", label: "Users line (Arabic)", type: "text" },
@@ -81,7 +81,7 @@ const FIELDS = [
     hint: "Coupon codes, tiered ladders and day-and-hour schedules. Off, a studio writes plain offers only; offers it already has keep working.",
   },
 
-  { key: "includes", label: "Includes", type: "lines", placeholder: "Full platform — every department\nUp to 9 employees\nEnglish & Arabic, RTL-ready" },
+  { key: "includes", label: "Includes", type: "lines", placeholder: "Full platform — every department\nUp to 4 employees\nEnglish & Arabic, RTL-ready" },
   { key: "includesAr", label: "Includes (Arabic)", type: "lines" },
 
   { key: "color", label: "Colour", type: "color", hint: "Pick any colour, or start from one of the four." },

@@ -43,12 +43,12 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
     en: {
       title: "Run your company's whole operation from one platform",
       description:
-        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics. Free for the first 3 months for teams of one to nine; paid plans from ten people up.",
+        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics. Free for the first 3 months for teams of one to four; paid plans from five people up.",
     },
     ar: {
       title: "أدر عمليات شركتك بالكامل من منصة واحدة",
       description:
-        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. مجاني لأول 3 أشهر للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر.",
+        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. مجاني لأول 3 أشهر للفرق من واحد إلى أربعة، وخطط مدفوعة من خمسة أفراد فأكثر.",
     },
   },
   "/platform": {
@@ -70,14 +70,14 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
   },
   "/pricing": {
     en: {
-      title: "Pricing — free for 3 months for teams of one to nine",
+      title: "Pricing — free for 3 months for teams of one to four",
       description:
-        "One price per employee per month. Free for the first 3 months for teams of one to nine; paid plans from ten people up. Every plan carries the whole product.",
+        "One price per employee per month. Free for the first 3 months for teams of one to four; paid plans from five people up. Every plan carries the whole product.",
     },
     ar: {
-      title: "الأسعار — أول 3 أشهر مجانا للفرق من واحد إلى تسعة",
+      title: "الأسعار — أول 3 أشهر مجانا للفرق من واحد إلى أربعة",
       description:
-        "سعر واحد لكل موظف شهريا. مجاني لأول 3 أشهر للفرق من واحد إلى تسعة، وخطط مدفوعة من عشرة أفراد فأكثر. كل خطة تحمل المنتج كاملا.",
+        "سعر واحد لكل موظف شهريا. مجاني لأول 3 أشهر للفرق من واحد إلى أربعة، وخطط مدفوعة من خمسة أفراد فأكثر. كل خطة تحمل المنتج كاملا.",
     },
   },
   "/security": {
@@ -100,12 +100,12 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
     en: {
       title: "Contact — ask a question, reach a person",
       description:
-        "There is no demo to book: the free tier is the whole product. Send a question and it reaches a mailbox somebody reads — support for teams under ten, sales from ten people up.",
+        "There is no demo to book: the free tier is the whole product. Send a question and it reaches a mailbox somebody reads — support for teams under five, sales from five people up.",
     },
     ar: {
       title: "تواصل معنا — اسأل وتصل رسالتك الى شخص",
       description:
-        "لا يوجد عرض توضيحي تحجزه، فالخطة المجانية هي المنتج كاملا. ارسل سؤالك ليصل الى صندوق بريد يقرأه شخص — الدعم للفرق دون العشرة، والمبيعات من عشرة افراد فاكثر.",
+        "لا يوجد عرض توضيحي تحجزه، فالخطة المجانية هي المنتج كاملا. ارسل سؤالك ليصل الى صندوق بريد يقرأه شخص — الدعم للفرق دون الخمسة، والمبيعات من خمسة افراد فاكثر.",
     },
   },
   "/about": {

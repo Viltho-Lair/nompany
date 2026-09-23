@@ -112,8 +112,8 @@ export function PricingTeaser({ locale }: { locale: string }) {
             table the app bills against — this page cannot quote a price the
             product does not charge. */}
         <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm text-fg-muted">
-          <span>{claimText("free-under-ten", locale)}</span>
-          <span>{claimText("paid-from-ten", locale)}</span>
+          <span>{claimText("free-tier", locale)}</span>
+          <span>{claimText("paid-plans", locale)}</span>
         </div>
 
         <div className="mt-8 flex flex-wrap items-center gap-3">

@@ -41,7 +41,7 @@ const en: AboutStrings = {
   lead: "A small company building one system for the work a company actually does.",
   whatHeading: "What we make",
   whatBody:
-    "nompany is an ERP: one place for sales and quotations, tendering, projects, engineering documents, procurement, inventory, manufacturing, field service, logistics, assets and maintenance, quality and safety, people, finance, marketing, a point of sale and reporting — with a single data model underneath, so what one team enters the next one already has. It is built for small and medium companies across the region, in Arabic and English, and the first 3 months are free for teams of one to nine.",
+    "nompany is an ERP: one place for sales and quotations, tendering, projects, engineering documents, procurement, inventory, manufacturing, field service, logistics, assets and maintenance, quality and safety, people, finance, marketing, a point of sale and reporting — with a single data model underneath, so what one team enters the next one already has. It is built for small and medium companies across the region, in Arabic and English, and the first 3 months are free for teams of one to four.",
   fitHeading: "How it fits your company",
   fitBody:
     "You choose which departments you run when you set up, and your field of work fills in the first answers — a contractor starts differently from a clinic or a shop, and anything left off can be switched on later. Your org chart and the roles in it start from your own trade rather than a generic list, every right can be narrowed to a single action, and approvals follow the limits you set. Each person works in the language they choose, Arabic or English, fully right-to-left or left-to-right.",
@@ -61,7 +61,7 @@ const ar: AboutStrings = {
   lead: "شركة صغيرة تبني نظاما واحدا للعمل الذي تقوم به الشركات فعلا.",
   whatHeading: "ما الذي نصنعه",
   whatBody:
-    "نومباني نظام تخطيط موارد: مكان واحد للمبيعات وعروض الأسعار والمناقصات والمشاريع والوثائق الهندسية والمشتريات والمخزون والتصنيع والخدمة الميدانية والخدمات اللوجستية والأصول والصيانة والجودة والسلامة والموارد البشرية والمالية والتسويق ونقاط البيع والتقارير، بنموذج بيانات واحد تحته، فما يدخله فريق يجده الفريق التالي جاهزا. مبني للشركات الصغيرة والمتوسطة في المنطقة، بالعربية والإنجليزية، وأول 3 أشهر مجانا للفرق من واحد إلى تسعة.",
+    "نومباني نظام تخطيط موارد: مكان واحد للمبيعات وعروض الأسعار والمناقصات والمشاريع والوثائق الهندسية والمشتريات والمخزون والتصنيع والخدمة الميدانية والخدمات اللوجستية والأصول والصيانة والجودة والسلامة والموارد البشرية والمالية والتسويق ونقاط البيع والتقارير، بنموذج بيانات واحد تحته، فما يدخله فريق يجده الفريق التالي جاهزا. مبني للشركات الصغيرة والمتوسطة في المنطقة، بالعربية والإنجليزية، وأول 3 أشهر مجانا للفرق من واحد إلى أربعة.",
   fitHeading: "كيف يناسب شركتك",
   fitBody:
     "تختار الأقسام التي تعمل بها عند الإعداد، ومجال عملك يملأ الإجابات الأولى — فالمقاول يبدأ بشكل مختلف عن العيادة أو المتجر، وما تركته يمكن تفعيله لاحقا. وهيكلك التنظيمي والأدوار فيه تبدأ من مجالك لا من قائمة عامة، وكل صلاحية يمكن حصرها في إجراء واحد، والاعتمادات تتبع الحدود التي تضعها. وكل شخص يعمل باللغة التي يختارها، العربية أو الإنجليزية، من اليمين إلى اليسار أو العكس بالكامل.",

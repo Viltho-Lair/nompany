@@ -6,7 +6,7 @@ import { SITE } from "@/platform/db/keys";
    WHAT THIS EXISTS TO PREVENT. The site carried "180+ connectors", "99.99%
    uptime" and "3.2M transactions a day", none of which anything computed. They
    were removed rather than corrected, and the pages have shown product facts
-   since — fifteen departments, free to nine people, Arabic and English. Those
+   since — fifteen departments, free to four people, Arabic and English. Those
    are true and they never grow. This is the mechanism by which a real figure
    can replace one of them without anybody being tempted to type a number.
 

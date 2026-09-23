@@ -33,7 +33,7 @@ const en: CustomersStrings = {
   consentNote:
     "A company is listed only after it turns the setting on itself, and it disappears from this page the moment it turns it off. We never add one.",
   ctaHeading: "Start free",
-  ctaBody: "Free for the first 3 months for teams up to nine. No demo to book — the free tier is the product.",
+  ctaBody: "Free for the first 3 months for teams up to four. No demo to book — the free tier is the product.",
 };
 
 // HAND-WRITTEN, NO DIACRITICS.
@@ -46,7 +46,7 @@ const ar: CustomersStrings = {
   consentNote:
     "لا تدرج الشركة إلا بعد أن تفعل الإعداد بنفسها، وتختفي من هذه الصفحة لحظة إيقافه. ولا نضيف أحدا نحن.",
   ctaHeading: "ابدأ مجانا",
-  ctaBody: "مجاني لأول 3 أشهر للفرق حتى تسعة أشخاص. لا عرض توضيحي تحجزه — الخطة المجانية هي المنتج.",
+  ctaBody: "مجاني لأول 3 أشهر للفرق حتى أربعة أشخاص. لا عرض توضيحي تحجزه — الخطة المجانية هي المنتج.",
 };
 
 const customers = { en, ar };

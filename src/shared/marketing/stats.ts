@@ -37,7 +37,7 @@ type StatsStrings = {
 const en: StatsStrings = {
   heading: "Where it stands",
   factDepartments: "Eighteen departments on one data model, every one of them open today.",
-  factFree: "Free for the first 3 months, for teams of up to nine people.",
+  factFree: "Free for the first 3 months, for teams of up to four people.",
   factBilingual: "Arabic and English throughout, with real right-to-left — not a translation layer.",
   figureStudios: "{n}+ companies run their work on it.",
   figurePeople: "{n}+ people use it at work.",
@@ -49,7 +49,7 @@ const en: StatsStrings = {
 const ar: StatsStrings = {
   heading: "أين وصلنا",
   factDepartments: "ثمانية عشر قسما على نموذج بيانات واحد، وكلها مفتوحة اليوم.",
-  factFree: "مجاني لأول 3 أشهر، للفرق حتى تسعة أشخاص.",
+  factFree: "مجاني لأول 3 أشهر، للفرق حتى أربعة أشخاص.",
   factBilingual: "بالعربية والإنجليزية بالكامل، بدعم حقيقي للكتابة من اليمين إلى اليسار — لا طبقة ترجمة.",
   figureStudios: "أكثر من {n} شركة تدير عملها عليه.",
   figurePeople: "أكثر من {n} شخص يستخدمونه في عملهم.",

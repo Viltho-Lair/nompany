@@ -28,14 +28,14 @@ type HeroStrings = {
 };
 
 const en: HeroStrings = {
-  badge: claimText("free-under-ten", "en"),
+  badge: claimText("free-tier", "en"),
   // ONE TEXT NODE. Not two lines, not a highlighted word carved out of a
   // sentence — the component receives a string and renders a string.
   h1: "Run the whole company on one system",
   lead: "Sales, tendering, projects, procurement, inventory, field work, logistics, engineering, people and finance — sharing one data model, in Arabic and English, with every record permissioned to the row.",
   ctaPrimary: "Start free",
   ctaSecondary: "See how it works",
-  footnote: claimText("paid-from-ten", "en"),
+  footnote: claimText("paid-plans", "en"),
   marqueeLabel: "The departments, today",
   illustrationNote: "An illustration of the product, not a report — the figures in it are part of the drawing.",
 };
@@ -45,12 +45,12 @@ const en: HeroStrings = {
 // this market. NO DIACRITICS: the live Arabic title is `أدر`, and nobody types
 // a kasra into a search box (SEO-PLAN §1.8).
 const ar: HeroStrings = {
-  badge: claimText("free-under-ten", "ar"),
+  badge: claimText("free-tier", "ar"),
   h1: "أدر الشركة كلها على نظام واحد",
   lead: "المبيعات والمناقصات والمشاريع والمشتريات والمخزون والعمل الميداني والخدمات اللوجستية والهندسة والموارد البشرية والمالية — على نموذج بيانات واحد، بالعربية والإنجليزية، وكل سجل محكوم بالصلاحيات حتى مستوى الصف.",
   ctaPrimary: "ابدأ مجانا",
   ctaSecondary: "شاهد كيف يعمل",
-  footnote: claimText("paid-from-ten", "ar"),
+  footnote: claimText("paid-plans", "ar"),
   marqueeLabel: "الأقسام، اليوم",
   illustrationNote: "رسم توضيحي للمنتج لا تقرير — والارقام فيه جزء من الرسم.",
   // NOT "نظام واحد لـ". The tatweel form (لـ) cites the proclitic لـ IN

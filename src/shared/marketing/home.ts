@@ -45,7 +45,7 @@ const en: HomeStrings = {
   // written when the product had nine departments. It aged twice over: the page
   // three sections down says EIGHTEEN departments (derived, so always true), so
   // the headline undersold the product by half; and the same page offers "free
-  // for teams of one to nine" PEOPLE, so a reader met two unrelated nines in one
+  // for teams of one to nine" PEOPLE (four since 23/09/2026), so a reader met two unrelated nines in one
   // scroll and naturally tried to connect them. The sentence is stronger
   // against the body's own argument — "most companies run a different tool for
   // each department" — and there is now no number in it to go stale.
@@ -60,7 +60,7 @@ const en: HomeStrings = {
   departmentsCta: "See what each one does",
   pricingTitle: "Your first 3 months are free",
   pricingLead:
-    "The whole product, every department, free for the first 3 months for teams of one to nine. Paid plans start at ten, priced per employee per month. No card to begin, and no call to sit through.",
+    "The whole product, every department, free for the first 3 months for teams of one to four. Paid plans start at five, priced per employee per month. No card to begin, and no call to sit through.",
   pricingCta: "See pricing",
   closingTitle: "Run your whole company from one place",
   closingLead:
@@ -83,7 +83,7 @@ const ar: HomeStrings = {
   departmentsCta: "اطلع على ما يفعله كل قسم",
   pricingTitle: "أول 3 أشهر مجانا",
   pricingLead:
-    "المنتج كاملا، بكل أقسامه، مجانا لأول 3 أشهر للفرق من واحد إلى تسعة. والخطط المدفوعة تبدأ من عشرة، بسعر لكل موظف شهريا. بلا بطاقة للبدء، وبلا مكالمة تجلس فيها.",
+    "المنتج كاملا، بكل أقسامه، مجانا لأول 3 أشهر للفرق من واحد إلى أربعة. والخطط المدفوعة تبدأ من خمسة، بسعر لكل موظف شهريا. بلا بطاقة للبدء، وبلا مكالمة تجلس فيها.",
   pricingCta: "اطلع على الأسعار",
   closingTitle: "أدر شركتك كلها من مكان واحد",
   closingLead:

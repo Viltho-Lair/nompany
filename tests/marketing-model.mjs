@@ -119,10 +119,15 @@ const H = await import("@/shared/marketing/hero");
 // the number. A register that stored "11" and asserted 11 === 11 would pass
 // forever and mean nothing.
 const CHECKS = {
-  "free-under-ten": async () => {
+  "free-tier": async () => {
     const { PLANS } = await import("@/lib/pricing");
     const free = PLANS.find((p) => p.free);
-    return Boolean(free) && free.minUsers === 1 && free.maxUsers === 9;
+    // THE COPY IS CHECKED TOO, not only the number: the band moved 9 → 4 on
+    // 23/09/2026, and a check pinning the number alone would pass over a claim
+    // still reading "one to nine".
+    const claim = C.CLAIMS["free-tier"];
+    return Boolean(free) && free.minUsers === 1 && free.maxUsers === 4
+      && claim.en.endsWith("one to four") && claim.ar.endsWith("من واحد إلى أربعة");
   },
   // THE COPY IS CHECKED AGAINST THE COUNT, not merely the count against itself.
   // The claim is hand-written English and Arabic; the list it describes is
@@ -167,10 +172,12 @@ const CHECKS = {
     const nothing = effectivePermissions({ collaborator: { roleIds: [] }, roles: [] });
     return nothing instanceof Set && nothing.size === 0;
   },
-  "paid-from-ten": async () => {
+  "paid-plans": async () => {
     const { PLANS } = await import("@/lib/pricing");
     const first = PLANS.filter((p) => !p.free).sort((a, b) => a.minUsers - b.minUsers)[0];
-    return Boolean(first) && first.minUsers === 10;
+    const claim = C.CLAIMS["paid-plans"];
+    return Boolean(first) && first.minUsers === 5
+      && claim.en.includes("five") && claim.ar.includes("خمسة");
   },
 };
 
@@ -216,19 +223,19 @@ for (const [id, claim] of Object.entries(C.CLAIMS)) {
   // and the string-equality check above would not have.
   //
   // COUPLING, NAMED RATHER THAN HIDDEN: this ties two specific claim ids to
-  // two specific hero fields — "free-under-ten" to `badge`, "paid-from-ten"
+  // two specific hero fields — "free-tier" to `badge`, "paid-plans"
   // to `footnote` — because those are the only two claims currently marked
   // `composed` (see CLAIMS in shared/marketing/claims.ts) and those are the
   // two hero fields that compose them. A third composed claim needs its own
   // line added here; this list is meant to grow, not an oversight to be
   // generalised away.
-  if (id === "free-under-ten") {
+  if (id === "free-tier") {
     ok(`...and hero.badge composes it for en`,
       H.heroCopy("en").badge === C.claimText(id, "en"), id);
     ok(`...and hero.badge composes it for ar`,
       H.heroCopy("ar").badge === C.claimText(id, "ar"), id);
   }
-  if (id === "paid-from-ten") {
+  if (id === "paid-plans") {
     ok(`...and hero.footnote composes it for en`,
       H.heroCopy("en").footnote === C.claimText(id, "en"), id);
     ok(`...and hero.footnote composes it for ar`,
@@ -955,7 +962,7 @@ const LAND = await import("@/shared/landing");
 // digits; these are the ones a sentence spells out.
 const WORD_TO_N = {
   one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
-  "واحد": 1, "اثنين": 2, "تسعة": 9, "عشرة": 10,
+  "واحد": 1, "اثنين": 2, "أربعة": 4, "خمسة": 5, "تسعة": 9, "عشرة": 10,
 };
 // A number is a HEADCOUNT only when it is counting people.
 const PEOPLE = "(?:people|persons?|users?|employees?|staff|أشخاص|شخص|مستخدم(?:ين|ا)?|موظف(?:ين|ا|ا)?)";
@@ -992,7 +999,7 @@ for (const str of strings) {
 ok("every headcount in the copy is one the plan model declares",
   offenders.length === 0, offenders.slice(0, 3).join(" · "));
 ok("...and the model still ends the free tier where the claim says",
-  PLAN_HEADCOUNTS.freeUpTo === 9 && PLAN_HEADCOUNTS.paidFrom === 10,
+  PLAN_HEADCOUNTS.freeUpTo === 4 && PLAN_HEADCOUNTS.paidFrom === 5,
   `free≤${PLAN_HEADCOUNTS.freeUpTo}, paid from ${PLAN_HEADCOUNTS.paidFrom}`);
 ok("...and names one place the invoiced tier starts", PLAN_HEADCOUNTS.invoicedFrom === 250);
 

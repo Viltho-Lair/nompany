@@ -48,16 +48,21 @@ export type Claim = {
 };
 
 export const CLAIMS = {
-  // FREE FOR TEAMS UP TO NINE. The free plan's own band, not a marketing round
-  // number: PLANS[0] is `free`, minUsers 1, maxUsers 9.
+  // FREE FOR TEAMS UP TO FOUR. The free plan's own band, not a marketing round
+  // number: PLANS[0] is `free`, minUsers 1, maxUsers 4.
   //
   // AND FREE FOR THE FIRST THREE MONTHS, NOT FOR EVER — the owner, 23/09/2026.
   // The site said "always free" and "with no time limit" while the free package
   // in /super carries durationMonths 3. Every sentence that described the free
-  // tier as endless was rewritten the same day.
-  "free-under-ten": {
-    en: "Free for the first 3 months, for teams of one to nine",
-    ar: "مجاني لأول 3 أشهر، للفرق من واحد إلى تسعة",
+  // tier as endless was rewritten the same day — and later that day the band
+  // itself went from one-to-nine to one-to-four, also the owner's.
+  //
+  // THE KEY NAMES NO NUMBER. It was "free-under-ten" (and its twin
+  // "paid-from-ten"), and the day the boundary moved both keys named a figure
+  // their own copy contradicted — the "eleven-departments" mistake again.
+  "free-tier": {
+    en: "Free for the first 3 months, for teams of one to four",
+    ar: "مجاني لأول 3 أشهر، للفرق من واحد إلى أربعة",
     source: { module: "@/lib/pricing", export: "PLANS" },
     stated: { how: "composed" },
   },
@@ -94,12 +99,12 @@ export const CLAIMS = {
     source: { module: "@/platform/access/resolve", export: "effectivePermissions" },
     stated: { how: "woven", in: "hero.lead" },
   },
-  // PAID PLANS FROM TEN PEOPLE UP. The `small` plan's own minUsers, read from the
+  // PAID PLANS FROM FIVE PEOPLE UP. The `small` plan's own minUsers, read from the
   // same table the free band comes from — so the free side and the paid side of
   // the pricing story are two readings of one row and cannot drift apart.
-  "paid-from-ten": {
-    en: "Paid plans from ten people up",
-    ar: "الخطط المدفوعة من عشرة أفراد فأكثر",
+  "paid-plans": {
+    en: "Paid plans from five people up",
+    ar: "الخطط المدفوعة من خمسة أفراد فأكثر",
     source: { module: "@/lib/pricing", export: "PLANS" },
     stated: { how: "composed" },
   },

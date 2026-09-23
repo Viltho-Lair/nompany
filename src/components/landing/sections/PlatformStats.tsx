@@ -10,7 +10,7 @@ import { statsCopy, withFigure } from "@/shared/marketing/stats";
    the featured-companies band. A customer wall with no customers is
    dishonest; a "where it stands" section has things to say that are
    true on the day the product launches and true a decade later —
-   fifteen departments, free to nine, both languages. Those are the
+   fifteen departments, free to four, both languages. Those are the
    default, not a placeholder.
 
    THREE SLOTS, NOT FOUR, because there are three figures. A fourth

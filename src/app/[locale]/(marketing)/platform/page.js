@@ -117,7 +117,7 @@ export default async function PlatformPage({ params }) {
 
         <section className="mt-14 rounded-2xl border border-brand-500/25 bg-brand-500/[0.04] p-7 sm:p-9">
           <p className="font-display text-xl font-600">
-            {claimText("free-under-ten", locale)}
+            {claimText("free-tier", locale)}
           </p>
           {/* "Start free" is the only primary CTA on this site, so it is read
               from the one module that owns it rather than written per page —

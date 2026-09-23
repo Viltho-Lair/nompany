@@ -68,27 +68,27 @@ export type Plan = {
 export const PLANS: Plan[] = [
   {
     key: "micro",
-    free: true, minUsers: 1, maxUsers: 9,
+    free: true, minUsers: 1, maxUsers: 4,
     name: { en: "Micro", ar: "متناهية الصغر" },
-    tagline: { en: "Micro-businesses — fewer than 10 employees.", ar: "المنشآت متناهية الصغر — أقل من 10 موظفين." },
-    users: { en: "1–9 users", ar: "1–9 مستخدمين" },
+    tagline: { en: "Micro-businesses — fewer than 5 employees.", ar: "المنشآت متناهية الصغر — أقل من 5 موظفين." },
+    users: { en: "1–4 users", ar: "1–4 مستخدمين" },
     cta: "start",
     features: {
-      en: ["Full platform — every department", "Up to 9 employees", "English & Arabic, RTL-ready", "Community support"],
-      ar: ["المنصة كاملة — كل الأقسام", "حتى 9 موظفين", "عربي وإنجليزي، يدعم RTL", "دعم عبر المجتمع"],
+      en: ["Full platform — every department", "Up to 4 employees", "English & Arabic, RTL-ready", "Community support"],
+      ar: ["المنصة كاملة — كل الأقسام", "حتى 4 موظفين", "عربي وإنجليزي، يدعم RTL", "دعم عبر المجتمع"],
     },
   },
   {
     key: "small",
-    minUsers: 10, maxUsers: 49, defaultUsers: 15,
-    bands: [{ upTo: 25, rate: 150, label: "10–25" }, { upTo: 49, rate: 175, label: "26–49" }],
+    minUsers: 5, maxUsers: 49, defaultUsers: 15,
+    bands: [{ upTo: 25, rate: 150, label: "5–25" }, { upTo: 49, rate: 175, label: "26–49" }],
     name: { en: "Small", ar: "صغيرة" },
-    tagline: { en: "Small companies — 10 to 49 employees.", ar: "الشركات الصغيرة — من 10 إلى 49 موظفا." },
-    users: { en: "10–49 users", ar: "10–49 مستخدما" },
+    tagline: { en: "Small companies — 5 to 49 employees.", ar: "الشركات الصغيرة — من 5 إلى 49 موظفا." },
+    users: { en: "5–49 users", ar: "5–49 مستخدما" },
     cta: "choose",
     features: {
-      en: ["Everything in Micro", "10–49 employees", "Priced by your team size", "Priority email support"],
-      ar: ["كل ما في متناهية الصغر", "من 10 إلى 49 موظفا", "التسعير حسب حجم فريقك", "دعم بريدي ذو أولوية"],
+      en: ["Everything in Micro", "5–49 employees", "Priced by your team size", "Priority email support"],
+      ar: ["كل ما في متناهية الصغر", "من 5 إلى 49 موظفا", "التسعير حسب حجم فريقك", "دعم بريدي ذو أولوية"],
     },
   },
   {
@@ -133,8 +133,8 @@ export function fmtCurrencyAmount(amount: number | string, code: string) {
 /* THE HEADCOUNTS THE COMMERCIAL MODEL DECLARES — the one place anything may
    learn where the free tier ends or where a paid plan begins.
    ---------------------------------------------------------------------------
-   THE SAME NUMBER WAS TYPED IN SIXTEEN PLACES. `PLANS` says the free tier ends
-   at nine; so did eight English marketing strings and their eight Arabic twins,
+   THE SAME NUMBER WAS TYPED IN SIXTEEN PLACES. `PLANS` said the free tier ends
+   at nine (four since 23/09/2026); so did eight English marketing strings and their eight Arabic twins,
    each written by hand — "free for teams of one to nine", "up to 9 employees",
    "free until you are ten people" — plus `planOf`'s `maxMembers`, read from a
    package somebody types into /super. Nothing joined them, so moving the
