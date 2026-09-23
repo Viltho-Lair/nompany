@@ -22,7 +22,7 @@ import { PlatformStats } from "@/components/landing/sections/PlatformStats";
    failure is a name without a description, not a section silently
    missing from the page a buyer is using to judge the product.
 
-   Schema: SoftwareApplication with `featureList` naming the eleven. */
+   Schema: SoftwareApplication with `featureList` naming every live department. */
 
 /* NO `force-dynamic`. It was here and it was a no-op: the root layout reads
    the theme cookie, so every route in this application is dynamically rendered
@@ -52,7 +52,7 @@ export default async function PlatformPage({ params }) {
       name: "nompany",
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
-      // THE ELEVEN, from the same derived list the page renders. A featureList
+      // EVERY LIVE DEPARTMENT, from the same derived list the page renders. A featureList
       // naming a section that renders nothing is the same false claim as one in
       // the copy, and harder to notice because nobody reads their own JSON-LD.
       featureList: departments.map((d) => d.name),

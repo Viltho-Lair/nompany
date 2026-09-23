@@ -48,7 +48,7 @@ export const LIVE_DEPARTMENT_KEYS: readonly string[] = SECTION_DEFS
 export type Department = { key: string; name: string };
 
 /**
- * The eleven, named in the reader's language.
+ * The live departments, named in the reader's language.
  *
  * Names come from `sectionName` — the studio's own dictionary — rather than a
  * second Arabic list here. A marketing page and the product calling the same
