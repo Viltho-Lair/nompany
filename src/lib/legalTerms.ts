@@ -16,9 +16,12 @@ import { GOOGLE_DATA_BLOCKS } from "./legalGoogleData";
 // material change is not engaged and the terms in force are still the ones that
 // took effect on the date below.
 export const TERMS_META = {
-  version: "1.1",
+  version: "1.2",
   effective: "07/08/2026",
-  updated: "04/09/2026",
+  // 1.2 (24/09/2026): the free tier is for up to four Authorised Users, not
+  // five — the owner's instruction, matching the free package, named Standard
+  // (1–4 employees).
+  updated: "24/09/2026",
 };
 
 // Block shapes are declared in ./legalBlocks (LegalBlock) and rendered by
@@ -67,7 +70,7 @@ export const TERMS_SECTIONS = [
     blocks: [
       { type: "p", lead: "Licence grant.", text: "Subject to the Agreement and payment of applicable fees, nompany grants the Customer a non-exclusive, non-transferable, non-sublicensable, revocable right to access and use the Service and subscribed modules during the Subscription Term, solely for the Customer's internal business operations." },
       { type: "p", lead: "Modular subscriptions.", text: "The Service is modular. You may subscribe to and de-subscribe from individual modules subject to the applicable plan and fees. Enabling a module may make additional terms or configuration requirements applicable, which will be presented at activation." },
-      { type: "p", lead: "Free tier, seats, and fair use.", text: 'A free tier is available for up to five (5) Authorised Users and requires no payment card. Where a plan is priced per Authorised User ("seat"), you must maintain a valid subscription for each individual accessing the Service. You may reassign a seat to a new user when a prior user no longer requires access, but seats must not be used as generic or shared logins. We may audit usage on reasonable notice to verify compliance.' },
+      { type: "p", lead: "Free tier, seats, and fair use.", text: 'A free tier (the Standard package) is available for up to four (4) Authorised Users and requires no payment card. Where a plan is priced per Authorised User ("seat"), you must maintain a valid subscription for each individual accessing the Service. You may reassign a seat to a new user when a prior user no longer requires access, but seats must not be used as generic or shared logins. We may audit usage on reasonable notice to verify compliance.' },
       { type: "p", lead: "Restrictions.", text: "You must not, and must not permit any third party to: (a) resell, rent, lease, or provide the Service to third parties except as expressly permitted; (b) reverse engineer, decompile, or attempt to derive source code, except to the extent this restriction is prohibited by law; (c) copy, modify, or create derivative works of the Service; (d) circumvent usage limits, security, or access controls; (e) use the Service to build a competing product; or (f) remove or obscure any proprietary notices." },
       { type: "p", lead: "Beta and preview features.", text: 'Features labelled beta, preview, trial, or experimental are provided "as is", may be changed or withdrawn at any time, and are excluded from the SLA and from certain warranties.' },
     ],
