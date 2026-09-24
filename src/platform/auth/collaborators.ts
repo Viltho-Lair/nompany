@@ -73,15 +73,27 @@ export type Collaborator = {
   [field: string]: unknown;
 };
 
+/**
+ * ADDS ONE MEMBER, and when `limit` is given, only while the studio has a seat.
+ *
+ * THE SEAT IS COUNTED INSIDE THE COMPARE-AND-SET, and that is the point of the
+ * option (24/09/2026, the owner: every package's limit enforced at every door).
+ * A caller that counted first and added second let two approvals racing for
+ * the last seat both see room and both get in; counted here, the rows counted
+ * are the rows the write lands against, so the second is refused. A seat is the
+ * owner plus everyone who joined — every row in this list.
+ */
 export async function addCollaborator(
   studioId: string,
   { userId, alias = "", role = "member", roleIds = [], ...hr }:
   { userId?: string; alias?: string; role?: string; roleIds?: string[] } & Record<string, unknown>,
+  { limit = null }: { limit?: number | null } = {},
 ): Promise<{ error?: string; collaborator?: Collaborator }> {
   if (!studioId || !userId) return { error: "missing" };
   const outcome = await editArr<Collaborator, { error?: string; collaborator?: Collaborator }>(
     S.collaborators(studioId), (rows) => {
     if (rows.some((c) => c.userId === userId)) return { result: { error: "already" } };
+    if (limit !== null && rows.length >= limit) return { result: { error: "member-limit" } };
     const collaborator = {
       id: ID.collaborator(),
       studioId,

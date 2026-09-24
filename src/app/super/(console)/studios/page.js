@@ -7,6 +7,7 @@ import { withRequest } from "@/platform/http/observability";
 import { loadCatalogues, planOf } from "@/lib/plans";
 import StudiosTable from "@/components/super/StudiosTable";
 import { listSubscriptions } from "@/lib/data/subscriptions";
+import { seatLimit } from "@/shared/seats";
 // The pair that decides a public listing, asked through the shared predicate so
 // the console and the public feed cannot disagree about what consent is.
 import { hasConsented } from "@/shared/marketing/showcase";
@@ -86,6 +87,10 @@ async function renderStudios() {
         featuredOrder: Number(s.featuredOrder) || 0,
         hasConsented: hasConsented(s),
         ...plan,
+        // USED / LIMIT (24/09/2026): the seats this studio PAID for when its
+        // subscription records them, else its package's ceiling — the same
+        // rule the join door enforces (shared/seats).
+        maxMembers: seatLimit(subs[i].subscription.seats, packages.find((p) => p.id === s.packageId)),
         subStatus: subs[i].status,
         subKind: subs[i].subscription.kind,
         paidUntil: subs[i].subscription.paidUntil,

@@ -6,6 +6,7 @@
 
 import { listCatalog, DEFAULT_PACKAGE, DEFAULT_TIER } from "@/lib/data/catalog";
 import { getSubscription } from "@/lib/data/subscriptions";
+import { packageCeiling, seatLimit } from "@/shared/seats";
 import type { Row } from "@/platform/db/store";
 
 // PACKAGE_TONE went with the named-colour model — packages carry a hex now and
@@ -45,7 +46,11 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
     // then read NaN, which `memberLimitOf` happens to treat as no limit
     // (NaN > 0 is false) — so the door behaved — while the /super studios table
     // rendered "3 / NaN" at whoever was checking how full a plan was.
-    maxMembers: Number.isFinite(Number(pkg?.maxEmployees)) ? Number(pkg?.maxEmployees) || 0 : 0,
+    //
+    // A COMPOUND PACKAGE'S CEILING IS ITS LARGEST BAND (shared/seats, 24/09/2026):
+    // its form has no package-level maximum, so this read 0 — "no limit" — for
+    // every studio on Small or Medium.
+    maxMembers: packageCeiling(pkg),
     // Live chat: on or off, and how many conversations a month it allows.
     // 0 allowed means unlimited, the same convention every other cap here uses.
     chatEnabled: Boolean(pkg?.chatEnabled),
@@ -79,10 +84,11 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
 }
 
 /**
- * DOES THIS PLAN COST ANYTHING? A subscription on a plan that costs nothing
- * never lapses once its trial is over — there is nothing to pay. Read from the
- * BASE list: a region may fix its own price, but a plan that is free in the base
- * list is the free plan everywhere.
+ * DOES THIS PLAN COST ANYTHING? A studio created on one is on Standard and gets
+ * its free months; one created on anything else is due that day (only Standard
+ * has a free period — the owner, 24/09/2026). Read from the BASE list: a region
+ * may fix its own price, but a plan that is free in the base list is the free
+ * plan everywhere.
  */
 export function costsNothing(pkg: Row | null | undefined, tier: Row | null | undefined) {
   const bands = Array.isArray(pkg?.categories) ? (pkg.categories as Row[]) : [];
@@ -166,12 +172,11 @@ export async function promotionPlanOf(studio: Row | null | undefined) {
 // one had no member limit at all. The band bought becomes the subscription's
 // seats, and that is what counts here.
 export async function memberLimitOf(studio: Row | null | undefined) {
-  const [{ packages, tiers }, doc] = await Promise.all([
-    loadCatalogues(),
+  const [packages, doc] = await Promise.all([
+    listCatalog("packages"),
     studio?.id ? getSubscription(String(studio.id)) : Promise.resolve(null),
   ]);
-  const seats = doc?.subscription.seats || 0;
-  if (seats > 0) return seats;
-  const { maxMembers } = planOf(studio, packages, tiers);
-  return maxMembers > 0 ? maxMembers : null;
+  const pkg = packages.find((p) => p.id === studio?.packageId) || null;
+  const limit = seatLimit(doc?.subscription.seats, pkg);
+  return limit > 0 ? limit : null;
 }

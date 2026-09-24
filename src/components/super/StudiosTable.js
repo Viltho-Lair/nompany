@@ -8,6 +8,7 @@ import { planTagStyle } from "@/lib/planColors";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { Badge } from "@/app/super/_components/ui";
 import SubscriptionPanel, { STATUS } from "@/components/super/SubscriptionPanel";
+import { packageCeiling } from "@/shared/seats";
 
 // Every studio, searchable, with its plan editable in place.
 //
@@ -102,10 +103,13 @@ export default function StudiosTable({ rows, packages, tiers }) {
         align: "right",
         headerAlign: "right",
         valueGetter: (_v, row) => row.members,
+        // USED / LIMIT. Over it is possible — a package's limit can drop under
+        // a studio that already has more people — and is shown in red: nobody
+        // is removed, but nobody more can join until it upgrades.
         renderCell: ({ row }) => (
-          <Num className="text-[var(--ad-muted-foreground)]">
+          <Num className={row.maxMembers > 0 && row.members > row.maxMembers ? "font-600 text-[var(--ad-destructive-ink)]" : "text-[var(--ad-muted-foreground)]"}>
             {row.members}
-            {row.maxMembers > 0 ? ` / ${row.maxMembers}` : ""}
+            {row.maxMembers > 0 ? ` / ${row.maxMembers}` : " / no limit"}
           </Num>
         ),
       },
@@ -215,7 +219,9 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved, onSubscriptio
       featured, featuredOrder: Number(featuredOrder) || 0,
       packageName: pkg?.name || "—",
       packageColor: pkg?.color || "grey",
-      maxMembers: Number(pkg?.maxEmployees || 0),
+      // The new package's ceiling; paid seats, when the subscription has them,
+      // arrive with the next load of the page.
+      maxMembers: packageCeiling(pkg),
       tierName: tier?.name || "—",
       tierColor: tier?.color || "",
     });

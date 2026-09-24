@@ -69,5 +69,33 @@ ok("a package set to the advertised free tier permits exactly that many",
 ok("...and the tenth person is one past it",
   PLAN_HEADCOUNTS.paidFrom === free.maxMembers + 1);
 
+console.log("\n== every package's limit, at every door (24/09/2026)");
+
+const SEATS = await import("@/shared/seats");
+const small = { type: "compound", categories: [{ maxEmployees: 9 }, { maxEmployees: 24 }, { maxEmployees: 49 }] };
+// A COMPOUND PACKAGE HAD NO LIMIT AT ALL: its form carries bands, not a
+// package-level maximum, so the ceiling read 0 and Small could seat anybody.
+ok("a compound package's ceiling is its largest band", SEATS.packageCeiling(small) === 49);
+ok("...and planOf now says so", withPackage(small).maxMembers === 49, String(withPackage(small).maxMembers));
+ok("a band with no upper limit keeps the package unlimited",
+  SEATS.packageCeiling({ type: "compound", categories: [{ maxEmployees: 49 }, { maxEmployees: 0 }] }) === 0);
+ok("a plain package keeps its own maximum", SEATS.packageCeiling({ type: "free", maxEmployees: 4 }) === 4);
+ok("THE SEATS PAID FOR WIN over the package's ceiling", SEATS.seatLimit(12, small) === 12);
+ok("...and with none recorded, the package decides", SEATS.seatLimit(0, small) === 49);
+ok("nothing readable is no limit, never NaN", SEATS.seatLimit("x", { maxEmployees: "abc" }) === 0);
+
+// THE LAST SEAT WAS RACEABLE: approving counted members, then added one in a
+// separate write, so two approvals at once both saw room. The count now lives
+// inside addCollaborator's compare-and-set; these pin the wiring, which only a
+// real race could otherwise show.
+const { readFileSync } = await import("node:fs");
+const collabSrc = readFileSync("src/platform/auth/collaborators.ts", "utf8");
+const studiosSrc = readFileSync("src/lib/studios.ts", "utf8");
+ok("adding a member counts seats inside the write",
+  /if \(limit !== null && rows\.length >= limit\) return \{ result: \{ error: "member-limit" \} \}/.test(collabSrc));
+ok("approving a join request hands its limit to that count", /\}, \{ limit \}\);/.test(studiosSrc));
+ok("...and an approval that loses the last seat goes back to pending, not 'approved' and outside",
+  /added\.error === "member-limit"[\s\S]{0,200}reopenJoinRequest\(requestId\)/.test(studiosSrc));
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nplan limits: all passed\n");
 process.exit(fails ? 1 : 0);

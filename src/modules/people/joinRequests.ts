@@ -115,6 +115,22 @@ export async function getJoinRequest(requestId: string) {
 // same moment, exactly one wins and the other is told "already-decided". That
 // is what stops a double-approve from creating two collaborator rows: the guard
 // is worthless if another request can slip between reading it and writing.
+/**
+ * AN APPROVAL THAT COULD NOT SEAT ITS PERSON GOES BACK TO PENDING. Approving
+ * marks the request first and adds the member second; when the last seat is
+ * taken between the two (addCollaborator's own count refuses), leaving the
+ * request "approved" would tell somebody yes while they stay outside. Only an
+ * approved request is reopened, and only by the approval that marked it.
+ */
+export async function reopenJoinRequest(requestId: string) {
+  return editArr<JoinRequest, boolean>(REG.joinRequests, (rows) => {
+    const current = rows.find((r) => r.id === requestId);
+    if (!current || current.status !== APPROVED) return { result: false };
+    const reopened = { ...current, status: PENDING, decidedAt: "", decidedByCollaboratorId: "" };
+    return { next: rows.map((r) => (r.id === requestId ? reopened : r)), result: true };
+  });
+}
+
 export async function decideJoinRequest(
   requestId: string,
   { status, decidedByCollaboratorId }: { status: string; decidedByCollaboratorId: string },

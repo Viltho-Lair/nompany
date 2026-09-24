@@ -81,6 +81,21 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
 - **New studios** start on Standard's free months (the package's own Duration, else
   `trialMonths`). A studio created on a paid package is due the same day. **Studios that
   existed before subscriptions are complimentary**, planted on first read.
+- **Seats, at every door** (step 2, 24/09/2026). A seat is the owner plus everyone who
+  joined: every row of the studio's member list. The limit is the seats the subscription
+  paid for, else the package's own ceiling (`shared/seats`). A **compound** package's
+  ceiling is its largest band; its form has no package-level maximum, so until now a
+  studio on Small or Medium had **no limit at all**.
+  - There is exactly one way in besides the owner at creation: approving a join request.
+    The seat is now counted **inside the same write that adds the member**, so two
+    approvals racing for the last seat can't both get in. An approval that loses goes
+    back to **pending** rather than telling somebody yes and leaving them outside.
+  - Asking to join is never refused for being full, because a non-member must learn
+    nothing about a studio's contents (invariant 2). The refusal comes at approval, to
+    somebody inside.
+  - A studio already over its limit (a package whose limit dropped) keeps everybody;
+    nobody more can join until it upgrades. `/super → Studios` shows used / limit and
+    turns red when over.
 - **The studio sees it.**
   - A banner above every screen when payment is due, the studio is closed or cancelled,
     or Standard's free period ends within 14 days.
@@ -104,4 +119,4 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
   button for it rather than one that does nothing.
 - **Invoices, credit notes and JoFotara**, **checkout**, and the owner's **Billing page**.
   "Pay" links to the contact page until then.
-- **Seat limits at every door** (step 2) and the **upgrade button** (step 3).
+- The **upgrade button** (step 3).

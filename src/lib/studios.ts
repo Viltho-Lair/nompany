@@ -25,7 +25,7 @@ import {
 } from "@/platform/auth/collaborators";
 import { listSections, parentKeyMap } from "@/platform/db/sections";
 import {
-  createJoinRequest, listPendingForStudio, getJoinRequest, decideJoinRequest,
+  createJoinRequest, listPendingForStudio, getJoinRequest, decideJoinRequest, reopenJoinRequest,
   APPROVED, DECLINED,
 } from "@/modules/people/joinRequests";
 import { getIndex } from "@/platform/db/store";
@@ -410,8 +410,15 @@ export async function approveJoinRequest({
     alias: String(alias || "").slice(0, 120),
     role: "member",
     roleIds: role === "admin" ? [ADMIN_ROLE_ID] : [],
-  });
+  }, { limit });
   if (added.error === "already") return { collaborator: await getCollaboratorByUser(studio.id, request.userId), request: decided.request };
+  // THE LAST SEAT WENT TO SOMEBODY ELSE between the check above and this add —
+  // the count inside addCollaborator is the one that binds. The request goes
+  // back to pending, so nobody is told yes and left outside.
+  if (added.error === "member-limit") {
+    await reopenJoinRequest(requestId);
+    return { error: "member-limit", limit: limit ?? undefined };
+  }
   if (added.error) return { error: added.error };
 
   // TELL THEM THEY ARE IN — NOTIFY.joinDecided, declared since the notification
