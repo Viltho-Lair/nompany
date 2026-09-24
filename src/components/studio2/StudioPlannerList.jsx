@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { fmtDate } from "@/lib/format";
 import PlannerPresetsDialog from "@/components/studio2/PlannerPresetsDialog";
 import PlannerTemplatesPanel from "@/components/studio2/PlannerTemplatesPanel";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 
 // THE /projects-planner APP LANDING. A full-screen list of the studio's plans,
 // rendered outside StudioFrame (the studio route early-returns it). Each plan is
@@ -169,7 +170,7 @@ export default function StudioPlannerList({ slug, initial }) {
         <div className="flex min-h-full flex-col lg:flex-row">
           <div className="min-w-0 flex-1 p-4 sm:p-6">
             {state.loading ? (
-              <PlansSkeleton />
+              <ScreenSkeleton />
             ) : state.error ? (
               <div className="grid h-full place-items-center p-8">
                 <p className="max-w-sm text-center text-sm text-rose-600 dark:text-rose-300">
@@ -259,28 +260,5 @@ function EmptyState() {
         </p>
       </div>
     </div>
-  );
-}
-
-function PlansSkeleton() {
-  return (
-    <ul
-      className="mx-auto grid max-w-content grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
-      aria-busy="true"
-    >
-      {Array.from({ length: 6 }).map((_, i) => (
-        <li
-          key={i}
-          className="flex h-[116px] flex-col gap-3 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200/70 dark:bg-white/10" />
-            <div className="h-4 w-14 animate-pulse rounded-full bg-slate-200/70 dark:bg-white/10" />
-          </div>
-          <div className="h-3 w-2/3 animate-pulse rounded bg-slate-200/50 dark:bg-white/5" />
-          <div className="mt-auto h-3 w-1/3 animate-pulse rounded bg-slate-200/50 dark:bg-white/5" />
-        </li>
-      ))}
-    </ul>
   );
 }

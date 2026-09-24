@@ -1,49 +1,26 @@
 import { panel } from "@/components/studio2/ui";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 
-// THE SHAPES ScreenSkeleton IS NOT.
+// THE SHAPES ScreenSkeleton IS NOT — and, for a whole page, no longer any shape.
 //
-// ScreenSkeleton reserves a department dashboard — a title, a row of figures, a
-// chart, a table — and that is right for the ten section screens that use it.
-// It is a lie on the four screens here. A ticket profile has no chart; a
-// quotation is a document of priced lines; the project board's wait happens
-// inside a 380px information sidebar, not on the page at all. Drawing a chart
-// placeholder where a document is coming makes the arrival a jump, which is the
-// one thing a skeleton exists to prevent, so those four kept a bare line of text
-// when the section screens stopped using one.
+// A FULL-PAGE WAIT IS THE BRAND MARK NOW — the owner, 24/09/2026. A record
+// profile and a document of lines used to reserve their own shapes here (a
+// header, a two-column details split, a table of lines), because drawing a
+// dashboard where a document was coming made the arrival a jump. Every
+// full-page wait shows the logo at the centre of the window instead, so
+// `RecordSkeleton` and `LinesSkeleton` are ScreenSkeleton under their old
+// names: their callers keep their imports and nothing else has to know.
 //
-// Three shapes rather than four: the quotation viewer and the sheet viewer are
-// both "a header, then lines", so they share one.
+// WHAT STAYS SHAPED is a wait INSIDE something already on screen: the Live
+// boards' table under a header they drew themselves, and the project board's
+// 380px information sidebar. A window-centred logo for one panel would float
+// over a page that has otherwise arrived.
 //
-// THE LABEL IS A PROP, NOT A HOOK. ScreenSkeleton reads the locale from context
-// because it is also used as a `nextDynamic` fallback, where there is nothing to
-// pass it. These are only ever rendered by a screen that already holds its own
-// dictionary, so the word comes down as `loadingLabel` and none of them needs to
-// be a client component in its own right.
+// THE LABEL IS A PROP, NOT A HOOK. These are only ever rendered by a screen
+// that already holds its own dictionary, so the word comes down as
+// `loadingLabel`; when it is absent ScreenSkeleton falls back to the locale.
 //
 // `.skel` is the shared utility in globals.css, not a per-screen animation.
-
-// The back button, title and reference line every record screen opens with.
-// Matches Back / the viewers' header: a pill-shaped ghost button beside an
-// `text-xl font-800` heading over an `text-xs` line.
-function HeaderSkeleton() {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="skel block h-[38px] w-20 rounded-full" />
-      <div className="min-w-0 flex-1">
-        {/* The real h1/p, carrying bars instead of words, so the line boxes come
-            from the same type scale rather than from numbers restated here —
-            the same trick the studio's loading boundary needed when it had a
-            header of its own to reserve. */}
-        <h1 className="truncate font-display text-xl font-800" aria-hidden="true">
-          <span className="skel skel-text inline-block h-[0.62em] w-52 align-middle" />
-        </h1>
-        <p className="truncate text-xs" aria-hidden="true">
-          <span className="skel skel-text inline-block h-[0.72em] w-36 align-middle" />
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function CardSkeleton({ children, className = "" }) {
   return <section className={`${panel} min-h-0 ${className}`}>{children}</section>;
@@ -68,63 +45,10 @@ function FieldSkeleton({ w }) {
   );
 }
 
-/**
- * A RECORD PROFILE — the ticket screen.
- *
- * Header, then the real `lg:grid-cols-[1fr_320px]` split: a details card whose
- * `dl` is two columns of label/value pairs, a list card under it, and the
- * narrow column beside them. Reserving the 320px column matters more than what
- * is in it — without it the left column renders full width and then jumps in
- * when the sidebar arrives.
- */
-export function RecordSkeleton({ loadingLabel, fields = 10, rows = 3 }) {
-  const widths = ["w-24", "w-32", "w-20", "w-28", "w-24", "w-36", "w-20", "w-28", "w-24", "w-32"];
-  return (
-    <div className="space-y-4" aria-busy="true" aria-live="polite">
-      <span className="sr-only">{loadingLabel}</span>
-      <HeaderSkeleton />
-
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-4">
-          <CardSkeleton>
-            <HeadingSkeleton />
-            <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-              {Array.from({ length: fields }, (_, i) => (
-                <FieldSkeleton key={i} w={widths[i % widths.length]} />
-              ))}
-            </dl>
-          </CardSkeleton>
-
-          <CardSkeleton>
-            <HeadingSkeleton w="w-24" />
-            <ul className="mt-3 space-y-2">
-              {Array.from({ length: rows }, (_, i) => (
-                <li key={i} className="flex items-center gap-3 rounded-xl border border-slate-200/70 px-4 py-3 dark:border-white/10">
-                  <span className="skel skel-text block h-2.5 w-20 shrink-0" />
-                  <span className="skel skel-text block h-2.5 flex-1" />
-                  <span className="skel skel-text block h-2.5 w-16 shrink-0" />
-                </li>
-              ))}
-            </ul>
-          </CardSkeleton>
-        </div>
-
-        <div className="space-y-4">
-          <CardSkeleton>
-            <HeadingSkeleton w="w-20" />
-            <div className="mt-4 space-y-3">
-              {Array.from({ length: 3 }, (_, i) => <FieldSkeleton key={i} w="w-28" />)}
-            </div>
-          </CardSkeleton>
-          <CardSkeleton>
-            <HeadingSkeleton w="w-24" />
-            <span className="skel skel-text mt-4 block h-2.5 w-full" />
-            <span className="skel skel-text mt-2 block h-2.5 w-2/3" />
-          </CardSkeleton>
-        </div>
-      </div>
-    </div>
-  );
+/** A RECORD PROFILE — the ticket screen, and the project's cost, billing,
+ * BOQ, permit and purchase-order screens. Full-page, so the brand mark. */
+export function RecordSkeleton({ loadingLabel }) {
+  return <ScreenSkeleton loadingLabel={loadingLabel} />;
 }
 
 /**
@@ -132,8 +56,8 @@ export function RecordSkeleton({ loadingLabel, fields = 10, rows = 3 }) {
  *
  * The two Live views are full-screen boards: each renders its own `<header>`
  * with the board's name and its column controls, and then a table underneath.
- * They want the table reserved and nothing above it, so this is the half of
- * LinesSkeleton below the back row rather than a second copy of it.
+ * They want the table reserved and nothing above it: it fills a box on the
+ * page it sits on rather than a page of its own.
  *
  * The columns are fixed widths rather than equal parts because the real tables
  * are a wide description against three narrow figures, and four equal columns
@@ -165,20 +89,10 @@ export function TableSkeleton({ loadingLabel, rows = 8 }) {
   );
 }
 
-/**
- * A DOCUMENT OF LINES — the quotation viewer and the project sheet.
- *
- * The back row and title, then the table. Both of these screens open with a
- * header of their own, unlike the Live views above.
- */
-export function LinesSkeleton({ loadingLabel, rows = 8 }) {
-  return (
-    <div className="space-y-4" aria-busy="true" aria-live="polite">
-      <span className="sr-only">{loadingLabel}</span>
-      <HeaderSkeleton />
-      <TableSkeleton rows={rows} />
-    </div>
-  );
+/** A DOCUMENT OF LINES — the quotation viewer and the project sheet.
+ * Full-page, so the brand mark. */
+export function LinesSkeleton({ loadingLabel }) {
+  return <ScreenSkeleton loadingLabel={loadingLabel} />;
 }
 
 /**

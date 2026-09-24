@@ -7,6 +7,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { plannerDict } from "@/shared/studio/planner";
 import "@/components/planner/planner.css";
 import { PlannerShell } from "@/components/planner/PlannerShell";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import {
   usePlannerStore,
   planDoc,
@@ -220,7 +221,8 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel, 
         {historyOpen && <PlanHistory planApiBase={planApiBase} onClose={() => setHistoryOpen(false)} />}
         <div className="planner-root h-full">
           {state.loading ? (
-            <PlannerLoading />
+            // The brand mark, as every full-page wait is (ScreenSkeleton).
+            <ScreenSkeleton />
           ) : state.error ? (
             <div className="grid h-full place-items-center p-8">
               <p className="max-w-sm text-center text-sm text-rose-600">
@@ -232,45 +234,6 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel, 
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// A planner-shaped skeleton — the same three bands (header, toolbar, split panes,
-// footer) the real shell reserves — so the wait holds the box instead of trading
-// a spinner for a layout shift.
-function PlannerLoading() {
-  return (
-    <div
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-[#F9FAFB]"
-      aria-busy="true"
-    >
-      <div className="h-[70px] shrink-0 border-b border-slate-200 bg-white" />
-      <div className="h-11 shrink-0 border-b border-slate-200 bg-white" />
-      <div className="flex min-h-0 flex-1 bg-white">
-        <div className="w-[560px] shrink-0 border-e border-slate-200 p-3">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <div
-              key={i}
-              className="mb-3 h-3 animate-pulse rounded bg-slate-100"
-              style={{ width: `${88 - (i % 4) * 14}%` }}
-            />
-          ))}
-        </div>
-        <div className="flex-1 p-3">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <div
-              key={i}
-              className="mb-3 h-4 animate-pulse rounded-full bg-slate-100"
-              style={{
-                width: `${18 + (i % 5) * 9}%`,
-                marginInlineStart: `${(i * 7) % 46}%`,
-              }}
-            />
-          ))}
-        </div>
-      </div>
-      <div className="h-8 shrink-0 border-t border-slate-200 bg-white" />
     </div>
   );
 }
