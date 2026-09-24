@@ -554,12 +554,18 @@ async function renderStudio(params) {
     return <StudioDocs studio={{ name: studio.name, slug: studio.slug }} locale={locale} />;
   }
 
-  // The two Live views need their section's grant, which their own API calls
-  // re-check server-side.
-  if (requested === "crm-sales-live") {
+  // THE TWO LIVE VIEWS NEED THEIR OWN SECTION'S GRANT, asked HERE. This comment
+  // used to say their API calls re-check it, and they do not: the Live view
+  // reads `/sales` (and `/technical`), which answers anybody holding ANY view
+  // right in the department — so a member granted Customers alone opened the
+  // wall-screen ticket table by typing its address. `sections` is already
+  // filtered to what this person may see and what the studio has switched on,
+  // the till's test below; a refusal falls through to the shell's own
+  // "not granted" answer rather than inventing a second one.
+  if (requested === "crm-sales-live" && sections.some((s) => s.key === "crm-sales-live")) {
     return <StudioSalesLive studio={{ name: studio.name, slug: studio.slug }} />;
   }
-  if (requested === "quotations-live") {
+  if (requested === "quotations-live" && sections.some((s) => s.key === "quotations-live")) {
     return <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />;
   }
 

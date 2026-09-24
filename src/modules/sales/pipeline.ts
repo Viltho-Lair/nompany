@@ -180,6 +180,16 @@ export function stagePatch(input: {
   lostReason?: string;
   history?: unknown;
 }): Record<string, unknown> {
+  // STAYING WHERE IT IS IS NOT A MOVE, and writes nothing. The ticket form sends
+  // its Status on EVERY save, so a person correcting a deadline arrived here
+  // with `to` equal to `from` — and each save appended a history entry (which
+  // reset "days in stage" on the board) and, on a closed deal, re-stamped
+  // closedAt to that moment and CLEARED lostReason, because the form sends no
+  // reason when the status has not changed. The "Why deals are lost" widget was
+  // losing its data one routine edit at a time, the chain's own "rfq-rejected"
+  // included. `stageProblem` already treats from === to as allowed; this is the
+  // other half of that answer.
+  if (input.from === input.to) return {};
   const prior: StageEntry[] = Array.isArray(input.history) ? (input.history as StageEntry[]) : [];
   const patch: Record<string, unknown> = {
     status: input.to,

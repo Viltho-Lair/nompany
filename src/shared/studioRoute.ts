@@ -129,7 +129,9 @@ export function isSettingsPath(segments: readonly string[]): boolean {
 // configuring. One list, read from both ends, exactly like resolveActiveKey.
 //
 // IT IS NOT PURELY A PATH QUESTION, and that is the part worth reading twice.
-// Four of the seven are gated on the section being GRANTED — a person without
+// Every one that IS a section — the live views included, since 24/09/2026 — is
+// gated on the section being GRANTED; only the manual, Engagements and a
+// printed document are not, each for the reason given below. A person without
 // the grant falls through to the ordinary shell, which is what tells them so.
 // `sections` is the visible list, so asking it answers both halves at once, and
 // it is the same expression the page's own branches use.
@@ -141,7 +143,11 @@ export function isFullScreenPath(
   const granted = (k: string) => sections.some((s) => s.key === k);
 
   // Available to every member regardless of section grants — membership alone.
-  if (key === "documentation" || key === "crm-sales-live" || key === "quotations-live") return true;
+  if (key === "documentation") return true;
+  // THE LIVE VIEWS ARE GRANTED SECTIONS, and the page asks for the grant with
+  // this same expression — they sat on the membership line above while the page
+  // gated nothing, so a refusal would now have rendered bare, with no shell.
+  if (key === "crm-sales-live" || key === "quotations-live") return granted(key);
   // Engagements rides its own permission key rather than a section (it is
   // deliberately not one — giving Main a child would gate Main). The page
   // refuses it when the right is missing, and that refusal is full-screen too,

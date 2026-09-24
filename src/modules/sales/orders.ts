@@ -215,11 +215,26 @@ export async function updateOrder(
     return { error: "read-only" };
   }
 
+  // AND SO DOES THE RATE, for the same reason: the VAT rate is half of the
+  // total. It was the one door left open — a confirmed order's lines refused a
+  // change while a new rate re-priced its stored total, so the figure the
+  // customer confirmed moved anyway. The dialog sends the rate on every save,
+  // so an UNCHANGED rate is accepted (a title or date can still be corrected)
+  // and only a different one is refused. Past Draft the stored totals are
+  // carried as they are rather than recomputed, so nothing — a currency or a
+  // rounding rule changing since — can move them either.
+  const locked = !orderLinesEditable(existing.status);
+  if (locked && body?.vatRate !== undefined
+    && documentVatRate(studio, body.vatRate, existing.vatRate) !== num(existing.vatRate)) {
+    return { error: "read-only" };
+  }
   const lines = body?.lines !== undefined ? cleanLines(body.lines) : existing.lines;
-  const vatRate = body?.vatRate !== undefined
+  const vatRate = !locked && body?.vatRate !== undefined
     ? documentVatRate(studio, body.vatRate, existing.vatRate)
     : num(existing.vatRate);
-  const totals = computeTotals(lines, vatRate, existing.currency || studio.currency, existing.taxMethod);
+  const totals = locked
+    ? { subtotal: existing.subtotal, vat: existing.vat, total: existing.total }
+    : computeTotals(lines, vatRate, existing.currency || studio.currency, existing.taxMethod);
   const at = new Date().toISOString();
 
   const order = await Orders.update(scope, id, (row) => ({

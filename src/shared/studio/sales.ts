@@ -142,6 +142,10 @@ type Strings = CommonStrings & {
   errNoTechnical: string;
   errRfqForbidden: string;
   errTicketGone: string;
+  /** A client action refused for want of the right — not the RFQ sentence, which was shown here. */
+  errClientForbidden: string;
+  errClientGone: string;
+  confirmDeleteClient: (name: string) => string;
   // The three stage refusals `stageProblem` returns, each said as what to do.
   errNoQuotation: string;
   errReasonRequired: string;
@@ -348,7 +352,7 @@ const en: Strings = {
   loadingSales: "Loading Sales…",
   errDuplicate: "A client with that name already exists.",
   errInUse: (n) =>
-    `That client still has ${n} ticket${n === 1 ? "" : "s"} — reassign or delete them first.`,
+    `That client has ${n} ticket${n === 1 ? "" : "s"}, so it cannot be deleted — its deals are its history, and a ticket is closed, never deleted.`,
   errReadOnly: "You have view-only access to Sales.",
   errName: "Give it a name.",
   errClient: "Name the client.",
@@ -360,6 +364,9 @@ const en: Strings = {
   errNoTechnical: "This studio has no Quotations section to send an RFQ to.",
   errRfqForbidden: "You're not allowed to raise an RFQ.",
   errTicketGone: "That ticket no longer exists — reload the page.",
+  errClientForbidden: "You're not allowed to do that to clients.",
+  errClientGone: "That client no longer exists — reload the page.",
+  confirmDeleteClient: (name) => `Delete ${name}? This cannot be undone.`,
   errNoQuotation: "A deal reaches Commit or Closed Won once it has a finished quotation.",
   errReasonRequired: "Say why this deal ended before closing it.",
   errAlreadyClosed: "This deal is closed, so its stage can no longer change.",
@@ -564,7 +571,7 @@ const ar: Strings = {
       : n === 2 ? "تذكرتان"
       : n <= 10 ? `${n} تذاكر`
       : `${n} تذكرة`;
-    return `لا يزال لدى هذا العميل ${what} — أعد إسنادها أو احذفها أولا.`;
+    return `لدى هذا العميل ${what}، فلا يمكن حذفه — صفقاته تاريخه، والتذكرة تغلق ولا تحذف.`;
   },
   errReadOnly: "لديك صلاحية عرض فقط على المبيعات.",
   errName: "أعطه اسما.",
@@ -577,6 +584,9 @@ const ar: Strings = {
   errNoTechnical: "لا يوجد قسم عروض أسعار في هذا الاستوديو لإرسال طلب عرض سعر إليه.",
   errRfqForbidden: "لا يسمح لك برفع طلب عرض سعر.",
   errTicketGone: "لم تعد هذه التذكرة موجودة — أعد تحميل الصفحة.",
+  errClientForbidden: "لا يسمح لك بهذا الإجراء على العملاء.",
+  errClientGone: "لم يعد هذا العميل موجودا — أعد تحميل الصفحة.",
+  confirmDeleteClient: (name) => `حذف ${name}؟ لا يمكن التراجع عن ذلك.`,
   errNoQuotation: "تصل الصفقة إلى الالتزام أو الفوز بعد أن يكون لها عرض سعر مكتمل.",
   errReasonRequired: "اذكر سبب انتهاء هذه الصفقة قبل إغلاقها.",
   errAlreadyClosed: "هذه الصفقة مغلقة، فلا يمكن تغيير مرحلتها.",

@@ -249,7 +249,7 @@ export default function StudioOrders({ slug, initial }) {
             <Field label={tr.fldRequiredBy} value={form.requiredBy || ""}
               onChange={(v) => setForm((p) => ({ ...p, requiredBy: v }))} />
             {vat.on && (
-              <Field label={tr.fldVatRate} value={String(form.vatRate ?? 0)}
+              <Field label={tr.fldVatRate} value={String(form.vatRate ?? 0)} disabled={!editable}
                 onChange={(v) => setForm((p) => ({ ...p, vatRate: Number(v) || 0 }))} />
             )}
           </div>

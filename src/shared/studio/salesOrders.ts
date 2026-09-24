@@ -92,7 +92,7 @@ const en: Strings = {
   addLine: "Add a line",
   removeLine: "Remove",
   noLines: "No lines yet. An order needs at least one before it can be confirmed.",
-  linesClosed: "The lines are fixed once the order is confirmed — this is what the customer agreed to.",
+  linesClosed: "The lines and the VAT rate are fixed once the order is confirmed — this is what the customer agreed to.",
 
   subtotal: "Subtotal",
   vat: "VAT",
@@ -105,7 +105,7 @@ const en: Strings = {
   refuseNoLines: "An order needs at least one line before it can be confirmed.",
   refuseNotAllowed: "That is not a move this order can make from where it is.",
   refuseStatus: "That is not a status a sales order has.",
-  refuseReadOnly: "The lines cannot change once the order is confirmed.",
+  refuseReadOnly: "The lines and the VAT rate cannot change once the order is confirmed.",
   refuseWrongState: "Only a draft can be deleted. Cancel it instead.",
   refuseDeal: "An order has to belong to a deal.",
 };
@@ -142,7 +142,7 @@ const ar: Strings = {
   addLine: "أضف بندا",
   removeLine: "إزالة",
   noLines: "لا بنود بعد. يحتاج الأمر إلى بند واحد على الأقل قبل تأكيده.",
-  linesClosed: "تثبت البنود بعد تأكيد الأمر — هذا ما وافق عليه العميل.",
+  linesClosed: "تثبت البنود ونسبة الضريبة بعد تأكيد الأمر — هذا ما وافق عليه العميل.",
 
   subtotal: "المجموع",
   vat: "الضريبة",
@@ -155,7 +155,7 @@ const ar: Strings = {
   refuseNoLines: "يحتاج الأمر إلى بند واحد على الأقل قبل تأكيده.",
   refuseNotAllowed: "ليست هذه نقلة يستطيعها الأمر من حالته الحالية.",
   refuseStatus: "ليست هذه حالة يحملها أمر البيع.",
-  refuseReadOnly: "لا تتغير البنود بعد تأكيد الأمر.",
+  refuseReadOnly: "لا تتغير البنود ولا نسبة الضريبة بعد تأكيد الأمر.",
   refuseWrongState: "المسودة وحدها تحذف. ألغ الأمر بدل ذلك.",
   refuseDeal: "لا بد أن ينتمي الأمر إلى صفقة.",
 };

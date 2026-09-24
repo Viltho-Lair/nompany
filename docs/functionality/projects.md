@@ -126,7 +126,15 @@ guarded by a Projects permission: it is the *consequence* of the approval,
 not an action somebody takes on the Projects screen). It is
 idempotent — a project that already has a number keeps it — and derived from
 the highest already issued (`nextReference`), never from a count, so a
-deleted project cannot have its number reused. A direct project is no
+deleted project cannot have its number reused.
+
+**And a PO approved BEFORE the project opened** is caught at the opening:
+`quotationSource` reports whether the quotation's Client PO approval is already
+Approved, and `openProject` calls the same `issueProjectNumber` straight after
+the create. Before 24/09/2026 the approval found no project, numbered nothing,
+and nothing ever came back to it — the project stayed unnumbered for good.
+
+A direct project is no
 exception: nothing about being created without a quotation issues it a
 number early, or a different way.
 

@@ -36,8 +36,15 @@ import { leadsDict } from "@/shared/studio/leads";
 // because the ticket's own page saves through the same form and showed only
 // "didn't save" for all of them — including the three stage refusals, which
 // tell the person exactly what to do.
-export function ticketRefusal(tr, out) {
+//
+// `kind` NAMES WHAT WAS ACTED ON, because two tokens mean different things by
+// route. A refused CLIENT delete answered "You're not allowed to raise an RFQ",
+// and a client already gone answered "That ticket no longer exists": the ladder
+// was written for tickets and the client dialog borrowed it whole.
+export function ticketRefusal(tr, out, kind = "") {
   const e = out?.error;
+  if (kind === "clients" && e === "forbidden") return tr.errClientForbidden;
+  if (kind === "clients" && e === "notfound") return tr.errClientGone;
   return e === "duplicate" ? tr.errDuplicate
     : e === "in-use" ? tr.errInUse(Number(out.tickets) || 0)
     : e === "read-only" ? tr.errReadOnly
@@ -190,7 +197,7 @@ export default function StudioSales({ slug, view = "crm-sales", initial }) {
     });
     const out = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setError(ticketRefusal(tr, out));
+      setError(ticketRefusal(tr, out, kind));
       return false;
     }
     setEditing(null);
@@ -254,7 +261,11 @@ export default function StudioSales({ slug, view = "crm-sales", initial }) {
         <Clients slug={slug} clients={clients} tickets={tickets} people={people} canManage={canManageClients} focus={focusClient}
           onAdd={() => setEditing({ kind: "client", row: null })}
           onEdit={(row) => setEditing({ kind: "client", row })}
-          onDelete={(row) => send("clients", "DELETE", { id: row.id })} />
+          // ONE QUESTION BEFORE A DELETE THAT CANNOT BE UNDONE. It removed the
+          // client on the click, and the only guard was the server refusing one
+          // with tickets — a client with none (a till placeholder, a typo)
+          // simply went. Orders ask the same question before theirs.
+          onDelete={(row) => { if (window.confirm(tr.confirmDeleteClient(row.name))) send("clients", "DELETE", { id: row.id }); }} />
       </div>
     );
   }

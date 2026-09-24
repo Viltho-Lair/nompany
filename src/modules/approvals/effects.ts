@@ -41,7 +41,8 @@ type Handler = {
 const HANDLERS: Record<string, () => Promise<Handler>> = {
   // A CLIENT'S PO, APPROVED, ISSUES THE PROJECT NUMBER it will be billed under —
   // what Finance's signature on the old board did. Idempotent: the project may
-  // not be open yet, and then there is nothing to number.
+  // not be open yet, and then there is nothing to number HERE — openProject
+  // sees the approved PO and numbers it when it opens.
   [CLIENT_PO_APPROVAL]: async () => ({
     approved: async (studio, approval) => {
       const listSection = (await getSectionByKey(studio.id, "projects-list")) || (await getSectionByKey(studio.id, "projects"));

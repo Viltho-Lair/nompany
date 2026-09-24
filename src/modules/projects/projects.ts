@@ -35,7 +35,7 @@ import { ticketFacts } from "@/modules/technical/technical";
 import { departmentsAsStored } from "@/modules/administration/departments";
 // Whether a quotation is approved is answered by its APPROVAL, not by a copy of
 // one — see the note on quotationApproved.
-import { quotationApproved } from "@/modules/approvals/reads";
+import { quotationApproved, approvalSummary, CLIENT_PO_APPROVAL } from "@/modules/approvals/reads";
 import { approvalRows } from "@/modules/approvals/approvals";
 import { isWonTender } from "@/modules/tendering/stages";
 import { boqTotals, valueFromBoq } from "@/modules/tendering/boq";
@@ -302,6 +302,9 @@ type ProjectSource = {
   // The resolved Client record, carried only by the direct head, so the
   // engagement it mints names the client live rather than from a copy.
   client: Client | null;
+  // WHETHER THE CLIENT'S PO WAS ALREADY APPROVED when the project opened —
+  // quotation head only. See the numbering after the create in openProject.
+  poApproved?: boolean;
 };
 
 // THE DIRECT HEAD — no quotation, so no commercial gate and no
@@ -474,7 +477,8 @@ async function quotationSource(
   // there, and nothing writes it back onto the document. Reading the status is
   // exactly what once refused every project opened from a quotation the studio
   // had just approved.
-  if (!quotationApproved(quote, await approvalRows(studio, approvalsSection))) return { error: "not-approved" };
+  const approvals = await approvalRows(studio, approvalsSection);
+  if (!quotationApproved(quote, approvals)) return { error: "not-approved" };
 
   const existing = await Projects.find({ studio, section: listSection });
   if (existing.some((p) => p.quotationId === quotationId)) return { error: "already" };
@@ -574,6 +578,7 @@ async function quotationSource(
     // Blank: this project's lineage runs through the quotation, not a bid.
     tenderId: "", tenderRef: "",
     engId, client: null,
+    poApproved: approvalSummary(approvals, CLIENT_PO_APPROVAL, quotationId)?.approved === true,
   };
 }
 
@@ -599,7 +604,7 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   if ("error" in source) return source;
 
   const now = new Date().toISOString();
-  const project = await Projects.create({ studio, section: listSection }, {
+  let project = await Projects.create({ studio, section: listSection }, {
     // BLANK UNTIL FINANCE ISSUES IT, and true of both heads. The project number
     // is quoted on invoices, purchase orders and delivery notes — it is the
     // studio's commitment to bill this work — and issuing it is Finance's act,
@@ -655,6 +660,18 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   // project instead and can only be minted once the row exists. `engId` is let,
   // not const, because the sheets below join the SAME engagement and the direct
   // head only learns which one that is here.
+  // THE PO MAY HAVE BEEN APPROVED FIRST, and then this is where the number comes
+  // from. The approval issues it only to a project that already exists
+  // (issueProjectNumber: "no project yet — nothing to number"), and nothing else
+  // ever called it — so a Sales team that booked the client's PO before Projects
+  // opened the job got a project that stayed unnumbered for good, invoiced under
+  // nothing. The same function, so the number is drawn from the same series by
+  // the same rule, and it stays idempotent if the approval finishes at once too.
+  if (source.poApproved && source.quotationId) {
+    const numbered = await issueProjectNumber({ studio, listSection }, source.quotationId);
+    if (numbered.project) project = numbered.project;
+  }
+
   let engId = source.engId;
   try {
     if (engId) {
@@ -733,6 +750,9 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
 // established that the people answering were the ones named on its steps. A
 // permission check here would ask Finance for a Projects right they have no
 // reason to hold, and the number would silently never be issued.
+//
+// AND FROM openProject, when the PO was approved before the project existed —
+// the approval found nothing to number then, so the opening is the moment.
 //
 // Idempotent: a project that already has a number keeps it, because the first
 // one is on documents the client is holding.

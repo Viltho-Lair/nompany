@@ -39,7 +39,11 @@ origin — it would attribute one order's lines to an offer about something else
 **The totals are stored, not derived on read**, the same choice a quotation makes.
 What a customer was told the order came to is a fact about the day they were told it;
 recomputing on every read would silently re-price a confirmed order the day a VAT rate
-changed.
+changed. **Past Draft the RATE is locked with the lines**, and `updateOrder` carries the
+stored totals rather than recomputing them: a different `vatRate` is refused
+`read-only`, an unchanged one is accepted so a title or date can still be corrected.
+Until 24/09/2026 the lines were locked and the rate was not, so a confirmed order's total
+could still be moved by an edit.
 
 ## What it does
 

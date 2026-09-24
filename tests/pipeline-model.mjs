@@ -145,6 +145,20 @@ const long = P.stagePatch({
 ok("history is capped at 200 entries", long.stageHistory.length === 200);
 ok("...keeping the newest", long.stageHistory[199].status === "Opportunity");
 
+// THE SAVE THAT ERASED THE REASON. The ticket form sends its Status on every
+// save, so fixing a typo in a closed deal's description reached stagePatch
+// with to === from, re-stamped closedAt to that moment and wrote lostReason ""
+// (the form sends no reason for a status it did not change) — and every edit
+// of an open deal appended a history entry, resetting its days in stage.
+const stay = P.stagePatch({
+  from: "Closed Lost", to: "Closed Lost", at: "2026-09-24T10:00:00.000Z", byCollaboratorId: "col_1",
+  history: [{ status: "Closed Lost", at: "2026-08-01T00:00:00.000Z", byCollaboratorId: "col_1" }],
+});
+ok("staying at the same stage writes nothing at all", Object.keys(stay).length === 0);
+ok("...so a closed deal keeps its closedAt and its reason", stay.closedAt === undefined && stay.lostReason === undefined);
+ok("...and an open deal's history gains no entry",
+  Object.keys(P.stagePatch({ from: "Commit", to: "Commit", at: "x", byCollaboratorId: "" })).length === 0);
+
 console.log("\n== how long it has been sitting there");
 
 // THE DAY-ONE BUG THIS AVOIDS. Every ticket that exists today was written

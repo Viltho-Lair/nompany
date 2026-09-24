@@ -42,7 +42,10 @@ Three fields on the ticket carry the pipeline, and **all three were already decl
 - `lostReason` — why, for a losing close. Cleared on a win, so a deal dropped and later won
   cannot carry the old excuse.
 - `stageHistory` — `{ status, at, byCollaboratorId }`, appended never rewritten, capped at
-  200 like comments are. It is what makes "how long has this sat in Opportunity" answerable;
+  200 like comments are. **A "move" to the stage the deal is already at writes nothing**
+  (`stagePatch` returns `{}`): the ticket form sends its Status on every save, and until
+  24/09/2026 each save appended an entry (resetting days in stage) and, on a closed deal,
+  re-stamped `closedAt` and cleared `lostReason`. It is what makes "how long has this sat in Opportunity" answerable;
   a status string alone can never give that.
 
 A field nothing can exercise is the record-level shape of invariant 16. Before this, a deal
