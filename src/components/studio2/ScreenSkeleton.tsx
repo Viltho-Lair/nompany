@@ -13,37 +13,43 @@
 //      from its own API after it mounts, and until that lands it has nothing
 //      to draw.
 //
-// The third one used to be a bare line of text — `<p>Loading Sales…</p>` — in
-// every department screen, so a section click went skeleton, skeleton, then a
-// sentence in the top-left corner of an empty box, and only then the screen.
-// The text was the only one of the three that told you nothing about what was
-// coming, and it was the longest of the three waits. It is this component now,
-// with the sentence kept as the `loadingLabel` so screen readers still hear it.
+// IT IS THE BRAND MARK NOW, NOT A WIREFRAME — the owner's choice, 24/09/2026.
+// This used to be a title/figures/chart/table skeleton, argued for on the
+// grounds that it reserved the box the screen would land in. It is the logo's
+// six facets lighting in turn, centred on the window. What that gives
+// up: the screen no longer lands where a placeholder stood, so it is a swap
+// rather than a fill. The box is still held open (`min-h`), so the shell never
+// renders around a hole — without something in the content area the nav and
+// the header stay, the middle goes white, and it reads as a broken page.
 //
-// Without something in the content area the shell renders around a hole — the
-// nav and the header stay, the middle goes white, and the effect reads as a
-// broken page rather than a loading one.
+// The mark is INLINE, not an <img> of /brand/logo-icon.svg, because each facet
+// has to animate on its own and CSS cannot reach inside an image. The paths are
+// that file's, verbatim. The animation lives in globals.css (`.brand-loader`),
+// not in motion/react, which may not be imported outside the landing.
 //
-// IT RESERVES THE BOX RATHER THAN FILLING IT. Title, a row of figures, a chart
-// and a table: the shape almost every department screen actually has, so the
-// real thing lands roughly where the placeholder stood instead of shoving the
-// page open. That is the whole job of a skeleton, and it is why this is not a
-// spinner — a spinner tells you to wait; this tells you what you are waiting
-// for.
-//
-// `.skel` is the shared utility in globals.css, not a per-screen animation.
+// `rows` is still accepted, and ignored, so no caller has to change.
 //
 // A `nextDynamic` loading fallback with no `ssr: false` renders on the server
-// too, which is why this was a Server Component and its one word stayed
-// English. It is a CLIENT component now: every place it is used sits inside a
-// `StudioLocaleProvider`, so the context resolves in the server pass as well.
-// `loadingLabel` still overrides, for anywhere that has no provider above it.
+// too; every place this is used sits inside a `StudioLocaleProvider`, so the
+// context resolves in the server pass as well. `loadingLabel` still overrides,
+// for anywhere that has no provider above it.
 "use client";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { commonDict } from "@/shared/studio/common";
 
+// Facet paths and colours from public/brand/logo-icon.svg, in the order they
+// light: clockwise around the hexagon, starting at the top.
+const FACETS: readonly (readonly [string, string])[] = [
+  ["#48caed", "m1346.31 387.71l-671.47-387.71-673.2 388.67-0.7 775.79z"],
+  ["#8ee7ff", "m1345.37 1164.85l0.03-775.36-673.2-388.67-672.2 387.28z"],
+  ["#fe9e04", "m1466 2001.07l671.5-387.66v-777.34l-671.5-388.5z"],
+  ["#ffbb4d", "m793 1614.32l671.47 387.7 673.2-388.67 0.7-775.78z"],
+  ["#ff3333", "m0.75 1304.57l-0.03 775.36 673.2 388.67 672.2-387.28z"],
+  ["#ff8686", "m671.5 916.57l-671.5 387.65v777.35l671.5 388.5z"],
+];
+
 export default function ScreenSkeleton(
-  { rows = 6, loadingLabel }: { rows?: number; loadingLabel?: string },
+  { loadingLabel }: { rows?: number; loadingLabel?: string },
 ) {
   // THE HOOK IS NOT INSIDE THE `??`. Written as `loadingLabel ?? commonDict(
   // useStudioLocale()).loading` the right-hand side only evaluates when the
@@ -51,57 +57,22 @@ export default function ScreenSkeleton(
   const fallback = commonDict(useStudioLocale()).loading;
   const word = loadingLabel ?? fallback;
   return (
-    <div className="space-y-6" aria-busy="true" aria-live="polite">
-      {/* THE ANNOUNCEMENT RIDES INSIDE THE TITLE BAR, NOT ABOVE IT.
-          As a sibling it was the FIRST child, which made the title bar the
-          second — and `space-y-6` puts its 1.5rem on every child except the
-          first. The span is `sr-only` so nothing was visible to explain it, and
-          the margin collapsed straight out through <main>, which has `pb-8` and
-          no padding-top to stop it. Measured in the sandbox: <main> sat at
-          y=112 while the skeleton stood and at y=88 once the screen arrived, so
-          every screen in the studio jumped 24px upward on load — this component
-          is the loading fallback for about twenty of them.
-          Inside the bar it announces identically (sr-only is 1px and absolute,
-          so it adds no height) and it is no longer a sibling, which makes the
-          title bar the first child again and leaves it with no margin. */}
-      <div className="skel skel-text h-6 w-48"><span className="sr-only">{word}</span></div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div
-            key={i}
-            className="rounded-geex border border-slate-200/70 p-5 dark:border-white/10"
-          >
-            <span className="skel skel-text block h-3 w-24" />
-            <span className="skel mt-3 block h-7 w-20 rounded-md" />
-          </div>
-        ))}
-      </div>
-
-      <div className="rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
-        <span className="skel skel-text block h-3 w-32" />
-        <div
-          className="mt-4 grid items-end gap-[3%]"
-          style={{ height: 200, gridTemplateColumns: "repeat(12, minmax(0,1fr))" }}
+    // The outer box stays IN FLOW to hold the content area open; the mark is
+    // `fixed` so it centres on the WINDOW rather than on the content area — the
+    // owner's choice, 24/09/2026. `pointer-events-none` so the sidebar and
+    // header underneath stay clickable while a screen loads.
+    <div className="min-h-[calc(100dvh-10rem)]" aria-busy="true" aria-live="polite">
+      <span className="sr-only">{word}</span>
+      <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center">
+        <svg
+          className="brand-loader h-20 w-auto"
+          viewBox="0 0 2139 2471"
+          aria-hidden="true"
         >
-          {/* A fixed sequence, never Math.random(): a random skeleton renders
-              one way on the server and another in the browser, and React calls
-              that a hydration mismatch. */}
-          {[42, 58, 35, 71, 49, 84, 62, 38, 76, 55, 67, 44].map((h, i) => (
-            <span key={i} className="skel block w-full rounded-t-md" style={{ height: `${h}%` }} />
+          {FACETS.map(([fill, d], i) => (
+            <path key={i} d={d} fill={fill} style={{ animationDelay: `${i * 0.18}s` }} />
           ))}
-        </div>
-      </div>
-
-      <div className="rounded-geex border border-slate-200/70 p-5 dark:border-white/10">
-        {Array.from({ length: rows }, (_, i) => (
-          <div key={i} className="flex items-center gap-4 border-b border-slate-100 py-3 last:border-0 dark:border-white/5">
-            <span className="skel skel-circle block h-8 w-8 shrink-0" />
-            <span className="skel skel-text block h-3 flex-1" />
-            <span className="skel skel-text block h-3 w-20 shrink-0" />
-            <span className="skel skel-text block h-3 w-16 shrink-0" />
-          </div>
-        ))}
+        </svg>
       </div>
     </div>
   );

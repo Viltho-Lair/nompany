@@ -809,6 +809,33 @@ html.studio-chrome .bar-scroll::-webkit-scrollbar {
   }
 }
 
+/* THE BRAND LOADER (ScreenSkeleton). The six facets of the mark light in turn
+   around the hexagon while the whole mark breathes. Opacity and transform
+   only, so it stays on the compositor. Each facet scales about its own box
+   (`transform-box: fill-box`) — without it an SVG path scales about the
+   viewBox origin and flies off towards the top-left corner. */
+.brand-loader {
+  animation: brand-breathe 2.2s ease-in-out infinite;
+}
+.brand-loader path {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: brand-facet 1.08s ease-in-out infinite;
+}
+@keyframes brand-facet {
+  0%, 100% { opacity: 0.35; transform: scale(0.92); }
+  40% { opacity: 1; transform: scale(1); }
+}
+@keyframes brand-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* A still, full-colour mark: the logo is the whole message. */
+  .brand-loader,
+  .brand-loader path { animation: none; }
+}
+
 /* THE DEPARTMENT MARQUEE. Two copies of the list translate by exactly -50%,
    which lands the second copy where the first began ONLY because each copy
    (DepartmentMarquee.tsx) carries its own trailing gap rather than the gap
