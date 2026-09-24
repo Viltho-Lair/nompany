@@ -17,12 +17,37 @@
 // Two screens rendering one service is not the "two doors" problem; two
 // services would be.
 import { route, refused } from "@/platform/http/route";
-import { masterContext, createLocation, editLocation, removeLocation } from "@/modules/administration/master";
+import { requirePermission } from "@/platform/access";
+import { listCollaborators } from "@/platform/auth/collaborators";
+import { valuesFor } from "@/modules/administration/taxonomy";
+import { masterContext, listLocations, createLocation, editLocation, removeLocation } from "@/modules/administration/master";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const spec = { auth: "studio", context: masterContext, body: true, name: "administration/locations" };
+
+// MASTER DATA'S OWN READ (24/09/2026). The screen used to load its places from
+// `/operations`, Field Operations' payload — so a studio that does not run
+// Field Operations (a pharmacy) had its Settings → Master data refused with
+// `section-off`, a studio-wide screen held hostage by a department. The rows
+// are Master data's; so is the read. The people list rides along for the
+// department panel's manager picker, which read it off the same payload.
+export const GET = route({ auth: "studio", context: masterContext, name: "administration/locations" }, async (master) => {
+  const denied = requirePermission(master.access, "administration.master.view");
+  if (denied) return denied;
+  const [locations, collaborators] = await Promise.all([
+    listLocations(master), listCollaborators(master.studio.id),
+  ]);
+  return {
+    locations,
+    people: collaborators.map((c) => ({ id: c.id, alias: c.alias || "Unnamed" })),
+    canManageLocations: !requirePermission(master.access, "administration.master.edit"),
+    canCreateLocations: !requirePermission(master.access, "administration.master.create"),
+    canDeleteLocations: !requirePermission(master.access, "administration.master.delete"),
+    vocabulary: { locationKinds: valuesFor("locationKinds", master.studio.taxonomies) },
+  };
+});
 
 export const POST = route(spec, async (master) => {
   const result = await createLocation(master, master.body);

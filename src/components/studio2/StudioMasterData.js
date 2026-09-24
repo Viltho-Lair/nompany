@@ -99,14 +99,12 @@ export default function StudioMasterData({ slug, initial }) {
   // does not otherwise ask about.
   const [library, setLibrary] = useState(null);
 
-  // IT READS THE OPERATIONS PAYLOAD, and that is worth a sentence because it
-  // looks wrong. Locations are Master data's rows, but the endpoint that
-  // already assembles them alongside the rights to edit them is Operations' —
-  // and duplicating that assembly here would be a second reader free to
-  // disagree with the first about what a place is. What this screen does NOT
-  // share is the writer: both screens post to administration/locations.
+  // MASTER DATA'S OWN READ, not Operations' payload. It read `/operations`
+  // once, and a studio that does not run Field Operations then had this whole
+  // screen refused with `section-off` (24/09/2026). Places are Master data's
+  // rows; both screens read and write them through administration/locations.
   const load = useCallback(async () => {
-    const res = await fetch(`/api/studios/${slug}/operations`, { cache: "no-store" });
+    const res = await fetch(`/api/studios/${slug}/administration/locations`, { cache: "no-store" });
     const out = await res.json().catch(() => ({}));
     if (!res.ok) { setError(out.error || "failed"); return; }
     setData(out);
