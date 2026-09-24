@@ -10,6 +10,7 @@ import SelectMenu from "@/components/fields/SelectMenu";
 import { Field } from "@/components/fields/Field";
 import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/platform/access";
 import { useReload } from "@/components/studio2/useReload";
+import { Icon } from "@/components/studio2/icons";
 
 // THE ACCESS EDITOR.
 //
@@ -50,6 +51,16 @@ export default function StudioRoles({ slug, initial }) {
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // DEPARTMENTS FOLD, as they do on HR's Roles tab — the owner, 24/09/2026.
+  // Each department starts closed; Studio-wide (Admin) and "not in a
+  // department" (something to fix) start open. Held here rather than in the
+  // list so coming back from the editor keeps what was open.
+  const [openGroups, setOpenGroups] = useState(() => new Set(["studio", "orphaned"]));
+  const toggleGroup = (key) => setOpenGroups((s) => {
+    const next = new Set(s);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/roles`, { cache: "no-store" });
@@ -162,11 +173,16 @@ export default function StudioRoles({ slug, initial }) {
       {roles.length === 0 ? (
         <Empty title={tr.noRolesYet} body={tr.studiosStartAdminManager} />
       ) : (
-        groups.map((group) => (
+        groups.map((group) => { const isOpen = openGroups.has(group.key); return (
         <div key={group.key} className="mt-6">
           <h3 className="font-display text-sm font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            {group.label} <span className="font-500 text-slate-400">· {group.rows.length}</span>
+            <button type="button" onClick={() => toggleGroup(group.key)} aria-expanded={isOpen}
+              className="inline-flex items-center gap-2 text-start uppercase">
+              <Icon name={isOpen ? "chevronDown" : "chevronRight"} className="h-4 w-4 shrink-0 rtl:-scale-x-100" />
+              <span>{group.label} <span className="font-500 text-slate-400">· {group.rows.length}</span></span>
+            </button>
           </h3>
+        {isOpen && (
         <ul className="mt-2 divide-y divide-slate-100 dark:divide-white/5">
           {group.rows.map((r) => (
             <li key={r.id} className="flex flex-wrap items-center gap-3 py-3">
@@ -200,8 +216,9 @@ export default function StudioRoles({ slug, initial }) {
             </li>
           ))}
         </ul>
+        )}
         </div>
-        ))
+        ); })
       )}
     </section>
   );
@@ -297,7 +314,11 @@ function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }) 
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr,20rem]">
+    // `minmax(0,1fr)`, NOT `1fr`: a bare 1fr column is at least as wide as its
+    // widest content, and the one-line summary on each collapsed group (every
+    // area and its level) is very wide — `truncate` cannot shorten a line whose
+    // column has already grown to fit it, so the editor pushed the page sideways.
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr),20rem]">
       <section className={panel}>
         <h2 className={h2}>{tr.accessFor} {draft.name || tr.aRole}</h2>
         <p className={sub}>{tr.everythingJobMayAreas}</p>

@@ -214,12 +214,17 @@ export async function moveRecordAsStudio(
 export async function grantableTypeAreas(
   ctx: { studio: StudioRef; sections: Section[] },
   locale: string,
+  // WHICH SECTIONS ARE SWITCHED ON. A register under a department the studio
+  // has switched off is left out, as that department's own areas are.
+  on: (sectionKey: string) => boolean = () => true,
 ): Promise<Area[]> {
   const settingsSection = ctx.sections.find((s) => s.key === "administration-settings");
   if (!settingsSection) return [];
 
   const types = await Types.find({ studio: ctx.studio, section: settingsSection });
-  return types.map((t) => {
+  return types
+    .filter((t) => on(t.parentSectionKey) && (!t.sectionKey || on(t.sectionKey)))
+    .map((t) => {
     // GROUPED UNDER THE SECTION THE REGISTER LIVES IN, so a studio finds NCRs
     // beside the rest of Quality & HSE rather than in a bucket called "Engine".
     // The stored section name is the fallback, and `sectionName` translates the

@@ -3,7 +3,9 @@ import { currentUser } from "@/platform/auth/identity";
 import { route, type Guarded, subscriptionRefusal } from "@/platform/http/route";
 import type { StudioMembership } from "@/lib/studios";
 import { studioContext } from "@/lib/studios";
-import { requirePermission, escalates, AREAS } from "@/platform/access";
+import { requirePermission, escalates, AREAS, SECTION_AREAS, type Area } from "@/platform/access";
+import { isFiledOnlySection } from "@/platform/db/keys";
+import { switchboard } from "@/lib/dashboardWidgets";
 import { listRoles, createRole, updateRole, deleteRole, cleanRole, ADMIN_ROLE_ID } from "@/modules/people/roles";
 import { studioLocale } from "@/shared/locale";
 import { departmentsAsStored } from "@/modules/administration/departments";
@@ -32,6 +34,46 @@ async function open(ctx: { params: Promise<Record<string, string>> }): Promise<G
   return { context };
 }
 
+// ONLY THE DEPARTMENTS THIS STUDIO RUNS — the owner, 24/09/2026: the editor
+// listed all eighteen while the sidebar showed five. `switchboard` is the same
+// on/off answer the dashboards use (a part is off when it or its department
+// is), so the editor and the sidebar cannot disagree about what is running.
+//
+// An area is on when any section it is filed under is on. A FILED-ONLY row
+// (`crm-sales-pos`, `projects-sla`, …) is skipped when the area has a real
+// home as well, because those rows stay enabled after their screens moved and
+// would keep a switched-off department's rights on the list. An area no
+// section names follows its GROUP: shown if anything in that group is on, or
+// if nothing in the group is filed anywhere (Administration, People).
+//
+// HIDING IS NOT REVOKING. A role keeps whatever it holds in a switched-off
+// department: the editor changes only the keys of the areas it shows
+// (`setLevel` keeps every other key), so saving drops nothing, and switching
+// the department back on brings the role's access back with it.
+const AREA_SECTIONS = (() => {
+  const map = new Map<string, string[]>();
+  for (const [section, areas] of Object.entries(SECTION_AREAS)) {
+    for (const area of areas) map.set(area, [...(map.get(area) || []), section]);
+  }
+  return map;
+})();
+
+function runningAreas(areas: readonly Area[], on: (key: string) => boolean): Area[] {
+  // true / false for an area some section names; null for one none does.
+  const verdict = (key: string): boolean | null => {
+    const all = AREA_SECTIONS.get(key) || [];
+    if (!all.length) return null;
+    const live = all.filter((s) => !isFiledOnlySection(s));
+    return (live.length ? live : all).some(on);
+  };
+  const groupOn = new Map<string, boolean>();
+  for (const a of areas) {
+    const v = verdict(a.key);
+    if (v !== null) groupOn.set(a.group, (groupOn.get(a.group) || false) || v);
+  }
+  return areas.filter((a) => verdict(a.key) ?? groupOn.get(a.group) ?? true);
+}
+
 const body = async (request: Request): Promise<Record<string, unknown>> => {
   try { return await request.json(); } catch { return {}; }
 };
@@ -41,6 +83,7 @@ const body = async (request: Request): Promise<Record<string, unknown>> => {
 // writes keep `open` for now. Refusals are unchanged: `notfound` is 404 and
 // `forbidden` 403 in the status table, the ladder `open` writes by hand.
 export const GET = route<StudioMembership>({ auth: "studio", name: "roles", keys: false }, async (context) => {
+  const on = switchboard(context.sections);
   return {
     roles: await listRoles(context.studio.id, studioLocale(context.studio)),
     // The catalogue travels with them so the editor can render every area and
@@ -50,7 +93,10 @@ export const GET = route<StudioMembership>({ auth: "studio", name: "roles", keys
     // compile-time and an engine right is minted from a row, so without the
     // second half the screen could not offer a single one of the studio's
     // record types and they stayed owner-only. See `grantableTypeAreas`.
-    areas: [...AREAS, ...await grantableTypeAreas(context, studioLocale(context.studio))],
+    areas: runningAreas(
+      [...AREAS, ...await grantableTypeAreas(context, studioLocale(context.studio), on)],
+      on,
+    ),
     // THE ORG CHART TRAVELS TOO, because the editor groups roles by it now.
     //
     // Served from here rather than fetched separately: the departments route

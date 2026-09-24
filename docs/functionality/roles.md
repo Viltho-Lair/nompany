@@ -237,6 +237,22 @@ permission grid inside each role.
 Constraining the grid by a department's sections would be a second mechanism
 deciding access, free to disagree with the roles that already decide it.
 
+**Each department folds** on both screens (24/09/2026): departments start
+closed with their role count showing; studio-wide and "not in a department"
+start open.
+
+**The access editor lists only what the studio runs** (24/09/2026). An area
+whose section — or whose department — is switched off is not offered, decided
+by `switchboard`, the same answer the dashboards use, so the editor and the
+sidebar agree. A filed-only row (`crm-sales-pos`, `projects-sla`, …) does not
+keep an area on when the area has a real home too; an area no section names
+follows the rest of its group. Engine registers under a switched-off department
+go the same way. **Hiding is not revoking:** a role keeps what it holds in a
+switched-off department, saving changes only the areas on screen, and
+switching the department back on shows it again. This is a filter on the
+catalogue the screen is sent, not on what may be granted — the write paths
+still accept any key in the catalogue.
+
 A role whose department was deleted keeps its id and appears under **"not in a
 department"** on both screens. Hiding it would leave access granted to a row
 nobody can find.
