@@ -303,7 +303,12 @@ export default function StudioPos({ slug }) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--geex-bg,transparent)]">
+    // ON A WIDE SCREEN THE TILL IS EXACTLY ONE WINDOW TALL AND NEVER GROWS —
+    // the owner, 24/09/2026. Stretching the cards to the foot of the screen
+    // (the same day) let a long basket push the page, and "Complete the sale"
+    // with it, below the taskbar. Now the basket scrolls inside its card and the
+    // payment card scrolls inside its own, with the button pinned to its foot.
+    <div className="flex min-h-screen flex-col bg-[var(--geex-bg,transparent)] lg:h-dvh lg:min-h-0">
       {(receipt || report) && <style>{PRINT_CSS}</style>}
 
       {/* THE BAR: which till, which shift, and the way out. */}
@@ -343,11 +348,12 @@ export default function StudioPos({ slug }) {
 
       {error && <p className="mx-4 mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
-      {/* THE TWO CARDS RUN TO THE FOOT OF THE SCREEN — the owner, 24/09/2026. main
-          is a flex column so the grid below can take the height left under the
-          header; a grid's one auto row then stretches both cards to it. Wide
-          screens only: stacked on a phone, stretching would pad two cards apart. */}
-      <main className="flex flex-1 flex-col p-4">
+      {/* THE TWO CARDS RUN TO THE FOOT OF THE SCREEN AND NO FURTHER — the owner,
+          24/09/2026. main takes what is left under the header, and the grid's
+          one row is `minmax(0,1fr)` rather than auto, because an auto row grows
+          with a long basket and that is what pushed the page past the window.
+          Wide screens only: stacked on a phone, the page scrolls as a page. */}
+      <main className="flex min-h-0 flex-1 flex-col p-4">
         {!data.hasInventory ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">{tr.noInventory}</p>
         ) : !shift ? (
@@ -356,9 +362,11 @@ export default function StudioPos({ slug }) {
             if (out) reload();
           }} />
         ) : (
-          <div className="grid gap-4 lg:flex-1 lg:grid-cols-[1fr_380px]">
-            <section className={`${card} p-4`}>
+          <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[1fr_380px] lg:grid-rows-[minmax(0,1fr)]">
+            <section className={`${card} p-4 lg:flex lg:min-h-0 lg:flex-col`}>
               <ScanBox tr={tr} items={data.items} onHit={addHit} disabled={!data.can.sell} />
+              {/* The scan box stays put; only the basket scrolls under it. */}
+              <div className="lg:-me-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pe-2">
               <Basket tr={tr} rows={basket} priced={priced?.lines || []} currency={terms.currency} canReprice={data.can.discount}
                 applied={offers?.applied || []} locale={locale}
                 onChange={(key, patch) => setBasket((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)))}
@@ -370,9 +378,10 @@ export default function StudioPos({ slug }) {
                     setChosen([]); setDropped([]); setCoupons([]);
                   }}>{tr.clear}</button>
               )}
+              </div>
             </section>
 
-            <aside className={`${card} flex flex-col gap-3 p-4`}>
+            <aside className={`${card} flex flex-col gap-3 p-4 lg:min-h-0 lg:overflow-y-auto`}>
               {data.can.discount && basket.length > 0 && (
                 <div>
                   <p className="mb-1 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.basketDiscount}</p>
@@ -440,7 +449,7 @@ export default function StudioPos({ slug }) {
                   </span>
                 </p>
               )}
-              <button type="button" className={`${btn} mt-auto py-3 text-base`}
+              <button type="button" className={`${btn} mt-auto py-3 text-base lg:sticky lg:bottom-0 lg:shadow-geex-sm`}
                 disabled={busy || !basket.length || !data.can.sell || !settled || Boolean(settled.problem) || Boolean(overCap)}
                 onClick={() => completeSale()}>
                 {busy ? tr.selling : tr.complete}
