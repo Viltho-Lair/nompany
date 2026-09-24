@@ -244,8 +244,8 @@ export function sectionOffRefusal(request: Request, sections: unknown): Response
   const key = switchKeyForPath(new URL(request.url).pathname);
   if (!key || !Array.isArray(sections)) return null;
   // The studio's own switchboard, never a second copy of its rule: a part is
-  // off when it or the department above it is, and one shared answer is what
-  // keeps the wrapper, the screens and this in step.
+  // off when its own switch is, and one shared answer is what keeps the
+  // wrapper, the screens and this in step.
   return switchboard(sections as SwitchRow[])(key)
     ? null
     : Response.json({ error: "section-off" }, { status: 404 });

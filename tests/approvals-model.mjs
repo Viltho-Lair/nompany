@@ -219,11 +219,17 @@ ok("a type with no old right has no default: it waits to be set up", M.defaultSe
 
   const on = switchboard([
     { id: "p", key: "pos", enabled: false },
-    { id: "r", key: "pos-returns", parentId: "p", enabled: true },
+    { id: "r", key: "pos-returns", parentId: "p", enabled: false },
     { id: "h", key: "hr", enabled: true },
     { id: "l", key: "hr-leave", parentId: "h", enabled: false },
   ]);
-  ok("a till return is not available when Point of Sale is off, even with Returns on", R.approvalAvailable("pos-return", on) === false);
+  ok("a till return is not available when Point of Sale is off", R.approvalAvailable("pos-return", on) === false);
+  // A part's own switch decides (24/09/2026): Returns switched on by hand under
+  // a Point of Sale that is off is running, and its approvals are available.
+  ok("…and is available when Returns alone was switched on", R.approvalAvailable("pos-return", switchboard([
+    { id: "p", key: "pos", enabled: false },
+    { id: "r", key: "pos-returns", parentId: "p", enabled: true },
+  ])) === true);
   ok("leave is not available when Leave is off under a running HR", R.approvalAvailable("leave", on) === false);
   ok("payroll is available while HR runs", R.approvalAvailable("payroll", on) === true);
   ok("a carried-over item belongs to no department and stays available", R.approvalAvailable("carried", on) === true);

@@ -38,9 +38,10 @@ const rows = [
 const on = W.switchboard(rows);
 ok("a department switched on is on", on("crm-sales"));
 ok("a department switched off is off", !on("projects"));
-// The Sections panel switches a branch, but nothing forbids the pair — and the
-// visual must follow the department even when the part's own flag says on.
-ok("a part under a switched-off department is off, whatever its own flag says", !on("projects-list"));
+// A part switched on by hand under a department that is off IS on (24/09/2026):
+// the sidebar already showed it on its own, and the API refused every call the
+// screen made with `section-off` — Suppliers without the rest of Procurement.
+ok("a part switched on under a switched-off department is on — its own switch decides", on("projects-list"));
 ok("a part switched off inside a department that is on is off", !on("crm-sales-pipeline"));
 ok("its sibling stays on", on("crm-sales-pos"));
 ok("a key with no row is on — nobody said no to it", on("main") && on("approvals"));
@@ -54,8 +55,8 @@ ok("every `needs` on → drawn", W.widgetAvailable({ needs: ["crm-sales", "crm-s
 ok("one `needs` off → gone", !W.widgetAvailable({ needs: ["crm-sales", "crm-sales-pipeline"] }, on));
 // DROP THE SWITCHED-OFF PARTS — the owner's answer for a widget built from
 // several departments: it stays while any of them is on.
-ok("`anyOf` with one on → drawn", W.widgetAvailable({ anyOf: ["projects-list", "crm-sales-pos"] }, on));
-ok("`anyOf` with none on → gone", !W.widgetAvailable({ anyOf: ["projects-list", "crm-sales-pipeline"] }, on));
+ok("`anyOf` with one on → drawn", W.widgetAvailable({ anyOf: ["projects", "crm-sales-pos"] }, on));
+ok("`anyOf` with none on → gone", !W.widgetAvailable({ anyOf: ["projects", "crm-sales-pipeline"] }, on));
 
 console.log("\n== every declared source is a real switch");
 
@@ -180,7 +181,9 @@ ok("the one read door refuses a set whose part is off",
 
 const tenderingOff = W.switchboard([
   { id: "t", key: "tendering", parentId: null, enabled: false },
-  { id: "tr", key: "tendering-register", parentId: "t", enabled: true },
+  // The branch as the Sections panel leaves it: switching a department off
+  // switches its parts off with it.
+  { id: "tr", key: "tendering-register", parentId: "t", enabled: false },
   { id: "f", key: "finance", parentId: null, enabled: true },
   { id: "fp", key: "finance-payables", parentId: "f", enabled: false },
 ]);

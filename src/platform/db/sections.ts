@@ -215,7 +215,11 @@ export async function plantMissingSections(studioId: string, known?: Section[]):
         if (next.some((s) => s.key === child.key)) continue;
         next.push({
           id: ID.subsection(), studioId, key: child.key, name: child.name, parentId: parent.id,
-          enabled: true, sortOrder: next.length, settings: {}, createdAt: now,
+          // A PLANTED PART FOLLOWS ITS DEPARTMENT. A part's own flag is the
+          // whole answer to "is it on" (lib/dashboardWidgets `switchboard`), so
+          // a part planted `true` under a department the studio switched off
+          // would appear in the sidebar by itself and start answering its API.
+          enabled: parent.enabled !== false, sortOrder: next.length, settings: {}, createdAt: now,
         });
       }
     }
@@ -257,8 +261,8 @@ export async function appendSection(
   if (!cleanKey || !cleanName) return { error: "missing" };
   return editArr<Section, { error: string } | { section: Section }>(S.sections(studioId), (rows) => {
     if (rows.some((s) => s.key === cleanKey)) return { result: { error: "exists" } };
+    const parent = parentId ? rows.find((s) => s.id === parentId) : null;
     if (parentId) {
-      const parent = rows.find((s) => s.id === parentId);
       // The tree is one level deep: a sub-section cannot own sub-sections.
       if (!parent) return { result: { error: "parent" } };
       if (parent.parentId) return { result: { error: "nested" } };
@@ -266,7 +270,8 @@ export async function appendSection(
     const section: Section = {
       id: parentId ? ID.subsection() : ID.section(),
       studioId, key: cleanKey, name: cleanName, parentId: parentId || null,
-      enabled: true, sortOrder: rows.length, settings: {}, createdAt: new Date().toISOString(),
+      // Follows its department, for the reason plantMissingSections gives.
+      enabled: parent ? parent.enabled !== false : true, sortOrder: rows.length, settings: {}, createdAt: new Date().toISOString(),
     };
     return { next: [...rows, section], result: { section } };
   });

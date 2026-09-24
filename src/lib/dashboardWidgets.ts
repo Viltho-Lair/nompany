@@ -46,24 +46,27 @@ export type WidgetDef = {
 export type SwitchRow = { id?: string; key: string; parentId?: string | null; enabled?: boolean };
 
 /**
- * IS THIS SECTION ON — itself AND the department it sits in.
+ * IS THIS SECTION ON — its OWN switch, and nothing else.
  *
- * `enabled` is stored per row, and a part can be on under a department that is
- * off (the Sections panel switches a branch, but nothing forbids the pair), so
- * the parent is asked too. A key with no row is ON: it is either not a section
- * (Main, a pure control) or not planted yet, and neither is the owner saying no.
+ * A PART SWITCHED ON UNDER A DEPARTMENT THAT IS OFF IS ON (the owner,
+ * 24/09/2026). This used to ask the parent too, and the sidebar never did:
+ * `visibleSections` filters on the row's own flag and StudioFrame promotes a
+ * visible part whose department is hidden to the top level. So a studio that
+ * ran Suppliers without the rest of Procurement saw Suppliers in its nav and
+ * got `section-off` from every call the screen made. One answer now, the
+ * sidebar's — a studio may run one part of a department.
+ *
+ * Switching a DEPARTMENT still switches its whole branch (the Sections panel's
+ * `setBranch`, creation, and planting all make a part follow its department),
+ * so a department switched off is off in every part unless somebody turned a
+ * part back on by hand — which is the case this answers for.
+ *
+ * A key with no row is ON: it is either not a section (Main, a pure control) or
+ * not planted yet, and neither is the owner saying no.
  */
 export function switchboard(rows: readonly SwitchRow[] | null | undefined): (key: string) => boolean {
-  const list = rows || [];
-  const byKey = new Map(list.map((r) => [r.key, r]));
-  const byId = new Map(list.filter((r) => r.id).map((r) => [String(r.id), r]));
-  return (key: string) => {
-    const row = byKey.get(key);
-    if (!row) return true;
-    if (row.enabled === false) return false;
-    const parent = row.parentId ? byId.get(String(row.parentId)) : null;
-    return !parent || parent.enabled !== false;
-  };
+  const byKey = new Map((rows || []).map((r) => [r.key, r]));
+  return (key: string) => byKey.get(key)?.enabled !== false;
 }
 
 /** May this widget be drawn at all, given what the studio runs? */

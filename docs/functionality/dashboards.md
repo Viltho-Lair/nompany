@@ -88,7 +88,11 @@ the studio *bought*, this says what the company *runs* — and a widget is drawn
 gates pass: the tier includes it, every section it reads is on, and the reader holds the rights.
 
 - **`switchboard(sections)`** (`lib/dashboardWidgets.ts`) answers "is this section on": its own
-  `enabled` **and** its department's. A key with no row is on — nobody said no to it.
+  `enabled`, and nothing else. **A part switched on under a department that is off is on**
+  (2026-09-24) — the sidebar already drew it alone at the top level, and every call its screen
+  made came back `section-off`. Switching a department still switches its whole branch, and a
+  part planted later takes its department's switch, so this only differs when somebody turned a
+  part on by hand. A key with no row is on — nobody said no to it.
 - **A widget declares its sources**, separately from the dashboard it is drawn on (`section`):
   `needs` (all must be on) or `anyOf` (a widget built from several). **A combined widget drops the
   switched-off parts and stays** while any source is on — the owner's answer — and is gone only

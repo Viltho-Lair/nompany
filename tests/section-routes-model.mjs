@@ -114,8 +114,15 @@ const rows = [
 const asked = (path) => S.sectionOffRefusal(new Request(`http://x${path}`), rows);
 ok("a switched-off part refuses", asked("/api/studios/acme/finance/bills")?.status === 404);
 ok("…and says which answer it is", Boolean(asked("/api/studios/acme/finance/bills")));
-ok("a part under a switched-off department refuses",
-  asked("/api/studios/acme/tendering/tenders")?.status === 404);
+// A part switched on by hand under a department that is off ANSWERS
+// (24/09/2026): the sidebar shows it, so its API must too — Suppliers run
+// without the rest of Procurement came back `section-off` on every call.
+ok("a part switched on under a switched-off department answers",
+  asked("/api/studios/acme/tendering/tenders") === null);
+ok("the department's own address still refuses",
+  asked("/api/studios/acme/procurement/dashboard") === null
+  && S.sectionOffRefusal(new Request("http://x/api/studios/acme/procurement/dashboard"),
+    [{ id: "p", key: "procurement", parentId: null, enabled: false }])?.status === 404);
 ok("a part that is on answers", asked("/api/studios/acme/finance/invoices") === null);
 ok("an exempt address answers whatever is switched off",
   asked("/api/studios/acme/settings/sections") === null);
