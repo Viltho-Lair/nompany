@@ -343,7 +343,11 @@ export default function StudioPos({ slug }) {
 
       {error && <p className="mx-4 mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
 
-      <main className="flex-1 p-4">
+      {/* THE TWO CARDS RUN TO THE FOOT OF THE SCREEN — the owner, 24/09/2026. main
+          is a flex column so the grid below can take the height left under the
+          header; a grid's one auto row then stretches both cards to it. Wide
+          screens only: stacked on a phone, stretching would pad two cards apart. */}
+      <main className="flex flex-1 flex-col p-4">
         {!data.hasInventory ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">{tr.noInventory}</p>
         ) : !shift ? (
@@ -352,7 +356,7 @@ export default function StudioPos({ slug }) {
             if (out) reload();
           }} />
         ) : (
-          <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+          <div className="grid gap-4 lg:flex-1 lg:grid-cols-[1fr_380px]">
             <section className={`${card} p-4`}>
               <ScanBox tr={tr} items={data.items} onHit={addHit} disabled={!data.can.sell} />
               <Basket tr={tr} rows={basket} priced={priced?.lines || []} currency={terms.currency} canReprice={data.can.discount}

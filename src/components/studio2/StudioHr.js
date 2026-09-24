@@ -11,6 +11,7 @@ import StudioDate from "@/components/fields/StudioDate";
 import { initialsOf } from "@/lib/initials";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import { Icon } from "@/components/studio2/icons";
 import { PanelBar, usePanelParam } from "@/components/studio2/PanelBar";
 import nextDynamic from "next/dynamic";
 import { useReload } from "@/components/studio2/useReload";
@@ -649,6 +650,18 @@ function Roles({ rows, departments, slug, canManage, canAssignRoles, busy, send 
   const [confirming, setConfirming] = useState("");
   const [picker, setPicker] = useState(null);
   const closeForm = useCallback(() => setForm(null), []);
+  // DEPARTMENTS FOLD — the owner, 24/09/2026. Seeded departments bring up to
+  // ten pre-built roles each, so a studio with a dozen departments was a page of
+  // a hundred rows to scroll past. Each department opens on a click and starts
+  // closed; Studio-wide (Admin, one row) and "not in a department" (something
+  // somebody must fix) start open, because hiding either hides the one row that
+  // matters. Adding pre-built roles opens the department it added to.
+  const [open, setOpen] = useState(() => new Set(["studio", "orphaned"]));
+  const toggle = (key) => setOpen((s) => {
+    const next = new Set(s);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
 
   // GROUPED BY DEPARTMENT, because that is what a role now belongs to. A flat
   // list of a hundred job titles is the thing this change exists to end.
@@ -692,7 +705,7 @@ function Roles({ rows, departments, slug, canManage, canAssignRoles, busy, send 
             const ok = await send("roles", "POST", {
               action: "add-library", departmentId: picker.id, names,
             });
-            if (ok) setPicker(null);
+            if (ok) { setOpen((s) => new Set(s).add(picker.id)); setPicker(null); }
           }}
         />
       )}
@@ -712,12 +725,16 @@ function Roles({ rows, departments, slug, canManage, canAssignRoles, busy, send 
         </Dialog>
       )}
 
-      {groups.map((group) => (
+      {groups.map((group) => { const isOpen = open.has(group.key); return (
       <section key={group.key} className={`${panel} mt-4`}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className={`flex flex-wrap items-center justify-between gap-3 ${isOpen ? "mb-3" : ""}`}>
           <div className="min-w-0">
             <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">
-              {group.label} <span className="text-sm font-500 text-slate-400">· {group.rows.length}</span>
+              <button type="button" onClick={() => toggle(group.key)} aria-expanded={isOpen}
+                className="inline-flex items-center gap-2 text-start">
+                <Icon name={isOpen ? "chevronDown" : "chevronRight"} className="h-4 w-4 shrink-0 text-slate-400 rtl:-scale-x-100" />
+                <span>{group.label} <span className="text-sm font-500 text-slate-400">· {group.rows.length}</span></span>
+              </button>
             </h3>
             {group.hint && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{group.hint}</p>}
           </div>
@@ -731,7 +748,7 @@ function Roles({ rows, departments, slug, canManage, canAssignRoles, busy, send 
             </button>
           )}
         </div>
-        {group.rows.length === 0 ? (
+        {!isOpen ? null : group.rows.length === 0 ? (
           <p className="py-2 text-sm text-slate-500 dark:text-slate-400">{tr.noRolesInDepartment}</p>
         ) : (
         <ul className="divide-y divide-slate-100 dark:divide-white/5">
@@ -795,7 +812,7 @@ function Roles({ rows, departments, slug, canManage, canAssignRoles, busy, send 
         </ul>
         )}
       </section>
-      ))}
+      ); })}
 
       <section className={panel}>
         <p className="text-xs text-slate-500 dark:text-slate-400">
