@@ -333,10 +333,10 @@ export default function StudioPos({ slug }) {
           </span>
         )}
         <div className="ms-auto flex flex-wrap gap-2">
-          {/* THE TILLS ARE MANAGED ON THE SETTINGS SCREEN now, under its own right. */}
+          {/* NO SETTINGS LINK ON THE TILL — the owner, 24/09/2026. The counter is
+              for selling; Point of Sale settings are reached from the sidebar. */}
           {/* CASHIERS CHANGE BY PIN on a paired till (18/09/2026). */}
           <button type="button" className={btnGhost} onClick={() => setSwitching(true)}>{sec.switchCashier}</button>
-          {data.can.manage && <Link href={`/${slug}/pos-settings`} className={btnGhost}>{tr.settings}</Link>}
           {shift && data.can.closeShift && <button type="button" className={btnGhost} onClick={() => setClosing(true)}>{tr.closeShift}</button>}
         </div>
       </header>

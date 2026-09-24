@@ -341,9 +341,12 @@ function Items({ slug, items, vendors, units, categories = [], serviceActions, s
               emptyIcon="package"
               columns={[
                 {
-                  field: "name", headerName: tr.item, minWidth: 200, flex: 1.4,
+                  // THE NAME TRUNCATES WITH AN ELLIPSIS and carries itself as a
+                  // title. Without it a long name ran into the cell edge and was
+                  // cut mid-letter ("L-Arg", "Shar"), which reads as a broken row.
+                  field: "name", headerName: tr.item, minWidth: 220, flex: 2,
                   renderCell: ({ row }) => (
-                    <span className="min-w-0">
+                    <span className="min-w-0 truncate" title={[row.sku, row.name, row.modelNumber].filter(Boolean).join(" · ")}>
                       <span className="num text-xs text-slate-400">{row.sku}</span>
                       <span className="ms-2 font-600 text-slate-900 dark:text-white">{row.name}</span>
                       {row.modelNumber && <span className="ms-2 text-xs text-slate-400">{row.modelNumber}</span>}
@@ -352,7 +355,7 @@ function Items({ slug, items, vendors, units, categories = [], serviceActions, s
                 },
                 {
                   field: "vendorName", headerName: tr.vendor, minWidth: 130, flex: 0.9,
-                  renderCell: ({ row }) => <span className="text-slate-600 dark:text-slate-300">{row.vendorName || "—"}</span>,
+                  renderCell: ({ row }) => <span className="truncate text-slate-600 dark:text-slate-300" title={row.vendorName || undefined}>{row.vendorName || "—"}</span>,
                 },
                 {
                   field: "itemType", headerName: tr.type, minWidth: 120, flex: 0.8,

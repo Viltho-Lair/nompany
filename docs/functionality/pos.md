@@ -129,7 +129,9 @@ says so. Each opens its report (printable) and its sales.
 
 **Settings.** The tills — add (with a till ID), retire, use again (never delete), **pair this
 device, unpair** — whether shelf prices include tax, and the receipt footer. Moved here from a
-dialog on the till; the till's Settings button links here.
+dialog on the till. The till itself has no link here (removed 24/09/2026, the owner: the counter
+is for selling); it is reached from the sidebar, and from the till only when the device is not
+yet paired.
 
 ## A till is a device (18/09/2026)
 

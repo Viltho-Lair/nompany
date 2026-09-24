@@ -23,8 +23,17 @@ export const GRID_FOOTER_HEIGHT = 52;
 // The height a grid occupies for `pageSize` rows, header and footer included.
 // Used by the skeleton to reserve the exact box and by the grid itself so the two
 // agree by construction rather than by coincidence.
+//
+// THE TWO RULES ARE COUNTED. StudioDataGrid draws a 1px rule under the column
+// headers and above the footer, and the Data Grid adds each ON TOP of the height
+// it was given: measured in the sandbox, the header box is 45px and the footer
+// 53px against 44 and 52. Leaving them out made the box 2px short of ten rows,
+// so every full page of every studio grid scrolled by two pixels and drew a
+// vertical scrollbar beside rows that all fitted.
+const GRID_RULE = 1;
 export function gridHeight(pageSize, { footer = true } = {}) {
-  return GRID_HEADER_HEIGHT + pageSize * GRID_ROW_HEIGHT + (footer ? GRID_FOOTER_HEIGHT : 0);
+  return GRID_HEADER_HEIGHT + GRID_RULE + pageSize * GRID_ROW_HEIGHT
+    + (footer ? GRID_FOOTER_HEIGHT + GRID_RULE : 0);
 }
 
 // Deterministic-but-varied cell widths, so a skeleton row reads as a row of data

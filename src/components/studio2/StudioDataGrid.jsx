@@ -34,7 +34,7 @@
 // CLAUDE.md), so its internal layout does not mirror; logical props on OUR padding
 // and rules mirror the moment the plugin lands rather than needing a second sweep.
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { DataGrid, gridClasses } from "@mui/x-data-grid";
 import { Icon } from "@/components/studio2/icons";
 import { useStudioLocale } from "@/components/studio2/locale";
@@ -177,6 +177,16 @@ export default function StudioDataGrid({
     [emptyLabel, emptyIcon, tr],
   );
 
+  // THE BOX FOLLOWS THE PAGE SIZE THE READER PICKS, not the one it opened at.
+  // Sized from `pageSize` alone, choosing 25 or 50 rows per page kept a box ten
+  // rows tall and scrolled the other fifteen inside it. Still the page SIZE,
+  // never the row count, so a short last page does not move the footer.
+  const [shownSize, setShownSize] = useState(pageSize);
+  const onPaginationModelChange = (model, details) => {
+    setShownSize(model.pageSize);
+    rest.onPaginationModelChange?.(model, details);
+  };
+
   return (
     <div
       // The theme-varying colours the `sx` above reads. Set here (not in the MUI
@@ -184,7 +194,7 @@ export default function StudioDataGrid({
       // slate-900 → white, `--sg-muted` slate-500 → slate-400, `--sg-brand`
       // brand-700 → brand-300 — the same pairs the hand-rolled tables used.
       className={`w-full [--sg-fg:15_23_42] [--sg-muted:100_116_139] [--sg-brand:29_78_216] dark:[--sg-fg:255_255_255] dark:[--sg-muted:148_163_184] dark:[--sg-brand:147_197_253] ${className}`}
-      style={{ height: gridHeight(pageSize) }}
+      style={{ height: gridHeight(shownSize) }}
     >
       <DataGrid
         rows={rows}
@@ -200,6 +210,7 @@ export default function StudioDataGrid({
         aria-label={ariaLabel}
         sx={sxOverride ? [sx, sxOverride] : sx}
         {...rest}
+        onPaginationModelChange={onPaginationModelChange}
       />
     </div>
   );

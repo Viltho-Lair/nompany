@@ -18,7 +18,6 @@ type Strings = {
   save: string;
   cancel: string;
   retire: string;
-  settings: string;
   pricesIncludeTax: string;
   pricesIncludeTaxHint: string;
   footer: string;
@@ -150,7 +149,6 @@ const en: Strings = {
   save: "Save",
   cancel: "Cancel",
   retire: "Retire",
-  settings: "Till settings",
   pricesIncludeTax: "Shelf prices include tax",
   pricesIncludeTaxHint: "On: the item's sell price is what the customer pays, and the tax is taken out of it. Off: tax is added at the till.",
   footer: "Receipt footer",
@@ -320,7 +318,6 @@ const ar: Strings = {
   save: "حفظ",
   cancel: "إلغاء",
   retire: "إيقاف",
-  settings: "إعدادات الصندوق",
   pricesIncludeTax: "أسعار الرفوف شاملة الضريبة",
   pricesIncludeTaxHint: "عند التفعيل يكون سعر بيع الصنف هو ما يدفعه العميل وتستخرج الضريبة منه، وعند الإيقاف تضاف الضريبة عند الصندوق.",
   footer: "تذييل الإيصال",
