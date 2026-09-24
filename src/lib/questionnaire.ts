@@ -1,37 +1,14 @@
-// Questionnaire (post-signup) shared data: the package keys the entry-point CTAs
-// carry (Small into its three headcount bands, Medium into its two), a human label for
-// each, and the ERP-systems option list for Page 3.
-import { PLANS, pick } from "@/lib/pricing";
+// Questionnaire (post-signup) shared data: the registration questionnaire's
+// seed, the rule that retires what moved out of it, and the ERP-systems option
+// list, which studio creation asks from now.
+//
+// THE PACKAGE KEYS LEFT, 24/09/2026. This file carried `micro`, `small-1` …
+// and a label for each, for a `?package=` that the pricing links sent and
+// nothing on signup ever read. The choice is a signed cookie now, naming
+// catalogue ids (platform/auth/purchaseIntent), so these names had nothing left
+// to name.
 
-// Package keys carried on ?package= from the header / pricing CTAs into signup.
-// Banded plans split into "-1" / "-2" / "-3" (band index); the free package
-// (key "micro", named Standard since 24/09/2026) and large are single.
-export const PACKAGE_KEYS = ["micro", "small-1", "small-2", "small-3", "medium-1", "medium-2", "large"];
-export function isPackageKey(k: unknown) { return PACKAGE_KEYS.includes(String(k || "")); }
-
-// The pricing plan key behind a package key ("small-2" → "small").
-export function planKeyOf(key: unknown) { return String(key || "").split("-")[0]; }
-
-// Only Standard (key "micro") is free; every other package requires payment.
-export function isFreePackage(key: string) {
-  const plan = PLANS.find((p) => p.key === planKeyOf(key));
-  return Boolean(plan?.free);
-}
-
-// Human label for a package key, e.g. "Small · 10–24" (with the band range).
-export function packageLabel(key: string, locale = "en") {
-  const [base, bandStr] = String(key || "").split("-");
-  const plan = PLANS.find((p) => p.key === base);
-  if (!plan) return "";
-  const name = pick(plan.name, locale);
-  if (plan.bands && bandStr) {
-    const band = plan.bands[Number(bandStr) - 1];
-    return band ? `${name} · ${band.label}` : name;
-  }
-  return name;
-}
-
-// ERP systems for Page 3 "Which ERPs do your company have already?" — a
+// ERP systems for "Which ERPs does your company have already?" — asked in studio creation. A
 // searchable multi-select. "None" is exclusive (locks the rest); "Not Listed"
 // reveals a free-text field. Order preserved from the spec.
 export const ERP_NONE = "None — We do not use an ERP system";
@@ -89,6 +66,15 @@ export const AVERAGE_MINUTES = 2;
 // they publish that their form can no longer produce one.
 export const INTENTS = ["create", "join"];
 
+// THE COMPANY LEFT THE QUESTIONNAIRE, 24/09/2026 — the owner: merge it into
+// studio creation, except what is about the PERSON. Field, country, city and
+// the ERPs in use describe a company, and a company is a studio: they are asked
+// where the studio is made now, and they land ON it, where the country sets the
+// currency and the rules the studio runs by. Here they were stored on the
+// person and read by nothing at all.
+//
+// What stays is about the person — what brings them here — and anything an
+// author adds in /super.
 export const QUESTION_PAGES = [
   {
     id: "qpg_reg_goal",
@@ -116,27 +102,42 @@ export const QUESTION_PAGES = [
       },
     ],
   },
-  {
-    id: "qpg_reg_company",
-    title: "Tell us about your company",
-    lead: "It helps us tune your defaults. Nothing here is published anywhere.",
-    hint: "Can't find your industry or city? Type it in — the list is only a shortcut.",
-    questions: [
-      { id: "qsn_reg_field", type: "dropdown", key: "field", label: "What field does your company work in?", required: true, source: "industries", placeholder: "Construction", options: [] },
-      { id: "qsn_reg_country", type: "dropdown", key: "country", label: "Country", required: true, source: "countries", options: [], resets: ["city"] },
-      { id: "qsn_reg_city", type: "dropdown", key: "city", label: "City", required: false, source: "cities", dependsOn: "country", options: [] },
-    ],
-  },
-  {
-    id: "qpg_reg_systems",
-    title: "Which systems are you running today?",
-    lead: "Knowing what you already have tells us what nompany needs to sit alongside.",
-    hint: "Pick as many as apply. If you run none, say so — that is a real answer.",
-    questions: [
-      { id: "qsn_reg_erps", type: "multiple-choice", key: "erps", label: "ERPs your company already has", required: false, multiple: true, source: "erps", options: [], vertical: false },
-    ],
-  },
 ];
+
+/**
+ * WHAT MOVED OUT OF A REGISTRATION QUESTIONNAIRE ALREADY PLANTED.
+ *
+ * The seed is planted once and the stored copy wins for ever after
+ * (ensureQuestionnaireForRoute), so taking questions out of the seed reaches
+ * no environment that already has one — every live one. This is the one edit
+ * that travels: these four questions, by the ids the seed gave them, and the
+ * two seed pages if nothing is left on them. Nothing an author added is
+ * touched, a page they put a question of their own on is kept, and the
+ * `marker` makes it happen once — re-adding a question later is their call.
+ */
+export type Retirement = { marker: string; questionIds: string[]; pageIds: string[] };
+type RetirablePage = { id?: string; questions?: { id?: string }[] };
+
+/**
+ * A form's pages with a retirement applied — the named questions gone, and the
+ * named pages dropped only if that left them empty. Pure, so what the stored
+ * copy becomes is asserted without a database; the data layer adds the
+ * once-only marker and the write.
+ */
+export function withoutRetired<P extends RetirablePage>(pages: P[], { questionIds, pageIds }: Retirement): P[] {
+  const drop = new Set(questionIds);
+  const emptyable = new Set(pageIds);
+  return (pages || [])
+    .map((p) => ({ ...p, questions: (p.questions || []).filter((q) => !drop.has(String(q?.id || ""))) }))
+    .filter((p) => !(emptyable.has(String(p.id || "")) && p.questions.length === 0));
+}
+
+export const RETIRED_FROM_REGISTRATION: Retirement = {
+  marker: "company-to-studio-creation-2026-09-24",
+  questionIds: ["qsn_reg_field", "qsn_reg_country", "qsn_reg_city", "qsn_reg_erps"],
+  pageIds: ["qpg_reg_company", "qpg_reg_systems"],
+};
+
 
 /**
  * ONE QUESTION, as far as completeness is concerned. Deliberately structural

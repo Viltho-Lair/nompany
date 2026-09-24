@@ -81,7 +81,7 @@ export function SiteFooter({ locale: localeProp }) {
               {companyCopy(locale).description}
             </p>
             <Link
-              href={`/${locale}/signup`}
+              href={`/api/intent?locale=${locale}`}
               className="mt-7 inline-flex items-center rounded-full bg-gradient-to-br from-iris to-violet px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-iris/20 transition-transform hover:scale-[1.02]"
             >
               {hero.ctaPrimary}

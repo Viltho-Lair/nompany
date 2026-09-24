@@ -307,5 +307,32 @@ ok("reachability is not guessed at when nobody supplies it",
     { id: "q_intent", key: "intent", required: true, options: ["create", "join"], reveals: [{ op: "is", value: "create", show: ["q_a"] }] },
   ] }]).length === 0);
 
+console.log("\n== the company questions leave a form already planted, and nothing else does");
+// THE DEFECT THIS GUARDS: the registration form is planted once and the stored
+// copy wins for ever, so moving the company questions to studio creation in the
+// SEED reached no environment that already had the form (24/09/2026).
+const { withoutRetired, RETIRED_FROM_REGISTRATION: MOVED } = await import("@/lib/questionnaire");
+const OLD_SEED = [
+  QUESTION_PAGES[0],
+  { id: "qpg_reg_company", questions: [{ id: "qsn_reg_field" }, { id: "qsn_reg_country" }, { id: "qsn_reg_city" }] },
+  { id: "qpg_reg_systems", questions: [{ id: "qsn_reg_erps" }] },
+];
+const trimmed = withoutRetired(OLD_SEED, MOVED);
+ok("the old seed keeps only the page about the person",
+  trimmed.length === 1 && trimmed[0].id === "qpg_reg_goal" && trimmed[0].questions.length === 1);
+ok("…and what is left is still a form registration can finish", registrationProblems(trimmed).length === 0);
+// AN AUTHOR'S OWN WORK IS NEVER TAKEN WITH IT. A question they added to a seed
+// page keeps that page; a page of their own is not looked at.
+const authored = withoutRetired([
+  ...OLD_SEED.slice(0, 2).map((p) => p.id === "qpg_reg_company" ? { ...p, questions: [...p.questions, { id: "qsn_mine" }] } : p),
+  { id: "qpg_mine", questions: [] },
+], MOVED);
+ok("a seed page an author added to is kept, with only their question",
+  authored.some((p) => p.id === "qpg_reg_company" && p.questions.length === 1 && p.questions[0].id === "qsn_mine"));
+ok("an author's own empty page is not dropped", authored.some((p) => p.id === "qpg_mine"));
+ok("the shipped seed carries none of the retired questions",
+  QUESTION_PAGES.flatMap((p) => p.questions).every((q) => !MOVED.questionIds.includes(q.id)));
+ok("the retirement is marked, so it runs once", typeof MOVED.marker === "string" && MOVED.marker.length > 0);
+
 console.log(fails === 0 ? "\nquestionnaire model: all passed\n" : `\nquestionnaire model: ${fails} FAILED\n`);
 process.exit(fails === 0 ? 0 : 1);

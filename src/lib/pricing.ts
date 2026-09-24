@@ -29,14 +29,15 @@
 // Large per employee — and the rates here had already drifted from it (150/175
 // against a live 140/150/160; 200/225 against 170/170). A price that lives in
 // two places is wrong in one of them, so the bands keep their HEADCOUNTS and
-// labels, which the registration questionnaire still names a package by, and
-// every figure is the catalogue's alone.
+// labels, and every figure is the catalogue's alone.
 //
-// THE NAMES AND BANDS ARE STILL A HAND-KEPT MIRROR of the catalogue, and that
-// is the remaining debt: the questionnaire should name a package by its
-// catalogue id, and this list should then shrink to the headcounts the claims
-// guard reads. Until then, a package renamed or re-banded in /super is renamed
-// or re-banded here in the same breath.
+// AND NOTHING NAMES A PACKAGE FROM HERE ANY MORE (the same day, later). The
+// registration questionnaire did, by `micro` / `small-2`; the pricing page's
+// choice is now a signed cookie carrying CATALOGUE ids
+// (platform/auth/purchaseIntent), and studio creation shows the catalogue's
+// own names. What this list still does is declare the headcounts the marketing
+// claims are checked against — `PLAN_HEADCOUNTS` below — so a package re-banded
+// in /super must be re-banded here for that check, and nowhere else.
 
 import { currencyDecimals } from "@/shared/money";
 

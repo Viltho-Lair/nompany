@@ -18,7 +18,7 @@ import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import {
   createStudio, getStudioById, getStudioBySlug, listOwnedStudios,
   listUserCollaborations, changeStudioSlug,
-  recordStudioVisit, studioVisitCounts, pruneStudioVisits,
+  recordStudioVisit, studioVisitCounts, pruneStudioVisits, updateStudio,
 } from "@/modules/main/studios";
 import {
   addCollaborator, listCollaborators, getCollaboratorByUser, updateCollaborator,
@@ -32,6 +32,8 @@ import { getIndex } from "@/platform/db/store";
 import { IX, isValidSlug, RESERVED_SLUGS, SLUG_RE } from "@/platform/db/keys";
 import { getVerification, getProfile } from "@/platform/auth/users";
 import { memberLimitOf } from "@/lib/plans";
+import { listCatalog } from "@/lib/data/catalog";
+import { companyDetails, companyPatch, type CompanyInput } from "@/lib/studioCompany";
 import { slugify } from "@/shared/slug";
 import type { Row } from "@/platform/db/store";
 import type { JoinRequest } from "@/modules/people/types";
@@ -47,11 +49,18 @@ import type { StudioRow } from "@/modules/main/studios";
 // because a copy of a cap is a copy free to disagree with the one that holds.
 export async function createStudioForUser(
   user: { id?: unknown },
-  { name, slug, fieldOfWork, fieldOfWorkOther, sections }:
-  { name?: unknown; slug?: unknown; fieldOfWork?: unknown; fieldOfWorkOther?: unknown; sections?: unknown },
+  { name, slug, fieldOfWork, fieldOfWorkOther, sections, company }:
+  { name?: unknown; slug?: unknown; fieldOfWork?: unknown; fieldOfWorkOther?: unknown; sections?: unknown; company?: CompanyInput },
 ) {
   const cleanName = String(name || "").trim();
   if (!cleanName) return { error: "name" };
+
+  // THE COMPANY'S COUNTRY, CITY, SYSTEMS AND CHOSEN PACKAGE (lib/studioCompany),
+  // checked BEFORE anything is claimed: a country that is not one refuses the
+  // whole create, and refusing after the slug was taken would leave a studio
+  // made under no rules at all.
+  const checked = companyDetails(company ?? {}, (await listCatalog("packages")) as Record<string, unknown>[]);
+  if ("error" in checked) return { error: checked.error };
 
   const verification = await getVerification(String(user.id));
   if (!verification?.emailVerifiedAt) return { error: "unverified" };
@@ -79,7 +88,16 @@ export async function createStudioForUser(
     sections: sections === undefined ? undefined : (sections as { roots?: unknown; offChildren?: unknown }),
   });
   if (created.error) return created;
-  return { studio: created.studio, sections: created.sections };
+
+  // WRITTEN ONTO THE STUDIO JUST MADE, through the same door Studio settings
+  // uses. A studio is its owner's from the line above, so a failure here leaves
+  // a studio without these details rather than no studio — which is every
+  // studio before 24/09/2026, and all of it is editable in settings.
+  const patch = companyPatch(checked.details);
+  const studio = Object.keys(patch).length && created.studio?.id
+    ? (await updateStudio(String(created.studio.id), patch).catch(() => null)) || created.studio
+    : created.studio;
+  return { studio, sections: created.sections };
 }
 
 // Is this company code free? Used by the "choose your address" field.

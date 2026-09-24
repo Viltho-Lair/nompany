@@ -125,6 +125,8 @@ export function PricingBoard({ initial = null, locale = "en" }) {
       // Only a compound package switches bands; the label is what /super wrote.
       bands: c.type === "compound" && c.categories.length
         ? c.categories.map((cat) => ({
+            // The band's catalogue id travels to signup with the package's.
+            id: cat.id,
             label: cat.label || `${cat.minEmployees}–${cat.maxEmployees}`,
             upTo: cat.maxEmployees,
             monthly: cat.monthly,
@@ -144,13 +146,23 @@ export function PricingBoard({ initial = null, locale = "en" }) {
   // amount the region was priced at, to that currency's own decimals.
   const money = (amount) => fmtCurrencyAmount(amount, currency);
 
-  // Package key carried to signup — banded plans include the chosen band.
-  const packageKeyFor = (plan) =>
-    plan.bands ? `${plan.key}-${(bandIdx[plan.key] ?? 0) + 1}` : plan.key;
   // Nothing to show until /super answers. An empty grid says "loading", where
   // stale hardcoded prices would say something false with confidence.
   const loading = live === null;
-  const signupHref = (plan) => `/${locale}/signup?package=${packageKeyFor(plan)}`;
+  // THE CHOICE GOES THROUGH /api/intent, which remembers it in a signed cookie
+  // and then sends the visitor to signup (or, signed in, to studio creation).
+  // It used to be `/signup?package=<id>-<band index>`, which nothing on signup
+  // read — every choice died there (24/09/2026). CATALOGUE IDS now, package and
+  // band both, never a position: a band index names a different band the day
+  // one is added in /super. The free card sends no package, which CLEARS any
+  // choice made earlier, so "start free" never inherits a paid pre-selection.
+  const signupHref = (plan) => {
+    if (plan.free) return `/api/intent?locale=${locale}`;
+    const band = plan.bands ? plan.bands[bandIdx[plan.key] ?? 0] : null;
+    const q = new URLSearchParams({ locale, package: plan.key, cycle: yearly ? "yearly" : "monthly" });
+    if (band?.id) q.set("band", band.id);
+    return `/api/intent?${q}`;
+  };
 
   // EVERY CARD'S BUTTON IS A LINK, and the premium one was not.
   //
@@ -535,7 +547,7 @@ export function PricingBoard({ initial = null, locale = "en" }) {
           <h3 className="font-display text-2xl font-600 tracking-tight">{COPY.bandTitle}</h3>
           <p className="mt-2 text-sm text-fg-muted">{COPY.bandText}</p>
         </div>
-        <MagneticButton href={`/${locale}/signup?package=micro`} strength={12}>
+        <MagneticButton href={`/api/intent?locale=${locale}`} strength={12}>
           {COPY.ctaStart}
         </MagneticButton>
       </motion.div>

@@ -91,7 +91,7 @@ type Strings = {
    * sidebar and this screen cannot call one department two things.
    */
   setup: {
-    steps: [string, string, string];
+    steps: [string, string, string, string];
     stepOf: (n: number, total: number) => string;
     back: string;
     continue: string;
@@ -117,6 +117,38 @@ type Strings = {
     editLater: string;
     sectionsInvalid: string;
     questions: Record<string, { q: string; d: string }>;
+    // The company questions that moved here from the registration
+    // questionnaire (24/09/2026), and the Plan step.
+    countryLabel: string;
+    countryPlaceholder: string;
+    countryHint: string;
+    countryInvalid: string;
+    cityLabel: string;
+    cityPlaceholder: string;
+    erpsLabel: string;
+    erpsHint: string;
+    erpNone: string;
+    erpNotListed: string;
+    erpOtherLabel: string;
+    planTitle: string;
+    planLead: string;
+    planLoading: string;
+    planUnavailable: string;
+    monthly: string;
+    yearly: string;
+    yearlySaves: (pct: number) => string;
+    perMonth: string;
+    perYear: string;
+    perEmployee: string;
+    usersUpTo: (min: number, max: number) => string;
+    freeFor: (months: number) => string;
+    freeCard: string;
+    chosenFromPricing: string;
+    largeNote: string;
+    contactSales: string;
+    paidNote: (name: string) => string;
+    freeNote: (months: number) => string;
+    planHeading: string;
   };
   currentPassword: string;
   currentPasswordIncorrect: string;
@@ -336,7 +368,7 @@ const en: Strings = {
   createStudioBtn: "Create studio",
   creating: "Creating…",
   setup: {
-    steps: ["Company", "What you do", "Review"],
+    steps: ["Company", "What you do", "Plan", "Review"],
     stepOf: (n, total) => `Step ${n} of ${total}`,
     back: "Back",
     continue: "Continue",
@@ -361,6 +393,36 @@ const en: Strings = {
     alwaysThere: "Main, Approvals and Settings — where you manage people, roles and access — are always there.",
     editLater: "Nothing here is final. Any department can be switched on or off later in Settings → Studio settings → Sections.",
     sectionsInvalid: "The department list is out of date. Reload the page and try again.",
+    countryLabel: "Country",
+    countryPlaceholder: "Where the company is registered",
+    countryHint: "Decides the studio's currency and the rules and documents it follows. Only the owner can change it later.",
+    countryInvalid: "Pick the country from the list.",
+    cityLabel: "City",
+    cityPlaceholder: "Optional",
+    erpsLabel: "Systems you already run",
+    erpsHint: "Optional. It tells us what nompany needs to sit alongside.",
+    erpNone: "None — we do not use an ERP system",
+    erpNotListed: "Not listed",
+    erpOtherLabel: "Which system?",
+    planTitle: "Choose a package",
+    planLead: "The free package is for small teams, for its first months. A bigger team needs a paid package. Each package says how many people it is for.",
+    planLoading: "Loading packages…",
+    planUnavailable: "Packages could not be loaded. Your studio will start on the free package, and you can upgrade later.",
+    monthly: "Monthly",
+    yearly: "Yearly",
+    yearlySaves: (pct) => `save ${pct}%`,
+    perMonth: "/ month",
+    perYear: "/ year",
+    perEmployee: "per person",
+    usersUpTo: (min, max) => `${min}–${max} people`,
+    freeFor: (months) => (months === 1 ? "Free for 1 month" : `Free for ${months} months`),
+    freeCard: "Free",
+    chosenFromPricing: "Chosen on the pricing page",
+    largeNote: "Large is set up with our team rather than bought here.",
+    contactSales: "Contact sales",
+    paidNote: (name) => `Paying online is not open yet. Your choice of ${name} is saved on the studio, and it runs on the free package, within its limits, until it is paid.`,
+    freeNote: (months) => `Free for ${months === 1 ? "1 month" : `${months} months`}, then choose a paid package to keep working. You can upgrade at any time.`,
+    planHeading: "Package",
     questions: {
       "crm-sales": { q: "Do you sell to customers?", d: "Clients, deals, the sales pipeline, contracts, sales orders and a point of sale." },
       quotations: { q: "Do you send customers priced offers before they order?", d: "Requests for quotation, quotations and their revisions." },
@@ -586,7 +648,7 @@ const ar: Strings = {
   createStudioBtn: "أنشئ الاستوديو",
   creating: "جار الإنشاء…",
   setup: {
-    steps: ["الشركة", "ما تقوم به", "المراجعة"],
+    steps: ["الشركة", "ما تقوم به", "الباقة", "المراجعة"],
     stepOf: (n, total) => `الخطوة ${n} من ${total}`,
     back: "رجوع",
     continue: "متابعة",
@@ -611,6 +673,36 @@ const ar: Strings = {
     alwaysThere: "الرئيسية والموافقات والإعدادات — حيث تدير الأشخاص والأدوار والصلاحيات — متاحة دائما.",
     editLater: "لا شيء هنا نهائي. يمكن تفعيل أي قسم أو إيقافه لاحقا من الإعدادات ← إعدادات الاستوديو ← الأقسام.",
     sectionsInvalid: "قائمة الأقسام قديمة. أعد تحميل الصفحة وحاول مرة أخرى.",
+    countryLabel: "الدولة",
+    countryPlaceholder: "حيث سجلت الشركة",
+    countryHint: "تحدد عملة الاستوديو والقواعد والمستندات التي يتبعها. لا يغيرها لاحقا إلا المالك.",
+    countryInvalid: "اختر الدولة من القائمة.",
+    cityLabel: "المدينة",
+    cityPlaceholder: "اختياري",
+    erpsLabel: "الأنظمة التي تعمل بها حاليا",
+    erpsHint: "اختياري. يعرفنا بما يحتاج نومباني إلى العمل بجانبه.",
+    erpNone: "لا شيء — لا نستخدم نظام تخطيط موارد",
+    erpNotListed: "غير مدرج",
+    erpOtherLabel: "أي نظام؟",
+    planTitle: "اختر باقة",
+    planLead: "الباقة المجانية للفرق الصغيرة، في أشهرها الأولى. الفريق الأكبر يحتاج إلى باقة مدفوعة. كل باقة تذكر عدد الأشخاص الذين تناسبهم.",
+    planLoading: "جار تحميل الباقات…",
+    planUnavailable: "تعذر تحميل الباقات. سيبدأ الاستوديو على الباقة المجانية، ويمكنك الترقية لاحقا.",
+    monthly: "شهري",
+    yearly: "سنوي",
+    yearlySaves: (pct) => `وفر ${pct}%`,
+    perMonth: "/ شهريا",
+    perYear: "/ سنويا",
+    perEmployee: "للشخص",
+    usersUpTo: (min, max) => `${min}–${max} أشخاص`,
+    freeFor: (months) => (months === 1 ? "مجانا لشهر واحد" : months === 2 ? "مجانا لشهرين" : months <= 10 ? `مجانا لمدة ${months} أشهر` : `مجانا لمدة ${months} شهرا`),
+    freeCard: "مجاني",
+    chosenFromPricing: "اخترتها من صفحة الأسعار",
+    largeNote: "الباقة الكبيرة تجهز مع فريقنا ولا تشترى من هنا.",
+    contactSales: "تواصل مع المبيعات",
+    paidNote: (name) => `الدفع عبر الإنترنت غير متاح بعد. اختيارك لباقة ${name} محفوظ في الاستوديو، ويعمل على الباقة المجانية وضمن حدودها إلى أن يتم الدفع.`,
+    freeNote: (months) => `مجانا ${months === 1 ? "لشهر واحد" : months === 2 ? "لشهرين" : months <= 10 ? `لمدة ${months} أشهر` : `لمدة ${months} شهرا`}، ثم اختر باقة مدفوعة لمواصلة العمل. يمكنك الترقية في أي وقت.`,
+    planHeading: "الباقة",
     questions: {
       "crm-sales": { q: "هل تبيع للعملاء؟", d: "العملاء والصفقات ومسار المبيعات والعقود وأوامر البيع ونقطة البيع." },
       quotations: { q: "هل ترسل للعملاء عروض أسعار قبل أن يطلبوا؟", d: "طلبات عروض الأسعار وعروض الأسعار ومراجعاتها." },

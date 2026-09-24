@@ -228,9 +228,30 @@ rather than being told by a prop.
 
 ## The owner chooses the departments at creation (17/09/2026)
 
-**Creating a studio is a three-step screen on the account page, not a dialog** —
+**Creating a studio is a four-step screen on the account page, not a dialog** —
 `components/public/CreateStudioScreen.js`, rendered in place of the content column only while it
-is open. *Company* (name, address, field of work) → *What you do* → *Review* → create.
+is open. *Company* → *What you do* → *Plan* → *Review* → create. (Three steps until 2026-09-24.)
+
+**Company asks the country, the city and the systems in use too** (2026-09-24) — the
+registration questionnaire's company questions, moved here on the owner's instruction because
+they describe the company (`docs/functionality/questionnaires.md`). The country is **required**
+on the screen and **refused** by the route when it is not one (`400 country-invalid`, checked
+before anything is claimed); a caller sending none gets the studio every studio was before. It is
+stored by NAME, as Studio settings stores it, and **sets the studio's currency** from it
+(`currencyForCountry`) — `createStudio` never set one, and an approval needs one. City, the
+systems (`erpsInUse`, bounded to `ERP_SYSTEMS`) and `erpOther` land on the studio too.
+`lib/studioCompany.ts` is the pure check, written onto the new studio through `updateStudio`
+right after `createStudio` — which is untouched.
+
+**Plan shows the packages at the visitor's regional price** (the `/api/pricing` payload the
+pricing page draws from): the free package with its months, each paid package with its bands and
+monthly/yearly, and Large as "contact sales". It is **pre-selected from the pricing page**: the
+choice travels in a signed cookie (`platform/auth/purchaseIntent`, 7 days) that `/api/intent`
+sets and the account page reads, checked against the catalogue again on both sides. **A paid
+choice is a request, not a purchase** — there is no checkout — so the studio is created on the
+free package like any other and the choice is kept on it as `requestedPlan`
+(`{ packageId, categoryId, cycle, at }`), and the screen says so. A successful create clears the
+cookie: the choice applies to the first studio only.
 
 **"What you do" asks one yes/no question per department**, worded as what the company does
 ("Do you keep stock?"), never as a kind of business. The answers are **pre-filled from the field
@@ -341,6 +362,14 @@ Stated in words, because a silent gap reads as a finished feature.
 
 - **The create screen asks once.** There is no way to run the questions again on an existing
   studio; after creation, departments are switched in the Sections panel one at a time.
+- **A paid choice on the Plan step cannot be paid for yet.** `requestedPlan` is stored and read
+  by nothing: the upgrade button and checkout are still to come, and the studio runs on the free
+  package, within its limits, until they do.
+- **The systems in use and the city are stored and read by nothing** — kept because the
+  questionnaire asked them and the owner moved them here, not because a screen uses them yet.
+  Studio settings does not show or edit `erpsInUse`.
+- **Google and Microsoft sign-in still land on `/en/questionnaire`** whatever the visitor's
+  language (`api/auth/callback/[provider]`); the choice cookie survives it, the language does not.
 - **Parts are offered only one level down.** The engine registers planted under Quality & HSE and
   the other departments are created after the studio exists, so they cannot be chosen on the
   create screen; they follow their department.

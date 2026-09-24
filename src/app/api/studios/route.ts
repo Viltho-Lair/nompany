@@ -1,5 +1,6 @@
 import { refused } from "@/platform/http/route";
 import { currentUser } from "@/platform/auth/identity";
+import { clearedIntentCookie } from "@/platform/auth/purchaseIntent";
 import { createStudioForUser, studiosForUser } from "@/lib/studios";
 
 export const runtime = "nodejs";
@@ -33,12 +34,16 @@ export async function POST(request: Request) {
     // { roots: [...], offChildren: [...] }. Optional — a caller that sends
     // nothing gets the trade's answer, the behaviour before the screen asked.
     sections: body.sections,
+    // THE COMPANY ITSELF — country, city, the systems it already runs, and the
+    // package chosen on the Plan step (lib/studioCompany). Asked here since the
+    // registration questionnaire stopped asking them (24/09/2026).
+    company: { country: body.country, city: body.city, erps: body.erps, erpOther: body.erpOther, plan: body.plan },
   });
   if (refused(result)) {
     const status = result.error === "unverified" ? 403
       // A trade that is not one of the twenty-five is a bad request, not a
       // conflict: nothing was claimed and nothing is in the way.
-      : result.error === "field-invalid" ? 400
+      : result.error === "field-invalid" || result.error === "country-invalid" ? 400
       // A department list the screen could not have sent, or none at all.
       : result.error === "sections-invalid" || result.error === "sections-empty" ? 400
       : result.error === "free-studio-limit" || result.error === "slug-taken" ? 409
@@ -56,8 +61,13 @@ export async function POST(request: Request) {
       { status },
     );
   }
-  return Response.json(
+  // THE PRICING PAGE'S CHOICE IS SPENT. It applies to the first studio this
+  // person makes (the owner, 24/09/2026), so the cookie is cleared here and a
+  // second studio starts from Standard like anybody's.
+  const res = Response.json(
     { ok: true, studio: result.studio, sections: (result.sections || []).map((s) => ({ id: s.id, key: s.key, name: s.name })) },
     { status: 201 }
   );
+  res.headers.append("Set-Cookie", clearedIntentCookie());
+  return res;
 }

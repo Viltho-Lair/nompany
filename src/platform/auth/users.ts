@@ -369,10 +369,14 @@ export const updateVerification = patchDoc<Verification>(U.verification);
  * not untidiness — it is the difference between an answer the PRODUCT reads and
  * an answer only a human reads.
  *
- * The six are load-bearing: `intent` routes the account screen, `field` seeds a
- * studio's trade, `packageKey` decides what they are billed, and
- * `needsQuestionnaire` gates every surface behind sign-in on `completedAt`.
- * Code reaches for them by name, so they are typed by name.
+ * Typed by name because code once meant to reach for them by name. Only two
+ * are READ: `intent`, which routes the end of the flow (create → studio
+ * creation), and `completedAt`, on which `needsQuestionnaire` gates every
+ * surface behind sign-in. This said `field` seeds a studio's trade and
+ * `packageKey` decides billing; nothing ever did either, and since 24/09/2026
+ * the company questions are asked on the studio and the pricing page's choice
+ * is a signed cookie (platform/auth/purchaseIntent), so the rest are kept for
+ * the answers already stored.
  *
  * `answers` is everything the form asked, keyed by `fieldOf(question)` — which
  * includes those six again, because the questionnaire is authored in /super and

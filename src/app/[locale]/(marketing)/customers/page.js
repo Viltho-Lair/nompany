@@ -93,7 +93,7 @@ export default async function CustomersPage({ params }) {
             <h2 className="font-display text-2xl font-semibold text-fg">{tr.ctaHeading}</h2>
             <p className="mt-3 max-w-xl text-fg-muted">{tr.ctaBody}</p>
             <Link
-              href={`/${locale}/signup`}
+              href={`/api/intent?locale=${locale}`}
               className="mt-6 inline-flex items-center rounded-full bg-gradient-to-br from-iris to-violet px-6 py-3 text-sm font-medium text-white shadow-lg shadow-iris/20 transition-transform hover:scale-[1.02]"
             >
               {heroCopy(locale).ctaPrimary}

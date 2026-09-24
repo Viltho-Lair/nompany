@@ -125,7 +125,7 @@ export default async function PlatformPage({ params }) {
               reworded, and the reader sees a product that cannot agree with
               itself about what its own button says. */}
           <Link
-            href={`/${locale}/signup`}
+            href={`/api/intent?locale=${locale}`}
             className="mt-5 inline-flex items-center rounded-full bg-brand-600 px-6 py-3 font-display text-sm font-600 text-white transition-colors hover:bg-brand-700"
           >
             {heroCopy(locale).ctaPrimary}

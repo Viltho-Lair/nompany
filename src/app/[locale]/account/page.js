@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getDict } from "@/shared/i18n";
 import { currentUser, needsQuestionnaire } from "@/platform/auth/identity";
 import AccountHome from "@/components/public/AccountHome";
 import { studioSetupScreen } from "@/modules/main/studios";
+import { listCatalog } from "@/lib/data/catalog";
+import { INTENT_COOKIE, openIntent, intentOnSale } from "@/platform/auth/purchaseIntent";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +18,7 @@ export async function generateMetadata({ params }) {
 // The account hub: personal info, questionnaire, the studio you own, the ones
 // you collaborate in, and your trusted devices. Everything loads client-side
 // from /api/identity/* and /api/studios.
-export default async function AccountPage({ params }) {
+export default async function AccountPage({ params, searchParams }) {
   const { locale } = await params;
   const user = await currentUser();
   if (!user) redirect(`/${locale}/login`);
@@ -41,5 +44,16 @@ export default async function AccountPage({ params }) {
   // checks against, and the trade rules behind the suggestions reach the stage
   // registry, which has no business in the account page's bundle.
   const setup = studioSetupScreen(locale);
-  return <AccountHome locale={locale} chrome={chrome} setup={setup} />;
+  // THE PACKAGE CHOSEN ON THE PRICING PAGE, if it is still on sale — the signed
+  // cookie (platform/auth/purchaseIntent), checked against the catalogue as it
+  // is now. Handed to studio creation to pre-select its Plan step; it opens
+  // straight onto that screen when the questionnaire's "create a studio" or
+  // the pricing page sends `?create=1`.
+  let intent = null;
+  try {
+    intent = intentOnSale(openIntent((await cookies()).get(INTENT_COOKIE)?.value), await listCatalog("packages"));
+  } catch { intent = null; }
+  const sp = await searchParams;
+  const openCreate = sp?.create === "1";
+  return <AccountHome locale={locale} chrome={chrome} setup={setup} intent={intent} openCreate={openCreate} />;
 }

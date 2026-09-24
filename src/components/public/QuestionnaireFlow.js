@@ -12,7 +12,7 @@ import { COUNTRIES } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import {
   AVERAGE_MINUTES, ERP_NONE, ERP_OTHER, ERP_SYSTEMS, INTENTS,
-  fieldOf, isPageComplete, packageLabel,
+  fieldOf, isPageComplete,
 } from "@/lib/questionnaire";
 import { prunedAnswers, visiblePages, visibleQuestions } from "@/lib/questionnaireLogic";
 
@@ -81,7 +81,7 @@ const nameToCode = (name) =>
 // about which question a given answer leads to, which is exactly the thing an
 // author opens a preview to find out.
 export default function QuestionnaireFlow({
-  locale, dict, initialPackage = "", email = "", pages = [], preview = false,
+  locale, dict, packageName = "", email = "", pages = [], preview = false,
 }) {
   // The survey's own frame, in the reader's language. The QUESTIONS are not
   // here and never will be: they are authored in /super's questionnaire
@@ -170,7 +170,9 @@ export default function QuestionnaireFlow({
     // recording those would put an answer to a question this person was not
     // asked into the analysis. Done at submit, not on every keystroke, so
     // stepping back to look at something does not destroy it.
-    const body = prunedAnswers(pages, { ...given, erps, packageKey: initialPackage });
+    // No package rides along any more: the choice is a signed cookie that
+    // studio creation reads (platform/auth/purchaseIntent), not an answer.
+    const body = prunedAnswers(pages, { ...given, erps });
     // A PREVIEW REACHES THE END AND STOPS THERE. Nothing is posted, nothing is
     // stored, and the author is shown what would have been — including whether
     // the path they just walked produced an `intent` the save would accept,
@@ -187,7 +189,10 @@ export default function QuestionnaireFlow({
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (res.ok) { window.location.assign(`/${locale}/account`); return; }
+      // "CREATE A STUDIO" OPENS STUDIO CREATION. The answer used to route
+      // nothing — both answers landed on the account overview — and studio
+      // creation is where the company questions are asked now.
+      if (res.ok) { window.location.assign(`/${locale}/account${body.intent === "create" ? "?create=1" : ""}`); return; }
       setError(tr.saveFailed);
     } catch {
       setError(tr.genericError);
@@ -252,8 +257,9 @@ export default function QuestionnaireFlow({
             <div className="min-w-0 text-end">
               <p className="max-w-[46vw] truncate text-sm font-500 text-fg sm:max-w-none">{email || tr.signedIn}</p>
               <p className="mt-0.5 text-xs text-fg-muted">
-                {/* Everyone starts on Free unless they arrived from a paid plan. */}
-                {packageLabel(initialPackage, locale) || tr.freePackage}
+                {/* Named on the server from the signed choice and the catalogue:
+                    the paid package they picked, or the free one. */}
+                {packageName || tr.freePackage}
               </p>
             </div>
           </div>

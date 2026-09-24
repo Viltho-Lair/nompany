@@ -7,6 +7,10 @@ import { Icon } from "@/components/studio2/icons";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { FIELDS_OF_WORK, OTHER_FIELD } from "@/shared/fieldsOfWork";
 import { withNeeds } from "@/shared/tradeSections";
+import { COUNTRIES, codeOfCountry } from "@/shared/countries";
+import { citiesFor } from "@/lib/cities";
+import { ERP_NONE, ERP_OTHER, ERP_SYSTEMS } from "@/lib/questionnaire";
+import { fmtCurrencyAmount } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 import {
   H2, SUB, INPUT, LABEL, BTN, BTN_GHOST, BANNER_BAD, slugify,
@@ -19,14 +23,25 @@ import {
 // the same trade can share almost nothing, and walking into a sidebar full of
 // departments you never run is the first thing the product said to you.
 //
-// So there are three steps:
+// So there are four steps:
 //
-//   1. COMPANY      name, address, field of work — what the dialog asked.
+//   1. COMPANY      name, address, field of work — what the dialog asked —
+//                   and, since 24/09/2026, the country, the city and the
+//                   systems the company already runs: the registration
+//                   questionnaire's company questions, moved here on the
+//                   owner's instruction because they describe the company, and
+//                   the company is the studio.
 //   2. WHAT YOU DO  one yes/no question per department, PRE-ANSWERED from the
 //                   field of work so most owners only correct a few. A "yes"
 //                   can be narrowed to the parts of that department in use.
-//   3. REVIEW       what will be on and what will be off, before anything is
-//                   written.
+//   3. PLAN         the package (24/09/2026): the free one, or a paid one and
+//                   its band, at the visitor's own regional price, PRE-SELECTED
+//                   from what they chose on the pricing page (the signed choice
+//                   the account page hands in as `intent`). A paid choice is a
+//                   request until it is paid — there is no checkout yet — and
+//                   the screen says so rather than implying a purchase.
+//   4. REVIEW       what will be on and what will be off, and the package,
+//                   before anything is written.
 //
 // NOTHING IS FINAL, and the screen says so: every answer is one switch in
 // Studio settings → Sections. Asking up front is about not being shocked on
@@ -39,10 +54,14 @@ import {
 // ship to the browser. What IS shared is `withNeeds`, a pure rule, so the
 // screen shows a dependency being switched on exactly as the server will.
 
-const STEPS = 3;
+const STEPS = 4;
+// The step indexes, named: bare numbers in the footer are how a new step lands
+// with the old Continue button still pointing past it.
+const COMPANY = 0, DEPARTMENTS = 1, PLAN = 2, REVIEW = 3;
 
-export default function CreateStudioScreen({ setup, onDone, onCancel }) {
-  const tr = accountDict(useAccountLocale());
+export default function CreateStudioScreen({ setup, intent = null, onDone, onCancel }) {
+  const locale = useAccountLocale();
+  const tr = accountDict(locale);
   const t = tr.setup;
   const departments = useMemo(() => setup?.departments || [], [setup]);
   const nameOf = useMemo(() => new Map(departments.map((d) => [d.key, d.name])), [departments]);
@@ -63,7 +82,59 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
   const [status, setStatus] = useState(null);
   const [field, setField] = useState("");
   const [fieldOther, setFieldOther] = useState("");
+  const [country, setCountry] = useState("");
+  const [city, setCity] = useState("");
+  const [erps, setErps] = useState(() => new Set());
+  const [erpOther, setErpOther] = useState("");
   const effectiveSlug = touchedSlug ? slugify(slug) : slugify(name);
+  const cities = useMemo(() => citiesFor(codeOfCountry(country)), [country]);
+  // "None" is exclusive, the way the questionnaire had it: saying you run no
+  // system and naming one in the same breath is two answers to one question.
+  function flipErp(e) {
+    setErps((cur) => {
+      const next = new Set(cur);
+      if (next.has(e)) { next.delete(e); return next; }
+      if (e === ERP_NONE) return new Set([ERP_NONE]);
+      next.delete(ERP_NONE);
+      next.add(e);
+      return next;
+    });
+  }
+  const erpLabel = (e) => (e === ERP_NONE ? t.erpNone : e === ERP_OTHER ? t.erpNotListed : e);
+
+  // ---- step 3: the package ----------------------------------------------------
+  // The same payload the pricing page draws from, so the figures are the
+  // visitor's regional ones and the cards are whatever /super publishes.
+  // `choice.packageId` "" is the free package: the absence of a paid choice,
+  // never an id the create route has to recognise.
+  const [pricing, setPricing] = useState(null);
+  const [choice, setChoice] = useState(() => ({
+    packageId: intent?.packageId || "",
+    categoryId: intent?.categoryId || "",
+    cycle: intent?.cycle === "yearly" ? "yearly" : "monthly",
+  }));
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/pricing", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive) setPricing(d && Array.isArray(d.cards) ? d : false); })
+      .catch(() => { if (alive) setPricing(false); });
+    return () => { alive = false; };
+  }, []);
+  const cards = useMemo(() => pricing?.cards || [], [pricing]);
+  const freeCard = cards.find((c) => c.type === "free") || null;
+  const paidCards = cards.filter((c) => c.type === "compound");
+  const premiumCards = cards.filter((c) => c.type === "premium");
+  // A choice the catalogue no longer carries READS AS FREE — derived, not
+  // reset in an effect — so the screen never posts an id the route would drop
+  // without a word.
+  const chosenCard = cards.find((c) => c.id === choice.packageId && c.type === "compound") || null;
+  const chosenBand = chosenCard?.categories?.find((b) => b.id === choice.categoryId) || chosenCard?.categories?.[0] || null;
+  const cardName = (c) => (c ? (locale === "ar" && c.nameAr) || c.name : "");
+  const money = (n) => fmtCurrencyAmount(n, pricing?.currency || "USD");
+  const choiceLabel = chosenCard
+    ? [cardName(chosenCard), chosenBand?.label].filter(Boolean).join(" · ")
+    : cardName(freeCard) || t.freeCard;
 
   useEffect(() => {
     if (!effectiveSlug) { setStatus(null); return; }
@@ -100,7 +171,7 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
       setOffParts(new Set());
       setFilledFor(field);
     }
-    setStep(1);
+    setStep(DEPARTMENTS);
   }
   function resetToSuggested() {
     setYes(new Set(suggestedFor(field)));
@@ -125,7 +196,7 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
     });
   }
 
-  // ---- step 3: create ---------------------------------------------------------
+  // ---- step 4: create ---------------------------------------------------------
   async function create() {
     setBusy(true); setError("");
     const res = await fetch("/api/studios", {
@@ -134,6 +205,12 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
         name, slug: effectiveSlug,
         fieldOfWork: field,
         fieldOfWorkOther: field === OTHER_FIELD ? fieldOther : "",
+        country, city,
+        erps: [...erps],
+        erpOther: erps.has(ERP_OTHER) ? erpOther : "",
+        // The package asked for. The route checks it against the catalogue
+        // again and keeps it on the studio as a request; nothing is charged.
+        plan: chosenCard ? { packageId: chosenCard.id, categoryId: chosenBand?.id || "", cycle: choice.cycle } : null,
         // What the owner answered — the server adds the same dependencies the
         // screen showed, and drops parts left unticked under a "no".
         sections: {
@@ -146,8 +223,8 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
     setBusy(false);
     if (res.ok) { onDone(); return; }
     // A refusal about the COMPANY sends the owner back to the step that can fix it.
-    const companyError = ["slug-taken", "slug-reserved", "slug-invalid", "name", "field-invalid"].includes(data.error);
-    if (companyError) setStep(0);
+    const companyError = ["slug-taken", "slug-reserved", "slug-invalid", "name", "field-invalid", "country-invalid"].includes(data.error);
+    if (companyError) setStep(COMPANY);
     setError(
       data.error === "unverified" ? tr.confirmEmailAddressFirst
       : data.error === "free-studio-limit" ? tr.freeStudioLimit(data.limit)
@@ -156,6 +233,7 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
       : data.error === "slug-invalid" ? tr.use3LettersNumbers
       : data.error === "name" ? tr.giveStudioName
       : data.error === "field-invalid" ? tr.pickFieldFromList
+      : data.error === "country-invalid" ? t.countryInvalid
       : data.error === "sections-empty" ? t.pickOne
       : data.error === "sections-invalid" ? t.sectionsInvalid
       : tr.couldnCreateStudio,
@@ -169,7 +247,7 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [busy, onCancel]);
 
-  const canLeaveCompany = Boolean(name.trim()) && Boolean(status?.available);
+  const canLeaveCompany = Boolean(name.trim()) && Boolean(status?.available) && Boolean(country);
   const canLeaveDepartments = departments.some((d) => yes.has(d.key));
   const offList = departments.filter((d) => !on.has(d.key));
   const onList = departments.filter((d) => on.has(d.key));
@@ -188,7 +266,7 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
         </div>
       </div>
 
-      <ol className="mt-5 grid grid-cols-3 gap-2" aria-label={tr.createStudio}>
+      <ol className="mt-5 grid grid-cols-4 gap-2" aria-label={tr.createStudio}>
         {t.steps.map((label, i) => (
           <li key={label} aria-current={i === step ? "step" : undefined}>
             <span className={cn("block h-1.5 rounded-full transition-colors",
@@ -203,7 +281,7 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
 
       {/* `key` restarts the slide, so each step arrives rather than blinking in. */}
       <div key={step} className={cn("mt-6 flex-1", moved && "slide-in")}>
-        {step === 0 && (
+        {step === COMPANY && (
           <div className="grid gap-4">
             <p className={SUB}>{t.companyLead}</p>
             <div>
@@ -250,10 +328,57 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
                   onChange={(e) => setFieldOther(e.target.value)} />
               </div>
             )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={LABEL}>{t.countryLabel}</label>
+                <SelectMenu
+                  className={INPUT}
+                  value={country}
+                  onChange={(v) => { setCountry(v); setCity(""); }}
+                  placeholder={t.countryPlaceholder}
+                  options={COUNTRIES.map((c) => ({ value: c.name, label: c.name }))}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>{t.cityLabel}</label>
+                {cities.length ? (
+                  <SelectMenu className={INPUT} value={city} onChange={setCity} placeholder={t.cityPlaceholder}
+                    options={[{ value: "", label: t.cityPlaceholder }, ...cities.map((c) => ({ value: c, label: c }))]} />
+                ) : (
+                  <input className={INPUT} value={city} maxLength={80} disabled={!country}
+                    onChange={(e) => setCity(e.target.value)} placeholder={t.cityPlaceholder} aria-label={t.cityLabel} />
+                )}
+              </div>
+            </div>
+            <p className="-mt-2 text-xs text-slate-500 dark:text-slate-400">{t.countryHint}</p>
+            <div>
+              <p className={LABEL}>{t.erpsLabel}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {ERP_SYSTEMS.map((e) => {
+                  const picked = erps.has(e);
+                  return (
+                    <button key={e} type="button" aria-pressed={picked} onClick={() => flipErp(e)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-600 transition-colors",
+                        picked
+                          ? "border-brand-600 bg-brand-600 text-white"
+                          : "border-slate-200 text-slate-600 hover:border-slate-300 dark:border-white/10 dark:text-slate-300",
+                      )}>
+                      {erpLabel(e)}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t.erpsHint}</p>
+              {erps.has(ERP_OTHER) && (
+                <input className={cn(INPUT, "mt-2")} value={erpOther} maxLength={80}
+                  onChange={(e) => setErpOther(e.target.value)} placeholder={t.erpOtherLabel} aria-label={t.erpOtherLabel} />
+              )}
+            </div>
           </div>
         )}
 
-        {step === 1 && (
+        {step === DEPARTMENTS && (
           <div>
             <h3 className={H2}>{t.departmentsTitle}</h3>
             <p className={SUB}>{t.departmentsLead}</p>
@@ -341,7 +466,106 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
           </div>
         )}
 
-        {step === 2 && (
+        {step === PLAN && (
+          <div>
+            <h3 className={H2}>{t.planTitle}</h3>
+            <p className={SUB}>{t.planLead}</p>
+            {pricing === null && <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t.planLoading}</p>}
+            {pricing === false && <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t.planUnavailable}</p>}
+            {pricing && (
+              <>
+                <div role="radiogroup" aria-label={t.planTitle} className="mt-3 inline-flex rounded-full bg-slate-100 p-0.5 dark:bg-white/5">
+                  {["monthly", "yearly"].map((c) => (
+                    <button key={c} type="button" role="radio" aria-checked={choice.cycle === c}
+                      onClick={() => setChoice((x) => ({ ...x, cycle: c }))}
+                      className={cn("rounded-full px-3 py-1.5 text-sm font-600 transition-colors",
+                        choice.cycle === c ? "bg-white text-slate-900 shadow-sm dark:bg-[#2b2b38] dark:text-white" : "text-slate-500 dark:text-slate-400")}>
+                      {c === "monthly" ? t.monthly : t.yearly}
+                      {c === "yearly" && pricing.yearlyDiscountPct > 0 && (
+                        <span className="ms-1 text-xs text-emerald-600 dark:text-emerald-400">{t.yearlySaves(pricing.yearlyDiscountPct)}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <ul className="mt-4 space-y-2">
+                  {freeCard && (
+                    <li>
+                      <label className={cn("flex cursor-pointer items-start gap-3 rounded-2xl border bg-white px-4 py-3 dark:bg-[#20202c]",
+                        !chosenCard ? "border-brand-500/60" : "border-slate-200/70 dark:border-white/10")}>
+                        <input type="radio" name="plan" className="mt-1 h-4 w-4 accent-brand-600" checked={!chosenCard}
+                          onChange={() => setChoice((x) => ({ ...x, packageId: "", categoryId: "" }))} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-600 text-slate-900 dark:text-white">{cardName(freeCard)}</span>
+                          <span className="block text-sm text-slate-500 dark:text-slate-400">
+                            {t.usersUpTo(freeCard.minEmployees || 1, freeCard.maxEmployees)} · {freeCard.durationMonths > 0 ? t.freeFor(freeCard.durationMonths) : t.freeCard}
+                          </span>
+                        </span>
+                      </label>
+                    </li>
+                  )}
+                  {paidCards.map((c) => {
+                    const on = choice.packageId === c.id;
+                    const band = on ? chosenBand : c.categories?.[0];
+                    return (
+                      <li key={c.id}>
+                        <div className={cn("rounded-2xl border bg-white px-4 py-3 dark:bg-[#20202c]",
+                          on ? "border-brand-500/60" : "border-slate-200/70 dark:border-white/10")}>
+                          <label className="flex cursor-pointer items-start gap-3">
+                            <input type="radio" name="plan" className="mt-1 h-4 w-4 accent-brand-600" checked={on}
+                              onChange={() => setChoice((x) => ({ ...x, packageId: c.id, categoryId: c.categories?.[0]?.id || "" }))} />
+                            <span className="min-w-0 flex-1">
+                              <span className="flex flex-wrap items-baseline gap-x-2">
+                                <span className="font-600 text-slate-900 dark:text-white">{cardName(c)}</span>
+                                {intent?.packageId === c.id && (
+                                  <span className="text-xs font-600 text-brand-700 dark:text-brand-300">{t.chosenFromPricing}</span>
+                                )}
+                              </span>
+                              {band && (
+                                <span className="block text-sm text-slate-500 dark:text-slate-400">
+                                  {t.usersUpTo(band.minEmployees, band.maxEmployees)} ·{" "}
+                                  <span className="num">{money(choice.cycle === "yearly" ? band.yearly : band.monthly)}</span>{" "}
+                                  {choice.cycle === "yearly" ? t.perYear : t.perMonth}
+                                </span>
+                              )}
+                            </span>
+                          </label>
+                          {on && (c.categories?.length || 0) > 1 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5 ps-7">
+                              {c.categories.map((b) => (
+                                <button key={b.id} type="button" aria-pressed={chosenBand?.id === b.id}
+                                  onClick={() => setChoice((x) => ({ ...x, categoryId: b.id }))}
+                                  className={cn("rounded-full border px-3 py-1 text-xs font-600 transition-colors",
+                                    chosenBand?.id === b.id
+                                      ? "border-brand-600 bg-brand-600 text-white"
+                                      : "border-slate-200 text-slate-600 dark:border-white/10 dark:text-slate-300")}>
+                                  {b.label || t.usersUpTo(b.minEmployees, b.maxEmployees)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                  {premiumCards.map((c) => (
+                    <li key={c.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-slate-200 px-4 py-3 dark:border-white/10">
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-600 text-slate-900 dark:text-white">{cardName(c)}</span>
+                        <span className="block text-sm text-slate-500 dark:text-slate-400">{t.largeNote}</span>
+                      </span>
+                      <a href={`/${locale}/contact`} className="text-sm font-600 text-brand-700 hover:underline dark:text-brand-300">{t.contactSales}</a>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-4 rounded-xl bg-brand-500/5 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300">
+                  {chosenCard ? t.paidNote(choiceLabel) : t.freeNote(freeCard?.durationMonths || 3)}
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+        {step === REVIEW && (
           <div>
             <h3 className={H2}>{t.reviewTitle}</h3>
             <p className={SUB}>{t.reviewLead}</p>
@@ -377,7 +601,10 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
                 )}
               </div>
             </div>
-            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t.alwaysThere}</p>
+            <p className="mt-4 text-sm text-slate-800 dark:text-slate-100">
+              <span className="font-600">{t.planHeading}:</span> {choiceLabel}
+            </p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.alwaysThere}</p>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.editLater}</p>
           </div>
         )}
@@ -385,14 +612,15 @@ export default function CreateStudioScreen({ setup, onDone, onCancel }) {
 
       {/* ---- footer: back and forward ---- */}
       <div className="sticky bottom-0 mt-6 flex flex-wrap items-center gap-3 border-t border-slate-200/70 bg-geex-bg py-4 dark:border-white/10 dark:bg-[#141420]">
-        {step === 0
+        {step === COMPANY
           ? <button type="button" className={BTN_GHOST} onClick={onCancel} disabled={busy}>{tr.cancel}</button>
           : <button type="button" className={BTN_GHOST} onClick={() => setStep(step - 1)} disabled={busy}>{t.back}</button>}
-        {step === 1 && !canLeaveDepartments && <span className="text-xs text-rose-600 dark:text-rose-300">{t.pickOne}</span>}
+        {step === DEPARTMENTS && !canLeaveDepartments && <span className="text-xs text-rose-600 dark:text-rose-300">{t.pickOne}</span>}
         <span className="flex-1" />
-        {step === 0 && <button type="button" className={BTN} onClick={enterDepartments} disabled={!canLeaveCompany}>{t.continue}</button>}
-        {step === 1 && <button type="button" className={BTN} onClick={() => setStep(2)} disabled={!canLeaveDepartments}>{t.continue}</button>}
-        {step === 2 && <button type="button" className={BTN} onClick={create} disabled={busy}>{busy ? tr.creating : tr.createStudioBtn}</button>}
+        {step === COMPANY && <button type="button" className={BTN} onClick={enterDepartments} disabled={!canLeaveCompany}>{t.continue}</button>}
+        {step === DEPARTMENTS && <button type="button" className={BTN} onClick={() => setStep(PLAN)} disabled={!canLeaveDepartments}>{t.continue}</button>}
+        {step === PLAN && <button type="button" className={BTN} onClick={() => setStep(REVIEW)} disabled={pricing === null}>{t.continue}</button>}
+        {step === REVIEW && <button type="button" className={BTN} onClick={create} disabled={busy}>{busy ? tr.creating : tr.createStudioBtn}</button>}
       </div>
     </section>
   );

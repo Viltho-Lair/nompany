@@ -42,12 +42,12 @@ export function CtaBand() {
     }, []);
 
     const cta = !session
-        ? { label: tr.startFreeNow, href: "/en/signup" }              // unknown yet: safe default
+        ? { label: tr.startFreeNow, href: `/api/intent?locale=${locale}` } // unknown yet: safe default
         : !session.signedIn
-            ? { label: tr.startFreeNow, href: "/en/signup" }
+            ? { label: tr.startFreeNow, href: `/api/intent?locale=${locale}` }
             : session.studio
                 ? { label: tr.goStudio, href: `/${session.studio.slug}` }
-                : { label: tr.createStudio, href: "/en/account" };
+                : { label: tr.createStudio, href: `/${locale}/account` };
 
     // max-w-6xl, NOT 7xl. It was the third container width on one page (3xl, 6xl,
     // 7xl) and the widest, so the band hung 64px past the sections above it at

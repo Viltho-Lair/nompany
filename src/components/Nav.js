@@ -93,7 +93,9 @@ export default function Nav({ locale, dict }) {
 
   // Primary auth actions → public SaaS sign-up / login.
   const loginHref = `/${locale}/login`;
-  const signupHref = `/${locale}/signup?package=micro`;
+  // Through /api/intent with no package: "start free" clears any package
+  // chosen earlier on the pricing page, then lands on signup.
+  const signupHref = `/api/intent?locale=${locale}`;
 
   const isActive = (href, exact) => (exact ? pathname === href : pathname.startsWith(href));
 

@@ -71,7 +71,7 @@ const VIEW_KEYS = ["overview", "studios", "collabs", "personal", "calendars", "s
 
 const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
-export default function AccountHome({ locale, chrome, setup }) {
+export default function AccountHome({ locale, chrome, setup, intent = null, openCreate = false }) {
   const tr = accountDict(useAccountLocale());
   const [identity, setIdentity] = useState(null);
   const [studios, setStudios] = useState({ owned: [], collaborations: [] });
@@ -82,7 +82,8 @@ export default function AccountHome({ locale, chrome, setup }) {
   // THE CREATE SCREEN REPLACES THE CONTENT COLUMN while it is open, and is not
   // rendered at all otherwise — the rail stays, so the owner is still on their
   // account page and can see where they came from.
-  const [creating, setCreating] = useState(false);
+  // Opens on studio creation when sent here to create one (?create=1).
+  const [creating, setCreating] = useState(openCreate);
   // Which way the last "connect a calendar" attempt went — "connected",
   // "cancelled" or "error", read off the OAuth callback's redirect (see
   // calendar/callback/[provider]/route.ts's landOn). null until that redirect
@@ -236,6 +237,7 @@ export default function AccountHome({ locale, chrome, setup }) {
           {creating ? (
             <CreateStudioScreen
               setup={setup}
+              intent={intent}
               onCancel={() => setCreating(false)}
               onDone={async () => { setCreating(false); setView("overview"); await load(); }}
             />

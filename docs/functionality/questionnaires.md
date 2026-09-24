@@ -62,10 +62,31 @@ second pass count twice in every total.
 ### The person's own copy
 
 Six fields typed by name — `intent`, `field`, `country`, `city`, `erps`, `packageKey` —
-plus `completedAt`, the whole open `answers` map again, and `questionnaireId`. The six are
-typed because product code reaches for them by name: `intent` routes the account screen,
-`field` seeds a studio's trade, `packageKey` decides billing, and `completedAt` gates every
-surface behind sign-in.
+plus `completedAt`, the whole open `answers` map again, and `questionnaireId`. **Only `intent`
+and `completedAt` are read by anything**: `completedAt` gates every surface behind sign-in, and
+`intent` routes the end of the flow — "Create a studio" opens studio creation
+(`/account?create=1`), "Join a studio" lands on the account overview. This paragraph used to say
+`field` seeds a studio's trade and `packageKey` decides billing; neither was ever true, and a
+comment in `platform/auth/users.ts` still says it.
+
+### The company questions moved to studio creation (2026-09-24)
+
+The owner: merge the questionnaire into studio creation, except what is about the PERSON. So
+field of work, country, city and the systems in use are asked on the create screen now and land
+**on the studio** (`docs/functionality/sections.md`), and the registration form keeps the
+question about the person. `QUESTION_PAGES` (the seed) holds only that page.
+
+**A form already planted is trimmed once.** The seed is planted once and the stored copy wins for
+ever, so the seed change reaches no live environment by itself. `retireFromQuestionnaire`
+(`lib/data/questionnaires.ts`), called by the registration page, removes the four seed
+questions **by their ids** and drops the two seed pages only if that leaves them empty, then
+records a marker on the row (`retired`) so it happens once. An author's own questions — including
+one added to a seed page — and their own pages are never touched; the pure half is
+`withoutRetired` (`lib/questionnaire.ts`), asserted in `tests/questionnaire-model.mjs`.
+
+**`packageKey` is no longer sent.** The pricing page's choice is a signed cookie now
+(`platform/auth/purchaseIntent`); the header of the flow names it from the catalogue, and studio
+creation uses it. Old answers keep whatever they stored.
 
 ## What it does
 
@@ -218,11 +239,12 @@ Three rules the summary keeps:
   effect by a longer road. There is no "jump to page" and no ending-screen routing.
 - **A rule compares one question's answer.** No AND/OR across two questions, no numeric
   comparison (`greater than`), and no rule on a page.
-- **The readiness check knows about `intent` and nothing else.** It is the only field with a
-  hard contract today, but `field`, `country` and `packageKey` all feed real behaviour
-  (a studio's trade, billing) and go unmentioned if an author unbinds them — they degrade
-  quietly rather than refusing, which is why they are not in the band, and why that is a
-  judgement call rather than a rule.
+- **The readiness check knows about `intent` and nothing else**, and since 2026-09-24 that is
+  also the only answer anything reads (above). An author who re-adds a company question gets
+  it stored on the person and read by nothing, exactly as before the move.
+- **The trim reaches a live form only when the registration page is opened.** The console's
+  questionnaire list reads the stored copy directly, so until somebody registers after the
+  deploy it still shows the four company questions.
 - **Preview runs one path at a time.** It proves the path the author walked; it does not
   enumerate every path, so a branch nobody clicks through is still unproven. Exhaustive path
   analysis is decidable for this rule language and is not built.

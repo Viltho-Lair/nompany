@@ -23,6 +23,7 @@
 // is the cheapest thing in this file, and it cannot drift.
 
 import { readArr, editArr } from "@/platform/db/store";
+import { withoutRetired, type Retirement } from "@/lib/questionnaire";
 import { ID, REG } from "@/platform/db/keys";
 
 const now = () => new Date().toISOString();
@@ -141,4 +142,38 @@ export async function ensureQuestionnaireForRoute(
     rows.some((q) => (q.route || "") === row.route) ? { next: rows } : { next: [row, ...rows] }
   ));
   return (await getQuestionnaireByRoute(route)) || row;
+}
+
+
+/**
+ * Take seed questions out of a questionnaire ALREADY PLANTED, once.
+ *
+ * The planting above writes once and then returns whatever is stored, so a
+ * seed change reaches no environment that already has the form. This carries
+ * one removal to them: the named questions, then the named pages if they are
+ * left empty, and a `marker` on the row so it happens once — an author who
+ * puts a question back afterwards keeps it. Nothing else on the form moves.
+ * Returns the row as it now stands.
+ */
+export async function retireFromQuestionnaire(route: string, retirement: Retirement) {
+  const want = String(route || "").trim();
+  const { marker } = retirement;
+  // A READ FIRST, so a form already done costs nothing: this runs on every
+  // visit to the registration page, and only the first may write.
+  const current = await getQuestionnaireByRoute(want);
+  if (!current || (Array.isArray(current.retired) && (current.retired as string[]).includes(marker))) return current;
+  // Outside the closure, which may run once per CAS round (updateQuestionnaireDef says why).
+  const updatedAt = now();
+  await editArr(REG.questionnaires, (rows) => {
+    const at = rows.findIndex((q) => (q.route || "") === want);
+    if (at < 0) return { next: rows };
+    const row = rows[at];
+    const done = Array.isArray(row.retired) ? (row.retired as string[]) : [];
+    if (done.includes(marker)) return { next: rows };
+    const pages = withoutRetired((row.pages as { id?: string; questions?: { id?: string }[] }[]) || [], retirement);
+    const next = [...rows];
+    next[at] = { ...row, pages, retired: [...done, marker], updatedAt };
+    return { next };
+  });
+  return getQuestionnaireByRoute(want);
 }

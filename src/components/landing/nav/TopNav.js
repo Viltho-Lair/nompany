@@ -190,7 +190,7 @@ export function TopNav({ locale = "en" }) {
                   the screen the harder the site is to act on. Shown to signed-out
                   visitors only, the same rule the bar's copy of it follows. */}
               {account === undefined || account ? null : (
-                <Link role="menuitem" href={`/${locale}/signup`} onClick={closeMenus}
+                <Link role="menuitem" href={`/api/intent?locale=${locale}`} onClick={closeMenus}
                    className="mt-1 block border-t border-line px-4 pb-1 pt-3 text-sm font-medium text-fg transition-colors hover:bg-line/40">
                   {tr.startFree}
                 </Link>
@@ -307,7 +307,7 @@ export function TopNav({ locale = "en" }) {
               The avatar slot above still holds its circle, and that is the one
               that always resolves to something 36px wide. */}
           {account === undefined ? null : account ? null : (
-              <MagneticButton variant="ghost" strength={8} className="px-5 py-2 text-xs" href={`/${locale}/signup`}>
+              <MagneticButton variant="ghost" strength={8} className="px-5 py-2 text-xs" href={`/api/intent?locale=${locale}`}>
                 {tr.startFree}
               </MagneticButton>
           )}
