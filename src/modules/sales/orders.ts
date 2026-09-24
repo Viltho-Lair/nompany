@@ -26,7 +26,7 @@ import type { SalesTicket } from "./schema";
 import type { Contract } from "./contractSchema";
 import type { Quotation } from "@/modules/technical/types";
 import { isClosed, isWon } from "./pipeline";
-import { isFinishedQuotation } from "@/modules/technical/quotations";
+import { isOpenOffer } from "@/modules/technical/quotations";
 import { engagementIdForLineage } from "@/platform/db/engagement";
 import { taxCategoryField } from "@/shared/taxProfile";
 import { documentTaxMethod } from "@/shared/compliance/rules";
@@ -74,7 +74,7 @@ export async function orderPickers(ctx: SalesContext) {
       })),
     clients: clients.map((c) => ({ id: c.id, name: c.name || c.id })).sort((a, b) => a.name.localeCompare(b.name)),
     quotations: quotations
-      .filter((q) => isFinishedQuotation(q) && q.status !== "Rejected")
+      .filter((q) => isOpenOffer(q))
       .map((q) => ({
         id: q.id, number: q.number || q.id, revision: Number(q.revision) || 1,
         ticketId: String(q.ticketId || ""), clientId: String(q.clientId || ""),

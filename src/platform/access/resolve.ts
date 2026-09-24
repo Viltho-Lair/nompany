@@ -700,7 +700,15 @@ export function sectionManageable(
 // question the same way, and answers `true` for a section that has no dashboard
 // right declared, so nothing that never had one starts refusing.
 export function dashboardViewable(access: PermissionSet, sectionKey: string): boolean {
-  const key = `${sectionKey}.dashboard.view`;
+  // THE DASHBOARD'S AREA IS LOOKED UP, NOT SPELLED FROM THE SECTION KEY
+  // (24/09/2026). `${sectionKey}.dashboard.view` is a real right only where the
+  // section key IS the area's name — finance, hr, projects. For "crm-sales",
+  // "quotations" and "field-service" it built a key that does not exist
+  // (crm-sales.dashboard.view), the guard below answered `true`, and all three
+  // dashboards opened for anybody who could open the department, whatever the
+  // Access screen said. SECTION_AREAS already names each one's area.
+  const area = (SECTION_AREAS[sectionKey] || []).find((a) => a.endsWith(".dashboard"));
+  const key = `${area || `${sectionKey}.dashboard`}.view`;
   // The guard narrows the string to the union, which is exactly the border this
   // function sits on: `sectionKey` is a nav id, and only some nav ids name a
   // dashboard right.

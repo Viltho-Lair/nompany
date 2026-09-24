@@ -45,8 +45,8 @@ import {
 import { resolveClientFor, normaliseClientName, clientSlug } from "@/modules/sales/salesClients";
 import { projectsContext, openProject, listProjects, approvedQuotations, removeProject } from "@/modules/projects/projects";
 import {
-  technicalContext, requestRfq, convertRfq, createQuotation, updateRfq, updateQuotation, listQuotations,
-  removeQuotation, sendQuotationForApproval,
+  technicalContext, requestRfq, convertRfq, createQuotation, updateQuotation, listQuotations,
+  closeQuotation, assignQuotation, sendQuotationForApproval,
 } from "@/modules/technical/technical";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
 import { landedUnitCost, crossRate } from "@/shared/currencies";
@@ -160,7 +160,7 @@ import { testIndex, testPermissionKey, testVisibleStageTypes } from "./engagemen
 // THE DELETE PATH (this increment). Same standalone-runner shape as the five
 // modules above -- importing it here pulls in only the exported test functions,
 // run explicitly further down through the same try/catch adapter. The delete
-// VERBS themselves (removeQuotation/removeProject) are exercised end to end
+// VERB itself (removeProject; a quotation is closed, not deleted) is exercised end to end
 // against the seeded studio further up; this module covers the primitive and
 // the impact query, which need no studio at all.
 import {
@@ -447,6 +447,12 @@ console.log("== approvals: the page's own routes, end to end");
 }
 
 // ============================================================================
+// A SUBMITTABLE QUOTATION HAS SOMETHING ON IT (24/09/2026): the server now
+// refuses Completed with no described line ("no-lines"), the rule the builder's
+// Submit button always held. Every fixture that submits sends one line, priced
+// at nothing so no total these blocks assert on moves.
+const WITH_A_LINE = { tables: [{ id: "t1", title: "Works", rows: [{ id: "r1", description: "Survey", qty: 1, unitPrice: 0 }] }] };
+
 console.log("\n== the handler is carried, never copied");
 // REGRESSION, two of them, both invisible to a unit test because each half was
 // correct on its own:
@@ -518,7 +524,11 @@ console.log("\n== the handler is carried, never copied");
   ok("the quotations list names its handler", row?.handledBy === member.collaborator.id,
     `handledBy is ${JSON.stringify(row?.handledBy)}`);
 
-  await updateRfq(tech, asked.rfq?.id, { handledByCollaboratorId: viewer.collaborator.id });
+  // REASSIGNED THROUGH ASSIGN (24/09/2026), the one way a handler changes now:
+  // a converted RFQ is final, so the desk no longer edits it. Assign writes the
+  // quotation AND its RFQ, which is what the ticket below reads.
+  const handedOn = await assignQuotation(tech, conv.quotation?.id, { to: viewer.collaborator.id });
+  ok("a quotation can be handed to somebody else", !!handedOn.quotation, JSON.stringify(handedOn.error));
   const reassigned = (await listQuotations(tech)).find((q) => q.id === conv.quotation?.id);
   ok("...and follows the RFQ when it is reassigned", reassigned?.handledBy === viewer.collaborator.id,
     `handledBy is ${JSON.stringify(reassigned?.handledBy)}`);
@@ -533,7 +543,7 @@ console.log("\n== the handler is carried, never copied");
 
   // Submitted by the OWNER, who is neither the appointment nor the original
   // handler — which is the whole point: work gets picked up and covered for.
-  const done = await updateQuotation(tech, conv.quotation?.id, { status: "Completed" });
+  const done = await updateQuotation(tech, conv.quotation?.id, { ...WITH_A_LINE, status: "Completed" });
   ok("submitting stamps who finished it", done.quotation?.submittedByCollaboratorId === tech.collaborator.id,
     JSON.stringify(done.quotation?.submittedByCollaboratorId));
 
@@ -1303,7 +1313,7 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
   // edit one skipped the people who approve it (19/09/2026).
   const typed = await updateQuotation(tech, internal.quotation?.id, { status: "Approved" });
   ok("a quotation cannot be approved by editing its status", typed.error === "needs-approval", JSON.stringify(typed));
-  await updateQuotation(tech, internal.quotation?.id, { status: "Completed" });
+  await updateQuotation(tech, internal.quotation?.id, { ...WITH_A_LINE, status: "Completed" });
   const asked = await sendQuotationForApproval(await technicalContext(owner, slug), { quotationId: internal.quotation?.id });
   ok("an internal quotation goes for approval from Technical", asked.approval?.type === "quotation", JSON.stringify(asked.error));
   await decideApproval(await approvalsContext(member.user, slug), asked.approval?.id, { verdict: "Approved" });
@@ -1585,9 +1595,9 @@ console.log("\n== CI proves a quotation-born deal carries its client (Task 5, cl
 
 // ============================================================================
 console.log("\n== deleting a record takes its engagement state with it");
-// INVARIANT 11, THROUGH THE REAL DELETE VERBS. removeQuotation removed the row
-// and nothing else; removeProject removed the row, the board and the plans and
-// nothing else. Both left the engagement layer standing, so the deal kept
+// INVARIANT 11, THROUGH THE REAL DELETE VERB. removeProject removed the row, the
+// board and the plans and nothing else (a quotation is no longer deleted at
+// all — it is closed, below — so only the project half of this still deletes). Both left the engagement layer standing, so the deal kept
 // pointing at rows that no longer existed: a Quotation card reading
 // "present, 1" with a blank reference, and a `project` singleton naming a
 // deleted project. Detach runs BEFORE the row goes — the recoverable direction,
@@ -1620,22 +1630,22 @@ console.log("\n== deleting a record takes its engagement state with it");
     && before?.singletons.project === opened.project?.id,
     JSON.stringify(before));
 
-  // ---- the quotation goes -------------------------------------------------
-  const goneQuote = await removeQuotation(await technicalContext(owner, slug), quotationId);
-  ok("removeQuotation removes the row", goneQuote.ok === true, JSON.stringify(goneQuote));
+  // ---- the quotation is CLOSED, not deleted --------------------------------
+  // The owner, 24/09/2026: "a quotation can not be deleted but can be closed."
+  // removeQuotation is gone with the delete verb. Closing keeps the row and its
+  // place on the deal — the engagement still records that it existed — which is
+  // the opposite of what this block used to prove for a delete.
+  const refusedNoReason = await closeQuotation(await technicalContext(owner, slug), quotationId, {});
+  ok("closing without a reason is refused", refusedNoReason.error === "reason-required", JSON.stringify(refusedNoReason));
+  const closed = await closeQuotation(await technicalContext(owner, slug), quotationId, { reason: "The client went elsewhere." });
+  ok("closeQuotation closes it", closed.quotation?.status === "Closed" && closed.quotation?.locked === true,
+    JSON.stringify(closed.error || closed.quotation?.status));
+  const again = await closeQuotation(await technicalContext(owner, slug), quotationId, { reason: "twice" });
+  ok("...and a closed quotation is final", again.error === "quotation-closed", JSON.stringify(again));
 
-  const afterQuote = await readEngagementView(studio.id, engId);
-  ok("...and the quotation leaves the engagement's members",
-    !afterQuote?.members.quotation?.includes(quotationId), JSON.stringify(afterQuote?.members));
-  ok("...and the approvedQuotation pointer it filled is cleared",
-    afterQuote?.singletons.approvedQuotation === null, JSON.stringify(afterQuote?.singletons));
-
-  // THE USER-VISIBLE SYMPTOM, asserted where it was reported: the card.
-  const access = (await studioContext(owner, slug)).access;
-  const block = await engagementBlock({ studio, access }, engId);
-  const quotationCard = (block.engagement?.cards || []).find((c) => c.type === "quotation");
-  ok("...so the engagement card shows no phantom quotation stage",
-    quotationCard?.present === false && quotationCard?.count === 0, JSON.stringify(quotationCard));
+  const afterClose = await readEngagementView(studio.id, engId);
+  ok("...and it stays on the deal, because closing is not deleting",
+    !!afterClose?.members.quotation?.includes(quotationId), JSON.stringify(afterClose?.members));
 
   // ---- the project goes ---------------------------------------------------
   const goneProject = await removeProject(await projectsContext(owner, slug), opened.project?.id);
@@ -1650,8 +1660,8 @@ console.log("\n== deleting a record takes its engagement state with it");
 
   // Idempotent on re-run (invariant 11): deleting what is already deleted is a
   // "notfound", never a throw and never a second detach that damages anything.
-  const again = await removeProject(await projectsContext(owner, slug), opened.project?.id);
-  ok("...and a re-run is a clean notfound", again.error === "notfound", JSON.stringify(again));
+  const againProject = await removeProject(await projectsContext(owner, slug), opened.project?.id);
+  ok("...and a re-run is a clean notfound", againProject.error === "notfound", JSON.stringify(againProject));
 }
 
 // ============================================================================
@@ -1862,7 +1872,7 @@ console.log("\n== raising a revision closes the quotation it revises");
   const tech = await technicalContext(owner, slug);
   const q1 = await convertRfq(tech, { rfqId: first.rfq?.id, handledByCollaboratorId: member.collaborator.id });
   ok("fixture: a first quotation", !!q1.quotation, JSON.stringify(q1.error));
-  await updateQuotation(await technicalContext(owner, slug), q1.quotation?.id, { status: "Completed" });
+  await updateQuotation(await technicalContext(owner, slug), q1.quotation?.id, { ...WITH_A_LINE, status: "Completed" });
 
   // Unfinished work is left alone, so nothing was frozen before this point.
   const beforeSecond = (await listQuotations(await technicalContext(owner, slug)))

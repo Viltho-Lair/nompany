@@ -317,8 +317,9 @@ STATIC_FIELDS.push(
     ["quotation.title", "Quotation title", "title"],
     ["quotation.description", "Description", "description"],
     ["quotation.status", "Status", "status"],
-    // Stamped when Technical submits it — empty until then, which prints as the
-    // field's own name rather than as a date nobody set.
+    // WHEN IT WAS SUBMITTED — read as `submittedAt` by quality.ts's
+    // quotationAsDecided, which puts it here; empty until then, which prints as
+    // the field's own name rather than as a date nobody set.
     ["quotation.completedAt", "Date completed", "completedAt"],
     // FROZEN AT ISSUE (tier 4): how long the client may accept it, and the
     // money it is in. Both are the quotation's own, not the studio's today.

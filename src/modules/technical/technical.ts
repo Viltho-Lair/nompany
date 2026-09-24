@@ -23,17 +23,17 @@ import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { collaboratorsHolding, notifyCollaboratorIds, signatureNotice } from "@/modules/people/holders";
 import { RFQ_STATUSES, pendingRfq, approvedQuotationFor, latestTicketQuotation } from "./rfqs";
 import { DEFAULT_STATUS, RFQ_REJECTED_TICKET_STATUS } from "@/modules/sales/tickets";
-import { stagePatch, CHAIN_LOST_REASON } from "@/modules/sales/pipeline";
+import { stagePatch, CHAIN_LOST_REASON, isClosed } from "@/modules/sales/pipeline";
 import { resolveClientFor } from "@/modules/sales/salesClients";
 import { approvalRows, requestApproval } from "@/modules/approvals/approvals";
-import { quotationApproved, quotationApprovedAt, QUOTATION_APPROVAL } from "@/modules/approvals/reads";
+import { quotationApproved, quotationApprovedAt, approvalSummary, QUOTATION_APPROVAL } from "@/modules/approvals/reads";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { landedUnitCost } from "@/shared/currencies";
 import { resolveUnitPrice, ratesByItem } from "@/shared/pricing";
 import { addDaysISO, todayISO } from "@/shared/dates";
 import { documentVatRate } from "@/shared/vat";
 import { documentTotals } from "@/shared/documentTotals";
-import { attachToTicketEngagement, attachQuotationEngagement, detachRecord, engagementIdFor } from "@/platform/db/engagement";
+import { attachToTicketEngagement, attachQuotationEngagement } from "@/platform/db/engagement";
 import {
   QUOTATION_STATUSES, DEFAULT_QUOTATION_STATUS, LEAD_INTERNAL,
   QUOTATION_LIVE_COLUMNS, DEFAULT_QUOTATION_LIVE_COLUMNS, cleanQuotationLiveColumns,
@@ -261,14 +261,17 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   // it is Sales handing its own ticket over — it moves that ticket Lead →
   // Opportunity — and asking for a Technical right there refuses every Sales
   // role the button is shown to, which is the whole point of that button.
-  // Either door, canManageSales below still has to hold.
+  //
+  // AND NOTHING ELSE (24/09/2026). Both doors also demanded CRM & Sales' manage
+  // grant, so a desk clerk holding the RFQs "Create" right — the right listed
+  // under Quotations on the Access screen — was refused with "Raising an RFQ
+  // needs Manage access to Sales". Each door now asks exactly its own right.
   const denied = ctx.viaSales
     ? requirePermission(ctx.access, "crmSales.tickets.edit")
     : requirePermission(ctx.access, "engineeringDocs.rfq.create");
   if (denied) return denied;
 
-  const { studio, rfqSection, quotationsSection, salesSection, salesTicketsSection, collaborator, canManageSales } = ctx;
-  if (!canManageSales) return { error: "sales-required" };
+  const { studio, rfqSection, quotationsSection, salesSection, salesTicketsSection, collaborator } = ctx;
   if (!salesSection) return { error: "no-sales" };
   // Every section this reads, checked before it reads any of them. A caller that
   // arrives without one has a context built wrong, and saying so is worth more
@@ -291,6 +294,11 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   ]);
   const ticket = tickets.find((t) => t.id === ticketId);
   if (!ticket) return { error: "ticket" };
+  // A DECIDED DEAL ASKS FOR NOTHING. Won, lost, cancelled or dropped, there is no
+  // customer waiting on a price — and a lost one may have been lost BECAUSE an
+  // RFQ was turned down. The Sales button already hid itself past Opportunity;
+  // the desk's Raise dialog offered closed tickets and nothing here refused them.
+  if (isClosed(String(ticket.status || ""))) return { error: "deal-closed" };
   // ONE OUTSTANDING RFQ AT A TIME, not one ever. A ticket whose quotation came
   // back finished may be sent over again — that second RFQ is how Sales asks
   // for an edit, and only the final one is what the ticket is priced from.
@@ -389,9 +397,19 @@ export async function requestRfq(ctx: TechnicalContext, body: Record<string, unk
   // shape as leave approvers), so an RFQ announced to somebody who cannot act on
   // it never wastes the one person who saw it. Never the raiser — raising it is
   // how they already know.
+  //
+  // BOTH GROUPS, the owner's rule (24/09/2026): the people who build quotations
+  // AND the people who work the RFQ desk. It went to quotation creators alone,
+  // so a desk clerk who reviews and converts requests — and holds no right to
+  // build the quotation itself — was never told one had arrived.
   try {
-    const handlers = (await collaboratorsHolding(studio.id, "crmSales.quotations.create"))
-      .filter((c) => c.id !== collaborator.id);
+    const [builders, desk, converters] = await Promise.all([
+      collaboratorsHolding(studio.id, "crmSales.quotations.create"),
+      collaboratorsHolding(studio.id, "engineeringDocs.rfq.edit"),
+      collaboratorsHolding(studio.id, "engineeringDocs.rfq.convert"),
+    ]);
+    const byId = new Map([...builders, ...desk, ...converters].map((c) => [String(c.id), c]));
+    const handlers = [...byId.values()].filter((c) => c.id !== collaborator.id);
     if (handlers.length) {
       const userIdOf = new Map(handlers.map((c) => [String(c.id), String(c.userId)]));
       await notifyCollaborators(
@@ -419,12 +437,29 @@ export async function updateRfq(ctx: TechnicalContext, id: string, body: Record<
   if (denied) return denied;
 
   const { studio, rfqSection, salesTicketsSection } = ctx;
+  // A DECIDED REQUEST IS FINISHED. Converted has its quotation, and Rejected has
+  // already closed the deal as lost — reopening either leaves the ticket saying
+  // one thing and the desk another. And Converted is reached by converting,
+  // never by typing it: a request marked Converted by hand has no quotation.
+  const current = await Rfqs.byId({ studio, section: rfqSection }, id);
+  if (!current) return { error: "notfound" };
+  if (current.status === "Converted") return { error: "converted" };
+  if (current.status === "Rejected") return { error: "rejected" };
   const patch: Record<string, unknown> = {};
   if (body?.status !== undefined) {
-    if (!RFQ_STATUSES.includes(String(body.status))) return { error: "status" };
+    if (!RFQ_STATUSES.includes(String(body.status)) || String(body.status) === "Converted") return { error: "status" };
     patch.status = String(body.status);
   }
-  if (body?.handledByCollaboratorId !== undefined) patch.handledByCollaboratorId = str(body.handledByCollaboratorId, 60);
+  // CHANGING WHO HANDLES IT IS ASSIGNING (the owner's rule, 24/09/2026), so it
+  // needs crmSales.quotations.assign here as it does from the register. An
+  // unchanged value — the desk sends its whole draft — is not a change.
+  if (body?.handledByCollaboratorId !== undefined) {
+    const to = str(body.handledByCollaboratorId, 60);
+    if (to !== String(current.handledByCollaboratorId || "")) {
+      if (!can(ctx.access, "crmSales.quotations.assign")) return { error: "assign" };
+      patch.handledByCollaboratorId = to;
+    }
+  }
   if (body?.description !== undefined) patch.description = str(body.description, 4000);
 
   const rfq = await Rfqs.update({ studio, section: rfqSection }, id, patch);
@@ -605,15 +640,16 @@ export function nextQuotationNumber(
 // WHO IS HANDLING A QUOTATION, in one place because three screens ask it: the
 // Quotations table, its Handled-by filter and the Live view.
 //
-// A CONVERTED QUOTATION DOES NOT OWN ITS HANDLER — the RFQ does. Converting
-// copied the name onto both rows, so reassigning the RFQ afterwards left the
-// quotation still naming whoever used to have it, and the column read the
-// quotation's own `handledBy` — a field the convert form never sends — so it
-// was simply blank on every converted row. Carried from the RFQ, it is right
-// the moment the RFQ is reassigned and there is nothing to migrate.
+// A CONVERTED QUOTATION'S HANDLER IS READ OFF ITS RFQ. Converting copied the
+// name onto both rows, so reassigning the RFQ afterwards left the quotation
+// still naming whoever used to have it — and the Sales ticket reads the RFQ's
+// handler, so the two screens disagreed about who had the work. Carried from
+// the RFQ, both answer from one place. That is why assignQuotation (24/09/2026)
+// writes the RFQ as well as the quotation, rather than this order reversing:
+// reversing it gave the register one answer and the ticket another.
 //
-// The quotation's own fields are the fallback, for the INTERNAL ones raised
-// straight from the Quotations screen with no RFQ behind them.
+// The quotation's own fields are the answer for an INTERNAL one, raised
+// straight from the Quotations screen with no RFQ behind it.
 const quotationHandler = (q: Quotation | null | undefined, rfq: Rfq | null | undefined) =>
   String(rfq?.handledByCollaboratorId || q?.handledByCollaboratorId || q?.handledBy || "");
 
@@ -645,6 +681,18 @@ export async function listQuotations(ctx: TechnicalContext) {
       // measures turnaround from and the viewer prints as "Approved". The
       // approval that made the decision knows when it was made.
       const decidedAt = quotationApprovedAt(q, approvals);
+      // AND WHERE ITS APPROVAL STANDS, pending or turned down, with the reason
+      // (24/09/2026). Only "approved" was carried, so a quotation whose approval
+      // was REJECTED read "Completed" again — nobody could tell a refusal from
+      // never having asked — and one already waiting was offered Request
+      // approval, to be refused as already-pending.
+      const approval = approvalSummary(approvals, QUOTATION_APPROVAL, q.id);
+      const approvalState = approved ? "approved"
+        : approval?.rejected ? "rejected"
+          : approval && !approval.approved ? "pending" : "";
+      const approvalCarry = approval
+        ? { approvalState, approvalReason: approval.reason, approvalGranted: approval.granted, approvalRequired: approval.required }
+        : { approvalState };
       // WHETHER THIS CAME OFF A SALES TICKET, spelled out rather than left for
       // the frontend to infer from ticketId's presence — the same fact, but a
       // caller reading for "did Sales raise this" should not have to know that
@@ -660,7 +708,7 @@ export async function listQuotations(ctx: TechnicalContext) {
         // is what stays when nobody has typed one into Sales.
         const clientName = q.clientId ? (clientsById.get(q.clientId) || "") : String(q.clientName || "");
         return {
-          ...q, handledBy, handledByCollaboratorId: handledBy, approved, storedStatus: q.status,
+          ...q, handledBy, handledByCollaboratorId: handledBy, approved, storedStatus: q.status, ...approvalCarry,
           status: shown, completedAt: decidedAt, leadLabel: LEAD_INTERNAL, fromSales,
           clientName, industry: String(q.industry || ""), deadline: String(q.deadline || ""),
         };
@@ -674,7 +722,7 @@ export async function listQuotations(ctx: TechnicalContext) {
         // one and the RFQ screen the other, and a row where they disagree is a
         // row that shows two handlers for one document.
         handledBy, handledByCollaboratorId: handledBy,
-        approved, storedStatus: q.status, status: shown, completedAt: decidedAt, fromSales,
+        approved, storedStatus: q.status, status: shown, completedAt: decidedAt, fromSales, ...approvalCarry,
         // What the lead column reads: the ticket's reference, from the ticket.
         leadLabel: t.ticketRef || LEAD_INTERNAL,
         // NOT description — the wording on a quotation is the document's own.
@@ -697,6 +745,77 @@ export async function listQuotations(ctx: TechnicalContext) {
 // required fields and one error name cannot say which one is empty. Such a
 // quotation is marked Internal — `lead` is what an RFQ conversion overwrites
 // with the source ticket.
+// WHO HANDLES A QUOTATION — the owner's rule, 24/09/2026: "if the user didn't
+// create it himself, someone with assigning access should assign a user to
+// handle it." So whoever raises or converts one handles it by default, and
+// naming ANYBODY ELSE needs `crmSales.quotations.assign`. Both doors ask here,
+// so the rule cannot hold at one and not the other.
+//
+// This also ends a defect: the New quotation form sent the person it picked as
+// `handledBy` and this read `handledByCollaboratorId` alone, so the register
+// named the CREATOR as handler whoever had been chosen.
+async function chooseHandler(
+  ctx: TechnicalContext, body: Record<string, unknown>,
+): Promise<{ id: string } | { error: string }> {
+  const self = ctx.collaborator.id;
+  const asked = str(body?.handledByCollaboratorId, 60) || str(body?.handledBy, 60);
+  if (!asked || asked === self) return { id: self };
+  if (!can(ctx.access, "crmSales.quotations.assign")) return { error: "assign" };
+  const people = await listCollaborators(ctx.studio.id);
+  if (!people.some((c) => c.id === asked)) return { error: "assignee" };
+  return { id: asked };
+}
+
+// HANDING A QUOTATION TO SOMEBODY ELSE, afterwards, from the register. Its own
+// act under its own right — not an edit, so an assigner needs no right to price
+// the document, and an editor cannot quietly re-point who follows it up. A
+// locked quotation is still assignable: locking freezes what the customer was
+// sent, and somebody still has to chase the answer to it. The RFQ behind it is
+// written too: a converted quotation's handler is READ off its RFQ (see
+// quotationHandler), which is where the Sales ticket reads it as well.
+export async function assignQuotation(ctx: TechnicalContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "crmSales.quotations.assign");
+  if (denied) return denied;
+  const { studio, quotationsSection, collaborator } = ctx;
+  const to = str(body?.to, 60);
+  if (!to) return { error: "assignee" };
+  const [current, people] = await Promise.all([
+    Quotations.byId({ studio, section: quotationsSection }, id),
+    listCollaborators(studio.id),
+  ]);
+  if (!current) return { error: "notfound" };
+  if (!people.some((c) => c.id === to)) return { error: "assignee" };
+  const rfq = current.rfqId && ctx.rfqSection
+    ? await Rfqs.byId({ studio, section: ctx.rfqSection }, String(current.rfqId)) : null;
+  if (quotationHandler(current, rfq) === to) return { error: "same" };
+  const quotation = await Quotations.update({ studio, section: quotationsSection }, id, {
+    handledByCollaboratorId: to,
+    handledBy: to,
+    assignedByCollaboratorId: collaborator.id,
+    assignedAt: new Date().toISOString(),
+  });
+  if (!quotation) return { error: "notfound" };
+  if (quotation.rfqId && ctx.rfqSection) {
+    await Rfqs.update({ studio, section: ctx.rfqSection }, String(quotation.rfqId), { handledByCollaboratorId: to });
+  }
+  if (to !== collaborator.id) {
+    try {
+      const person = people.find((c) => c.id === to);
+      const reference = String(quotation.number || "");
+      const title = String(quotation.title || "");
+      await notifyCollaborators(studio.id, [to], {
+        type: NOTIFY.quotationAssigned,
+        title: "A quotation was assigned to you",
+        body: `${reference} · ${title}`,
+        params: { reference, title },
+        href: `quotations-register?quotation=${quotation.id}`,
+        tone: "primary",
+      }, { userIdOf: () => String(person?.userId || "") });
+    } catch { /* best-effort: the assignment stands; failing to announce it must not undo it */ }
+  }
+  return { quotation };
+}
+
 export async function createQuotation(ctx: TechnicalContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "crmSales.quotations.create");
@@ -775,13 +894,13 @@ export async function createQuotation(ctx: TechnicalContext, body: Record<string
   // and the builder may change it per quotation.
   const items: QuotationItem[] = [];
   const vatRate = documentVatRate(studio);
-  // handledBy IS NOW OPTIONAL — defaults to whoever is creating it, so nothing
-  // downstream (the Handled-by column, the Live view) reads a blank. The
-  // screen's "Handled by" is a PERSON PICKER, so what arrives is already a
-  // CollaboratorID; stored under both names, so an internal quotation names
-  // its handler wherever a converted one does.
-  const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60) || collaborator.id;
-  const handledBy = str(body?.handledBy, 120) || handledByCollaboratorId;
+  // THE HANDLER — the creator, unless an assigner named somebody else (see
+  // chooseHandler). Stored under both names, so an internal quotation names its
+  // handler wherever a converted one does.
+  const handler = await chooseHandler(ctx, body);
+  if ("error" in handler) return handler;
+  const handledByCollaboratorId = handler.id;
+  const handledBy = handler.id;
   const quotation = await Quotations.create({ studio, section: quotationsSection }, {
     number,
     revision: 1,
@@ -833,6 +952,10 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
   const rfq = rfqs.find((r) => r.id === rfqId);
   if (!rfq) return { error: "notfound" };
   if (rfq.status === "Converted") return { error: "already" };
+  // A TURNED-DOWN REQUEST IS NOT QUOTED. Rejecting it closed the deal as lost;
+  // converting it afterwards produced a quotation for a deal nobody was pursuing,
+  // and did not reopen the deal either — two records disagreeing for good.
+  if (rfq.status === "Rejected") return { error: "rejected" };
 
   const quotations = await Quotations.find({ studio, section: quotationsSection });
 
@@ -859,7 +982,10 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
   // A revision keeps its predecessor's rate and a first quotation takes the
   // studio's; both are nought when the studio is not registered for VAT.
   const vatRate = documentVatRate(studio, undefined, prior?.vatRate);
-  const handledByCollaboratorId = str(body?.handledByCollaboratorId, 60);
+  // The converter handles it unless an assigner named somebody else.
+  const handler = await chooseHandler(ctx, body);
+  if ("error" in handler) return handler;
+  const handledByCollaboratorId = handler.id;
   // The ticket, for the ONE thing the document authors out of it: its opening
   // description, which Technical then edits. Everything else the ticket owns is
   // read back through `ticketId` whenever the quotation is shown.
@@ -893,7 +1019,7 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
     description: str(body?.description, 2000) || str(rfq.description, 2000)
       || str(t.ticketDescription, 2000) || str(t.title, 2000),
     handledByCollaboratorId,
-    handledBy: str(body?.handledBy, 120),
+    handledBy: handledByCollaboratorId,
     comments: [],
     locked: false,
     // Converted from an RFQ, so the lead is the source ticket rather than
@@ -923,15 +1049,33 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
   return { quotation };
 }
 
+/** A request that only locks or only unlocks — nothing but `id` and `locked`. */
+export const isLockOnly = (body: Record<string, unknown> | null | undefined) => {
+  const keys = Object.keys(body || {}).filter((k) => k !== "id");
+  return keys.length === 1 && keys[0] === "locked" && typeof body?.locked === "boolean";
+};
+
 export async function updateQuotation(ctx: TechnicalContext, id: string, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "crmSales.quotations.edit");
+  //
+  // LOCKING AND UNLOCKING ARE NOT EDITS (24/09/2026). A request carrying nothing
+  // but `locked` asks for the Lock or the Unlock right ALONE: the Access screen
+  // lists them as rights of their own, and demanding Edit beside each meant a
+  // holder of Unlock — offered the button — was refused for a right nobody had
+  // told them was needed. Anything else in the request is an edit, as before.
+  const lockOnly = isLockOnly(body);
+  const denied = requirePermission(ctx.access, lockOnly
+    ? (body.locked === true ? "crmSales.quotations.lock" : "crmSales.quotations.unlock")
+    : "crmSales.quotations.edit");
   if (denied) return denied;
 
   const { studio, quotationsSection, collaborator } = ctx;
   const rows = await Quotations.find({ studio, section: quotationsSection });
   const current = rows.find((q) => q.id === id);
   if (!current) return { error: "notfound" };
+  // A CLOSED QUOTATION IS FINAL (24/09/2026): not edited, not unlocked, not
+  // relocked — closing is the end of it, the way deleting used to be.
+  if (current.status === "Closed") return { error: "quotation-closed" };
   // A LOCKED quotation is finished business — the priced document a client was
   // given. Nothing about it may change again, so the refusal comes before any
   // field is read.
@@ -976,6 +1120,8 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
     // quotation that is already Approved changes nothing and is let through;
     // those were approved by hand before Approvals and stay so.
     if (body.status === "Approved" && current.status !== "Approved") return { error: "needs-approval" };
+    // Nor Closed: that is closeQuotation's, with its own right and its reason.
+    if (body.status === "Closed") return { error: "status" };
     patch.status = String(body.status);
     // When it lands on Approved, stamp WHEN — that date is what the dashboard
     // measures turnaround from, and it must not move if it is approved twice.
@@ -995,7 +1141,9 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   // The NUMBER is deliberately absent: it is locked to the quotation once
   // assigned, because it is the reference a client already holds.
   if (body?.description !== undefined) patch.description = str(body.description, 2000);
-  if (body?.handledBy !== undefined) patch.handledBy = str(body.handledBy, 120);
+  // THE HANDLER IS NOT EDITED HERE (24/09/2026). Choosing who follows a
+  // quotation up is assignQuotation's, under its own right; an edit that could
+  // re-point it would be the same power without the right.
   if (body?.notes !== undefined) patch.notes = str(body.notes, 4000);
   // THE EXPIRY IS EDITABLE PER QUOTATION — the sequence only proposes it. A
   // calendar date or nothing: anything else is refused rather than stored and
@@ -1022,6 +1170,16 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
     if (!patch.status && current.status === DEFAULT_QUOTATION_STATUS) patch.status = "Draft";
   }
 
+  // A FINISHED QUOTATION HAS SOMETHING ON IT. The builder greyed Submit out
+  // with no described line, and nothing here agreed — so a Completed quotation
+  // with no lines could be sent up for approval by anybody calling the API.
+  // Judged on the lines being written if the same request brings them, else on
+  // the ones already stored.
+  if (patch.status === "Completed") {
+    const lines = (patch.items ?? current.items ?? []) as QuotationItem[];
+    if (!lines.some((i) => String(i?.description || "").trim())) return { error: "no-lines" };
+  }
+
   // Any change to pricing recomputes the totals server-side.
   if (body?.tables === undefined && (body?.items !== undefined || body?.vatRate !== undefined)) {
     const items = body?.items !== undefined ? cleanItems(body.items) : current.items;
@@ -1038,8 +1196,9 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
       { id: `c${Date.now().toString(36)}`, text: comment, byCollaboratorId: collaborator.id, createdAt: new Date().toISOString() },
     ];
   }
-  // Locking is ONE-WAY and only from Approved — there is no unlock, which is
-  // the point of it.
+  // Locking is only from Approved. It is NOT one-way any more — this said
+  // "there is no unlock" after Unlock shipped as its own right (see the locked
+  // branch at the top of this function).
   //
   // ASKED OF THE APPROVAL, like every other "is this approved?" in the product.
   // This was the last place still reading the document's own status, so a
@@ -1057,35 +1216,38 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   return { quotation };
 }
 
-export async function removeQuotation(ctx: TechnicalContext, id: string) {
-  // Guarded before anything is read or written — see platform/access/resolve.ts.
-  const denied = requirePermission(ctx.access, "crmSales.quotations.delete");
+// A QUOTATION IS CLOSED, NEVER DELETED — the owner, 24/09/2026: "a quotation
+// can not be deleted but can be closed." removeQuotation is gone with the
+// `delete` verb: a quotation is a document a client may be holding, its number
+// was issued to them, and deleting the newest let that number be issued again
+// (numbering is highest-on-file). Closing keeps the row, the number, the deal's
+// engagement and every revision; it only takes the quotation out of the live
+// work. So nothing is detached — the engagement still records that it existed.
+//
+// Its own right (`crmSales.quotations.close`), and a REASON, for the reason a
+// deal lost says why: a register of closed quotations nobody can explain
+// answers nothing. Any status may be closed, finished or not — a Draft for a
+// job that went away is closed too — and a closed one counts as finished, so
+// its ticket is free to ask again. Final: nothing reopens it.
+export async function closeQuotation(ctx: TechnicalContext, id: string, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "crmSales.quotations.close");
   if (denied) return denied;
-
-  const scope = { studio: ctx.studio, section: ctx.quotationsSection };
-  // Read before the delete, because the ROW is what says which engagement this
-  // quotation belongs to (its ticketId, or its own id when it is internal), and
-  // after the delete there is nothing left to ask.
-  const quotation = await Quotations.byId(scope, id);
-  if (!quotation) return { error: "notfound" };
-
-  // ENGAGEMENT STATE COMES OFF FIRST, THE ROW SECOND — the recoverable
-  // direction. A crash between the two leaves a real quotation with no
-  // engagement state, which the backfill (the reconciler, additive and
-  // idempotent) heals on its next run. The other order leaves engagement state
-  // pointing at a row that no longer exists, and nothing removes that: the
-  // engagements card would read "Quotation · present · 1" with a blank
-  // reference forever. Best-effort like every other engagement dual-write on
-  // this spine — failing to detach must not refuse a delete the caller holds
-  // the right to make.
-  try {
-    const engId = await engagementIdFor(ctx.studio.id, "quotation", quotation.id,
-      { ticketId: quotation.ticketId, quotationId: quotation.id });
-    if (engId) await detachRecord(ctx.studio.id, engId, "quotation", quotation.id);
-  } catch { /* best-effort: reconciled later */ }
-
-  const removed = await Quotations.remove(scope, id);
-  return removed ? { ok: true } : { error: "notfound" };
+  const { studio, quotationsSection, collaborator } = ctx;
+  const reason = str(body?.reason, 400);
+  if (!reason) return { error: "reason-required" };
+  const scope = { studio, section: quotationsSection };
+  const current = await Quotations.byId(scope, id);
+  if (!current) return { error: "notfound" };
+  if (current.status === "Closed") return { error: "quotation-closed" };
+  const at = new Date().toISOString();
+  const quotation = await Quotations.update(scope, id, {
+    status: "Closed",
+    locked: true,
+    closedAt: at,
+    closedByCollaboratorId: collaborator.id,
+    closedReason: reason,
+  });
+  return quotation ? { quotation } : { error: "notfound" };
 }
 
 // SEND AN INTERNAL QUOTATION'S FINISHED DOCUMENT UP FOR APPROVAL — the
@@ -1157,11 +1319,12 @@ export async function openTickets({
     approvalRows(studio, approvalsSection),
   ]);
   return tickets
-    // BOTH RULES requestRfq refuses on, not just the first. A ticket whose
+    // EVERY RULE requestRfq refuses on — closed deals included since 24/09/2026. A ticket whose
     // quotation is approved would otherwise still be offered in the picker and
     // then be turned down on save — which is the failure the Sales button was
     // just fixed for, arriving through the other door.
-    .filter((t) => !pendingRfq(String(t.id), rfqs, quotations)
+    .filter((t) => !isClosed(String(t.status || ""))
+      && !pendingRfq(String(t.id), rfqs, quotations)
       && !approvedQuotationFor(String(t.id), quotations, approvals))
     .map((t) => ({ id: t.id, ref: t.ref, title: t.title }));
 }

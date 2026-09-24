@@ -40,6 +40,8 @@ const UNAUTHENTICATED = [
 // here, and a client that gets 401 should retry exactly once.
 const FORBIDDEN = [
   "forbidden", "forbidden-field", "role-forbidden", "read-only",
+  // Naming somebody else as a quotation's handler without the right to assign.
+  "assign",
   "owner-only",        // the studio's owner alone may do this (deletion, rename, upgrade)
   "escalation",        // nobody grants what they do not hold
   "not-yours",         // someone else's record, and you cannot manage the area
@@ -159,6 +161,12 @@ const CONFLICT = [
   "campaign-final", "campaign-ran", "has-sub-campaigns",
   // A lead is given to the person it already has.
   "same",
+  // THE RFQ DESK (24/09/2026): a request already decided — converted or turned
+  // down — is not edited or converted again, and a deal already decided is not
+  // asked to be priced. Each is the record having moved on.
+  "converted", "rejected", "deal-closed",
+  // A closed quotation is final: nothing edits, locks, unlocks or closes it again.
+  "quotation-closed",
 ];
 
 // 429 — SLOW DOWN. Separated from 403 on purpose: a rate limit is temporary and

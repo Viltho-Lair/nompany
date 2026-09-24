@@ -318,6 +318,27 @@ export const PERMISSION_CATCH_UPS: readonly PermissionCatchUp[] = [
     to: ["marketing.campaigns"],
     verbs: ["assign"],
   },
+  {
+    id: "quotation-close-2026-09-24",
+    // Deleting a quotation was withdrawn and closing one arrived (24/09/2026).
+    // Whoever could delete one could end it; closing is the same decision, kept.
+    note: "Whoever could delete quotations may close them",
+    from: "crmSales.quotations",
+    fromVerb: "delete",
+    to: ["crmSales.quotations"],
+    verbs: ["close"],
+  },
+  {
+    id: "quotation-assign-2026-09-24",
+    // Choosing a quotation's handler became a right of its own (24/09/2026).
+    // Until then whoever CONVERTED a request chose the handler in the same
+    // dialog, so that is who keeps the power; nobody else gains it.
+    note: "Whoever converts requests chooses who handles the quotation",
+    from: "engineeringDocs.rfq",
+    fromVerb: "convert",
+    to: ["crmSales.quotations"],
+    verbs: ["assign"],
+  },
 ];
 
 /** Every id, for stamping a role that is created from now on. */

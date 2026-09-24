@@ -77,6 +77,15 @@ field existed is not guessed onto a month) and **when deals arrive** — a weekd
 grid. All of them bucket through `components/dashboard/series`; the shared rules are in
 `dashboards.md`.
 
+## Figures, not lists (24/09/2026)
+
+**The "All tickets" table is gone** — the owner: a dashboard shows figures; the deals are the
+Tickets screen, which has its own right. It listed every ticket to anybody who could open the
+dashboard. **And the dashboard right is enforced**: `dashboardViewable` built
+`crm-sales.dashboard.view`, which is not a real key, and answered yes to everybody; it reads
+`crmSales.dashboard` from `SECTION_AREAS` now, so a member without it sees the sentence saying
+so and the screens in the sidebar as normal.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

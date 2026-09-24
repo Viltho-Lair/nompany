@@ -325,10 +325,19 @@ const OWN_AREAS = [
   // GROUPED UNDER QUOTATIONS beside the RFQ it is raised from (13/09/2026). It
   // was filed under CRM & Sales on the blueprint's reading that an offer is a
   // sales act; the owner's is that a quotation is engineering work Sales asks for.
-  { key: "crmSales.quotations", group: "Quotations", label: "Quotations", verbs: ["view", "create", "edit", "delete"],
+  // NO DELETE (24/09/2026) — the owner: "a quotation can not be deleted but can
+  // be closed." Deleting also let the newest number be issued again, because
+  // numbering is highest-on-file. `close` replaces it.
+  { key: "crmSales.quotations", group: "Quotations", label: "Quotations", verbs: ["view", "create", "edit"],
     extra: [
+      { key: "close", label: "Close a quotation" },
       { key: "lock", label: "Lock permanently" },
       { key: "unlock", label: "Unlock a locked quotation" },
+      // WHO FOLLOWS A QUOTATION UP is decided by somebody entitled to decide it
+      // (the owner, 24/09/2026): anybody raising or converting one handles it
+      // themselves, and only this right hands it to somebody else — at creation,
+      // at conversion, or afterwards from the register.
+      { key: "assign", label: "Assign quotations to a handler" },
     ] },
   // CONTRACTS AND THE VARIATIONS AGAINST THEM, under one area on purpose.
   // The stage registry already says a change order "answers to the same right

@@ -428,7 +428,7 @@ const P = KEY_PREFIX;
 //
 // ORDER: children-first, registry-last (invariant 11). Each record's engagement
 // state comes off BEFORE its row — the recoverable direction, exactly as
-// removeQuotation/removeProject do it: a crash then leaves a real row with no
+// removeProject does it (a quotation is closed, never deleted): a crash then leaves a real row with no
 // engagement state, which the backfill heals, rather than engagement state
 // pointing at a row that no longer exists, which nothing heals. The root goes
 // last of all, so a re-run after a crash still finds it and finishes the job.

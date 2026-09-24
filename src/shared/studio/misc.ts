@@ -79,6 +79,8 @@ type Strings = CommonStrings & {
   novaNeedsKey: (provider: string, docs: string) => string;
   nStars: (n: number) => string;
   nTickets: (n: number) => string;
+  refreshesEvery: (seconds: number) => string;
+  lastAt: (time: string) => string;
   newRfqOutstandingWait: string;
   noFinishedQuotationTicket: string;
   noQuotationRaisedAgainst: string;
@@ -247,6 +249,8 @@ const en: Strings = {
   nNotificationsWaiting: (n: number) => `You have ${n} notification${n === 1 ? "" : "s"} waiting — ask me what needs your attention.`,
   nStars: (n: number) => `${n} star${n === 1 ? "" : "s"}`,
   nTickets: (n: number) => `${n} ticket${n === 1 ? "" : "s"}`,
+  refreshesEvery: (seconds: number) => `refreshes every ${seconds}s`,
+  lastAt: (time: string) => `last ${time}`,
   newRfqOutstandingWait: "A new RFQ is outstanding — wait for the revised quotation before sending it up.",
   noFinishedQuotationTicket: "There is no finished quotation on this ticket to approve yet.",
   noQuotationRaisedAgainst: "No quotation has been raised against this ticket yet.",
@@ -328,7 +332,7 @@ const en: Strings = {
   valueQuoted: "Value Quoted",
   lostReasonLabel: "Reason lost",
   closedOn: "Closed",
-  reasonRfqRejected: "Technical turned the RFQ down.",
+  reasonRfqRejected: "Quotations turned the RFQ down.",
   viewOnlyAccessSales: "You have view-only access to Sales.",
   waitingForSomeone: "Waiting for someone from nompany to join. You can start describing the problem now.",
   waitingSomeoneJoin: "Waiting for someone to join…",
@@ -408,6 +412,8 @@ const ar: Strings = {
   nNotificationsWaiting: (n: number) => `لديك ${n === 1 ? "إشعار واحد" : n === 2 ? "إشعاران" : n <= 10 ? `${n} إشعارات` : `${n} إشعارا`} بالانتظار — اسألني عما يحتاج انتباهك.`,
   nStars: (n: number) => n === 1 ? "نجمة واحدة" : n === 2 ? "نجمتان" : n <= 10 ? `${n} نجوم` : `${n} نجمة`,
   nTickets: (n: number) => n === 1 ? "تذكرة واحدة" : n === 2 ? "تذكرتان" : n <= 10 ? `${n} تذاكر` : `${n} تذكرة`,
+  refreshesEvery: (seconds: number) => `يتحدث كل ${seconds} ثوان`,
+  lastAt: (time: string) => `آخر تحديث ${time}`,
   newRfqOutstandingWait: "هناك طلب عرض سعر جديد معلق — انتظر عرض السعر المعدل قبل رفعه.",
   noFinishedQuotationTicket: "لا يوجد عرض سعر مكتمل على هذه التذكرة لاعتماده بعد.",
   noQuotationRaisedAgainst: "لم يرفع أي عرض سعر على هذه التذكرة بعد.",
@@ -496,7 +502,7 @@ const ar: Strings = {
   valueQuoted: "القيمة المعروضة",
   lostReasonLabel: "سبب الخسارة",
   closedOn: "تاريخ الإغلاق",
-  reasonRfqRejected: "القسم الفني رفض طلب عرض السعر.",
+  reasonRfqRejected: "قسم عروض الأسعار رفض طلب عرض السعر.",
   viewOnlyAccessSales: "لديك صلاحية عرض فقط على المبيعات.",
   waitingForSomeone: "بانتظار انضمام أحد من nompany. يمكنك البدء بوصف المشكلة الآن.",
   waitingSomeoneJoin: "بانتظار انضمام أحدهم…",

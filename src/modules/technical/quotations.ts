@@ -10,10 +10,14 @@ import { taxCategoryField } from "@/shared/taxProfile";
 // builder on it, and is only Completed when they submit from inside the builder.
 // SAVING IS NOT FINISHING — that distinction is the whole point of the pair.
 //
-// Sent/Approved/Rejected live on past Completed: what happens to the document
-// once it leaves the studio. They stay hand-set, and rows already carrying them
-// keep working.
-export const QUOTATION_STATUSES = ["New", "Draft", "Completed", "Sent", "Approved", "Rejected"];
+// Sent/Approved/Rejected live on past Completed, and NONE is set by hand now:
+// Approved is read off the quotation's approval (updateQuotation refuses it as
+// a typed status), and nothing writes Sent or Rejected. They stay in the list
+// because rows written before Approvals carry them and must keep reading.
+// CLOSED (24/09/2026) — the owner: "a quotation can not be deleted but can be
+// closed." It is how a quotation leaves the live work: finished, final, kept.
+// Written only by closeQuotation, never by an edit, and nothing reopens it.
+export const QUOTATION_STATUSES = ["New", "Draft", "Completed", "Sent", "Approved", "Rejected", "Closed"];
 export const DEFAULT_QUOTATION_STATUS = "New";
 
 // The three the BUILDER owns. Nobody hand-winds a quotation back into these —
@@ -22,7 +26,9 @@ export const BUILDER_STATUSES = ["New", "Draft", "Completed"];
 // THE SECOND COPY OF A TAX RATE IS GONE, and it named the one country it came
 // from. Two constants for one rule are two things free to
 // disagree, and this pair also shipped one country's tax law as every tenant's
-// default. A quotation opens with no rate; whoever prices it sets one.
+// default. A quotation opens at the STUDIO's own rate (nought when it is not
+  // registered for VAT, shared/vat), a revision at its predecessor's, and
+  // whoever prices it may change it, between 0 and 100.
 
 // A quotation raised straight from the Quotations screen has no RFQ behind it,
 // so its lead is the company itself rather than a ticket.
@@ -63,9 +69,19 @@ export const isUnfinished = (q: Quotation | null | undefined) => q?.status === "
 // down) there is nothing to read, nothing to price the ticket from, and no
 // second RFQ to raise. Everything past Completed still counts — a Sent or
 // Approved quotation is finished work, not work in progress.
-export const FINISHED_QUOTATION_STATUSES = ["Completed", "Sent", "Approved", "Rejected"];
+// CLOSED IS FINISHED TOO: a quotation closed while still a Draft must not
+// leave its ticket waiting on it for ever, unable to ask again.
+export const FINISHED_QUOTATION_STATUSES = ["Completed", "Sent", "Approved", "Rejected", "Closed"];
 export const isFinishedQuotation = (q: Quotation | null | undefined) =>
   FINISHED_QUOTATION_STATUSES.includes(String(q?.status));
+
+// A FINISHED QUOTATION THAT IS STILL AN OFFER — what a deal may be committed or
+// won on, sent for approval, or ordered against. Rejected and Closed are
+// finished and are not offers. Three readers asked "finished and not Rejected"
+// in their own words (sales.ts twice, orders.ts); one answer now, so Closed
+// cannot be forgotten by one of them.
+export const isOpenOffer = (q: Quotation | null | undefined) =>
+  isFinishedQuotation(q) && q?.status !== "Rejected" && q?.status !== "Closed";
 
 const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
@@ -130,7 +146,10 @@ export function cleanQuotationTables(value: unknown): QuotationTable[] {
               image: String(r?.image ?? "").slice(0, 500),
               description: String(r?.description ?? "").trim().slice(0, 300),
               unit: String(r?.unit ?? "").trim().slice(0, 30),
-              qty: n(r?.qty),
+              // NEVER BELOW NOUGHT (24/09/2026). cleanItems already counted a
+              // negative quantity as 0 for the totals while this kept it, so the
+              // printed line and the printed total disagreed.
+              qty: Math.max(0, n(r?.qty)),
               // COPIED off the registered item when the line was picked, not looked up
               // when the quotation is read. A quotation is a document somebody was
               // given: re-pricing it from today's catalogue would rewrite what was

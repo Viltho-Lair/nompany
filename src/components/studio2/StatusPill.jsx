@@ -116,7 +116,7 @@ export const STATUS_TONES = {
     Identified: "neutral", Preparing: "info", Submitted: "progress",
     Won: "success", Lost: "danger", "No Bid": "muted", Withdrawn: "neutral",
   },
-  quotation: { New: "info", Draft: "warning", Completed: "success", Sent: "info", Approved: "success", Rejected: "danger" },
+  quotation: { New: "info", Draft: "warning", Completed: "success", Sent: "info", Approved: "success", Rejected: "danger", Closed: "muted" },
   // StudioOperations — permit state (PERMIT_TONE).
   permit:    { Valid: "success", Expiring: "warning", Expired: "danger", "Not yet valid": "neutral" },
   // StudioHr — leave request (LEAVE_TONE). Cancelled is the dimmer `muted` slate.

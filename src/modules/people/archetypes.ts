@@ -257,7 +257,10 @@ export const ARCHETYPES: readonly Archetype[] = Object.freeze([
     // quotation is finishing it. UNLOCK is deliberately not here: it reopens
     // something already committed, and Gate A pins that holding one does not
     // imply the other.
-    extras: ["crmSales.quotations.lock", "engineeringDocs.rfq.convert", "crmSales.pos.discount", "crmSales.pos.closeShift", "pos.sales.export",
+    // ASSIGN goes with CONVERT (24/09/2026): converting was where a handler was
+    // chosen, so whoever converts keeps choosing — the same rule the catch-up
+    // applies to roles that already exist (quotation-assign-2026-09-24).
+    extras: ["crmSales.quotations.lock", "engineeringDocs.rfq.convert", "crmSales.quotations.assign", "crmSales.quotations.close", "crmSales.pos.discount", "crmSales.pos.closeShift", "pos.sales.export",
       // CHOOSING AN OFFER AT THE TILL AND TAKING ONE OFF (22/09/2026) go with
       // the right to change a price, which this shape already holds: all three
       // decide what the customer pays.

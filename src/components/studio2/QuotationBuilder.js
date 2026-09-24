@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { technicalDict } from "@/shared/studio/technical";
+import { statusLabel } from "@/shared/studio/statuses";
 import { documentsDict } from "@/shared/studio/documents";
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
@@ -29,6 +30,13 @@ const QuotationCompare = nextDynamic(() => import("@/components/studio2/Quotatio
 // so two quotations for the same client can be laid out differently.
 
 const uid = () => Math.random().toString(36).slice(2, 9);
+// Digits and one decimal point, nothing else — no sign, no letters. What a
+// quantity or a rate may be typed as; the server clamps the same way.
+const unsignedDecimal = (v) => {
+  const [whole, ...rest] = String(v ?? "").replace(/[^0-9.]/g, "").split(".");
+  return rest.length ? `${whole}.${rest.join("")}` : whole;
+};
+
 const blankRow = () => ({ id: uid(), itemId: "", description: "", image: "", unit: "", qty: 1, unitPrice: 0, discount: 0, taxCategory: "standard" });
 const blankTable = () => ({ id: uid(), title: "", rows: [blankRow()] });
 
@@ -40,8 +48,9 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const cell = "w-full rounded-geex border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 export default function QuotationBuilder({ slug, quote, previous = null, catalogue = [], currency: studioCurrency = "", vatOn = false, canManage, onSave, onClose }) {
-  const tr = technicalDict(useStudioLocale());
-  const dt = documentsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = technicalDict(locale);
+  const dt = documentsDict(locale);
   // THE QUOTATION'S OWN MONEY FIRST — frozen when it was raised — and the
   // studio's only for a quotation raised before currency was stored on it.
   const currency = quote.currency || studioCurrency;
@@ -174,7 +183,7 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
           </p>
           <p className="truncate text-xs text-slate-500 dark:text-slate-400">
             <span className="font-mono">{quote.number}</span>
-            {quote.clientName ? ` · ${quote.clientName}` : ""} · {quote.status}
+            {quote.clientName ? ` · ${quote.clientName}` : ""} · {statusLabel("quotation", quote.status, locale)}
           </p>
         </div>
 
@@ -248,7 +257,7 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
           is wrong and leaves the call to whoever is building the document. */}
       {!locked && unpriced.length > 0 && (
         <p className="border-b border-rose-500/20 bg-rose-500/10 px-5 py-2 text-xs text-rose-700 dark:text-rose-300">
-          {unpriced.length} line{unpriced.length === 1 ? " is" : "s are"} priced at zero: {
+          {tr.linesPricedAtZero(unpriced.length)} {
             unpriced.some((r) => itemById[r.itemId]?.reason === "no-studio-currency")
               ? tr.studioNotSetCurrency
               : tr.todayRatesNotQuote
@@ -282,7 +291,7 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
                   />
                   {!locked && tables.length > 1 && (
                     <button className="shrink-0 px-1.5 text-slate-400 transition-colors hover:text-rose-600"
-                      aria-label={`Remove table ${i + 1}`}
+                      aria-label={tr.removeTableN(i + 1)}
                       onClick={() => setTables((ts) => ts.filter((_, j) => j !== i))}>×</button>
                   )}
                 </div>
@@ -333,7 +342,11 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
                           <td className="py-1.5 pe-3">
                             <input className={cell} value={row.qty} disabled={locked} inputMode="decimal"
                               aria-label={tr.tableRowQuantity(i + 1, k + 1)}
-                              onChange={(e) => setRow(i, k, { qty: e.target.value })} />
+                              // POSITIVE QUANTITIES ONLY (the owner, 24/09/2026). A
+                              // minus sign is not accepted at all: a negative line was
+                              // shown here while the server counted it as nought, so
+                              // the screen, the stored total and the print disagreed.
+                              onChange={(e) => setRow(i, k, { qty: unsignedDecimal(e.target.value) })} />
                           </td>
                           {/* THE PRICE THIS DOCUMENT IS WRITTEN IN, always —
                               a registered item bought abroad is converted before
@@ -351,7 +364,7 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
                               ? <>{money(num(row.unitPrice))} <span className="text-slate-400">{currency}</span></>
                               : <span className="font-sans text-slate-400">—</span>}
                             <TaxTag category={row.taxCategory} />
-                            <Conversion src={itemById[row.itemId]} />
+                            <Conversion src={itemById[row.itemId]} tr={tr} />
                             <PriceBasis src={itemById[row.itemId]} tr={tr} />
                           </td>
                           {/* The % sits beside the field rather than inside the
@@ -370,14 +383,14 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
                             </div>
                             {num(row.discount) > 0 && num(row.unitPrice) > 0 && (
                               <p className="mt-1 font-mono text-[11px] text-slate-400">
-                                net {money(netUnitPrice(row))}
+                                {tr.netPrice(money(netUnitPrice(row)))}
                               </p>
                             )}
                           </td>
                           <td className="py-1.5 text-end">
                             {!locked && table.rows.length > 1 && (
                               <button className="px-1 text-slate-400 transition-colors hover:text-rose-600"
-                                aria-label={`Remove row ${k + 1} of table ${i + 1}`}
+                                aria-label={tr.removeRowOf(k + 1, i + 1)}
                                 onClick={() => setTables((ts) => ts.map((t, j) => (j === i ? { ...t, rows: t.rows.filter((_, m) => m !== k) } : t)))}>×</button>
                             )}
                           </td>
@@ -439,7 +452,12 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
                 <dt className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                   <label htmlFor="qb-vat">{tr.vat}</label>
                   <input id="qb-vat" className={`${cell} w-16`} value={vatRate} disabled={locked} inputMode="decimal"
-                    onChange={(e) => setVatRate(e.target.value)} />
+                    // 0 TO 100, as the server stores it — typed past 100 it
+                    // stops at 100, so the total on screen is the one saved.
+                    onChange={(e) => {
+                      const v = unsignedDecimal(e.target.value);
+                      setVatRate(Number(v) > 100 ? "100" : v);
+                    }} />
                 </dt>
                 <dd className="ms-auto font-mono tabular-nums text-slate-700 dark:text-slate-200">
                   {money(totals.vat)} <span className="text-slate-400">{currency}</span>
@@ -493,24 +511,31 @@ function PriceBasis({ src, tr }) {
   );
 }
 
-function Conversion({ src }) {
+function Conversion({ src, tr }) {
   if (!src?.converted) return null;
 
   if (!src.priced) {
     return (
       <p className="mt-0.5 font-sans text-[11px] font-600 text-rose-600 dark:text-rose-400">
-        no {src.currency} rate
+        {tr.noRateFor(src.currency)}
       </p>
     );
   }
 
-  const parts = [`${money(src.cost)} cost`];
-  if (src.shipping) parts.push(`${money(src.shipping)} shipping`);
-  if (src.customs) parts.push(`${money(src.customs)} customs`);
+  // THE CATALOGUE SENDS shippingCharges AND customsCharges (technical.ts,
+  // catalogueItems). This read `src.shipping` and `src.customs`, which do not
+  // exist, so the working on hover left both out while the price itself — which
+  // the server computes — always included them.
+  const working = tr.landedWorking({
+    cost: money(src.cost),
+    shipping: src.shippingCharges ? money(src.shippingCharges) : "",
+    customs: src.customsCharges ? money(src.customsCharges) : "",
+    landed: money(src.landedCost), currency: src.currency, rate: fmtRate(src.rate),
+  });
 
   return (
     <p className="mt-0.5 font-sans text-[11px] text-slate-400"
-      title={`${parts.join(" + ")} = ${money(src.landedCost)} ${src.currency}, converted at ${fmtRate(src.rate)} per ${src.currency}`}>
+      title={working}>
       {money(src.landedCost)} {src.currency} × {fmtRate(src.rate)}
     </p>
   );

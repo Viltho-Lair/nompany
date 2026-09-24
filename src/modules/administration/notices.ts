@@ -170,6 +170,12 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     ar: { title: "طلب عرض سعر بانتظار التسعير", body: "{reference}" },
   },
   {
+    type: "quotation.assigned",
+    fields: ["reference", "title"],
+    en: { title: "A quotation was assigned to you", body: "{reference} · {title}" },
+    ar: { title: "أسند إليكم عرض سعر", body: "{reference} · {title}" },
+  },
+  {
     type: "mention",
     fields: ["who", "where"],
     en: { title: "You were mentioned", body: "{who} mentioned you in {where}." },

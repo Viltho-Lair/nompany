@@ -42,12 +42,26 @@ export const GET = route({ auth: "studio", context: technicalContext, name: "tec
   // quotations are still READ while the RFQ desk is on, because converting an
   // RFQ numbers a new quotation from them — but they are not sent unless a
   // screen that lists them is on.
-  const rfqsOn = tech.on("quotations-rfq");
-  const quotationsShown = tech.on("quotations-register") || tech.on("quotations-live");
+  //
+  // AND NOT TO SOMEBODY WHOSE RIGHTS OPEN NONE OF THEM (24/09/2026). "Is the
+  // screen on" was asked of the STUDIO, so a member holding only the Settings
+  // right received every RFQ and every quotation in this payload. Each list now
+  // also needs a right that shows it: its own screen's, or the dashboard's,
+  // whose figures are drawn from them in the browser.
+  const dash = can(tech.access, "engineeringDocs.dashboard.view");
+  const rfqsOn = tech.on("quotations-rfq")
+    && (can(tech.access, "engineeringDocs.rfq.view") || dash);
+  const quotationsShown = (tech.on("quotations-register") || tech.on("quotations-live"))
+    && (can(tech.access, "crmSales.quotations.view") || can(tech.access, "engineeringDocs.live.view") || dash);
   const [rfqs, allQuotations, tickets, people, catalogue, clients] = await Promise.all([
     rfqsOn ? listRfqs(tech) : Promise.resolve([]),
-    quotationsShown || rfqsOn ? listQuotations(tech) : Promise.resolve([]),
-    openTickets(tech), technicalPeople(tech), catalogueItems(tech, clientId),
+    // READ whenever a screen that numbers from them is on — the numbering
+    // preview and the desk need them server-side — and SENT only as gated below.
+    tech.on("quotations-register") || tech.on("quotations-live") || tech.on("quotations-rfq")
+      ? listQuotations(tech) : Promise.resolve([]),
+    // The tickets the Raise dialog offers, to whoever may raise and nobody else.
+    can(tech.access, "engineeringDocs.rfq.create") ? openTickets(tech) : Promise.resolve([]),
+    technicalPeople(tech), catalogueItems(tech, clientId),
     // The Sales clients, for the internal-quotation picker — folded into this
     // same wave rather than read after, so the screen still costs one round of
     // waiting regardless of how many lists it now shows.
@@ -66,10 +80,27 @@ export const GET = route({ auth: "studio", context: technicalContext, name: "tec
     // Reopening a locked document is its own power, so the button asks for
     // it rather than riding in on Manage.
     canUnlockQuotations: can(tech.access, "crmSales.quotations.unlock"),
+    // Handing a quotation to somebody else is its own power too (24/09/2026):
+    // the handler pickers and the register's Assign ask for it.
+    canAssignQuotations: can(tech.access, "crmSales.quotations.assign"),
+    // ONE FLAG PER BUTTON, each the exact right the server asks for (the owner,
+    // 24/09/2026). The desk and the register drew their buttons from canManage
+    // (any create, edit or delete) and from CRM & Sales' manage, so people were
+    // offered what they would be refused, and refused what they held. Every one
+    // of these is a Quotations right on the Access screen.
+    canRaiseRfq: can(tech.access, "engineeringDocs.rfq.create"),
+    canEditRfq: can(tech.access, "engineeringDocs.rfq.edit"),
+    canConvertRfq: can(tech.access, "engineeringDocs.rfq.convert"),
+    canCreateQuotations: can(tech.access, "crmSales.quotations.create"),
+    canEditQuotations: can(tech.access, "crmSales.quotations.edit"),
+    canLockQuotations: can(tech.access, "crmSales.quotations.lock"),
+    canCloseQuotations: can(tech.access, "crmSales.quotations.close"),
     canManageSettings: tech.canManageSettings,
     liveColumns: tech.liveColumns,
-    // Raising an RFQ is a Sales action, so the button depends on a different grant.
-    canRequestRfq: tech.canManageSales,
+    // RAISING FROM THE DESK IS A QUOTATIONS RIGHT NOW (24/09/2026): the RFQs
+    // "Create" right, with no CRM & Sales grant beside it. Kept under this name
+    // because the screen reads it; it says the same thing as canRaiseRfq.
+    canRequestRfq: can(tech.access, "engineeringDocs.rfq.create"),
     nav: tech.nav,
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.
@@ -97,7 +128,10 @@ export const GET = route({ auth: "studio", context: technicalContext, name: "tec
     // and that click. Replaces the single `nextQuotationNumber` field now that
     // a studio can number more than one kind of quotation.
     sequences: tech.sequences.map((seq) => ({
-      id: seq.id, label: seq.label, prefix: seq.prefix, validDays: seq.validDays,
+      // START IS SENT AS ITSELF (24/09/2026). Settings used to fill its Start
+      // box from `nextNumber` — a reference such as "Q-0005", which a number
+      // box cannot show — so every save wrote Start back as 1.
+      id: seq.id, label: seq.label, prefix: seq.prefix, validDays: seq.validDays, start: seq.start,
       nextNumber: nextNumberForSequence(allQuotations, seq),
     })),
     // Which sequence a Sales-ticket conversion numbers against by default.

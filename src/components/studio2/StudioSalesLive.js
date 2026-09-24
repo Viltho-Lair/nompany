@@ -95,8 +95,8 @@ export default function StudioSalesLive({ studio }) {
             <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">{tr.salesLiveView}</h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
               {studio.name} · {data ? tr.nTickets(data.tickets.length) : tr.loading}
-              {" · "}refreshes every {REFRESH_MS / 1000}s
-              {lastFetched && ` · last ${fmtTime(lastFetched)}`}
+              {" · "}{tr.refreshesEvery(REFRESH_MS / 1000)}
+              {lastFetched && ` · ${tr.lastAt(fmtTime(lastFetched))}`}
             </p>
           </div>
           <div className="ms-auto flex items-center gap-2">

@@ -158,6 +158,33 @@ export function useTablePrefs(module, slug, { columnKeys, defaultColumns, emptyF
   return { columns, has, toggleCol, resetCols, filters, setFilter, clearFilters, activeFilters };
 }
 
+// ---- floating alert ----------------------------------------------------------
+// A REFUSAL THAT MUST BE SEEN OVER WHATEVER IS OPEN (24/09/2026). A screen's own
+// red banner sits in the page, and a dialog (z-50) or a full-screen editor such
+// as the quotation builder (z-70) covers it — so a failed save looked exactly
+// like a save that did nothing. This is portalled to the body above both, and
+// stays until it is dismissed or the next attempt clears it.
+export function FloatingAlert({ message, onDismiss }) {
+  const tr = chromeDict(useStudioLocale());
+  // No mounted-state dance: a refusal only exists after somebody pressed
+  // something, so this never renders on the server — the document check is
+  // for the type, not for hydration.
+  if (!message || typeof document === "undefined") return null;
+  return createPortal(
+    <div className="pointer-events-none fixed inset-x-0 top-4 z-[90] flex justify-center px-4">
+      <div role="alert"
+        className="pointer-events-auto flex max-w-xl items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-lg dark:border-rose-500/30 dark:bg-[#2a1116] dark:text-rose-200">
+        <span className="min-w-0 flex-1">{message}</span>
+        {onDismiss && (
+          <button type="button" onClick={onDismiss} aria-label={tr.close}
+            className="shrink-0 rounded-md px-1 text-rose-500 hover:text-rose-700 dark:hover:text-rose-100">×</button>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 // ---- dialog ----------------------------------------------------------------
 // Modal shell for the studio's forms — backdrop, Escape, a locked page scroll
 // and a titled header, matching the dialogs on the account pages so they open

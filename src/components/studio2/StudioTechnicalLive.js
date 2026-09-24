@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { TableSkeleton } from "@/components/studio2/RecordSkeleton";
+import { statusLabel } from "@/shared/studio/statuses";
 import { technicalDict, liveColumnLabel, leadDisplay } from "@/shared/studio/technical";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
@@ -21,7 +22,8 @@ const REFRESH_MS = 5000;
 // the columns chosen in Technical -> Settings — so there is no second data source
 // and nothing to keep in sync.
 export default function StudioTechnicalLive({ studio }) {
-  const tr = technicalDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = technicalDict(locale);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [lastFetched, setLastFetched] = useState(null);
@@ -61,7 +63,10 @@ export default function StudioTechnicalLive({ studio }) {
     if (key === "handledBy") return q.handledBy ? (aliasOf[q.handledBy] || q.handledBy) : "—";
     if (key === "createdAt" || key === "completedAt") return String(q[key] || "").slice(0, 10) || "—";
     if (key === "total") return money(q.total);
-    if (key === "revision") return Number(q.revision) > 1 ? `Rev ${q.revision}` : "—";
+    if (key === "revision") return Number(q.revision) > 1 ? tr.revN(q.revision) : "—";
+    // Statuses and urgency are stored tokens and translate on DISPLAY only.
+    if (key === "status") return q.status ? statusLabel("quotation", q.status, locale) : "—";
+    if (key === "urgency") return q.urgency ? statusLabel("urgency", q.urgency, locale) : "—";
     if (key === "leadLabel") return leadDisplay(tr, q.leadLabel);
     return q[key] === "" || q[key] == null ? "—" : String(q[key]);
   };
@@ -90,8 +95,8 @@ export default function StudioTechnicalLive({ studio }) {
             <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white sm:text-2xl">{tr.technicalLiveView}</h1>
             <p className="truncate text-xs text-slate-400 dark:text-slate-500">
               {studio.name} · {data ? tr.nQuotations(data.quotations.length) : tr.loading}
-              {" · "}refreshes every {REFRESH_MS / 1000}s
-              {lastFetched && ` · last ${fmtTime(lastFetched)}`}
+              {" · "}{tr.refreshesEvery(REFRESH_MS / 1000)}
+              {lastFetched && ` · ${tr.lastAt(fmtTime(lastFetched))}`}
             </p>
           </div>
           <div className="ms-auto flex items-center gap-2">

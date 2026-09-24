@@ -12,8 +12,9 @@ import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
   panel, h2, sub, input, inputRO, label, btn, btnGhost, btnRow,
   URGENCY_BADGE, money, fmtDate, fmtDateTime, useTablePrefs,
-  Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
+  Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty, FloatingAlert,
 } from "@/components/studio2/ui";
+import { statusLabel } from "@/shared/studio/statuses";
 import { isUnfinished } from "@/modules/technical/quotations";
 import { sectionName } from "@/shared/studio/sections";
 import QuotationBuilder from "@/components/studio2/QuotationBuilder";
@@ -102,12 +103,18 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
   const [raising, setRaising] = useState(false);
   const [converting, setConverting] = useState(null);
   const [editingQuote, setEditingQuote] = useState(null);
+  // The quotation being handed to somebody else, from the register's Assign.
+  const [assigning, setAssigning] = useState(null);
+  // The quotation being closed — closing asks for a reason, so it is a dialog.
+  const [closing, setClosing] = useState(null);
   // Stable, so each dialog's key/scroll-lock effect binds once instead of on
   // every keystroke in the form it wraps.
   const closeCreate = useCallback(() => setCreatingQuote(false), []);
   const closeRaise = useCallback(() => setRaising(false), []);
   const closeConvert = useCallback(() => setConverting(null), []);
   const closeEdit = useCallback(() => setEditingQuote(null), []);
+  const closeAssign = useCallback(() => setAssigning(null), []);
+  const closeClosing = useCallback(() => setClosing(null), []);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/technical`, { cache: "no-store" });
@@ -176,6 +183,21 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
   // close once its one job is done; the builder saves repeatedly and must stay
   // where it is, so it opts out of the closing rather than the closing being
   // spread across every caller.
+  // WHICH ACT WAS REFUSED, so a missing right is named rather than every
+  // refusal reading "Raising an RFQ needs Manage access to Sales" — which is
+  // what a create-only role saw on opening a quotation, a missing Lock, Unlock,
+  // Convert or settings right, all alike (the owner, 24/09/2026).
+  const actOf = (kind, method, payload) => {
+    if (kind === "rfqs") return method === "POST" ? "raise" : "editRfq";
+    if (kind === "quotations/approval") return "edit";
+    if (kind === "") return "settings";
+    if (method === "PATCH") return payload?.action === "close" ? "close" : "assign";
+    if (method === "POST") return payload?.rfqId ? "convert" : "create";
+    const keys = Object.keys(payload || {}).filter((k) => k !== "id");
+    if (keys.length === 1 && keys[0] === "locked") return payload.locked ? "lock" : "unlock";
+    return "edit";
+  };
+
   async function send(kind, method, payload, keepOpen = false) {
     setError("");
     const url = kind ? `/api/studios/${slug}/technical/${kind}` : `/api/studios/${slug}/technical`;
@@ -185,7 +207,7 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
     const out = await res.json().catch(() => ({}));
     if (!res.ok) {
       setError(
-        out.error === "sales-required" || out.error === "forbidden" ? tr.raisingRfqNeedsManage
+        out.error === "forbidden" ? tr.forbiddenFor(actOf(kind, method, payload))
         : out.error === "read-only" ? tr.viewOnlyAccessTechnical2
         : out.error === "already" ? tr.alreadyDone
         // Refused at this door for the same reason the Sales button is not drawn:
@@ -218,11 +240,22 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
         : out.error === "has-ticket" ? tr.quotationLinkedSalesTicket
         : out.error === "not-completed" ? tr.completeQuotationBeforeSending
         : out.error === "notfound" ? tr.quotationNoLongerExists
+        // 24/09/2026: the desk's decided requests, a closed deal, a quotation
+        // with nothing on it, and handing one to somebody else.
+        : out.error === "rejected" ? tr.errRfqRejected
+        : out.error === "converted" ? tr.errRfqConverted
+        : out.error === "deal-closed" ? tr.errDealClosed
+        : out.error === "no-lines" ? tr.addOneDescribedLine
+        : out.error === "assign" ? tr.errAssign
+        : out.error === "assignee" ? tr.errAssignee
+        : out.error === "same" ? tr.errSameHandler
+        : out.error === "reason-required" ? tr.closeNeedsReason
+        : out.error === "quotation-closed" ? tr.quotationIsClosed
         : tr.didnSave
       );
       return false;
     }
-    if (!keepOpen) { setRaising(false); setConverting(null); setEditingQuote(null); setCreatingQuote(false); }
+    if (!keepOpen) { setRaising(false); setConverting(null); setEditingQuote(null); setCreatingQuote(false); setAssigning(null); setClosing(null); }
     await load();
     // The parsed body is returned (a truthy object), not a bare true, so a
     // caller can read what the action reported, while every `if (ok)` / `!ok`
@@ -233,10 +266,19 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingTechnical} />;
 
-  const { canManageRfq, canManageQuotations, canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, sequences = [], defaultSequenceId } = data;
-  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN, and the per-sub-section flags
-  // above are how — canManageRfq and canManageQuotations, each resolved from
-  // its own key, plus data.canManageSettings for the settings screen.
+  const { canRequestRfq, rfqs, quotations, openTickets, people, vocabulary, sequences = [], defaultSequenceId } = data;
+  const canAssign = Boolean(data.canAssignQuotations);
+  // ONE FLAG PER BUTTON — each the exact right the server asks for, every one a
+  // Quotations right on the Access screen (the owner, 24/09/2026).
+  const canEditRfq = Boolean(data.canEditRfq);
+  const canConvertRfq = Boolean(data.canConvertRfq);
+  const canCreateQuotations = Boolean(data.canCreateQuotations);
+  const canEditQuotations = Boolean(data.canEditQuotations);
+  const canLockQuotations = Boolean(data.canLockQuotations);
+  const canCloseQuotations = Boolean(data.canCloseQuotations);
+  // EACH BUTTON ASKS ITS OWN RIGHT, through the flags above (24/09/2026). They
+  // replaced canManageRfq and canManageQuotations — "any create, edit or
+  // delete" — which offered people buttons the server then refused.
   //
   // The generic `data.manage?.[view] ?? canManage` that used to sit here
   // computed the same answer a second way and was read by nothing. Two
@@ -248,7 +290,13 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
   // typing a name — holds the name itself. Show whichever resolves.
   const handlerName = (v) => (v ? aliasOf[v] || v : "—");
 
-  const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
+  // WHILE A DIALOG OR THE BUILDER IS OPEN THE REFUSAL FLOATS ABOVE IT (the
+  // owner, 24/09/2026). The page's own banner sits under both, so a refused
+  // save, raise, convert or assign looked exactly like nothing happening.
+  const overlayOpen = Boolean(raising || converting || editingQuote || creatingQuote || assigning || closing);
+  const banner = error && (overlayOpen
+    ? <FloatingAlert message={error} onDismiss={() => setError("")} />
+    : <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>);
   // Amber, not rose: the action worked, but there is a follow-up to do.
 
   if (view === "quotations-settings") {
@@ -277,14 +325,15 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
           </Dialog>
         )}
         {converting && (
-          <Dialog title={`Quote ${converting.reference}`} description={`${converting.title} · ${converting.clientName || "—"}`} onClose={closeConvert}>
-            <ConvertRfq rfq={converting} nextNumber={sequences.find((s) => s.id === defaultSequenceId)?.nextNumber} people={people}
+          <Dialog title={tr.quoteRef(converting.reference)} description={`${converting.title} · ${converting.clientName || "—"}`} onClose={closeConvert}>
+            <ConvertRfq rfq={converting} nextNumber={sequences.find((s) => s.id === defaultSequenceId)?.nextNumber} people={people} canAssign={canAssign}
               onCancel={closeConvert} onSave={(p) => send("quotations", "POST", { ...p, rfqId: converting.id })} />
           </Dialog>
         )}
         <RfqHandler
           rfqs={rfqs}
-          canManage={canManageRfq}
+          canManage={canEditRfq}
+          canConvert={canConvertRfq}
           canRequestRfq={canRequestRfq}
           aliasOf={aliasOf}
           statuses={vocabulary.rfqStatuses || []}
@@ -302,7 +351,7 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
         {banner}
         {creatingQuote && (
           <Dialog title={tr.newQuotation} description={tr.createdWithoutRfqMarked} onClose={closeCreate} width="max-w-[560px]">
-            <NewQuotation people={people} sequences={sequences} defaultSequenceId={defaultSequenceId}
+            <NewQuotation people={people} canAssign={canAssign} sequences={sequences} defaultSequenceId={defaultSequenceId}
               clients={vocabulary.clients || []} industries={vocabulary.industries || []}
               studioDefaults={data.studioDefaults || {}}
               onCancel={closeCreate} onSave={(p) => send("quotations", "POST", p)} />
@@ -315,7 +364,7 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
             // THE VERSION THIS ONE REPLACED, out of the list already in hand —
             // so comparing two revisions costs no round trip (quotationDiff).
             previous={previousRevision(quotations, quotations.find((q) => q.id === editingQuote.id) || editingQuote)}
-            canManage={canManageQuotations}
+            canManage={canEditQuotations}
             catalogue={quoteClientId && priced?.clientId === quoteClientId
               ? priced.items
               : (data.catalogue || [])}
@@ -324,7 +373,22 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
             onClose={closeEdit}
             onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id }, true)} />
         )}
-        <Quotations quotations={quotations} canManage={canManageQuotations} slug={slug}
+        {closing && (
+          <Dialog title={tr.closeTitle(closing.number)} description={tr.closeHint} onClose={closeClosing} width="max-w-[480px]">
+            <CloseQuotation onCancel={closeClosing}
+              onSave={(reason) => send("quotations", "PATCH", { id: closing.id, action: "close", reason })} />
+          </Dialog>
+        )}
+        {assigning && (
+          <Dialog title={tr.assignTitle(assigning.number)} description={tr.assignHint} onClose={closeAssign} width="max-w-[480px]">
+            <AssignQuotation quote={assigning} people={people}
+              onCancel={closeAssign} onSave={(to) => send("quotations", "PATCH", { id: assigning.id, to })} />
+          </Dialog>
+        )}
+        <Quotations quotations={quotations} canManage={canEditQuotations} slug={slug}
+          canCreate={canCreateQuotations} canLock={canLockQuotations} canClose={canCloseQuotations}
+          onClose={(q) => setClosing(q)}
+          canAssign={canAssign} onAssign={(q) => setAssigning(q)}
           sectionNames={sectionNames}
           handlerName={handlerName} people={people}
           statuses={vocabulary.quotationStatuses || []} urgencies={vocabulary.urgencies || []}
@@ -372,8 +436,9 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
 // The information box is a DRAFT until Save. Nothing is written as you type,
 // because half a decision saved is worse than none. Convert saves first and then
 // opens the quotation, so converting can never silently discard what was typed.
-function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, statuses, busy, onRaise, onSave, onConvert }) {
-  const tr = technicalDict(useStudioLocale());
+function RfqHandler({ rfqs, canManage, canConvert, canRequestRfq, aliasOf, statuses, busy, onRaise, onSave, onConvert }) {
+  const locale = useStudioLocale();
+  const tr = technicalDict(locale);
   const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
   // { id, values } — whose edits these are, so a draft can never be shown
@@ -408,8 +473,12 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, statuses, busy, o
       } : null);
 
   const converted = selected?.status === "Converted";
+  // A TURNED-DOWN REQUEST IS AS FINISHED AS A CONVERTED ONE (24/09/2026): the
+  // deal behind it was closed as lost, so it is neither converted nor edited.
+  const rejected = selected?.status === "Rejected";
+  const decided = converted || rejected;
   const handlerName = aliasOf[selected?.handledByCollaboratorId] || "";
-  const dirty = Boolean(draft && selected && !converted && (
+  const dirty = Boolean(draft && selected && !decided && (
     draft.status !== (selected.status || "")
     || draft.description !== (selected.description || "")
     || draft.handledByCollaboratorId !== (selected.handledByCollaboratorId || "")
@@ -457,7 +526,7 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, statuses, busy, o
           onChange={(e) => setQuery(e.target.value)}
           aria-label={tr.searchRfqs}
         />
-        <p className="text-sm text-slate-500 dark:text-slate-400">{shown.length} of {rfqs.length}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{tr.countOf(shown.length, rfqs.length)}</p>
         {canRequestRfq && <button className={`${btn} ms-auto`} onClick={onRaise}>{tr.raiseRfq}</button>}
       </div>
 
@@ -466,7 +535,7 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, statuses, busy, o
         <div className="max-h-[26rem] overflow-y-auto rounded-geex border border-slate-200/70 lg:max-h-none lg:min-h-0 dark:border-white/10">
           {shown.length === 0 ? (
             <p className="p-4 text-sm text-slate-400">
-              {query ? `Nothing matches “${query}”.` : tr.noRfqsComeOver}
+              {query ? tr.nothingMatchesQuery(query) : tr.noRfqsComeOver}
             </p>
           ) : shown.map((r) => {
             const on = r.id === selectedId;
@@ -483,11 +552,11 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, statuses, busy, o
                 <span className="flex items-center gap-2">
                   <span className="min-w-0 flex-1 truncate text-sm font-600 text-slate-900 dark:text-white">{r.title}</span>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-700 ${URGENCY_BADGE[r.urgency] || URGENCY_BADGE.Normal}`}>
-                    {r.urgency || "Normal"}
+                    {statusLabel("urgency", r.urgency || "Normal", locale)}
                   </span>
                 </span>
                 <span className="mt-0.5 block text-[11px] text-slate-400">
-                  Received: {fmtDate(r.createdAt)} / Deadline: {r.deadline ? fmtDate(r.deadline) : "—"}
+                  {tr.receivedDeadline(fmtDate(r.createdAt), r.deadline ? fmtDate(r.deadline) : "—")}
                 </span>
               </button>
             );
@@ -506,7 +575,11 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, statuses, busy, o
                     than offering changes that would no longer mean anything. */}
                 {converted ? (
                   <span className="rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-700 text-emerald-700 dark:text-emerald-300">
-                    Converted{handlerName ? ` · handled by ${handlerName}` : ""}
+                    {tr.convertedHandledBy(handlerName)}
+                  </span>
+                ) : rejected ? (
+                  <span className="rounded-full bg-rose-500/15 px-3 py-1.5 text-xs font-700 text-rose-700 dark:text-rose-300">
+                    {statusLabel("rfq", "Rejected", locale)}
                   </span>
                 ) : canManage && (
                   <button className={btn} onClick={save} disabled={busy || !dirty}>
@@ -536,16 +609,21 @@ function RfqHandler({ rfqs, canManage, canRequestRfq, aliasOf, statuses, busy, o
                     Who handles it is asked once, at conversion, rather than
                     being a second place to answer the same question. */}
                 <Field label={tr.status} as="select" required value={draft.status}
-                  disabled={!canManage || converted}
+                  disabled={!canManage || decided}
                   onChange={(v) => set({ status: v })}
-                  options={statuses.filter((s) => s !== "Converted" || converted)} />
+                  options={statuses.filter((s) => s !== "Converted" || converted)
+                    .map((s) => ({ value: s, label: statusLabel("rfq", s, locale) }))} />
               </div>
 
               <Field className="mt-4" label={tr.description} as="textarea" value={draft.description}
-                disabled={!canManage || converted}
+                disabled={!canManage || decided}
                 onChange={(v) => set({ description: v })} />
 
-              {canManage && !converted && (
+              {rejected && (
+                <p className="mt-4 text-sm text-rose-600 dark:text-rose-300">{tr.rfqRejectedNote}</p>
+              )}
+
+              {canConvert && !decided && (
                 <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 dark:border-white/5">
                   <p className="text-sm text-slate-500 dark:text-slate-400">
                     {tr.convertRfqIntoQuotation}
@@ -616,8 +694,9 @@ function OriginTag({ fromSales, sectionNames = {} }) {
   );
 }
 
-function Quotations({ quotations, canManage, canUnlock, slug, sectionNames = {}, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock, onRequestApproval }) {
-  const tr = technicalDict(useStudioLocale());
+function Quotations({ quotations, canManage, canCreate, canLock, canClose, onClose, canUnlock, canAssign, slug, sectionNames = {}, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock, onRequestApproval, onAssign }) {
+  const locale = useStudioLocale();
+  const tr = technicalDict(locale);
   // THE KEYS ARE THE CONTRACT, THE LABELS ARE COPY — see quotationColumns.
   const QUOTATION_COLUMNS = useMemo(() => quotationColumns(tr), [tr]);
   const [query, setQuery] = useState("");
@@ -671,13 +750,13 @@ function Quotations({ quotations, canManage, canUnlock, slug, sectionNames = {},
       renderCell: ({ row }) => (
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="num text-xs text-slate-500 dark:text-slate-400">{row.number}</span>
-          {Number(row.revision) > 1 && <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">Rev {row.revision}</span>}
+          {Number(row.revision) > 1 && <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">{tr.revN(row.revision)}</span>}
           {row.locked && <span className="inline-flex text-slate-400" title={tr.lockedViewOnly}><Icon name="lock" className="h-3.5 w-3.5" /></span>}
         </span>
       ) },
     urgency: { field: "urgency", headerName: tr.colUrgency, minWidth: 110, flex: 0.7,
       renderCell: ({ row }) => (row.urgency
-        ? <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[row.urgency] || URGENCY_BADGE.Normal}`}>{row.urgency}</span>
+        ? <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[row.urgency] || URGENCY_BADGE.Normal}`}>{statusLabel("urgency", row.urgency, locale)}</span>
         : <span className="text-slate-400">—</span>) },
     // Title only. The RFQ and Ticket chips are gone: the whole row already opens
     // the builder, so two smaller targets inside it sent people somewhere else
@@ -713,8 +792,31 @@ function Quotations({ quotations, canManage, canUnlock, slug, sectionNames = {},
     // when they submit. Offering it as a dropdown here invited people to
     // contradict the record.
     status: { field: "status", headerName: tr.colStatus, minWidth: 120, flex: 0.7,
-      renderCell: ({ row }) => <StatusPill kind="quotation" status={row.status} /> },
-  }), [tr, handlerName, sectionNames]);
+      // AND WHERE ITS APPROVAL STANDS, beneath it (24/09/2026): waiting, with
+      // the steps signed so far, or turned down, with the approver's reason on
+      // hover. A turned-down approval used to leave the row reading Completed,
+      // exactly like one never sent.
+      renderCell: ({ row }) => (
+        <span className="flex flex-col items-start gap-0.5 py-1">
+          <StatusPill kind="quotation" status={row.status} />
+          {row.approvalState === "pending" && (
+            <span className="text-[11px] font-600 text-amber-700 dark:text-amber-300">
+              {tr.approvalWaiting(row.approvalGranted || 0, row.approvalRequired || 0)}
+            </span>
+          )}
+          {row.status === "Closed" && row.closedReason && (
+            <span className="max-w-[14rem] truncate text-[11px] text-slate-500 dark:text-slate-400" title={row.closedReason}>
+              {row.closedReason}
+            </span>
+          )}
+          {row.approvalState === "rejected" && (
+            <span className="text-[11px] font-600 text-rose-700 dark:text-rose-300" title={row.approvalReason || ""}>
+              {tr.approvalTurnedDown}
+            </span>
+          )}
+        </span>
+      ) },
+  }), [tr, handlerName, sectionNames, locale]);
 
   const gridColumns = useMemo(() => [
     ...QUOTATION_COLUMNS.filter((c) => col(c.key)).map((c) => colDefs[c.key]),
@@ -730,18 +832,32 @@ function Quotations({ quotations, canManage, canUnlock, slug, sectionNames = {},
           {/* Only an internal, completed, not-yet-approved quotation can be sent
               for approval from here — a Sales-origin one is approved from its
               ticket, and the server refuses this door for it ("has-ticket"). */}
-          {canManage && !row.fromSales && row.status === "Completed" && !row.approved && (
+          {/* Not while one is already waiting — the server refuses that as
+              already-pending — and worded as a second attempt after a refusal. */}
+          {canManage && !row.fromSales && row.status === "Completed" && !row.approved && row.approvalState !== "pending" && (
             <button type="button" className={btnRow} title={tr.sendQuotationInternalApproval}
-              onClick={(e) => { e.stopPropagation(); onRequestApproval(row); }}>{tr.requestApproval}</button>
+              onClick={(e) => { e.stopPropagation(); onRequestApproval(row); }}>
+              {row.approvalState === "rejected" ? tr.requestApprovalAgain : tr.requestApproval}
+            </button>
           )}
-          {canManage && row.status === "Approved" && !row.locked && (
+          {/* Ending it: closed, never deleted (the owner, 24/09/2026). */}
+          {canClose && row.status !== "Closed" && (
+            <button type="button" className={btnRow}
+              onClick={(e) => { e.stopPropagation(); onClose(row); }}>{tr.closeQuotation}</button>
+          )}
+          {/* Handing it to somebody else to follow up: its own right. */}
+          {canAssign && row.status !== "Closed" && (
+            <button type="button" className={btnRow}
+              onClick={(e) => { e.stopPropagation(); onAssign(row); }}>{tr.assign}</button>
+          )}
+          {canLock && row.status === "Approved" && !row.locked && (
             <button type="button" className={btnRow} title={tr.lockBecomesViewOnly}
               onClick={(e) => { e.stopPropagation(); onLock(row); }}>{tr.lock}</button>
           )}
           {/* Offered only to somebody who holds unlock. Locking the wrong
               document used to have no remedy but a new quotation with a new
               number, which is a worse lie than the mistake. */}
-          {canUnlock && row.locked && (
+          {canUnlock && row.locked && row.status !== "Closed" && (
             <button type="button" className={btnRow} title={tr.reopenLockedQuotation}
               onClick={(e) => { e.stopPropagation(); onUnlock(row); }}>{tr.unlock}</button>
           )}
@@ -752,12 +868,12 @@ function Quotations({ quotations, canManage, canUnlock, slug, sectionNames = {},
         </span>
       ),
     },
-  ], [QUOTATION_COLUMNS, colDefs, columns, canManage, canUnlock, tr]); // eslint-disable-line react-hooks/exhaustive-deps
+  ], [QUOTATION_COLUMNS, colDefs, columns, canManage, canUnlock, canAssign, canLock, canClose, tr]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (quotations.length === 0) {
     return (
       <>
-        <Toolbar canManage={canManage} label={tr.newQuotation} onAdd={onAdd} />
+        <Toolbar canManage={canCreate} label={tr.newQuotation} onAdd={onAdd} />
         <Empty title={tr.noQuotationsYet} body={tr.convertRfqProducePriced} />
       </>
     );
@@ -765,7 +881,7 @@ function Quotations({ quotations, canManage, canUnlock, slug, sectionNames = {},
 
   return (
     <>
-      <Toolbar canManage={canManage} label={tr.newQuotation} onAdd={onAdd}>
+      <Toolbar canManage={canCreate} label={tr.newQuotation} onAdd={onAdd}>
         <input type="search" className={`${input} sm:max-w-xs`} aria-label={tr.searchNumberTitleClient}
           value={query} onChange={(e) => setQuery(e.target.value)} />
         <FilterButton active={activeFilters} open={showFilters} onClick={() => setShowFilters((v) => !v)} />
@@ -779,9 +895,11 @@ function Quotations({ quotations, canManage, canUnlock, slug, sectionNames = {},
             options={people.map((p) => ({ value: p.id, label: p.alias }))} />
           <Field label={tr.client} value={filters.client} onChange={(v) => setFilter({ client: v })} />
           <Field label={tr.status} as="select" value={filters.status}
-            onChange={(v) => setFilter({ status: v })} options={statuses} />
+            onChange={(v) => setFilter({ status: v })}
+            options={statuses.map((v) => ({ value: v, label: statusLabel("quotation", v, locale) }))} />
           <Field label={tr.urgency} as="select" value={filters.urgency}
-            onChange={(v) => setFilter({ urgency: v })} options={urgencies} />
+            onChange={(v) => setFilter({ urgency: v })}
+            options={urgencies.map((v) => ({ value: v, label: statusLabel("urgency", v, locale) }))} />
           <Field label={tr.created} filled={!!filters.createdFrom}>
             <StudioDate value={filters.createdFrom} onChange={(iso) => setFilter({ createdFrom: iso })} />
           </Field>
@@ -837,6 +955,43 @@ function Quotations({ quotations, canManage, canUnlock, slug, sectionNames = {},
 }
 
 // ---- forms -----------------------------------------------------------------
+
+// CLOSING A QUOTATION (24/09/2026) — it is never deleted. One question: why.
+function CloseQuotation({ onSave, onCancel }) {
+  const tr = technicalDict(useStudioLocale());
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <>
+      <Field label={tr.closeReason} as="textarea" required value={reason} onChange={(v) => setReason(v)} />
+      <div className="mt-5 flex gap-3">
+        <button className={btn} disabled={busy || !reason.trim()}
+          onClick={async () => { setBusy(true); await onSave(reason.trim()); setBusy(false); }}>{tr.closeQuotation}</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </>
+  );
+}
+
+// HANDING A QUOTATION ON (24/09/2026). One question — who follows it up — and
+// the current handler is not offered, because giving it to the person who has
+// it is a refusal waiting to happen.
+function AssignQuotation({ quote, people, onSave, onCancel }) {
+  const tr = technicalDict(useStudioLocale());
+  const [to, setTo] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <>
+      <Field label={tr.handled} as="select" required value={to} onChange={(v) => setTo(v)}
+        options={people.filter((p) => p.id !== quote.handledByCollaboratorId).map((p) => ({ value: p.id, label: p.alias }))} />
+      <div className="mt-5 flex gap-3">
+        <button className={btn} disabled={busy || !to}
+          onClick={async () => { setBusy(true); await onSave(to); setBusy(false); }}>{tr.assign}</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </>
+  );
+}
 function RaiseRfq({ tickets, onSave, onCancel }) {
   const tr = technicalDict(useStudioLocale());
   const [ticketId, setTicketId] = useState(tickets[0]?.id || "");
@@ -867,10 +1022,14 @@ function RaiseRfq({ tickets, onSave, onCancel }) {
   );
 }
 
-function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
-  const tr = technicalDict(useStudioLocale());
+function ConvertRfq({ rfq, nextNumber, people, canAssign, onSave, onCancel }) {
+  const locale = useStudioLocale();
+  const tr = technicalDict(locale);
   // No items and no VAT. Converting says a quotation exists, who owns it and
   // what it is called; what goes ON it belongs to the builder.
+  //
+  // WHO HANDLES IT is asked only of somebody who may assign (24/09/2026);
+  // anybody else converts it to themselves, and the server holds the same line.
   const [handledBy, setHandledBy] = useState("");
   const [busy, setBusy] = useState(false);
   return (
@@ -887,26 +1046,31 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
         <div><label className={label}>{tr.client}</label><input className={inputRO} value={rfq.clientName || "—"} readOnly /></div>
         <div><label className={label}>{tr.title}</label><input className={inputRO} value={rfq.title || "—"} readOnly /></div>
         <div>
-          <label className={label}>{tr.urgency} <span className="font-500 normal-case text-slate-400">(set by Sales)</span></label>
+          <label className={label}>{tr.urgency} <span className="font-500 normal-case text-slate-400">{tr.setBySales}</span></label>
           <div className={`${inputRO} flex items-center`}>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[rfq.urgency] || URGENCY_BADGE.Normal}`}>{rfq.urgency || "Normal"}</span>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${URGENCY_BADGE[rfq.urgency] || URGENCY_BADGE.Normal}`}>{statusLabel("urgency", rfq.urgency || "Normal", locale)}</span>
           </div>
         </div>
-        <div><label className={label}>{tr.industry} <span className="font-500 normal-case text-slate-400">(set by Sales)</span></label><input className={inputRO} value={rfq.industry || "—"} readOnly /></div>
+        <div><label className={label}>{tr.industry} <span className="font-500 normal-case text-slate-400">{tr.setBySales}</span></label><input className={inputRO} value={rfq.industry || "—"} readOnly /></div>
       </div>
 
       {/* One question, because converting only decides WHO takes it. The
           description comes across from the RFQ; retyping it here would give the
           same sentence two homes. */}
-      <Field className="mt-4 sm:max-w-xs" label={tr.handled} as="select" value={handledBy}
-        onChange={(v) => setHandledBy(v)}
-        options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+      {canAssign ? (
+        <Field className="mt-4 sm:max-w-xs" label={tr.handled} as="select" value={handledBy}
+          onChange={(v) => setHandledBy(v)}
+          options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+      ) : (
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{tr.youHandleIt}</p>
+      )}
 
       <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
         {tr.numberedAutomaticallyLeadSet} <span className="font-600">{rfq.ticketRef || rfq.reference}</span>.
       </p>
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || !handledBy} onClick={async () => { setBusy(true); await onSave({ handledByCollaboratorId: handledBy }); setBusy(false); }}>
+        <button className={btn} disabled={busy || (canAssign && !handledBy)}
+          onClick={async () => { setBusy(true); await onSave(canAssign ? { handledByCollaboratorId: handledBy } : {}); setBusy(false); }}>
           {busy ? tr.converting : tr.convert}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
@@ -929,7 +1093,7 @@ function ConvertRfq({ rfq, nextNumber, people, onSave, onCancel }) {
 // payload (never hardcoded vocabulary) and which lets a name that is not on the
 // list through. On save, a typed client name that matches an existing client is
 // sent as `clientId`; anything else is sent as a new `clientName`.
-function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [], industries = [], studioDefaults = {}, onSave, onCancel }) {
+function NewQuotation({ people, canAssign, sequences = [], defaultSequenceId, clients = [], industries = [], studioDefaults = {}, onSave, onCancel }) {
   const tr = technicalDict(useStudioLocale());
   const [f, setF] = useState({
     sequenceId: sequences.some((s) => s.id === defaultSequenceId) ? defaultSequenceId : (sequences[0]?.id || ""),
@@ -968,7 +1132,10 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
       deadline: f.deadline,
       description: f.description.trim(),
       ...clientBlockPayload(f),
-      ...(f.handledBy ? { handledBy: f.handledBy } : {}),
+      // THE HANDLER, by its id (24/09/2026). This sent `handledBy` while the
+      // server read `handledByCollaboratorId`, so the register named the
+      // creator whoever was picked. Only an assigner is offered the choice.
+      ...(canAssign && f.handledBy ? { handledByCollaboratorId: f.handledBy } : {}),
     });
     setBusy(false);
   }
@@ -980,7 +1147,7 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
             quotation on it will carry, noted as assigned on save. */}
         <Field label={tr.sequence} as="select" required value={f.sequenceId}
           onChange={(v) => set({ sequenceId: v })}
-          hint={seq ? `Number ${seq.nextNumber} — assigned on save` : tr.numberedAutomaticallySave}
+          hint={seq ? tr.numberOnSave(seq.nextNumber) : tr.numberedAutomaticallySave}
           options={sequences.map((s) => ({ value: s.id, label: s.prefix ? `${s.label} (${s.prefix})` : s.label }))} />
 
         <Field label={tr.client} required filled={!!f.clientName}
@@ -1023,11 +1190,15 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
         <Field className="sm:col-span-2" label={tr.description} required as="textarea" value={f.description}
           onChange={(v) => set({ description: v })} />
 
-        {/* Handled by is now OPTIONAL — an internal quotation can be created
-            before anyone is assigned it. */}
-        <Field label={tr.handled} as="select" value={f.handledBy}
-          onChange={(v) => set({ handledBy: v })}
-          options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+        {/* Handled by: the creator, unless somebody who may assign names
+            another person (the owner's rule, 24/09/2026). */}
+        {canAssign ? (
+          <Field label={tr.handled} as="select" value={f.handledBy}
+            onChange={(v) => set({ handledBy: v })}
+            options={people.map((p) => ({ value: p.id, label: p.alias }))} />
+        ) : (
+          <Field label={tr.handled} readOnly value={tr.you} />
+        )}
 
         {/* Stamped by the server, shown read-only so the record's authorship is
             visible while it is being written. "You" and now stand in because the
@@ -1036,7 +1207,7 @@ function NewQuotation({ people, sequences = [], defaultSequenceId, clients = [],
             same box, same height — instead of a stacked-label grey box that did
             not. */}
         <div className="grid grid-cols-2 gap-4">
-          <Field label={tr.created3} readOnly value="You" />
+          <Field label={tr.created3} readOnly value={tr.you} />
           <Field label={tr.created4} readOnly value={fmtDate(new Date().toISOString())} />
         </div>
       </div>
@@ -1076,7 +1247,10 @@ function QuotationNumbering({ sequences, defaultSequenceId, canManage, onSave })
   // server id, new ones are given a local id the moment they are added.
   const seed = () => sequences.map((s) => ({
     id: s.id, label: s.label || "", prefix: s.prefix || "",
-    start: String(s.nextNumber ?? 1),
+    // THE SEQUENCE'S OWN START, never `nextNumber`: that is the next reference
+    // ("Q-0005"), which Number() turns into NaN and the save turned into 1 —
+    // so saving this panel for any reason reset every sequence's start.
+    start: String(s.start ?? 1),
     validDays: s.validDays ? String(s.validDays) : "",
   }));
   const [rows, setRows] = useState(seed);

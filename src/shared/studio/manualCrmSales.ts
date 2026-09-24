@@ -168,8 +168,9 @@ export const crmSalesEn: ManualArticle = {
           kind: "p",
           text:
             "A widget your plan does not include shows as locked. A widget for a part of the department "
-            + "your studio has switched off is not shown at all. At the bottom are a button to open the "
-            + "Live view and a read-only table of every ticket, most recently updated first.",
+            + "your studio has switched off is not shown at all. At the bottom is a button to open the "
+            + "Live view. The dashboard shows figures, not lists: the deals themselves are on the "
+            + "Tickets screen.",
         },
         {
           kind: "p",
@@ -397,7 +398,7 @@ export const crmSalesEn: ManualArticle = {
           kind: "p",
           text:
             "If Quotations turns the request down, a ticket still at Lead or Opportunity is closed as "
-            + "lost by itself, with the reason \"Technical turned the RFQ down\".",
+            + "lost by itself, with the reason \"Quotations turned the RFQ down\".",
         },
         {
           kind: "p",
@@ -803,7 +804,7 @@ export const crmSalesEn: ManualArticle = {
             "Contracts: viewing, raising variations, and editing and submitting them. Answering a variation is an approval, set up in Approval settings.",
             "Sales orders: view, create, edit (the status moves included) and delete.",
             "Settings: view and edit.",
-            "The dashboard, the pipeline and the Live view are for looking only.",
+            "The dashboard, the pipeline and the Live view are for looking only, and each is a right of its own — the dashboard included.",
           ],
         },
       ],
@@ -959,8 +960,8 @@ export const crmSalesAr: ManualArticle = {
           kind: "p",
           text:
             "الأداة التي لا تشملها باقتك تظهر مقفلة. والأداة الخاصة بجزء من القسم أوقفه الاستوديو لا "
-            + "تظهر أصلا. وفي الأسفل زر لفتح العرض المباشر، وجدول للقراءة فقط بكل التذاكر، الأحدث "
-            + "تحديثا أولا.",
+            + "تظهر أصلا. وفي الأسفل زر لفتح العرض المباشر. ولوحة المعلومات تعرض أرقاما لا قوائم: "
+            + "الصفقات نفسها في شاشة التذاكر.",
         },
         {
           kind: "p",
@@ -1182,7 +1183,7 @@ export const crmSalesAr: ManualArticle = {
           kind: "p",
           text:
             "إن رفض قسم عروض الأسعار الطلب، تغلق التذكرة التي ما زالت عميلا محتملا أو فرصة خاسرة "
-            + "تلقائيا، والسبب «القسم الفني رفض طلب عرض السعر».",
+            + "تلقائيا، والسبب «قسم عروض الأسعار رفض طلب عرض السعر».",
         },
         {
           kind: "p",
@@ -1578,7 +1579,7 @@ export const crmSalesAr: ManualArticle = {
             "العقود: العرض، ورفع التغييرات، وتعديلها وإرسالها. والرد على التغيير اعتماد يضبط في إعدادات الموافقات.",
             "أوامر البيع: عرض وإنشاء وتعديل (ومنه نقل الحالة) وحذف.",
             "الإعدادات: عرض وتعديل.",
-            "لوحة المعلومات والمسار والعرض المباشر للنظر فقط.",
+            "لوحة المعلومات والمسار والعرض المباشر للنظر فقط، ولكل منها صلاحيته — ولوحة المعلومات منها.",
           ],
         },
       ],

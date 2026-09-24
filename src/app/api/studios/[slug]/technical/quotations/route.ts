@@ -1,10 +1,11 @@
 import { route, refused } from "@/platform/http/route";
-import { technicalContext, convertRfq, createQuotation, updateQuotation, removeQuotation } from "@/modules/technical/technical";
+import { technicalContext, convertRfq, createQuotation, updateQuotation, closeQuotation, assignQuotation, isLockOnly } from "@/modules/technical/technical";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Every quotation write is a Technical action and needs Technical:manage.
+// Every quotation write but one passes the manage door below, then the exact
+// right in its service (crmSales.quotations.create / .edit).
 //
 // THIS ROUTE IS WHY THE STATUS TABLE EXISTS. Before the wrapper it wrote three
 // separate error ladders and none of them agreed with the rest of the product:
@@ -26,9 +27,13 @@ const manageable = (tech: { canManage: boolean }) => (tech.canManage ? null : { 
 
 // Two ways a quotation is born, distinguished by whether an rfqId is given:
 // converting an RFQ (the hand-back to Sales), or creating one straight from the
-// Quotations screen, which is Internal and needs number/description/handledBy.
+// Quotations screen, which is Internal and needs a sequence, client, title,
+// industry, deadline and description.
 export const POST = route(spec, async (ctx) => {
-  const refusal = manageable(ctx);
+  // CONVERTING IS ITS OWN RIGHT (engineeringDocs.rfq.convert), asked by
+  // convertRfq — so it skips this door, which a holder of Convert alone would
+  // otherwise fail for want of a create, edit or delete somewhere (24/09/2026).
+  const refusal = ctx.body.rfqId ? null : manageable(ctx);
   if (refusal) return refusal;
 
   const result = ctx.body.rfqId ? await convertRfq(ctx, ctx.body) : await createQuotation(ctx, ctx.body);
@@ -37,8 +42,12 @@ export const POST = route(spec, async (ctx) => {
 });
 
 // Edit lines, VAT or status. Totals are always recomputed server-side.
+//
+// A LOCK-ONLY OR UNLOCK-ONLY REQUEST SKIPS THE MANAGE DOOR (24/09/2026): each is
+// its own right, asked by updateQuotation, and a holder of Unlock may hold no
+// right to create, edit or delete anything.
 export const PUT = route(spec, async (ctx) => {
-  const refusal = manageable(ctx);
+  const refusal = isLockOnly(ctx.body) ? null : manageable(ctx);
   if (refusal) return refusal;
   if (!ctx.body.id) return { error: "missing" };
 
@@ -47,12 +56,19 @@ export const PUT = route(spec, async (ctx) => {
   return { ok: true, quotation: result.quotation };
 });
 
-export const DELETE = route(spec, async (ctx) => {
-  const refusal = manageable(ctx);
-  if (refusal) return refusal;
-  if (!ctx.body.id) return { error: "missing" };
+// NO DELETE (24/09/2026): a quotation is closed, never deleted — see
+// closeQuotation. A DELETE here now answers 405 from the framework.
 
-  const result = await removeQuotation(ctx, ctx.body.id);
+// THE TWO ACTS THAT ARE NOT EDITS (24/09/2026): handing a quotation to
+// somebody else (`action: "assign"`, the default) and closing it
+// (`action: "close"`). Neither passes the manage door — each is its own right,
+// held by people who may hold no right to price the document — and each service
+// asks for that right itself before anything is read.
+export const PATCH = route(spec, async (ctx) => {
+  if (!ctx.body.id) return { error: "missing" };
+  const result = ctx.body.action === "close"
+    ? await closeQuotation(ctx, ctx.body.id, ctx.body)
+    : await assignQuotation(ctx, ctx.body.id, ctx.body);
   if (refused(result)) return result;
-  return { ok: true };
+  return { ok: true, quotation: result.quotation };
 });

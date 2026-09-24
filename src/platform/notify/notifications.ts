@@ -56,6 +56,8 @@ export const NOTIFY = {
   // LANDED; nobody was told one was WAITING.
   approvalRequested: "approval.requested",
   rfqRaised: "rfq.raised",
+  // A quotation handed to somebody to follow up (modules/technical, 24/09/2026).
+  quotationAssigned: "quotation.assigned",
   mention: "mention",
   system: "system",
   // Time-driven (produced by the daily-notices cron, not by a request).

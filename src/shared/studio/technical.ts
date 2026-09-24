@@ -37,6 +37,13 @@ type Strings = CommonStrings & {
   tableNumber: (n: number) => string;
   tableRowDiscount: (table: number, row: number) => string;
   tableRowQuantity: (table: number, row: number) => string;
+  // The builder's own sentences, which were English literals in the screen.
+  linesPricedAtZero: (n: number) => string;
+  netPrice: (amount: string) => string;
+  noRateFor: (currency: string) => string;
+  landedWorking: (p: { cost: string; shipping: string; customs: string; landed: string; currency: string; rate: string }) => string;
+  removeTableN: (table: number) => string;
+  removeRowOf: (row: number, table: number) => string;
   tableTitle: (n: number) => string;
   tableTotal: string;
   unhide: string;
@@ -168,6 +175,44 @@ type Strings = CommonStrings & {
   raised: string;
   raising: string;
   raisingRfqNeedsManage: string;
+  // 24/09/2026 — the refusals the desk and the register gained, the strings the
+  // screen used to spell in English, and the Assign and approval-state copy.
+  errAssign: string;
+  errAssignee: string;
+  errSameHandler: string;
+  errRfqRejected: string;
+  errRfqConverted: string;
+  errDealClosed: string;
+  nothingMatchesQuery: (q: string) => string;
+  countOf: (shown: number, total: number) => string;
+  receivedDeadline: (received: string, deadline: string) => string;
+  convertedHandledBy: (name: string) => string;
+  rfqRejectedNote: string;
+  quoteRef: (reference: string) => string;
+  setBySales: string;
+  numberOnSave: (n: string) => string;
+  you: string;
+  youHandleIt: string;
+  revN: (n: number) => string;
+  assign: string;
+  assignTitle: (number: string) => string;
+  assignHint: string;
+  approvalWaiting: (granted: number, required: number) => string;
+  approvalTurnedDown: string;
+  requestApprovalAgain: string;
+  forbiddenFor: (act: string) => string;
+  closeNeedsReason: string;
+  quotationIsClosed: string;
+  closeQuotation: string;
+  closeTitle: (number: string) => string;
+  closeHint: string;
+  closeReason: string;
+  refreshesEvery: (seconds: number) => string;
+  lastAt: (time: string) => string;
+  quotationsWord: string;
+  amountOf: (part: string, whole: string) => string;
+  approvedOpen: (approved: number, open: number) => string;
+  seriesNew: string;
   received: string;
   removeSequence: string;
   reopenLockedQuotation: string;
@@ -281,7 +326,7 @@ const en: Strings = {
   nDaysAcrossApproved: (n: number) => `days on average across ${n} approved`,
   nLines: (n: number) => `${n} line${n === 1 ? "" : "s"}`,
   nQuotations: (n: number) => `${n} quotation${n === 1 ? "" : "s"}`,
-  noColumnsSelectedTechnical: "No columns are selected. Choose them in Technical → Settings.",
+  noColumnsSelectedTechnical: "No columns are selected. Choose them in Quotations → Settings.",
   nothingRegisteredItems: "Nothing in Registered Items yet — lines can still be typed, and typing one here does not register it.",
   numberedAutomaticallyLeadSet: "The quotation is numbered automatically and its lead is set to",
   originInternal: "Internal",
@@ -293,12 +338,20 @@ const en: Strings = {
   tableNumber: (n) => `Table ${n}`,
   tableRowDiscount: (table, row) => `Table ${table} row ${row} discount percent`,
   tableRowQuantity: (table, row) => `Table ${table} row ${row} quantity`,
+  linesPricedAtZero: (n) => `${n} line${n === 1 ? " is" : "s are"} priced at zero:`,
+  netPrice: (amount) => `net ${amount}`,
+  noRateFor: (currency) => `no ${currency} rate`,
+  landedWorking: ({ cost, shipping, customs, landed, currency, rate }) =>
+    [`${cost} cost`, shipping && `${shipping} shipping`, customs && `${customs} customs`].filter(Boolean).join(" + ")
+    + ` = ${landed} ${currency}, converted at ${rate} per ${currency}`,
+  removeTableN: (table) => `Remove table ${table}`,
+  removeRowOf: (row, table) => `Remove row ${row} of table ${table}`,
   tableTitle: (n) => `Table ${n} title`,
   tableTotal: "Table total",
   unhide: "Unhide",
   vatRate: (rate) => `VAT ${rate}%`,
   accessQuotation: "You don't have access to this quotation.",
-  accessTechnicalStudio: "You don't have access to Technical in this studio.",
+  accessTechnicalStudio: "You don't have access to Quotations in this studio.",
   addLeastOneSequence: "Add at least one sequence.",
   addRow: "Add row",
   addSequence: "Add sequence",
@@ -371,7 +424,7 @@ const en: Strings = {
   liveView: "Live view",
   loading: "Loading…",
   loadingQuotation: "Loading quotation…",
-  loadingTechnical: "Loading Technical…",
+  loadingTechnical: "Loading Quotations…",
   lock: "Lock",
   lockBecomesViewOnly: "Lock — it becomes view-only",
   lockedViewOnly: "Locked — view only",
@@ -399,7 +452,7 @@ const en: Strings = {
   pause: "Pause",
   pickNumberingSequence: "Pick a numbering sequence.",
   pickTicket: "Pick a ticket.",
-  pickTicketNeedsPricing: "Pick the ticket that needs pricing. Its details are copied across for Technical.",
+  pickTicketNeedsPricing: "Pick the ticket that needs pricing. Quotations reads its details from the ticket.",
   prefix: "Prefix",
   qty: "Qty",
   quotation: "Quotation",
@@ -424,6 +477,55 @@ const en: Strings = {
   raised: "Raised",
   raising: "Raising…",
   raisingRfqNeedsManage: "Raising an RFQ needs Manage access to Sales.",
+  errAssign: "Handing a quotation to somebody else needs the right to assign quotations.",
+  errAssignee: "That person is not in this studio.",
+  errSameHandler: "That quotation is already theirs.",
+  errRfqRejected: "That RFQ was turned down, so it cannot be converted or changed.",
+  errRfqConverted: "That RFQ has already been converted — work on its quotation instead.",
+  errDealClosed: "That ticket's deal is already closed, so there is nothing to price.",
+  nothingMatchesQuery: (q) => `Nothing matches “${q}”.`,
+  countOf: (shown, total) => `${shown} of ${total}`,
+  receivedDeadline: (received, deadline) => `Received: ${received} / Deadline: ${deadline}`,
+  convertedHandledBy: (name) => (name ? `Converted · handled by ${name}` : "Converted"),
+  rfqRejectedNote: "Turned down. The deal was closed as lost, and this request can no longer be converted or changed.",
+  quoteRef: (reference) => `Quote ${reference}`,
+  setBySales: "(set by Sales)",
+  numberOnSave: (n) => `Number ${n} — assigned on save`,
+  you: "You",
+  youHandleIt: "You will handle it. Somebody who assigns quotations can hand it on.",
+  revN: (n) => `Rev ${n}`,
+  assign: "Assign",
+  assignTitle: (number) => `Assign ${number}`,
+  assignHint: "Choose who follows this quotation up. They are told at once.",
+  approvalWaiting: (granted, required) => `Awaiting approval (${granted}/${required})`,
+  approvalTurnedDown: "Approval turned down",
+  requestApprovalAgain: "Request approval again",
+  // WHICH RIGHT WAS MISSING, named as the Access screen names it under
+  // Quotations — not the one sentence about Sales every refusal used to read.
+  forbiddenFor: (act) => ({
+    raise: "Raising an RFQ needs the RFQs “Create” right, under Quotations on the Access screen.",
+    editRfq: "Changing an RFQ needs the RFQs “Edit” right, under Quotations on the Access screen.",
+    convert: "Converting an RFQ needs the RFQs “Convert to quotation” right, under Quotations on the Access screen.",
+    create: "Raising a quotation needs the Quotations “Create” right, under Quotations on the Access screen.",
+    edit: "Changing a quotation needs the Quotations “Edit” right, under Quotations on the Access screen.",
+    lock: "Locking a quotation needs the “Lock permanently” right, under Quotations on the Access screen.",
+    unlock: "Unlocking a quotation needs the “Unlock a locked quotation” right, under Quotations on the Access screen.",
+    close: "Closing a quotation needs the “Close a quotation” right, under Quotations on the Access screen.",
+    assign: "Handing a quotation to somebody else needs the “Assign quotations to a handler” right, under Quotations on the Access screen.",
+    settings: "Changing these settings needs the Settings “Edit” right, under Quotations on the Access screen.",
+  } as Record<string, string>)[act] || "You don't have the right to do that.",
+  closeNeedsReason: "Say why the quotation is being closed.",
+  quotationIsClosed: "That quotation is closed. A closed quotation is final and cannot be changed.",
+  closeQuotation: "Close",
+  closeTitle: (number) => `Close ${number}`,
+  closeHint: "A closed quotation is kept, with its number and its revisions, and can no longer be changed or reopened. Quotations are never deleted.",
+  closeReason: "Why is it being closed?",
+  refreshesEvery: (seconds) => `refreshes every ${seconds}s`,
+  lastAt: (time) => `last ${time}`,
+  quotationsWord: "quotations",
+  amountOf: (part, whole) => `${part} of ${whole}`,
+  approvedOpen: (approved, open) => `${approved}✓ · ${open} open`,
+  seriesNew: "New",
   received: "Received",
   removeSequence: "Remove this sequence",
   reopenLockedQuotation: "Reopen this locked quotation",
@@ -497,8 +599,8 @@ const en: Strings = {
   vat: "VAT %",
   view: "View",
   viewOnly: "View only",
-  viewOnlyAccessTechnical: "You have view-only access to Technical settings.",
-  viewOnlyAccessTechnical2: "You have view-only access to Technical.",
+  viewOnlyAccessTechnical: "You have view-only access to Quotations settings.",
+  viewOnlyAccessTechnical2: "You have view-only access to Quotations.",
   whatBeingQuoted: "What is being quoted",
   whatNeeded: "What's needed",
   // THE DASHBOARDS' RICHER HALF (10/09/2026).
@@ -535,7 +637,7 @@ const ar: Strings = {
   nDaysAcrossApproved: (n: number) => `في المتوسط عبر ${n} معتمد`,
   nLines: (n: number) => n === 1 ? "بند واحد" : n === 2 ? "بندان" : n <= 10 ? `${n} بنود` : `${n} بندا`,
   nQuotations: (n: number) => n === 1 ? "عرض سعر واحد" : n === 2 ? "عرضا سعر" : n <= 10 ? `${n} عروض أسعار` : `${n} عرض سعر`,
-  noColumnsSelectedTechnical: "لم تختر أي أعمدة. اخترها في القسم الفني ← الإعدادات.",
+  noColumnsSelectedTechnical: "لم تختر أي أعمدة. اخترها في عروض الأسعار ← الإعدادات.",
   nothingRegisteredItems: "لا شيء في الأصناف المسجلة بعد — ما زال بالإمكان كتابة البنود، وكتابة بند هنا لا تسجله.",
   numberedAutomaticallyLeadSet: "يرقم عرض السعر تلقائيا ويضبط مرجعه على",
   originInternal: "داخلي",
@@ -547,12 +649,20 @@ const ar: Strings = {
   tableNumber: (n) => `الجدول ${n}`,
   tableRowDiscount: (table, row) => `نسبة خصم الصف ${row} في الجدول ${table}`,
   tableRowQuantity: (table, row) => `كمية الصف ${row} في الجدول ${table}`,
+  linesPricedAtZero: (n) => (n === 1 ? "بند واحد مسعر بصفر:" : `${n} بنود مسعرة بصفر:`),
+  netPrice: (amount) => `الصافي ${amount}`,
+  noRateFor: (currency) => `لا سعر صرف لـ ${currency}`,
+  landedWorking: ({ cost, shipping, customs, landed, currency, rate }) =>
+    [`${cost} تكلفة`, shipping && `${shipping} شحن`, customs && `${customs} جمارك`].filter(Boolean).join(" + ")
+    + ` = ${landed} ${currency}، محولا بسعر ${rate} لكل ${currency}`,
+  removeTableN: (table) => `إزالة الجدول ${table}`,
+  removeRowOf: (row, table) => `إزالة الصف ${row} من الجدول ${table}`,
   tableTitle: (n) => `عنوان الجدول ${n}`,
   tableTotal: "إجمالي الجدول",
   unhide: "إظهار",
   vatRate: (rate) => `ضريبة القيمة المضافة ${rate}٪`,
   accessQuotation: "لا تملك صلاحية الوصول إلى عرض السعر هذا.",
-  accessTechnicalStudio: "لا تملك صلاحية الوصول إلى القسم الفني في هذا الاستوديو.",
+  accessTechnicalStudio: "لا تملك صلاحية الوصول إلى عروض الأسعار في هذا الاستوديو.",
   addLeastOneSequence: "أضف تسلسلا واحدا على الأقل.",
   addRow: "إضافة صف",
   addSequence: "إضافة تسلسل",
@@ -625,7 +735,7 @@ const ar: Strings = {
   liveView: "العرض المباشر",
   loading: "جار التحميل…",
   loadingQuotation: "جار تحميل عرض السعر…",
-  loadingTechnical: "جار تحميل القسم الفني…",
+  loadingTechnical: "جار تحميل عروض الأسعار…",
   lock: "قفل",
   lockBecomesViewOnly: "قفل — يصبح للعرض فقط",
   lockedViewOnly: "مقفل — للعرض فقط",
@@ -653,7 +763,7 @@ const ar: Strings = {
   pause: "إيقاف مؤقت",
   pickNumberingSequence: "اختر تسلسل ترقيم.",
   pickTicket: "اختر تذكرة.",
-  pickTicketNeedsPricing: "اختر التذكرة التي تحتاج إلى تسعير. تنسخ تفاصيلها للقسم الفني.",
+  pickTicketNeedsPricing: "اختر التذكرة التي تحتاج إلى تسعير. يقرأ قسم عروض الأسعار تفاصيلها من التذكرة.",
   prefix: "البادئة",
   qty: "الكمية",
   quotation: "عرض السعر",
@@ -685,6 +795,53 @@ const ar: Strings = {
   raised: "مرفوع",
   raising: "جار الرفع…",
   raisingRfqNeedsManage: "رفع طلب عرض سعر يتطلب صلاحية إدارة المبيعات.",
+  errAssign: "إسناد عرض سعر إلى شخص آخر يتطلب صلاحية إسناد عروض الأسعار.",
+  errAssignee: "هذا الشخص ليس في هذا الاستوديو.",
+  errSameHandler: "هذا العرض مسند إليه بالفعل.",
+  errRfqRejected: "رفض طلب عرض السعر هذا، فلا يمكن تحويله ولا تغييره.",
+  errRfqConverted: "حول طلب عرض السعر هذا بالفعل — اعمل على عرضه بدلا من ذلك.",
+  errDealClosed: "صفقة هذه التذكرة مغلقة بالفعل، فلا شيء لتسعيره.",
+  nothingMatchesQuery: (q) => `لا شيء يطابق «${q}».`,
+  countOf: (shown, total) => `${shown} من ${total}`,
+  receivedDeadline: (received, deadline) => `استلم: ${received} / الموعد: ${deadline}`,
+  convertedHandledBy: (name) => (name ? `تم تحويله · يتولاه ${name}` : "تم تحويله"),
+  rfqRejectedNote: "رفض. أغلقت الصفقة خاسرة، ولم يعد ممكنا تحويل هذا الطلب ولا تغييره.",
+  quoteRef: (reference) => `تسعير ${reference}`,
+  setBySales: "(تحدده المبيعات)",
+  numberOnSave: (n) => `الرقم ${n} — يصدر عند الحفظ`,
+  you: "أنت",
+  youHandleIt: "ستتولاه أنت. ويستطيع من يملك إسناد عروض الأسعار نقله إلى غيرك.",
+  revN: (n) => `المراجعة ${n}`,
+  assign: "إسناد",
+  assignTitle: (number) => `إسناد ${number}`,
+  assignHint: "اختر من يتابع هذا العرض. يبلغ فورا.",
+  approvalWaiting: (granted, required) => `بانتظار الاعتماد (${granted}/${required})`,
+  approvalTurnedDown: "رفض الاعتماد",
+  requestApprovalAgain: "اطلب الاعتماد مجددا",
+  forbiddenFor: (act) => ({
+    raise: "رفع طلب عرض سعر يتطلب صلاحية «إنشاء» في طلبات عروض الأسعار، ضمن عروض الأسعار في شاشة الصلاحيات.",
+    editRfq: "تغيير طلب عرض سعر يتطلب صلاحية «تعديل» في طلبات عروض الأسعار، ضمن عروض الأسعار في شاشة الصلاحيات.",
+    convert: "تحويل طلب عرض سعر يتطلب صلاحية «تحويل إلى عرض سعر»، ضمن عروض الأسعار في شاشة الصلاحيات.",
+    create: "رفع عرض سعر يتطلب صلاحية «إنشاء» في عروض الأسعار، ضمن عروض الأسعار في شاشة الصلاحيات.",
+    edit: "تغيير عرض سعر يتطلب صلاحية «تعديل» في عروض الأسعار، ضمن عروض الأسعار في شاشة الصلاحيات.",
+    lock: "قفل عرض سعر يتطلب صلاحية «القفل الدائم»، ضمن عروض الأسعار في شاشة الصلاحيات.",
+    unlock: "فتح قفل عرض سعر يتطلب صلاحية «فتح قفل عرض مقفل»، ضمن عروض الأسعار في شاشة الصلاحيات.",
+    close: "إغلاق عرض سعر يتطلب صلاحية «إغلاق عرض سعر»، ضمن عروض الأسعار في شاشة الصلاحيات.",
+    assign: "إسناد عرض سعر إلى شخص آخر يتطلب صلاحية «إسناد عروض الأسعار»، ضمن عروض الأسعار في شاشة الصلاحيات.",
+    settings: "تغيير هذه الإعدادات يتطلب صلاحية «تعديل» في الإعدادات، ضمن عروض الأسعار في شاشة الصلاحيات.",
+  } as Record<string, string>)[act] || "لا تملك صلاحية القيام بذلك.",
+  closeNeedsReason: "اذكر سبب إغلاق عرض السعر.",
+  quotationIsClosed: "هذا العرض مغلق. العرض المغلق نهائي ولا يمكن تغييره.",
+  closeQuotation: "إغلاق",
+  closeTitle: (number) => `إغلاق ${number}`,
+  closeHint: "يحفظ العرض المغلق برقمه ومراجعاته، ولا يمكن تغييره ولا إعادة فتحه. لا تحذف عروض الأسعار أبدا.",
+  closeReason: "لماذا يغلق؟",
+  refreshesEvery: (seconds) => `يتحدث كل ${seconds} ثوان`,
+  lastAt: (time) => `آخر تحديث ${time}`,
+  quotationsWord: "عروض أسعار",
+  amountOf: (part, whole) => `${part} من ${whole}`,
+  approvedOpen: (approved, open) => `${approved}✓ · ${open} مفتوحة`,
+  seriesNew: "جديدة",
   received: "مستلم",
   removeSequence: "إزالة هذا التسلسل",
   reopenLockedQuotation: "إعادة فتح عرض السعر المقفل",
@@ -758,8 +915,8 @@ const ar: Strings = {
   vat: "ضريبة القيمة المضافة ٪",
   view: "عرض",
   viewOnly: "للعرض فقط",
-  viewOnlyAccessTechnical: "لديك صلاحية عرض فقط على إعدادات القسم الفني.",
-  viewOnlyAccessTechnical2: "لديك صلاحية عرض فقط على القسم الفني.",
+  viewOnlyAccessTechnical: "لديك صلاحية عرض فقط على إعدادات عروض الأسعار.",
+  viewOnlyAccessTechnical2: "لديك صلاحية عرض فقط على عروض الأسعار.",
   whatBeingQuoted: "ما يجري تسعيره",
   whatNeeded: "المطلوب",
   // THE DASHBOARDS' RICHER HALF (10/09/2026).

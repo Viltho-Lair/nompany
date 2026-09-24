@@ -46,6 +46,7 @@ const ar: StatusMap = {
     "Cancelled by Client": "ألغاه العميل", "On-Hold": "معلق", Dropped: "متروك",
   },
   approval: { Pending: "بانتظار الرد", Approved: "معتمدة", Rejected: "مرفوضة" },
+  urgency: { Low: "منخفض", Normal: "عادي", High: "مرتفع", Critical: "حرج" },
   movement: { in: "وارد", out: "صادر", adjust: "تسوية" },
   order: {
     Draft: "مسودة", Ordered: "مطلوب", "Partly received": "مستلم جزئيا",
@@ -56,7 +57,7 @@ const ar: StatusMap = {
   rfq: { New: "جديد", "In-review": "قيد المراجعة", Converted: "تم تحويله", Rejected: "مرفوض" },
   quotation: {
     New: "جديد", Draft: "مسودة", Completed: "مكتمل",
-    Sent: "مرسل", Approved: "معتمد", Rejected: "مرفوض",
+    Sent: "مرسل", Approved: "معتمد", Rejected: "مرفوض", Closed: "مغلق",
   },
   permit: { Valid: "ساري", Expiring: "يوشك على الانتهاء", Expired: "منته", "Not yet valid": "لم يسر بعد" },
   leave: { Pending: "قيد الانتظار", Approved: "معتمد", Declined: "مرفوض", Cancelled: "ملغى" },

@@ -127,7 +127,7 @@ export default function TechnicalDashboard({
               <AreaChart
                 height={200}
                 labels={timeline.map((t) => t.label)}
-                series={[{ name: "New", data: timeline.map((t) => t.value), color: "rgb(var(--chart-1))" }]}
+                series={[{ name: tr.seriesNew, data: timeline.map((t) => t.value), color: "rgb(var(--chart-1))" }]}
               />
             </ChartFrame>
           ) : <NoData text={tr.noQuotationsYet3} />}
@@ -152,7 +152,7 @@ export default function TechnicalDashboard({
                 center={(
                   <div className="text-center">
                     <p className="num text-lg font-800 text-slate-900 dark:text-white">{urgencyTotal}</p>
-                    <p className="text-[11px] text-slate-400">quotations</p>
+                    <p className="text-[11px] text-slate-400">{tr.quotationsWord}</p>
                   </div>
                 )}
               />
@@ -164,7 +164,7 @@ export default function TechnicalDashboard({
           {value.all > 0 ? (
             <div className="flex flex-col items-center gap-2 py-2">
               <Radial value={approvedPct} label={`${approvedPct}%`} sub={tr.ofPipelineValue} color="rgb(var(--chart-2))" />
-              <p className="text-xs text-slate-500 dark:text-slate-400">{amt(value.approved)} of {amt(value.all)}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{tr.amountOf(amt(value.approved), amt(value.all))}</p>
             </div>
           ) : <NoData text={tr.noQuotationValueYet} />}
         </Widget>
@@ -176,7 +176,7 @@ export default function TechnicalDashboard({
               label: l.name,
               value: Math.round((l.total / leaderMax) * 100),
               display: <span className="num">{l.total}</span>,
-              icon: <span className="text-[11px] text-slate-400">{l.approved}✓ · {l.open} open</span>,
+              icon: <span className="text-[11px] text-slate-400">{tr.approvedOpen(l.approved, l.open)}</span>,
             }))} />
           ) : <NoData text={tr.noQuotationsYet} />}
         </Widget>

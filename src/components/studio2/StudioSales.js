@@ -314,7 +314,7 @@ export default function StudioSales({ slug, view = "crm-sales", initial }) {
       {banner}
       {data.canViewDashboard === false
         ? <Empty title={tr.dashboardLocked} body={tr.dashboardLockedBody} />
-        : <SalesOverview slug={slug} tickets={tickets} people={people} nav={nav} level={level} />}
+        : <SalesOverview slug={slug} tickets={tickets} nav={nav} level={level} />}
     </div>
   );
 }
@@ -324,14 +324,8 @@ export default function StudioSales({ slug, view = "crm-sales", initial }) {
 // widgets, in SalesDashboard), then the live view and the full ticket list.
 // The dashboard itself is presentational and paid-rung-gated; this wrapper only
 // supplies it the ticket list the screen already holds and the studio's rung.
-function SalesOverview({ slug, tickets, people, nav, level }) {
+function SalesOverview({ slug, tickets, nav, level }) {
   const tr = salesDict(useStudioLocale());
-  const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
-
-  const recent = useMemo(
-    () => [...tickets].sort((a, b) => (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || "")),
-    [tickets],
-  );
 
   return (
     <>
@@ -354,45 +348,10 @@ function SalesOverview({ slug, tickets, people, nav, level }) {
         </section>
       )}
 
-      <section className={panel}>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <p className={microLabel}>{tr.allTickets}</p>
-          {nav?.["crm-sales-tickets"] && <a href={`/${slug}/crm-sales-tickets`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openTicketsLink}</a>}
-        </div>
-        {recent.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-400">{tr.noTicketsYet}</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-start dark:border-white/10">
-                  {[tr.title, tr.client, tr.colOwner, tr.colValueQuoted, tr.colRfq, tr.status, tr.colUpdated].map((head) => (
-                    <th key={head} className={`${th} text-start`}>{head}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((row) => {
-                  const rfq = rfqInfo(row, aliasOf);
-                  return (
-                    <tr key={row.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
-                      <td className="py-3 pe-3 font-600 text-slate-900 dark:text-white">{row.title}</td>
-                      <td className="py-3 pe-3 text-slate-600 dark:text-slate-300">{row.clientName || "—"}</td>
-                      <td className="py-3 pe-3 text-slate-600 dark:text-slate-300">{aliasOf[row.assignedToCollaboratorId] || tr.unassigned}</td>
-                      <td className="py-3 pe-3 tabular-nums text-slate-600 dark:text-slate-300">{money(row.value)}</td>
-                      <td className={`py-3 pe-3 text-xs font-600 ${rfq.tone}`}>{rfq.text}</td>
-                      <td className="py-3 pe-3">
-                        <StatusPill kind="ticketStage" status={row.status} />
-                      </td>
-                      <td className="py-3 text-slate-500 dark:text-slate-400">{fmtDate(row.updatedAt || row.createdAt)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      {/* NO LIST OF TICKETS HERE (the owner, 24/09/2026). A dashboard shows
+          figures; the list of deals is the Tickets screen, which has its own
+          right. Drawn here, every ticket reached anybody who could open the
+          dashboard, whatever they held on Tickets. */}
     </>
   );
 }

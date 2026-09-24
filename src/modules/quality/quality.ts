@@ -47,6 +47,8 @@ import { netUnitPrice, discountPct } from "@/modules/technical/quotations";
 // invoice printed with a total its own ledger disagrees with is worse than none.
 import { invoiceTotals } from "@/modules/finance/finance";
 import { roundMoney } from "@/shared/money";
+import { approvalRows } from "@/modules/approvals/approvals";
+import { quotationApproved } from "@/modules/approvals/reads";
 import type { PermissionKey } from "@/platform/access";
 
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
@@ -155,7 +157,29 @@ async function reachedRecords(
     const hop = await traverse(subject.id, record, target, { read, holds });
     if (hop.record) out[target] = hop.record;
   }
+  if (out.quotation) out.quotation = await quotationAsDecided(ctx, out.quotation as Record<string, unknown>);
   return out;
+}
+
+// A QUOTATION PRINTS AS IT STANDS, NOT AS IT WAS STORED. Approval is decided on
+// the approval record and never written back onto the quotation (the owner,
+// 19/09/2026: "a status carry, not a copy"), so the stored status of every
+// quotation approved through Approvals still read "Completed" — and the print
+// stamped each one DRAFT, on the document the customer was handed. The same
+// question the register asks, asked here: `quotationApproved`.
+//
+// AND "Date completed" IS WHEN IT WAS FINISHED. The field reads `completedAt`,
+// which is only ever stamped by an approval set by hand before Approvals
+// existed; Submit stamps `submittedAt`. So it printed blank on every quotation
+// finished since. The submission wins, and the old stamp stays the fallback.
+async function quotationAsDecided(ctx: QualityContext, q: Record<string, unknown>) {
+  const rows = await approvalRows(ctx.studio, ctx.approvalsSection);
+  const approved = quotationApproved(q as { id?: unknown; status?: unknown }, rows);
+  return {
+    ...q,
+    status: approved ? "Approved" : q.status,
+    completedAt: q.submittedAt || q.completedAt || "",
+  };
 }
 
 // THE RECORD A DOCUMENT IS ABOUT, if it is about one.

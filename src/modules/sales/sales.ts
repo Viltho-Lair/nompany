@@ -33,7 +33,7 @@ import { nextUniqueRef } from "@/modules/main/references";
 import { traverseIn } from "@/platform/relations";
 import { requestRfq } from "@/modules/technical/technical";
 import { pendingRfq, rfqsForTicket } from "@/modules/technical/rfqs";
-import { isFinishedQuotation } from "@/modules/technical/quotations";
+import { isFinishedQuotation, isOpenOffer } from "@/modules/technical/quotations";
 import { approvalRows, requestApproval } from "@/modules/approvals/approvals";
 import {
   approvalSummary, quotationApproved, quotationApprovedAt, QUOTATION_APPROVAL, CLIENT_PO_APPROVAL,
@@ -450,7 +450,7 @@ export const latestQuotationFor = (ticketId: string, quotations: Quotation[]) =>
 // used to read `ticket.quotationId`, which the schema said the chain writes and
 // nothing ever did: every Commit and every win was refused as `no-quotation`, so
 // no deal in any studio could be won.
-const isLiveQuotation = (q: Quotation | null) => isFinishedQuotation(q) && q?.status !== "Rejected";
+const isLiveQuotation = (q: Quotation | null) => isOpenOffer(q);
 export const hasLiveQuotation = (ticketId: string, quotations: Quotation[]) =>
   isLiveQuotation(latestQuotationFor(ticketId, quotations));
 
@@ -912,7 +912,7 @@ export async function sendTicketForApproval(ctx: SalesContext, body: Record<stri
   // The quotation being sent up is always the LATEST one — the only one that
   // counts — and it has to be finished before anybody can approve it.
   const quotation = latestQuotationFor(ticketId, quotations);
-  if (!isFinishedQuotation(quotation) || quotation.status === "Rejected") return { error: "not-quoted" };
+  if (!isOpenOffer(quotation)) return { error: "not-quoted" };
   // A revision is on its way, so what is on file is already out of date.
   if (pendingRfq(ticketId, rfqs, quotations)) return { error: "rfq-pending" };
   // Approved already, so there is nothing left to ask. A REJECTED one may be
