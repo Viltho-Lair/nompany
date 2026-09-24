@@ -131,9 +131,19 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   const chosenCard = cards.find((c) => c.id === choice.packageId && c.type === "compound") || null;
   const chosenBand = chosenCard?.categories?.find((b) => b.id === choice.categoryId) || chosenCard?.categories?.[0] || null;
   const cardName = (c) => (c ? (locale === "ar" && c.nameAr) || c.name : "");
-  const money = (n) => fmtCurrencyAmount(n, pricing?.currency || "USD");
+  // THE FIGURE AND ITS CURRENCY, as the pricing page shows them: a band's
+  // price is PER MONTH in both cycles — yearly is the monthly figure with the
+  // yearly discount taken off (yearlyPrice, lib/data/catalog), billed as a year.
+  const money = (n) => `${fmtCurrencyAmount(n, pricing?.currency || "USD")} ${pricing?.currency || ""}`.trim();
+  // A band named like its package ("Small" inside Small) is named by its
+  // headcount instead, or the choice reads "Small · Small".
+  const bandName = (card, b) => {
+    if (!b) return "";
+    const same = [card?.name, card?.nameAr].includes(b.label);
+    return b.label && !same ? b.label : t.usersUpTo(b.minEmployees, b.maxEmployees);
+  };
   const choiceLabel = chosenCard
-    ? [cardName(chosenCard), chosenBand?.label].filter(Boolean).join(" · ")
+    ? [cardName(chosenCard), bandName(chosenCard, chosenBand)].filter(Boolean).join(" · ")
     : cardName(freeCard) || t.freeCard;
 
   useEffect(() => {
@@ -524,7 +534,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
                                 <span className="block text-sm text-slate-500 dark:text-slate-400">
                                   {t.usersUpTo(band.minEmployees, band.maxEmployees)} ·{" "}
                                   <span className="num">{money(choice.cycle === "yearly" ? band.yearly : band.monthly)}</span>{" "}
-                                  {choice.cycle === "yearly" ? t.perYear : t.perMonth}
+                                  {t.perMonth}{choice.cycle === "yearly" ? ` · ${t.billedYearly}` : ""}
                                 </span>
                               )}
                             </span>

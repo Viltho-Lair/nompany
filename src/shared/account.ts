@@ -138,7 +138,7 @@ type Strings = {
     yearly: string;
     yearlySaves: (pct: number) => string;
     perMonth: string;
-    perYear: string;
+    billedYearly: string;
     perEmployee: string;
     usersUpTo: (min: number, max: number) => string;
     freeFor: (months: number) => string;
@@ -412,7 +412,7 @@ const en: Strings = {
     yearly: "Yearly",
     yearlySaves: (pct) => `save ${pct}%`,
     perMonth: "/ month",
-    perYear: "/ year",
+    billedYearly: "billed yearly",
     perEmployee: "per person",
     usersUpTo: (min, max) => `${min}–${max} people`,
     freeFor: (months) => (months === 1 ? "Free for 1 month" : `Free for ${months} months`),
@@ -692,7 +692,7 @@ const ar: Strings = {
     yearly: "سنوي",
     yearlySaves: (pct) => `وفر ${pct}%`,
     perMonth: "/ شهريا",
-    perYear: "/ سنويا",
+    billedYearly: "يفوتر سنويا",
     perEmployee: "للشخص",
     usersUpTo: (min, max) => `${min}–${max} أشخاص`,
     freeFor: (months) => (months === 1 ? "مجانا لشهر واحد" : months === 2 ? "مجانا لشهرين" : months <= 10 ? `مجانا لمدة ${months} أشهر` : `مجانا لمدة ${months} شهرا`),

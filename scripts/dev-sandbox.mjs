@@ -58,7 +58,7 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("../tests/loader.mjs", import.meta.url), { data: { root } });
 
 const { seedSuperAdmin } = await import("@/platform/auth/superAuth");
-const { createUser, getUserByEmail, getQuestionnaire, updateQuestionnaire } = await import("@/platform/auth/users");
+const { createUser, getUserByEmail, getQuestionnaire, updateQuestionnaire, getVerification, updateVerification } = await import("@/platform/auth/users");
 const { createStudio } = await import("@/modules/main/studios");
 const { hashPassword } = await import("@/platform/auth/passwords");
 
@@ -106,6 +106,17 @@ if (user) {
     // patchDoc takes an OBJECT and merges it over the current document itself,
     // so this adds completedAt without disturbing any answers already there.
     await updateQuestionnaire(user.id, { completedAt: new Date().toISOString() });
+  }
+
+  // AND THE ADDRESS IS VERIFIED, for the same reason. The studio above is made
+  // by calling createStudio directly, which does not ask; the account screen's
+  // "Create a studio" goes through createStudioForUser, which refuses an
+  // unverified address — so the one screen the sandbox could not walk to the
+  // end was creating a studio (found 24/09/2026, testing the Plan step). The
+  // sandbox address receives no mail, so the code step could never do it.
+  const verification = await getVerification(user.id);
+  if (!verification?.emailVerifiedAt) {
+    await updateVerification(user.id, { emailVerifiedAt: new Date().toISOString() });
   }
 }
 
