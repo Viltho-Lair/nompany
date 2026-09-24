@@ -1,5 +1,6 @@
 import { defaultLocale, type Locale } from "../locale";
 import { crmSalesEn, crmSalesAr } from "./manualCrmSales";
+import { quotationsEn, quotationsAr } from "./manualQuotations";
 
 // THE STUDIO MANUAL — what each department is for, written for the person doing
 // the job rather than the person building it.
@@ -537,13 +538,13 @@ const en: Strings = {
   contents: "On this page",
   departments: "Departments",
   // In the sidebar's order, so the manual reads the way the studio is laid out.
-  articles: [crmSalesEn, maintenanceEn],
+  articles: [crmSalesEn, quotationsEn, maintenanceEn],
 };
 
 const ar: Strings = {
   contents: "في هذه الصفحة",
   departments: "الأقسام",
-  articles: [crmSalesAr, maintenanceAr],
+  articles: [crmSalesAr, quotationsAr, maintenanceAr],
 };
 
 const manual = { en, ar };
