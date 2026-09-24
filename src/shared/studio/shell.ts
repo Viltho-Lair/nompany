@@ -28,6 +28,8 @@ import { defaultLocale, type Locale } from "../locale";
 // straight off the studio record and always will.
 
 type ShellStrings = {
+  /** The header's upgrade button, for the owner of a Standard studio. */
+  upgrade: string;
   language: string;
   theme: string;
   themeLight: string;
@@ -99,6 +101,7 @@ type ShellStrings = {
 };
 
 const en: ShellStrings = {
+  upgrade: "Upgrade",
   language: "Language",
   theme: "Theme",
   themeLight: "Light",
@@ -156,6 +159,7 @@ const en: ShellStrings = {
 };
 
 const ar: ShellStrings = {
+  upgrade: "ترقية",
   language: "اللغة",
   theme: "المظهر",
   themeLight: "فاتح",

@@ -22,6 +22,11 @@ import {
   STACK, ROW, ROW_TAP, ROW_LABEL, ROW_VALUE,
 } from "@/components/public/accountKit";
 import CreateStudioScreen from "@/components/public/CreateStudioScreen";
+import dynamic from "next/dynamic";
+import { upgradeDict } from "@/shared/studio/upgrade";
+
+// Fetched only when an owner opens it (see components/billing/UpgradeDialog).
+const UpgradeDialog = dynamic(() => import("@/components/billing/UpgradeDialog"), { ssr: false });
 import SecuritySessions from "@/components/public/SecuritySessions";
 import SecurityLock from "@/components/public/SecurityLock";
 import SecurityTwoFactor from "@/components/public/SecurityTwoFactor";
@@ -360,7 +365,11 @@ function StudioGrid({ title, note, studios, empty }) {
 // clickable picture beside them is a trap — you go to change the name, miss,
 // and land in the studio instead. Opening it is now its own labelled button.
 function StudioRow({ studio, onSaved }) {
-  const tr = accountDict(useAccountLocale());
+  const locale = useAccountLocale();
+  const tr = accountDict(locale);
+  // THE UPGRADE BUTTON on each owned studio (the owner, 24/09/2026). Its words
+  // are the dialog's own (shared/studio/upgrade), not this page's dictionary.
+  const [upgrading, setUpgrading] = useState(false);
   const [name, setName] = useState(studio.name || "");
   const [slug, setSlug] = useState(studio.slug || "");
   const [busy, setBusy] = useState(false);
@@ -425,7 +434,11 @@ function StudioRow({ studio, onSaved }) {
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button className={BTN} onClick={save} disabled={busy || !dirty}>{busy ? tr.saving : tr.save}</button>
           <a href={`/${studio.slug}`} className={BTN_GHOST}>{tr.openStudio}</a>
+          <button type="button" className={BTN_GHOST} onClick={() => setUpgrading(true)}>{upgradeDict(locale).button}</button>
         </div>
+        {upgrading && (
+          <UpgradeDialog slug={studio.slug} studioName={studio.name} locale={locale} onClose={() => setUpgrading(false)} />
+        )}
 
         {msg && <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{msg}</p>}
         {err && <p className="mt-2 text-sm text-rose-600 dark:text-rose-300">{err}</p>}

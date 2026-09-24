@@ -96,6 +96,24 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
   - A studio already over its limit (a package whose limit dropped) keeps everybody;
     nobody more can join until it upgrades. `/super → Studios` shows used / limit and
     turns red when over.
+- **The upgrade button** (step 3, 24/09/2026), in the studio header for the owner of a
+  Standard studio and on every owned studio on `/account`. Both open one dialog
+  (`components/billing/UpgradeDialog`), loaded only when opened.
+  - The owner picks a package, band, tier and monthly or yearly, priced in their region's
+    currency with tax by the same rule the server uses (`shared/upgradeQuote`). A year is
+    twelve of the price list's per-month "billed yearly" figure. Standard, and packages
+    invoiced on headcount, can't be picked.
+  - The dialog opens on the package picked at signup (`studio.requestedPlan`, set by
+    studio creation); older studios open on the first package on sale.
+  - **It's a request, not a payment.** `POST /api/studios/<slug>/upgrade` (owner only)
+    re-quotes on the server and stores `studio.upgradeRequest` with the quote locked,
+    then notifies `/super`. The owner can change or withdraw it.
+  - **It stays open in a closed or shut-down studio** (`upgrade` is on the gate's
+    always-open list), since that's when an owner most needs to pay.
+  - In `/super`, the Subscription panel shows the request and fills "Record payment" from
+    it: package, tier, seats, billing period and total. The payment carries its period, so
+    a yearly one buys a year, and recording it moves the studio onto the package and
+    clears the request.
 - **The studio sees it.**
   - A banner above every screen when payment is due, the studio is closed or cancelled,
     or Standard's free period ends within 14 days.
@@ -118,5 +136,5 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
 - **Download everything** for a shut-down studio's owner. The shut-down screen draws no
   button for it rather than one that does nothing.
 - **Invoices, credit notes and JoFotara**, **checkout**, and the owner's **Billing page**.
-  "Pay" links to the contact page until then.
-- The **upgrade button** (step 3).
+  An upgrade is a request that nompany answers by recording a transfer. The banner's and
+  shut-down screen's "pay" still link to the contact page, not to the upgrade dialog.

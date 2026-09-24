@@ -122,8 +122,44 @@ ok("marking a notification read stays open", gate("view", "PATCH", "/api/studios
   && gate("owner-only", "PATCH", "/api/studios/acme/notifications") === "");
 ok("so do the access check and the live stream", gate("owner-only", "POST", "/api/studios/acme/access-check") === ""
   && gate("owner-only", "GET", "/api/studios/acme/stream") === "");
+// A CLOSED OR SHUT-DOWN STUDIO'S OWNER MUST STILL BE ABLE TO ASK TO PAY.
+ok("asking to upgrade stays open in a shut-down studio", gate("owner-only", "POST", "/api/studios/acme/upgrade", true) === "");
+ok("...and in a closed one", gate("view", "POST", "/api/studios/acme/upgrade", true) === "");
 ok("...and only those paths — a look-alike does not slip through", gate("view", "POST", "/api/studios/acme/notificationsx") === "studio-closed");
 ok("billing days are Amman's", S.billingDay("2026-09-23T22:30:00Z") === "2026-09-24");
+
+console.log("\n== what an upgrade costs, and what paying for it buys");
+
+const Q = await import("@/shared/upgradeQuote");
+const list = {
+  currency: "JOD", taxPercent: 16,
+  cards: [
+    { id: "pkg_std", type: "free", monthly: 0, maxEmployees: 4 },
+    { id: "pkg_small", type: "compound", categories: [
+      { id: "c1", label: "5–9", maxEmployees: 9, monthly: 30, yearly: 25 },
+      { id: "c2", label: "10–24", maxEmployees: 24, monthly: 70, yearly: 60 },
+    ] },
+    { id: "pkg_large", type: "premium", monthly: 5, maxEmployees: 0 },
+  ],
+  tiers: [{ id: "tir_adv", monthly: 10, yearly: 8 }],
+};
+const q = (choice) => Q.quoteUpgrade(list, { packageId: "", categoryId: "", tierId: "", cycle: "monthly", ...choice });
+ok("only priced, self-serve packages are offered — not the free one, not invoiced-on-headcount",
+  Q.upgradablePackages(list).map((c) => c.id).join(",") === "pkg_small");
+const monthly = q({ packageId: "pkg_small", categoryId: "c2" });
+ok("a band's monthly price, its seats and 16% tax", monthly.amount === 70 && monthly.seats === 24 && monthly.tax === 11.2 && monthly.total === 81.2, JSON.stringify(monthly));
+// THE PRICE LIST'S `yearly` IS PER MONTH, BILLED YEARLY — a year is twelve of it.
+const yearly = q({ packageId: "pkg_small", categoryId: "c2", cycle: "yearly" });
+ok("A YEAR IS TWELVE OF THE YEARLY FIGURE, not the figure alone", yearly.amount === 720, String(yearly.amount));
+ok("a tier adds its own price for the same period", q({ packageId: "pkg_small", categoryId: "c1", tierId: "tir_adv" }).amount === 40);
+ok("a band that does not exist is refused", q({ packageId: "pkg_small", categoryId: "gone" }).error === "unknown-band");
+ok("the free package cannot be 'upgraded' to", q({ packageId: "pkg_std" }).error === "unknown-package");
+ok("dinars keep three decimals", q({ packageId: "pkg_small", categoryId: "c1", cycle: "monthly" }).tax === 4.8);
+
+// A YEARLY UPGRADE RECORDED AS ONE PERIOD MUST BUY A YEAR, whatever period the
+// studio was on before.
+const yearPaid = paid(onPaid, "y1", 1, due, { period: "yearly" });
+ok("a payment naming a yearly period buys a year", yearPaid.sub.paidUntil === S.addMonths(due, 12) && yearPaid.sub.period === "yearly");
 
 console.log("\n== no door around the gate");
 

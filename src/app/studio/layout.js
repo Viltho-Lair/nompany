@@ -47,7 +47,7 @@ async function renderShell(children) {
     return <NotAMember slug={shell.slug} locale={shell.locale} />;
   }
 
-  const { studio, collaborator, access, sections, allSections, locale, admin, plan, chat, billing } = shell;
+  const { studio, collaborator, access, sections, allSections, locale, admin, plan, chat, billing, canUpgrade } = shell;
 
   // SHUT DOWN (the owner's ladder, 24/09/2026: 90 days unpaid). The studio is
   // replaced by one screen, and like NotAMember it does NOT render `children`,
@@ -70,6 +70,7 @@ async function renderShell(children) {
         name: studio.name, slug: studio.slug, logo: studio.logo || "",
         packageName: plan.packageName, packageColor: plan.packageColor,
         tierName: plan.tierName, tierColor: plan.tierColor,
+        canUpgrade,
       }}
       me={{
         alias: collaborator.alias || "", role: collaborator.role, canAdminister: admin,

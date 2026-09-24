@@ -20,6 +20,10 @@ import LangMenu from "@/components/LangMenu";
 // in the shared chunk, so every English studio paid 5 KB for mirroring it
 // never uses. Split, an English tenant never fetches it.
 const MuiRtlProvider = dynamic(() => import("@/components/MuiRtlProvider"));
+// THE UPGRADE DIALOG, fetched only when an owner opens it — most people who load
+// a studio never will, so its words and its price arithmetic stay out of the
+// shell's first load.
+const UpgradeDialog = dynamic(() => import("@/components/billing/UpgradeDialog"), { ssr: false });
 import { Icon } from "@/components/studio2/icons";
 import StudioChat from "@/components/studio2/StudioChat";
 import RateNompany from "@/components/studio2/RateNompany";
@@ -437,6 +441,7 @@ export default function StudioFrame({
   // its own state — so the shell holds which of the two is showing and opening
   // either closes the other. null means neither.
   const [cornerChat, setCornerChat] = useState(null); // null | "nova" | "support"
+  const [upgrading, setUpgrading] = useState(false);
   // Stable, so the key handlers and effects inside each chat can list them as
   // dependencies instead of re-subscribing on every shell render.
   const openNova = useCallback((next) => setCornerChat(next ? "nova" : null), []);
@@ -709,6 +714,18 @@ export default function StudioFrame({
           </span>
         </span>
       </Link>
+      {/* UPGRADE, for the owner of a Standard studio (the owner, 24/09/2026).
+          Outside the Link above, which goes to the studio's home: this opens
+          the dialog instead of navigating. */}
+      {studio.canUpgrade && (
+        <button type="button" onClick={() => setUpgrading(true)}
+          className="ms-2 shrink-0 rounded-full bg-brand-600 px-3 py-1 font-display text-[11px] font-700 text-white hover:bg-brand-700">
+          {tr.upgrade}
+        </button>
+      )}
+      {upgrading && (
+        <UpgradeDialog slug={studio.slug} studioName={studio.name} locale={locale} onClose={() => setUpgrading(false)} />
+      )}
 
       {/* APPROVALS AND ADMINISTRATION, AS MARKS. No visible label — the name is on
           hover and on `aria-label`, both, for the reason the Engagements square

@@ -60,7 +60,16 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
     if (!res.ok) { setError("Couldn't load the subscription."); return; }
     const d = await res.json();
     setData(d);
-    setForm((f) => ({ ...f, seats: String(d.subscription.seats || ""), period: d.subscription.period }));
+    // AN OPEN UPGRADE REQUEST FILLS THE PAYMENT FORM — package, tier, seats,
+    // cycle and the quoted total — so recording the transfer that answers it is
+    // checking the figures rather than typing them.
+    const u = d.upgradeRequest;
+    setForm((f) => ({
+      ...f,
+      seats: String((u ? u.seats : d.subscription.seats) || ""),
+      period: u ? u.cycle : d.subscription.period,
+      ...(u ? { packageId: u.packageId, tierId: u.tierId || "", amount: String(u.total), currency: u.currency } : {}),
+    }));
     return d;
   }, [studioId]);
   useReload(load);
@@ -103,6 +112,16 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
         </span>
       </div>
 
+      {data.upgradeRequest && (
+        <div className="rounded-md border p-3 text-sm" style={{ borderColor: "var(--ad-warning)", backgroundColor: "color-mix(in oklab, var(--ad-warning) 8%, transparent)" }}>
+          <span className="font-600">Upgrade requested {fmtDay(String(data.upgradeRequest.requestedAt || "").slice(0, 10))}: </span>
+          {(packages.find((p) => p.id === data.upgradeRequest.packageId)?.name) || data.upgradeRequest.packageId}
+          {data.upgradeRequest.tierId ? ` + ${tiers.find((t) => t.id === data.upgradeRequest.tierId)?.name || data.upgradeRequest.tierId}` : ""}
+          {`, ${data.upgradeRequest.cycle}, ${data.upgradeRequest.seats || "no limit on"} seats — ${data.upgradeRequest.total} ${data.upgradeRequest.currency} with ${data.upgradeRequest.taxPercent}% tax (${data.upgradeRequest.region || "default region"}).`}
+          <span className="block text-xs text-[var(--ad-muted-foreground)]">The payment form below is filled from it, including the billing period and seats.</span>
+        </div>
+      )}
+
       <div className="grid gap-3 text-sm sm:grid-cols-4">
         <div><span className="ad-label">Period</span><p className="capitalize">{s.period}</p></div>
         <div><span className="ad-label">Renews on day</span><Num as="p">{s.anchorDay}</Num></div>
@@ -131,10 +150,10 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
               options={[{ value: "", label: "Tier: keep current" }, ...tiers.map((t) => ({ value: t.id, label: t.name }))]} />
           </div>
           <p className={`mt-1.5 ${muted}`}>
-            Periods are {s.period === "yearly" ? "years" : "months"}. Paid on time or within 20 days, the new period runs on from the due date; during Standard&apos;s free period, or once closed or shut down, it starts today.
+            Periods are {form.period === "yearly" ? "years" : "months"} (the billing period below). Paid on time or within 20 days, the new period runs on from the due date; during Standard&apos;s free period, or once closed or shut down, it starts today.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => send("paid", { periods: Number(form.periods), amount: Number(form.amount) || 0, currency: form.currency, reference: form.reference, packageId: form.packageId, tierId: form.tierId })}>Record payment</Button>
+            <Button size="sm" disabled={busy} onClick={() => send("paid", { periods: Number(form.periods), amount: Number(form.amount) || 0, currency: form.currency, reference: form.reference, packageId: form.packageId, tierId: form.tierId, period: form.period, ...(form.seats !== "" ? { seats: Number(form.seats) || 0 } : {}) })}>Record payment</Button>
             <Button size="sm" variant="ghost" disabled={busy} onClick={() => send("reversed", { periods: Number(form.periods), reason: form.reference || "Payment returned" })}>It bounced — reverse {form.periods || 1}</Button>
           </div>
         </fieldset>

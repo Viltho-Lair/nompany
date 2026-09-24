@@ -40,6 +40,7 @@ const UNAUTHENTICATED = [
 // here, and a client that gets 401 should retry exactly once.
 const FORBIDDEN = [
   "forbidden", "forbidden-field", "role-forbidden", "read-only",
+  "owner-only",        // the studio's owner alone may do this (deletion, rename, upgrade)
   "escalation",        // nobody grants what they do not hold
   "not-yours",         // someone else's record, and you cannot manage the area
   "protected",         // the built-in admin role is not editable

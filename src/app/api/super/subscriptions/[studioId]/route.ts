@@ -38,6 +38,10 @@ export const GET = route(spec, async ({ params }) => {
     dates: ladderDates(doc.subscription),
     ladder: LADDER,
     trialMonths: settings.trialMonths,
+    // WHAT THE OWNER ASKED TO PAY FOR (the upgrade button, 24/09/2026): the
+    // package, band, tier, cycle and the price quoted in their region, locked on
+    // the request. The panel shows it and fills the payment form from it.
+    upgradeRequest: studio.upgradeRequest || null,
   };
 });
 
@@ -68,6 +72,7 @@ export const POST = route({ ...spec, body: true }, async ({ params, body, admin 
         method: text(body.method, 40) || "bank-transfer", reference: text(body.reference),
         ...(packageId ? { packageId } : {}), ...(tierId ? { tierId } : {}),
         ...(body.seats !== undefined && body.seats !== "" ? { seats: Number(body.seats) } : {}),
+        ...(BILLING_PERIODS.includes(body.period) ? { period: body.period } : {}),
       };
       break;
     }
@@ -94,6 +99,9 @@ export const POST = route({ ...spec, body: true }, async ({ params, body, admin 
     await updateStudio(studio.id, {
       ...(event.packageId ? { packageId: event.packageId } : {}),
       ...(event.tierId ? { tierId: event.tierId } : {}),
+      // THE REQUEST IS ANSWERED once a payment moves the studio onto a package:
+      // leaving it would keep the owner's dialog saying "you asked for this".
+      upgradeRequest: null,
     });
   }
   return { ok: true, changed: out.changed, subscription: out.subscription };

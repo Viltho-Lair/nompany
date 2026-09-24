@@ -214,7 +214,7 @@ export type BillingEvent = { id: string } & (
    * which the studio moves to once this is applied: a package applies to the
    * studio it was paid for, once paid.
    */
-  | { type: "paid"; periods: number; amount?: number; currency?: string; method?: string; reference?: string; packageId?: string; tierId?: string; seats?: number }
+  | { type: "paid"; periods: number; amount?: number; currency?: string; method?: string; reference?: string; packageId?: string; tierId?: string; seats?: number; period?: BillingPeriod }
   /** A payment that was counted came back — a bounced transfer, a chargeback. */
   | { type: "reversed"; periods: number; reason?: string }
   /** A charge was refused. Recorded for the history; it moves no date. */
@@ -253,7 +253,10 @@ export function applyEvent(
   if (sub.seenEventIds.includes(event.id)) return same;
 
   const refuse = (problem: string) => ({ sub, changed: false, problem });
-  const months = periodMonths(sub.period);
+  // A PAYMENT MAY SAY WHICH PERIOD IT PAID FOR — a yearly upgrade recorded as
+  // "one period" must buy a year, not whatever period the studio was on before.
+  const period = event.type === "paid" && event.period && BILLING_PERIODS.includes(event.period) ? event.period : sub.period;
+  const months = periodMonths(period);
   let next: Subscription = { ...sub };
 
   switch (event.type) {
@@ -266,7 +269,7 @@ export function applyEvent(
       const restart = sub.kind === "trial" || locked;
       const start = restart ? today : sub.paidUntil;
       const anchorDay = restart ? dayOf(today) : sub.anchorDay;
-      next = { ...next, kind: "paid", anchorDay, paidUntil: addMonths(start, periods * months, anchorDay), cancelAt: "" };
+      next = { ...next, kind: "paid", period, anchorDay, paidUntil: addMonths(start, periods * months, anchorDay), cancelAt: "" };
       if (event.seats !== undefined) next.seats = Math.max(0, Math.trunc(Number(event.seats) || 0));
       break;
     }
@@ -316,10 +319,12 @@ export function applyEvent(
 /**
  * STUDIO PATHS THAT STAY OPEN WHATEVER THE SUBSCRIPTION SAYS — each of them a
  * read or a courtesy that changes no business record: marking a notification
- * read, asking which rights one holds, the live stream the shell listens on.
- * Everything else under /api/studios/<slug>/ answers to the ladder.
+ * read, asking which rights one holds, the live stream the shell listens on —
+ * and asking to UPGRADE, which is how a closed or shut-down studio's owner asks
+ * to pay (that route is owner-only). Everything else under
+ * /api/studios/<slug>/ answers to the ladder.
  */
-const ALWAYS_OPEN = /^\/api\/studios\/[^/]+\/(notifications|access-check|stream)(\/|$)/;
+const ALWAYS_OPEN = /^\/api\/studios\/[^/]+\/(notifications|access-check|stream|upgrade)(\/|$)/;
 
 const READS = new Set(["GET", "HEAD", "OPTIONS"]);
 

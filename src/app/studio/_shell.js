@@ -7,7 +7,7 @@ import { studioContext, canAdminister, visibleSections, recordStudioVisit } from
 import { getProfile } from "@/platform/auth/users";
 import { getIndex } from "@/platform/db/store";
 import { IX } from "@/platform/db/keys";
-import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
+import { loadCatalogues, planOf, hasLiveChat, costsNothing } from "@/lib/plans";
 import { studioBilling } from "@/lib/data/subscriptions";
 import { chatDisplayName } from "@/lib/chatConstants";
 import { studioLocale, preferredLocale, UI_LANG_COOKIE } from "@/shared/i18n";
@@ -186,6 +186,12 @@ export const studioShell = cache(async () => {
   // gate reads (lib/data/subscriptions).
   const [catalogues, profile, billing] = await Promise.all([loadCatalogues(), getProfile(user.id), studioBilling(studio.id)]);
   const plan = planOf(studio, catalogues.packages, catalogues.tiers);
+  // THE UPGRADE BUTTON, for the owner of a studio on the free package (the
+  // owner, 24/09/2026: in the studio header for Standard studios).
+  const canUpgrade = collaborator.role === "owner" && costsNothing(
+    catalogues.packages.find((p) => p.id === studio.packageId) || null,
+    catalogues.tiers.find((t) => t.id === studio.tierId) || null,
+  );
 
   // Whether the package includes live chat with nompany at all, and how much of
   // this month's allowance is left. The button is DRAWN whenever the package
@@ -199,5 +205,5 @@ export const studioShell = cache(async () => {
     ...allowanceOf(chatUsed, plan.chatPerMonth),
   };
 
-  return { ...core, plan, chat, billing };
+  return { ...core, plan, chat, billing, canUpgrade };
 });
