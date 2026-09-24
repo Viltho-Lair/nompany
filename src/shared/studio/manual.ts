@@ -1,4 +1,5 @@
 import { defaultLocale, type Locale } from "../locale";
+import { crmSalesEn, crmSalesAr } from "./manualCrmSales";
 
 // THE STUDIO MANUAL — what each department is for, written for the person doing
 // the job rather than the person building it.
@@ -40,6 +41,8 @@ export type ManualArticle = {
 
 type Strings = {
   contents: string;
+  /** Heads the list of articles, once the page carries more than one. */
+  departments: string;
   /** Shown when an article names a rule the product enforces rather than a step. */
   articles: readonly ManualArticle[];
 };
@@ -532,12 +535,15 @@ const maintenanceAr: ManualArticle = {
 
 const en: Strings = {
   contents: "On this page",
-  articles: [maintenanceEn],
+  departments: "Departments",
+  // In the sidebar's order, so the manual reads the way the studio is laid out.
+  articles: [crmSalesEn, maintenanceEn],
 };
 
 const ar: Strings = {
   contents: "في هذه الصفحة",
-  articles: [maintenanceAr],
+  departments: "الأقسام",
+  articles: [crmSalesAr, maintenanceAr],
 };
 
 const manual = { en, ar };

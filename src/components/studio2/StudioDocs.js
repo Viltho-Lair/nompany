@@ -16,7 +16,7 @@ import { Icon } from "@/components/studio2/icons";
 // page.js rather than through the client hook every other screen uses.
 export default function StudioDocs({ studio, locale = "en" }) {
   const tr = miscDict(locale);
-  const { contents, articles } = manualDict(locale);
+  const { contents, departments, articles } = manualDict(locale);
 
   return (
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
@@ -38,13 +38,30 @@ export default function StudioDocs({ studio, locale = "en" }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1100px] px-5 py-10 sm:px-8">
+      <main className="mx-auto max-w-[1100px] space-y-16 px-5 py-10 sm:px-8">
         {/* NO EMPTY STATE. The manual always ships at least one article, so a
             branch for none would be unreachable — and the sentence it used to
             show ("the manual will live on this page") stopped being true the
             moment it did. */}
+        {/* EVERY ARTICLE IS ON ONE PAGE, so once there is more than one the
+            reader needs a way to the department they came for without
+            scrolling past the ones before it. */}
+        {articles.length > 1 && (
+          <nav aria-label={departments} className="flex flex-wrap items-center gap-2">
+            <span className="me-1 text-xs font-700 uppercase tracking-wide text-slate-400 dark:text-slate-500">{departments}</span>
+            {articles.map((article) => (
+              <a
+                key={article.key}
+                href={`#${article.key}`}
+                className="rounded-full border border-slate-200/70 bg-[var(--geex-surface)] px-3 py-1 text-sm text-brand-600 hover:border-brand-300 dark:border-white/10 dark:text-brand-400"
+              >
+                {article.title}
+              </a>
+            ))}
+          </nav>
+        )}
         {articles.map((article) => (
-            <article key={article.key} className="space-y-8">
+            <article key={article.key} id={article.key} className="scroll-mt-24 space-y-8">
               <div>
                 <h2 className="font-display text-2xl font-800 text-slate-900 dark:text-white sm:text-3xl">
                   {article.title}
