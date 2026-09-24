@@ -87,7 +87,9 @@ const SECTION_ICONS = {
   "administration-members": "team",
   "administration-access": "lock",
   "administration-master": "database",
-  "administration-settings": "gears",
+  // NOT THE GEAR: Administration's own header button already wears it, and the
+  // menu it opens listed Studio settings under the identical mark.
+  "administration-settings": "settings",
   people: "team",
   access: "lock",
   engagements: "link",
@@ -106,9 +108,9 @@ const SECTION_ICONS = {
   "marketing-budget": "money",
   "marketing-audiences": "group",
   "marketing-planning": "calendar",
-  "marketing-events": "calendar",
+  "marketing-events": "monitor",
   "marketing-content": "file",
-  "marketing-partners": "group",
+  "marketing-partners": "briefcase",
   "pos-till": "cash",
   "pos-sales": "invoice",
   "pos-shifts": "clock",
@@ -118,7 +120,9 @@ const SECTION_ICONS = {
   "maintenance-orders": "tool",
   "maintenance-plans": "calendar",
   "maintenance-contracts": "contract",
-  "maintenance-assets": "gears",
+  // Not the gear — that is every module's Settings, and Machines is not one.
+  "maintenance-assets": "manufacturing",
+  "procurement-orders": "cart",
   "procurement-rfq": "supplierQuotes",
   "procurement-expediting": "expediting",
   "procurement-subcontracts": "subcontracts",
@@ -153,8 +157,18 @@ const SECTION_ICONS = {
   "inventory-stock": "readyStock",
   "inventory-sheets": "sheets",
   "procurement-suppliers": "vendors",
-  "logistics-shipments": "box",
+  // NOT "box": `box` and `package` are the SAME Phosphor artwork under two
+  // names, so Shipments and Deliveries drew one mark side by side.
+  "logistics-shipments": "globe",
   "hr-employees": "teamwork",
+  // THE FOUR HR SPLIT OUT ON 17/09/2026 were never added here, so each fell
+  // through to the fallback and Human Resources showed four identical rows.
+  "hr-lifecycle": "contract",
+  "hr-time": "clock",
+  "hr-leave": "calendar",
+  "hr-payroll": "wallet",
+  // Same for Quality's Permits, the one declared child of Quality & HSE.
+  "quality-hse-permits": "key",
   // FINANCE'S FOUR CHILDREN DREW A BARE DOT UNTIL NOW — the map had an entry
   // for Cash and nothing for the Ledger, the Payables or the Fixed assets, so
   // three of the four rows in the section a studio spends most of its day in
@@ -197,12 +211,12 @@ const SECTION_ICONS = {
   "engine-certification": "verified",
   // Assets & Equipment
   "engine-equipment": "tool",
-  "engine-maintenance": "gears",
+  "engine-maintenance": "tools",
   "engine-calibration": "target",
   // Field Operations & Service
   "engine-job": "techService",
   "engine-contract": "contract",
-  "engine-planned": "calendar",
+  "engine-planned": "refresh",
   "engine-installed": "locations",
   // Logistics & Fleet
   "engine-delivery": "package",
@@ -222,11 +236,14 @@ const SECTION_ICONS = {
 
   "finance-cash": "cash",
   "finance-ledger": "ledger",
-  "finance-payables": "invoice",
+  // EIGHT CHILDREN, EIGHT MARKS. The split of 18/09/2026 reused the old ones:
+  // Payables and Receivables both drew the invoice, Ledger and Tax the ledger,
+  // Reports and Budgets the chart.
+  "finance-payables": "wallet",
   "finance-receivables": "invoice",
-  "finance-tax": "ledger",
+  "finance-tax": "report",
   "finance-reports": "chart",
-  "finance-budgets": "chart",
+  "finance-budgets": "pie",
   "finance-assets": "assets",
   "field-service-schedule": "calendar",
   "field-service-tracking": "tracking",
@@ -284,31 +301,44 @@ function sectionIcon(key) {
 // that reads on white disappears on the dark shell. Written as whole class
 // strings because Tailwind scans source text for them — a composed
 // `text-${hue}-600` is not there to find and arrives unstyled.
+// EIGHTEEN SECTIONS, SEVENTEEN HUES AND ONE NEUTRAL — and no two alike. This
+// table had Approvals and Finance both emerald, Engineering & Documents and
+// Point of Sale both cyan, and Manufacturing and Assets both stone, so two
+// departments read as one group. Tailwind has seventeen chromatic hues; the
+// eighteenth section (Manufacturing) keeps the warm stone.
+//
+// THE CONTROLS WEAR THE NEUTRAL, NOT A HUE. Main, Approvals and Administration
+// are not sections (CLAUDE.md), and a hue says "a department". They take the
+// exact grey the footer's Documentation and Settings entries already wear, for
+// the reason written there — one neutral for everything that is not a
+// section, rather than a second grey beside it. (Main was blue and Approvals
+// was Finance's emerald, which made each read as a department.)
+const CONTROL_ACCENT = "text-slate-400 dark:text-slate-500";
 const SECTION_ACCENTS = {
-  main: "text-blue-600 dark:text-blue-400",
-  approvals: "text-emerald-600 dark:text-emerald-400",
+  main: CONTROL_ACCENT,
+  approvals: CONTROL_ACCENT,
   "crm-sales": "text-sky-600 dark:text-sky-400",
+  quotations: "text-green-600 dark:text-green-400",
+  pos: "text-pink-600 dark:text-pink-400",
+  marketing: "text-red-600 dark:text-red-400",
   tendering: "text-purple-600 dark:text-purple-400",
   projects: "text-indigo-600 dark:text-indigo-400",
   "engineering-docs": "text-cyan-600 dark:text-cyan-400",
-  quotations: "text-green-600 dark:text-green-400",
   procurement: "text-orange-600 dark:text-orange-400",
   inventory: "text-amber-600 dark:text-amber-400",
   manufacturing: "text-stone-600 dark:text-stone-400",
   "field-service": "text-teal-600 dark:text-teal-400",
   logistics: "text-lime-600 dark:text-lime-400",
-  assets: "text-stone-600 dark:text-stone-400",
+  assets: "text-violet-600 dark:text-violet-400",
   maintenance: "text-yellow-700 dark:text-yellow-400",
-  pos: "text-cyan-600 dark:text-cyan-400",
-  marketing: "text-red-600 dark:text-red-400",
   "quality-hse": "text-rose-600 dark:text-rose-400",
   hr: "text-fuchsia-600 dark:text-fuchsia-400",
   finance: "text-emerald-600 dark:text-emerald-400",
-  reports: "text-pink-600 dark:text-pink-400",
-  administration: "text-slate-500 dark:text-slate-400",
-  engagements: "text-blue-600 dark:text-blue-400",
-  people: "text-slate-500 dark:text-slate-400",
-  access: "text-slate-500 dark:text-slate-400",
+  reports: "text-blue-600 dark:text-blue-400",
+  administration: CONTROL_ACCENT,
+  engagements: CONTROL_ACCENT,
+  people: CONTROL_ACCENT,
+  access: CONTROL_ACCENT,
 };
 
 // LONGEST PREFIX, NOT `split("-")[0]`. Four section keys contain a hyphen of
@@ -330,9 +360,14 @@ const ACCENT_ROOTS = Object.keys(SECTION_ACCENTS).sort((a, b) => b.length - a.le
 // section's colour. The owner saw it. The PARENT is the stored fact about where
 // a section sits, so a key that resolves to no root asks its parent's key.
 const rootOf = (key) => ACCENT_ROOTS.find((r) => key === r || key.startsWith(`${r}-`));
+//
+// AND THE PARENT IS ASKED FIRST, not second. A key's prefix is a naming habit and
+// the parent is the fact: `engineering-docs-rfq` is filed under CRM & Sales, and
+// asking the key first painted it Engineering's cyan among CRM's sky-blue rows.
+// Only a row with no parent — a root — is coloured from its own key.
 const accentOf = (key, parentKey) => {
-  const root = rootOf(key) || (parentKey ? rootOf(parentKey) : undefined);
-  return root ? SECTION_ACCENTS[root] : "text-slate-400 dark:text-slate-500";
+  const root = (parentKey ? rootOf(parentKey) : undefined) || rootOf(key);
+  return root ? SECTION_ACCENTS[root] : CONTROL_ACCENT;
 };
 
 // The row's shell — shape and colour, NO PADDING AND NO JUSTIFICATION. A plain

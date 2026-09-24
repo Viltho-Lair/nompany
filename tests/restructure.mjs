@@ -1836,6 +1836,91 @@ export async function testEveryBuiltinRecordTypeHasItsOwnIcon(t) {
   }
 }
 
+/* EVERY PARENT IN THE NAV CAN TELL ITS CHILDREN APART, BY ARTWORK — AND EVERY
+   DEPARTMENT HAS A HUE OF ITS OWN, WHICH ITS CHILDREN WEAR.
+   ------------------------------------------------------------------
+   The assertion above covers the engine registers and compares icon NAMES.
+   Neither was enough, and the owner found both gaps on 24/09/2026:
+
+   - The DECLARED children were never checked. Finance's split drew Payables
+     and Receivables with one invoice, Ledger and Tax with one ledger, Reports
+     and Budgets with one chart; HR's four new sub-sections had no entry and
+     fell through to the same fallback mark four times.
+   - Two NAMES can be one DRAWING. The generated set maps `box` and `package`
+     to identical Phosphor artwork (and `team`/`users`, `group`/`clients`,
+     …), so Logistics' Shipments and Deliveries looked the same while every
+     name differed.
+   - Three pairs of departments shared a hue, and a child was coloured by its
+     key's prefix before its parent, so a row filed under one department could
+     wear another's colour.
+
+   A filed-only child is left out: it is never drawn. A child may still share
+   a mark with a child of a DIFFERENT parent — nobody sees them side by side. */
+export async function testEveryNavParentCanTellItsChildrenApart(t) {
+  const { readFileSync } = await import("node:fs");
+  const { isFiledOnlySection } = await import("../src/platform/db/keys.ts");
+
+  const frame = readFileSync("src/components/studio2/StudioFrame.js", "utf8");
+  const mapBody = (name) => {
+    const body = frame.slice(frame.indexOf(`const ${name} = {`));
+    return body.slice(0, body.indexOf("\n};"));
+  };
+  const ENTRY_RE = /^\s*"?([a-zA-Z0-9-]+)"?\s*:\s*"([a-zA-Z0-9]+)"/gm;
+  const icons = Object.fromEntries([...mapBody("SECTION_ICONS").matchAll(ENTRY_RE)].map((m) => [m[1], m[2]]));
+  const fallback = /const FALLBACK_SECTION_ICON = "([a-zA-Z0-9]+)"/.exec(frame)?.[1] || "";
+  const iconOf = (key) => icons[key] || fallback;
+
+  // ARTWORK, NOT NAME: each entry's two paths, as the generator wrote them.
+  const art = readFileSync("src/components/studio2/icons.art.js", "utf8");
+  const drawing = Object.fromEntries([...art.matchAll(/^ {2}([a-zA-Z0-9_]+): (\[.*\]),?$/gm)].map((m) => [m[1], m[2]]));
+  t.equal(Object.keys(drawing).length > 100, true,
+    `the artwork scan found ${Object.keys(drawing).length} icons — the pattern has drifted from icons.art.js`);
+
+  // Children per parent: the declared ones, plus the built-in registers.
+  const children = {};
+  for (const def of SECTION_DEFS) {
+    for (const child of def.children || []) {
+      if (isFiledOnlySection(child.key)) continue;
+      (children[def.key] ||= []).push(child.key);
+    }
+  }
+  const builtins = readFileSync("src/platform/engine/builtins.ts", "utf8");
+  const TYPE_RE = /key:\s*"([a-z0-9]+)",\s*\n\s*label:\s*"[^"]+",[\s\S]{0,200}?parentSectionKey:\s*"([a-z0-9-]+)"/g;
+  for (const m of builtins.matchAll(TYPE_RE)) (children[m[2]] ||= []).push(`engine-${m[1]}`);
+
+  for (const [parent, keys] of Object.entries(children)) {
+    for (const key of keys) {
+      t.equal(Boolean(icons[key]), true,
+        `${key} (under ${parent}) has no entry in SECTION_ICONS — it falls through to "${fallback}"`);
+    }
+    const seen = new Map([[drawing[iconOf(parent)], `${parent} itself (${iconOf(parent)})`]]);
+    for (const key of keys) {
+      const clash = seen.get(drawing[iconOf(key)]);
+      t.equal(clash, undefined,
+        `${key} (${iconOf(key)}) under ${parent} draws the same artwork as ${clash}`);
+      seen.set(drawing[iconOf(key)], `${key} (${iconOf(key)})`);
+    }
+  }
+
+  // -- the hues. Every product root has one, and no two roots share it; the
+  // controls share the neutral, which is the one class allowed to repeat.
+  const control = /const CONTROL_ACCENT = "([^"]+)"/.exec(frame)?.[1] || "";
+  t.equal(control !== "", true, "StudioFrame declares CONTROL_ACCENT");
+  const accents = Object.fromEntries([...mapBody("SECTION_ACCENTS").matchAll(
+    /^\s*"?([a-z-]+)"?\s*:\s*(?:"([^"]+)"|CONTROL_ACCENT)/gm,
+  )].map((m) => [m[1], m[2] || control]));
+  const owner = new Map();
+  for (const def of SECTION_DEFS) {
+    const hue = accents[def.key];
+    t.equal(Boolean(hue), true, `the root ${def.key} has no entry in SECTION_ACCENTS — it draws in the fallback grey`);
+    if (!hue || hue === control) continue;
+    t.equal(owner.get(hue), undefined, `${def.key} and ${owner.get(hue)} share the hue "${hue}"`);
+    owner.set(hue, def.key);
+  }
+  t.equal(/rootOf\(parentKey\)[^|]*\|\|\s*rootOf\(key\)/.test(frame), true,
+    "accentOf asks the PARENT before the key's own prefix — a child wears its parent's colour");
+}
+
 // PRESENTS, and present in what the product STORES.
 export async function testAdministrationIsNotASectionButItsRowsSurvive(t) {
   // -- the keys are real. A typo here would silently exempt nothing.
@@ -2244,6 +2329,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testTheSharedTokensAreOnRoot,
       testAdministrationIsNotASectionButItsRowsSurvive,
       testEveryBuiltinRecordTypeHasItsOwnIcon,
+      testEveryNavParentCanTellItsChildrenApart,
       testEverySectionWithAScreenIsReachableBySomeSeededRole,
       testTheTwoIndustryListsAreOneList,
       testNoTradeSwitchesOffASectionItActuallyUses,
