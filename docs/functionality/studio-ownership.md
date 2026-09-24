@@ -81,8 +81,9 @@ record an expiry ten years out** (the terms' retention for invoices, the owner's
 24/09/2026). The report lists each due studio with how many files it would lose.
 
 **The job only reports until `STUDIO_DELETIONS=on` is set** (invariant 17): it returns
-the studios that are due and deletes nothing. Setting the variable is the second
-confirmation, given after the owner has read a report naming the studios. **Until
+the studios that are due and deletes nothing. **The owner set it in production on
+24/09/2026**, after a report run showed nothing due, so from then on the daily run
+deletes: the owner's own request and the 30 cancellable days are the confirmation. **Until
 24/09/2026 nothing acted on the date at all**: the countdown ran out and the studio stayed
 whole, while the owner believed deletion was built.
 
@@ -112,8 +113,8 @@ re-recorded deliberately.
 
 ## Not built yet
 
-- **Deletion is switched off.** `STUDIO_DELETIONS` is not set anywhere, so the job reports
-  and deletes nothing until the owner turns it on.
+- **Deleting an unpaid studio at 365 days** is not wired into the job yet: it deletes only
+  studios whose owner asked. See `subscriptions.md`.
 - **Finding a studio's files reads every media record**, because nothing indexes them by
   studio. That's fine at today's volume; an index is the fix once it isn't.
 
