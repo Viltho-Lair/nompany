@@ -279,6 +279,17 @@ const SECTION_ICONS = {
    it belongs with the type editor rather than here. */
 const FALLBACK_SECTION_ICON = "list";
 
+/* A SECTION'S SETTINGS IS ALWAYS ITS LAST ROW — the owner, 24/09/2026.
+   ------------------------------------------------------------------
+   The nav draws children in STORED order, and a sub-section planted after a
+   studio exists (`plantMissingSections`) is appended to the end — so Point of
+   Sale's Returns and Promotions landed BELOW its Settings in every live studio,
+   whatever order SECTION_DEFS declares. Fixing the declaration reaches new
+   studios only; sorting here reaches all of them and every future append.
+   `sort` is stable, so everything else keeps the order it was stored in. */
+const isSettingsRow = (key) => key.endsWith("-settings");
+const settingsLast = (a, b) => Number(isSettingsRow(a.key)) - Number(isSettingsRow(b.key));
+
 function sectionIcon(key) {
   return SECTION_ICONS[key] || FALLBACK_SECTION_ICON;
 }
@@ -553,7 +564,7 @@ export default function StudioFrame({
   const tintFor = (key) => iconClass(key, parentKeyOf.get(key));
   const fullTree = all
     .filter((s) => !s.parentId || !visibleIds.has(s.parentId))
-    .map((s) => ({ ...s, children: all.filter((c) => c.parentId === s.id) }));
+    .map((s) => ({ ...s, children: all.filter((c) => c.parentId === s.id).sort(settingsLast) }));
 
   // APPROVALS AND ADMINISTRATION ARE NOT SECTIONS, AND THE LIST BELOW IS SECTIONS.
   //

@@ -1917,6 +1917,20 @@ export async function testEveryNavParentCanTellItsChildrenApart(t) {
     t.equal(owner.get(hue), undefined, `${def.key} and ${owner.get(hue)} share the hue "${hue}"`);
     owner.set(hue, def.key);
   }
+  // -- SETTINGS IS THE LAST ROW OF ITS SECTION (the owner, 24/09/2026). Point
+  // of Sale's Returns and Promotions were declared after its Settings and drew
+  // below it. Both halves: the declaration, for new studios, and the sidebar's
+  // sort, for every studio whose rows were planted in the order they shipped.
+  for (const def of SECTION_DEFS) {
+    const shown = (def.children || []).map((c) => c.key).filter((k) => !isFiledOnlySection(k));
+    const at = shown.findIndex((k) => k.endsWith("-settings"));
+    if (at === -1) continue;
+    t.equal(at, shown.length - 1,
+      `${shown[at]} is declared before ${shown.slice(at + 1).join(", ")} — a section's Settings is its last row`);
+  }
+  t.equal(/children: all\.filter\(.*\)\.sort\(settingsLast\)/.test(frame), true,
+    "the sidebar sorts each group's Settings last — stored order puts late-planted rows below it");
+
   t.equal(/rootOf\(parentKey\)[^|]*\|\|\s*rootOf\(key\)/.test(frame), true,
     "accentOf asks the PARENT before the key's own prefix — a child wears its parent's colour");
 }

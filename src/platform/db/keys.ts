@@ -768,8 +768,6 @@ export const SECTION_DEFS = [
     { key: "pos-sales", name: "Sales" },
     // EVERY DRAWER that was opened, with its end-of-day report.
     { key: "pos-shifts", name: "Shift history" },
-    // THE TILLS AND HOW THEY PRICE, moved out of the till's own screen.
-    { key: "pos-settings", name: "Settings" },
     // RETURNS (18/09/2026). Unlike its siblings it OWNS its rows: a return is a
     // record of its own — asked for, signed by a manager, paid out — filed
     // where it is written. Its sales stay filed under `crm-sales-pos`.
@@ -779,6 +777,10 @@ export const SECTION_DEFS = [
     // records of their own. What a promotion took off a SALE is frozen on the
     // receipt beside the till's own discounts, never read back from here.
     { key: "pos-promotions", name: "Promotions" },
+    // THE TILLS AND HOW THEY PRICE, moved out of the till's own screen. LAST,
+    // like every section's Settings — the owner, 24/09/2026. Returns and
+    // Promotions were appended after it and pushed it into the middle.
+    { key: "pos-settings", name: "Settings" },
   ] },
 
   // MARKETING IS ITS OWN DEPARTMENT — the owner, 19/09/2026, the eighteenth,
