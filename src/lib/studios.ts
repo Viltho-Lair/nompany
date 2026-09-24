@@ -32,7 +32,7 @@ import { getIndex } from "@/platform/db/store";
 import { IX, isValidSlug, RESERVED_SLUGS, SLUG_RE } from "@/platform/db/keys";
 import { getVerification, getProfile } from "@/platform/auth/users";
 import { memberLimitOf } from "@/lib/plans";
-import { listCatalog } from "@/lib/data/catalog";
+import { listCatalog, upgradeButtonOf } from "@/lib/data/catalog";
 import { companyDetails, companyPatch, type CompanyInput } from "@/lib/studioCompany";
 import { slugify } from "@/shared/slug";
 import type { Row } from "@/platform/db/store";
@@ -116,10 +116,11 @@ export async function slugAvailability(rawSlug: unknown) {
 // alphabetical, which keeps the order stable for someone who has visited
 // nothing yet instead of letting it drift between requests.
 export async function studiosForUser(userId: string) {
-  const [owned, collaborations, visits] = await Promise.all([
+  const [owned, collaborations, visits, packages] = await Promise.all([
     listOwnedStudios(userId),
     listUserCollaborations(userId),
     studioVisitCounts(userId),
+    listCatalog("packages"),
   ]);
   // A rename takes effect the moment it is saved, so there is nothing queued to
   // report and no pending shape to carry — what the row says IS the studio.
@@ -153,7 +154,13 @@ export async function studiosForUser(userId: string) {
     // Owned studios rank the same way collaborations do — most-opened first —
     // because with more than one of them the registry's newest-first order stops
     // being the order that matters to the person reading the list.
-    owned: owned.map(shape).sort(byVisits),
+    // An owned studio says whether its package offers the Upgrade button
+    // (catalog's upgradeButtonOf), so the account page shows it only where it
+    // applies — never to a studio on Premium.
+    owned: owned.map((s) => ({
+      ...shape(s),
+      upgradable: upgradeButtonOf(packages.find((p) => p.id === s.packageId) || { type: "free" }),
+    })).sort(byVisits),
     collaborations: joined.map(shape).sort(byVisits),
   };
 }

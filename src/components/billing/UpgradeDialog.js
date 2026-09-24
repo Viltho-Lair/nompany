@@ -48,10 +48,15 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
     if (!pick) return;
     const bands = pick.categories || [];
     const band = bands.find((b) => b.id === (asked?.categoryId || "")) || bands[0];
+    // BASIC IS THE DEFAULT TIER, not "no tier" (the owner, 24/09/2026: "Basic is
+    // No Tier, there is no need for No Tier as the Basic is the default"). The
+    // tier named Basic, else the first one; a request already made keeps its own.
+    const tiers = d.list?.tiers || [];
+    const basic = tiers.find((t) => String(t.name || "").trim().toLowerCase() === "basic") || tiers[0];
     setChoice({
       packageId: pick.id,
       categoryId: pick.type === "compound" ? band?.id || "" : "",
-      tierId: d.request?.tierId || "",
+      tierId: d.request?.tierId || basic?.id || "",
       cycle: asked?.cycle === "yearly" ? "yearly" : "monthly",
     });
   }, [slug, t.failed]);
@@ -149,7 +154,6 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
               <div>
                 <p className="mb-2 text-xs font-600 uppercase tracking-wide text-slate-500">{t.tier}</p>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" className={pill(!choice?.tierId)} onClick={() => setChoice((ch) => ({ ...ch, tierId: "" }))}>{t.noTier}</button>
                   {data.list.tiers.map((tier) => (
                     <button key={tier.id} type="button" className={pill(tier.id === choice?.tierId)}
                       onClick={() => setChoice((ch) => ({ ...ch, tierId: tier.id }))}>

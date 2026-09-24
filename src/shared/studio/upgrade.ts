@@ -15,7 +15,6 @@ type Strings = {
   noPackages: string;
   band: string;
   tier: string;
-  noTier: string;
   monthly: string;
   yearly: string;
   perMonth: string;
@@ -46,7 +45,6 @@ const en: Strings = {
   noPackages: "No packages are on sale in your region yet. Contact nompany to upgrade.",
   band: "Team size",
   tier: "Tier",
-  noTier: "No tier",
   monthly: "Monthly",
   yearly: "Yearly",
   perMonth: "per month",
@@ -76,7 +74,6 @@ const ar: Strings = {
   noPackages: "لا توجد باقات معروضة في منطقتك بعد. تواصل مع nompany للترقية.",
   band: "حجم الفريق",
   tier: "المستوى",
-  noTier: "بلا مستوى",
   monthly: "شهري",
   yearly: "سنوي",
   perMonth: "شهريا",

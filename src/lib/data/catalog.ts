@@ -212,6 +212,11 @@ const KINDS: Record<string, CatalogKind> = {
         // these fields existed must not quietly take them away.
         promotionsEnabled: b.promotionsEnabled === undefined ? true : Boolean(b.promotionsEnabled),
         promotionsAdvanced: b.promotionsAdvanced === undefined ? true : Boolean(b.promotionsAdvanced),
+        // WHETHER STUDIOS ON THIS PACKAGE ARE OFFERED THE UPGRADE BUTTON (the
+        // owner, 24/09/2026: "a check box for the upgrade must be available
+        // inside each package, premium shouldn't show upgrade"). Absent is the
+        // package's type — see upgradeButtonOf.
+        upgradeButton: upgradeButtonOf({ ...b, type }),
       };
     },
   },
@@ -259,8 +264,31 @@ const KINDS: Record<string, CatalogKind> = {
 
 export const isKind = (k: unknown) => Object.hasOwn(KINDS, String(k || ""));
 
+/**
+ * WHETHER A PACKAGE OFFERS THE UPGRADE BUTTON. Its own switch when it has one.
+ * A package saved before the switch existed offers it when it COSTS NOTHING
+ * and is not a Premium package — the free package is the one being upgraded
+ * out of, and Premium's price is arranged with sales.
+ *
+ * NOT BY TYPE ALONE: the package `ensureDefaultPlan` seeds for new studios is
+ * stored as "compound" (the form's default type) with no price and no bands,
+ * so "type is free" hid the button from exactly the studios that need it.
+ */
+export function upgradeButtonOf(
+  pkg: { upgradeButton?: unknown; type?: unknown; costPerEmployee?: unknown; categories?: unknown } | null | undefined,
+): boolean {
+  if (typeof pkg?.upgradeButton === "boolean") return pkg.upgradeButton;
+  if (pkg?.type === "premium") return false;
+  const bands = Array.isArray(pkg?.categories) ? (pkg.categories as { costPerEmployee?: unknown }[]) : [];
+  return !(Number(pkg?.costPerEmployee) > 0) && !bands.some((b) => Number(b?.costPerEmployee) > 0);
+}
+
 export async function listCatalog(kind: string) {
-  return readArr(KINDS[kind].key);
+  const rows = await readArr(KINDS[kind].key);
+  // THE SWITCH IS FILLED IN ON READ for packages saved before it existed, so the
+  // Packages screen shows what studios actually see — and saving Standard
+  // without touching the switch keeps its button rather than switching it off.
+  return kind === "packages" ? rows.map((r): Row => ({ ...r, upgradeButton: upgradeButtonOf(r) })) : rows;
 }
 
 export async function createCatalogItem(kind: string, body: Record<string, unknown>) {

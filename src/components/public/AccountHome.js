@@ -435,7 +435,10 @@ function StudioRow({ studio, onSaved }) {
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button className={BTN} onClick={save} disabled={busy || !dirty}>{busy ? tr.saving : tr.save}</button>
           <a href={`/${studio.slug}`} className={BTN_GHOST}>{tr.openStudio}</a>
-          <button type="button" className={BTN_GHOST} onClick={() => setUpgrading(true)}>{upgradeDict(locale).button}</button>
+          {/* Only where the studio's package offers it (its "Upgrade button" switch). */}
+          {studio.upgradable && (
+            <button type="button" className={BTN_GHOST} onClick={() => setUpgrading(true)}>{upgradeDict(locale).button}</button>
+          )}
           {/* DOWNLOAD EVERYTHING — the owner may export at any time (Terms 1.4). */}
           <a href={`/api/studios/${studio.slug}/export`} className={BTN_GHOST}>{upgradeDict(locale).download}</a>
         </div>

@@ -114,8 +114,13 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
   - A studio already over its limit (a package whose limit dropped) keeps everybody;
     nobody more can join until it upgrades. `/super → Studios` shows used / limit and
     turns red when over.
-- **The upgrade button** (step 3, 24/09/2026), in the studio header for the owner of a
-  Standard studio and on every owned studio on `/account`. Both open one dialog
+- **The upgrade button** (step 3, 24/09/2026), shown to the owner in the studio header and
+  on `/account`'s owned studios **when the studio's package has its "Upgrade button" switch
+  on** (`/super → Packages`; the owner: "premium shouldn't show upgrade"). A package saved
+  before the switch offers it when it costs nothing and is not Premium. That is not by type
+  alone: the seeded default package is stored as "compound". The
+  default is filled in on read, so the Packages screen shows the real state. The dialog
+  has no "No tier": **Basic is the default tier**. Both open one dialog
   (`components/billing/UpgradeDialog`), loaded only when opened.
   - The owner picks a package, band, tier and monthly or yearly, priced in their region's
     currency with tax by the same rule the server uses (`shared/upgradeQuote`). A year is

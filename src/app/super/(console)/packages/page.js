@@ -81,6 +81,11 @@ const FIELDS = [
     hint: "Coupon codes, tiered ladders and day-and-hour schedules. Off, a studio writes plain offers only; offers it already has keep working.",
   },
 
+  // THE UPGRADE BUTTON (24/09/2026): whether an owner on this package sees
+  // Upgrade in the studio header and on their account page. On for the free
+  // package; off for a package there is nothing to upgrade out of (Premium).
+  { key: "upgradeButton", label: "Upgrade button", type: "switch", hint: "Shows owners on this package an Upgrade button in the studio header and on their account page." },
+
   { key: "includes", label: "Includes", type: "lines", placeholder: "Full platform — every department\nUp to 4 employees\nEnglish & Arabic, RTL-ready" },
   { key: "includesAr", label: "Includes (Arabic)", type: "lines" },
 

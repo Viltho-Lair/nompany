@@ -7,7 +7,8 @@ import { studioContext, canAdminister, visibleSections, recordStudioVisit } from
 import { getProfile } from "@/platform/auth/users";
 import { getIndex } from "@/platform/db/store";
 import { IX } from "@/platform/db/keys";
-import { loadCatalogues, planOf, hasLiveChat, costsNothing } from "@/lib/plans";
+import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
+import { upgradeButtonOf } from "@/lib/data/catalog";
 import { studioBilling } from "@/lib/data/subscriptions";
 import { chatDisplayName } from "@/lib/chatConstants";
 import { studioLocale, preferredLocale, UI_LANG_COOKIE } from "@/shared/i18n";
@@ -186,11 +187,13 @@ export const studioShell = cache(async () => {
   // gate reads (lib/data/subscriptions).
   const [catalogues, profile, billing] = await Promise.all([loadCatalogues(), getProfile(user.id), studioBilling(studio.id)]);
   const plan = planOf(studio, catalogues.packages, catalogues.tiers);
-  // THE UPGRADE BUTTON, for the owner of a studio on the free package (the
-  // owner, 24/09/2026: in the studio header for Standard studios).
-  const canUpgrade = collaborator.role === "owner" && costsNothing(
-    catalogues.packages.find((p) => p.id === studio.packageId) || null,
-    catalogues.tiers.find((t) => t.id === studio.tierId) || null,
+  // THE UPGRADE BUTTON, for the owner, when the studio's package has its
+  // "Upgrade button" switch on (the owner, 24/09/2026: "a check box for the
+  // upgrade must be available inside each package, premium shouldn't show
+  // upgrade"). A package saved before the switch offers it when it costs
+  // nothing and is not Premium (catalog's upgradeButtonOf).
+  const canUpgrade = collaborator.role === "owner" && upgradeButtonOf(
+    catalogues.packages.find((p) => p.id === studio.packageId) || { type: "free" },
   );
 
   // Whether the package includes live chat with nompany at all, and how much of

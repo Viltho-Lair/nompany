@@ -97,6 +97,19 @@ ok("a band means nothing on a package without bands", SEATS.bandOf({ type: "free
 const onBand = planOf({ id: "s1", packageId: "pkg_med", categoryId: "m1", tierId: "" }, [{ id: "pkg_med", name: "Medium", ...medium }], tiers);
 ok("planOf reads the studio's band", onBand.maxMembers === 99 && onBand.categoryLabel === "Medium" && onBand.categoryId === "m1", JSON.stringify({ max: onBand.maxMembers, label: onBand.categoryLabel }));
 
+// THE UPGRADE BUTTON IS A SWITCH ON EACH PACKAGE (24/09/2026, the owner:
+// "premium shouldn't show upgrade"). It was shown on any package that cost
+// nothing, which put it on Premium, whose price is arranged with sales.
+const CAT = await import("@/lib/data/catalog");
+ok("a package's own switch decides", CAT.upgradeButtonOf({ type: "premium", upgradeButton: true }) === true
+  && CAT.upgradeButtonOf({ type: "free", upgradeButton: false }) === false);
+ok("SAVED BEFORE THE SWITCH, PREMIUM OFFERS NO UPGRADE", CAT.upgradeButtonOf({ type: "premium" }) === false);
+ok("...while the free package (Standard) does", CAT.upgradeButtonOf({ type: "free" }) === true);
+ok("...and a paid compound package does not", CAT.upgradeButtonOf({ type: "compound", categories: [{ costPerEmployee: 140 }] }) === false);
+// THE SEEDED DEFAULT PACKAGE IS STORED AS "compound" with no price and no bands,
+// so a rule by type alone hid the button from every new studio on it.
+ok("THE UNPRICED DEFAULT PACKAGE, stored as compound, still offers the upgrade", CAT.upgradeButtonOf({ type: "compound", costPerEmployee: 0, categories: [] }) === true);
+
 // THE LAST SEAT WAS RACEABLE: approving counted members, then added one in a
 // separate write, so two approvals at once both saw room. The count now lives
 // inside addCollaborator's compare-and-set; these pin the wiring, which only a
