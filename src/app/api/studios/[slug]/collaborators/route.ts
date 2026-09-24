@@ -1,5 +1,5 @@
 import { requirePermission, cleanAssignment, escalates } from "@/platform/access";
-import { route } from "@/platform/http/route";
+import { route, subscriptionRefusal } from "@/platform/http/route";
 import { currentUser } from "@/platform/auth/identity";
 import { studioContext, listCollaborators, updateCollaborator, type StudioMembership } from "@/lib/studios";
 import { cascadeDeleteCollaborator } from "@/platform/db/cascade";
@@ -59,6 +59,9 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
   const { slug } = await ctx.params;
   const context = await studioContext(user, slug);
   if (context.error) return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(context, request);
+  if (lapsed) return lapsed;
   // Editing who is in the studio, and what they may do, is itself a permission
   // now. canAdminister stays as the owner/admin shortcut inside the resolver,
   // so this reads the same for them and becomes grantable for everyone else.
@@ -121,6 +124,9 @@ export async function DELETE(request: Request, ctx: { params: Promise<Record<str
   const { slug } = await ctx.params;
   const context = await studioContext(user, slug);
   if (context.error) return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(context, request);
+  if (lapsed) return lapsed;
 
   let body: Record<string, unknown> = {};
   try { body = await request.json(); } catch { body = {}; }

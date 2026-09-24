@@ -1,4 +1,4 @@
-import { refused } from "@/platform/http/route";
+import { refused, subscriptionRefusal } from "@/platform/http/route";
 import { currentUser } from "@/platform/auth/identity";
 import { studioContext } from "@/lib/studios";
 import { getSectionByKey } from "@/platform/db/sections";
@@ -96,6 +96,12 @@ export async function POST(request: Request, ctx: { params: Promise<Record<strin
 
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const action = String(body?.action ?? "");
+  // A PREVIEW IS A QUERY, so it runs in a closed studio like any read; saving,
+  // renaming or deleting a report is a change and answers to the subscription.
+  if (action !== "preview") {
+    const lapsed = await subscriptionRefusal(resolved.ctx, request);
+    if (lapsed) return lapsed;
+  }
   const result = action === "preview" ? await preview(resolved.ctx, body)
     : action === "save" ? await saveReport(resolved.ctx, body)
       : action === "target" ? await saveTarget(resolved.ctx, body)

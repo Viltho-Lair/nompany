@@ -7,6 +7,7 @@ import StudioFrame from "@/components/studio2/StudioFrame";
 import StudioTracker from "@/components/StudioTracker";
 import { withRequest } from "@/platform/http/observability";
 import { studioShell } from "./_shell";
+import { subscriptionDict } from "@/shared/studio/subscription";
 
 // THE STUDIO'S SHELL, RESOLVED ONCE AND THEN LEFT ALONE.
 //
@@ -46,7 +47,15 @@ async function renderShell(children) {
     return <NotAMember slug={shell.slug} locale={shell.locale} />;
   }
 
-  const { studio, collaborator, access, sections, allSections, locale, admin, plan, chat } = shell;
+  const { studio, collaborator, access, sections, allSections, locale, admin, plan, chat, billing } = shell;
+
+  // SHUT DOWN (the owner's ladder, 24/09/2026: 90 days unpaid). The studio is
+  // replaced by one screen, and like NotAMember it does NOT render `children`,
+  // so no screen below renders at all. The API refuses the same people
+  // (platform/http/route); this is the page half.
+  if (billing?.access === "owner-only") {
+    return <ShutDown locale={locale} owner={collaborator.role === "owner"} deletedOn={billing.dates?.deletedOn} />;
+  }
   // WHAT THE STUDIO HAS SWITCHED OFF, for the dashboards' second gate. From
   // ALL sections, never `sections`: that list is already filtered to what the
   // reader may open AND what is on, so a switched-off part is simply missing
@@ -97,6 +106,7 @@ async function renderShell(children) {
           record id — see StudioTracker for why the public site's page rule
           cannot be reused here. */}
       <StudioTracker />
+      <BillingBanner billing={billing} locale={locale} />
       {children}
     </StudioFrame>
   );
@@ -124,6 +134,72 @@ function NotAMember({ slug, locale = "en" }) {
         <Link href={`/${locale}/account`} className="mt-5 inline-block rounded-full bg-brand-600 px-5 py-2.5 font-display text-sm font-700 text-white hover:bg-brand-700">
           {t.backToAccount}
         </Link>
+      </div>
+    </main>
+  );
+}
+
+// "2026-12-24" → "24/12/2026", the house format, without a client locale to ask.
+const day = (d) => (typeof d === "string" && /^d{4}-d{2}-d{2}$/.test(d) ? d.split("-").reverse().join("/") : "");
+
+// Standard's free months are worth a warning only near their end.
+const TRIAL_WARNING_DAYS = 14;
+
+/**
+ * THE LINE ABOVE EVERY SCREEN while something about the subscription needs
+ * doing: payment due (still working), closed (view and export only),
+ * cancelled, or Standard's free months ending within two weeks. Nothing when
+ * all is well. What it says is enforced by the API; this only says it first.
+ */
+function BillingBanner({ billing, locale }) {
+  if (!billing?.dates) return null;
+  const t = subscriptionDict(locale);
+  const { status, dates, paidUntil, daysLeft } = billing;
+  let text = "";
+  let tone = "amber";
+  if (status === "trial") {
+    if (daysLeft > TRIAL_WARNING_DAYS) return null;
+    text = t.trialEnding(day(paidUntil));
+  } else if (status === "due") text = t.due(day(dates.closesOn));
+  else if (status === "closed") { text = t.closed(day(dates.shutsDownOn)); tone = "rose"; }
+  else if (status === "cancelled") { text = t.cancelled(day(dates.shutsDownOn)); tone = "rose"; }
+  else return null;
+  const colours = tone === "rose"
+    ? "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-100"
+    : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-100";
+  return (
+    <div role="status" className={`mx-4 mt-4 flex flex-wrap items-center gap-3 rounded-geex border px-4 py-3 text-sm ${colours}`}>
+      <span className="min-w-0 flex-1">{text}</span>
+      <Link href={`/${locale}/contact`} className="shrink-0 font-display font-700 underline underline-offset-2">{t.pay}</Link>
+    </div>
+  );
+}
+
+/**
+ * THE WHOLE STUDIO, WHEN IT IS SHUT DOWN. The owner is told what is kept and
+ * until when, and how to reopen it; a member is told only that the owner can.
+ * Download-everything belongs here and is not built yet — no button is drawn
+ * for it rather than one that does nothing.
+ */
+function ShutDown({ locale = "en", owner, deletedOn }) {
+  const t = subscriptionDict(locale);
+  return (
+    <main lang={locale} dir={dirFor(locale)} className="flex min-h-screen items-center justify-center bg-[var(--geex-page)] px-5">
+      <div className="max-w-md rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
+        <h1 className="font-display text-xl font-800 text-slate-900 dark:text-white">{t.shutDownTitle}</h1>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          {owner ? t.shutDownOwner(day(deletedOn)) : t.shutDownMember}
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-3">
+          {owner && (
+            <Link href={`/${locale}/contact`} className="inline-block rounded-full bg-brand-600 px-5 py-2.5 font-display text-sm font-700 text-white hover:bg-brand-700">
+              {t.pay}
+            </Link>
+          )}
+          <Link href={`/${locale}/account`} className="inline-block rounded-full border border-slate-200 px-5 py-2.5 font-display text-sm font-700 text-slate-700 dark:border-white/15 dark:text-slate-200">
+            {t.backToAccount}
+          </Link>
+        </div>
       </div>
     </main>
   );

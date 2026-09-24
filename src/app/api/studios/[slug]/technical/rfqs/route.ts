@@ -1,4 +1,4 @@
-import { refused, type Guarded } from "@/platform/http/route";
+import { refused, type Guarded, subscriptionRefusal } from "@/platform/http/route";
 import { sectionOffRefusal } from "@/platform/http/sectionRoutes";
 import type { TechnicalContext } from "@/modules/technical/types";
 import { currentUser } from "@/platform/auth/identity";
@@ -23,6 +23,9 @@ async function context(
   // through the same table (platform/http/sectionRoutes).
   const off = sectionOffRefusal(request, tech.sections);
   if (off) return { fail: off };
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(tech, request);
+  if (lapsed) return { fail: lapsed };
   return tech;
 }
 const body = async (r: Request): Promise<Record<string, unknown>> => {

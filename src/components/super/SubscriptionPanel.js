@@ -15,13 +15,17 @@ import SelectMenu from "@/components/fields/SelectMenu";
 // the SAME id, and the server applies it once — a retry is never a second
 // payment (shared/subscription).
 
+// The owner's ladder (24/09/2026): due at day 0, closed at 20, shut down at 90,
+// deleted at 365 (shared/subscription).
 export const STATUS = {
-  trial: { label: "Trial", tone: "info" },
+  trial: { label: "Standard free", tone: "info" },
   active: { label: "Active", tone: "success" },
   complimentary: { label: "Complimentary", tone: "primary" },
-  past_due: { label: "Past due", tone: "warning" },
-  read_only: { label: "Read-only", tone: "danger" },
+  due: { label: "Payment due", tone: "warning" },
+  closed: { label: "Closed", tone: "danger" },
   cancelled: { label: "Cancelled", tone: "muted" },
+  shut_down: { label: "Shut down", tone: "danger" },
+  expired: { label: "Due for deletion", tone: "danger" },
 };
 
 const EVENT_LABEL = {
@@ -43,12 +47,12 @@ const fmtDay = (d) => {
   return d && Number.isFinite(t) ? new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "—";
 };
 
-export default function SubscriptionPanel({ studioId, onChanged }) {
+export default function SubscriptionPanel({ studioId, onChanged, packages = [], tiers = [] }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [eventId, setEventId] = useState(newId);
-  const [form, setForm] = useState({ periods: "1", amount: "", currency: "", reference: "", until: "", seats: "", period: "monthly", reason: "" });
+  const [form, setForm] = useState({ periods: "1", amount: "", currency: "", reference: "", until: "", seats: "", period: "monthly", reason: "", packageId: "", tierId: "" });
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
   const load = useCallback(async () => {
@@ -88,14 +92,13 @@ export default function SubscriptionPanel({ studioId, onChanged }) {
         <Badge tone={st.tone}>{st.label}</Badge>
         <span className={muted}>
           {s.kind === "comp" ? "Given by nompany — never lapses."
-            : data.status === "trial" ? (s.free
-              ? `Free package ends ${fmtDay(s.paidUntil)} — read-only from then unless the studio picks a paid package.`
-              : `Trial ends ${fmtDay(s.paidUntil)}.`)
-            : data.status === "read_only" && s.free ? `The Free package ended ${fmtDay(s.paidUntil)}. Picking a paid package and paying reactivates it.`
-            : data.status === "past_due" ? `Unpaid since ${fmtDay(s.paidUntil)}. Read-only from ${fmtDay(data.graceEnds)}.`
-            : data.status === "read_only" ? `Read-only since ${fmtDay(data.graceEnds)}. A payment reactivates it from today.`
-            : data.status === "cancelled" ? `Cancelled from ${fmtDay(s.cancelAt)}.`
-            : `Paid until ${fmtDay(s.paidUntil)}.`}
+            : data.status === "trial" ? `Standard's free period ends ${fmtDay(s.paidUntil)}; the studio closes that day unless a paid package is paid for.`
+            : data.status === "active" ? `Paid until ${fmtDay(s.paidUntil)}.`
+            : data.status === "due" ? `Due since ${fmtDay(data.dates.dueOn)}. Closes ${fmtDay(data.dates.closesOn)}.`
+            : data.status === "closed" || data.status === "cancelled" ? `View and export only since ${fmtDay(data.dates.closesOn)}. Shuts down ${fmtDay(data.dates.shutsDownOn)}.`
+            : data.status === "shut_down" ? `Members locked out since ${fmtDay(data.dates.shutsDownOn)}. Deleted ${fmtDay(data.dates.deletedOn)} unless paid.`
+            : `Its year is up: deleted by the next run of the deletion job unless paid now.`}
+          {data.access !== "full" ? " A payment restores it at once." : ""}
           {s.cancelAt && data.status !== "cancelled" ? ` Cancels on ${fmtDay(s.cancelAt)}.` : ""}
         </span>
       </div>
@@ -118,11 +121,20 @@ export default function SubscriptionPanel({ studioId, onChanged }) {
             <input className="ad-input uppercase" maxLength={3} placeholder="JOD" value={form.currency} aria-label="Currency" onChange={(e) => set({ currency: e.target.value })} />
             <input className="ad-input" placeholder="Bank reference" value={form.reference} aria-label="Bank reference" onChange={(e) => set({ reference: e.target.value })} />
           </div>
+          {/* THE PACKAGE THE MONEY IS FOR. A paid package applies once it is paid
+              (24/09/2026), so this is where a studio moves onto one. Blank keeps
+              whatever it is on. */}
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <SelectMenu className="ad-select" value={form.packageId} aria-label="Paid for package" onChange={(v) => set({ packageId: v })}
+              options={[{ value: "", label: "Package: keep current" }, ...packages.map((p) => ({ value: p.id, label: p.name }))]} />
+            <SelectMenu className="ad-select" value={form.tierId} aria-label="Paid for tier" onChange={(v) => set({ tierId: v })}
+              options={[{ value: "", label: "Tier: keep current" }, ...tiers.map((t) => ({ value: t.id, label: t.name }))]} />
+          </div>
           <p className={`mt-1.5 ${muted}`}>
-            Periods are {s.period === "yearly" ? "years" : "months"}. The new period runs on from the paid-until date — or from today if the studio had gone read-only.
+            Periods are {s.period === "yearly" ? "years" : "months"}. Paid on time or within 20 days, the new period runs on from the due date; during Standard&apos;s free period, or once closed or shut down, it starts today.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => send("paid", { periods: Number(form.periods), amount: Number(form.amount) || 0, currency: form.currency, reference: form.reference })}>Record payment</Button>
+            <Button size="sm" disabled={busy} onClick={() => send("paid", { periods: Number(form.periods), amount: Number(form.amount) || 0, currency: form.currency, reference: form.reference, packageId: form.packageId, tierId: form.tierId })}>Record payment</Button>
             <Button size="sm" variant="ghost" disabled={busy} onClick={() => send("reversed", { periods: Number(form.periods), reason: form.reference || "Payment returned" })}>It bounced — reverse {form.periods || 1}</Button>
           </div>
         </fieldset>

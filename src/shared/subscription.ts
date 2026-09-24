@@ -1,10 +1,10 @@
 // A STUDIO'S SUBSCRIPTION TO NOMPANY — what it has paid for, until when, and
 // what it may do because of that. Pure: no store, no clock. The caller passes
-// "today" in, so every rule here is asserted without waiting a month.
+// "today" in, so every rule here is asserted without waiting a year.
 //
 // DATES ARE STORED, THE STATUS IS NOT (23/09/2026, agreed with the owner). The
 // one date that matters is `paidUntil`, the first day NOT covered, and the
-// status is worked out from it on every read. A stored "active" flag has to be
+// status is worked out from it on every read. A stored "closed" flag has to be
 // flipped by a job, and the night the job fails a studio either keeps working
 // unpaid or is locked a day late; a date cannot be forgotten. Jobs send
 // reminders and take renewals; they never decide what a studio may do.
@@ -15,14 +15,28 @@
 // carries an id and an id is applied once, so a webhook delivered twice extends
 // a subscription once.
 //
-// WHICH DAY IT IS, IS AMMAN'S — nompany's own clock, not the studio's. "Expires
-// on the 14th" has to mean one moment for every customer, and it is the day the
+// WHICH DAY IT IS, IS AMMAN'S — nompany's own clock, not the studio's. "Due on
+// the 14th" has to mean one moment for every customer, and it is the day the
 // invoice is declared on.
 //
-// THE OWNER'S NUMBERS (23/09/2026): a new studio is on trial for three months;
-// an unpaid one keeps working for three months of grace, then goes read-only;
-// studios that existed before subscriptions are complimentary. Trial and grace
-// are catalogue settings, passed in here, not constants.
+// THE OWNER'S RULES (24/09/2026), which replaced a trial for every studio and a
+// three-month grace (23/09):
+//
+//  - ONLY STANDARD HAS A FREE PERIOD — three months, per studio, and optional:
+//    paying at any time ends it and starts the paid package that day. A paid
+//    package has no trial and applies only once it is paid. Nothing puts a
+//    studio back on a free period once it has left one.
+//  - THE UNPAID LADDER, counted in days from the date payment was due (the
+//    invoice is issued at the START of the period, day 0):
+//        day 0   invoice issued — still fully working        `due`
+//        day 20  CLOSED — everything viewable, nothing new   `closed`
+//        day 90  SHUT DOWN — members locked out; the owner    `shut_down`
+//                sees only pay and download-everything
+//        day 365 deleted, through cron/studio-deletions       `expired`
+//    Paying at any point before deletion restores the studio at once.
+//  - A STANDARD STUDIO AT THE END OF ITS THREE MONTHS takes the same ladder,
+//    CLOSED THAT DAY — there is no invoice it was late with. A cancellation
+//    that has taken effect is read the same way.
 
 import { dayIn } from "./timezone";
 
@@ -35,25 +49,22 @@ export type BillingPeriod = "monthly" | "yearly";
 export const BILLING_PERIODS: readonly BillingPeriod[] = ["monthly", "yearly"];
 export const periodMonths = (p: BillingPeriod) => (p === "yearly" ? 12 : 1);
 
+/** The owner's ladder, in days after payment fell due (24/09/2026). */
+export const LADDER = Object.freeze({ closedAtDay: 20, shutDownAtDay: 90, deletedAtDay: 365 });
+
 export type SubscriptionKind = "trial" | "paid" | "comp";
 
 export type Subscription = {
   studioId: string;
-  /** trial: not paid yet; paid: covered by payments; comp: nompany gives it. */
+  /** trial: Standard's free months; paid: covered by payments; comp: nompany gives it. */
   kind: SubscriptionKind;
   period: BillingPeriod;
   /** The day of the month it renews on. 31 renews on the last day of short months and comes back to 31. */
   anchorDay: number;
-  /** The first day NOT covered (YYYY-MM-DD). For a trial, the day the trial ends. */
+  /** The first day NOT covered (YYYY-MM-DD). For a trial, the day the free months end. */
   paidUntil: string;
   /** Members paid for. 0 means the package's own ceiling decides. */
   seats: number;
-  /**
-   * The plan costs nothing — the Free package. Its trial IS the product: when
-   * it ends the studio goes read-only at once, with no grace, unless it has
-   * picked a paid package (the owner, 23/09/2026).
-   */
-  free: boolean;
   /** "" or the day it stops (YYYY-MM-DD). Set by a cancellation; cleared by resuming or paying. */
   cancelAt: string;
   /** The last event ids applied, so one delivered twice is applied once. */
@@ -62,10 +73,23 @@ export type Subscription = {
   updatedAt: string;
 };
 
-export type SubscriptionStatus = "trial" | "active" | "complimentary" | "past_due" | "read_only" | "cancelled";
+export type SubscriptionStatus =
+  | "trial" | "active" | "complimentary"
+  | "due" | "closed" | "cancelled" | "shut_down" | "expired";
 
-/** The statuses in which a studio may create and change things. The others can read and export. */
-export const WRITABLE_STATUSES: readonly SubscriptionStatus[] = ["trial", "active", "complimentary", "past_due"];
+/**
+ * WHAT A STATUS LETS PEOPLE DO, which is the only question a route asks:
+ *   full        everybody works as normal;
+ *   view        everything is readable and exportable, nothing is created or changed;
+ *   owner-only  members are locked out; the owner may pay and download everything.
+ */
+export type StudioAccess = "full" | "view" | "owner-only";
+
+export function accessFor(status: SubscriptionStatus): StudioAccess {
+  if (status === "closed" || status === "cancelled") return "view";
+  if (status === "shut_down" || status === "expired") return "owner-only";
+  return "full";
+}
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -90,75 +114,107 @@ export function addMonths(day: string, n: number, anchorDay?: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
 }
 
+/** `n` calendar days on from a day. */
+export function addDays(day: string, n: number): string {
+  if (!DAY.test(day)) return day;
+  const t = Date.parse(`${day}T00:00:00Z`) + Math.trunc(n) * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/** Whole days from `from` to `to` (negative when `to` is earlier). */
+export function daysBetween(from: string, to: string): number {
+  if (!DAY.test(from) || !DAY.test(to)) return 0;
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
 const dayOf = (day: string) => Number(day.slice(8, 10)) || 1;
 
-/** The last day an unpaid studio may still write: `graceMonths` after `paidUntil`. */
-export function graceEnds(sub: Pick<Subscription, "paidUntil">, graceMonths: number): string {
-  return addMonths(sub.paidUntil, Math.max(0, graceMonths));
+/**
+ * THE DAY THE LADDER COUNTS FROM, and whether it skips the open 20 days. A paid
+ * studio counts from the day payment fell due; a finished free period or a
+ * cancellation that has taken effect counts from that day and is closed at
+ * once, because no invoice was issued for it to be late with.
+ */
+function ladderStart(sub: Pick<Subscription, "kind" | "paidUntil" | "cancelAt">): { from: string; closedAtOnce: boolean } {
+  if (sub.cancelAt) return { from: sub.cancelAt, closedAtOnce: true };
+  return { from: sub.paidUntil, closedAtOnce: sub.kind === "trial" };
+}
+
+/**
+ * THE DATES EACH STEP OF THE LADDER FALLS ON for this subscription, as it
+ * stands — what the console shows and the warning emails count down to.
+ */
+export function ladderDates(sub: Pick<Subscription, "kind" | "paidUntil" | "cancelAt">) {
+  const { from, closedAtOnce } = ladderStart(sub);
+  return {
+    dueOn: from,
+    closesOn: closedAtOnce ? from : addDays(from, LADDER.closedAtDay),
+    shutsDownOn: addDays(from, LADDER.shutDownAtDay),
+    deletedOn: addDays(from, LADDER.deletedAtDay),
+  };
 }
 
 /**
  * WHAT THIS STUDIO MAY DO TODAY, worked out rather than stored. Read in this
  * order, and the order is the rule:
  *
- *  1. a cancellation that has taken effect — nothing renews any more;
- *  2. complimentary — nompany gives it, nothing lapses;
- *  3. a trial still running;
- *  4. a FREE plan whose time is up — read-only at once. Grace is for a paying
- *     customer who is late, and the Free package has nothing to be late with:
- *     it lasts three months and then the studio picks a paid package (the
- *     owner, 23/09/2026: "Free package ends after 3 months unless the studio
- *     picks a paid package");
- *  5. paid up;
- *  6. unpaid but inside the grace months — still fully working, being reminded;
- *  7. otherwise read-only — everything visible and exportable, nothing new.
+ *  1. complimentary — nompany gives it, nothing lapses;
+ *  2. Standard's free months, still running;
+ *  3. paid up (or cancelled, but not yet at the end of what was paid for);
+ *  4. otherwise the ladder, from the day it fell due.
  *
- * Nothing here deletes anything, at any status.
+ * Nothing here deletes anything: `expired` is only what cron/studio-deletions
+ * reads to know a studio's year is up.
  */
 export function subscriptionStatus(
-  sub: Pick<Subscription, "kind" | "paidUntil" | "free" | "cancelAt">,
+  sub: Pick<Subscription, "kind" | "paidUntil" | "cancelAt">,
   today: string,
-  graceMonths: number,
 ): SubscriptionStatus {
-  if (sub.cancelAt && today >= sub.cancelAt) return "cancelled";
   if (sub.kind === "comp") return "complimentary";
-  if (sub.kind === "trial" && today < sub.paidUntil) return "trial";
-  if (sub.free) return today < sub.paidUntil ? "active" : "read_only";
-  if (today < sub.paidUntil) return "active";
-  if (today < graceEnds(sub, graceMonths)) return "past_due";
-  return "read_only";
+  if (sub.kind === "trial" && !sub.cancelAt && today < sub.paidUntil) return "trial";
+  const ends = sub.cancelAt || sub.paidUntil;
+  if (today < ends) return sub.kind === "trial" ? "trial" : "active";
+
+  const { from, closedAtOnce } = ladderStart(sub);
+  const d = daysBetween(from, today);
+  if (d >= LADDER.deletedAtDay) return "expired";
+  if (d >= LADDER.shutDownAtDay) return "shut_down";
+  if (!closedAtOnce && d < LADDER.closedAtDay) return "due";
+  return sub.cancelAt ? "cancelled" : "closed";
 }
 
-export const canWrite = (status: SubscriptionStatus) => WRITABLE_STATUSES.includes(status);
-
-/** A NEW STUDIO: on trial from today for `trialMonths`, renewing on today's day of the month. */
-export function newTrial(input: { studioId: string; today: string; trialMonths: number; free: boolean; seats?: number; at: string }): Subscription {
+/** A NEW STANDARD STUDIO: its free months from today, renewing on today's day of the month. */
+export function newTrial(input: { studioId: string; today: string; trialMonths: number; seats?: number; at: string }): Subscription {
   const anchorDay = dayOf(input.today);
   return {
     studioId: input.studioId, kind: "trial", period: "monthly", anchorDay,
     paidUntil: addMonths(input.today, Math.max(0, input.trialMonths), anchorDay),
-    seats: Math.max(0, Math.trunc(input.seats || 0)), free: input.free, cancelAt: "",
+    seats: Math.max(0, Math.trunc(input.seats || 0)), cancelAt: "",
     seenEventIds: [], createdAt: input.at, updatedAt: input.at,
   };
 }
 
 /**
  * A STUDIO THAT EXISTED BEFORE SUBSCRIPTIONS: complimentary, on the owner's
- * instruction (23/09/2026), so nobody is suddenly past due for a bill nobody
- * ever sent them. `paidUntil` is today so that, the day somebody takes the
- * complimentary mark off, the studio is due that day rather than years back.
+ * instruction (23/09/2026), so nobody is suddenly on the ladder for a bill
+ * nobody ever sent them. `paidUntil` is today so that, the day somebody takes
+ * the complimentary mark off, the studio is due that day rather than years back.
  */
-export function complimentary(input: { studioId: string; today: string; at: string; free?: boolean }): Subscription {
+export function complimentary(input: { studioId: string; today: string; at: string }): Subscription {
   return {
     studioId: input.studioId, kind: "comp", period: "monthly", anchorDay: dayOf(input.today),
-    paidUntil: input.today, seats: 0, free: Boolean(input.free), cancelAt: "",
+    paidUntil: input.today, seats: 0, cancelAt: "",
     seenEventIds: [], createdAt: input.at, updatedAt: input.at,
   };
 }
 
 export type BillingEvent = { id: string } & (
-  /** Money arrived for `periods` periods. */
-  | { type: "paid"; periods: number; amount?: number; currency?: string; method?: string; reference?: string }
+  /**
+   * Money arrived for `periods` periods — for the package and tier named here,
+   * which the studio moves to once this is applied: a package applies to the
+   * studio it was paid for, once paid.
+   */
+  | { type: "paid"; periods: number; amount?: number; currency?: string; method?: string; reference?: string; packageId?: string; tierId?: string; seats?: number }
   /** A payment that was counted came back — a bounced transfer, a chargeback. */
   | { type: "reversed"; periods: number; reason?: string }
   /** A charge was refused. Recorded for the history; it moves no date. */
@@ -167,7 +223,7 @@ export type BillingEvent = { id: string } & (
   | { type: "trial-extended"; until: string }
   | { type: "cancel" }
   | { type: "resume" }
-  | { type: "plan-changed"; seats?: number; free?: boolean; period?: BillingPeriod }
+  | { type: "plan-changed"; seats?: number; period?: BillingPeriod }
 );
 
 const SEEN_KEEP = 200;
@@ -177,18 +233,19 @@ const SEEN_KEEP = 200;
  * changed, and a problem ("" when there is none) — a refused event changes
  * nothing, and the problem names why so the console can say it.
  *
- * WHEN MONEY ARRIVES (`paid`) the new period runs from `paidUntil`, whether the
- * payment was early, on time or inside the grace months: a studio that kept
- * working through grace used those days and they are what it is paying for.
- * ONLY A STUDIO THAT HAD GONE READ-ONLY starts again from the day it paid, with
- * that day as its new anchor — it could not work while locked, so it is not
- * charged for the locked days.
+ * WHEN MONEY ARRIVES (`paid`):
+ *  - during Standard's free months, the paid package starts TODAY — paying early
+ *    is choosing the bigger package now, not queuing it behind the free months;
+ *  - on time, or late but still inside the open 20 days, the new period runs
+ *    from `paidUntil`: the studio worked through those days;
+ *  - once it has been closed or shut down, it starts again from the day it
+ *    paid, with that day as its new anchor — it could not work, so it is not
+ *    charged for the locked days.
  */
 export function applyEvent(
   sub: Subscription,
   event: BillingEvent,
   today: string,
-  graceMonths: number,
   at: string,
 ): { sub: Subscription; changed: boolean; problem: string } {
   const same = { sub, changed: false, problem: "" };
@@ -205,10 +262,12 @@ export function applyEvent(
       if (!(periods >= 1 && periods <= 36)) return refuse("bad-periods");
       // Money is not taken for what nompany gives away; the mark comes off first.
       if (sub.kind === "comp") return refuse("complimentary");
-      const lapsed = subscriptionStatus({ ...sub, cancelAt: "" }, today, graceMonths) === "read_only";
-      const start = lapsed ? today : sub.paidUntil;
-      const anchorDay = lapsed ? dayOf(today) : sub.anchorDay;
+      const locked = accessFor(subscriptionStatus(sub, today)) !== "full";
+      const restart = sub.kind === "trial" || locked;
+      const start = restart ? today : sub.paidUntil;
+      const anchorDay = restart ? dayOf(today) : sub.anchorDay;
       next = { ...next, kind: "paid", anchorDay, paidUntil: addMonths(start, periods * months, anchorDay), cancelAt: "" };
+      if (event.seats !== undefined) next.seats = Math.max(0, Math.trunc(Number(event.seats) || 0));
       break;
     }
     case "reversed": {
@@ -221,10 +280,11 @@ export function applyEvent(
       break;
     case "comp":
       if (event.on === (sub.kind === "comp")) return same;
-      // OFF MEANS DUE TODAY: the grace months start now, not years ago.
+      // OFF MEANS DUE TODAY: the ladder starts now, not years ago.
       next = event.on ? { ...next, kind: "comp", cancelAt: "" } : { ...next, kind: "paid", paidUntil: today, anchorDay: dayOf(today) };
       break;
     case "trial-extended":
+      // The free months can be lengthened by nompany; nothing starts them again.
       if (sub.kind !== "trial") return refuse("not-trial");
       if (!DAY.test(event.until) || event.until <= sub.paidUntil) return refuse("bad-date");
       next = { ...next, paidUntil: event.until };
@@ -240,7 +300,6 @@ export function applyEvent(
       break;
     case "plan-changed":
       if (event.seats !== undefined) next.seats = Math.max(0, Math.trunc(Number(event.seats) || 0));
-      if (event.free !== undefined) next.free = Boolean(event.free);
       if (event.period && BILLING_PERIODS.includes(event.period)) next.period = event.period;
       break;
     default:
@@ -250,4 +309,37 @@ export function applyEvent(
   next.seenEventIds = [...sub.seenEventIds, event.id].slice(-SEEN_KEEP);
   next.updatedAt = at;
   return { sub: next, changed: true, problem: "" };
+}
+
+// ---- what a request may do -------------------------------------------------
+
+/**
+ * STUDIO PATHS THAT STAY OPEN WHATEVER THE SUBSCRIPTION SAYS — each of them a
+ * read or a courtesy that changes no business record: marking a notification
+ * read, asking which rights one holds, the live stream the shell listens on.
+ * Everything else under /api/studios/<slug>/ answers to the ladder.
+ */
+const ALWAYS_OPEN = /^\/api\/studios\/[^/]+\/(notifications|access-check|stream)(\/|$)/;
+
+const READS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * WHETHER THIS REQUEST MAY GO AHEAD, or the refusal that says why. "" lets it
+ * through. The one decision the route wrapper and the routes outside it share,
+ * so the ladder cannot mean one thing in one door and another in the next.
+ *
+ *  - full        everything goes;
+ *  - view        reads go, changes are refused `studio-closed`;
+ *  - owner-only  members are refused everything `studio-shut-down`; the owner
+ *                may still read (downloading everything is reading) and change
+ *                nothing.
+ */
+export function gateRequest(
+  access: StudioAccess,
+  input: { method: string; path: string; isOwner: boolean },
+): "" | "studio-closed" | "studio-shut-down" {
+  if (access === "full" || ALWAYS_OPEN.test(input.path)) return "";
+  const read = READS.has(String(input.method).toUpperCase());
+  if (access === "owner-only") return input.isOwner && read ? "" : "studio-shut-down";
+  return read ? "" : "studio-closed";
 }

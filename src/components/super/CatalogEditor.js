@@ -529,32 +529,18 @@ function CatalogSettings({ config, onClose }) {
               Added on top of every price at checkout. Regional prices are set under Regional pricing.
             </p>
 
-            {/* HOW LONG A NEW STUDIO TRIES, AND HOW LONG AN UNPAID ONE KEEPS
-                WORKING. Read by the subscription rules as they stand when a
-                trial starts or a date is checked — a studio already mid-trial
-                keeps the end date it was given. */}
-            <div className="mt-5 grid grid-cols-2 gap-4">
-              <div>
-                <label className={label} htmlFor="trial-months">Trial</label>
-                <div className="flex items-center gap-2">
-                  <input id="trial-months" className={input} type="number" min="0" max="36" step="1"
-                    value={value.trialMonths ?? 3}
-                    onChange={(e) => { setValue({ ...value, trialMonths: e.target.value }); setSaved(false); }} />
-                  <span className="text-sm text-[var(--ad-muted-foreground)]">months</span>
-                </div>
-              </div>
-              <div>
-                <label className={label} htmlFor="grace-months">Grace</label>
-                <div className="flex items-center gap-2">
-                  <input id="grace-months" className={input} type="number" min="0" max="36" step="1"
-                    value={value.graceMonths ?? 3}
-                    onChange={(e) => { setValue({ ...value, graceMonths: e.target.value }); setSaved(false); }} />
-                  <span className="text-sm text-[var(--ad-muted-foreground)]">months</span>
-                </div>
-              </div>
+            {/* STANDARD'S FREE MONTHS, used only when the Standard package names no
+                Duration of its own — the package's figure wins, because it is
+                what its pricing card states. A studio mid-way keeps its date. */}
+            <label className={`${label} mt-5`} htmlFor="trial-months">Standard&apos;s free months</label>
+            <div className="flex items-center gap-2">
+              <input id="trial-months" className={input} type="number" min="0" max="36" step="1"
+                value={value.trialMonths ?? 3}
+                onChange={(e) => { setValue({ ...value, trialMonths: e.target.value }); setSaved(false); }} />
+              <span className="text-sm text-[var(--ad-muted-foreground)]">months</span>
             </div>
             <p className="mt-1.5 text-xs text-[var(--ad-muted-foreground)]">
-              A new studio&apos;s trial, and how long an unpaid studio keeps working before it becomes read-only.
+              Only when the Standard package has no Duration of its own. Unpaid studios close at 20 days, shut down at 90 and are deleted at 365.
             </p>
           </div>
         )}

@@ -29,7 +29,7 @@ import { listDepartments } from "@/modules/administration/departments";
 import { seedBuiltinTypes } from "@/platform/engine/builtins";
 import { ensureDefaultPlan } from "@/lib/data/catalog";
 import { loadCatalogues, costsNothing } from "@/lib/plans";
-import { startTrial } from "@/lib/data/subscriptions";
+import { startSubscription } from "@/lib/data/subscriptions";
 import { FIELDS_OF_WORK, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfWork";
 import {
   rootSectionsForTrade, sectionEnabledForTrade, tradeSuggestion, resolveSectionChoice, NEVER_GATED_KEYS, SECTION_NEEDS,
@@ -429,8 +429,9 @@ export async function createStudio(
     const seeded = await addCollaborator(id, { userId: ownerUserId, alias: ownerAlias, role: "owner" });
     if (seeded.error) throw new Error(`owner collaborator: ${seeded.error}`);
 
-    // THE TRIAL STARTS WITH THE STUDIO (the owner, 23/09/2026: the Free
-    // package lasts three months, then the studio picks a paid one).
+    // THE SUBSCRIPTION STARTS WITH THE STUDIO (the owner, 24/09/2026): a
+    // studio on Standard gets its free months; on anything else it is due today,
+    // because only Standard has a free period.
     // Written BEFORE the registry row, like the sections above, so a failure
     // here refuses the creation rather than leaving a studio with no
     // subscription — which would read as a pre-subscription studio and be
@@ -441,7 +442,7 @@ export async function createStudio(
       const { packages: pkgs, tiers: trs } = await loadCatalogues();
       const pkg = pkgs.find((p) => p.id === packageId) || null;
       const tier = trs.find((t) => t.id === tierId) || null;
-      await startTrial(id, { free: costsNothing(pkg, tier), months: Number(pkg?.durationMonths) || 0 });
+      await startSubscription(id, { free: costsNothing(pkg, tier), months: Number(pkg?.durationMonths) || 0 });
     }
 
     // THE CAP, AUTHORITATIVELY. `editArr` is a compare-and-set, so the rows this

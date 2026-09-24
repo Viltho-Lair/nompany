@@ -1,4 +1,5 @@
 import { currentUser } from "@/platform/auth/identity";
+import { subscriptionRefusal } from "@/platform/http/route";
 import { studioContext } from "@/lib/studios";
 import { requirePermission } from "@/platform/access";
 import { switchboard } from "@/lib/dashboardWidgets";
@@ -53,10 +54,13 @@ async function payload(context: Awaited<ReturnType<typeof studioContext>> & { er
   };
 }
 
-export async function GET(_request: Request, ctx: { params: Promise<Record<string, string>> }) {
+export async function GET(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const { slug } = await ctx.params;
   const { context, refused } = await load(slug);
   if (refused) return refused;
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(context, request);
+  if (lapsed) return lapsed;
   // THE SAME DOOR AS STUDIO SETTINGS — a member without it learns nothing,
   // including which country the Studio is in (invariant 2: contents, not
   // existence).
@@ -69,6 +73,9 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
   const { slug } = await ctx.params;
   const { context, refused } = await load(slug);
   if (refused) return refused;
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(context, request);
+  if (lapsed) return lapsed;
   if (requirePermission(context.access, "administration.settings.edit")) {
     return Response.json({ error: "forbidden" }, { status: 403 });
   }

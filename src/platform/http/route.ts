@@ -46,6 +46,31 @@ import { isCrossSite, MUTATING } from "./origin";
 import { withRequest, requestId } from "./observability";
 import { record as recordAudit, ACTOR } from "./audit";
 import { digestFor, beginIdempotent, finishIdempotent, abandonIdempotent } from "./idempotency";
+import { studioAccess } from "@/lib/data/subscriptions";
+import { gateRequest } from "@/shared/subscription";
+
+/**
+ * THE SUBSCRIPTION'S ANSWER TO THIS REQUEST, or null to let it through (the
+ * owner's ladder, 24/09/2026: closed at 20 days unpaid, shut down at 90). Asked
+ * once the studio and the caller are known, for EVERY studio route, through the
+ * one decision in shared/subscription — so a closed studio cannot be changed
+ * through a door somebody forgot. Exported for the few studio routes written
+ * outside this wrapper, which must ask the same question.
+ */
+export async function subscriptionRefusal(
+  context: { studio?: { id?: unknown }; collaborator?: unknown },
+  request: Request,
+): Promise<Response | null> {
+  const studioId = String(context.studio?.id || "");
+  if (!studioId) return null;
+  const { access } = await studioAccess(studioId);
+  const why = gateRequest(access, {
+    method: request.method,
+    path: new URL(request.url).pathname,
+    isOwner: (context.collaborator as { role?: unknown } | undefined)?.role === "owner",
+  });
+  return why ? refuse(why, statusFor(why)) : null;
+}
 
 /**
  * WHAT A ROUTE SPEC SAYS. Every field is optional except in combination: `body`
@@ -379,6 +404,8 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
       const studioId = String((context as { studio?: { id?: unknown } }).studio?.id || "");
       if (!onTill || studioId !== state.studioId) return { refusal: refuse("till-only", 403) };
     }
+    const lapsed = await subscriptionRefusal(context as Parameters<typeof subscriptionRefusal>[0], base.request as Request);
+    if (lapsed) return { refusal: lapsed };
     return { args: { ...base, user, ...context }, identity: String(user.id) };
   }
 
@@ -440,6 +467,11 @@ export function route<A = RouteArgs>(spec: RouteSpec<A>, handler: (args: A & Rou
     // that it happened must never delay it or fail it — the rule `events.emit()`
     // follows. The write is throttled to once an hour inside `touchKey`.
     void touchKey(resolved.studioId, resolved.keyId);
+
+    // A KEY ANSWERS TO THE SAME LADDER as a browser — an integration must not be
+    // the one way to keep writing into a closed studio.
+    const lapsed = await subscriptionRefusal(context as Parameters<typeof subscriptionRefusal>[0], base.request as Request);
+    if (lapsed) return { refusal: lapsed };
 
     return {
       args: { ...base, ...context, apiKeyId: resolved.keyId },

@@ -179,6 +179,12 @@ const SESSION_LOCKED = ["session-locked"];
 // 413 — the upload is bigger than the ceiling.
 const TOO_LARGE = ["too-large"];
 
+// 402 — THE STUDIO'S SUBSCRIPTION HAS LAPSED (the owner's ladder, 24/09/2026).
+// Not 403: nothing is wrong with who is asking, and paying is what changes the
+// answer. `studio-closed` refuses a change while everything stays readable;
+// `studio-shut-down` locks members out altogether (shared/subscription).
+const PAYMENT_REQUIRED = ["studio-closed", "studio-shut-down"];
+
 // 500 — OUR BUG, NOT THEIRS. `unknown-permission` means a route asked for a
 // permission key the catalogue does not define; no request the caller could
 // have sent would avoid it, so telling them "bad request" would be a lie that
@@ -192,6 +198,7 @@ const build = (): Readonly<Record<string, number>> => {
   put(FORBIDDEN, 403);
   put(NOT_FOUND, 404);
   put(CONFLICT, 409);
+  put(PAYMENT_REQUIRED, 402);
   put(TOO_LARGE, 413);
   put(SESSION_LOCKED, 423);
   put(PIN_REQUIRED, 428);

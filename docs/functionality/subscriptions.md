@@ -1,77 +1,107 @@
 # Subscriptions — what each studio has paid nompany for, and what it may do
 
-A studio's subscription to nompany: whether it is on trial, paid, complimentary or
-lapsed, until when, and how many members it has paid for. This is nompany billing its
-customers. It is not a studio's own Finance.
+A studio's subscription to nompany: whether it's on Standard's free period, paid,
+complimentary, or somewhere on the unpaid ladder, until when, and how many members it has
+paid for. This is nompany billing its customers. It is not a studio's own Finance.
+
+## The owner's rules (24/09/2026)
+
+These replaced a trial for every studio and a three-month grace (23/09/2026).
+
+- **Only Standard has a free period.** Standard (free, 1–4 users) gets three months per
+  studio, and they're optional: paying at any time ends them and starts the paid package
+  that day. **Paid packages have no trial and apply only once paid.** Nothing puts a studio
+  back on a free period once it has left one.
+- **The unpaid ladder**, counted in days from the date payment fell due. The invoice is
+  issued at the start of the period (day 0).
+
+  | Day | Status | What people can do |
+  |---|---|---|
+  | 0–19 | `due` | Everything, as normal |
+  | 20–89 | `closed` | View and export only. Nothing is created or changed |
+  | 90–364 | `shut_down` | Members are locked out. The owner can only read (pay and download everything) |
+  | 365 | `expired` | Deleted by `cron/studio-deletions`. **Not wired yet** (see below) |
+
+  **Paying at any point before deletion restores the studio at once.**
+- **A Standard studio at the end of its three months takes the same ladder, closed that
+  day**: there is no invoice it was late with. A cancellation that has taken effect is
+  read the same way (`cancelled`, view only).
 
 ## What it stores
 
 One document per studio at `g:subscription:<studioId>` (`BILLING.subscription`), holding
-the subscription **and its history** together, so an event and its history line are one
-compare-and-set. It is under `g:` deliberately: what a customer paid outlives the studio,
-so no studio cascade reaches it.
+the subscription **and its append-only history** together, so an event and its history
+line are one compare-and-set. It is under `g:` so no studio cascade reaches it. When a
+studio is deleted, its document is given an expiry ten years out (terms §10).
 
 | Field | Meaning |
 |---|---|
-| `kind` | `trial` (not paid yet), `paid`, or `comp` (given by nompany) |
+| `kind` | `trial` (Standard's free months), `paid`, or `comp` (given by nompany) |
 | `period` | `monthly` or `yearly` |
-| `anchorDay` | The day of the month it renews on. 31 renews on the last day of shorter months and returns to 31 |
-| `paidUntil` | The first day **not** covered (`YYYY-MM-DD`). For a trial, the day it ends |
+| `anchorDay` | The day of the month it renews on. 31 renews on the last day of short months and returns to 31 |
+| `paidUntil` | The first day **not** covered (`YYYY-MM-DD`). For a free period, the day it ends |
 | `seats` | Members paid for. 0 means the package's own ceiling |
-| `free` | The plan costs nothing (the Free package). **It ends**: when its time is up the studio is read-only at once, with no grace, unless it has picked a paid package. Set from the base price when the plan changes |
 | `cancelAt` | The day a cancellation takes effect, or `""` |
 | `seenEventIds` | The last 200 event ids applied, so a repeated event is applied once |
 
-The history is append-only. Each line records the event id and type, when, who (`super:<adminId>`
-or `system`), what the event carried, and the subscription before and after it.
+Older documents may still carry a `free` field from 23/09/2026. Nothing reads it.
 
-Catalogue settings gained `trialMonths` and `graceMonths`, both default **3** (the owner,
-23/09/2026), edited in the pricing settings dialog on the Packages screen.
+The catalogue settings keep `trialMonths` (default 3), used only when the Standard package
+names no Duration of its own. The old `graceMonths` setting is gone: the ladder is
+`LADDER` in `shared/subscription`.
 
 ## What it does
 
-- **The status is worked out, never stored** (`subscriptionStatus`, `shared/subscription`),
-  from the dates and today in **Amman time**. The checks run in this order: cancelled,
-  complimentary, trial, a Free package whose time is up (`read_only` at once — the owner,
-  23/09/2026: "Free package ends after 3 months unless the studio picks a paid package"),
-  paid (`active`), unpaid but inside the grace months
-  (`past_due`, still fully working), otherwise `read_only`. Nothing is deleted at any
-  status.
+- **The status is worked out, never stored** (`subscriptionStatus`), from the dates and
+  today in **Amman time**. `accessFor` turns a status into `full`, `view` or `owner-only`.
+- **One gate decides every request** (`gateRequest`, called through
+  `subscriptionRefusal` in `platform/http/route.ts`):
+  - `full`: everything goes.
+  - `view`: reads go; every change is refused with `studio-closed` (402).
+  - `owner-only`: members are refused everything with `studio-shut-down` (402); the owner
+    may read and change nothing.
+  - Always open: notifications, the access check, and the live stream.
+  - The wrapper asks on both the session path and the API-key path. So do the studio
+    routes written outside the wrapper (members, roles, join requests, deals, the settings
+    screens, overtimes, RFQs, technical settings, flows, the report builder's
+    non-preview actions) and uploads (`/api/media`). A shut-down studio's files are
+    refused to members too. **`subscription-model` fails if a new raw write route skips
+    the gate.**
+  - Requesting or cancelling a studio's deletion is always allowed to its owner.
+  - Support chat with nompany (`/api/chat/start`) is not gated, so a closed studio can
+    still reach nompany.
 - **Only a payment moves `paidUntil` forward; only a reversal moves it back.** A refused
   charge moves nothing and is only recorded.
-  - Paying before or on time, or during grace, extends from `paidUntil`. Days used during
-    grace are paid for.
-  - Paying **after going read-only** starts from the payment day, which becomes the new
-    anchor. Locked days are not charged.
-  - The same event id twice is applied once.
-- **New studios start on a trial** as long as their package's own Duration (months) — the
-  length the Free card on the pricing page states — or `trialMonths` when the package has
-  none. It is written at creation before the
-  registry row. **Studios that existed before subscriptions are complimentary**, planted on
-  their first read, so no script is needed (the owner, 23/09/2026).
-- **Taking complimentary off makes a studio due that day**, not years back. Money is
-  refused while it is complimentary.
-- **A cancellation takes effect at `paidUntil`.** Paying or resuming clears it.
-- **Seats block**: a join request is refused with `member-limit` once members reach the
-  subscription's seats, or the package's ceiling when seats are 0 (`memberLimitOf`). This
-  also closed a gap: a **compound** package has no package-level ceiling, so a studio on
-  one had no member limit at all.
+  - During Standard's free period, the paid package starts **today**.
+  - Paid on time or within the open 20 days, the new period runs from the due date.
+  - Once closed or shut down, it starts again from the payment day (the new anchor);
+    locked days are not charged.
+  - A payment may name the **package, tier and seats** it is for. The studio moves onto
+    that package only once the payment is applied, and only the first time.
+- **New studios** start on Standard's free months (the package's own Duration, else
+  `trialMonths`). A studio created on a paid package is due the same day. **Studios that
+  existed before subscriptions are complimentary**, planted on first read.
+- **The studio sees it.**
+  - A banner above every screen when payment is due, the studio is closed or cancelled,
+    or Standard's free period ends within 14 days.
+  - Once shut down, the studio is replaced by one screen. Like the not-a-member screen,
+    the page itself never renders. The owner is told what's kept and until when; a member
+    is told only the owner can reopen it.
 - **The console:** `/super → Studios` shows each studio's subscription status and
-  paid-until date, and groups studios by subscription. The studio dialog's Subscription
-  panel can record a payment received (periods, amount, currency, bank reference), reverse
-  one that bounced, set seats and period, extend a trial, switch complimentary on or off,
-  cancel and resume, and shows the history. Every action sends an event id minted before
-  it is sent, so a retried press is one event.
+  paid-until date and groups studios by status. The studio dialog's Subscription panel
+  shows the ladder's dates and can record a payment (with the package and tier it's for),
+  reverse one, set seats and period, extend a free period, switch complimentary on or off,
+  and cancel or resume, with the history underneath.
 
 ## Not built yet
 
-- **Read-only is not enforced.** The status is worked out and shown, and `canWrite` says
-  what may write, but no route consults it yet. A read-only studio can still create.
-  **This is the next step.**
-- **Past-due reminders**, renewal emails and a renewal job: nothing sends anything yet.
-- **No invoice, credit note or JoFotara submission** is produced by a recorded payment.
-- **No checkout and no payment provider.** Every payment is recorded by hand in the
-  console.
-- **The studio owner cannot see their subscription** (no Billing page in studio Settings).
-- **A package's Duration (months) is only the length of a new studio's trial.** On a paid
-  package it is not yet a fixed term after which renewal stops.
+- **Deletion at 365 days.** `expired` is computed, but `cron/studio-deletions` only
+  deletes studios whose **owner** asked. Wiring expired studios into it comes with the
+  export and warning emails (step 6), since the terms promise warnings first.
+- **Warning emails** (30, 7 and 1 days before shut-down and deletion) and payment
+  reminders. The terms promise these from 24/10/2026.
+- **Download everything** for a shut-down studio's owner. The shut-down screen draws no
+  button for it rather than one that does nothing.
+- **Invoices, credit notes and JoFotara**, **checkout**, and the owner's **Billing page**.
+  "Pay" links to the contact page until then.
+- **Seat limits at every door** (step 2) and the **upgrade button** (step 3).

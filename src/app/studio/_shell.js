@@ -8,6 +8,7 @@ import { getProfile } from "@/platform/auth/users";
 import { getIndex } from "@/platform/db/store";
 import { IX } from "@/platform/db/keys";
 import { loadCatalogues, planOf, hasLiveChat } from "@/lib/plans";
+import { studioBilling } from "@/lib/data/subscriptions";
 import { chatDisplayName } from "@/lib/chatConstants";
 import { studioLocale, preferredLocale, UI_LANG_COOKIE } from "@/shared/i18n";
 import { chatsUsed, allowanceOf } from "@/lib/data/chatUsage";
@@ -180,7 +181,10 @@ export const studioShell = cache(async () => {
   if (core.error) return core;
 
   const { user, studio, collaborator } = core;
-  const [catalogues, profile] = await Promise.all([loadCatalogues(), getProfile(user.id)]);
+  // THE SUBSCRIPTION rides with the plan: the banner and the shut-down screen
+  // are shell furniture too, and read the same one small document the API's
+  // gate reads (lib/data/subscriptions).
+  const [catalogues, profile, billing] = await Promise.all([loadCatalogues(), getProfile(user.id), studioBilling(studio.id)]);
   const plan = planOf(studio, catalogues.packages, catalogues.tiers);
 
   // Whether the package includes live chat with nompany at all, and how much of
@@ -195,5 +199,5 @@ export const studioShell = cache(async () => {
     ...allowanceOf(chatUsed, plan.chatPerMonth),
   };
 
-  return { ...core, plan, chat };
+  return { ...core, plan, chat, billing };
 });

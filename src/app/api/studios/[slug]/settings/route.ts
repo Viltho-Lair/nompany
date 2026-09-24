@@ -7,7 +7,7 @@ import { isKnownCurrency, crossRate } from "@/shared/currencies";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { currentUser } from "@/platform/auth/identity";
 import { studioContext, type StudioMembership } from "@/lib/studios";
-import { route } from "@/platform/http/route";
+import { route, subscriptionRefusal } from "@/platform/http/route";
 import { updateStudio, tradeSuggestionFor } from "@/modules/main/studios";
 import { studioLocale, isLocale, defaultLocale } from "@/shared/i18n";
 import { ALL_PERMISSIONS } from "@/platform/access/catalogue";
@@ -346,6 +346,13 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     return updated
       ? Response.json({ ok: true, studio: clean(updated) })
       : Response.json({ error: "notfound" }, { status: 404 });
+  }
+
+  // EVERYTHING BELOW ANSWERS TO THE SUBSCRIPTION; asking for deletion (above)
+  // does not — an owner may always choose to end a studio, closed or not.
+  {
+    const lapsed = await subscriptionRefusal(context, request);
+    if (lapsed) return lapsed;
   }
 
   // RENAMING is the owner's call and takes effect immediately — the address

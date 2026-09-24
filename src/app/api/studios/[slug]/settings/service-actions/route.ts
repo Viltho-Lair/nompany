@@ -1,4 +1,5 @@
 import { currentUser } from "@/platform/auth/identity";
+import { subscriptionRefusal } from "@/platform/http/route";
 import { studioContext } from "@/lib/studios";
 import { requirePermission } from "@/platform/access";
 import { updateStudio } from "@/modules/main/studios";
@@ -48,6 +49,9 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   const { slug } = await ctx.params;
   const { context, body } = await payload(user, slug);
   if (context.error) return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(context, request);
+  if (lapsed) return lapsed;
   return Response.json(body);
 }
 
@@ -57,6 +61,9 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
   const { slug } = await ctx.params;
   const context = await studioContext(user, slug);
   if (context.error) return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(context, request);
+  if (lapsed) return lapsed;
   if (requirePermission(context.access, "administration.settings.edit")) return Response.json({ error: "forbidden" }, { status: 403 });
 
   const { studio } = context;

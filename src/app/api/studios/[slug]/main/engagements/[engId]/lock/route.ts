@@ -1,4 +1,4 @@
-import { refused } from "@/platform/http/route";
+import { refused, subscriptionRefusal } from "@/platform/http/route";
 import { statusFor } from "@/platform/http/httpStatus";
 import { currentUser } from "@/platform/auth/identity";
 import { mainContext } from "@/modules/main/main";
@@ -24,6 +24,9 @@ export async function POST(request: Request, ctx: { params: Promise<Record<strin
     const status = main.error === "notfound" ? 404 : 403;
     return Response.json({ error: main.error }, { status });
   }
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(main, request);
+  if (lapsed) return lapsed;
 
   let body: unknown = null;
   try { body = await request.json(); } catch { body = null; }

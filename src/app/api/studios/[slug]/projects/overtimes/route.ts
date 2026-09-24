@@ -1,4 +1,4 @@
-import { refused, type Guarded } from "@/platform/http/route";
+import { refused, type Guarded, subscriptionRefusal } from "@/platform/http/route";
 import { sectionOffRefusal } from "@/platform/http/sectionRoutes";
 import type { ProjectsContext } from "@/modules/projects/types";
 import { currentUser } from "@/platform/auth/identity";
@@ -24,6 +24,9 @@ async function guard(
   // uses, asked by hand because this route predates the wrapper.
   const off = sectionOffRefusal(request, ctx.sections);
   if (off) return { fail: off };
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(ctx, request);
+  if (lapsed) return { fail: lapsed };
   if (!ctx.canManageOvertimes) return { fail: Response.json({ error: "read-only" }, { status: 403 }) };
   return ctx;
 }

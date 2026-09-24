@@ -1,4 +1,4 @@
-import { refused, route } from "@/platform/http/route";
+import { refused, route, subscriptionRefusal } from "@/platform/http/route";
 import { sectionOffRefusal } from "@/platform/http/sectionRoutes";
 import { valuesFor } from "@/modules/administration/taxonomy";
 import { nextNumberForSequence } from "@/modules/technical/technical";
@@ -135,6 +135,11 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
   {
     const off = sectionOffRefusal(request, tech.sections);
     if (off) return off;
+  }
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  {
+    const lapsed = await subscriptionRefusal(tech, request);
+    if (lapsed) return lapsed;
   }
   if (!tech.canManageSettings) return Response.json({ error: "read-only" }, { status: 403 });
 

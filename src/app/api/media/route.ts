@@ -1,4 +1,5 @@
 import { currentUser } from "@/platform/auth/identity";
+import { subscriptionRefusal } from "@/platform/http/route";
 import { studioContext } from "@/lib/studios";
 import { putMedia } from "@/lib/media";
 
@@ -40,6 +41,9 @@ export async function POST(request: Request) {
     if (context.error) {
       return Response.json({ error: context.error }, { status: context.error === "notfound" ? 404 : 403 });
     }
+    // AN UPLOAD INTO A CLOSED STUDIO IS A CHANGE LIKE ANY OTHER (24/09/2026).
+    const lapsed = await subscriptionRefusal(context, request);
+    if (lapsed) return lapsed;
     studioId = context.studio.id;
   } else if (isPrivate) {
     // Refused rather than quietly stored as a personal file: a private upload

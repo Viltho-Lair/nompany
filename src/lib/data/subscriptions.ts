@@ -17,8 +17,8 @@ import { getJSON, getJSONMany, editJSON } from "@/platform/db/store";
 import { BILLING } from "@/platform/db/keys";
 import { getCatalogSettings } from "@/lib/data/catalog";
 import {
-  applyEvent, billingDay, complimentary, newTrial, subscriptionStatus,
-  type BillingEvent, type Subscription,
+  accessFor, applyEvent, billingDay, complimentary, daysBetween, ladderDates, newTrial, subscriptionStatus,
+  type BillingEvent, type StudioAccess, type Subscription, type SubscriptionStatus,
 } from "@/shared/subscription";
 
 export type HistoryEntry = {
@@ -50,26 +50,42 @@ export async function getSubscription(studioId: string): Promise<Doc> {
 }
 
 /**
- * A NEW STUDIO'S TRIAL, written at creation. Never overwrites: a document that
- * is already there wins, so a retried creation cannot restart somebody's trial.
+ * A NEW STUDIO'S SUBSCRIPTION, written at creation. Never overwrites: a document
+ * already there wins, so a retried creation cannot restart somebody's months.
  *
- * ITS LENGTH IS THE PACKAGE'S OWN DURATION when the package has one, and the
- * catalogue's trial setting otherwise. The Free card on the pricing page says
- * "Free for 3 months" FROM that duration, so reading anything else here would
- * let the page promise one length and the studio get another.
+ * ONLY STANDARD HAS A FREE PERIOD (the owner, 24/09/2026). A studio created on
+ * a package that costs nothing gets its free months — as long as the package's
+ * own Duration, the figure its pricing card states, or the catalogue's trial
+ * setting when the package has none. A studio created on anything else is DUE
+ * TODAY: a paid package has no trial and applies once paid.
  */
-export async function startTrial(studioId: string, input: { free: boolean; seats?: number; months?: number }) {
+export async function startSubscription(studioId: string, input: { free: boolean; months?: number }) {
   const settings = await getCatalogSettings();
   const trialMonths = Number(input.months) > 0 ? Math.trunc(Number(input.months)) : settings.trialMonths;
   const at = new Date().toISOString();
+  const today = billingDay(at);
   return editJSON<Doc, Doc>(BILLING.subscription(studioId), (cur) => {
     if (cur?.subscription) return { result: cur };
-    const doc: Doc = {
-      subscription: newTrial({ studioId, today: billingDay(at), trialMonths, free: input.free, seats: input.seats, at }),
-      history: [],
-    };
+    const subscription = input.free
+      ? newTrial({ studioId, today, trialMonths, at })
+      : { ...newTrial({ studioId, today, trialMonths: 0, at }), kind: "paid" as const };
+    const doc: Doc = { subscription, history: [] };
     return { next: doc, result: doc };
   });
+}
+
+/**
+ * WHAT THIS STUDIO MAY DO RIGHT NOW — the one question every write route asks
+ * (platform/http/route and the handful of routes outside it). Read, never
+ * written: a studio with no document predates subscriptions and is
+ * complimentary, which is exactly what `getSubscription` would plant, so
+ * answering "full" here without planting it is the same answer one write sooner.
+ */
+export async function studioAccess(studioId: string): Promise<{ status: SubscriptionStatus; access: StudioAccess }> {
+  const stored = await getJSON<Doc>(BILLING.subscription(studioId));
+  if (!stored?.subscription) return { status: "complimentary", access: "full" };
+  const status = subscriptionStatus(stored.subscription, billingDay());
+  return { status, access: accessFor(status) };
 }
 
 /**
@@ -79,7 +95,6 @@ export async function startTrial(studioId: string, input: { free: boolean; seats
  */
 export async function recordEvent(studioId: string, event: BillingEvent, by: string) {
   await getSubscription(studioId);
-  const { graceMonths } = await getCatalogSettings();
   const at = new Date().toISOString(); // outside the closure: editJSON re-runs it per CAS round.
   const today = billingDay(at);
   return editJSON<Doc, { subscription: Subscription; changed: boolean; problem: string }>(
@@ -87,7 +102,7 @@ export async function recordEvent(studioId: string, event: BillingEvent, by: str
     (cur) => {
       const doc = cur?.subscription ? cur : null;
       if (!doc) return { result: { subscription: null as unknown as Subscription, changed: false, problem: "notfound" } };
-      const out = applyEvent(doc.subscription, event, today, graceMonths, at);
+      const out = applyEvent(doc.subscription, event, today, at);
       if (!out.changed) return { result: { subscription: doc.subscription, changed: false, problem: out.problem } };
       const { id, type, ...detail } = event;
       const entry: HistoryEntry = { id, type, at, by, detail, before: snap(doc.subscription), after: snap(out.sub) };
@@ -103,14 +118,27 @@ export async function recordEvent(studioId: string, event: BillingEvent, by: str
  * becomes one for real the first time its own subscription is read.
  */
 export async function listSubscriptions(studioIds: string[]) {
-  const [docs, { graceMonths }] = await Promise.all([
-    getJSONMany<Doc>(studioIds.map((id) => BILLING.subscription(id))),
-    getCatalogSettings(),
-  ]);
+  const docs = await getJSONMany<Doc>(studioIds.map((id) => BILLING.subscription(id)));
   const at = new Date().toISOString();
   const today = billingDay(at);
   return studioIds.map((studioId, i) => {
     const sub = docs[i]?.subscription || complimentary({ studioId, today, at });
-    return { studioId, subscription: sub, status: subscriptionStatus(sub, today, graceMonths) };
+    return { studioId, subscription: sub, status: subscriptionStatus(sub, today), dates: ladderDates(sub) };
   });
+}
+
+/**
+ * WHAT THE STUDIO'S OWN SCREENS SAY ABOUT ITS SUBSCRIPTION — the status, what
+ * it allows, and the ladder's dates — for the shell's banner and the shut-down
+ * screen. Read-only, like `studioAccess`, and for the same reason.
+ */
+export async function studioBilling(studioId: string) {
+  const stored = await getJSON<Doc>(BILLING.subscription(studioId));
+  const today = billingDay();
+  if (!stored?.subscription) return { status: "complimentary" as SubscriptionStatus, access: "full" as StudioAccess, kind: "comp", paidUntil: today, daysLeft: 0, dates: null };
+  const sub = stored.subscription;
+  const status = subscriptionStatus(sub, today);
+  // Days until what is paid (or free) runs out — worked out here, on the
+  // server's clock in Amman time, so a screen never reads its own.
+  return { status, access: accessFor(status), kind: sub.kind, paidUntil: sub.paidUntil, daysLeft: daysBetween(today, sub.paidUntil), dates: ladderDates(sub) };
 }

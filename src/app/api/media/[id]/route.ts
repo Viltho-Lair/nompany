@@ -1,4 +1,5 @@
 import { currentUser } from "@/platform/auth/identity";
+import { studioAccess } from "@/lib/data/subscriptions";
 import { getStudioById } from "@/modules/main/studios";
 import { getCollaboratorByUser } from "@/platform/auth/collaborators";
 import { getMedia, readMedia } from "@/lib/media";
@@ -71,7 +72,12 @@ async function refuse(media: { visibility?: string; studioId?: string; owner?: s
     // first — the id is already on the record.
     const studio = await getStudioById(media.studioId);
     const member = studio && (await getCollaboratorByUser(studio.id, String(user.id)));
-    return member ? null : new Response("Not found", { status: 404 });
+    if (!member) return new Response("Not found", { status: 404 });
+    // A SHUT-DOWN STUDIO'S FILES are its owner's alone to download (24/09/2026)
+    // — a member locked out of the studio is locked out of its files too.
+    const { access } = await studioAccess(studio.id);
+    if (access === "owner-only" && member.role !== "owner") return new Response("Not found", { status: 404 });
+    return null;
   }
 
   // No studio: a personal file, readable by the account that uploaded it. An

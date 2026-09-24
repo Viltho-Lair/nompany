@@ -1,9 +1,10 @@
-// A STUDIO'S SUBSCRIPTION, PURELY — dates, statuses and payment events, with
-// "today" passed in so a year of renewals runs in milliseconds. No store.
+// A STUDIO'S SUBSCRIPTION, PURELY — dates, the unpaid ladder, payment events and
+// what a request may do, with "today" passed in so a year runs in milliseconds.
 //
 // EVERY BLOCK IS A WAY A CUSTOMER WOULD BE WRONGED: charged twice for one
-// payment, locked out while paid up, kept working for nothing, or charged for
-// days they could not use. Those are the four things this file exists to stop.
+// payment, locked out while paid up, kept working for nothing, charged for days
+// they could not use, or given back a free period the owner said never returns.
+// The rules are the owner's of 24/09/2026 (shared/subscription's header).
 
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -20,102 +21,133 @@ const ok = (label, cond, extra = "") => {
 };
 
 const AT = "2026-01-01T00:00:00.000Z";
-const GRACE = 3;
-const paid = (sub, id, periods, today) => S.applyEvent(sub, { id, type: "paid", periods }, today, GRACE, AT);
-const status = (sub, today) => S.subscriptionStatus(sub, today, GRACE);
+const paid = (sub, id, periods, today, extra = {}) => S.applyEvent(sub, { id, type: "paid", periods, ...extra }, today, AT);
+const status = (sub, today) => S.subscriptionStatus(sub, today);
+const plus = (day, n) => S.addDays(day, n);
 
 console.log("\n== a month is a calendar month, anchored");
 
 ok("31 January + 1 month is 28 February", S.addMonths("2026-01-31", 1) === "2026-02-28");
 ok("...and a leap February keeps the 29th", S.addMonths("2028-01-31", 1) === "2028-02-29");
 ok("the anchor brings it back to the 31st in March", S.addMonths("2026-02-28", 1, 31) === "2026-03-31");
-ok("...and to the 30th in April", S.addMonths("2026-03-31", 1, 31) === "2026-04-30");
 ok("twelve months is a year", S.addMonths("2026-09-14", 12) === "2027-09-14");
-ok("December rolls into January", S.addMonths("2026-12-15", 1) === "2027-01-15");
 ok("walking back works the same way", S.addMonths("2026-03-31", -1, 31) === "2026-02-28");
+ok("days are counted across a month end", S.addDays("2026-01-25", 20) === "2026-02-14");
+ok("...and between two days", S.daysBetween("2026-01-25", "2026-02-14") === 20);
 
-console.log("\n== a new studio is on trial, then must pay — the Free package included");
+console.log("\n== the unpaid ladder: due, closed at 20, shut down at 90, deleted at 365");
 
-const trial = S.newTrial({ studioId: "s1", today: "2026-01-14", trialMonths: 3, free: false, at: AT });
-ok("the trial runs three months", trial.paidUntil === "2026-04-14" && trial.kind === "trial");
-ok("inside it the studio is on trial", status(trial, "2026-04-13") === "trial");
-ok("the day it ends, an unpaid studio is past due — still working", status(trial, "2026-04-14") === "past_due");
-ok("...for the three grace months", status(trial, "2026-07-13") === "past_due");
-ok("...then read-only", status(trial, "2026-07-14") === "read_only");
+const onPaid = { ...S.newTrial({ studioId: "s1", today: "2026-01-14", trialMonths: 0, at: AT }), kind: "paid" };
+const due = onPaid.paidUntil; // 2026-01-14
+ok("a paid package created without paying is due that day", status(onPaid, due) === "due");
+ok("...and still fully working", S.accessFor(status(onPaid, due)) === "full");
+ok("day 19 is still due", status(onPaid, plus(due, 19)) === "due");
+ok("DAY 20 IT IS CLOSED — view and export only", status(onPaid, plus(due, 20)) === "closed"
+  && S.accessFor(status(onPaid, plus(due, 20))) === "view");
+ok("day 89 is still closed", status(onPaid, plus(due, 89)) === "closed");
+ok("DAY 90 IT IS SHUT DOWN — owner only", status(onPaid, plus(due, 90)) === "shut_down"
+  && S.accessFor(status(onPaid, plus(due, 90))) === "owner-only");
+ok("DAY 365 IT IS DUE FOR DELETION", status(onPaid, plus(due, 365)) === "expired");
+const dates = S.ladderDates(onPaid);
+ok("the ladder's dates are stated", dates.closesOn === plus(due, 20) && dates.shutsDownOn === plus(due, 90) && dates.deletedOn === plus(due, 365));
 
-// THE FREE PACKAGE ENDS (the owner, 23/09/2026): three months, then a paid
-// package or read-only — and no grace, because nothing was ever due to be late.
-const freeTrial = { ...trial, free: true };
-ok("the Free package is a trial while it runs", status(freeTrial, "2026-04-13") === "trial");
-ok("THE DAY IT ENDS THE STUDIO IS READ-ONLY — no grace on a free plan", status(freeTrial, "2026-04-14") === "read_only");
-const upgraded = S.applyEvent(freeTrial, { id: "u1", type: "plan-changed", free: false }, "2026-04-20", GRACE, AT);
-ok("picking a paid package after it ended gives the grace months to pay in", status(upgraded.sub, "2026-04-20") === "past_due");
-ok("...and paying then reactivates it", status(paid(upgraded.sub, "u2", 1, "2026-04-20").sub, "2026-04-20") === "active");
+console.log("\n== only Standard has a free period, and it closes the day it ends");
 
-console.log("\n== an old studio is complimentary and never lapses");
+const std = S.newTrial({ studioId: "s2", today: "2026-01-14", trialMonths: 3, at: AT });
+ok("Standard's free months run three months", std.paidUntil === "2026-04-14" && std.kind === "trial");
+ok("inside them the studio is on its free period", status(std, "2026-04-13") === "trial");
+ok("THE DAY THEY END IT IS CLOSED — no 20 open days, nothing was invoiced", status(std, "2026-04-14") === "closed");
+ok("...shut down 90 days later", status(std, plus("2026-04-14", 90)) === "shut_down");
+ok("...deleted at a year", status(std, plus("2026-04-14", 365)) === "expired");
+ok("its dates say it closes on the day", S.ladderDates(std).closesOn === "2026-04-14");
 
-const comp = S.complimentary({ studioId: "s0", today: "2026-09-23", at: AT });
-ok("a pre-subscription studio is complimentary", status(comp, "2026-09-23") === "complimentary");
-ok("...years later too", status(comp, "2031-01-01") === "complimentary");
-const noPayForComp = paid(comp, "e1", 1, "2026-09-23");
-ok("money is refused while complimentary", noPayForComp.problem === "complimentary" && !noPayForComp.changed);
-const compOff = S.applyEvent(comp, { id: "c1", type: "comp", on: false }, "2026-10-05", GRACE, AT);
-ok("taking complimentary off makes it due THAT day, not years back",
-  compOff.sub.paidUntil === "2026-10-05" && status(compOff.sub, "2026-10-05") === "past_due");
+console.log("\n== paying");
 
-console.log("\n== a payment extends from paid-until, once");
+const early = paid(std, "p1", 1, "2026-02-01", { packageId: "pkg_growth" });
+ok("PAYING DURING THE FREE PERIOD STARTS THE PAID PACKAGE TODAY", early.sub.paidUntil === "2026-03-01", early.sub.paidUntil);
+ok("...and it is no longer a free period", early.sub.kind === "paid" && status(early.sub, "2026-02-01") === "active");
+ok("the same payment twice extends once", !paid(early.sub, "p1", 1, "2026-02-01").changed);
 
-const onTime = paid(trial, "p1", 1, "2026-04-10");
-ok("paying before the trial ends keeps the trial days", onTime.sub.paidUntil === "2026-05-14", onTime.sub.paidUntil);
-ok("...and the studio is active", status(onTime.sub, "2026-04-20") === "active");
-const again = paid(onTime.sub, "p1", 1, "2026-04-10");
-ok("THE SAME EVENT TWICE EXTENDS ONCE", !again.changed && again.sub.paidUntil === "2026-05-14");
+const onTime = paid(onPaid, "p2", 1, plus(due, 5));
+ok("paid late but within the open 20 days, the period runs from the due date", onTime.sub.paidUntil === "2026-02-14", onTime.sub.paidUntil);
+const afterClose = paid(onPaid, "p3", 1, plus(due, 30));
+ok("PAID ONCE CLOSED, it starts again from the payment day — the closed days are not charged",
+  afterClose.sub.paidUntil === S.addMonths(plus(due, 30), 1), afterClose.sub.paidUntil);
+ok("...and it is open again at once", status(afterClose.sub, plus(due, 30)) === "active");
+const afterShut = paid(onPaid, "p4", 1, plus(due, 200));
+ok("paying while shut down restores it at once", status(afterShut.sub, plus(due, 200)) === "active");
+ok("paying with a seat count sets the seats", paid(onPaid, "p5", 1, due, { seats: 12 }).sub.seats === 12);
+ok("money is refused while complimentary",
+  paid(S.complimentary({ studioId: "c", today: due, at: AT }), "p6", 1, due).problem === "complimentary");
+ok("periods outside 1–36 are refused", paid(onPaid, "bad", 0, due).problem === "bad-periods");
 
-const inGrace = paid(trial, "p2", 1, "2026-06-01");
-ok("paying during grace runs on from paid-until — those days were used",
-  inGrace.sub.paidUntil === "2026-05-14", inGrace.sub.paidUntil);
-ok("...so a studio two periods behind pays for both to catch up", paid(trial, "p3", 2, "2026-06-01").sub.paidUntil === "2026-06-14");
+console.log("\n== the free period never comes back");
 
-const lapsed = paid(trial, "p4", 1, "2026-08-02");
-ok("PAYING AFTER GOING READ-ONLY STARTS FROM THE PAYMENT DAY — the locked days are not charged",
-  lapsed.sub.paidUntil === "2026-09-02", lapsed.sub.paidUntil);
-ok("...and that day becomes the new anchor", lapsed.sub.anchorDay === 2);
-ok("...and it is active again at once", status(lapsed.sub, "2026-08-02") === "active");
+// NOTHING PUTS A STUDIO BACK ON A FREE PERIOD ONCE IT HAS LEFT ONE (24/09/2026).
+ok("once paid, the free period cannot be extended back into existence",
+  S.applyEvent(early.sub, { id: "t1", type: "trial-extended", until: "2027-01-01" }, "2026-02-02", AT).problem === "not-trial");
+ok("taking complimentary off makes it due that day, not a free period",
+  S.applyEvent(S.complimentary({ studioId: "c", today: due, at: AT }), { id: "c1", type: "comp", on: false }, due, AT).sub.kind === "paid");
 
-const yearly = { ...onTime.sub, period: "yearly" };
-ok("a yearly period is twelve months", paid(yearly, "y1", 1, "2026-05-01").sub.paidUntil === "2027-05-14");
-ok("periods outside 1–36 are refused", paid(trial, "bad", 0, "2026-04-10").problem === "bad-periods");
+console.log("\n== refusals and reversals");
 
-console.log("\n== a refusal moves nothing; a reversal moves back");
+const failed = S.applyEvent(onTime.sub, { id: "f1", type: "failed", reason: "declined" }, "2026-02-14", AT);
+ok("a refused charge takes away no paid day", failed.sub.paidUntil === onTime.sub.paidUntil);
+const bounced = S.applyEvent(onTime.sub, { id: "r1", type: "reversed", periods: 1 }, plus(due, 25), AT);
+ok("a bounced transfer takes back the period it bought", bounced.sub.paidUntil === due);
+ok("...which can close the studio again", status(bounced.sub, plus(due, 25)) === "closed");
 
-const failed = S.applyEvent(onTime.sub, { id: "f1", type: "failed", reason: "card declined" }, "2026-05-14", GRACE, AT);
-ok("a refused charge takes away no paid day", failed.sub.paidUntil === onTime.sub.paidUntil && failed.changed);
-const bounced = S.applyEvent(onTime.sub, { id: "r1", type: "reversed", periods: 1 }, "2026-04-20", GRACE, AT);
-ok("a bounced transfer takes back the period it bought", bounced.sub.paidUntil === "2026-04-14");
-ok("...which can make the studio past due again", status(bounced.sub, "2026-04-20") === "past_due");
+console.log("\n== cancelling");
 
-console.log("\n== cancelling ends at the end of what was paid");
+const cancelled = S.applyEvent(onTime.sub, { id: "x1", type: "cancel" }, "2026-01-20", AT);
+ok("a cancellation takes effect at paid-until", cancelled.sub.cancelAt === "2026-02-14");
+ok("...the studio works until then", status(cancelled.sub, "2026-02-13") === "active");
+ok("...and from then it is cancelled — view only, no 20 open days", status(cancelled.sub, "2026-02-14") === "cancelled"
+  && S.accessFor("cancelled") === "view");
+ok("resuming clears it", S.applyEvent(cancelled.sub, { id: "x2", type: "resume" }, "2026-01-21", AT).sub.cancelAt === "");
 
-const cancelled = S.applyEvent(onTime.sub, { id: "x1", type: "cancel" }, "2026-04-20", GRACE, AT);
-ok("a cancellation takes effect at paid-until", cancelled.sub.cancelAt === "2026-05-14");
-ok("...the studio works until then", status(cancelled.sub, "2026-05-13") === "active");
-ok("...and is cancelled from then", status(cancelled.sub, "2026-05-14") === "cancelled");
-const resumed = S.applyEvent(cancelled.sub, { id: "x2", type: "resume" }, "2026-04-21", GRACE, AT);
-ok("resuming clears it", resumed.sub.cancelAt === "");
-ok("paying clears a cancellation too", paid(cancelled.sub, "x3", 1, "2026-05-01").sub.cancelAt === "");
+console.log("\n== what a request may do");
 
-console.log("\n== the rest");
-
-const extended = S.applyEvent(trial, { id: "t1", type: "trial-extended", until: "2026-06-01" }, "2026-02-01", GRACE, AT);
-ok("a trial can be extended to a later day", extended.sub.paidUntil === "2026-06-01");
-ok("...not to an earlier one", S.applyEvent(trial, { id: "t2", type: "trial-extended", until: "2026-03-01" }, "2026-02-01", GRACE, AT).problem === "bad-date");
-ok("...and only a trial", S.applyEvent(onTime.sub, { id: "t3", type: "trial-extended", until: "2027-01-01" }, "2026-05-01", GRACE, AT).problem === "not-trial");
-const seats = S.applyEvent(trial, { id: "s1", type: "plan-changed", seats: 25, period: "yearly" }, "2026-02-01", GRACE, AT);
-ok("seats and period change without moving a date", seats.sub.seats === 25 && seats.sub.period === "yearly" && seats.sub.paidUntil === trial.paidUntil);
-ok("an event with no id is refused", S.applyEvent(trial, { id: "", type: "cancel" }, "2026-02-01", GRACE, AT).problem === "missing-id");
-ok("only trial, active, complimentary and past due may write",
-  ["trial", "active", "complimentary", "past_due"].every(S.canWrite) && !S.canWrite("read_only") && !S.canWrite("cancelled"));
+const gate = (access, method, path, isOwner = false) => S.gateRequest(access, { method, path, isOwner });
+const P = "/api/studios/acme/sales";
+ok("a working studio lets everything through", gate("full", "POST", P) === "" && gate("full", "DELETE", P) === "");
+ok("a closed studio can be read", gate("view", "GET", P) === "");
+ok("A CLOSED STUDIO CANNOT BE CHANGED", gate("view", "POST", P) === "studio-closed"
+  && gate("view", "PUT", P) === "studio-closed" && gate("view", "PATCH", P) === "studio-closed" && gate("view", "DELETE", P) === "studio-closed");
+ok("...not even by its owner", gate("view", "POST", P, true) === "studio-closed");
+ok("A SHUT-DOWN STUDIO LOCKS MEMBERS OUT, reads included", gate("owner-only", "GET", P) === "studio-shut-down");
+ok("...while its owner may still read (download everything is reading)", gate("owner-only", "GET", P, true) === "");
+ok("...but may change nothing", gate("owner-only", "POST", P, true) === "studio-shut-down");
+ok("marking a notification read stays open", gate("view", "PATCH", "/api/studios/acme/notifications") === ""
+  && gate("owner-only", "PATCH", "/api/studios/acme/notifications") === "");
+ok("so do the access check and the live stream", gate("owner-only", "POST", "/api/studios/acme/access-check") === ""
+  && gate("owner-only", "GET", "/api/studios/acme/stream") === "");
+ok("...and only those paths — a look-alike does not slip through", gate("view", "POST", "/api/studios/acme/notificationsx") === "studio-closed");
 ok("billing days are Amman's", S.billingDay("2026-09-23T22:30:00Z") === "2026-09-24");
+
+console.log("\n== no door around the gate");
+
+// THE WRAPPER ASKS FOR EVERY STUDIO ROUTE; A ROUTE WRITTEN OUTSIDE IT MUST ASK
+// FOR ITSELF. Found on 24/09/2026: engine records aside, seven studio routes
+// wrote with their own handlers — members, roles, join requests, deals and
+// three settings screens — and each would have been a way to keep changing a
+// closed studio. A new one written the same way fails here.
+const { readFileSync, readdirSync, statSync } = await import("node:fs");
+const { join } = await import("node:path");
+const walk = (dir) => readdirSync(dir).flatMap((n) => {
+  const p = join(dir, n);
+  return statSync(p).isDirectory() ? walk(p) : n === "route.ts" ? [p] : [];
+});
+const wrapper = readFileSync("src/platform/http/route.ts", "utf8");
+ok("the route wrapper asks on the session path and the API-key path",
+  (wrapper.match(/await subscriptionRefusal\(/g) || []).length >= 2);
+const OPEN = /[\\/](notifications|access-check|stream)[\\/]route\.ts$/;
+const unguarded = walk("src/app/api/studios/[slug]")
+  .filter((p) => !OPEN.test(p))
+  .filter((p) => /export async function (POST|PUT|PATCH|DELETE)\b/.test(readFileSync(p, "utf8")))
+  .filter((p) => !readFileSync(p, "utf8").includes("subscriptionRefusal("));
+ok("every studio route that writes outside the wrapper asks the subscription", unguarded.length === 0, unguarded.join(", "));
+ok("an upload into a studio asks it too", readFileSync("src/app/api/media/route.ts", "utf8").includes("subscriptionRefusal("));
 
 console.log(`\n${fails ? `${fails} FAILED` : "all passed"}`);
 process.exit(fails ? 1 : 0);

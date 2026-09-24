@@ -72,11 +72,11 @@ function cleanLines(v: unknown) {
 // than a constant because a rate is the state's to change, and one stored here
 // is what the pricing page's note and the invoice will both read.
 //
-// TRIAL AND GRACE, IN MONTHS (the owner, 23/09/2026): a new studio is on trial
-// for three months, and an unpaid one keeps working for three months before it
-// goes read-only. Settings rather than constants because both are commercial
-// decisions that will change; shared/subscription reads them as arguments.
-export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0, baseCurrency: "USD", taxPercent: 16, trialMonths: 3, graceMonths: 3 };
+// STANDARD'S FREE MONTHS when its package names no Duration of its own (the
+// owner, 23/09/2026: three). The grace months that sat beside this are gone:
+// the unpaid ladder (20 / 90 / 365 days, 24/09/2026) is shared/subscription's
+// LADDER, and a setting nothing reads would be a knob that moves nothing.
+export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0, baseCurrency: "USD", taxPercent: 16, trialMonths: 3 };
 
 // A whole number of months, 0–36. Absent is the default, never nought: a
 // settings object saved before these existed must not end every trial today.
@@ -92,7 +92,7 @@ const CODE = (v: unknown, fallback: string) => {
 };
 
 export async function getCatalogSettings() {
-  const stored = (await getJSON<{ yearlyDiscountPct?: unknown; baseCurrency?: unknown; taxPercent?: unknown; trialMonths?: unknown; graceMonths?: unknown }>(REG.catalogSettings)) || {};
+  const { graceMonths: _gone, ...stored } = (await getJSON<{ yearlyDiscountPct?: unknown; baseCurrency?: unknown; taxPercent?: unknown; trialMonths?: unknown; graceMonths?: unknown }>(REG.catalogSettings)) || {};
   return {
     ...DEFAULT_CATALOG_SETTINGS, ...stored,
     yearlyDiscountPct: pct(stored.yearlyDiscountPct),
@@ -101,7 +101,6 @@ export async function getCatalogSettings() {
     // field existed must not publish nompany's prices as tax-free.
     taxPercent: stored.taxPercent === undefined ? DEFAULT_CATALOG_SETTINGS.taxPercent : pct(stored.taxPercent),
     trialMonths: months(stored.trialMonths, DEFAULT_CATALOG_SETTINGS.trialMonths),
-    graceMonths: months(stored.graceMonths, DEFAULT_CATALOG_SETTINGS.graceMonths),
   };
 }
 
@@ -111,7 +110,6 @@ export async function saveCatalogSettings(patch: Record<string, unknown>) {
     baseCurrency: CODE(patch?.baseCurrency, DEFAULT_CATALOG_SETTINGS.baseCurrency),
     taxPercent: patch?.taxPercent === undefined ? DEFAULT_CATALOG_SETTINGS.taxPercent : pct(patch.taxPercent),
     trialMonths: months(patch?.trialMonths, DEFAULT_CATALOG_SETTINGS.trialMonths),
-    graceMonths: months(patch?.graceMonths, DEFAULT_CATALOG_SETTINGS.graceMonths),
   };
   await setJSON(REG.catalogSettings, next);
   return next;

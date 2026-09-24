@@ -1,4 +1,5 @@
 import { currentUser } from "@/platform/auth/identity";
+import { subscriptionRefusal } from "@/platform/http/route";
 import { studioContext } from "@/lib/studios";
 import {
   readFlows, writeFlowTemplate, dropFlowTemplate, writeIndustry, dropIndustry,
@@ -25,13 +26,18 @@ type Params = { params: Promise<Record<string, string>> };
 const status = (error: string) =>
   error === "notfound" ? 404 : error === "unauthorized" ? 401 : 403;
 
-async function open(ctx: Params) {
+async function open(ctx: Params, request?: Request) {
   const user = await currentUser();
   if (!user) return { fail: Response.json({ error: "unauthorized" }, { status: 401 }) };
   const { slug } = await ctx.params;
   const context = await studioContext(user, slug);
   if (context.error) {
     return { fail: Response.json({ error: context.error }, { status: status(context.error) }) };
+  }
+  // A CHANGE ANSWERS TO THE SUBSCRIPTION (24/09/2026); a read passes no request.
+  if (request) {
+    const lapsed = await subscriptionRefusal(context, request);
+    if (lapsed) return { fail: lapsed };
   }
   return { ctx: { studioId: context.studio.id, access: context.access, field: String(context.studio.fieldOfWork || "") } };
 }
@@ -59,7 +65,7 @@ export async function GET(_request: Request, params: Params) {
  * later on somebody else's blank screen.
  */
 export async function PUT(request: Request, params: Params) {
-  const { fail, ctx } = await open(params);
+  const { fail, ctx } = await open(params, request);
   if (fail) return fail;
 
   let raw: Record<string, unknown> = {};
@@ -94,7 +100,7 @@ export async function PUT(request: Request, params: Params) {
  * built-in nobody edited is already in the state the caller asked for.
  */
 export async function DELETE(request: Request, params: Params) {
-  const { fail, ctx } = await open(params);
+  const { fail, ctx } = await open(params, request);
   if (fail) return fail;
 
   const url = new URL(request.url);

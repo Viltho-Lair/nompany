@@ -326,7 +326,7 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved, onSubscriptio
               switch would be how one gets lost. */}
           <div className="border-t pt-5" style={{ borderColor: "var(--ad-border)" }}>
             <h4 className="mb-3 text-sm font-700">Subscription</h4>
-            <SubscriptionPanel studioId={studio.id} onChanged={onSubscriptionChanged} />
+            <SubscriptionPanel studioId={studio.id} onChanged={onSubscriptionChanged} packages={packages} tiers={tiers} />
           </div>
 
           {error && <p className="text-sm text-[var(--ad-destructive-ink)]">{error}</p>}

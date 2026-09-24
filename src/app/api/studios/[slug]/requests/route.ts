@@ -1,4 +1,4 @@
-import { refused, type Guarded } from "@/platform/http/route";
+import { refused, type Guarded, subscriptionRefusal } from "@/platform/http/route";
 import type { StudioMembership } from "@/lib/studios";
 import { currentUser } from "@/platform/auth/identity";
 import {
@@ -29,6 +29,9 @@ async function guard(slugPromise: Promise<Record<string, string>>): Promise<Guar
 export async function GET(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const g = await guard(ctx.params);
   if (g.fail) return g.fail;
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(g, request);
+  if (lapsed) return lapsed;
 
   const pending = await listJoinRequests(g.studio.id);
   const requests = await Promise.all(pending.map(async (r) => {
@@ -43,6 +46,9 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
 export async function POST(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const g = await guard(ctx.params);
   if (g.fail) return g.fail;
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(g, request);
+  if (lapsed) return lapsed;
   let body: Record<string, unknown> = {};
   try { body = await request.json(); } catch { body = {}; }
   if (!body.requestId) return Response.json({ error: "missing" }, { status: 400 });

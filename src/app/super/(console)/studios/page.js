@@ -17,8 +17,9 @@ export const dynamic = "force-dynamic";
 // SubscriptionPanel: that is a client module, and a Server Component importing
 // one gets a reference to it, not its object.
 const SUB_LABEL = {
-  trial: "Trial", active: "Active", complimentary: "Complimentary",
-  past_due: "Past due", read_only: "Read-only", cancelled: "Cancelled",
+  trial: "Standard free", active: "Active", complimentary: "Complimentary",
+  due: "Payment due", closed: "Closed", cancelled: "Cancelled",
+  shut_down: "Shut down", expired: "Due for deletion",
 };
 export const metadata = { title: "Studios" };
 

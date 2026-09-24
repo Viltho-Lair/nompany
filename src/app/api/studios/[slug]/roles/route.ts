@@ -1,6 +1,6 @@
 import type { PermissionKey } from "@/platform/access";
 import { currentUser } from "@/platform/auth/identity";
-import { route, type Guarded } from "@/platform/http/route";
+import { route, type Guarded, subscriptionRefusal } from "@/platform/http/route";
 import type { StudioMembership } from "@/lib/studios";
 import { studioContext } from "@/lib/studios";
 import { requirePermission, escalates, AREAS } from "@/platform/access";
@@ -87,6 +87,9 @@ function overreaches(
 export async function POST(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const g = await open(ctx);
   if (g.fail) return g.fail;
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(g.context, request);
+  if (lapsed) return lapsed;
   const denied = requirePermission(g.context.access, "administration.members.edit");
   if (denied) return Response.json(denied, { status: 403 });
 
@@ -99,6 +102,9 @@ export async function POST(request: Request, ctx: { params: Promise<Record<strin
 export async function PUT(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const g = await open(ctx);
   if (g.fail) return g.fail;
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(g.context, request);
+  if (lapsed) return lapsed;
   const denied = requirePermission(g.context.access, "administration.members.edit");
   if (denied) return Response.json(denied, { status: 403 });
 
@@ -117,6 +123,9 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
 export async function DELETE(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const g = await open(ctx);
   if (g.fail) return g.fail;
+  // THE SUBSCRIPTION'S ANSWER, the same one the route wrapper gives (24/09/2026).
+  const lapsed = await subscriptionRefusal(g.context, request);
+  if (lapsed) return lapsed;
   const denied = requirePermission(g.context.access, "administration.members.edit");
   if (denied) return Response.json(denied, { status: 403 });
 

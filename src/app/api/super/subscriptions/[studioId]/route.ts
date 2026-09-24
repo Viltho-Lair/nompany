@@ -1,8 +1,8 @@
 import { route } from "@/platform/http/route";
-import { getStudioById } from "@/modules/main/studios";
-import { getCatalogSettings } from "@/lib/data/catalog";
+import { getStudioById, updateStudio } from "@/modules/main/studios";
+import { getCatalogSettings, listCatalog } from "@/lib/data/catalog";
 import { getSubscription, recordEvent } from "@/lib/data/subscriptions";
-import { billingDay, graceEnds, subscriptionStatus, BILLING_PERIODS, type BillingEvent } from "@/shared/subscription";
+import { accessFor, billingDay, ladderDates, subscriptionStatus, BILLING_PERIODS, LADDER, type BillingEvent } from "@/shared/subscription";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,15 +25,19 @@ export const GET = route(spec, async ({ params }) => {
   if (!studio) return { error: "notfound" };
   const [doc, settings] = await Promise.all([getSubscription(studio.id), getCatalogSettings()]);
   const today = billingDay();
+  const status = subscriptionStatus(doc.subscription, today);
   return {
     subscription: doc.subscription,
     // Newest first: the question is almost always "what happened last".
     history: [...doc.history].reverse(),
-    status: subscriptionStatus(doc.subscription, today, settings.graceMonths),
+    status,
+    access: accessFor(status),
     today,
-    graceEnds: graceEnds(doc.subscription, settings.graceMonths),
+    // Every step of the ladder as it stands, so the console can say exactly
+    // when this studio closes, shuts down and is deleted if nothing is paid.
+    dates: ladderDates(doc.subscription),
+    ladder: LADDER,
     trialMonths: settings.trialMonths,
-    graceMonths: settings.graceMonths,
   };
 });
 
@@ -51,13 +55,22 @@ export const POST = route({ ...spec, body: true }, async ({ params, body, admin 
   const text = (v: unknown, max = 120) => String(v ?? "").trim().slice(0, max);
   let event: BillingEvent;
   switch (type) {
-    case "paid":
+    case "paid": {
+      // THE PACKAGE THIS MONEY IS FOR, validated against the catalogue: a
+      // package applies to the studio it was paid for, once paid (24/09/2026).
+      const packageId = text(body.packageId, 80);
+      const tierId = text(body.tierId, 80);
+      if (packageId && !(await listCatalog("packages")).some((p) => p.id === packageId)) return { error: "unknown-package" };
+      if (tierId && !(await listCatalog("tiers")).some((t) => t.id === tierId)) return { error: "unknown-tier" };
       event = {
         id, type, periods: Number(body.periods),
         amount: Number(body.amount) || 0, currency: text(body.currency, 3).toUpperCase(),
         method: text(body.method, 40) || "bank-transfer", reference: text(body.reference),
+        ...(packageId ? { packageId } : {}), ...(tierId ? { tierId } : {}),
+        ...(body.seats !== undefined && body.seats !== "" ? { seats: Number(body.seats) } : {}),
       };
       break;
+    }
     case "reversed": event = { id, type, periods: Number(body.periods), reason: text(body.reason, 300) }; break;
     case "failed": event = { id, type, reason: text(body.reason, 300) }; break;
     case "comp": event = { id, type, on: Boolean(body.on) }; break;
@@ -74,5 +87,14 @@ export const POST = route({ ...spec, body: true }, async ({ params, body, admin 
 
   const out = await recordEvent(studio.id, event, `super:${admin.id}`);
   if (out.problem) return { error: out.problem };
+  // THE PAID-FOR PACKAGE TAKES EFFECT ONLY ONCE THE PAYMENT HAS BEEN APPLIED —
+  // and only the first time: a repeated event id changed nothing, so it moves
+  // nothing on the studio either.
+  if (out.changed && event.type === "paid" && (event.packageId || event.tierId)) {
+    await updateStudio(studio.id, {
+      ...(event.packageId ? { packageId: event.packageId } : {}),
+      ...(event.tierId ? { tierId: event.tierId } : {}),
+    });
+  }
   return { ok: true, changed: out.changed, subscription: out.subscription };
 });
