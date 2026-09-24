@@ -187,6 +187,30 @@ ok("AT A YEAR, UNWARNED, IT IS KEPT", S.unpaidDeletionDue(onPaid, plus(due, 365)
 ok("at a year, warned the day before, it is due", S.unpaidDeletionDue(onPaid, plus(due, 365), [`deletion:1:${delOn}`]) === "");
 ok("a studio that paid is never due", S.unpaidDeletionDue(afterShut.sub, plus(due, 365), [`deletion:1:${delOn}`]) === "not-expired");
 
+console.log("\n== the billing watch: what happens next, and when");
+
+ok("a paid-up studio far from its date is not watched", S.nextStep(yearPaid.sub, due) === null);
+ok("a complimentary one never is", S.nextStep(S.complimentary({ studioId: "c", today: due, at: AT }), due) === null);
+ok("a free period ending within 30 days is watched", S.nextStep(std, "2026-04-01")?.step === "free-period-ends");
+ok("...and one ending later is not", S.nextStep(std, "2026-02-01") === null);
+ok("a due studio's next step is closing, at day 20", S.nextStep(onPaid, due)?.step === "closes" && S.nextStep(onPaid, due)?.on === plus(due, 20));
+ok("a closed one's is shutting down", S.nextStep(onPaid, plus(due, 30))?.step === "shuts-down");
+ok("a shut-down one's is deletion", S.nextStep(onPaid, plus(due, 100))?.step === "deleted");
+
+// THE SANDBOX CLOCK REWRITES A SUBSCRIPTION'S DATES, which on live data would be
+// nompany giving away or taking away paid time. It must be unreachable there.
+const { readFileSync: rf } = await import("node:fs");
+const sandboxSrc = rf("src/lib/sandbox.ts", "utf8");
+const clockSrc = rf("src/lib/data/subscriptions.ts", "utf8");
+const clockRoute = rf("src/app/api/studios/[slug]/sandbox-clock/route.ts", "utf8");
+ok("the sandbox guard refuses a production build outright", /NODE_ENV === "production"\) return false/.test(sandboxSrc));
+ok("...and otherwise asks a key builder, not the environment", /REG\.studios\.startsWith/.test(sandboxSrc));
+ok("the clock itself refuses outside the sandbox, whatever called it",
+  /export async function sandboxSetClock[\s\S]{0,300}if \(!isSandbox\(\)\) return \{ error: "notfound"/.test(clockSrc));
+ok("...and so does its route", /!isSandbox\(\) \? \{ error: "notfound" \}/.test(clockRoute));
+ok("the clock stays reachable in a shut-down studio so it can be moved back",
+  gate("owner-only", "POST", "/api/studios/acme/sandbox-clock", true) === "");
+
 console.log("\n== no door around the gate");
 
 // THE WRAPPER ASKS FOR EVERY STUDIO ROUTE; A ROUTE WRITTEN OUTSIDE IT MUST ASK

@@ -324,7 +324,9 @@ export function applyEvent(
  * to pay (that route is owner-only). Everything else under
  * /api/studios/<slug>/ answers to the ladder.
  */
-const ALWAYS_OPEN = /^\/api\/studios\/[^/]+\/(notifications|access-check|stream|upgrade)(\/|$)/;
+// `sandbox-clock` is here so a rehearsal can move a shut-down studio back; the
+// route answers 404 everywhere but the sandbox (lib/sandbox).
+const ALWAYS_OPEN = /^\/api\/studios\/[^/]+\/(notifications|access-check|stream|upgrade|sandbox-clock)(\/|$)/;
 
 const READS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -410,4 +412,37 @@ export function unpaidDeletionDue(
   if (subscriptionStatus(sub, today) !== "expired") return "not-expired";
   const lastWarning = `deletion:${Math.min(...WARNING_DAYS)}:${ladderDates(sub).deletedOn}`;
   return sent.includes(lastWarning) ? "" : "not-warned";
+}
+
+// ---- what is coming, for the console's billing watch -----------------------
+
+export type NextStep = "free-period-ends" | "closes" | "shuts-down" | "deleted";
+
+/**
+ * THE NEXT THING THAT HAPPENS TO THIS STUDIO IF NOBODY PAYS, and when — or null
+ * when nothing is coming (paid up beyond the watch window, complimentary). The
+ * console's billing watch lists every studio with one, soonest first; the
+ * warnings the owner has been sent are shown beside it.
+ *
+ * `withinDays` bounds only the healthy statuses: a free period or a paid period
+ * ending soon is worth watching, one ending in eleven months is not. Anything
+ * already on the ladder is always listed.
+ */
+export function nextStep(
+  sub: Pick<Subscription, "kind" | "paidUntil" | "cancelAt">,
+  today: string,
+  withinDays = 30,
+): { status: SubscriptionStatus; step: NextStep; on: string; daysLeft: number } | null {
+  const status = subscriptionStatus(sub, today);
+  const d = ladderDates(sub);
+  const at = (step: NextStep, on: string) => ({ status, step, on, daysLeft: daysBetween(today, on) });
+  if (status === "complimentary") return null;
+  if (status === "trial" || status === "active") {
+    const ends = sub.cancelAt || sub.paidUntil;
+    if (daysBetween(today, ends) > withinDays) return null;
+    return at(status === "trial" ? "free-period-ends" : "closes", status === "trial" ? ends : d.closesOn);
+  }
+  if (status === "due") return at("closes", d.closesOn);
+  if (status === "closed" || status === "cancelled") return at("shuts-down", d.shutsDownOn);
+  return at("deleted", d.deletedOn);
 }

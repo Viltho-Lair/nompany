@@ -32,6 +32,8 @@ const EVENT_LABEL = {
   paid: "Payment recorded", reversed: "Payment reversed", failed: "Payment failed",
   comp: "Complimentary", "trial-extended": "Trial extended", cancel: "Cancelled",
   resume: "Resumed", "plan-changed": "Plan changed",
+  // Not billing events: a warning email that WENT, and a sandbox clock move.
+  "warning-sent": "Warning emailed", "sandbox-clock": "Sandbox clock moved",
 };
 
 const REFUSAL = {
@@ -203,6 +205,8 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
               <li key={h.id} className="flex flex-wrap gap-x-2">
                 <Num className={muted}>{new Date(h.at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</Num>
                 <span className="font-500">{EVENT_LABEL[h.type] || h.type}{h.type === "comp" ? (h.detail.on ? " on" : " off") : ""}</span>
+                {h.type === "warning-sent" ? <span className={muted}>{h.detail.kind} in {h.detail.days}d ({fmtDay(h.detail.on)}) to {h.detail.to}</span> : null}
+                {h.type === "sandbox-clock" ? <span className={muted}>to day {h.detail.day} of the ladder</span> : null}
                 {h.detail.periods ? <span className={muted}>× {h.detail.periods}</span> : null}
                 {h.detail.amount ? <Num className={muted}>{h.detail.amount} {h.detail.currency}</Num> : null}
                 {h.detail.reference || h.detail.reason ? <span className={muted}>{h.detail.reference || h.detail.reason}</span> : null}

@@ -8,6 +8,7 @@ import { markNoticesSent, subscriptionDocs } from "@/lib/data/subscriptions";
 import { billingDay, noticesDue } from "@/shared/subscription";
 import { studioLocale } from "@/shared/locale";
 import { SITE_URL } from "@/lib/seo";
+import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,29 +34,54 @@ async function run() {
 
   let sent = 0;
   let failed = 0;
+  const failures: string[] = [];
   for (const { studioId, doc } of docs) {
     if (!doc) continue;
     const { send, markSent } = noticesDue(doc.subscription, today, doc.sentNotices || []);
     if (!send.length) continue;
     const studio = byId.get(studioId);
     const owner = studio?.ownerUserId ? await getUserById(String(studio.ownerUserId)) : null;
-    if (!studio || !owner?.email) { failed += send.length; continue; }
+    if (!studio || !owner?.email) {
+      failed += send.length;
+      failures.push(`${String(studio?.name || studioId)}: no owner email to warn`);
+      continue;
+    }
     const locale = studioLocale(studio);
 
     // EACH STEP IS MARKED ON ITS OWN, so a shut-down warning that went is not
     // sent again tomorrow because the deletion warning beside it failed.
     const went: string[] = [];
+    const emailed: { key: string; kind: string; days: number; on: string; to: string }[] = [];
     for (const notice of send) {
       const mail = subscriptionWarningEmail({
         locale, studioName: String(studio.name || ""), kind: notice.kind,
         on: notice.on, daysLeft: notice.daysLeft, url: `${SITE_URL}/${locale}/account`,
       });
       const res = await sendEmail({ to: owner.email, ...mail });
-      if (res.ok) { sent += 1; went.push(...markSent.filter((k) => k.startsWith(`${notice.kind}:`))); } else failed += 1;
+      if (res.ok) {
+        sent += 1;
+        went.push(...markSent.filter((k) => k.startsWith(`${notice.kind}:`)));
+        emailed.push({ key: notice.key, kind: notice.kind, days: notice.days, on: notice.on, to: owner.email });
+      } else {
+        failed += 1;
+        failures.push(`${String(studio.name || studioId)}: ${notice.kind} warning (${res.error || "not sent"})`);
+      }
     }
-    await markNoticesSent(studioId, went);
+    await markNoticesSent(studioId, went, emailed);
   }
-  return Response.json({ ok: true, today, sent, failed });
+  // A WARNING THAT DID NOT GO IS SAID IN /super, not only in a log nobody
+  // reads: an owner who is never warned is an owner whose studio will not be
+  // deleted (the deletion job holds it) and who does not know it is closing.
+  if (failures.length) {
+    await notifySuper({
+      type: NOTIFY.system,
+      title: `${failures.length} subscription warning${failures.length === 1 ? "" : "s"} not sent`,
+      body: failures.slice(0, 10).join(" · "),
+      href: "/super/studios",
+      tone: "danger",
+    });
+  }
+  return Response.json({ ok: true, today, sent, failed, failures });
 }
 
 export const GET = cronJob("subscription-notices", run);

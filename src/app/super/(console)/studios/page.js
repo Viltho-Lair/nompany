@@ -8,6 +8,7 @@ import { loadCatalogues, planOf } from "@/lib/plans";
 import StudiosTable from "@/components/super/StudiosTable";
 import { listSubscriptions } from "@/lib/data/subscriptions";
 import { seatLimit } from "@/shared/seats";
+import { ladderDates, nextStep } from "@/shared/subscription";
 // The pair that decides a public listing, asked through the shared predicate so
 // the console and the public feed cannot disagree about what consent is.
 import { hasConsented } from "@/shared/marketing/showcase";
@@ -17,6 +18,11 @@ export const dynamic = "force-dynamic";
 // The subscription statuses in words. Kept here rather than imported from
 // SubscriptionPanel: that is a client module, and a Server Component importing
 // one gets a reference to it, not its object.
+// What happens next, in words, for the billing watch.
+const STEP_LABEL = {
+  "free-period-ends": "Free period ends", closes: "Closes", "shuts-down": "Shuts down", deleted: "Deleted",
+};
+
 const SUB_LABEL = {
   trial: "Standard free", active: "Active", complimentary: "Complimentary",
   due: "Payment due", closed: "Closed", cancelled: "Cancelled",
@@ -116,6 +122,28 @@ async function renderStudios() {
   // BY SUBSCRIPTION, not by the registry's own `status` field, which reads
   // "active" on every studio and so answered nothing.
   const byStatus = groupBy("subStatus");
+
+  // THE BILLING WATCH — every studio with something coming if nobody pays,
+  // soonest first: a free period or paid period ending within 30 days, or any
+  // studio already on the ladder. Beside each, the warnings its owner has been
+  // sent (shared/subscription's noticesDue keys) and any upgrade it asked for,
+  // so "did they know?" and "did they ask to pay?" are answered on one line.
+  const watch = studios
+    .map((s, i) => {
+      const step = nextStep(subs[i].subscription, subs[i].today);
+      if (!step) return null;
+      const warned = subs[i].sentNotices
+        .map((k) => k.split(":"))
+        .filter(([, , on]) => on === ladderDates(subs[i].subscription).shutsDownOn || on === ladderDates(subs[i].subscription).deletedOn)
+        .map(([kind, days]) => `${kind === "deletion" ? "deletion" : "shut-down"} ${days}d`);
+      return {
+        id: s.id, name: s.name || "Untitled", slug: s.slug || "",
+        status: step.status, step: step.step, on: step.on, daysLeft: step.daysLeft,
+        warned, upgradeRequested: Boolean(s.upgradeRequest),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
   const totalMembers = rows.reduce((n, r) => n + r.members, 0);
 
   return (
@@ -171,6 +199,25 @@ async function renderStudios() {
           </Card>
         </Col>
       </Row>
+
+      <Card className="mb-6">
+        <CardHead title="Billing watch" sub={watch.length ? `${watch.length} studio${watch.length === 1 ? "" : "s"} with something coming, soonest first` : "Nothing coming: every studio is paid up, complimentary, or more than 30 days from its next date."} />
+        {watch.length > 0 && (
+          <Table head={["Studio", "Status", "Next", "On", { label: "Days", align: "end" }, "Warnings sent", "Upgrade asked"]}>
+            {watch.map((w) => (
+              <tr key={w.id}>
+                <td className="font-500">{w.name}<span className="block text-xs text-[var(--ad-muted-foreground)]">/{w.slug}</span></td>
+                <td>{SUB_LABEL[w.status] || w.status}</td>
+                <td>{STEP_LABEL[w.step]}</td>
+                <td className="whitespace-nowrap">{fmtDate(w.on)}</td>
+                <td className={`text-end font-500 ${w.daysLeft <= 7 ? "text-[var(--ad-destructive-ink)]" : ""}`}>{w.daysLeft <= 0 ? "now" : w.daysLeft}</td>
+                <td className="text-[var(--ad-muted-foreground)]">{w.warned.length ? w.warned.join(" · ") : "none yet"}</td>
+                <td>{w.upgradeRequested ? "Yes" : ""}</td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
 
       {/* Search, the row dialog and the plan edit are all client-side; the data
           above is resolved on the server so the first paint is already right. */}

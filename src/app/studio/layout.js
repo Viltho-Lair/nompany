@@ -141,7 +141,10 @@ function NotAMember({ slug, locale = "en" }) {
 }
 
 // "2026-12-24" → "24/12/2026", the house format, without a client locale to ask.
-const day = (d) => (typeof d === "string" && /^d{4}-d{2}-d{2}$/.test(d) ? d.split("-").reverse().join("/") : "");
+// THE BACKSLASHES MATTER: written once without them (/^d{4}-…/), this matched
+// "dddd-dd-dd" and never a date, so every banner and the shut-down screen said
+// "shuts down on ." with the date missing.
+const day = (d) => (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split("-").reverse().join("/") : "");
 
 // Standard's free months are worth a warning only near their end.
 const TRIAL_WARNING_DAYS = 14;

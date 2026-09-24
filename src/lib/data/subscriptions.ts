@@ -17,13 +17,18 @@ import { getJSON, getJSONMany, editJSON } from "@/platform/db/store";
 import { BILLING } from "@/platform/db/keys";
 import { getCatalogSettings } from "@/lib/data/catalog";
 import {
-  accessFor, applyEvent, billingDay, complimentary, daysBetween, ladderDates, newTrial, subscriptionStatus,
+  accessFor, addDays, applyEvent, billingDay, complimentary, daysBetween, ladderDates, newTrial, subscriptionStatus,
   type BillingEvent, type StudioAccess, type Subscription, type SubscriptionStatus,
 } from "@/shared/subscription";
 
 export type HistoryEntry = {
   id: string;
-  type: BillingEvent["type"];
+  /**
+   * A billing event, or one of two things that change no date but belong in the
+   * record: a warning email that WENT (`warning-sent`), and a sandbox clock
+   * move (`sandbox-clock`, never in production — lib/sandbox).
+   */
+  type: BillingEvent["type"] | "warning-sent" | "sandbox-clock";
   at: string;
   /** Who did it: a console user's id, "system", or "provider". */
   by: string;
@@ -128,7 +133,7 @@ export async function listSubscriptions(studioIds: string[]) {
   const today = billingDay(at);
   return studioIds.map((studioId, i) => {
     const sub = docs[i]?.subscription || complimentary({ studioId, today, at });
-    return { studioId, subscription: sub, status: subscriptionStatus(sub, today), dates: ladderDates(sub) };
+    return { studioId, subscription: sub, status: subscriptionStatus(sub, today), dates: ladderDates(sub), sentNotices: docs[i]?.sentNotices || [], today };
   });
 }
 
@@ -159,12 +164,63 @@ export async function subscriptionDocs(studioIds: string[]) {
  * tried again on the next run rather than counted. Kept to the last 50 keys: a
  * key names a date, and one from a ladder long since paid off is never asked
  * about again.
+ *
+ * EACH EMAIL THAT WENT IS ALSO A LINE IN THE STUDIO'S HISTORY, so the console
+ * shows when the owner was warned and of what — the question somebody asks the
+ * day a studio shuts down and its owner says nobody told them.
  */
-export async function markNoticesSent(studioId: string, keys: readonly string[]) {
+export async function markNoticesSent(
+  studioId: string,
+  keys: readonly string[],
+  emailed: readonly { key: string; kind: string; days: number; on: string; to: string }[] = [],
+) {
   if (!keys.length) return;
+  const at = new Date().toISOString();
   await editJSON<Doc, void>(BILLING.subscription(studioId), (cur) => {
     if (!cur?.subscription) return { result: undefined };
     const sent = [...new Set([...(cur.sentNotices || []), ...keys])].slice(-50);
-    return { next: { ...cur, sentNotices: sent }, result: undefined };
+    const snapNow = snap(cur.subscription);
+    const lines: HistoryEntry[] = emailed.map((n) => ({
+      id: `warning:${n.key}`, type: "warning-sent", at, by: "system",
+      detail: { kind: n.kind, days: n.days, on: n.on, to: n.to }, before: snapNow, after: snapNow,
+    }));
+    return { next: { ...cur, sentNotices: sent, history: [...cur.history, ...lines] }, result: undefined };
+  });
+}
+
+/**
+ * THE SANDBOX CLOCK — moves one studio to a chosen day of the unpaid ladder so
+ * the closed banner, the shut-down screen and the warning emails can be seen
+ * without waiting months. REFUSES OUTSIDE THE SANDBOX (lib/sandbox), whatever
+ * the caller: this rewrites a subscription's dates, which on live data would be
+ * nompany giving away or taking away paid time.
+ *
+ *   day N          paid, due N days ago (0 due, 20 closed, 90 shut down, 365 expired)
+ *   "free-ended"   Standard's free months ended today (closed at once)
+ *   "reset"        complimentary again
+ *
+ * Recorded in the history as `sandbox-clock`; clears sent warnings so the
+ * warning job can be watched afresh.
+ */
+export async function sandboxSetClock(studioId: string, to: number | "free-ended" | "reset") {
+  const { isSandbox } = await import("@/lib/sandbox");
+  if (!isSandbox()) return { error: "notfound" as const };
+  await getSubscription(studioId);
+  const at = new Date().toISOString();
+  const today = billingDay(at);
+  return editJSON<Doc, { ok: true }>(BILLING.subscription(studioId), (cur) => {
+    const doc = cur as Doc;
+    const before = doc.subscription;
+    const base = { ...before, cancelAt: "", updatedAt: at };
+    const next: Subscription = to === "reset"
+      ? { ...base, kind: "comp", paidUntil: today }
+      : to === "free-ended"
+        ? { ...base, kind: "trial", paidUntil: today }
+        : { ...base, kind: "paid", paidUntil: addDays(today, -Math.trunc(to)) };
+    const entry: HistoryEntry = {
+      id: `clock:${at}`, type: "sandbox-clock", at, by: "sandbox",
+      detail: { day: to }, before: snap(before), after: snap(next),
+    };
+    return { next: { ...doc, subscription: next, sentNotices: [], history: [...doc.history, entry] }, result: { ok: true } };
   });
 }

@@ -140,6 +140,24 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
   - Each studio is looked at again right before it goes, so a payment in the meantime
     keeps it. Files and the ten-year billing expiry are handled the same way as an
     owner-requested deletion.
+- **Tracking it** (24/09/2026):
+  - **Billing watch** on `/super → Studios`: every studio with something coming, soonest
+    first (`nextStep`). That means a free or paid period ending within 30 days, or any
+    studio already on the ladder, with its next step, date, days left, the warnings its
+    owner was sent, and whether it asked to upgrade.
+  - **Each warning email that went is a line in the studio's history** (`warning-sent`,
+    with the step, the days, the date and the address), shown in the Subscription panel.
+  - **Failures reach `/super` as notifications**: a warning that didn't send (or had no
+    owner address), and any unpaid studio held from deletion as `not-warned`, every
+    run while it stands.
+  - **The sandbox clock** (`/api/studios/<slug>/sandbox-clock`, and a control on each
+    owned studio on `/account`) moves a test studio to any day of the ladder, previews
+    the warning emails, and resets.
+    - It answers 404 unless the process is the sandbox (`lib/sandbox`: never a
+      production build, and only when a key builder comes back namespaced), and the
+      function under it refuses too.
+    - It is on the gate's always-open list, so a shut-down studio can be moved back.
+    - Each move is recorded as `sandbox-clock` and clears the sent warnings.
 - **The studio sees it.**
   - A banner above every screen when payment is due, the studio is closed or cancelled,
     or Standard's free period ends within 14 days.

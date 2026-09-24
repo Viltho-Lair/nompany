@@ -6,6 +6,7 @@ import { cascadeDeleteStudio } from "@/platform/db/cascade";
 import { dueForDeletion, type DueStudio } from "@/shared/studioDeletion";
 import { subscriptionDocs } from "@/lib/data/subscriptions";
 import { billingDay, unpaidDeletionDue } from "@/shared/subscription";
+import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,6 +85,19 @@ async function run() {
   const due = dueForDeletion(studios, now);
   const batch = due.slice(0, MAX_PER_RUN);
   const unpaid = await unpaidDue(studios);
+  // A STUDIO HELD BECAUSE ITS OWNER WAS NEVER WARNED is said in /super: it is
+  // past its year, it will not be deleted, and the reason is an email that
+  // never went — somebody has to look. Said every run while it stands.
+  if (unpaid.held.length) {
+    const names = new Map(studios.map((st) => [String(st.id), String(st.name || st.id)]));
+    await notifySuper({
+      type: NOTIFY.system,
+      title: `${unpaid.held.length} unpaid studio${unpaid.held.length === 1 ? "" : "s"} held from deletion`,
+      body: `Past a year unpaid, but the owner was never sent the final warning: ${unpaid.held.map((h) => names.get(h.id)).slice(0, 10).join(", ")}`,
+      href: "/super/studios",
+      tone: "warning",
+    });
+  }
 
   if (!enabled) {
     // THE REPORT NAMES THE WHOLE SCOPE — each studio and how many of its files

@@ -27,6 +27,7 @@ import { upgradeDict } from "@/shared/studio/upgrade";
 
 // Fetched only when an owner opens it (see components/billing/UpgradeDialog).
 const UpgradeDialog = dynamic(() => import("@/components/billing/UpgradeDialog"), { ssr: false });
+const SandboxClock = dynamic(() => import("@/components/billing/SandboxClock"), { ssr: false });
 import SecuritySessions from "@/components/public/SecuritySessions";
 import SecurityLock from "@/components/public/SecurityLock";
 import SecurityTwoFactor from "@/components/public/SecurityTwoFactor";
@@ -441,6 +442,8 @@ function StudioRow({ studio, onSaved }) {
         {upgrading && (
           <UpgradeDialog slug={studio.slug} studioName={studio.name} locale={locale} onClose={() => setUpgrading(false)} />
         )}
+        {/* Renders nothing outside the sandbox — see components/billing/SandboxClock. */}
+        <SandboxClock slug={studio.slug} />
 
         {msg && <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{msg}</p>}
         {err && <p className="mt-2 text-sm text-rose-600 dark:text-rose-300">{err}</p>}
