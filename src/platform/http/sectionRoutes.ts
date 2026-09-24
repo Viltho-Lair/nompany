@@ -215,6 +215,7 @@ export const EXEMPT_ROUTES: Record<string, string> = {
   "calendar-share": "a share link, outside the section model",
   "collaborators": "the studio's people, not a department",
   "documents": "printing a document the caller already reached through its own section",
+  "export": "the owner's download of the whole studio — every department, switched off or not, is theirs to take",
   "greeting": "the shell's own greeting",
   "main": "Main is the home surface, not a section — and its own reads already skip what is off",
   "maps-key": "a map key for whichever screen needs one",
@@ -224,8 +225,10 @@ export const EXEMPT_ROUTES: Record<string, string> = {
   "requests": "join requests — membership, not a department",
   "roles": "who may do what: Administration's, and never switchable",
   "rows": "the generic row reader, which resolves the section it was given",
+  "sandbox-clock": "the sandbox's subscription clock — the studio's billing, not a department, and 404 outside the sandbox",
   "settings": "the studio's own settings, the Sections panel among them — the way a part is switched back ON",
   "stream": "the one event stream per tab (invariant 14), fanned out per section by the client",
+  "upgrade": "the owner asking to pay for a package — the studio's subscription, not a department",
 };
 
 /**
