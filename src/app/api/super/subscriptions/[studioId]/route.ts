@@ -63,14 +63,19 @@ export const POST = route({ ...spec, body: true }, async ({ params, body, admin 
       // THE PACKAGE THIS MONEY IS FOR, validated against the catalogue: a
       // package applies to the studio it was paid for, once paid (24/09/2026).
       const packageId = text(body.packageId, 80);
+      const categoryId = text(body.categoryId, 40);
       const tierId = text(body.tierId, 80);
-      if (packageId && !(await listCatalog("packages")).some((p) => p.id === packageId)) return { error: "unknown-package" };
+      const pkg = packageId ? (await listCatalog("packages")).find((p) => p.id === packageId) : null;
+      if (packageId && !pkg) return { error: "unknown-package" };
+      // THE BAND THE MONEY IS FOR (24/09/2026): stored with the package, so the
+      // studio's seats — and the next invoice's price — come from that band.
+      if (categoryId && !(Array.isArray(pkg?.categories) && (pkg.categories as { id?: unknown }[]).some((c) => String(c?.id) === categoryId))) return { error: "unknown-band" };
       if (tierId && !(await listCatalog("tiers")).some((t) => t.id === tierId)) return { error: "unknown-tier" };
       event = {
         id, type, periods: Number(body.periods),
         amount: Number(body.amount) || 0, currency: text(body.currency, 3).toUpperCase(),
         method: text(body.method, 40) || "bank-transfer", reference: text(body.reference),
-        ...(packageId ? { packageId } : {}), ...(tierId ? { tierId } : {}),
+        ...(packageId ? { packageId } : {}), ...(categoryId ? { categoryId } : {}), ...(tierId ? { tierId } : {}),
         ...(body.seats !== undefined && body.seats !== "" ? { seats: Number(body.seats) } : {}),
         ...(BILLING_PERIODS.includes(body.period) ? { period: body.period } : {}),
       };
@@ -97,7 +102,9 @@ export const POST = route({ ...spec, body: true }, async ({ params, body, admin 
   // nothing on the studio either.
   if (out.changed && event.type === "paid" && (event.packageId || event.tierId)) {
     await updateStudio(studio.id, {
-      ...(event.packageId ? { packageId: event.packageId } : {}),
+      // The band goes with the package: a package paid for without one clears
+      // any band left from the package before.
+      ...(event.packageId ? { packageId: event.packageId, categoryId: event.categoryId || "" } : {}),
       ...(event.tierId ? { tierId: event.tierId } : {}),
       // THE REQUEST IS ANSWERED once a payment moves the studio onto a package:
       // leaving it would keep the owner's dialog saying "you asked for this".

@@ -6,7 +6,7 @@
 
 import { listCatalog, DEFAULT_PACKAGE, DEFAULT_TIER } from "@/lib/data/catalog";
 import { getSubscription } from "@/lib/data/subscriptions";
-import { packageCeiling, seatLimit } from "@/shared/seats";
+import { bandOf, seatLimit } from "@/shared/seats";
 import type { Row } from "@/platform/db/store";
 
 // PACKAGE_TONE went with the named-colour model — packages carry a hex now and
@@ -50,7 +50,12 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
     // A COMPOUND PACKAGE'S CEILING IS ITS LARGEST BAND (shared/seats, 24/09/2026):
     // its form has no package-level maximum, so this read 0 — "no limit" — for
     // every studio on Small or Medium.
-    maxMembers: packageCeiling(pkg),
+    maxMembers: seatLimit(0, pkg, studio?.categoryId),
+    // THE BAND this studio is on (24/09/2026): its id and label when the
+    // package has bands and the studio names one, else "". A compound studio
+    // with no band reads the package's largest band above, as it always did.
+    categoryId: bandOf(pkg, studio?.categoryId)?.id || "",
+    categoryLabel: bandOf(pkg, studio?.categoryId)?.label || "",
     // Live chat: on or off, and how many conversations a month it allows.
     // 0 allowed means unlimited, the same convention every other cap here uses.
     chatEnabled: Boolean(pkg?.chatEnabled),
@@ -177,6 +182,6 @@ export async function memberLimitOf(studio: Row | null | undefined) {
     studio?.id ? getSubscription(String(studio.id)) : Promise.resolve(null),
   ]);
   const pkg = packages.find((p) => p.id === studio?.packageId) || null;
-  const limit = seatLimit(doc?.subscription.seats, pkg);
+  const limit = seatLimit(doc?.subscription.seats, pkg, studio?.categoryId);
   return limit > 0 ? limit : null;
 }

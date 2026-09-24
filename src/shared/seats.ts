@@ -30,8 +30,35 @@ export function packageCeiling(pkg: PackageLike): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-/** The limit that bites: the seats paid for, else the package's ceiling. 0 means no limit. */
-export function seatLimit(paidSeats: unknown, pkg: PackageLike): number {
+/**
+ * THE BAND A STUDIO IS ON, when its package has bands and it names one of them
+ * (24/09/2026, the owner: a studio on a compound package is on a specific band,
+ * not on the package as a whole). Null when there is no such band — no band
+ * chosen yet, or one the package no longer has.
+ */
+export function bandOf(pkg: PackageLike, categoryId: unknown): { id: string; label: string; maxEmployees: number } | null {
+  const id = String(categoryId || "");
+  if (!id || pkg?.type !== "compound" || !Array.isArray(pkg?.categories)) return null;
+  const band = (pkg.categories as { id?: unknown; label?: unknown; minEmployees?: unknown; maxEmployees?: unknown }[])
+    .find((b) => String(b?.id) === id);
+  if (!band) return null;
+  const max = Number(band.maxEmployees) || 0;
+  return { id, label: String(band.label || `${Number(band.minEmployees) || 0}–${max}`), maxEmployees: max };
+}
+
+/**
+ * THE LIMIT THAT BITES, most specific first: the seats a subscription paid for
+ * (a manual override on top), then the studio's BAND, then the package's own
+ * ceiling. 0 means no limit.
+ *
+ * A COMPOUND STUDIO WITH NO BAND keeps the package's largest band — what every
+ * such studio had before bands were stored. Nothing is guessed for it; the
+ * console shows it has none until somebody picks one.
+ */
+export function seatLimit(paidSeats: unknown, pkg: PackageLike, categoryId: unknown = ""): number {
   const seats = Math.trunc(Number(paidSeats) || 0);
-  return seats > 0 ? seats : packageCeiling(pkg);
+  if (seats > 0) return seats;
+  const band = bandOf(pkg, categoryId);
+  if (band) return band.maxEmployees;
+  return packageCeiling(pkg);
 }

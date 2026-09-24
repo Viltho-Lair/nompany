@@ -30,6 +30,26 @@ export const PUT = route(
       if (!ok) return { error: "unknown-package" };
       patch.packageId = body.packageId;
     }
+    // THE BAND (24/09/2026, the owner: a studio on a compound package is on a
+    // specific band). Checked against the package the studio will be on after
+    // this save, so a band from another package cannot be stored. A package
+    // change that names no band CLEARS it — a band belongs to its package, and
+    // Medium's 50–99 means nothing on Small. "" is "no band chosen", which reads
+    // the package's largest band, as every compound studio did before.
+    {
+      const targetPackageId = typeof body.packageId === "string" ? body.packageId : String(studio.packageId || "");
+      const packageChanges = typeof body.packageId === "string" && body.packageId !== String(studio.packageId || "");
+      if (typeof body.categoryId === "string") {
+        if (body.categoryId) {
+          const pkg = (await listCatalog("packages")).find((p) => p.id === targetPackageId);
+          const bands = Array.isArray(pkg?.categories) ? (pkg.categories as { id?: unknown }[]) : [];
+          if (!bands.some((b) => String(b?.id) === body.categoryId)) return { error: "unknown-band" };
+        }
+        patch.categoryId = body.categoryId;
+      } else if (packageChanges) {
+        patch.categoryId = "";
+      }
+    }
     if (typeof body.tierId === "string") {
       const ok = body.tierId === "" || (await listCatalog("tiers")).some((t) => t.id === body.tierId);
       if (!ok) return { error: "unknown-tier" };
@@ -57,9 +77,9 @@ export const PUT = route(
     // history says why a studio is on a package nobody paid for. It moves no
     // date: a package applies once paid (the owner, 24/09/2026), and setting one
     // here is nompany's own override, not a payment. One save is one event.
-    if (patch.packageId !== undefined || patch.tierId !== undefined) {
+    if (patch.packageId !== undefined || patch.tierId !== undefined || patch.categoryId !== undefined) {
       await recordEvent(updated.id, {
-        id: `plan:${updated.packageId || "-"}:${updated.tierId || "-"}:${Date.now()}`,
+        id: `plan:${updated.packageId || "-"}:${updated.categoryId || "-"}:${updated.tierId || "-"}:${Date.now()}`,
         type: "plan-changed",
       }, `super:${admin.id}`);
     }
@@ -68,6 +88,7 @@ export const PUT = route(
       studio: {
         id: updated.id,
         packageId: updated.packageId || "",
+        categoryId: updated.categoryId || "",
         tierId: updated.tierId || "",
         featured: Boolean(updated.featured),
         featuredOrder: Number(updated.featuredOrder) || 0,

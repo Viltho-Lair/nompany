@@ -84,6 +84,19 @@ ok("THE SEATS PAID FOR WIN over the package's ceiling", SEATS.seatLimit(12, smal
 ok("...and with none recorded, the package decides", SEATS.seatLimit(0, small) === 49);
 ok("nothing readable is no limit, never NaN", SEATS.seatLimit("x", { maxEmployees: "abc" }) === 0);
 
+// A STUDIO ON A COMPOUND PACKAGE IS ON A BAND (24/09/2026, the owner). Before
+// the band was stored, a Medium studio sold 50–99 read "1 of 249": the limit
+// was the package's largest band whatever had actually been sold.
+const medium = { type: "compound", categories: [{ id: "m1", label: "Medium", minEmployees: 50, maxEmployees: 99 }, { id: "m2", label: "Medium Plus", minEmployees: 100, maxEmployees: 249 }] };
+ok("THE BAND SETS THE LIMIT", SEATS.seatLimit(0, medium, "m1") === 99);
+ok("...its label and size are readable", SEATS.bandOf(medium, "m1")?.label === "Medium" && SEATS.bandOf(medium, "m1")?.maxEmployees === 99);
+ok("seats recorded on the subscription still override the band", SEATS.seatLimit(60, medium, "m1") === 60);
+ok("A COMPOUND STUDIO WITH NO BAND keeps the largest band — nothing is guessed", SEATS.seatLimit(0, medium, "") === 249);
+ok("a band the package no longer has is ignored, not trusted", SEATS.seatLimit(0, medium, "gone") === 249 && SEATS.bandOf(medium, "gone") === null);
+ok("a band means nothing on a package without bands", SEATS.bandOf({ type: "free", maxEmployees: 4 }, "m1") === null);
+const onBand = planOf({ id: "s1", packageId: "pkg_med", categoryId: "m1", tierId: "" }, [{ id: "pkg_med", name: "Medium", ...medium }], tiers);
+ok("planOf reads the studio's band", onBand.maxMembers === 99 && onBand.categoryLabel === "Medium" && onBand.categoryId === "m1", JSON.stringify({ max: onBand.maxMembers, label: onBand.categoryLabel }));
+
 // THE LAST SEAT WAS RACEABLE: approving counted members, then added one in a
 // separate write, so two approvals at once both saw room. The count now lives
 // inside addCollaborator's compare-and-set; these pin the wiring, which only a

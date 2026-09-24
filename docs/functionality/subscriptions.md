@@ -93,6 +93,24 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
   - Asking to join is never refused for being full, because a non-member must learn
     nothing about a studio's contents (invariant 2). The refusal comes at approval, to
     somebody inside.
+  - **A studio on a compound package is on a BAND** (24/09/2026, the owner). The band's
+    id is stored on the studio as `categoryId`, next to `packageId`. The limit reads,
+    most specific first: seats recorded on the subscription (an override), then the
+    band's `maxEmployees`, then the package's ceiling.
+    - Before this, a Medium studio sold 50–99 read "1 of 249", because the package's
+      largest band was the only figure there was.
+    - A compound studio with **no band** keeps the largest band. Nothing is guessed for
+      it; `/super` shows "none" until somebody picks one.
+    - `/super`'s studio dialog has a Band dropdown whenever the package has bands.
+      Changing the package clears the band, and a band from another package is refused
+      (`unknown-band`).
+    - An upgrade request's quote carries the band, and a recorded payment stores it with
+      the package. The payment form no longer copies the band's size into Seats, because
+      the band sets the limit itself.
+    - The Studios table and the studio's own header show the band beside the package
+      ("Medium · 50–99").
+    - A package **not on the public price list** (the old Premium) is marked "not on sale"
+      in the dropdown, with a note to move the studio or keep it deliberately.
   - A studio already over its limit (a package whose limit dropped) keeps everybody;
     nobody more can join until it upgrades. `/super → Studios` shows used / limit and
     turns red when over.

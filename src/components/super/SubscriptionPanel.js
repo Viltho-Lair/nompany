@@ -54,7 +54,7 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [eventId, setEventId] = useState(newId);
-  const [form, setForm] = useState({ periods: "1", amount: "", currency: "", reference: "", until: "", seats: "", period: "monthly", reason: "", packageId: "", tierId: "" });
+  const [form, setForm] = useState({ periods: "1", amount: "", currency: "", reference: "", until: "", seats: "", period: "monthly", reason: "", packageId: "", categoryId: "", tierId: "" });
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
   const load = useCallback(async () => {
@@ -66,11 +66,14 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
     // cycle and the quoted total — so recording the transfer that answers it is
     // checking the figures rather than typing them.
     const u = d.upgradeRequest;
+    // THE BAND COMES FROM THE REQUEST TOO, and the seats do not: the band now
+    // sets the limit itself (shared/seats), so copying its size into Seats would
+    // turn a band into a manual override that no longer follows the band.
     setForm((f) => ({
       ...f,
-      seats: String((u ? u.seats : d.subscription.seats) || ""),
+      seats: String(d.subscription.seats || ""),
       period: u ? u.cycle : d.subscription.period,
-      ...(u ? { packageId: u.packageId, tierId: u.tierId || "", amount: String(u.total), currency: u.currency } : {}),
+      ...(u ? { packageId: u.packageId, categoryId: u.categoryId || "", tierId: u.tierId || "", amount: String(u.total), currency: u.currency } : {}),
     }));
     return d;
   }, [studioId]);
@@ -120,7 +123,7 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
           {(packages.find((p) => p.id === data.upgradeRequest.packageId)?.name) || data.upgradeRequest.packageId}
           {data.upgradeRequest.tierId ? ` + ${tiers.find((t) => t.id === data.upgradeRequest.tierId)?.name || data.upgradeRequest.tierId}` : ""}
           {`, ${data.upgradeRequest.cycle}, ${data.upgradeRequest.seats || "no limit on"} seats — ${data.upgradeRequest.total} ${data.upgradeRequest.currency} with ${data.upgradeRequest.taxPercent}% tax (${data.upgradeRequest.region || "default region"}).`}
-          <span className="block text-xs text-[var(--ad-muted-foreground)]">The payment form below is filled from it, including the billing period and seats.</span>
+          <span className="block text-xs text-[var(--ad-muted-foreground)]">The payment form below is filled from it, including the band and billing period.</span>
         </div>
       )}
 
@@ -146,8 +149,15 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
               (24/09/2026), so this is where a studio moves onto one. Blank keeps
               whatever it is on. */}
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            <SelectMenu className="ad-select" value={form.packageId} aria-label="Paid for package" onChange={(v) => set({ packageId: v })}
+            <SelectMenu className="ad-select" value={form.packageId} aria-label="Paid for package" onChange={(v) => set({ packageId: v, categoryId: "" })}
               options={[{ value: "", label: "Package: keep current" }, ...packages.map((p) => ({ value: p.id, label: p.name }))]} />
+            {(() => {
+              const bands = packages.find((p) => p.id === form.packageId)?.categories || [];
+              return bands.length > 0 && (
+                <SelectMenu className="ad-select" value={form.categoryId} aria-label="Paid for band" onChange={(v) => set({ categoryId: v })}
+                  options={[{ value: "", label: "Band: none (largest)" }, ...bands.map((b) => ({ value: b.id, label: `${b.label || "Band"} (${b.minEmployees || 0}–${b.maxEmployees || "∞"})` }))]} />
+              );
+            })()}
             <SelectMenu className="ad-select" value={form.tierId} aria-label="Paid for tier" onChange={(v) => set({ tierId: v })}
               options={[{ value: "", label: "Tier: keep current" }, ...tiers.map((t) => ({ value: t.id, label: t.name }))]} />
           </div>
@@ -155,7 +165,7 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
             Periods are {form.period === "yearly" ? "years" : "months"} (the billing period below). Paid on time or within 20 days, the new period runs on from the due date; during Standard&apos;s free period, or once closed or shut down, it starts today.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => send("paid", { periods: Number(form.periods), amount: Number(form.amount) || 0, currency: form.currency, reference: form.reference, packageId: form.packageId, tierId: form.tierId, period: form.period, ...(form.seats !== "" ? { seats: Number(form.seats) || 0 } : {}) })}>Record payment</Button>
+            <Button size="sm" disabled={busy} onClick={() => send("paid", { periods: Number(form.periods), amount: Number(form.amount) || 0, currency: form.currency, reference: form.reference, packageId: form.packageId, categoryId: form.categoryId, tierId: form.tierId, period: form.period, ...(form.seats !== "" ? { seats: Number(form.seats) || 0 } : {}) })}>Record payment</Button>
             <Button size="sm" variant="ghost" disabled={busy} onClick={() => send("reversed", { periods: Number(form.periods), reason: form.reference || "Payment returned" })}>It bounced — reverse {form.periods || 1}</Button>
           </div>
         </fieldset>

@@ -8,7 +8,7 @@ import { planTagStyle } from "@/lib/planColors";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { Badge } from "@/app/super/_components/ui";
 import SubscriptionPanel, { STATUS } from "@/components/super/SubscriptionPanel";
-import { packageCeiling } from "@/shared/seats";
+import { seatLimit } from "@/shared/seats";
 
 // Every studio, searchable, with its plan editable in place.
 //
@@ -78,7 +78,17 @@ export default function StudiosTable({ rows, packages, tiers }) {
           </span>
         ),
       },
-      packageName: { renderCell: ({ row }) => <Tag name={row.packageName} color={row.packageColor} /> },
+      // THE BAND beside the package when the studio is on one, so a Medium studio
+      // reads "Medium · 50–99" and not a package it may be paying a fraction of.
+      packageName: {
+        valueGetter: (_v, row) => `${row.packageName} ${row.categoryLabel || ""}`,
+        renderCell: ({ row }) => (
+          <span className="inline-flex items-center gap-1.5">
+            <Tag name={row.packageName} color={row.packageColor} />
+            {row.categoryLabel && <span className="text-xs text-[var(--ad-muted-foreground)]">{row.categoryLabel}</span>}
+          </span>
+        ),
+      },
       tierName: { renderCell: ({ row }) => <Tag name={row.tierName} color={row.tierColor} /> },
       // WORKED OUT ON THE SERVER from the dates (shared/subscription), never
       // stored — so this column cannot say "active" about a studio whose
@@ -185,6 +195,12 @@ export default function StudiosTable({ rows, packages, tiers }) {
 
 function StudioDialog({ studio, packages, tiers, onClose, onSaved, onSubscriptionChanged }) {
   const [packageId, setPackageId] = useState(studio.packageId);
+  // THE BAND on the chosen package (24/09/2026). Picking another package clears
+  // it: a band belongs to its package.
+  const [categoryId, setCategoryId] = useState(studio.categoryId || "");
+  const chosenPackage = packages.find((p) => p.id === packageId) || null;
+  const bands = chosenPackage?.type === "compound" ? chosenPackage.categories || [] : [];
+  const bandLabel = (b) => `${b.label || "Band"} (${b.minEmployees || 0}–${b.maxEmployees || "∞"})`;
   const [tierId, setTierId] = useState(studio.tierId);
   // OUR HALF OF THE FEATURED-COMPANIES DECISION. Consent is the studio's and is
   // given in its own settings; this is only whether we have chosen to show a
@@ -207,7 +223,7 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved, onSubscriptio
     setBusy(true); setError("");
     const res = await fetch(`/api/super/studios/${studio.id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ packageId, tierId, featured, featuredOrder: Number(featuredOrder) || 0 }),
+      body: JSON.stringify({ packageId, categoryId: bands.length ? categoryId : "", tierId, featured, featuredOrder: Number(featuredOrder) || 0 }),
     });
     setBusy(false);
     if (!res.ok) { setError("That didn't save."); return; }
@@ -216,12 +232,14 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved, onSubscriptio
     onSaved({
       id: studio.id,
       packageId, tierId,
+      categoryId: bands.length ? categoryId : "",
+      categoryLabel: bands.find((b) => b.id === categoryId)?.label || "",
       featured, featuredOrder: Number(featuredOrder) || 0,
       packageName: pkg?.name || "—",
       packageColor: pkg?.color || "grey",
-      // The new package's ceiling; paid seats, when the subscription has them,
-      // arrive with the next load of the page.
-      maxMembers: packageCeiling(pkg),
+      // The band's size, else the package's ceiling; paid seats, when the
+      // subscription has them, arrive with the next load of the page.
+      maxMembers: seatLimit(0, pkg, bands.length ? categoryId : ""),
       tierName: tier?.name || "—",
       tierColor: tier?.color || "",
     });
@@ -272,10 +290,30 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved, onSubscriptio
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="ad-label" htmlFor="pkg">Package</label>
-              <SelectMenu id="pkg" className="ad-select" value={packageId} onChange={setPackageId} aria-label="Package"
-                options={[{ value: "", label: "— none —" }, ...packages.map((p) => ({ value: p.id, label: p.name }))]}
+              <SelectMenu id="pkg" className="ad-select" value={packageId}
+                onChange={(v) => { setPackageId(v); if (v !== packageId) setCategoryId(""); }} aria-label="Package"
+                options={[{ value: "", label: "— none —" }, ...packages.map((p) => ({ value: p.id, label: p.isPublic ? p.name : `${p.name} (not on sale)` }))]}
               />
+              {/* A PACKAGE NOBODY CAN BUY ANY MORE (e.g. the old Premium) is still
+                  valid to sit on, but somebody should decide: move the studio to a
+                  package that is sold, or keep it deliberately as an internal one. */}
+              {chosenPackage && !chosenPackage.isPublic && (
+                <p className="mt-1 text-xs text-[var(--ad-warning-ink,var(--ad-muted-foreground))]">
+                  {chosenPackage.name} is not on the public price list. Move this studio to a package that is sold, or keep it on purpose.
+                </p>
+              )}
             </div>
+            {bands.length > 0 && (
+              <div className="sm:col-span-2">
+                <label className="ad-label" htmlFor="band">Band</label>
+                <SelectMenu id="band" className="ad-select" value={categoryId} onChange={setCategoryId} aria-label="Band"
+                  options={[{ value: "", label: `— none (largest band, ${Math.max(...bands.map((b) => Number(b.maxEmployees) || 0))} people) —` }, ...bands.map((b) => ({ value: b.id, label: bandLabel(b) }))]}
+                />
+                <p className="mt-1 text-xs text-[var(--ad-muted-foreground)]">
+                  The band sets how many people the studio may have. Seats recorded on the subscription below override it.
+                </p>
+              </div>
+            )}
             <div>
               <label className="ad-label" htmlFor="tier">Tier</label>
               <SelectMenu id="tier" className="ad-select" value={tierId} onChange={setTierId} aria-label="Tier"

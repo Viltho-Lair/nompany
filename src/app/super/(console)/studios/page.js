@@ -96,7 +96,7 @@ async function renderStudios() {
         // USED / LIMIT (24/09/2026): the seats this studio PAID for when its
         // subscription records them, else its package's ceiling — the same
         // rule the join door enforces (shared/seats).
-        maxMembers: seatLimit(subs[i].subscription.seats, packages.find((p) => p.id === s.packageId)),
+        maxMembers: seatLimit(subs[i].subscription.seats, packages.find((p) => p.id === s.packageId), s.categoryId),
         subStatus: subs[i].status,
         subKind: subs[i].subscription.kind,
         paidUntil: subs[i].subscription.paidUntil,
@@ -223,7 +223,12 @@ async function renderStudios() {
           above is resolved on the server so the first paint is already right. */}
       <StudiosTable
         rows={rows}
-        packages={packages.map((p) => ({ id: p.id, name: p.name, color: p.color, maxEmployees: p.maxEmployees }))}
+        // Bands travel with each package so the dialog can offer them, and
+        // isPublic so it can say when a studio sits on a package no longer sold.
+        packages={packages.map((p) => ({
+          id: p.id, name: p.name, color: p.color, maxEmployees: p.maxEmployees, type: p.type, isPublic: Boolean(p.isPublic),
+          categories: (Array.isArray(p.categories) ? p.categories : []).map((c) => ({ id: c.id, label: c.label, minEmployees: c.minEmployees, maxEmployees: c.maxEmployees })),
+        }))}
         tiers={tiers.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
       />
     </>

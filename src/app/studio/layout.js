@@ -68,7 +68,10 @@ async function renderShell(children) {
     <StudioFrame
       studio={{
         name: studio.name, slug: studio.slug, logo: studio.logo || "",
-        packageName: plan.packageName, packageColor: plan.packageColor,
+        // The band beside the package, so a Medium studio's own header reads
+        // "Medium · 50–99" — the size it is actually on (24/09/2026).
+        packageName: plan.categoryLabel ? `${plan.packageName} · ${plan.categoryLabel}` : plan.packageName,
+        packageColor: plan.packageColor,
         tierName: plan.tierName, tierColor: plan.tierColor,
         canUpgrade,
       }}

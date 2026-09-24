@@ -214,7 +214,7 @@ export type BillingEvent = { id: string } & (
    * which the studio moves to once this is applied: a package applies to the
    * studio it was paid for, once paid.
    */
-  | { type: "paid"; periods: number; amount?: number; currency?: string; method?: string; reference?: string; packageId?: string; tierId?: string; seats?: number; period?: BillingPeriod }
+  | { type: "paid"; periods: number; amount?: number; currency?: string; method?: string; reference?: string; packageId?: string; categoryId?: string; tierId?: string; seats?: number; period?: BillingPeriod }
   /** A payment that was counted came back — a bounced transfer, a chargeback. */
   | { type: "reversed"; periods: number; reason?: string }
   /** A charge was refused. Recorded for the history; it moves no date. */
