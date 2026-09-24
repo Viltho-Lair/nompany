@@ -37,6 +37,35 @@ the dialog's own chunk.
 - **Row numbers are Excel's own**: an empty row stays in the grid, so "Line 7" in a
   refusal is row 7 on screen.
 
+## The template (2026-09-24)
+
+**Download template** gives the client an Excel workbook (`items-template.xlsx`) laid out
+the way this import reads it, in the reader's language (Arabic sheets run right to left):
+
+- **Items**: the fifteen column headings and nothing else. No example row, because an example
+  left in by accident is an item registered in somebody's studio. Every heading is an alias of
+  its field, so a filled template is matched with nobody touching a column (asserted for both
+  languages).
+- **Guide**: one row per column: whether it is required (only Name, for a new item), what to
+  write, and an example. The examples are valid against the studio: the unit is one it counts
+  in, and a row made of them imports cleanly (asserted).
+- **Lists**: the studio's own units and suppliers. The Unit column is a dropdown of them that
+  refuses anything else, because the import refuses anything else; the Supplier column offers
+  them and only warns, because the import can add new suppliers.
+
+**SKU, Model Number and Barcode are formatted as Text before anybody types in them.** That is
+the one thing a CSV cannot say and the reason the template is a workbook: typed into a CSV
+opened in Excel, a barcode becomes `6.2516E+12` with its digits gone (the 18/09/2026 incident
+below). The old CSV template, with one example row, is gone.
+
+The same guide is shown in the dialog before a file is attached ("How should the file look?").
+
+| Where | What it does |
+|---|---|
+| `src/shared/xlsxWrite.ts` | `writeXlsx`: a small .xlsx writer, stored ZIP, no library |
+| `src/modules/inventory/itemImport.ts` | `TEMPLATE_FIELDS`, `templateGuide`, `itemTemplate` (pure) |
+| `src/shared/studio/itemImport.ts` | `templateWords`: headings, guide and sheet names, English and Arabic |
+
 ## Matching the columns
 
 Headers are matched against aliases per field: Odoo's labels ("Internal Reference",
@@ -164,6 +193,11 @@ Ordinary item rows, the same fields in the same order as `createItem` writes, pl
 `importId` and `importLine`. Suppliers it adds carry `importId`. No file is kept.
 
 ## Not built yet
+
+- **The template's lists are a snapshot.** A unit or supplier added after it was downloaded
+  is not in its dropdowns; download it again. Currency has no dropdown.
+- **No template for updating prices only.** The full template works for that (leave the
+  other columns empty), but there is no SKU-and-price variant.
 
 - **One supplier per item.** An Odoo product with several suppliers keeps the first; the
   rest are counted and left out. Several suppliers per item is its own change (decision

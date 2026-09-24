@@ -28,6 +28,7 @@ import { fold } from "@/shared/csv";
 import { parseNumber } from "@/modules/tendering/boqImport";
 import { isKnownCurrency } from "@/shared/currencies";
 import { barcodeProblems, cleanBarcode } from "./barcodes";
+import { columnName, type XlsxSheet, type XlsxValidation } from "@/shared/xlsxWrite";
 
 export const ITEM_FIELDS = [
   "sku", "name", "unit", "vendor", "itemType", "modelNumber", "barcode",
@@ -68,16 +69,128 @@ export const ITEM_ALIASES: Record<ItemField, string[]> = {
   notes: ["Notes", "Internal Notes", "Description", "description", "ملاحظات", "الوصف"],
 };
 
-/** The columns the downloadable template carries, in order. */
-export const TEMPLATE_HEADERS = [
-  "SKU", "Name", "Unit", "Vendor", "Item Type", "Model Number", "Barcode",
-  "Cost", "Sales Price", "Currency", "Shipping Charges", "Customs Charges",
-  "Reorder Level", "Delivery Weeks", "Notes",
-];
-export const TEMPLATE_EXAMPLE = [
-  "CBL-001", "Cable Cat6 305m", "roll", "Gulf AV Supply", "Cables", "C6-305", "",
-  "180", "240", "", "", "", "10", "2", "",
-];
+// ---- the template a client fills in ------------------------------------------
+
+/**
+ * THE COLUMNS THE TEMPLATE CARRIES, in order. Lead time in days is left out:
+ * delivery in weeks says the same thing, and a template offering both invites
+ * two numbers that disagree.
+ */
+export const TEMPLATE_FIELDS = [
+  "sku", "name", "unit", "vendor", "itemType", "modelNumber", "barcode",
+  "unitCost", "sellPrice", "currency", "shippingCharges", "customsCharges",
+  "reorderLevel", "deliveryWeeks", "notes",
+] as const satisfies readonly ItemField[];
+export type TemplateField = (typeof TEMPLATE_FIELDS)[number];
+
+/** Only a NEW item must carry a name; everything else may be left blank. */
+export const TEMPLATE_REQUIRED: readonly TemplateField[] = ["name"];
+
+/** Columns that hold CODES, formatted as Text in the template so Excel never turns one into a number. */
+export const TEMPLATE_TEXT_FIELDS: readonly TemplateField[] = ["sku", "barcode", "modelNumber"];
+
+/** The template's words — headings, the guide, the sheet names — in the reader's language. */
+export type TemplateWords = {
+  /**
+   * The heading each column carries. EVERY ONE MUST BE AN ALIAS of its field
+   * (ITEM_ALIASES), so a filled template is matched with nobody touching a
+   * column — tests/item-import-model.mjs asserts it for every language.
+   */
+  headings: Record<TemplateField, string>;
+  guide: Record<TemplateField, { what: (c: { units: string; currency: string }) => string; example: string }>;
+  itemsSheet: string;
+  guideSheet: string;
+  listsSheet: string;
+  guideColumns: [string, string, string, string];
+  required: string;
+  optional: string;
+  notes: string[];
+  unitsHeading: string;
+  suppliersHeading: string;
+};
+
+export type TemplateEnv = { units: readonly string[]; studioCurrency: string; vendorNames: readonly string[] };
+
+/** Rows the template prepares: its dropdowns reach this far. */
+const TEMPLATE_ROWS = 5000;
+
+/** The guide as rows — the Guide sheet, and the table the import dialog shows. */
+export function templateGuide(words: TemplateWords, env: TemplateEnv) {
+  const ctx = { units: env.units.join(", "), currency: env.studioCurrency || "" };
+  return TEMPLATE_FIELDS.map((field) => ({
+    field,
+    heading: words.headings[field],
+    required: TEMPLATE_REQUIRED.includes(field),
+    what: words.guide[field].what(ctx),
+    // A unit example is one the studio actually counts in, or the example would be refused.
+    example: field === "unit" ? (env.units[0] || words.guide.unit.example) : words.guide[field].example,
+  }));
+}
+
+/**
+ * THE TEMPLATE WORKBOOK: an empty Items sheet to fill, a Guide, and the
+ * studio's own lists. Pure — the dialog hands the sheets to shared/xlsxWrite.
+ *
+ * THE ITEMS SHEET CARRIES NO EXAMPLE ROW. The old CSV template did, and an
+ * example left in by accident is an item named "Cable Cat6 305m" registered in
+ * somebody's studio; examples live on the Guide, where nothing reads them.
+ *
+ * The code columns are formatted as TEXT before anybody types in them — the
+ * one thing a CSV cannot say, and the reason for a workbook (see xlsxWrite).
+ * The unit column is a dropdown of the studio's units and REFUSES anything
+ * else, because the import refuses anything else. The supplier column offers
+ * the studio's suppliers and only WARNS, because the import can add new ones.
+ */
+export function itemTemplate(words: TemplateWords, env: TemplateEnv, opts: { rtl?: boolean } = {}): XlsxSheet[] {
+  const rtl = !!opts.rtl;
+  const col = (f: TemplateField) => columnName(TEMPLATE_FIELDS.indexOf(f));
+  const lists = `'${words.listsSheet.replace(/'/g, "''")}'`;
+  const units = [...env.units];
+  const vendors = [...env.vendorNames].sort((a, b) => a.localeCompare(b));
+  const validations: XlsxValidation[] = [];
+  if (units.length) {
+    validations.push({ range: `${col("unit")}2:${col("unit")}${TEMPLATE_ROWS}`, source: `${lists}!$A$2:$A$${units.length + 1}`, strictness: "stop" });
+  }
+  if (vendors.length) {
+    validations.push({ range: `${col("vendor")}2:${col("vendor")}${TEMPLATE_ROWS}`, source: `${lists}!$B$2:$B$${vendors.length + 1}`, strictness: "information" });
+  }
+  const guide = templateGuide(words, env);
+  return [
+    {
+      name: words.itemsSheet,
+      header: true,
+      rtl,
+      rows: [TEMPLATE_FIELDS.map((f) => words.headings[f])],
+      columns: TEMPLATE_FIELDS.map((f) => ({
+        width: f === "name" || f === "notes" ? 32 : f === "vendor" || f === "itemType" ? 22 : 15,
+        text: TEMPLATE_TEXT_FIELDS.includes(f),
+      })),
+      validations,
+    },
+    {
+      name: words.guideSheet,
+      header: true,
+      rtl,
+      rows: [
+        [...words.guideColumns],
+        ...guide.map((g) => [g.heading, g.required ? words.required : words.optional, g.what, g.example]),
+        [],
+        ...words.notes.map((n) => [n]),
+      ],
+      columns: [{ width: 22 }, { width: 12 }, { width: 70, wrap: true }, { width: 22, text: true }],
+    },
+    {
+      name: words.listsSheet,
+      header: true,
+      rtl,
+      rows: [
+        [words.unitsHeading, words.suppliersHeading],
+        ...Array.from({ length: Math.max(units.length, vendors.length) }, (_, i) => [units[i] ?? "", vendors[i] ?? ""]),
+      ],
+      columns: [{ width: 16, text: true }, { width: 32, text: true }],
+    },
+  ];
+}
 
 /** Rows per request. Small enough for any request limit, large enough to finish quickly. */
 export const IMPORT_BATCH = 250;

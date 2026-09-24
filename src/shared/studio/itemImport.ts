@@ -1,4 +1,5 @@
 import { defaultLocale, type Locale } from "../locale";
+import type { TemplateWords } from "@/modules/inventory/itemImport";
 
 // THE ITEM IMPORT DIALOG'S OWN WORDS. See the header of ./shell for why each
 // surface keeps its own dictionary and why nothing may enumerate them — and
@@ -15,6 +16,12 @@ type Strings = {
   attach: string;
   noFile: string;
   template: string;
+  templateFile: string;
+  guideShow: string;
+  guideHide: string;
+  guideLead: string;
+  /** The template workbook's words, and the guide the dialog shows. */
+  templateWords: TemplateWords;
   reading: string;
   unreadable: string;
   oldXls: string;
@@ -89,6 +96,50 @@ const en: Strings = {
   attach: "Attach file",
   noFile: "No file attached",
   template: "Download template",
+  templateFile: "items-template.xlsx",
+  guideShow: "How should the file look?",
+  guideHide: "Hide the file layout",
+  guideLead: "One item per row, one field per column. Only Name is required for a new item; any column may be left out. The template has these columns already, formatted and ready to fill.",
+  templateWords: {
+    headings: {
+      sku: "SKU", name: "Name", unit: "Unit", vendor: "Supplier", itemType: "Item Type",
+      modelNumber: "Model Number", barcode: "Barcode", unitCost: "Cost", sellPrice: "Sales Price",
+      currency: "Currency", shippingCharges: "Shipping Charges", customsCharges: "Customs Charges",
+      reorderLevel: "Reorder Level", deliveryWeeks: "Delivery Weeks", notes: "Notes",
+    },
+    guide: {
+      sku: { what: () => "Your code for the item, up to 40 characters. Leave it blank and one is given (ITM-…). Importing a file again with Update on changes the item with this SKU.", example: "CBL-001" },
+      name: { what: () => "What the item is called. Required for every new item.", example: "Cable Cat6 305m" },
+      unit: { what: (c) => `One of your units: ${c.units}. Blank means the first of them.`, example: "pcs" },
+      vendor: { what: () => "The supplier's name as it is on your Suppliers list. A supplier not on the list can be added while importing.", example: "Gulf AV Supply" },
+      itemType: { what: () => "The kind of item, in your own words. \"All / Saleable / Cables\" is read as \"Cables\".", example: "Cables" },
+      modelNumber: { what: () => "The manufacturer's model or part number.", example: "C6-305" },
+      barcode: { what: () => "EAN, UPC or your own code. It must not belong to another item.", example: "6291000000017" },
+      unitCost: { what: (c) => `What one unit costs you, in the Currency column's money (${c.currency || "your studio's currency"} when that is blank). A number only.`, example: "180" },
+      sellPrice: { what: () => "What you sell one unit for. A number only; check it is not swapped with Cost.", example: "240" },
+      currency: { what: (c) => `A three-letter code such as USD or EUR. Leave it blank for ${c.currency || "your studio's currency"}.`, example: "USD" },
+      shippingCharges: { what: () => "Shipping per unit. Required when Currency is not your own; write 0 if there is none.", example: "12" },
+      customsCharges: { what: () => "Customs duty per unit. Required when Currency is not your own; write 0 if there is none.", example: "5" },
+      reorderLevel: { what: () => "The stock level at which the item should be ordered again.", example: "10" },
+      deliveryWeeks: { what: () => "How many weeks the supplier takes to deliver, as a whole number.", example: "2" },
+      notes: { what: () => "Anything else about the item.", example: "Outdoor grade" },
+    },
+    itemsSheet: "Items",
+    guideSheet: "Guide",
+    listsSheet: "Lists",
+    guideColumns: ["Column", "Required", "What to write", "Example"],
+    required: "Required",
+    optional: "Optional",
+    notes: [
+      "Fill the Items sheet: one item per row, starting on row 2. Do not rename the headings.",
+      "Columns you do not need may be left empty or deleted.",
+      "SKU, Model Number and Barcode are formatted as Text, so Excel keeps every digit. Keep them that way when pasting.",
+      "Numbers are plain numbers: no currency symbols or units in the Cost and Price columns.",
+      "The Lists sheet holds your units and suppliers; the Unit and Supplier columns offer them as a dropdown.",
+    ],
+    unitsHeading: "Units",
+    suppliersHeading: "Suppliers",
+  },
   reading: "Reading the file…",
   unreadable: "This file could not be read. Attach an .xlsx or .csv file.",
   oldXls: "Files from older Excel (.xls) cannot be read. Open it in Excel and save it as .xlsx or CSV.",
@@ -167,6 +218,50 @@ const ar: Strings = {
   attach: "إرفاق ملف",
   noFile: "لم يُرفق ملف",
   template: "تنزيل القالب",
+  templateFile: "items-template.xlsx",
+  guideShow: "كيف يجب أن يكون الملف؟",
+  guideHide: "إخفاء بنية الملف",
+  guideLead: "صنف واحد في كل صف، وحقل واحد في كل عمود. الاسم وحده مطلوب للصنف الجديد، ويمكن ترك أي عمود. القالب يحمل هذه الأعمدة جاهزة ومنسقة للتعبئة.",
+  templateWords: {
+    headings: {
+      sku: "رمز الصنف", name: "اسم الصنف", unit: "الوحدة", vendor: "المورد", itemType: "نوع الصنف",
+      modelNumber: "رقم الموديل", barcode: "الباركود", unitCost: "سعر التكلفة", sellPrice: "سعر البيع",
+      currency: "العملة", shippingCharges: "رسوم الشحن", customsCharges: "رسوم الجمارك",
+      reorderLevel: "حد إعادة الطلب", deliveryWeeks: "مدة التوريد بالأسابيع", notes: "ملاحظات",
+    },
+    guide: {
+      sku: { what: () => "رمزك للصنف، حتى 40 حرفًا. اتركه فارغًا ليُعطى رمزًا (ITM-…). إعادة استيراد الملف مع خيار التحديث تغيّر الصنف الذي يحمل هذا الرمز.", example: "CBL-001" },
+      name: { what: () => "اسم الصنف. مطلوب لكل صنف جديد.", example: "كابل Cat6 ‏305 م" },
+      unit: { what: (c) => `إحدى وحداتك: ${c.units}. الفارغ يعني أولها.`, example: "pcs" },
+      vendor: { what: () => "اسم المورد كما هو في قائمة الموردين. يمكن إضافة مورد غير موجود أثناء الاستيراد.", example: "Gulf AV Supply" },
+      itemType: { what: () => "نوع الصنف بكلماتك. \"All / Saleable / Cables\" تُقرأ \"Cables\".", example: "كابلات" },
+      modelNumber: { what: () => "رقم الموديل أو القطعة من المصنّع.", example: "C6-305" },
+      barcode: { what: () => "EAN أو UPC أو رمزك الخاص، ولا يجوز أن يكون لصنف آخر.", example: "6291000000017" },
+      unitCost: { what: (c) => `تكلفة الوحدة عليك بعملة عمود العملة (${c.currency || "عملة الاستوديو"} إن كان فارغًا). رقم فقط.`, example: "180" },
+      sellPrice: { what: () => "سعر بيع الوحدة. رقم فقط، وتأكد أنه غير معكوس مع التكلفة.", example: "240" },
+      currency: { what: (c) => `رمز من ثلاثة أحرف مثل USD أو EUR. اتركه فارغًا لـ${c.currency || "عملة الاستوديو"}.`, example: "USD" },
+      shippingCharges: { what: () => "رسوم الشحن للوحدة. مطلوبة إذا كانت العملة غير عملتك؛ اكتب 0 إن لم توجد.", example: "12" },
+      customsCharges: { what: () => "رسوم الجمارك للوحدة. مطلوبة إذا كانت العملة غير عملتك؛ اكتب 0 إن لم توجد.", example: "5" },
+      reorderLevel: { what: () => "مستوى المخزون الذي يُعاد عنده طلب الصنف.", example: "10" },
+      deliveryWeeks: { what: () => "عدد الأسابيع التي يستغرقها المورد للتوريد، رقمًا صحيحًا.", example: "2" },
+      notes: { what: () => "أي معلومات أخرى عن الصنف.", example: "للاستخدام الخارجي" },
+    },
+    itemsSheet: "الأصناف",
+    guideSheet: "الدليل",
+    listsSheet: "القوائم",
+    guideColumns: ["العمود", "مطلوب", "ماذا تكتب", "مثال"],
+    required: "مطلوب",
+    optional: "اختياري",
+    notes: [
+      "املأ ورقة الأصناف: صنف واحد في كل صف بدءًا من الصف 2. لا تغيّر أسماء الأعمدة.",
+      "يمكن ترك الأعمدة التي لا تحتاجها فارغة أو حذفها.",
+      "رمز الصنف ورقم الموديل والباركود منسقة كنص كي يحفظ Excel كل الأرقام. حافظ على ذلك عند اللصق.",
+      "الأرقام أرقام فقط: بلا رموز عملة أو وحدات في أعمدة التكلفة والسعر.",
+      "ورقة القوائم تحمل وحداتك ومورديك، ويعرضها عمودا الوحدة والمورد كقائمة منسدلة.",
+    ],
+    unitsHeading: "الوحدات",
+    suppliersHeading: "الموردون",
+  },
   reading: "جارٍ قراءة الملف…",
   unreadable: "تعذرت قراءة هذا الملف. أرفق ملف ‎.xlsx أو ‎.csv.",
   oldXls: "لا يمكن قراءة ملفات Excel القديمة (‎.xls). افتحه في Excel واحفظه بصيغة ‎.xlsx أو CSV.",

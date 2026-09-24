@@ -7,9 +7,10 @@ import { btn, btnGhost, input, microLabel, fmtDate } from "@/components/studio2/
 import SelectMenu from "@/components/fields/SelectMenu";
 import { readGrid } from "@/modules/tendering/boqImport";
 import { readXlsx, isZip } from "@/shared/xlsx";
+import { writeXlsx } from "@/shared/xlsxWrite";
 import {
-  ITEM_FIELDS, IMPORT_BATCH, TEMPLATE_HEADERS, TEMPLATE_EXAMPLE,
-  guessItemMapping, looksLikeItemHeader, itemRows, planItemImport, refusedRowsCsv, toCsv,
+  ITEM_FIELDS, IMPORT_BATCH,
+  guessItemMapping, looksLikeItemHeader, itemRows, planItemImport, refusedRowsCsv, itemTemplate, templateGuide,
 } from "@/modules/inventory/itemImport";
 
 // IMPORTING REGISTERED ITEMS — a materials list from Odoo or a spreadsheet.
@@ -47,15 +48,18 @@ function decodeText(bytes) {
   try { return new TextDecoder("windows-1256").decode(bytes); } catch { return new TextDecoder().decode(bytes); }
 }
 
-function download(name, text) {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+function download(name, body, type = "text/csv;charset=utf-8") {
+  const url = URL.createObjectURL(new Blob([body], { type }));
   const a = document.createElement("a");
   a.href = url; a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export default function ItemImport({ slug, items, vendors, units, studioCurrency, onChanged, onBusy, onClose }) {
-  const tr = itemImportDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = itemImportDict(locale);
   const fileRef = useRef(null);
   const [fileName, setFileName] = useState("");
   const [sheets, setSheets] = useState(null);
@@ -68,6 +72,7 @@ export default function ItemImport({ slug, items, vendors, units, studioCurrency
   const [createVendors, setCreateVendors] = useState(false);
   const [swapOk, setSwapOk] = useState(false);
   const [showRefused, setShowRefused] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   // running | stopped | done — and the running tally.
   const [phase, setPhase] = useState("edit");
   const [run, setRun] = useState(null);
@@ -81,6 +86,12 @@ export default function ItemImport({ slug, items, vendors, units, studioCurrency
     [override, guessedHeader, grid],
   );
   const read = useMemo(() => itemRows(grid, mapping, { header }), [grid, mapping, header]);
+  // THE TEMPLATE IS THIS STUDIO'S: its units in the Unit dropdown, its
+  // suppliers in the Supplier one, its currency named in the guide — so what a
+  // client fills in is what this import will accept.
+  const templateEnv = { units, studioCurrency, vendorNames: vendors.map((v) => v.name) };
+  const downloadTemplate = () => download(tr.templateFile,
+    writeXlsx(itemTemplate(tr.templateWords, templateEnv, { rtl: locale === "ar" })), XLSX_TYPE);
   const env = useMemo(() => ({
     units, studioCurrency, vendorNames: vendors.map((v) => v.name), items,
   }), [units, studioCurrency, vendors, items]);
@@ -254,11 +265,46 @@ export default function ItemImport({ slug, items, vendors, units, studioCurrency
           {reading ? tr.reading : fileName || tr.noFile}
         </span>
         <button type="button" className="text-sm font-600 text-brand-700 hover:underline dark:text-brand-300"
-          onClick={() => download("items-template.csv", toCsv([TEMPLATE_HEADERS, TEMPLATE_EXAMPLE]))}>
+          onClick={downloadTemplate}>
           {tr.template}
         </button>
       </div>
       {readError && <p className="text-sm text-rose-600 dark:text-rose-300">{readError}</p>}
+
+      {!sheets && (
+        <div>
+          <button type="button" className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400"
+            aria-expanded={showGuide} onClick={() => setShowGuide((v) => !v)}>
+            {showGuide ? tr.guideHide : tr.guideShow}
+          </button>
+          {showGuide && (
+            <div className="mt-2 space-y-2">
+              <p className="text-xs text-slate-500 dark:text-slate-400">{tr.guideLead}</p>
+              <div className="max-h-72 overflow-auto rounded-xl border border-slate-200/70 dark:border-white/10">
+                <table className="w-full min-w-[560px] text-xs">
+                  <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900">
+                    <tr className="text-slate-500 dark:text-slate-400">
+                      {tr.templateWords.guideColumns.map((h) => <th key={h} className="px-3 py-1.5 text-start font-600">{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {templateGuide(tr.templateWords, templateEnv).map((g) => (
+                      <tr key={g.field} className="border-t border-slate-100 align-top dark:border-white/5">
+                        <td className="whitespace-nowrap px-3 py-1.5 font-600 text-slate-800 dark:text-slate-100">{g.heading}</td>
+                        <td className={`whitespace-nowrap px-3 py-1.5 ${g.required ? "font-600 text-brand-700 dark:text-brand-300" : "text-slate-400"}`}>
+                          {g.required ? tr.templateWords.required : tr.templateWords.optional}
+                        </td>
+                        <td className="px-3 py-1.5 text-slate-600 dark:text-slate-300">{g.what}</td>
+                        <td dir="auto" className="whitespace-nowrap px-3 py-1.5 font-mono text-slate-500">{g.example}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {!sheets && <ImportHistory slug={slug} items={items} tr={tr} onChanged={onChanged} />}
 

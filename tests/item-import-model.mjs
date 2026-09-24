@@ -248,5 +248,56 @@ let refusedCsv = false;
 try { await X.readXlsx(new TextEncoder().encode("Name,Cost\nPipe,3")); } catch { refusedCsv = true; }
 ok("a CSV named .xlsx is refused rather than read as garbage", refusedCsv);
 
+console.log("\n== the template a client fills in");
+
+const W = await import("@/shared/xlsxWrite");
+const D = await import("@/shared/studio/itemImport");
+const tenv = { units: ["pcs", "m", "roll"], studioCurrency: "AED", vendorNames: ["Zeta Trading", "Gulf AV Supply"] };
+for (const locale of ["en", "ar"]) {
+  const words = D.itemImportDict(locale).templateWords;
+  const headings = I.TEMPLATE_FIELDS.map((f) => words.headings[f]);
+  // A heading that is not an alias leaves its column unmatched, and a filled
+  // template would need somebody to point every column at its field by hand.
+  const guessed = I.guessItemMapping(headings);
+  ok(`${locale}: every template heading is recognised as its own field`,
+    I.TEMPLATE_FIELDS.every((f, i) => guessed[f] === i), JSON.stringify(guessed));
+
+  const sheets = I.itemTemplate(words, tenv, { rtl: locale === "ar" });
+  const book = await X.readXlsx(W.writeXlsx(sheets), (b) => inflateRawSync(b));
+  ok(`${locale}: the workbook written reads back — items, guide and lists`,
+    book.length === 3 && book[0].name === words.itemsSheet && book[2].name === words.listsSheet);
+  // An example row in the sheet people fill is an item nobody meant to register.
+  ok(`${locale}: the Items sheet is the headings alone, no example row`,
+    book[0].rows.length === 1 && book[0].rows[0].join("|") === headings.join("|"));
+  ok(`${locale}: the guide names every column, and Name as the one required`,
+    book[1].rows.slice(1, 1 + headings.length).map((r) => r[0]).join("|") === headings.join("|")
+    && book[1].rows[2][1] === words.required && book[1].rows[1][1] === words.optional);
+  ok(`${locale}: the lists sheet holds the studio's units and suppliers`,
+    book[2].rows.slice(1).map((r) => r[0]).filter(Boolean).join(",") === "pcs,m,roll"
+    && book[2].rows[1][1] === "Gulf AV Supply");
+}
+
+// The guide's examples, filled in as a row, must be something the import accepts —
+// a guide whose own example is refused teaches the wrong file.
+{
+  const words = D.itemImportDict("en").templateWords;
+  const guide = I.templateGuide(words, tenv);
+  ok("the unit example is one the studio counts in", guide.find((g) => g.field === "unit").example === "pcs");
+  const row = { line: 2 };
+  for (const g of guide) row[g.field] = g.example;
+  const p = plan([row], { createVendors: true }, env({ units: tenv.units, items: [] }));
+  ok("a row of the guide's examples imports cleanly", p.create.length === 1 && p.refused.length === 0, JSON.stringify(p.refused));
+}
+
+{
+  const raw = W.writeXlsx(I.itemTemplate(D.itemImportDict("en").templateWords, tenv));
+  const text = new TextDecoder().decode(raw);
+  // Barcodes typed into a General column come back as 6.2516E+12 — the 18/09/2026 incident.
+  ok("code columns are formatted as Text before anybody types", /<col min="1" max="1"[^>]*style="2"/.test(text) && /<col min="7" max="7"[^>]*style="2"/.test(text));
+  ok("the unit column is a strict dropdown of the lists sheet", /errorStyle="stop" sqref="C2:C5000"><formula1>'Lists'!\$A\$2:\$A\$4</.test(text));
+  ok("the supplier column only warns, since new suppliers can be added", /errorStyle="information" sqref="D2:D5000"/.test(text));
+  ok("column letters run past Z", W.columnName(0) === "A" && W.columnName(25) === "Z" && W.columnName(26) === "AA");
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nitem import: all passed");
 process.exit(fails ? 1 : 0);
