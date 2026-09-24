@@ -124,6 +124,7 @@ const areas: Record<Locale, Record<string, string>> = {
     "administration.access": "الأدوار والصلاحيات",
     "administration.master": "البيانات الأساسية",
     "administration.settings": "إعدادات الاستوديو",
+    main: "الرئيسية",
     engagements: "الارتباطات",
   },
 };

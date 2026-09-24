@@ -64,6 +64,8 @@ export type Subject = {
 // Section key -> the area(s) behind it. The nav asks about SECTIONS and the
 // model holds AREAS, so this is the one place that maps between them.
 export const SECTION_AREAS: Readonly<Record<string, readonly string[]>> = {
+  // Main is granted since 24/09/2026 (`main.view`, catalogue.ts).
+  main: ["main"],
   // THE PARENTS THAT ARE NOT ONLY HEADINGS. Each of these renders a dashboard of
   // its own, so each has a right of its own — see DASHBOARD_AREAS in
   // platform/access/catalogue.ts. They still have children, and both answers matter:
@@ -658,11 +660,11 @@ export function sectionViewable(
   if (own && anyKey(access, sectionKey, ["view"])) return true;
   const children = childrenOf(sectionKey, allKeys, parentOf);
   if (children.length) return children.some((k) => sectionViewable(access, k, allKeys, parentOf));
-  // A leaf with neither areas nor children answered "no" above except for
-  // one case: the studio home (Main) has nothing to protect, so it stays for
-  // everyone. Everything else in this shape is one of the NO_SCREEN_YET keys
-  // above and stays absent — see that constant for which and why.
-  return sectionKey === "main";
+  // A leaf with neither areas nor children has nothing anybody may open. This
+  // used to answer yes for Main, "which has nothing to protect"; Main is a
+  // granted area now (`main.view`, 24/09/2026) and is answered above like any
+  // other. Everything else in this shape is one of the NO_SCREEN_YET keys.
+  return false;
 }
 
 // A section's screens are editable if the person holds ANY write on its areas.

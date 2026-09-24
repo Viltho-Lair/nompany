@@ -47,6 +47,13 @@ belongs in the nav rather than at the end.
 Main and Approvals stand beside the blueprint's sections: Main is the home surface, Approvals a
 cross-cutting control every member opens. Neither is a blueprint section.
 
+**Main is a granted page since 24/09/2026** (`main.view`, grouped under Main on the Access screen
+beside Engagements). It was open to every member, and a cashier holding Point of Sale alone opened
+a page of zeros. **No existing role was given it** — the owner's choice: Admin holds it as it
+holds everything, and every other role is ticked by hand. Without it the sidebar has no Main,
+`/<slug>` lands on the first section the person may open, and `GET /main` answers 403.
+Engagements and Nova share Main's context and are not behind the right.
+
 | Section | Owns | State |
 |---|---|---|
 | CRM & Sales | tickets, clients, **contracts**, **point of sale** (full-screen, owns its tills, shifts and receipts — `pos.md`), live view, settings — and, filed-only, the rows the Quotations department reads | Partial — no pipeline, customer 360 or catalog |

@@ -843,12 +843,13 @@ export async function testEmptySectionsDoNotRender(t) {
     t.equal(sectionViewable(narrow, childKey, keys), true,
       `engine-${type.key} renders on its own right either way`);
   }
-  // Main is the one heading in the same shape (no areas, no children) that
-  // DOES stay — it is the studio home, reachable by membership alone. Proving
-  // the four placeholders are absent would be hollow if the fix had also
-  // taken Main down with them.
-  t.equal(sectionViewable(access, "main", ALL_SECTION_KEYS), true,
-    "main has nothing to protect and stays for everyone");
+  // Main USED to be the one heading that stayed for everyone, reachable by
+  // membership alone. It is a granted area since 24/09/2026 (`main.view`):
+  // hidden from this reader, shown to somebody holding the right.
+  t.equal(sectionViewable(access, "main", ALL_SECTION_KEYS), false,
+    "main is hidden without main.view");
+  t.equal(sectionViewable(new Set(["main.view"]), "main", ALL_SECTION_KEYS), true,
+    "main renders for somebody holding main.view");
 }
 
 // testSectionsRenderInDefOrder is DELETED, on review (fix round 1). It

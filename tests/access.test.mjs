@@ -133,7 +133,9 @@ console.log("\n== the nav reads the same source as the guards");
   ok("a sibling they do not hold is hidden", !view(only, "crm-sales-clients"));
   ok("the PARENT heading shows because a child does", view(only, "crm-sales"));
   ok("an untouched heading is hidden", !view(only, "hr"));
-  ok("the dashboard home has nothing to protect", view(only, "main"));
+  // MAIN IS GRANTED since 24/09/2026 — it used to be open to every member.
+  ok("Main is hidden from somebody without main.view", !view(only, "main"));
+  ok("...and shown to somebody who holds it", view(new Set(["main.view"]), "main"));
 
   ok("buttons appear where a write is held", ACCESS.sectionManageable(only, "crm-sales-tickets", keys));
   // The bug that broke "raise an RFQ": a heading has no areas of its own, so

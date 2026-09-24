@@ -1,4 +1,5 @@
 import { route, type RouteSpec } from "@/platform/http/route";
+import { requirePermission } from "@/platform/access";
 import { mainContext, headlines, recent, type MainContext } from "@/modules/main/main";
 import { readAggregate } from "@/modules/main/executive";
 import { awaitingQueue } from "@/modules/main/awaiting";
@@ -33,6 +34,10 @@ const spec: RouteSpec<MainContext> = {
 };
 
 export const GET = route(spec, async (main) => {
+  // MAIN IS A GRANTED PAGE (24/09/2026). Refused here, at the page's own
+  // route, and NOT in mainContext: engagements and Nova share that context and
+  // answer to rights of their own.
+  if (requirePermission(main.access, "main.view")) return { error: "forbidden" };
   const [figures, feed] = await Promise.all([headlines(main), recent(main)]);
 
   // WHICH EXECUTIVE WIDGETS THIS STUDIO'S TIER BOUGHT — resolved server-side,

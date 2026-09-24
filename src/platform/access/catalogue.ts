@@ -805,6 +805,14 @@ const OWN_AREAS = [
   // docs/progress.md). "Main" here is only the access-grid's grouping label,
   // the same as any other area's `group`, and carries no nav nesting with it —
   // the screen itself is reached from a nav entry beside Main, not under it.
+  // MAIN, THE STUDIO'S HOME PAGE, IS GRANTED — the owner, 24/09/2026. It was
+  // open to every member; a cashier holding Point of Sale alone opened a page
+  // of zeros. `main.view` opens it. NO EXISTING ROLE WAS GIVEN IT (the owner's
+  // choice, no catch-up): Admin holds it as it holds everything, and every
+  // other role is ticked by hand. Without it, `/<slug>` lands on the first
+  // section the person may open. Engagements is NOT behind it — that screen is
+  // reached from its own nav entry and keeps its own right.
+  { key: "main", group: "Main", label: "Main", verbs: ["view"] },
   { key: "engagements", group: "Main", label: "Engagements", verbs: ["view", "delete"],
     extra: [{ key: "lock", label: "Lock and unlock a deal" }] },
 ] as const;
