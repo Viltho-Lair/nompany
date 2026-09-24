@@ -113,8 +113,9 @@ re-recorded deliberately.
 
 ## Not built yet
 
-- **Deleting an unpaid studio at 365 days** is not wired into the job yet: it deletes only
-  studios whose owner asked. See `subscriptions.md`.
+- **Deleting an unpaid studio at 365 days** is wired into the same job, but it only reports
+  until `UNPAID_DELETIONS=on` is set, and it deletes only studios that were warned. See
+  `subscriptions.md`.
 - **Finding a studio's files reads every media record**, because nothing indexes them by
   studio. That's fine at today's volume; an index is the fix once it isn't.
 

@@ -4,6 +4,8 @@ import { BILLING, REG } from "@/platform/db/keys";
 import { deleteMedia, listMediaForStudio } from "@/lib/media";
 import { cascadeDeleteStudio } from "@/platform/db/cascade";
 import { dueForDeletion, type DueStudio } from "@/shared/studioDeletion";
+import { subscriptionDocs } from "@/lib/data/subscriptions";
+import { billingDay, unpaidDeletionDue } from "@/shared/subscription";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,18 +51,46 @@ const MAX_PER_RUN = 5;
 /** Invoices and billing records outlive the studio by this long (terms §10). */
 const BILLING_RETENTION_SEC = 10 * 365 * 24 * 60 * 60;
 
+// UNPAID STUDIOS AT DAY 365 (the owner's ladder, 24/09/2026) — a SECOND kind of
+// deletion with its OWN switch, `UNPAID_DELETIONS=on`. The owner confirmed
+// deleting studios whose OWNER asked (STUDIO_DELETIONS); deleting a studio for
+// non-payment is a different decision about other people's data, and invariant
+// 17 asks for its confirmation separately. Until it is set the run REPORTS the
+// unpaid studios it would delete. And even when it is set, a studio is deleted
+// only if its last warning went out (shared/subscription's unpaidDeletionDue),
+// so an email outage keeps studios rather than deleting them unwarned.
+async function unpaidDue(studios: Record<string, unknown>[]) {
+  const today = billingDay();
+  const docs = await subscriptionDocs(studios.map((s) => String(s.id)));
+  const byId = new Map(studios.map((s) => [String(s.id), s]));
+  const due: { id: string; name: string; slug: string }[] = [];
+  const held: { id: string; reason: string }[] = [];
+  for (const { studioId, doc } of docs) {
+    if (!doc) continue;
+    const why = unpaidDeletionDue(doc.subscription, today, doc.sentNotices || []);
+    if (why === "not-expired") continue;
+    const s = byId.get(studioId);
+    if (why) held.push({ id: studioId, reason: why });
+    else due.push({ id: studioId, name: String(s?.name || ""), slug: String(s?.slug || "") });
+  }
+  return { due, held };
+}
+
 async function run() {
   const enabled = process.env.STUDIO_DELETIONS === "on";
+  const unpaidEnabled = process.env.UNPAID_DELETIONS === "on";
   const now = Date.now();
-  const due = dueForDeletion(await readArr(REG.studios), now);
+  const studios = await readArr<Record<string, unknown>>(REG.studios);
+  const due = dueForDeletion(studios, now);
   const batch = due.slice(0, MAX_PER_RUN);
+  const unpaid = await unpaidDue(studios);
 
   if (!enabled) {
     // THE REPORT NAMES THE WHOLE SCOPE — each studio and how many of its files
     // would go with it — because it is what the owner confirms against.
     const report: (DueStudio & { files: number })[] = [];
     for (const studio of batch) report.push({ ...studio, files: (await listMediaForStudio(studio.id)).length });
-    return Response.json({ ok: true, mode: "report", due: report, dueTotal: due.length });
+    return Response.json({ ok: true, mode: "report", due: report, dueTotal: due.length, unpaid });
   }
 
   const deleted: string[] = [];
@@ -81,9 +111,27 @@ async function run() {
     filesDeleted += files.length;
   }
 
+  // THE UNPAID ONES, in whatever room the owner-requested ones left this run,
+  // each looked at again right before it goes — a payment that arrived in the
+  // meantime makes it no longer expired.
+  const unpaidDeleted: string[] = [];
+  if (unpaidEnabled) {
+    for (const studio of unpaid.due.slice(0, Math.max(0, MAX_PER_RUN - deleted.length))) {
+      const again = (await unpaidDue(await readArr<Record<string, unknown>>(REG.studios))).due.some((s) => s.id === studio.id);
+      if (!again) { skipped.push({ id: studio.id, reason: "paid-or-changed" }); continue; }
+      const files = await listMediaForStudio(studio.id);
+      for (const id of files) await deleteMedia(id);
+      await touchTTL(BILLING.subscription(studio.id), BILLING_RETENTION_SEC);
+      await cascadeDeleteStudio(studio.id);
+      unpaidDeleted.push(studio.id);
+      filesDeleted += files.length;
+    }
+  }
+
   return Response.json({
     ok: true, mode: "delete", deleted, skipped, filesDeleted,
     dueTotal: due.length, hitCap: due.length > MAX_PER_RUN,
+    unpaid: { mode: unpaidEnabled ? "delete" : "report", deleted: unpaidDeleted, due: unpaid.due, held: unpaid.held },
   });
 }
 

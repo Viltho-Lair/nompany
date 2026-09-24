@@ -33,7 +33,12 @@ export type HistoryEntry = {
   after: Pick<Subscription, "kind" | "paidUntil" | "cancelAt" | "seats">;
 };
 
-type Doc = { subscription: Subscription; history: HistoryEntry[] };
+/**
+ * `sentNotices` — the warning emails already sent (shared/subscription's
+ * noticesDue keys), kept in the same document so a warning and the record of it
+ * cannot part company. Absent on every document written before 24/09/2026.
+ */
+type Doc = { subscription: Subscription; history: HistoryEntry[]; sentNotices?: string[] };
 
 const snap = (s: Subscription) => ({ kind: s.kind, paidUntil: s.paidUntil, cancelAt: s.cancelAt, seats: s.seats });
 
@@ -141,4 +146,25 @@ export async function studioBilling(studioId: string) {
   // Days until what is paid (or free) runs out — worked out here, on the
   // server's clock in Amman time, so a screen never reads its own.
   return { status, access: accessFor(status), kind: sub.kind, paidUntil: sub.paidUntil, daysLeft: daysBetween(today, sub.paidUntil), dates: ladderDates(sub) };
+}
+
+/** Every studio's stored document, for the daily warning job. Missing ones are complimentary and warned of nothing. */
+export async function subscriptionDocs(studioIds: string[]) {
+  const docs = await getJSONMany<Doc>(studioIds.map((id) => BILLING.subscription(id)));
+  return studioIds.map((studioId, i) => ({ studioId, doc: docs[i]?.subscription ? docs[i] : null }));
+}
+
+/**
+ * RECORDS WARNINGS AS SENT — only after the email went, so a failed send is
+ * tried again on the next run rather than counted. Kept to the last 50 keys: a
+ * key names a date, and one from a ladder long since paid off is never asked
+ * about again.
+ */
+export async function markNoticesSent(studioId: string, keys: readonly string[]) {
+  if (!keys.length) return;
+  await editJSON<Doc, void>(BILLING.subscription(studioId), (cur) => {
+    if (!cur?.subscription) return { result: undefined };
+    const sent = [...new Set([...(cur.sentNotices || []), ...keys])].slice(-50);
+    return { next: { ...cur, sentNotices: sent }, result: undefined };
+  });
 }

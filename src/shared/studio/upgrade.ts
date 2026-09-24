@@ -34,6 +34,8 @@ type Strings = {
   close: string;
   failed: string;
   asked: string;
+  /** The account page's link to the studio's full export. */
+  download: string;
 };
 
 const en: Strings = {
@@ -63,6 +65,7 @@ const en: Strings = {
   close: "Close",
   failed: "That didn't go through. Try again.",
   asked: "The package you picked when you signed up is selected.",
+  download: "Download everything",
 };
 
 const ar: Strings = {
@@ -92,6 +95,7 @@ const ar: Strings = {
   close: "إغلاق",
   failed: "لم يتم ذلك. حاول مرة أخرى.",
   asked: "تم اختيار الباقة التي اخترتها عند التسجيل.",
+  download: "تنزيل كل البيانات",
 };
 
 export function upgradeDict(locale: string): Strings {

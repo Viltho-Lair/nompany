@@ -54,7 +54,7 @@ async function renderShell(children) {
   // so no screen below renders at all. The API refuses the same people
   // (platform/http/route); this is the page half.
   if (billing?.access === "owner-only") {
-    return <ShutDown locale={locale} owner={collaborator.role === "owner"} deletedOn={billing.dates?.deletedOn} />;
+    return <ShutDown locale={locale} owner={collaborator.role === "owner"} deletedOn={billing.dates?.deletedOn} slug={studio.slug} />;
   }
   // WHAT THE STUDIO HAS SWITCHED OFF, for the dashboards' second gate. From
   // ALL sections, never `sections`: that list is already filtered to what the
@@ -179,10 +179,10 @@ function BillingBanner({ billing, locale }) {
 /**
  * THE WHOLE STUDIO, WHEN IT IS SHUT DOWN. The owner is told what is kept and
  * until when, and how to reopen it; a member is told only that the owner can.
- * Download-everything belongs here and is not built yet — no button is drawn
- * for it rather than one that does nothing.
+ * The owner can also download everything the studio holds (/export, owner
+ * only), which is what the owner's rules leave them with here.
  */
-function ShutDown({ locale = "en", owner, deletedOn }) {
+function ShutDown({ locale = "en", owner, deletedOn, slug }) {
   const t = subscriptionDict(locale);
   return (
     <main lang={locale} dir={dirFor(locale)} className="flex min-h-screen items-center justify-center bg-[var(--geex-page)] px-5">
@@ -192,6 +192,11 @@ function ShutDown({ locale = "en", owner, deletedOn }) {
           {owner ? t.shutDownOwner(day(deletedOn)) : t.shutDownMember}
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
+          {owner && (
+            <a href={`/api/studios/${slug}/export`} className="inline-block rounded-full border border-slate-200 px-5 py-2.5 font-display text-sm font-700 text-slate-700 dark:border-white/15 dark:text-slate-200">
+              {t.download}
+            </a>
+          )}
           {owner && (
             <Link href={`/${locale}/contact`} className="inline-block rounded-full bg-brand-600 px-5 py-2.5 font-display text-sm font-700 text-white hover:bg-brand-700">
               {t.pay}

@@ -65,5 +65,12 @@ ok("its billing record is set to expire before the studio goes", billing > -1 &&
 ok("...ten years out", /BILLING_RETENTION_SEC = 10 \* 365 \* 24 \* 60 \* 60/.test(job));
 ok("the report says how many files each studio would lose", /files: \(await listMediaForStudio\(studio\.id\)\)\.length/.test(job));
 
+// UNPAID DELETION IS A SECOND DECISION WITH ITS OWN SWITCH (invariant 17): the
+// owner turned on deleting studios whose OWNER asked; deleting for non-payment
+// waits on UNPAID_DELETIONS, and on the last warning having gone out.
+ok("unpaid deletion has its own switch", /process\.env\.UNPAID_DELETIONS === "on"/.test(job));
+ok("...and asks whether the studio was warned before deleting it", /unpaidDeletionDue\(/.test(job));
+ok("...and looks again right before deleting it", /paid-or-changed/.test(job));
+
 console.log(`\n${fails ? `${fails} FAILED` : "all passed"}`);
 process.exit(fails ? 1 : 0);

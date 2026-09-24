@@ -20,7 +20,7 @@ These replaced a trial for every studio and a three-month grace (23/09/2026).
   | 0–19 | `due` | Everything, as normal |
   | 20–89 | `closed` | View and export only. Nothing is created or changed |
   | 90–364 | `shut_down` | Members are locked out. The owner can only read (pay and download everything) |
-  | 365 | `expired` | Deleted by `cron/studio-deletions`. **Not wired yet** (see below) |
+  | 365 | `expired` | Deleted by `cron/studio-deletions`, once warned, behind `UNPAID_DELETIONS` (see below) |
 
   **Paying at any point before deletion restores the studio at once.**
 - **A Standard studio at the end of its three months takes the same ladder, closed that
@@ -114,6 +114,32 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
     it: package, tier, seats, billing period and total. The payment carries its period, so
     a yearly one buys a year, and recording it moves the studio onto the package and
     clears the request.
+- **Download everything** (step 6, 24/09/2026): `GET /api/studios/<slug>/export`, owner
+  only, returns one JSON file (`lib/data/studioExport`).
+  - It contains every record in every section, including switched-off and filed-only
+    ones and each register's engine records, read through `readCol` so clients' details
+    come out unsealed. It also has the members, roles, settings, section tree, and a list
+    of uploaded files with names, sizes and the address that serves each one.
+  - Secrets (API keys, the e-invoicing secret) and nompany's billing record are left out.
+  - It is a read, so it works in a closed or shut-down studio. The shut-down screen and
+    every owned studio on `/account` link to it.
+- **The warnings** (`cron/subscription-notices`, daily 06:30 UTC). They go to the owner,
+  in the studio's language, 30, 7 and 1 days before shut-down and again before deletion
+  (`noticesDue`).
+  - One email per step per run. A run that missed days sends only the most urgent
+    warning and marks the earlier ones as sent.
+  - A warning is recorded in the document's `sentNotices` only once the email went, and
+    each step is recorded on its own.
+- **Deletion at 365 days** is part of `cron/studio-deletions`, with its **own switch,
+  `UNPAID_DELETIONS=on`**. That is separate from `STUDIO_DELETIONS`, which covers
+  owner-requested deletions, because invariant 17 asks for this confirmation separately.
+  Without it, the run only reports the studios it would delete.
+  - A studio is deleted only when it is `expired` **and its one-day deletion warning was
+    sent** (`unpaidDeletionDue`). A studio that was never warned is held and reported as
+    `not-warned`.
+  - Each studio is looked at again right before it goes, so a payment in the meantime
+    keeps it. Files and the ten-year billing expiry are handled the same way as an
+    owner-requested deletion.
 - **The studio sees it.**
   - A banner above every screen when payment is due, the studio is closed or cancelled,
     or Standard's free period ends within 14 days.
@@ -128,13 +154,12 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
 
 ## Not built yet
 
-- **Deletion at 365 days.** `expired` is computed, but `cron/studio-deletions` only
-  deletes studios whose **owner** asked. Wiring expired studios into it comes with the
-  export and warning emails (step 6), since the terms promise warnings first.
-- **Warning emails** (30, 7 and 1 days before shut-down and deletion) and payment
-  reminders. The terms promise these from 24/10/2026.
-- **Download everything** for a shut-down studio's owner. The shut-down screen draws no
-  button for it rather than one that does nothing.
+- **`UNPAID_DELETIONS` is not set anywhere.** Unpaid studios are reported and never
+  deleted until the owner switches it on.
+- **Reminders before the ladder starts** (an invoice due, a free period ending) exist only
+  as the in-studio banner. No email.
+- **The export includes no file bytes**: it lists each file and the address that serves
+  it. It is built in memory, which is fine at today's sizes.
 - **Invoices, credit notes and JoFotara**, **checkout**, and the owner's **Billing page**.
   An upgrade is a request that nompany answers by recording a transfer. The banner's and
   shut-down screen's "pay" still link to the contact page, not to the upgrade dialog.

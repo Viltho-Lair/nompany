@@ -161,6 +161,32 @@ ok("dinars keep three decimals", q({ packageId: "pkg_small", categoryId: "c1", c
 const yearPaid = paid(onPaid, "y1", 1, due, { period: "yearly" });
 ok("a payment naming a yearly period buys a year", yearPaid.sub.paidUntil === S.addMonths(due, 12) && yearPaid.sub.period === "yearly");
 
+console.log("\n== the warnings the Terms promise: 30, 7 and 1 days before shut-down and deletion");
+
+const shutOn = plus(due, 90);
+const at = (daysLeft) => S.addDays(shutOn, -daysLeft);
+ok("nothing is sent while paid up", S.noticesDue(onTime.sub, "2026-01-20", []).send.length === 0);
+ok("nothing is sent more than 30 days before shut-down", S.noticesDue(onPaid, at(31), []).send.length === 0);
+const d30 = S.noticesDue(onPaid, at(30), []);
+ok("30 days before shut-down, the 30-day warning", d30.send.length === 1 && d30.send[0].kind === "shut-down" && d30.send[0].days === 30);
+ok("...and once sent it is not sent again", S.noticesDue(onPaid, at(29), d30.markSent).send.length === 0);
+ok("7 days before, the 7-day warning", S.noticesDue(onPaid, at(7), d30.markSent).send[0]?.days === 7);
+// A JOB THAT MISSED A WEEK SENDS THE MOST URGENT ONE, NOT THREE AT ONCE.
+const late = S.noticesDue(onPaid, at(5), []);
+ok("a run that missed days sends only the most urgent warning", late.send.length === 1 && late.send[0].days === 7);
+ok("...and marks the earlier one sent with it", late.markSent.some((k) => k.startsWith("shut-down:30:")));
+ok("1 day before, the last warning", S.noticesDue(onPaid, at(1), [...d30.markSent, `shut-down:7:${shutOn}`]).send[0]?.days === 1);
+const delOn = plus(due, 365);
+const shut = S.noticesDue(onPaid, S.addDays(delOn, -30), []);
+ok("once shut down, the deletion warnings begin", shut.send.length === 1 && shut.send[0].kind === "deletion" && shut.send[0].days === 30);
+
+console.log("\n== an unpaid studio is deleted at a year — only if it was warned");
+
+ok("before its year is up it is not due", S.unpaidDeletionDue(onPaid, plus(due, 364), []) === "not-expired");
+ok("AT A YEAR, UNWARNED, IT IS KEPT", S.unpaidDeletionDue(onPaid, plus(due, 365), []) === "not-warned");
+ok("at a year, warned the day before, it is due", S.unpaidDeletionDue(onPaid, plus(due, 365), [`deletion:1:${delOn}`]) === "");
+ok("a studio that paid is never due", S.unpaidDeletionDue(afterShut.sub, plus(due, 365), [`deletion:1:${delOn}`]) === "not-expired");
+
 console.log("\n== no door around the gate");
 
 // THE WRAPPER ASKS FOR EVERY STUDIO ROUTE; A ROUTE WRITTEN OUTSIDE IT MUST ASK

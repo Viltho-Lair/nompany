@@ -435,6 +435,8 @@ function StudioRow({ studio, onSaved }) {
           <button className={BTN} onClick={save} disabled={busy || !dirty}>{busy ? tr.saving : tr.save}</button>
           <a href={`/${studio.slug}`} className={BTN_GHOST}>{tr.openStudio}</a>
           <button type="button" className={BTN_GHOST} onClick={() => setUpgrading(true)}>{upgradeDict(locale).button}</button>
+          {/* DOWNLOAD EVERYTHING — the owner may export at any time (Terms 1.4). */}
+          <a href={`/api/studios/${studio.slug}/export`} className={BTN_GHOST}>{upgradeDict(locale).download}</a>
         </div>
         {upgrading && (
           <UpgradeDialog slug={studio.slug} studioName={studio.name} locale={locale} onClose={() => setUpgrading(false)} />

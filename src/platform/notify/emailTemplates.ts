@@ -288,3 +288,35 @@ export function passwordResetEmail({ name, url }: { name?: string; url?: string 
   const text = `Reset your nompany password\n\nHi ${greetingName}, reset your password (expires in 1 hour): ${url}\n\nIf you didn't request this, ignore this email.`;
   return { subject, html: layout({ title: subject, bodyHtml, preheader: "Reset your nompany password." }), text };
 }
+
+// A STUDIO'S SUBSCRIPTION IS ABOUT TO SHUT DOWN, OR TO BE DELETED — the
+// warnings the Terms (1.4, §5) promise thirty, seven and one days before each
+// step of the unpaid ladder. In the STUDIO's language, not always English: the
+// owner reading it may well read Arabic, and a warning they cannot read is not
+// a warning. The Arabic body sits in an RTL block inside the shared shell.
+export function subscriptionWarningEmail({ locale = "en", studioName = "", kind, on = "", daysLeft = 0, url = "" }: {
+  locale?: string; studioName?: string; kind: "shut-down" | "deletion"; on?: string; daysLeft?: number; url?: string;
+}) {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(on) ? on.split("-").reverse().join("/") : on;
+  const ar = locale === "ar";
+  const subject = ar
+    ? (kind === "deletion" ? `ستُحذف ${studioName} خلال ${daysLeft} يوما` : `ستتوقف ${studioName} خلال ${daysLeft} يوما`)
+    : (kind === "deletion" ? `${studioName} will be deleted in ${daysLeft} day${daysLeft === 1 ? "" : "s"}` : `${studioName} will shut down in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`);
+  const lines = ar
+    ? (kind === "deletion"
+      ? [`اشتراك ${studioName} غير مدفوع، وستُحذف المنشأة وكل بياناتها نهائيا في ${date}.`, "ادفع قبل ذلك التاريخ لاستعادتها فورا، أو نزّل كل بياناتها من صفحة حسابك قبل حذفها."]
+      : [`اشتراك ${studioName} غير مدفوع. في ${date} تتوقف المنشأة: لن يتمكن الأعضاء من فتحها، وسيبقى لك الدفع وتنزيل البيانات فقط.`, "ادفع قبل ذلك التاريخ لتبقى تعمل."])
+    : (kind === "deletion"
+      ? [`${studioName}'s subscription is unpaid, and on ${date} the studio and everything in it will be deleted for good.`, "Pay before then and it is restored at once — or download everything from your account page before it goes."]
+      : [`${studioName}'s subscription is unpaid. On ${date} the studio shuts down: members can no longer open it, and you will only be able to pay and download its data.`, "Pay before then to keep it working."]);
+  const cta = ar ? "افتح صفحة حسابك" : "Open your account";
+  const dir = ar ? ' dir="rtl" style="text-align:right;"' : "";
+  const bodyHtml = `
+    <div${dir}>
+      <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">${esc(subject)}</h1>
+      ${lines.map((l) => `<p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:${BRAND.text};">${esc(l)}</p>`).join("")}
+      ${url ? `<p style="margin:18px 0 0;"><a href="${esc(url)}" style="display:inline-block;background:${BRAND.color};color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;">${esc(cta)}</a></p>` : ""}
+    </div>`;
+  const text = `${subject}\n\n${lines.join("\n\n")}${url ? `\n\n${cta}: ${url}` : ""}`;
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: lines[0] }), text };
+}

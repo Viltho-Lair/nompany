@@ -348,3 +348,66 @@ export function gateRequest(
   if (access === "owner-only") return input.isOwner && read ? "" : "studio-shut-down";
   return read ? "" : "studio-closed";
 }
+
+// ---- the warnings the Terms promise ----------------------------------------
+
+/** Days before shut-down and before deletion that the owner is warned (Terms 1.4 §5). */
+export const WARNING_DAYS = Object.freeze([30, 7, 1]);
+
+export type NoticeKind = "shut-down" | "deletion";
+export type Notice = { key: string; kind: NoticeKind; days: number; on: string; daysLeft: number };
+
+/**
+ * THE WARNINGS DUE TODAY, and the keys to mark sent. For each coming step —
+ * shut-down, and deletion — the most urgent threshold that has been reached
+ * and not yet sent. ONE email per step per run, never three: a job that missed
+ * a week and wakes up six days before shut-down sends the seven-day warning,
+ * and marks the thirty-day one sent with it rather than sending it late.
+ *
+ * Keyed by the step's DATE as well as its threshold, so a studio that pays,
+ * lapses again and faces a new shut-down date is warned afresh. A studio not on
+ * the ladder — paid up, on a free period, complimentary — gets nothing.
+ */
+export function noticesDue(
+  sub: Pick<Subscription, "kind" | "paidUntil" | "cancelAt">,
+  today: string,
+  sent: readonly string[],
+): { send: Notice[]; markSent: string[] } {
+  const status = subscriptionStatus(sub, today);
+  const dates = ladderDates(sub);
+  const steps: { kind: NoticeKind; on: string; applies: boolean }[] = [
+    { kind: "shut-down", on: dates.shutsDownOn, applies: ["due", "closed", "cancelled"].includes(status) },
+    { kind: "deletion", on: dates.deletedOn, applies: status === "shut_down" },
+  ];
+  const send: Notice[] = [];
+  const markSent: string[] = [];
+  for (const step of steps) {
+    if (!step.applies) continue;
+    const daysLeft = daysBetween(today, step.on);
+    if (daysLeft <= 0) continue;
+    const reached = WARNING_DAYS.filter((d) => daysLeft <= d);
+    if (!reached.length) continue;
+    const urgent = Math.min(...reached);
+    const key = (d: number) => `${step.kind}:${d}:${step.on}`;
+    if (sent.includes(key(urgent))) continue;
+    send.push({ key: key(urgent), kind: step.kind, days: urgent, on: step.on, daysLeft });
+    for (const d of reached) markSent.push(key(d));
+  }
+  return { send, markSent };
+}
+
+/**
+ * MAY AN UNPAID STUDIO BE DELETED TODAY? Only when its year is up (`expired`)
+ * AND the last warning before deletion — the one-day one — was sent. The Terms
+ * promise warnings before deletion; a studio whose warnings never went out,
+ * because email was down or disabled, is kept rather than deleted unwarned.
+ */
+export function unpaidDeletionDue(
+  sub: Pick<Subscription, "kind" | "paidUntil" | "cancelAt">,
+  today: string,
+  sent: readonly string[],
+): "" | "not-expired" | "not-warned" {
+  if (subscriptionStatus(sub, today) !== "expired") return "not-expired";
+  const lastWarning = `deletion:${Math.min(...WARNING_DAYS)}:${ladderDates(sub).deletedOn}`;
+  return sent.includes(lastWarning) ? "" : "not-warned";
+}
