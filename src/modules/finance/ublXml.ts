@@ -24,9 +24,10 @@
 //  8. `cac:SellerSupplierParty` carries the INCOME SOURCE SEQUENCE in
 //     `cac:PartyIdentification/cbc:ID` — a per-taxpayer number from the portal.
 //
-// STILL UNVERIFIED: nothing here has been submitted to ISTD, and the guide is
-// 107 pages of which this reads the structure rather than every rule. It is
-// built to be checked against a sandbox, not to be trusted before one.
+// STILL UNVERIFIED BY ISTD: no file written here has been through JoFotara, and
+// the guide is 107 pages of which this reads the structure rather than every
+// rule. The first file a studio submits and records as accepted is the check;
+// one it records as rejected, with ISTD's words, is the next fix.
 //
 // ONE LINE, NO PRETTY PRINTING. Whitespace between elements is significant to
 // anything that hashes or signs a document.
@@ -131,8 +132,12 @@ export function ublInvoiceXml(doc: UblInvoice, seller: JofotaraSeller): string {
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"',
-    ' xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents"',
-    ' xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents"',
+    // UBL 2.1'S NAMESPACES END IN "-2". These two were written without it until
+    // 25/09/2026, when writing Saudi Arabia's serialiser beside this one showed
+    // the difference: every element under an unsuffixed namespace belongs to no
+    // schema at all, so the document would be refused before any rule was read.
+    ' xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"',
+    ' xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"',
     ' xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2">',
     el("cbc:ProfileID", "reporting:1.0"),
     el("cbc:ID", doc.id),

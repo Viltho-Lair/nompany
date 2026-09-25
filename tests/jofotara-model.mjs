@@ -14,11 +14,6 @@
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
 
-// THE ONE KEY (17/09/2026), in the `<id>:<base64>` shape the keyring parses.
-// A fixed test key, set before anything imports the cipher: the settings block
-// below seals a secret, and sealing without a key throws rather than skipping.
-process.env.NOMPANY_DATA_KEY = `tk1:${Buffer.alloc(32, 9).toString("base64")}`;
-
 register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
 const J = await import("@/modules/finance/jofotaraDocument");
 
@@ -180,6 +175,11 @@ ok("a line's discount is an AllowanceCharge inside Price, reason DISCOUNT",
   /<cac:Price>.*<cac:AllowanceCharge>.*<cbc:AllowanceChargeReason>DISCOUNT<\/cbc:AllowanceChargeReason>/.test(xml));
 ok("the income source sequence rides in SellerSupplierParty",
   xml.includes("<cac:SellerSupplierParty><cac:Party><cac:PartyIdentification><cbc:ID>99123456</cbc:ID>"));
+// FOUND 25/09/2026, beside Saudi Arabia's serialiser: both of these lacked the
+// "-2", which puts every cac: and cbc: element in no schema at all.
+ok("the cac and cbc namespaces are UBL 2.1's, ending in -2",
+  xml.includes('xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"')
+  && xml.includes('xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"'));
 ok("payment means is present with its UN/ECE list",
   xml.includes('<cbc:PaymentMeansCode listID="UN/ECE 4461">10</cbc:PaymentMeansCode>'));
 
@@ -201,68 +201,32 @@ ok("and quantities likewise", /<cbc:InvoicedQuantity unitCode="PCE">\d+\.\d{3}</
 ok("the document is one line, because whitespace is significant to a signature",
   !xml.includes("\n"), String(xml.split("\n").length));
 
-console.log("\n== the credentials a studio enters, and what it is told back");
-// EVERY ASSERTION HERE IS ABOUT A SECRET. A credential that leaks into a
-// response is a credential in a browser's memory, a screenshot and a support
-// ticket; a credential silently erased by an ordinary save is one nobody can
-// get back without the portal. Both are one line of carelessness away.
-const S = await import("@/modules/finance/einvoiceSettings");
-
-const stored = S.cleanEInvoiceSettings({}, {
-  clientId: "abc-123", secretKey: "hunter2", incomeSource: "99123456", typeCode: "011",
+console.log("\n== the file is prepared from the studio's official values, and nothing is sent");
+// NO CREDENTIALS, the owner's rule of 26/09/2026: the adapter prepares the
+// file the studio submits through JoFotara itself. What it needs from the
+// studio are three OFFICIAL VALUES — the tax number, the income source
+// sequence and the invoice code — because all three are printed inside the
+// document. (They were fields of a credentials panel until that day, beside a
+// Client-Id and a Secret-Key that are gone.)
+const A = await import("@/modules/finance/jofotara");
+const joStudio = (values) => ({
+  name: "Sandbox Trading", country: "Jordan",
+  officialValues: { tax_number: "12345678", jofotara_income_source: "99123456", jofotara_invoice_type: "021", ...values },
 });
-ok("the secret is not stored as it was typed", stored.secretKey !== "hunter2" && Boolean(stored.secretKey),
-  String(stored.secretKey).slice(0, 12));
-ok("the rest is stored plainly, being no secret",
-  stored.clientId === "abc-123" && stored.incomeSource === "99123456" && stored.typeCode === "011", j(stored));
-
-const view = S.einvoiceSettingsView(stored);
-ok("A SCREEN IS TOLD WHETHER, NEVER WHAT", view.hasSecret === true && !("secretKey" in view), j(view));
-ok("and no part of the secret travels either",
-  !JSON.stringify(view).includes("hunter2"), JSON.stringify(view));
-ok("the client id and the sequence do come back, being what somebody must check",
-  view.clientId === "abc-123" && view.incomeSource === "99123456");
-ok("the codes offered are the guide's, so no screen invents one",
-  view.typeCodes.join(",") === "011,021,111,121,311,321,411,421,511,521");
-
-console.log("\n== a blank does not erase what the form was never shown");
-// THE FAILURE THIS PREVENTS: the form cannot send back a secret it never had,
-// so an ordinary save — changing the client id — would post an empty secret and
-// wipe the stored one. Silently, and only the portal could restore it.
-const afterEdit = S.cleanEInvoiceSettings(stored, { clientId: "abc-999", secretKey: "" });
-ok("changing the client id keeps the secret", afterEdit.secretKey === stored.secretKey, j(afterEdit.secretKey));
-ok("…and changes the client id", afterEdit.clientId === "abc-999");
-const untouched = S.cleanEInvoiceSettings(stored, { clientId: "abc-000" });
-ok("a field that is not sent is not changed",
-  untouched.incomeSource === "99123456" && untouched.secretKey === stored.secretKey, j(untouched));
-
-console.log("\n== removing one is its own act");
-const cleared = S.cleanEInvoiceSettings(stored, { clearSecret: true });
-ok("clearSecret removes it", !("secretKey" in cleared), j(cleared));
-ok("…and the view says so", S.einvoiceSettingsView(cleared).hasSecret === false);
-ok("a NEW secret replaces the old one",
-  S.cleanEInvoiceSettings(stored, { secretKey: "different" }).secretKey !== stored.secretKey);
-
-console.log("\n== what is refused on write, with the field named");
-ok("a complete set is accepted", S.einvoiceSettingsProblem({ clientId: "a", typeCode: "011" }) === "");
-ok("a code the guide does not list is refused by name",
-  S.einvoiceSettingsProblem({ typeCode: "012" }) === "type-code");
-ok("an empty code is not a refusal — it is 'not chosen yet'",
-  S.einvoiceSettingsProblem({ typeCode: "" }) === "");
-// A HALF-TYPED SANDBOX HOST would send every invoice to a host that does not
-// exist, and read as the authority being down.
-ok("a test address that is not a URL is refused",
-  S.einvoiceSettingsProblem({ endpoint: "backend.jofotara" }) === "endpoint");
-ok("http is refused too — a credential must not cross the wire in the clear",
-  S.einvoiceSettingsProblem({ endpoint: "http://example.test" }) === "endpoint");
-ok("a real https address is accepted",
-  S.einvoiceSettingsProblem({ endpoint: "https://sandbox.jofotara.gov.jo/core/invoices/" }) === "");
-ok("and an empty one is, being the authority's own", S.einvoiceSettingsProblem({ endpoint: "" }) === "");
-
-console.log("\n== nothing entered at all");
-const empty = S.einvoiceSettingsView(undefined);
-ok("an unconfigured studio reads as empty rather than throwing",
-  empty.hasSecret === false && empty.clientId === "" && empty.typeCode === "", j(empty));
+const invoice = { id: "inv-1", reference: "INV-0001", issueDate: "2026-09-22", clientName: "A Customer", currency: "JOD", vatRate: 16,
+  lines: [{ description: "Widget", qty: 2, unitPrice: 50 }] };
+const prepared = await A.jofotaraAdapter.prepare({ invoice, studio: joStudio({}) });
+ok("A COMPLETE STUDIO GETS ITS FILE", Boolean(prepared.xml) && prepared.filename === "INV-0001-jofotara.xml", j(prepared.problem || prepared.filename));
+ok("carrying the invoice code and the income source sequence from Official values",
+  prepared.xml?.includes('<cbc:InvoiceTypeCode name="021">388</cbc:InvoiceTypeCode>')
+  && prepared.xml?.includes("<cac:SellerSupplierParty><cac:Party><cac:PartyIdentification><cbc:ID>99123456</cbc:ID>"));
+ok("NO QR — JoFotara issues it, and the studio pastes it back when it records the answer", !prepared.qr);
+ok("a studio without its income source sequence is told which value to set",
+  (await A.jofotaraAdapter.prepare({ invoice, studio: joStudio({ jofotara_income_source: "" }) })).problem === "income-source");
+ok("an invoice code JoFotara does not recognise is refused by name",
+  (await A.jofotaraAdapter.prepare({ invoice, studio: joStudio({ jofotara_invoice_type: "999" }) })).problem === "invoice-code");
+ok("and one without its tax number, likewise",
+  (await A.jofotaraAdapter.prepare({ invoice, studio: joStudio({ tax_number: "" }) })).problem === "supplier-tin");
 
 console.log(fails ? `\njofotara model: ${fails} FAILURES\n` : "\njofotara model: all passed\n");
 process.exitCode = fails ? 1 : 0;

@@ -446,10 +446,20 @@ type Strings = CommonStrings & {
   // ---- e-invoicing (18/09/2026) ----
   einvTitle: string;
   einvRequired: (system: string, authority: string, mode: string, inForce: string) => string;
-  einvNotConnected: (system: string) => string;
+  einvNoAdapter: (system: string) => string;
+  einvHowTo: (system: string) => string;
   einvQueueNone: string;
   einvState: (s: string) => string;
-  einvSubmit: string;
+  einvDownload: string;
+  einvRecord: string;
+  einvOutcome: string;
+  einvReference: string;
+  einvQr: string;
+  einvQrHint: string;
+  einvMessage: string;
+  einvSave: string;
+  einvCancel: string;
+  einvProblem: (code: string) => string;
 };
 
 const en: Strings = {
@@ -822,7 +832,7 @@ const en: Strings = {
     country: "Choose the studio's country. Its tax rules and what its invoices must carry come from it.",
     currency: "Set the studio's currency. The books are kept in it, and a bill or bid in another currency cannot be judged against an approval limit without it.",
     vat: "No VAT rate is set, so no document carries tax. That is right only if the studio is not registered for VAT.",
-    einvoice: "Your country requires e-invoicing, and nompany does not submit invoices to the tax authority yet. Issue them through the authority's own system meanwhile — Finance → Tax lists what still needs to reach it.",
+    einvoice: "Your country requires e-invoicing, and nompany does not prepare its files yet. Issue invoices through the authority's own system meanwhile — Finance → Tax lists what still needs to reach it.",
   } as Record<string, string>)[key] || key,
   setupOfficialMissing: (labels) => `Your country requires these on your documents, and they are not filled in: ${labels}.`,
   setupOfficialInvalid: (labels) => `Filled in, but not in the form your country requires, so they print nowhere: ${labels}.`,
@@ -915,10 +925,40 @@ const en: Strings = {
   } as Record<string, string>)[code] || "That did not work.",
   einvTitle: "E-invoicing",
   einvRequired: (system, authority, mode, inForce) => `Your country requires invoices to reach ${authority} through ${system} (${({ clearance: "cleared before they are valid", reporting: "reported after issue", mixed: "business invoices cleared, consumer invoices reported" } as Record<string, string>)[mode] || mode}), since ${inForce}.`,
-  einvNotConnected: (system) => `nompany does not submit to ${system} yet. Until it does, issue these invoices through ${system} yourself; the list below is what still needs to reach it.`,
-  einvQueueNone: "Every issued invoice has reached the authority.",
-  einvState: (s) => ({ unsubmitted: "Not sent", pending: "Waiting", submitted: "Sent", accepted: "Accepted", rejected: "Rejected", failed: "Failed" } as Record<string, string>)[s] || s,
-  einvSubmit: "Send",
+  einvNoAdapter: (system) => `nompany does not prepare ${system} files yet. Issue these invoices through ${system} yourself, then record what it answered here.`,
+  einvHowTo: (system) => `nompany does not submit anything. Download each invoice's file, submit it through ${system} yourself, then record what ${system} answered — its reference, and its QR if it issued one, which then prints on the invoice.`,
+  einvQueueNone: "Every issued invoice is recorded as accepted by the authority.",
+  einvState: (s) => ({ unsubmitted: "Not prepared", prepared: "File ready — not yet recorded", accepted: "Accepted", rejected: "Rejected", pending: "Waiting", submitted: "Sent", failed: "Failed" } as Record<string, string>)[s] || s,
+  einvDownload: "Download file",
+  einvRecord: "Record answer",
+  einvOutcome: "The authority",
+  einvReference: "Its reference for the invoice",
+  einvQr: "Its QR",
+  einvQrHint: "Paste it as the authority issued it. It prints on the invoice.",
+  einvMessage: "Its message",
+  einvSave: "Save",
+  einvCancel: "Cancel",
+  einvProblem: (code) => ({
+    "reference-required": "An acceptance needs the authority's reference for the invoice.",
+    outcome: "Choose accepted or rejected.",
+    "no-adapter": "nompany does not prepare this country's file.",
+    "not-required": "This invoice does not need to reach the authority.",
+    "supplier-tin": "Set the company's tax number in Studio settings → Official values.",
+    "income-source": "Set the JoFotara income source sequence in Studio settings → Official values.",
+    "invoice-code": "Set the JoFotara invoice code in Studio settings → Official values.",
+    "seller-name": "Set the company's legal name in Studio settings → Official values.",
+    "seller-vat": "Set the VAT registration number (15 digits, starting and ending with 3) in Official values, and a VAT rate in Studio settings.",
+    "seller-crn": "Set the commercial registration number in Studio settings → Official values.",
+    "seller-address": "Set the national address — street, district and city — in Studio settings → Official values.",
+    "seller-building": "Set the national address building number (4 digits) in Studio settings → Official values.",
+    "seller-postal": "Set the national address postal code (5 digits) in Studio settings → Official values.",
+    "exemption-reason": "This invoice has a zero-rated or exempt line, and its reason code cannot be recorded yet, so its file cannot be prepared here.",
+    "buyer-details": "A business-to-business invoice needs the buyer's VAT number and address, which invoices here do not record yet.",
+    currency: "Only invoices in riyals can be prepared.",
+    lines: "The invoice has no lines.",
+    "issue-date": "The invoice has no issue date.",
+    reference: "The invoice has no reference.",
+  } as Record<string, string>)[code] || code,
 };
 
 const ar: Strings = {
@@ -1291,7 +1331,7 @@ const ar: Strings = {
     country: "اختر دولة الاستوديو. منها تأتي قواعد الضريبة وما يجب أن تحمله فواتيره.",
     currency: "حدد عملة الاستوديو. بها تمسك الدفاتر، ولا تقاس فاتورة أو عطاء بعملة أخرى على حد اعتماد بدونها.",
     vat: "لم تحدد نسبة ضريبة القيمة المضافة، فلا يحمل أي مستند ضريبة. وهذا صحيح فقط إن لم يكن الاستوديو مسجلا فيها.",
-    einvoice: "تشترط دولتك الفوترة الالكترونية، ولا يرسل نومباني الفواتير الى الجهة الضريبية بعد. أصدرها عبر نظام الجهة نفسه في الأثناء — المالية ← الضرائب تعرض ما لم يصل بعد.",
+    einvoice: "تشترط دولتك الفوترة الالكترونية، ولا يعد نومباني ملفاتها بعد. أصدر الفواتير عبر نظام الجهة نفسه في الأثناء — المالية ← الضرائب تعرض ما لم يصل بعد.",
   } as Record<string, string>)[key] || key,
   setupOfficialMissing: (labels) => `تشترط دولتك هذه على مستنداتك ولم تعبأ: ${labels}.`,
   setupOfficialInvalid: (labels) => `معبأة، لكن ليس بالصيغة التي تشترطها دولتك، فلا تطبع في أي مكان: ${labels}.`,
@@ -1384,10 +1424,40 @@ const ar: Strings = {
   } as Record<string, string>)[code] || "لم ينجح ذلك.",
   einvTitle: "الفوترة الالكترونية",
   einvRequired: (system, authority, mode, inForce) => `تشترط دولتك وصول الفواتير الى ${authority} عبر ${system} (${({ clearance: "تعتمد قبل أن تصبح نافذة", reporting: "يبلغ عنها بعد اصدارها", mixed: "فواتير المنشآت تعتمد وفواتير المستهلكين يبلغ عنها" } as Record<string, string>)[mode] || mode})، منذ ${inForce}.`,
-  einvNotConnected: (system) => `لا يرسل نومباني الى ${system} بعد. الى أن يفعل، أصدر هذه الفواتير عبر ${system} بنفسك؛ القائمة أدناه هي ما لم يصل بعد.`,
-  einvQueueNone: "وصلت كل فاتورة صادرة الى الجهة.",
-  einvState: (s) => ({ unsubmitted: "لم ترسل", pending: "بالانتظار", submitted: "أرسلت", accepted: "مقبولة", rejected: "مرفوضة", failed: "فشلت" } as Record<string, string>)[s] || s,
-  einvSubmit: "ارسال",
+  einvNoAdapter: (system) => `لا يعد نومباني ملفات ${system} بعد. أصدر هذه الفواتير عبر ${system} بنفسك، ثم سجل هنا ما رد به.`,
+  einvHowTo: (system) => `لا يرسل نومباني شيئا. نزّل ملف كل فاتورة وقدّمه عبر ${system} بنفسك، ثم سجل ما رد به ${system} — مرجعه، ورمز QR إن أصدره، فيطبع على الفاتورة من بعدها.`,
+  einvQueueNone: "كل فاتورة صادرة مسجلة مقبولة لدى الجهة.",
+  einvState: (s) => ({ unsubmitted: "لم يعد", prepared: "الملف جاهز — لم يسجل الرد", accepted: "مقبولة", rejected: "مرفوضة", pending: "بالانتظار", submitted: "أرسلت", failed: "فشلت" } as Record<string, string>)[s] || s,
+  einvDownload: "تنزيل الملف",
+  einvRecord: "تسجيل الرد",
+  einvOutcome: "رد الجهة",
+  einvReference: "مرجعها للفاتورة",
+  einvQr: "رمز QR الصادر عنها",
+  einvQrHint: "الصقه كما أصدرته الجهة. يطبع على الفاتورة.",
+  einvMessage: "رسالتها",
+  einvSave: "حفظ",
+  einvCancel: "إلغاء",
+  einvProblem: (code) => ({
+    "reference-required": "القبول يحتاج مرجع الجهة للفاتورة.",
+    outcome: "اختر مقبولة أو مرفوضة.",
+    "no-adapter": "لا يعد نومباني ملف هذه الدولة.",
+    "not-required": "لا يلزم وصول هذه الفاتورة إلى الجهة.",
+    "supplier-tin": "حدد الرقم الضريبي للمنشأة في إعدادات الاستوديو ← القيم الرسمية.",
+    "income-source": "حدد تسلسل مصدر الدخل في جوفوترة في إعدادات الاستوديو ← القيم الرسمية.",
+    "invoice-code": "حدد رمز الفاتورة في جوفوترة في إعدادات الاستوديو ← القيم الرسمية.",
+    "seller-name": "حدد الاسم القانوني للمنشأة في إعدادات الاستوديو ← القيم الرسمية.",
+    "seller-vat": "حدد رقم التسجيل الضريبي (15 رقما يبدأ وينتهي بـ 3) في القيم الرسمية، ونسبة الضريبة في إعدادات الاستوديو.",
+    "seller-crn": "حدد رقم السجل التجاري في إعدادات الاستوديو ← القيم الرسمية.",
+    "seller-address": "حدد العنوان الوطني — الشارع والحي والمدينة — في إعدادات الاستوديو ← القيم الرسمية.",
+    "seller-building": "حدد رقم المبنى في العنوان الوطني (4 أرقام) في إعدادات الاستوديو ← القيم الرسمية.",
+    "seller-postal": "حدد الرمز البريدي في العنوان الوطني (5 أرقام) في إعدادات الاستوديو ← القيم الرسمية.",
+    "exemption-reason": "في الفاتورة بند معفى أو بنسبة صفر، ولا يمكن تسجيل رمز سببه بعد، فلا يعد ملفها هنا.",
+    "buyer-details": "فاتورة منشأة لمنشأة تحتاج الرقم الضريبي للمشتري وعنوانه، ولا تسجلهما الفواتير هنا بعد.",
+    currency: "تعد الفواتير بالريال فقط.",
+    lines: "الفاتورة بلا بنود.",
+    "issue-date": "الفاتورة بلا تاريخ إصدار.",
+    reference: "الفاتورة بلا مرجع.",
+  } as Record<string, string>)[code] || code,
 };
 
 const finance = { en, ar };

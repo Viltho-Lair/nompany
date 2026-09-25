@@ -539,6 +539,13 @@ export const S = {
   // already holding. A tally only ever moves forward, so it cannot.
   // Under the studio prefix, so it dies with the studio like everything else.
   counters: (studioId: string) => `${P}s:${studioId}:counters`,
+  // A STUDIO'S E-INVOICE CHAIN — the counter and the previous document's hash
+  // that every Saudi invoice must carry (modules/finance/zatca). One document
+  // rather than a counter field, because the two must move TOGETHER in one
+  // compare-and-set: a counter that advanced without its hash is a chain with
+  // a hole ZATCA can see. Only ever forward, like the counters above, and under
+  // the studio prefix so it dies with the studio.
+  einvoiceChain: (studioId: string) => `${P}s:${studioId}:einvoice-chain`,
   // THE STUDIO'S DATA KEY, WRAPPED — see platform/db/sealing.ts. Under the
   // studio prefix ON PURPOSE: a studio cascade deletes it, and with it every
   // sealed value any backup still holds for that studio becomes unreadable.

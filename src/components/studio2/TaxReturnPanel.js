@@ -130,7 +130,8 @@ async function post(slug, body) {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
   const out = await res.json().catch(() => ({}));
-  return res.ok ? { ok: true, out } : { ok: false, error: String(out.error || "failed") };
+  // THE DETAIL TOO: an e-invoice that cannot be prepared names the setting to fix.
+  return res.ok ? { ok: true, out } : { ok: false, error: String(out.error || "failed"), detail: out.detail ? String(out.detail) : "" };
 }
 
 // FILING THE PERIOD ON SCREEN. The ledger's figure is shown beside the
@@ -310,47 +311,102 @@ function CertificateRow({ row, tr, slug, kind, canRecord, onDone }) {
   );
 }
 
-// E-INVOICING — what the studio's country requires, whether nompany is
-// connected to it, and the issued invoices that still need to reach it. With no
-// adapter the list is the studio's to-do in the authority's own portal, and the
-// screen says exactly that rather than offering a Send that could only refuse.
+// E-INVOICING — what the studio's country requires, and the issued invoices it
+// still owes the authority. NOMPANY NEVER SUBMITS (the owner's rule,
+// 26/09/2026): each row offers the invoice's official FILE to download, which
+// the studio submits through the authority's own channel, and a place to
+// RECORD what the authority answered — its reference, and its QR where the
+// authority issues one (Jordan's), which then prints on the invoice.
 function EInvoicing({ data, slug, locale, onDone }) {
   const tr = financeDict(locale);
   const e = data.einvoice;
   const [problem, setProblem] = useState("");
+  const [recording, setRecording] = useState(null);
   if (!e || !e.required) return null;
+
+  const download = async (row) => {
+    setProblem("");
+    const r = await post(slug, { action: "einvoice-prepare", id: row.id });
+    if (!r.ok) { setProblem(tr.einvProblem(r.detail || r.error)); return; }
+    const doc = r.out.document;
+    const url = URL.createObjectURL(new Blob([doc.xml], { type: "application/xml" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = doc.filename || `${row.reference}.xml`;
+    a.click();
+    URL.revokeObjectURL(url);
+    await onDone();
+  };
+
   return (
     <section className="space-y-2 rounded-geex border border-slate-200 p-4 dark:border-white/10">
       <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.einvTitle}</h3>
       <p className="text-sm text-slate-600 dark:text-slate-300">{tr.einvRequired(e.system, e.authority, e.mode, e.inForce)}</p>
-      {!e.connected && <p className="text-sm text-amber-700 dark:text-amber-300">{tr.einvNotConnected(e.system)}</p>}
+      <p className="text-sm text-slate-600 dark:text-slate-300">{e.prepares ? tr.einvHowTo(e.system) : tr.einvNoAdapter(e.system)}</p>
       {e.queue.length === 0 ? (
         <p className="text-sm text-emerald-600 dark:text-emerald-300">{tr.einvQueueNone}</p>
       ) : (
         <ul className="divide-y divide-slate-100 text-sm dark:divide-white/5">
           {e.queue.map((q) => (
-            <li key={q.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
-              <span>
-                <span className="font-mono text-slate-900 dark:text-white">{q.reference}</span>
-                <span className="ms-2 text-slate-500 dark:text-slate-400">{q.clientName}</span>
-                <span className="ms-2 text-xs text-slate-400">{q.issueDate}</span>
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="text-xs text-slate-500 dark:text-slate-400">{tr.einvState(q.state)}{q.message ? ` — ${q.message}` : ""}</span>
-                {e.connected && e.canSubmit && (
-                  <button className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white" onClick={async () => {
-                    setProblem("");
-                    const r = await post(slug, { action: "einvoice", id: q.id });
-                    if (!r.ok) { setProblem(r.error); return; }
-                    await onDone();
-                  }}>{tr.einvSubmit}</button>
-                )}
-              </span>
+            <li key={q.id} className="space-y-2 py-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  <span className="font-mono text-slate-900 dark:text-white">{q.reference}</span>
+                  <span className="ms-2 text-slate-500 dark:text-slate-400">{q.clientName}</span>
+                  <span className="ms-2 text-xs text-slate-400">{q.issueDate}</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{tr.einvState(q.state)}{q.message ? ` — ${q.message}` : ""}</span>
+                  {e.canAct && e.prepares && (
+                    <button className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white" onClick={() => download(q)}>{tr.einvDownload}</button>
+                  )}
+                  {e.canAct && recording !== q.id && (
+                    <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-600 text-slate-700 dark:border-white/15 dark:text-slate-200"
+                      onClick={() => { setProblem(""); setRecording(q.id); }}>{tr.einvRecord}</button>
+                  )}
+                </span>
+              </div>
+              {recording === q.id && (
+                <RecordAnswer slug={slug} locale={locale} row={q}
+                  onCancel={() => setRecording(null)}
+                  onDone={async () => { setRecording(null); await onDone(); }}
+                  onProblem={(p) => setProblem(tr.einvProblem(p))} />
+              )}
             </li>
           ))}
         </ul>
       )}
-      {problem && <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p>}
+      {problem && <p className="text-sm text-rose-600 dark:text-rose-300" role="alert">{problem}</p>}
     </section>
+  );
+}
+
+// WHAT THE AUTHORITY ANSWERED, typed in by the studio. The reference is
+// required for an acceptance — it is what somebody quotes back to the tax
+// office; the QR is pasted as the authority issued it, and prints from then on.
+function RecordAnswer({ slug, locale, row, onCancel, onDone, onProblem }) {
+  const tr = financeDict(locale);
+  const [form, setForm] = useState({ outcome: "accepted", reference: row.authorityReference || "", qr: "", message: "" });
+  const [busy, setBusy] = useState(false);
+  const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+  return (
+    <div className="grid gap-2 rounded-lg bg-slate-50 p-3 sm:grid-cols-2 dark:bg-white/5">
+      <Field label={tr.einvOutcome} as="select" value={form.outcome}
+        options={[{ value: "accepted", label: tr.einvState("accepted") }, { value: "rejected", label: tr.einvState("rejected") }]}
+        onChange={(v) => set({ outcome: v })} />
+      <Field label={tr.einvReference} value={form.reference} onChange={(v) => set({ reference: v })} />
+      <Field label={tr.einvQr} hint={tr.einvQrHint} value={form.qr} onChange={(v) => set({ qr: v })} />
+      <Field label={tr.einvMessage} value={form.message} onChange={(v) => set({ message: v })} />
+      <div className="flex gap-2 sm:col-span-2">
+        <button className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-600 text-white" disabled={busy} onClick={async () => {
+          setBusy(true);
+          const r = await post(slug, { action: "einvoice-record", id: row.id, ...form });
+          setBusy(false);
+          if (!r.ok) { onProblem(r.detail || r.error); return; }
+          await onDone();
+        }}>{tr.einvSave}</button>
+        <button className="rounded-lg px-3 py-1.5 text-xs font-600 text-slate-600 dark:text-slate-300" onClick={onCancel}>{tr.einvCancel}</button>
+      </div>
+    </div>
   );
 }

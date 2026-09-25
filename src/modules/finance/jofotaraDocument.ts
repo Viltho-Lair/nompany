@@ -1,20 +1,17 @@
-// WHAT JORDAN'S TAX AUTHORITY IS SENT — the document, composed and nothing else.
+// WHAT A JORDANIAN STUDIO SUBMITS TO JOFOTARA — the document, composed and
+// nothing else. (Nompany prepares it; the studio submits it — the owner's rule,
+// 26/09/2026.)
 //
-// PURE, AND SEPARATE FROM THE SENDING ON PURPOSE. An invoice becoming a UBL
+// PURE, AND SEPARATE FROM THE STUDIO'S SETTINGS ON PURPOSE. An invoice becoming a UBL
 // document is arithmetic and mapping: it has one right answer, it is the part
 // that will be wrong in ways nobody notices, and it can be asserted without a
-// network, a credential or a studio. `./jofotara` does the sending; everything
-// that decides WHAT is sent is here.
+// network, a credential or a studio. `./jofotara` joins it to the studio's
+// official values; everything that decides WHAT the document says is here.
 //
 // UBL 2.1, WHICH IS THE STANDARD BOTH JORDAN AND SAUDI ARABIA BUILD ON. The
 // names below (`cbc:`, `cac:`) are OASIS UBL's own, so this mapping is the
 // reusable half — a ZATCA adapter maps the same invoice onto the same names and
-// differs in the envelope, the signature and the transport.
-//
-// WHAT IS DELIBERATELY NOT DECIDED HERE: the ENVELOPE JoFotara expects around
-// this document. `docs/functionality/einvoicing.md` records that as the one
-// thing that waits on the authority's own documentation, and guessing it would
-// produce a submission that looks right and is refused.
+// differs in its own rules (./zatcaDocument).
 
 import { splitGross } from "@/shared/vat";
 import { roundMoney, roundSum } from "@/shared/money";
@@ -221,9 +218,9 @@ export function jofotaraDocument(input: {
 }
 
 /**
- * WHY THIS DOCUMENT CANNOT BE SENT, or "". Asked BEFORE anything reaches the
- * authority, because a rejection from ISTD arrives as a code a studio cannot
- * act on, while these four are things they can fix in their own settings.
+ * WHY THIS DOCUMENT CANNOT BE PREPARED, or "". Asked before the file is made,
+ * because a rejection from ISTD arrives as a code a studio cannot act on, while
+ * these four are things they can fix in their own settings.
  */
 export function jofotaraProblem(doc: UblInvoice): string {
   if (!doc.supplier.taxNumber) return "supplier-tin";

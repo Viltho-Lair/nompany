@@ -30,13 +30,20 @@ ok("a country with a sales tax and no rate is flagged to CHECK, not as wrong", j
 ok("THE COUNTRY'S MANDATORY VALUES ARE NAMED", jo.includes("official:tax_number:missing")
   && jo.includes("official:commercial_registration_number:missing"), jo.join(","));
 ok("nothing about currency once it is set", !jo.some((k) => k.startsWith("currency")));
-// E-INVOICING REQUIRED AND NOT CONNECTED: said, never implied away. Asked of
-// SAUDI ARABIA, whose ZATCA adapter is not built. This used to be asked of
-// Jordan, and went red — correctly — the day Jordan's JoFotara adapter
-// shipped (22/09/2026): the country stopped being the case it stood for.
+// E-INVOICING WHERE NOMPANY CANNOT PREPARE THE FILE: said, never implied away.
+// It was asked of Jordan until its adapter shipped (22/09/2026), then of Saudi
+// Arabia until its did (25/09/2026). Every country that declares e-invoicing
+// has an adapter now, so the notice has no real country to fire for; what is
+// asserted is that neither of these gets it, and that what a Jordanian file
+// needs is named where every official value is — as a missing value.
+// (A "connect" notice existed for one day and went with the owner's rule of
+// 26/09/2026: nompany never connects to an authority.)
 const sa = keys({ country: "Saudi Arabia", currency: "SAR" });
-ok("A COUNTRY THAT REQUIRES E-INVOICING, WITH NO ADAPTER, IS ANNOTATED", sa.includes("einvoice:check"), sa.join(","));
-ok("...and one whose adapter exists is not", !jo.includes("einvoice:check"), jo.join(","));
+ok("A COUNTRY WHOSE FILE NOMPANY PREPARES IS NOT TOLD IT CANNOT",
+  !sa.includes("einvoice:check") && !jo.includes("einvoice:check"), `${sa.join(",")} / ${jo.join(",")}`);
+ok("and nothing tells a studio to connect to anything", ![...sa, ...jo].some((k) => k.startsWith("einvoice-")));
+ok("WHAT JORDAN'S FILE NEEDS IS NAMED AS MISSING OFFICIAL VALUES — the income source sequence and the invoice code",
+  jo.includes("official:jofotara_income_source:missing") && jo.includes("official:jofotara_invoice_type:missing"), jo.join(","));
 ok("...and a country that requires none is not", !keys({ country: "Germany", currency: "EUR" }).includes("einvoice:check"));
 
 // Saudi Arabia: the VAT number is conditional on being registered.

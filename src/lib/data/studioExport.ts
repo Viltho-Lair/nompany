@@ -28,11 +28,24 @@ import { listMediaForStudio, getMedia } from "@/lib/media";
 
 const ENGINE_SECTION = /^engine-/;
 
+/**
+ * A SETTINGS OBJECT WITHOUT ITS CREDENTIALS, AT EVERY DEPTH. Nothing WRITES
+ * e-invoicing credentials any more (the owner, 26/09/2026: nompany never
+ * submits to a tax authority), but studios that saved Jordan's between 22/09
+ * and 26/09/2026 still hold a sealed secret on `einvoiceSettings`, and it must
+ * not leave in an export. Every depth, so a nested object is filtered too.
+ */
+function withoutCredentials(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value)
+    .filter(([k]) => !/secret|key|token/i.test(k))
+    .map(([k, v]) => [k, v && typeof v === "object" && !Array.isArray(v) ? withoutCredentials(v as Record<string, unknown>) : v]));
+}
+
 /** The studio record without anything that is a credential. */
 function studioSummary(studio: Record<string, unknown>) {
   const { einvoiceSettings, ...rest } = studio;
   const einvoice = einvoiceSettings && typeof einvoiceSettings === "object"
-    ? Object.fromEntries(Object.entries(einvoiceSettings as Record<string, unknown>).filter(([k]) => !/secret|key|token/i.test(k)))
+    ? withoutCredentials(einvoiceSettings as Record<string, unknown>)
     : undefined;
   return { ...rest, ...(einvoice ? { einvoiceSettings: einvoice } : {}) };
 }

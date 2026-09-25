@@ -108,13 +108,24 @@ export const InvoiceSchema = z.object({
    * einvoice), once anything has tried to send it. Absent is "not tried".
    */
   einvoice: z.object({
-    status: z.enum(["pending", "submitted", "accepted", "rejected", "failed"]),
+    // `prepared` since 26/09/2026, when nompany stopped submitting and began
+    // preparing (./einvoice); the three after `rejected` are legacy, still read.
+    status: z.enum(["prepared", "accepted", "rejected", "pending", "submitted", "failed"]),
     adapter: z.string(),
-    attempts: z.number(),
+    attempts: z.number().optional(),
     uuid: z.string().optional(),
     qr: z.string().optional(),
     message: z.string().optional(),
     at: z.string(),
+    /** The official file, prepared once so every download is the same bytes (./einvoiceService). */
+    document: z.object({
+      xml: z.string(),
+      filename: z.string(),
+      qr: z.string().optional(),
+      hash: z.string().optional(),
+      counter: z.number().optional(),
+      uuid: z.string().optional(),
+    }).optional(),
   }).nullable().optional(),
   /**
    * THE PROGRESS CLAIM THIS INVOICE BILLS (tier 6), the counterpart of

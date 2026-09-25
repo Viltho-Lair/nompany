@@ -114,6 +114,30 @@
       "source": { "label": "Fatouraty — JoFotara guide", "url": "https://fatouraty.com/en/blog/jordan-jofotara-e-invoicing-guide", "checked": "2026-09-18", "status": "uncertain" }
     },
     {
+      "key": "jofotara_income_source",
+      "department": "invoicing",
+      "label": { "en": "JoFotara income source sequence", "ar": "تسلسل مصدر الدخل في جوفوترة" },
+      "hint": { "en": "Issued by ISTD in the JoFotara portal. Every JoFotara invoice file carries it.", "ar": "تصدره دائرة ضريبة الدخل والمبيعات في بوابة جوفوترة. يحمله كل ملف فاتورة لجوفوترة." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^\\d{1,20}$"],
+      "maxLength": 20,
+      "showOn": [],
+      "source": { "label": "ISTD technical guide for linking with the national invoicing system (istd.gov.jo), cac:SellerSupplierParty", "checked": "2026-09-22", "status": "checked" }
+    },
+    {
+      "key": "jofotara_invoice_type",
+      "department": "invoicing",
+      "label": { "en": "JoFotara invoice code", "ar": "رمز الفاتورة في جوفوترة" },
+      "hint": { "en": "The code your registration uses: 011, 021, 111, 121, 311, 321, 411, 421, 511 or 521. Your accountant knows which.", "ar": "الرمز الذي يستخدمه تسجيلك: 011 أو 021 أو 111 أو 121 أو 311 أو 321 أو 411 أو 421 أو 511 أو 521. محاسبك يعرف أيها." },
+      "required": "mandatory",
+      "normalize": "digits",
+      "patterns": ["^(011|021|111|121|311|321|411|421|511|521)$"],
+      "maxLength": 3,
+      "showOn": [],
+      "source": { "label": "ISTD technical guide for linking with the national invoicing system (istd.gov.jo), cbc:InvoiceTypeCode name attribute", "checked": "2026-09-22", "status": "checked" }
+    },
+    {
       "key": "ssc_establishment_number",
       "department": "hr",
       "label": { "en": "Social Security establishment number", "ar": "رقم المنشأة في الضمان الاجتماعي" },

@@ -24,11 +24,6 @@ import { isValuationMethod } from "@/modules/inventory/valuation";
 import { cleanVatSetting, studioVatRate } from "@/shared/vat";
 import { change, recordOfficialChanges } from "@/modules/administration/officialValues";
 import { isTimezone } from "@/shared/timezone";
-import {
-  cleanEInvoiceSettings, einvoiceSettingsProblem, einvoiceSettingsView,
-} from "@/modules/finance/einvoiceSettings";
-import { studioEInvoiceRules } from "@/shared/compliance/rules";
-import { official } from "@/shared/compliance/resolve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,14 +47,10 @@ const FIELDS = [
   // a nightly job all ask which day it is; one answer, on the studio, beside
   // the currency it is the exact counterpart of. `shared/timezone` is the file.
   "timezone",
-  // THE STUDIO'S OWN E-INVOICING CREDENTIALS (22/09/2026). Facts about the
-  // COMPANY'S REGISTRATION with its tax authority, in the same family as the
-  // country and the official values this very adapter reads its TIN from — so
-  // they sit beside them rather than in Finance's settings.
-  //
-  // THE SECRET NEVER COMES BACK OUT. `clean` below reports whether one is set;
-  // the value is sealed on the way in and read only by the adapter.
-  "einvoiceSettings",
+  // NO E-INVOICING CREDENTIALS, and deliberately (the owner, 26/09/2026):
+  // nompany prepares the official file and never submits it, so there is
+  // nothing to log in to an authority with. `einvoiceSettings` was accepted here
+  // from 22/09 to 26/09/2026 and is refused now by not being listed.
   // THE STUDIO'S DEFAULT LANGUAGE — see studioLocale in shared/i18n. It sets
   // the direction and the dictionary for everyone who has not chosen one of
   // their own, which for most people is everyone; that is why it stays behind
@@ -177,17 +168,6 @@ const clean = (studio: Record<string, unknown>) => ({
   country: studio.country || "", city: studio.city || "", location: studio.location || "",
   currency: studio.currency || "",
   timezone: studio.timezone || "",
-  // WHETHER A SECRET IS SET, never the secret — see modules/finance/einvoiceSettings.
-  einvoiceSettings: einvoiceSettingsView(studio.einvoiceSettings),
-  // WHAT THIS COUNTRY REQUIRES, so the screen draws the panel only where there
-  // is an authority to reach. Null for a country that requires nothing, which
-  // is an absent panel rather than a disabled one.
-  einvoiceRules: studioEInvoiceRules(studio),
-  // WHETHER THE COMPANY'S TAX NUMBER IS SET, not what it is. Every submission
-  // carries it, so the panel says where to set one rather than letting the
-  // studio find out from a rejection — and a boolean tells it that without
-  // putting an identifier on a screen that does not need one.
-  hasTaxNumber: Boolean(official(studio as Parameters<typeof official>[0], "tax_number")),
   vatRate: studioVatRate(studio) ?? "",
   employmentRules: { ...employmentRulesOf(studio), ...statutoryRulesOf(studio) },
   // THE COUNTRY'S STARTING FIGURES for those rules, from its definition file
@@ -425,14 +405,6 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // set its clock, see it accepted, and keep getting somebody else's day —
     // on a per-day cap and a shift report, not just on a label. "" is a real
     // value: it is how a studio goes back to having no clock of its own.
-    // SEALED ON THE WAY IN, and a blank secret does not erase the stored one —
-    // the form was never shown it, so it cannot send it back.
-    if (key === "einvoiceSettings") {
-      const problem = einvoiceSettingsProblem((body[key] || {}) as Record<string, unknown>);
-      if (problem) return Response.json({ error: "einvoice", detail: problem }, { status: 400 });
-      patch[key] = cleanEInvoiceSettings(studio.einvoiceSettings, (body[key] || {}) as Record<string, unknown>);
-      continue;
-    }
     if (key === "timezone") {
       const zone = String(body[key] ?? "").trim();
       if (zone && !isTimezone(zone)) return Response.json({ error: "timezone" }, { status: 400 });

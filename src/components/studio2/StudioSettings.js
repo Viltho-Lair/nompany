@@ -21,7 +21,6 @@ import SettingsFold from "@/components/studio2/SettingsFold";
 import SigningPinSetting from "@/components/security/SigningPinSetting";
 import EmploymentRulesPanel from "@/components/studio2/EmploymentRulesPanel";
 import OfficialValuesPanel from "@/components/studio2/OfficialValuesPanel";
-import EInvoicePanel from "@/components/studio2/EInvoicePanel";
 import { officialValuesDict } from "@/shared/studio/officialValues";
 import { useReload } from "@/components/studio2/useReload";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
@@ -369,18 +368,6 @@ export default function StudioSettings({ slug, locale = "en", initial }) {
       {/* OFFICIAL VALUES, per the selected country — keyed on the country so a
           change on the row above remounts it with the new country's fields. */}
       <OfficialValuesPanel key={studio.country || "none"} slug={slug} locale={locale} country={studio.country || ""} />
-
-      {/* ONLY WHERE THERE IS AN AUTHORITY TO REACH — the country's own
-          definition decides, so a studio sees its own obligations and no
-          other country's. */}
-      <EInvoicePanel
-        rules={studio.einvoiceRules || null}
-        settings={studio.einvoiceSettings}
-        hasTaxNumber={Boolean(studio.hasTaxNumber)}
-        canManage={canManage}
-        busy={false}
-        onSave={save}
-      />
 
       <LegalInfo
         rows={Array.isArray(studio.legalInfo) ? studio.legalInfo : []}

@@ -41,23 +41,6 @@ type Strings = {
   timezone: string;
   timezoneUnset: string;
   timezoneNone: string;
-  einvoice: string;
-  einvoiceLead: (authority: string, system: string) => string;
-  einvoiceYours: string;
-  einvoiceWhere: string;
-  einvoiceClientId: string;
-  einvoiceSecret: string;
-  einvoiceSecretSet: string;
-  einvoiceSecretHint: string;
-  einvoiceClearSecret: string;
-  einvoiceIncomeSource: string;
-  einvoiceIncomeSourceHint: string;
-  einvoiceTypeCode: string;
-  einvoiceTypeCodeHint: string;
-  einvoiceEndpoint: string;
-  einvoiceEndpointHint: string;
-  einvoiceUnverified: string;
-  einvoiceNeedsTin: string;
   vatRate: string;
   vatRateUnset: string;
   vatRateSet: string;
@@ -315,23 +298,6 @@ const en: Strings = {
   timezone: "Time zone",
   timezoneUnset: "Not set — days and opening hours are read in UTC.",
   timezoneNone: "— not set —",
-  einvoice: "E-invoicing",
-  einvoiceLead: (authority, system) => `This country's invoices must reach ${authority} through ${system}.`,
-  einvoiceYours: "These credentials are this company's own. nompany is software — it cannot register with the tax authority on your behalf, and one studio's credentials never reach another's invoice.",
-  einvoiceWhere: "Log in to the authority's portal as the taxpayer, open API Settings, create an application, and copy what it issues. Ask for sandbox credentials first.",
-  einvoiceClientId: "Client ID",
-  einvoiceSecret: "Secret key",
-  einvoiceSecretSet: "A secret key is saved.",
-  einvoiceSecretHint: "Stored encrypted and never shown again. Leaving this blank keeps the one already saved.",
-  einvoiceClearSecret: "Remove the saved secret",
-  einvoiceIncomeSource: "Income source sequence",
-  einvoiceIncomeSourceHint: "Issued with the application. Every submission carries it, so one cannot be sent without it.",
-  einvoiceTypeCode: "Invoice code",
-  einvoiceTypeCodeHint: "The code your registration uses. Your accountant knows which; it travels on every invoice.",
-  einvoiceEndpoint: "Test address",
-  einvoiceEndpointHint: "While testing, the sandbox address. Leave blank to send to the authority itself.",
-  einvoiceUnverified: "Nothing has been submitted to the authority from nompany yet. Enter sandbox credentials and send one invoice before relying on this.",
-  einvoiceNeedsTin: "Set the company's tax number in Official values first — every submission carries it.",
   vatRate: "VAT rate",
   vatRateUnset: "Not registered — no document carries VAT and there is no tax return.",
   vatRateSet: "New quotations, orders, invoices and bills start at this rate. Each can still be changed — to 0 for a zero-rated sale, for example.",
@@ -612,23 +578,6 @@ const ar: Strings = {
   timezone: "المنطقة الزمنية",
   timezoneUnset: "غير محددة — تُقرأ الأيام وأوقات العمل بتوقيت UTC.",
   timezoneNone: "— غير محددة —",
-  einvoice: "الفوترة الإلكترونية",
-  einvoiceLead: (authority, system) => `يجب أن تصل فواتير هذه الدولة إلى ${authority} عبر ${system}.`,
-  einvoiceYours: "هذه البيانات خاصة بهذه المنشأة. نومباني برنامج ولا يسجل لدى دائرة الضريبة نيابة عنك، وبيانات استوديو لا تصل إلى فاتورة استوديو آخر.",
-  einvoiceWhere: "ادخل بوابة الدائرة بحساب المكلف، وافتح إعدادات الـ API، وأنشئ تطبيقا، وانسخ ما يصدر لك. اطلب بيانات بيئة الاختبار أولا.",
-  einvoiceClientId: "معرّف العميل",
-  einvoiceSecret: "المفتاح السري",
-  einvoiceSecretSet: "يوجد مفتاح سري محفوظ.",
-  einvoiceSecretHint: "يحفظ مشفرا ولا يعرض مرة أخرى. تركه فارغا يبقي المحفوظ كما هو.",
-  einvoiceClearSecret: "إزالة المفتاح المحفوظ",
-  einvoiceIncomeSource: "تسلسل مصدر الدخل",
-  einvoiceIncomeSourceHint: "يصدر مع التطبيق. يحمله كل إرسال، فلا يمكن الإرسال بدونه.",
-  einvoiceTypeCode: "رمز الفاتورة",
-  einvoiceTypeCodeHint: "الرمز الذي يستخدمه تسجيلك. محاسبك يعرف أيها، وهو يرافق كل فاتورة.",
-  einvoiceEndpoint: "عنوان الاختبار",
-  einvoiceEndpointHint: "عنوان بيئة الاختبار أثناء التجربة. اتركه فارغا للإرسال إلى الدائرة نفسها.",
-  einvoiceUnverified: "لم يرسل شيء إلى الدائرة من نومباني بعد. أدخل بيانات بيئة الاختبار وأرسل فاتورة واحدة قبل الاعتماد على هذا.",
-  einvoiceNeedsTin: "حدد الرقم الضريبي للمنشأة في القيم الرسمية أولا — يحمله كل إرسال.",
   vatRate: "نسبة ضريبة القيمة المضافة",
   vatRateUnset: "غير مسجلة — لا يحمل اي مستند ضريبة ولا يوجد اقرار ضريبي.",
   vatRateSet: "تبدأ عروض الاسعار والطلبات والفواتير الجديدة بهذه النسبة، ويمكن تغييرها في كل مستند — الى صفر للبيع الخاضع لنسبة الصفر مثلا.",

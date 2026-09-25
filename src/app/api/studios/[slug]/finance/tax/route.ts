@@ -7,7 +7,7 @@ import { requirePermission } from "@/platform/access";
 import { unclaimed } from "@/modules/finance/withholding";
 import { setupFor } from "@/modules/finance/setup";
 import { listTaxReturns, fileTaxReturn, payTaxReturn } from "@/modules/finance/taxFiling";
-import { einvoiceQueue, submitEInvoice } from "@/modules/finance/einvoiceService";
+import { einvoiceQueue, prepareEInvoice, recordEInvoice } from "@/modules/finance/einvoiceService";
 import { vatMovement, storedMoneyAccounts } from "@/modules/finance/ledger";
 
 export const runtime = "nodejs";
@@ -44,8 +44,8 @@ export const GET = route(
       // THE RETURNS FILED, and — for the period on screen — what the LEDGER moved,
       // beside what the documents say, so a difference is seen rather than hidden.
       filed: await listTaxReturns(f),
-      // E-INVOICING: what the country requires, whether nompany is connected,
-      // and the issued invoices still to reach the authority.
+      // E-INVOICING: what the country requires, whether nompany prepares its
+      // files, and the issued invoices still to reach the authority.
       einvoice: await einvoiceQueue(f),
       ledger: "from" in result && result.from ? await vatMovement(f, String(result.from), String(result.to)) : null,
       canFile: !requirePermission(f.access, "finance.tax.file"),
@@ -57,15 +57,20 @@ export const GET = route(
   },
 );
 
-// FILE A RETURN, OR PAY ONE — two acts on the same right (`finance.tax.file`),
-// named in the body rather than guessed from its shape.
+// FILE A RETURN OR PAY ONE (`finance.tax.file`), OR PREPARE OR RECORD AN
+// INVOICE'S E-INVOICE (`finance.receivables.edit`, checked in the service) —
+// each named in the body rather than guessed from its shape.
 export const POST = route(
   { auth: "studio", context: financeContext, body: true, name: "finance-tax" },
   async (f) => {
     const action = String(f.body?.action ?? "");
     const result = action === "file" ? await fileTaxReturn(f, f.body)
       : action === "pay" ? await payTaxReturn(f, String(f.body?.id ?? ""), f.body)
-        : action === "einvoice" ? await submitEInvoice(f, String(f.body?.id ?? ""))
+        // E-INVOICING, AND NOTHING HERE REACHES AN AUTHORITY: prepare hands back
+        // the official file to download, record keeps what the authority
+        // answered the studio (modules/finance/einvoiceService).
+        : action === "einvoice-prepare" ? await prepareEInvoice(f, String(f.body?.id ?? ""))
+        : action === "einvoice-record" ? await recordEInvoice(f, String(f.body?.id ?? ""), f.body || {})
           : { error: "action" };
     if (refused(result)) return result;
     return { ok: true, ...result };

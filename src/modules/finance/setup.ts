@@ -62,9 +62,11 @@ export function financeSetup(studio: unknown, opts: ResolveOptions = {}): SetupI
   // registered one that forgot issues every invoice without tax. So it is
   // flagged to CHECK, never as wrong.
   if (def?.rules?.tax && studioVatRate(studio) === null) items.push({ key: "vat", state: "check" });
-  // THE COUNTRY REQUIRES E-INVOICING AND NOMPANY DOES NOT SUBMIT YET — said,
-  // because an invoice issued here and never sent to the authority is the one
-  // gap a studio would otherwise find out about from the authority.
+  // THE COUNTRY REQUIRES E-INVOICING AND NOMPANY CANNOT PREPARE ITS FILE — said,
+  // because an invoice issued here and never submitted is the one gap a studio
+  // would otherwise find out about from the authority. Where it CAN, what the
+  // file needs is official values (department `invoicing`), which the loop
+  // below already names when they are missing — so there is no second notice.
   if (def?.rules?.einvoice && !adapterFor(def.rules.einvoice)) items.push({ key: "einvoice", state: "check" });
 
   // WHAT THIS COUNTRY REQUIRES ON FINANCE'S DOCUMENTS, applicable to this

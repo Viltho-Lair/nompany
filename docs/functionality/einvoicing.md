@@ -1,127 +1,142 @@
-# E-invoicing — the framework
+# E-invoicing — preparing each invoice's official file
 
-**Where:** Finance → Tax, the E-invoicing section · the setup notice on every Finance screen ·
-`modules/finance/einvoice.ts` (pure), `modules/finance/einvoiceService.ts`,
-`rules.einvoice` in `shared/compliance/countries/*.json`, `tests/einvoice-model.mjs`.
+**Where:** Finance → Tax, the E-invoicing section · Studio settings → Official values (what the
+files need) · `modules/finance/einvoice.ts` (the contract), `modules/finance/einvoiceService.ts`,
+`rules.einvoice` in `shared/compliance/countries/*.json`, `tests/einvoice-model.mjs` · Jordan:
+`jofotara*.ts`, `ublXml.ts`, `tests/jofotara-model.mjs` · Saudi Arabia: `zatca*.ts`,
+`tests/zatca-model.mjs`.
 
-## What it is
+## The rule: nompany prepares, the company submits
 
-The country-neutral half of sending invoices to a tax authority, built 18/09/2026 on the
-owner's instruction: **the framework only, no country's adapter yet** — adapters are kept as
-a future option in `docs/progress.md`. There is no home market: a studio's COUNTRY says
-whether its invoices must reach an authority.
+**The owner, 26/09/2026:** *"our job is to prepare companies to submit their invoicing on the
+official channels not through us … we must not interact with official channels at all, our job
+is only the delivery of work done on the system."*
 
-**A country declares it** in its definition: the authority, the system, the mode (`clearance` —
-valid only once accepted; `reporting` — valid at once, reported after; `mixed` — business
-invoices cleared, consumer ones reported), the day it came in force, and the name of the
-ADAPTER that would submit them. Declared today: **Saudi Arabia** (ZATCA / Fatoora, mixed, from
-04/12/2021, adapter `zatca`) and **Jordan** (ISTD / JoFotara, clearance, from 01/04/2025,
-adapter `jofotara` — whether JoFotara clears or reports is disputed between sources, so it is
-declared as clearance, the stricter reading).
+So nompany **never contacts a tax authority.** No endpoint, no API credential, no certificate,
+no one-time password. It builds each invoice's file exactly as the authority's official
+instructions describe. The company downloads it, submits it through the authority's own channel
+itself, and records what the authority answered. `tests/einvoice-model.mjs` holds this: no
+adapter has anything but `prepare`, no e-invoicing module calls `fetch`, and no file under `src/`
+names an authority's API host.
 
-**An adapter** is one entry in `EINVOICE_ADAPTERS`, keyed by that name, meeting one contract:
-given the invoice, the studio and the rules, answer `submitted | accepted | rejected | failed`
-with the authority's id, QR and message. **One entry: Jordan's** (below).
+**There was a submission path, twice, and both are gone.** Jordan's adapter posted invoices to
+JoFotara with the studio's Client-Id and Secret-Key (22–26/09/2026, on `main`), with a Send
+button, a daily retry cron and a credentials panel in Studio settings. Saudi Arabia's onboarded
+with ZATCA for a certificate, signed invoices with it and reported them (25/09/2026, never
+committed). All of it was removed on 26/09/2026. **Do not put it back**; the reason is recorded
+in `docs/progress.md`'s e-invoicing ledger row.
+
+**Stored credentials were not deleted.** Studios that saved Jordan's credentials between 22/09
+and 26/09/2026 still carry them, sealed, on `einvoiceSettings`. Nothing reads them, the studio
+export strips them, and deleting live data needs the owner's two confirmations (invariant 17).
 
 ## What it does
 
-- **Every issued invoice dated on or after the mandate** in such a studio is in the Tax
-  screen's queue until the authority has accepted it — "Not sent" while nothing has tried.
-  Drafts, cancelled invoices and invoices from before the mandate are not required.
-- **The screen says nompany is not connected**, and that until it is the studio issues these
-  invoices through the authority's own system — the queue is that to-do list. No Send button
-  is offered without an adapter, and the route refuses one by name (`no-adapter`) **without
-  writing anything**, because a stored failure would read as an attempt that happened.
-- **The setup notice** on every Finance screen says the country requires e-invoicing and
-  nompany does not submit yet — the owner's "annotate important setup".
-- **With an adapter**, Send (`finance.receivables.edit`) stores the answer on the invoice
-  (`einvoice`: status, adapter, attempts, uuid, QR, message); a transport failure is kept as
-  `failed` with its reason so a retry is the obvious next act.
-- **THE AUTHORITY'S QR PRINTS ITSELF** (22/09/2026) once one has accepted the invoice —
-  bottom of every printed sheet, opposite the reference barcode, drawn server-side by the
-  `qrcode` dependency this product already carries so the studio route's bundle pays nothing.
-  **It is not a layout element and deliberately so:** a fiscal QR is required by law rather
-  than chosen by design, exactly like the country's official values that print above it, so a
-  studio cannot lay out an invoice without one. A failure to draw is an absent QR rather than
-  a failed print. (`invoice.einvoiceQr` and `invoice.einvoiceUuid` exist as placeholders too,
-  for a studio that wants the payload as text.)
-- **A DAILY CRON SENDS AGAIN WHAT THE WIRE LOST** (`/api/cron/einvoice-retry`, 07:00) — and
-  **only** that. `failed` is a timeout or a 500 and the same document may well be accepted
-  next time; `rejected` is the authority having read it and said no, so sending it again is
-  the same rejection daily for ever — a studio hammering its own tax office with something a
-  person has to fix. `unsubmitted` is left alone too: an invoice nobody has tried to send is
-  waiting on a person's decision, and a cron that submitted them would be quietly deciding to
-  file a studio's taxes. **Six attempts and it stops**, because a failure that repeats has
-  stopped being bad luck; the count is on the queue row. The job runs as each studio's own
-  OWNER — `asStudio` answers `forbidden` without a real collaborator, so a blank id would have
-  retried nothing while reporting a clean run. Once a day is coarse for a transport failure
-  and is what the platform allows; the Send button is the answer to anything urgent, which is
-  what makes this a safety net rather than the mechanism.
+- **A country declares it** in its definition: the authority, the system, the mode (clearance,
+  reporting, or mixed), the day it came into force, and the name of the ADAPTER that prepares its
+  file. Declared today: **Saudi Arabia** (ZATCA / Fatoora, mixed, from 04/12/2021, `zatca`) and
+  **Jordan** (ISTD / JoFotara, clearance, from 01/04/2025, `jofotara`).
+- **The queue on Finance → Tax:** every issued invoice dated on or after the mandate, until the
+  studio records that the authority accepted it. Drafts, cancelled invoices and invoices from
+  before the mandate are not required.
+- **Download file** (`finance.receivables.edit`) prepares the invoice's official XML and
+  downloads it. **Prepared once and kept on the invoice** (`einvoice.document`), so every later
+  download is the same bytes. For Saudi Arabia this matters: the file takes the studio's next
+  counter and hash, and building it twice would put one invoice in the chain twice. The file is
+  built again only after the studio recorded a rejection, because a refused invoice is corrected
+  and resubmitted as a new document.
+- **What the file needs is named first.** A missing official value (the tax number, Jordan's
+  income source sequence and invoice code, Saudi Arabia's VAT number and national address) is
+  refused with the value named, and nothing is written. The Finance setup notice already lists
+  missing official values, so these appear there too.
+- **Record answer** (`finance.receivables.edit`): accepted or rejected, the authority's reference
+  for the invoice (**required for an acceptance**), its QR, and its message. An acceptance can be
+  recorded without a prepared file, because a studio may have issued that invoice in the
+  authority's own portal.
+- **The QR prints on the invoice** from `einvoice.qr`, drawn server-side at the bottom of every
+  printed sheet. Where the seller builds the QR (Saudi Arabia's five tags), it is there from the
+  moment the file is prepared. Where the authority issues it (Jordan), it is there once the studio
+  pastes it in. A fiscal QR is required by law, so it is not a layout element a studio can drop.
+- **Where nompany has no adapter for the country**, the screen and the setup notice say so, and
+  the queue is the studio's to-do list for the authority's own system. No country that declares
+  e-invoicing is in that position today.
+- **States:** `prepared` (the file exists; the studio has not recorded an answer), `accepted`,
+  `rejected`. `pending`, `submitted` and `failed` are legacy from the submission days: still
+  read, still counted as needing action, never written.
 
-## Jordan (22/09/2026)
+## Jordan
 
-**The credentials are the STUDIO's, never the platform's**, and that is the shape of the
-integration rather than a detail. A taxpayer registers with ISTD, creates an application in the
-JoFotara portal's API Settings, and is issued a **Client-Id**, a **Secret-Key** and an **income
-source sequence**. nompany is software; it is not a taxpayer on anybody's behalf and cannot
-register for them. Each studio enters its own, sealed at rest with a purpose subkey of
-`NOMPANY_DATA_KEY`, and one studio's credentials never reach another's document.
+**The file is ISTD's UBL**, built from the invoice (`jofotaraDocument`, pure) and written by
+`ublXml`. **Three official values go into it**, and all three live in Official values because they
+are printed inside the document: the tax number, the **JoFotara income source sequence** and the
+**JoFotara invoice code**. The last two were fields of the credentials panel until 26/09/2026.
 
-**THE CREDENTIALS ARE ENTERED IN STUDIO SETTINGS**, beside the country and the official values
-whose TIN the adapter reads — the panel appears only where the country's own definition names an
-authority, so a studio sees its own obligations and no other country's. Client ID, secret key,
-income source sequence, invoice code and an optional sandbox address.
+**The QR is JoFotara's to issue**, on acceptance. Nobody else can build it, so a Jordanian
+invoice prints its QR once the studio records JoFotara's answer and pastes the QR in.
 
-**The secret is write-only.** It is sealed with a purpose subkey of `NOMPANY_DATA_KEY` and the
-response says whether one is SET, never what it is — so there is nothing to redact and nothing
-to leak into a screenshot. **A blank box does not erase it:** the form was never shown the
-secret, so an ordinary save cannot post it back, and treating the blank as a deletion would wipe
-a credential every time somebody changed the client id. Removing one is its own button.
+**EIGHT THINGS A TUTORIAL GOT WRONG AND THE AUTHORITY'S GUIDE CORRECTED**, each pinned by a test.
+Every one looks right to somebody who knows UBL and does not know JORDAN'S UBL:
 
-**Three files, and only the last one touches the network.** `jofotaraDocument` decides what is
-sent and is pure; `ublXml` writes the standard's XML; `jofotara` posts it. Submission is
-`POST https://backend.jofotara.gov.jo/core/invoices/` with `Client-Id` and `Secret-Key`
-headers and a body of `{"invoice": "<base64 UBL>"}`; the answer carries `EINV_QR`,
-`EINV_NUM` and `EINV_INV_UUID`, kept under the authority's own names so what we hold can be
-compared with what the portal shows.
+1. `cbc:ProfileID` is required and first.
+2. `cbc:InvoiceTypeCode` is **always 388**, with Jordan's own code in its `name` attribute (five
+   pairs: 011/021, 111/121, 311/321, 411/421, 511/521).
+3. `currencyID` is **"JO"**, not ISO 4217's "JOD".
+4. A line uses `cac:TaxTotal` with a `cbc:RoundingAmount`, never `cac:ClassifiedTaxCategory`.
+5. Tax ids carry `schemeID="UN/ECE 5305"` and `"UN/ECE 5153"`.
+6. **A discount is `cac:AllowanceCharge` inside `cac:Price`**, with reason `DISCOUNT`.
+7. `cbc:TaxCurrencyCode` sits beside the document currency.
+8. `cac:SellerSupplierParty` carries the income source sequence.
 
-**EIGHT THINGS A TUTORIAL GOT WRONG AND THE AUTHORITY'S GUIDE CORRECTED** — every one looks
-right to somebody who knows UBL and does not know JORDAN'S UBL, and each is pinned by a test:
-`cbc:ProfileID` is required and first; `cbc:InvoiceTypeCode` is **always 388** with Jordan's
-own code in its `name` attribute (five pairs — 011/021, 111/121, 311/321, 411/421, 511/521);
-`currencyID` is **"JO"**, not ISO 4217's "JOD"; a line uses `cac:TaxTotal` with a
-`cbc:RoundingAmount`, never `cac:ClassifiedTaxCategory`; tax ids carry
-`schemeID="UN/ECE 5305"` and `"UN/ECE 5153"`; **a discount is `cac:AllowanceCharge` inside
-`cac:Price`** with reason `DISCOUNT`; `cbc:TaxCurrencyCode` sits beside the document
-currency; and `cac:SellerSupplierParty` carries the income source sequence.
+**THE NAMESPACES WERE WRONG UNTIL 25/09/2026.** `cac` and `cbc` were declared without UBL 2.1's
+`-2` suffix, which puts every element in no schema at all. Pinned by a test.
 
-**A rejection is not a failure.** `rejected` is the authority saying no to this document and
-the studio must change something; `failed` is the transport, and the answer to it is to try
-again. The queue shows them differently.
+## Saudi Arabia
+
+**The file is ZATCA's UBL**, complete in every field the SELLER writes, and **unsigned**.
+
+**What that means for a Saudi company.** In phase 2, ZATCA requires a cryptographic stamp signed
+with a certificate that ZATCA issues to the company's own e-invoicing solution, and the QR's tags
+6 to 9 come from that stamp. Nompany holds no such certificate and asks for none, so the
+company's certified solution (or ZATCA's own channel) stamps and reports the file.
+
+- **Tax is taken once per category on the total** (`documentTotals`, method `document`), as
+  ZATCA's standard says and as every Saudi invoice here is already totalled. So the file's payable
+  amount is the total the customer was shown. Each line still shows its own rounded tax.
+- **The XML is written already canonical**: no whitespace, no self-closing elements, attributes
+  and namespaces in canonical order, canonical escaping. So the file with its QR reference cut out
+  IS the canonical form ZATCA hashes, and no canonicaliser is needed. A test cuts it and compares.
+- **The chain:** every file carries a counter and the previous file's hash (ICV and PIH). Both
+  move together in ONE compare-and-set on `S.einvoiceChain`, so two invoices can never claim the
+  same place, and a document with a problem takes no link.
+- **The seller comes from the official values** SA.json already asks for: the Arabic legal name,
+  the VAT number, the commercial registration and the national address in its parts. A studio
+  with no VAT rate reads as not VAT-registered, and SA.json then hides its VAT number.
+- **The issue time** is when the invoice was created, in the studio's time zone, if that was on
+  its issue date. Otherwise it is midnight, rather than an invented time.
+- **The QR's five seller tags**: seller, VAT number, time, total, VAT. **The time has no `Z`**:
+  with one, ZATCA's validator warned KSA-25 on every document.
+- **Measured against ZATCA once.** On 25/09/2026, before the owner's rule, the owner authorised a
+  check on ZATCA's public developer portal. Signed documents built from this code passed with no
+  error, which confirmed the canonical form, the hash and the QR timestamp. It is not repeated:
+  nompany does not contact ZATCA.
 
 ## Not built yet
 
-- **Any adapter but Jordan's.** ZATCA phase 2 needs signed UBL 2.1 XML, the invoice hash
-  chain, the cryptographic stamp, the QR's nine TLV tags, clearance and reporting APIs, and
-  onboarding with an OTP from the Fatoora portal.
-- **Jordan's adapter is written and NOT VERIFIED** (22/09/2026). It has never been submitted to
-  ISTD, sandbox or otherwise, and a studio must enter its own credentials before anything is
-  sent at all — which is the gate keeping an unproven adapter out of somebody's books. What it
-  needs to become trustworthy: a taxpayer's sandbox **Client-Id**, **Secret-Key** and **income
-  source sequence**, and one accepted submission.
-- **CREDIT NOTES ARE HELD UNTIL A FIRST INVOICE IS ACCEPTED** — the owner's decision,
-  22/09/2026, and a deliberate hole rather than an oversight. A credit note would inherit
-  every assumption the invoice makes (`currencyID="JO"`, element order, the scheme
-  attributes, a 107-page guide read structurally rather than line by line), so writing it now
-  means writing the same mistake twice and fixing it twice. Until it exists a Jordanian studio
-  reports its sales and not its refunds, which OVER-declares output tax.
-- **Clearance does not gate issuing.** In a clearance country an invoice should not be valid
-  until accepted; without an adapter, gating would stop the studio invoicing at all, so issuing
-  is unchanged and the queue shows what is outstanding.
-- **A discount is not emitted as an allowance.** A till receipt records what an offer and what
-  the cashier took off, per line and per sale (`promotions.md`, `pos.md`); an invoice records no
-  discount at all. So when an adapter is written, mapping those onto UBL `AllowanceCharge` with
-  a net `TaxableAmount` is part of writing it — the owner's instruction, 22/09/2026: park it
-  here beside ZATCA until they say.
-- Countries other than Saudi Arabia and Jordan declare nothing yet, though
-  `docs/progress.md`'s country research lists several that require e-invoicing.
+- **Nothing here has been opened in `dev:sandbox`** since the rewrite of 26/09/2026: not the
+  download, not the recording, not the new official values.
+- **No Jordanian file has been through JoFotara.** The first one a studio submits and records
+  as accepted is the check; one recorded as rejected, with ISTD's words, is the next fix.
+- **Credit and debit notes.** Only invoices are prepared. Until notes are, a studio reports its
+  sales and not its refunds, which OVER-declares output tax. For Jordan this was held until a
+  first invoice is accepted (the owner, 22/09/2026).
+- **Saudi business (B2B) invoices.** An invoice records no buyer VAT number or national address,
+  so a standard invoice is refused locally and every Saudi file is simplified.
+- **Zero-rated and exempt Saudi lines** are refused until a line can record its VATEX reason.
+  Only SAR documents.
+- **A discount is not written as an allowance.** A till receipt records discounts per line and
+  per sale; an invoice records none. Mapping them onto UBL `AllowanceCharge` is parked on the
+  owner's instruction, 22/09/2026.
+- **A prepared file does not notice a later edit** to its invoice. It is handed out again as
+  prepared.
+- Countries other than Saudi Arabia and Jordan declare nothing yet, though `docs/progress.md`'s
+  country research lists several that require e-invoicing.

@@ -21,10 +21,6 @@
       "schedule": "30 3 * * *"
     },
     {
-      "path": "/api/cron/einvoice-retry",
-      "schedule": "0 7 * * *"
-    },
-    {
       "path": "/api/cron/studio-deletions",
       "schedule": "45 2 * * *"
     },
