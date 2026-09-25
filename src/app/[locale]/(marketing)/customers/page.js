@@ -6,10 +6,25 @@ import { listStudios } from "@/modules/main/studios";
 import { publicCompanies } from "@/shared/marketing/showcase";
 import { customersCopy } from "@/shared/marketing/customers";
 import { heroCopy } from "@/shared/marketing/hero";
+import { featuredCompanies } from "@/lib/data/publicLanding";
 
+// AN EMPTY CUSTOMERS PAGE IS NOT INDEXED, the sitemap's rule carried to the
+// page. `sitemap.js` has left this page out while nobody is named, but dropping
+// a URL from a sitemap only stops suggesting it — it was still `index, follow`,
+// so a crawler that found it anyway could put "Nobody is named here yet" in a
+// search result for the brand. It turns indexable by itself the day the first
+// company agrees. A failed read stays shut, for the sitemap's reason: when the
+// answer is unknown, advertising an empty page is the failure to avoid.
 export async function generateMetadata({ params }) {
   const { locale } = await params;
-  return buildMetadata({ locale, path: "/customers" });
+  let named = false;
+  try {
+    named = (await featuredCompanies()).length > 0;
+  } catch {
+    named = false;
+  }
+  const meta = buildMetadata({ locale, path: "/customers" });
+  return named ? meta : { ...meta, robots: { index: false, follow: true } };
 }
 
 /* THE COMPANIES THAT ASKED TO BE NAMED, ON THEIR OWN PAGE.

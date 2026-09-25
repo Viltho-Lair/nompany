@@ -938,6 +938,29 @@ for (const path of ["/", "/platform", "/pricing", "/security", "/about", "/conta
 }
 ok("no page's metadata spells a department count", spelledSomewhere.length === 0, spelledSomewhere.join(", "));
 
+// NO PUBLIC PAGE CARRIED AN og:image, found 25/09/2026 by reading the live
+// <head>. The card rendered at /en/opengraph-image the whole time; every page's
+// own `openGraph` object replaced the one the file convention supplied, so a
+// link pasted into WhatsApp or LinkedIn showed a bare title.
+const missingImage = [];
+for (const path of ["", "/platform", "/pricing", "/security", "/about", "/contact", "/customers"]) {
+  for (const locale of ["en", "ar"]) {
+    const m = await SEO.buildMetadata({ locale, path });
+    if (!m?.openGraph?.images?.length || !m?.twitter?.images?.length) missingImage.push(`${locale}${path}`);
+  }
+}
+ok("every public page names its share image", missingImage.length === 0, missingImage.join(", "));
+
+console.log("\n== security.txt has not expired");
+// RFC 9116: a security.txt past its Expires is to be treated as stale, and the
+// field is required. This fails the day it lapses, which is the point — the
+// renewal is a one-line edit nobody would otherwise remember a year from now.
+const secTxt = readFileSync("public/.well-known/security.txt", "utf8");
+const expires = Date.parse((secTxt.match(/^Expires:\s*(\S+)/m) || [])[1] || "");
+ok("security.txt names a contact", /^Contact:\s*mailto:\S+@nompany\.com/m.test(secTxt));
+ok("...and its Expires is still in the future", Number.isFinite(expires) && expires > Date.now(),
+  (secTxt.match(/^Expires:.*$/m) || ["no Expires line"])[0]);
+
 console.log("\n== no page may state a headcount the plan model does not declare");
 // THE SAME NUMBER, TYPED SIXTEEN TIMES. `PLANS` says the free tier ends at
 // nine; so did eight English strings and their eight Arabic twins — "free for

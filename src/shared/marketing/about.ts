@@ -47,7 +47,7 @@ const en: AboutStrings = {
     "You choose which departments you run when you set up, and your field of work fills in the first answers — a contractor starts differently from a clinic or a shop, and anything left off can be switched on later. Your org chart and the roles in it start from your own trade rather than a generic list, every right can be narrowed to a single action, and approvals follow the limits you set. Each person works in the language they choose, Arabic or English, fully right-to-left or left-to-right.",
   whereHeading: "Where we are",
   whereBody:
-    "Nowhere, yet — and we would rather say so than imply otherwise. The company is not incorporated and has no registered office; it will be based in Jordan. We serve the region rather than a single country, the product ships in Arabic and English with genuine right-to-left throughout, and prices are shown in the currency you choose rather than in one country's. When there is an address, it will be on this page.",
+    "nompany is being set up in Amman, Jordan, and serves companies across the region. Our registered address will be published here once incorporation completes. The product ships in Arabic and English with genuine right-to-left throughout, and prices are shown in the currency you choose rather than in one country's.",
   whyHeading: "Why we are building it",
   whyBody:
     "Most companies of this size run a different tool for each department and spend a day a week reconciling them — and the reconciling is invisible work that never makes anything. The interesting problems are the joins: what a tender costs against what the project spent, what was ordered against what arrived, what was promised against what was invoiced. None of those can be answered by software that only holds one side.",
@@ -67,7 +67,7 @@ const ar: AboutStrings = {
     "تختار الأقسام التي تعمل بها عند الإعداد، ومجال عملك يملأ الإجابات الأولى — فالمقاول يبدأ بشكل مختلف عن العيادة أو المتجر، وما تركته يمكن تفعيله لاحقا. وهيكلك التنظيمي والأدوار فيه تبدأ من مجالك لا من قائمة عامة، وكل صلاحية يمكن حصرها في إجراء واحد، والاعتمادات تتبع الحدود التي تضعها. وكل شخص يعمل باللغة التي يختارها، العربية أو الإنجليزية، من اليمين إلى اليسار أو العكس بالكامل.",
   whereHeading: "أين نحن",
   whereBody:
-    "لا عنوان لنا بعد، ونفضل قول ذلك على التلميح بغيره. الشركة غير مسجلة ولا مقر رسمي لها، وستتخذ من الأردن مقرا. نخدم المنطقة لا بلدا واحدا، والمنتج يصدر بالعربية والإنجليزية بدعم حقيقي للكتابة من اليمين إلى اليسار، والأسعار تظهر بالعملة التي تختارها لا بعملة بلد بعينه. وحين يوجد عنوان، سيكون على هذه الصفحة.",
+    "يجري تأسيس nompany في عمان، الأردن، وهي تخدم الشركات في أنحاء المنطقة. سننشر عنواننا المسجل هنا حين يكتمل التسجيل. المنتج يصدر بالعربية والإنجليزية بدعم حقيقي للكتابة من اليمين إلى اليسار، والأسعار تظهر بالعملة التي تختارها لا بعملة بلد بعينه.",
   whyHeading: "لماذا نبنيه",
   whyBody:
     "أغلب الشركات بهذا الحجم تشغل أداة مختلفة لكل قسم، وتقضي يوما في الأسبوع في المطابقة بينها — والمطابقة عمل غير مرئي لا ينتج شيئا. والمهم هو ما بين الأقسام: كم كلفت المناقصة مقابل ما أنفقه المشروع، وما طلب مقابل ما وصل، وما وعد به مقابل ما فوتر. ولا يجيب عن أي منها برنامج لا يرى إلا طرفا واحدا.",

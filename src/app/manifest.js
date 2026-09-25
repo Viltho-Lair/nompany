@@ -3,7 +3,7 @@ export default function manifest() {
     name: "nompany — modular ERP for companies",
     short_name: "nompany",
     description:
-      "nompany is a modular ERP that runs a company's whole operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics — paying only for the modules it uses.",
+      "nompany is a modular ERP that runs a company's whole operation from one platform — Sales, Projects, Inventory, HR, Finance and more — priced by team size, with every department included.",
     start_url: "/en",
     display: "standalone",
     background_color: "#ffffff",

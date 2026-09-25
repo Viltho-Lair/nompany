@@ -35,6 +35,6 @@ export const CONTACT = {
 
 // Short description used for structured data (JSON-LD).
 export const SITE_DESCRIPTION: Record<string, string> = {
-  en: "nompany is a modular ERP that lets any company run its entire operation from one platform — Sales, Projects, Inventory, HR, Finance and more — paying only for the modules it uses.",
-  ar: "nompany نظام تخطيط موارد مرن يتيح لأي شركة إدارة عملياتها بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية وغيرها — مع الدفع فقط مقابل الوحدات المستخدمة.",
+  en: "nompany is a modular ERP that lets any company run its entire operation from one platform — Sales, Projects, Inventory, HR, Finance and more — priced by team size, with every department included.",
+  ar: "nompany نظام تخطيط موارد مرن يتيح لأي شركة إدارة عملياتها بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية وغيرها — بسعر يحدده حجم الفريق، وكل الأقسام مشمولة.",
 };

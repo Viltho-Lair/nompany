@@ -43,12 +43,12 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
     en: {
       title: "Run your company's whole operation from one platform",
       description:
-        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and live statistics. Free for the first 3 months for teams of one to four; paid plans from five people up.",
+        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and more. Free for the first 3 months for teams of one to four; paid plans from five people up.",
     },
     ar: {
       title: "أدر عمليات شركتك بالكامل من منصة واحدة",
       description:
-        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية والإحصائيات المباشرة. مجاني لأول 3 أشهر للفرق من واحد إلى أربعة، وخطط مدفوعة من خمسة أفراد فأكثر.",
+        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية وغيرها. مجاني لأول 3 أشهر للفرق من واحد إلى أربعة، وخطط مدفوعة من خمسة أفراد فأكثر.",
     },
   },
   "/platform": {
@@ -204,12 +204,32 @@ export function alternatesFor(path = "") {
   return languages;
 }
 
+// The share card's dimensions. `lib/ogImage` draws at this size and reads it
+// from here, so the card and the tags describing it cannot disagree.
+export const OG_IMAGE_SIZE = { width: 1200, height: 630 };
+
+// THE SHARE CARD, NAMED EXPLICITLY ON EVERY PAGE. `[locale]/opengraph-image`
+// and `twitter-image` exist and render, and for months no public page carried
+// an `og:image` — so a link pasted into WhatsApp or LinkedIn showed a bare
+// title. Next merges `openGraph` SHALLOWLY: a page that returns its own
+// `openGraph` object (every page does, through this function) replaces the one
+// the file convention contributed from the parent segment, image included.
+// Naming the image here is what survives that merge.
+export function shareImagesFor(locale: string) {
+  const alt = "nompany — run every department from one platform";
+  return {
+    og: [{ url: urlFor(locale, "/opengraph-image"), ...OG_IMAGE_SIZE, alt, type: "image/png" }],
+    twitter: [{ url: urlFor(locale, "/twitter-image"), ...OG_IMAGE_SIZE, alt }],
+  };
+}
+
 // Build a Next.js Metadata object for a public page.
 export function buildMetadata({ locale, path = "" }: { locale: string; path?: string }) {
   const page: Partial<PageCopy> = PAGES[path]?.[locale] || PAGES[path]?.[defaultLocale] || {};
   const title = page.title;
   const description = page.description;
   const canonical = urlFor(locale, path);
+  const images = shareImagesFor(locale);
 
   return {
     title,
@@ -228,11 +248,13 @@ export function buildMetadata({ locale, path = "" }: { locale: string; path?: st
       alternateLocale: locales
         .filter((l) => l !== locale)
         .map((l) => OG_LOCALE[l]),
+      images: images.og,
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: images.twitter,
     },
   };
 }

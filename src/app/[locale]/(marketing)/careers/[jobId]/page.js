@@ -5,7 +5,7 @@ import JsonLd from "@/components/JsonLd";
 import RichText from "@/components/RichText";
 import { getSiteCollection, getSiteSettings } from "@/lib/data/site";
 import { getDict, field } from "@/shared/i18n";
-import { urlFor, alternatesFor, breadcrumbLd, jobPostingLd } from "@/lib/seo";
+import { urlFor, alternatesFor, breadcrumbLd, jobPostingLd, shareImagesFor } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -24,13 +24,14 @@ export async function generateMetadata({ params }) {
   const description = (field(job, "desc", locale) || title).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const path = `/careers/${jobId}`;
   const canonical = urlFor(locale, path);
+  const images = shareImagesFor(locale);
 
   return {
     title,
     description,
     alternates: { canonical, languages: alternatesFor(path) },
-    openGraph: { type: "website", url: canonical, siteName: "nompany", title, description },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: { type: "website", url: canonical, siteName: "nompany", title, description, images: images.og },
+    twitter: { card: "summary_large_image", title, description, images: images.twitter },
   };
 }
 

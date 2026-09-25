@@ -1,9 +1,11 @@
 import { ImageResponse } from "next/og";
+import { OG_IMAGE_SIZE } from "./seo";
 
 // Shared Open Graph / Twitter card renderer. English-branded so it renders
 // with the built-in Latin font (no external Arabic font needed) and works for
-// both locales. 1200x630 is the standard social-share size.
-export const size = { width: 1200, height: 630 };
+// both locales. 1200x630 is the standard social-share size, and it is
+// `seo.ts`'s constant because the `og:image` tags there declare it too.
+export const size = OG_IMAGE_SIZE;
 export const contentType = "image/png";
 
 export function renderCard() {

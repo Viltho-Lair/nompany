@@ -47,7 +47,10 @@ type Strings = {
   pvPricesFor: (region: string, currency: string) => string;
   /** Said when the visitor's own region could not be priced and another list is shown. */
   pvPricesFallback: (currency: string) => string;
-  /** Prices exclude tax; this names the rate added on top. */
+  /** Prices exclude tax; this names the rate added on top. THE TAX IS NOMPANY'S
+   *  AS THE SELLER — a Jordanian company's general sales tax, one rate set in
+   *  /super — not the visitor's. So it says whose it is: "16% sales tax" under a
+   *  heading reading "Prices for Saudi Arabia" read as a wrong Saudi VAT rate. */
   pvTaxNote: (n: number) => string;
   /** The tiers band under the package cards. */
   pvTiersTitle: string;
@@ -145,7 +148,7 @@ const en: Strings = {
   pvBilledYearly: "billed yearly",
   pvPricesFor: (region, currency) => `Prices for ${region}, in ${currency}`,
   pvPricesFallback: (currency) => `Prices in ${currency}`,
-  pvTaxNote: (n) => `Prices exclude ${n}% sales tax, added at checkout.`,
+  pvTaxNote: (n) => `Prices exclude Jordan's ${n}% general sales tax, added at checkout.`,
   pvTiersTitle: "Tiers",
   pvTiersLead: "Add a tier to any package. Each is billed per month, on top of the package.",
   pvPerMonth: "/ month",
@@ -228,7 +231,7 @@ const ar: Strings = {
   pvBilledYearly: "يفوتر سنويا",
   pvPricesFor: (region, currency) => `الأسعار في ${region}، بعملة ${currency}`,
   pvPricesFallback: (currency) => `الأسعار بعملة ${currency}`,
-  pvTaxNote: (n) => `الأسعار لا تشمل ضريبة المبيعات ${n}%، وتضاف عند الدفع.`,
+  pvTaxNote: (n) => `الأسعار لا تشمل ضريبة المبيعات العامة الأردنية ${n}%، وتضاف عند الدفع.`,
   pvTiersTitle: "المستويات",
   pvTiersLead: "أضف مستوى إلى أي باقة. يحتسب كل مستوى شهريا، فوق سعر الباقة.",
   pvPerMonth: "/ شهريا",
