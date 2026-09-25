@@ -128,7 +128,10 @@ export function transferProblem(
   if (!(Number.isFinite(amount) && amount > 0 && amount < 1e9)) return "bad-amount";
   if (!/^[A-Z]{3}$/.test(String(input.currency || ""))) return "bad-currency";
   const sentOn = String(input.sentOn || "");
-  if (!DAY.test(sentOn) || sentOn > today) return "bad-date";
+  // A DAY OF SLACK FORWARD: "today" is Amman's, and a customer east of it is
+  // already on tomorrow's date when they send.
+  const latest = new Date(Date.parse(`${today}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+  if (!DAY.test(sentOn) || sentOn > latest) return "bad-date";
   const earliest = new Date(Date.parse(`${today}T00:00:00Z`) - CLAIM_LOOKBACK_DAYS * 86_400_000).toISOString().slice(0, 10);
   if (sentOn < earliest) return "bad-date";
   if (String(input.bankReference || "").trim().length < 3) return "missing-reference";

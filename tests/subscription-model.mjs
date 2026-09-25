@@ -265,7 +265,8 @@ const good = { amount: 116, currency: "USD", sentOn: "2026-03-09", bankReference
 ok("a complete claim is accepted", C.transferProblem(good, claimDay) === "");
 ok("no amount is refused", C.transferProblem({ ...good, amount: 0 }, claimDay) === "bad-amount");
 ok("a currency that is not a code is refused", C.transferProblem({ ...good, currency: "usd$" }, claimDay) === "bad-currency");
-ok("a transfer sent tomorrow is refused", C.transferProblem({ ...good, sentOn: "2026-03-11" }, claimDay) === "bad-date");
+ok("a transfer dated tomorrow in Amman is accepted — the customer may be east of Amman", C.transferProblem({ ...good, sentOn: "2026-03-11" }, claimDay) === "");
+ok("...but one dated the day after is refused", C.transferProblem({ ...good, sentOn: "2026-03-12" }, claimDay) === "bad-date");
 ok("a transfer from months ago is refused — that is a conversation, not a claim", C.transferProblem({ ...good, sentOn: "2025-12-01" }, claimDay) === "bad-date");
 ok("no bank reference is refused — it is what finds the transfer", C.transferProblem({ ...good, bankReference: " " }, claimDay) === "missing-reference");
 ok("only one transfer claim is open at a time", C.openTransfer([pendingClaim, { ...pendingClaim, id: "c0", status: "confirmed" }])?.id === "c1");

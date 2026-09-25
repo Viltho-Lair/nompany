@@ -18,7 +18,12 @@ import { billingDict } from "@/shared/studio/billing";
 // pressing the button twice, or again after a timeout, is one claim.
 
 const newId = () => (globalThis.crypto?.randomUUID?.() || `cl_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`);
-const today = () => new Date().toISOString().slice(0, 10);
+// THE CUSTOMER'S OWN DAY, not UTC's: the day they sent it is the day on their
+// bank's slip, and in Amman the UTC date is yesterday until three in the morning.
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 const dmy = (d) => (/^\d{4}-\d{2}-\d{2}/.test(String(d || "")) ? String(d).slice(0, 10).split("-").reverse().join("/") : "");
 
 const INPUT = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/15 dark:bg-white/5 dark:text-white";

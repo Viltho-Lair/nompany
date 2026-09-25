@@ -367,7 +367,7 @@ async function issueInvoice(studio: Studio, eventId: string, by: string, claimId
   const invoice: NompanyInvoice = {
     number: documentNumber(invoicePrefix, "invoice", year, n), kind: "invoice",
     issuedOn, issuedAt: at, issuedBy: by, studioId: studio.id, currency, ...figures,
-    paymentMeans: PAYMENT_MEANS.bankTransfer, paidOn: entry.at.slice(0, 10), seller,
+    paymentMeans: PAYMENT_MEANS.bankTransfer, paidOn: billingDay(entry.at), seller,
     buyerSealed: seal(buyer), eventId, ...(claimId ? { claimId } : {}),
   };
   const out = await editJSON<SubscriptionDoc, { number: string }>(docKey(studio.id), (cur) => {
