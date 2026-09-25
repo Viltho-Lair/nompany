@@ -301,6 +301,14 @@ export const FX = {
 // cascade reaches it and the orphan sweep's scopes do not include it.
 export const BILLING = {
   subscription: (studioId: string) => `${P}g:subscription:${studioId}`,
+  // HOW CUSTOMERS PAY NOMPANY, and nompany's own details for its invoices —
+  // one small object edited in /super → Payments (26/09/2026). Bank details are
+  // stored encrypted inside it (lib/data/paymentSettings).
+  paymentSettings: `${P}g:paymentSettings`,
+  // NOMPANY'S INVOICE AND CREDIT-NOTE NUMBERS, one field per kind per year. A
+  // tally only moves forward (invariant 10): deleting nothing and reissuing
+  // nothing, because a customer holds every number printed.
+  documentCounter: `${P}g:billingDocumentCounter`,
 };
 
 // ---- idempotency -----------------------------------------------------------

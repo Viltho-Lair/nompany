@@ -217,6 +217,13 @@ export type BillingEvent = { id: string } & (
   | { type: "paid"; periods: number; amount?: number; currency?: string; method?: string; reference?: string; packageId?: string; categoryId?: string; tierId?: string; seats?: number; period?: BillingPeriod }
   /** A payment that was counted came back — a bounced transfer, a chargeback. */
   | { type: "reversed"; periods: number; reason?: string }
+  /**
+   * MONEY NOMPANY GAVE BACK (26/09/2026). Recorded so the history says what was
+   * returned and why. It takes back paid time only when `periods` says so — a
+   * goodwill refund of part of a month leaves the studio where it is, while
+   * refunding a whole year it will not use takes the year back.
+   */
+  | { type: "refunded"; periods: number; amount?: number; currency?: string; reference?: string; reason?: string; invoiceNo?: string; creditNoteNo?: string }
   /** A charge was refused. Recorded for the history; it moves no date. */
   | { type: "failed"; reason?: string }
   | { type: "comp"; on: boolean }
@@ -279,6 +286,13 @@ export function applyEvent(
       next = { ...next, paidUntil: addMonths(sub.paidUntil, -periods * months, sub.anchorDay) };
       break;
     }
+    case "refunded": {
+      const periods = Math.trunc(Number(event.periods) || 0);
+      if (!(periods >= 0 && periods <= 36)) return refuse("bad-periods");
+      if (!(Number(event.amount) > 0)) return refuse("bad-amount");
+      if (periods) next = { ...next, paidUntil: addMonths(sub.paidUntil, -periods * months, sub.anchorDay) };
+      break;
+    }
     case "failed":
       break;
     case "comp":
@@ -326,7 +340,9 @@ export function applyEvent(
  */
 // `sandbox-clock` is here so a rehearsal can move a shut-down studio back; the
 // route answers 404 everywhere but the sandbox (lib/sandbox).
-const ALWAYS_OPEN = /^\/api\/studios\/[^/]+\/(notifications|access-check|stream|upgrade|sandbox-clock)(\/|$)/;
+// `billing` is here for the same reason as `upgrade`: it is where an owner says
+// they have paid, and where they read their invoices (owner-only, 26/09/2026).
+const ALWAYS_OPEN = /^\/api\/studios\/[^/]+\/(notifications|access-check|stream|upgrade|billing|sandbox-clock)(\/|$)/;
 
 const READS = new Set(["GET", "HEAD", "OPTIONS"]);
 

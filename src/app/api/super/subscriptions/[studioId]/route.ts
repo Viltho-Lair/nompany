@@ -1,8 +1,9 @@
 import { route } from "@/platform/http/route";
-import { getStudioById, updateStudio } from "@/modules/main/studios";
-import { getCatalogSettings, listCatalog } from "@/lib/data/catalog";
-import { getSubscription, recordEvent } from "@/lib/data/subscriptions";
-import { accessFor, billingDay, ladderDates, subscriptionStatus, BILLING_PERIODS, LADDER, type BillingEvent } from "@/shared/subscription";
+import { getStudioById } from "@/modules/main/studios";
+import { getCatalogSettings } from "@/lib/data/catalog";
+import { getSubscription, recordEvent, effectiveAccess } from "@/lib/data/subscriptions";
+import { applyPaidPlan, consoleBillingView, parsePaidEvent } from "@/lib/data/customerBilling";
+import { billingDay, ladderDates, BILLING_PERIODS, LADDER, type BillingEvent } from "@/shared/subscription";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,13 +26,15 @@ export const GET = route(spec, async ({ params }) => {
   if (!studio) return { error: "notfound" };
   const [doc, settings] = await Promise.all([getSubscription(studio.id), getCatalogSettings()]);
   const today = billingDay();
-  const status = subscriptionStatus(doc.subscription, today);
+  const { status, access } = await effectiveAccess(doc, today);
   return {
     subscription: doc.subscription,
     // Newest first: the question is almost always "what happened last".
     history: [...doc.history].reverse(),
     status,
-    access: accessFor(status),
+    // WITH ANY HOLD APPLIED: a studio whose owner says they paid works fully
+    // for the hold's hours (shared/billingClaims), and the panel says so.
+    access,
     today,
     // Every step of the ladder as it stands, so the console can say exactly
     // when this studio closes, shuts down and is deleted if nothing is paid.
@@ -42,6 +45,10 @@ export const GET = route(spec, async ({ params }) => {
     // package, band, tier, cycle and the price quoted in their region, locked on
     // the request. The panel shows it and fills the payment form from it.
     upgradeRequest: studio.upgradeRequest || null,
+    // THE CONVERSATION ABOUT MONEY (26/09/2026): transfers the owner says they
+    // sent, refund requests, the invoices and credit notes issued, and payments
+    // still without an invoice. Answered through super/billing/[studioId].
+    ...(await consoleBillingView(doc)),
   };
 });
 
@@ -60,25 +67,9 @@ export const POST = route({ ...spec, body: true }, async ({ params, body, admin 
   let event: BillingEvent;
   switch (type) {
     case "paid": {
-      // THE PACKAGE THIS MONEY IS FOR, validated against the catalogue: a
-      // package applies to the studio it was paid for, once paid (24/09/2026).
-      const packageId = text(body.packageId, 80);
-      const categoryId = text(body.categoryId, 40);
-      const tierId = text(body.tierId, 80);
-      const pkg = packageId ? (await listCatalog("packages")).find((p) => p.id === packageId) : null;
-      if (packageId && !pkg) return { error: "unknown-package" };
-      // THE BAND THE MONEY IS FOR (24/09/2026): stored with the package, so the
-      // studio's seats — and the next invoice's price — come from that band.
-      if (categoryId && !(Array.isArray(pkg?.categories) && (pkg.categories as { id?: unknown }[]).some((c) => String(c?.id) === categoryId))) return { error: "unknown-band" };
-      if (tierId && !(await listCatalog("tiers")).some((t) => t.id === tierId)) return { error: "unknown-tier" };
-      event = {
-        id, type, periods: Number(body.periods),
-        amount: Number(body.amount) || 0, currency: text(body.currency, 3).toUpperCase(),
-        method: text(body.method, 40) || "bank-transfer", reference: text(body.reference),
-        ...(packageId ? { packageId } : {}), ...(categoryId ? { categoryId } : {}), ...(tierId ? { tierId } : {}),
-        ...(body.seats !== undefined && body.seats !== "" ? { seats: Number(body.seats) } : {}),
-        ...(BILLING_PERIODS.includes(body.period) ? { period: body.period } : {}),
-      };
+      const paid = await parsePaidEvent(id, body);
+      if ("error" in paid) return paid;
+      event = paid;
       break;
     }
     case "reversed": event = { id, type, periods: Number(body.periods), reason: text(body.reason, 300) }; break;
@@ -97,19 +88,7 @@ export const POST = route({ ...spec, body: true }, async ({ params, body, admin 
 
   const out = await recordEvent(studio.id, event, `super:${admin.id}`);
   if (out.problem) return { error: out.problem };
-  // THE PAID-FOR PACKAGE TAKES EFFECT ONLY ONCE THE PAYMENT HAS BEEN APPLIED —
-  // and only the first time: a repeated event id changed nothing, so it moves
-  // nothing on the studio either.
-  if (out.changed && event.type === "paid" && (event.packageId || event.tierId)) {
-    await updateStudio(studio.id, {
-      // The band goes with the package: a package paid for without one clears
-      // any band left from the package before.
-      ...(event.packageId ? { packageId: event.packageId, categoryId: event.categoryId || "" } : {}),
-      ...(event.tierId ? { tierId: event.tierId } : {}),
-      // THE REQUEST IS ANSWERED once a payment moves the studio onto a package:
-      // leaving it would keep the owner's dialog saying "you asked for this".
-      upgradeRequest: null,
-    });
-  }
+  // The package it paid for applies now, and only the first time (customerBilling).
+  await applyPaidPlan(studio.id, out.changed, event);
   return { ok: true, changed: out.changed, subscription: out.subscription };
 });

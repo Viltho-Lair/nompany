@@ -320,3 +320,23 @@ export function subscriptionWarningEmail({ locale = "en", studioName = "", kind,
   const text = `${subject}\n\n${lines.join("\n\n")}${url ? `\n\n${cta}: ${url}` : ""}`;
   return { subject, html: layout({ title: subject, bodyHtml, preheader: lines[0] }), text };
 }
+
+// A BILLING NOTICE — nompany telling a customer their transfer arrived, a
+// refund went out or a request was answered, and telling nompany a customer
+// says they paid (26/09/2026, lib/data/customerBilling). One shape for all of
+// them: a subject, a few lines and one button, in the reader's language. The
+// lines never carry the sealed details (bank references, payer names) — the
+// email is an alert that points at the page where they can be read.
+export function billingNoticeEmail({ locale = "en", subject, lines, cta = "", url = "" }: {
+  locale?: string; subject: string; lines: string[]; cta?: string; url?: string;
+}) {
+  const dir = locale === "ar" ? ' dir="rtl" style="text-align:right;"' : "";
+  const bodyHtml = `
+    <div${dir}>
+      <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">${esc(subject)}</h1>
+      ${lines.map((l) => `<p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:${BRAND.text};">${esc(l)}</p>`).join("")}
+      ${url && cta ? `<p style="margin:18px 0 0;"><a href="${esc(url)}" style="display:inline-block;background:${BRAND.color};color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;">${esc(cta)}</a></p>` : ""}
+    </div>`;
+  const text = `${subject}\n\n${lines.join("\n\n")}${url ? `\n\n${cta}: ${url}` : ""}`;
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: lines[0] || "" }), text };
+}

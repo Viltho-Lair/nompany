@@ -8,6 +8,7 @@ import StudioTracker from "@/components/StudioTracker";
 import { withRequest } from "@/platform/http/observability";
 import { studioShell } from "./_shell";
 import { subscriptionDict } from "@/shared/studio/subscription";
+import { billingDict } from "@/shared/studio/billing";
 
 // THE STUDIO'S SHELL, RESOLVED ONCE AND THEN LEFT ALONE.
 //
@@ -110,7 +111,7 @@ async function renderShell(children) {
           record id — see StudioTracker for why the public site's page rule
           cannot be reused here. */}
       <StudioTracker />
-      <BillingBanner billing={billing} locale={locale} />
+      <BillingBanner billing={billing} locale={locale} slug={studio.slug} owner={collaborator.role === "owner"} />
       {children}
     </StudioFrame>
   );
@@ -149,6 +150,9 @@ function NotAMember({ slug, locale = "en" }) {
 // "shuts down on ." with the date missing.
 const day = (d) => (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split("-").reverse().join("/") : "");
 
+/** The owner's Billing view for this studio (components/billing/BillingCenter). */
+const billingHref = (locale, slug) => `/${locale}/account?view=billing&studio=${encodeURIComponent(slug || "")}`;
+
 // Standard's free months are worth a warning only near their end.
 const TRIAL_WARNING_DAYS = 14;
 
@@ -158,13 +162,19 @@ const TRIAL_WARNING_DAYS = 14;
  * cancelled, or Standard's free months ending within two weeks. Nothing when
  * all is well. What it says is enforced by the API; this only says it first.
  */
-function BillingBanner({ billing, locale }) {
+function BillingBanner({ billing, locale, slug, owner }) {
   if (!billing?.dates) return null;
   const t = subscriptionDict(locale);
   const { status, dates, paidUntil, daysLeft } = billing;
   let text = "";
   let tone = "amber";
-  if (status === "trial") {
+  // THE OWNER SAID THEY PAID (26/09/2026): the banner stops asking for money
+  // and says it is being checked — even while the ladder would say closed,
+  // because the claim holds it (shared/billingClaims).
+  if (billing.claimPending) {
+    text = billingDict(locale).checking;
+    tone = "sky";
+  } else if (status === "trial") {
     if (daysLeft > TRIAL_WARNING_DAYS) return null;
     text = t.trialEnding(day(paidUntil));
   } else if (status === "due") text = t.due(day(dates.closesOn));
@@ -173,11 +183,15 @@ function BillingBanner({ billing, locale }) {
   else return null;
   const colours = tone === "rose"
     ? "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-100"
-    : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-100";
+    : tone === "sky"
+      ? "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-100"
+      : "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-100";
   return (
     <div role="status" className={`mx-4 mt-4 flex flex-wrap items-center gap-3 rounded-geex border px-4 py-3 text-sm ${colours}`}>
       <span className="min-w-0 flex-1">{text}</span>
-      <Link href={`/${locale}/contact`} className="shrink-0 font-display font-700 underline underline-offset-2">{t.pay}</Link>
+      {/* PAYING IS THE OWNER'S, on the account page's Billing view (26/09/2026);
+          a member is told who can, by the text alone. */}
+      {owner && <Link href={billingHref(locale, slug)} className="shrink-0 font-display font-700 underline underline-offset-2">{billing.claimPending ? billingDict(locale).nav : t.pay}</Link>}
     </div>
   );
 }
@@ -204,7 +218,7 @@ function ShutDown({ locale = "en", owner, deletedOn, slug }) {
             </a>
           )}
           {owner && (
-            <Link href={`/${locale}/contact`} className="inline-block rounded-full bg-brand-600 px-5 py-2.5 font-display text-sm font-700 text-white hover:bg-brand-700">
+            <Link href={billingHref(locale, slug)} className="inline-block rounded-full bg-brand-600 px-5 py-2.5 font-display text-sm font-700 text-white hover:bg-brand-700">
               {t.pay}
             </Link>
           )}

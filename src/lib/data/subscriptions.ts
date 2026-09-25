@@ -20,6 +20,8 @@ import {
   accessFor, addDays, applyEvent, billingDay, complimentary, daysBetween, ladderDates, newTrial, subscriptionStatus,
   type BillingEvent, type StudioAccess, type Subscription, type SubscriptionStatus,
 } from "@/shared/subscription";
+import { claimHoldUntil, heldAccess, openTransfer, type Claim } from "@/shared/billingClaims";
+import type { NompanyInvoice } from "@/shared/nompanyInvoice";
 
 export type HistoryEntry = {
   id: string;
@@ -43,7 +45,23 @@ export type HistoryEntry = {
  * noticesDue keys), kept in the same document so a warning and the record of it
  * cannot part company. Absent on every document written before 24/09/2026.
  */
-type Doc = { subscription: Subscription; history: HistoryEntry[]; sentNotices?: string[] };
+/**
+ * `claims`, `documents` and `billingProfile` (26/09/2026, lib/data/customerBilling):
+ * what the customer said they paid or wants back, the invoices and credit notes
+ * nompany issued, and the customer's own billing details (sealed). In THIS
+ * document, so confirming a claim, recording its payment and issuing its invoice
+ * cannot part company, and so all of it outlives the studio with the rest of the
+ * billing record (ten years, terms §10).
+ */
+export type SubscriptionDoc = {
+  subscription: Subscription;
+  history: HistoryEntry[];
+  sentNotices?: string[];
+  claims?: Claim[];
+  documents?: NompanyInvoice[];
+  billingProfile?: string;
+};
+type Doc = SubscriptionDoc;
 
 const snap = (s: Subscription) => ({ kind: s.kind, paidUntil: s.paidUntil, cancelAt: s.cancelAt, seats: s.seats });
 
@@ -95,7 +113,32 @@ export async function studioAccess(studioId: string): Promise<{ status: Subscrip
   const stored = await getJSON<Doc>(BILLING.subscription(studioId));
   if (!stored?.subscription) return { status: "complimentary", access: "full" };
   const status = subscriptionStatus(stored.subscription, billingDay());
-  return { status, access: accessFor(status) };
+  return { status, access: await withHold(stored, accessFor(status)) };
+}
+
+/**
+ * A TRANSFER THE CUSTOMER SAYS THEY SENT HOLDS THE LADDER while the bank
+ * catches up (shared/billingClaims). Asked only when the studio is locked AND
+ * has a claim open, so the payment settings are read on that rare path alone —
+ * never on the ordinary request of a studio that is paid up.
+ */
+async function withHold(doc: Doc, access: StudioAccess): Promise<StudioAccess> {
+  return (await holdUntil(doc, access)) ? "full" : access;
+}
+
+async function holdUntil(doc: Doc, access: StudioAccess): Promise<string> {
+  if (access === "full" || !openTransfer(doc.claims)) return "";
+  const { getPaymentSettings } = await import("./paymentSettings");
+  const { claimHoldHours } = await getPaymentSettings();
+  return claimHoldUntil(doc.claims, new Date().toISOString(), claimHoldHours);
+}
+
+/** The ladder as a studio lives it: its status, what it may do, and any hold on it. */
+export async function effectiveAccess(doc: Doc, today = billingDay()) {
+  const status = subscriptionStatus(doc.subscription, today);
+  const ladder = accessFor(status);
+  const hold = await holdUntil(doc, ladder);
+  return { status, access: heldAccess(ladder, hold) as StudioAccess, holdUntil: hold };
 }
 
 /**
@@ -116,7 +159,11 @@ export async function recordEvent(studioId: string, event: BillingEvent, by: str
       if (!out.changed) return { result: { subscription: doc.subscription, changed: false, problem: out.problem } };
       const { id, type, ...detail } = event;
       const entry: HistoryEntry = { id, type, at, by, detail, before: snap(doc.subscription), after: snap(out.sub) };
-      return { next: { subscription: out.sub, history: [...doc.history, entry] }, result: { subscription: out.sub, changed: true, problem: "" } };
+      // `...doc` KEEPS WHAT THE EVENT DOES NOT TOUCH — the claims, the invoices
+      // and the billing profile beside it (26/09/2026). This wrote the two
+      // fields it knew and dropped the rest, which cost nothing while they were
+      // the only two.
+      return { next: { ...doc, subscription: out.sub, history: [...doc.history, entry] }, result: { subscription: out.sub, changed: true, problem: "" } };
     },
   );
 }
@@ -145,12 +192,17 @@ export async function listSubscriptions(studioIds: string[]) {
 export async function studioBilling(studioId: string) {
   const stored = await getJSON<Doc>(BILLING.subscription(studioId));
   const today = billingDay();
-  if (!stored?.subscription) return { status: "complimentary" as SubscriptionStatus, access: "full" as StudioAccess, kind: "comp", paidUntil: today, daysLeft: 0, dates: null };
+  if (!stored?.subscription) return { status: "complimentary" as SubscriptionStatus, access: "full" as StudioAccess, kind: "comp", paidUntil: today, daysLeft: 0, dates: null, holdUntil: "", claimPending: false };
   const sub = stored.subscription;
-  const status = subscriptionStatus(sub, today);
+  const { status, access, holdUntil: hold } = await effectiveAccess(stored, today);
   // Days until what is paid (or free) runs out — worked out here, on the
   // server's clock in Amman time, so a screen never reads its own.
-  return { status, access: accessFor(status), kind: sub.kind, paidUntil: sub.paidUntil, daysLeft: daysBetween(today, sub.paidUntil), dates: ladderDates(sub) };
+  // `claimPending` lets the banner say "we're checking your transfer" rather
+  // than "pay now" to somebody who just did.
+  return {
+    status, access, kind: sub.kind, paidUntil: sub.paidUntil, daysLeft: daysBetween(today, sub.paidUntil), dates: ladderDates(sub),
+    holdUntil: hold, claimPending: Boolean(openTransfer(stored.claims)),
+  };
 }
 
 /** Every studio's stored document, for the daily warning job. Missing ones are complimentary and warned of nothing. */

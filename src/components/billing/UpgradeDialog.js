@@ -6,6 +6,7 @@ import { fmtCurrencyAmount } from "@/lib/pricing";
 import { quoteUpgrade } from "@/shared/upgradeQuote";
 import { upgradeDict } from "@/shared/studio/upgrade";
 import { dirFor } from "@/shared/locale";
+import TransferPanel from "./TransferPanel";
 
 // THE UPGRADE DIALOG — one component, opened from the studio header (Standard
 // studios, owner only) and from the account page's list of owned studios (the
@@ -15,6 +16,11 @@ import { dirFor } from "@/shared/locale";
 // package, a band, a tier and a cycle, sees the price in their region's
 // currency with tax, and sends the request. nompany takes the payment and
 // records it against that package, which is what moves the studio.
+//
+// ONCE ASKED, IT SAYS HOW TO PAY (26/09/2026): the bank details from /super →
+// Payments and "I've sent the transfer" (components/billing/TransferPanel), the
+// same panel the account page's Billing view shows. Closing it costs nothing —
+// the studio stays open, and Billing has the same panel.
 //
 // THE PRICE ON SCREEN IS THE SERVER'S RULE, run here too (shared/upgradeQuote),
 // so what the owner reads is what the request stores. The server quotes again
@@ -36,12 +42,19 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [choice, setChoice] = useState(null);
+  const [billing, setBilling] = useState(null);
+
+  const loadBilling = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/billing`, { cache: "no-store" });
+    setBilling(res.ok ? await res.json() : null);
+  }, [slug]);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/upgrade`, { cache: "no-store" });
     if (!res.ok) { setError(t.failed); return; }
     const d = await res.json();
     setData(d);
+    if (d.request) await loadBilling();
     const cards = d.list?.cards || [];
     const asked = d.request || d.requested;
     const pick = cards.find((c) => c.id === asked?.packageId) || cards[0];
@@ -59,7 +72,7 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
       tierId: d.request?.tierId || basic?.id || "",
       cycle: asked?.cycle === "yearly" ? "yearly" : "monthly",
     });
-  }, [slug, t.failed]);
+  }, [slug, t.failed, loadBilling]);
   useReload(load);
 
   useEffect(() => {
@@ -115,10 +128,12 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
               {" · "}{data.request.cycle === "yearly" ? t.yearly : t.monthly}
               {" · "}{money(data.request.total)}
             </p>
-            <p className="text-slate-500 dark:text-slate-400">{t.pendingNote}</p>
             <div className="flex flex-wrap gap-2 pt-1">
               <button type="button" className={pill(false)} onClick={() => setEditing(true)} disabled={busy}>{t.change}</button>
               <button type="button" className={pill(false)} onClick={withdraw} disabled={busy}>{t.withdraw}</button>
+            </div>
+            <div className="border-t border-slate-100 pt-4 dark:border-white/10">
+              {billing ? <TransferPanel slug={slug} data={billing} locale={locale} onChanged={loadBilling} /> : <p className="text-slate-500 dark:text-slate-400">{t.pendingNote}</p>}
             </div>
           </div>
         ) : cards.length === 0 ? (

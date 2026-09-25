@@ -235,5 +235,87 @@ const unguarded = walk("src/app/api/studios/[slug]")
 ok("every studio route that writes outside the wrapper asks the subscription", unguarded.length === 0, unguarded.join(", "));
 ok("an upload into a studio asks it too", readFileSync("src/app/api/media/route.ts", "utf8").includes("subscriptionRefusal("));
 
+
+// ---- paying by bank transfer (26/09/2026) --------------------------------------
+// A customer says they sent the money; nompany checks and answers. Every block
+// below is a way that conversation could wrong somebody.
+
+const C = await import("@/shared/billingClaims");
+const I = await import("@/shared/nompanyInvoice");
+
+console.log("\n== a claim holds the ladder for the hold's hours, and only while it waits");
+
+const claimAt = "2026-03-10T08:00:00.000Z";
+const pendingClaim = { id: "c1", kind: "transfer", status: "pending", at: claimAt, by: "u", sealed: "", amount: 116, currency: "USD", sentOn: "2026-03-10", plan: null };
+ok("a waiting claim holds the studio for 48 hours from when it was made",
+  C.claimHoldUntil([pendingClaim], "2026-03-11T08:00:00.000Z", 48) === "2026-03-12T08:00:00.000Z");
+ok("...and holds nothing once those hours are up — a claim nobody answers is not a way to keep working unpaid",
+  C.claimHoldUntil([pendingClaim], "2026-03-12T08:00:01.000Z", 48) === "");
+ok("an answered claim holds nothing", C.claimHoldUntil([{ ...pendingClaim, status: "rejected" }], claimAt, 48) === "");
+ok("a refund request holds nothing", C.claimHoldUntil([{ ...pendingClaim, kind: "refund" }], claimAt, 48) === "");
+ok("a hold of 0 hours holds nothing", C.claimHoldUntil([pendingClaim], claimAt, 0) === "");
+ok("the hold can't be set past a week", C.cleanHoldHours(1000) === C.MAX_CLAIM_HOLD_HOURS);
+ok("a held studio works fully, whatever the ladder says", C.heldAccess("owner-only", "2026-03-12T08:00:00.000Z") === "full");
+ok("...and an unheld one keeps the ladder's answer", C.heldAccess("view", "") === "view");
+
+console.log("\n== a claim must say enough to find the money");
+
+const claimDay = "2026-03-10";
+const good = { amount: 116, currency: "USD", sentOn: "2026-03-09", bankReference: "FT2603091234" };
+ok("a complete claim is accepted", C.transferProblem(good, claimDay) === "");
+ok("no amount is refused", C.transferProblem({ ...good, amount: 0 }, claimDay) === "bad-amount");
+ok("a currency that is not a code is refused", C.transferProblem({ ...good, currency: "usd$" }, claimDay) === "bad-currency");
+ok("a transfer sent tomorrow is refused", C.transferProblem({ ...good, sentOn: "2026-03-11" }, claimDay) === "bad-date");
+ok("a transfer from months ago is refused — that is a conversation, not a claim", C.transferProblem({ ...good, sentOn: "2025-12-01" }, claimDay) === "bad-date");
+ok("no bank reference is refused — it is what finds the transfer", C.transferProblem({ ...good, bankReference: " " }, claimDay) === "missing-reference");
+ok("only one transfer claim is open at a time", C.openTransfer([pendingClaim, { ...pendingClaim, id: "c0", status: "confirmed" }])?.id === "c1");
+ok("the transfer reference names the studio and the request's day",
+  C.transferReference("acme", "2026-03-09T10:00:00Z") === "NOMPANY-ACME-20260309");
+ok("an unrequested renewal still gets a reference", C.transferReference("acme", "") === "NOMPANY-ACME");
+
+console.log("\n== the invoice says what arrived, tax split out of it");
+
+const split = I.splitTotal(116, 16, "USD");
+ok("116 with 16% tax is 100 and 16", split.subtotal === 100 && split.tax === 16 && split.total === 116);
+const jod = I.splitTotal(10, 16, "JOD");
+ok("a dinar invoice keeps three decimals, and subtotal + tax is exactly what arrived",
+  jod.subtotal === 8.621 && jod.tax === 1.379 && Math.round((jod.subtotal + jod.tax) * 1000) === 10000, JSON.stringify(jod));
+ok("no tax is no tax", I.splitTotal(50, 0, "USD").tax === 0);
+const fig = I.invoiceFigures({ total: 232, currency: "USD", taxPercent: 16, description: "x", periods: 2 });
+ok("two periods are two of the line, priced each", fig.lines[0].quantity === 2 && fig.lines[0].unitPrice === 100 && fig.subtotal === 200);
+ok("invoice numbers are per kind and per year", I.documentNumber("nmp", "invoice", 2026, 7) === "NMP-2026-00007"
+  && I.documentNumber("NMP", "credit-note", 2026, 1) === "NMP-CN-2026-00001");
+ok("a prefix can't smuggle characters onto the paper", I.documentNumber("N/M P", "invoice", 2026, 1) === "NMP-2026-00001");
+ok("no invoice is issued without nompany's name, address and tax number",
+  I.sellerProblem({ name: "nompany", address: "Amman", taxNumber: "" }) === "seller-incomplete"
+  && I.sellerProblem({ name: "nompany", address: "Amman", taxNumber: "123" }) === "");
+
+console.log("\n== a refund: a credit note never returns more than was paid");
+
+const inv = { number: "NMP-2026-00001", total: 116, taxPercent: 16, currency: "USD" };
+const part = I.creditFigures(inv, 58, 0);
+ok("half the invoice is credited at the invoice's own tax rate", part.subtotal === 50 && part.tax === 8 && part.total === 58);
+ok("more than is left is refused", I.creditFigures(inv, 60, 58).error === "over-refund");
+ok("nothing is refused", I.creditFigures(inv, 0, 0).error === "bad-amount");
+ok("what was credited is summed per invoice", I.creditedAgainst([
+  { kind: "credit-note", creditsInvoice: "NMP-2026-00001", total: 58 },
+  { kind: "credit-note", creditsInvoice: "NMP-2026-00002", total: 10 },
+  { kind: "invoice", number: "NMP-2026-00001", total: 116 },
+], "NMP-2026-00001") === 58);
+
+const paidYear = paid(onPaid, "p-year", 1, "2026-01-14", { period: "yearly" }).sub;
+const kept = S.applyEvent(paidYear, { id: "r1", type: "refunded", periods: 0, amount: 10 }, "2026-02-01", AT);
+ok("a goodwill refund leaves the studio paid as it was", kept.changed && kept.sub.paidUntil === paidYear.paidUntil);
+const back = S.applyEvent(paidYear, { id: "r2", type: "refunded", periods: 1, amount: 1160 }, "2026-02-01", AT);
+ok("refunding the year takes the year back", back.sub.paidUntil === S.addMonths(paidYear.paidUntil, -12, paidYear.anchorDay), `${paidYear.paidUntil} → ${back.sub.paidUntil}`);
+ok("a refund of nothing is refused", S.applyEvent(paidYear, { id: "r3", type: "refunded", periods: 0, amount: 0 }, "2026-02-01", AT).problem === "bad-amount");
+ok("the same refund recorded twice is one refund",
+  S.applyEvent(back.sub, { id: "r2", type: "refunded", periods: 1, amount: 1160 }, "2026-02-01", AT).changed === false);
+
+console.log("\n== the owner can reach billing whatever the ladder says");
+ok("a shut-down studio's owner can still say they paid", S.gateRequest("owner-only", { method: "POST", path: "/api/studios/acme/billing", isOwner: true }) === "");
+ok("...and open an invoice", S.gateRequest("view", { method: "GET", path: "/api/studios/acme/billing/documents/NMP-2026-00001", isOwner: true }) === "");
+ok("a lookalike path is still gated", S.gateRequest("view", { method: "POST", path: "/api/studios/acme/billingx", isOwner: true }) === "studio-closed");
+
 console.log(`\n${fails ? `${fails} FAILED` : "all passed"}`);
 process.exit(fails ? 1 : 0);

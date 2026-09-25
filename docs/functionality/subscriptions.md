@@ -193,14 +193,90 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
   reverse one, set seats and period, extend a free period, switch complimentary on or off,
   and cancel or resume, with the history underneath.
 
+## Paying by bank transfer (26/09/2026)
+
+Online payment waits until customers arrive (the owner), so **step 5, the checkout, is on
+hold**. Customers pay by bank transfer, tell nompany, and nompany answers. Bank transfer
+stays a way to pay after online payment ships.
+
+- **`/super → Payments`** (`lib/data/paymentSettings`, key `BILLING.paymentSettings`) is
+  where every payment method is set up: bank transfer now (accounts, each with the
+  currency it takes, plus instructions in both languages), card listed as coming later
+  and impossible to switch on. It also holds nompany's details for its invoices (legal
+  name, address, tax number, prefix), the address "a customer says they paid" is emailed
+  to, and how long a claim holds the ladder (48 hours by default, at most 168).
+  - **Bank details are encrypted at rest**: each account's name, bank, IBAN, SWIFT and
+    address are sealed together (`platform/auth/fieldCrypto`). Only its label and
+    currency are plain.
+- **The owner pays from two places**, both showing one panel
+  (`components/billing/TransferPanel`): the upgrade dialog, once a package is requested,
+  and **`/account → Billing`** (`components/billing/BillingCenter`). The panel shows the
+  amount (the request's locked quote), the accounts for that currency first, a transfer
+  reference (`NOMPANY-<SLUG>-<request day>`), and **"I've sent the transfer"**: amount,
+  currency, date sent, the bank's reference, who sent it, a note.
+  - Billing is on the account page because it is the customer's business with nompany,
+    and a shut-down studio can't be opened. The banner's and shut-down screen's "Pay now"
+    open it. Nothing blocks the studio.
+  - `GET/POST /api/studios/<slug>/billing` is owner-only, refuses API keys, and is on the
+    gate's always-open list, like `upgrade`.
+- **A claim** (`shared/billingClaims`, stored as `claims` on the subscription document):
+  - One transfer claim open at a time; the claim id is minted by the form, so a double
+    press is one claim. Refused without an amount, a currency code, a date within the
+    last 60 days and not in the future, or a bank reference.
+  - The payer, bank reference and note are **sealed**; amounts, dates and statuses are
+    plain.
+  - It rings the `/super` bell and, when an address is set, emails nompany. The email
+    carries no sealed detail.
+  - **It holds the ladder**: while it waits, the studio has full access for the hold's
+    hours from when the claim was made, whatever the ladder says (`effectiveAccess`,
+    asked only when a studio is locked and has a claim open). It holds nothing once the
+    hours are up, and nothing once answered.
+  - **An open claim keeps a studio from unpaid deletion** however old it is
+    (`cron/studio-deletions` reports it as held, `claim-open`).
+  - The owner may withdraw a claim nobody has answered.
+- **Answering** (`/super → Studios → a studio → Subscription`, `components/super/BillingClaimsPanel`,
+  `POST /api/super/billing/<studioId>`):
+  - **Confirm**: pre-filled from the claim and its locked plan; the console enters what
+    actually arrived. It records the `paid` event (id `claim:<claimId>`, so confirming
+    twice is one payment), moves the studio onto the plan, marks the claim confirmed and
+    **issues the invoice**, then emails the owner.
+  - **Reject**: with a reason, emailed to the owner.
+- **nompany's invoices and credit notes** (`shared/nompanyInvoice`, stored as `documents`
+  on the subscription document, so they outlive the studio with the billing record):
+  - Numbered `NMP-2026-00001` and `NMP-CN-2026-00001`, per kind per year, only forward
+    (`BILLING.documentCounter`).
+  - The total is what arrived; tax is split out of it at the quoted rate (Jordan's 16%
+    when there was no quote), rounded to the currency's own decimals. Payment means 42
+    (bank transfer).
+  - The seller is frozen at issue; the buyer (the owner's **billing details**, else the
+    studio's name and the owner's email) is frozen and **sealed**.
+  - Refused without nompany's name, address and tax number (`seller-incomplete`): the
+    payment is still recorded and the console says no invoice was issued. A payment
+    recorded without an invoice can be given one later.
+  - Each is a printable bilingual page: `/api/studios/<slug>/billing/documents/<no>`
+    (owner) and `/api/super/billing/<studioId>/documents/<no>` (console).
+- **Refunds**:
+  - The owner asks against one of their invoices, with a reason (sealed); one open request
+    per invoice, none once it is fully credited. It rings the bell and emails nompany.
+  - The console answers **Refunded** or **Declined** (reason emailed), or records a refund
+    nobody asked for.
+  - A refund records a `refunded` event: amount, currency, bank reference, reason, and
+    **paid periods taken back only when the console says so** (0 leaves the studio paid).
+    Against an invoice it issues a **credit note** at the invoice's tax rate, never more
+    than is left on the invoice. The owner is emailed.
+
 ## Not built yet
 
+- **Checkout (step 5)**: card, Apple Pay and Google Pay, webhook confirmation. On hold by
+  the owner's decision until customers arrive.
+- **JoFotara**: nompany's invoices and credit notes are issued and stored, but not
+  submitted to Jordan's e-invoicing system.
+- **Receipt uploads** on a claim. A claim carries the bank reference, not a file.
+- **Matching by statement** (reading the bank's statement, or a virtual IBAN per
+  customer). Every claim is checked by a person.
 - **`UNPAID_DELETIONS` is not set anywhere.** Unpaid studios are reported and never
   deleted until the owner switches it on.
 - **Reminders before the ladder starts** (an invoice due, a free period ending) exist only
   as the in-studio banner. No email.
 - **The export includes no file bytes**: it lists each file and the address that serves
   it. It is built in memory, which is fine at today's sizes.
-- **Invoices, credit notes and JoFotara**, **checkout**, and the owner's **Billing page**.
-  An upgrade is a request that nompany answers by recording a transfer. The banner's and
-  shut-down screen's "pay" still link to the contact page, not to the upgrade dialog.

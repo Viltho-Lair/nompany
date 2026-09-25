@@ -6,6 +6,7 @@ import { cascadeDeleteStudio } from "@/platform/db/cascade";
 import { dueForDeletion, type DueStudio } from "@/shared/studioDeletion";
 import { subscriptionDocs } from "@/lib/data/subscriptions";
 import { billingDay, unpaidDeletionDue } from "@/shared/subscription";
+import { openTransfer } from "@/shared/billingClaims";
 import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
 
 export const runtime = "nodejs";
@@ -68,8 +69,12 @@ async function unpaidDue(studios: Record<string, unknown>[]) {
   const held: { id: string; reason: string }[] = [];
   for (const { studioId, doc } of docs) {
     if (!doc) continue;
-    const why = unpaidDeletionDue(doc.subscription, today, doc.sentNotices || []);
-    if (why === "not-expired") continue;
+    const due0 = unpaidDeletionDue(doc.subscription, today, doc.sentNotices || []);
+    if (due0 === "not-expired") continue;
+    // AN OWNER WHO SAYS THEY PAID IS NEVER DELETED UNANSWERED (26/09/2026):
+    // the claim holds the studio for as long as nobody at nompany has looked
+    // at it, however long ago it was made — not only for the ladder's hours.
+    const why = openTransfer(doc.claims) ? "claim-open" : due0;
     const s = byId.get(studioId);
     if (why) held.push({ id: studioId, reason: why });
     else due.push({ id: studioId, name: String(s?.name || ""), slug: String(s?.slug || "") });
@@ -93,7 +98,7 @@ async function run() {
     await notifySuper({
       type: NOTIFY.system,
       title: `${unpaid.held.length} unpaid studio${unpaid.held.length === 1 ? "" : "s"} held from deletion`,
-      body: `Past a year unpaid, but the owner was never sent the final warning: ${unpaid.held.map((h) => names.get(h.id)).slice(0, 10).join(", ")}`,
+      body: `Past a year unpaid, but held: ${unpaid.held.map((h) => `${names.get(h.id)} (${h.reason === "claim-open" ? "says they paid; answer the claim" : "never sent the final warning"})`).slice(0, 10).join(", ")}`,
       href: "/super/studios",
       tone: "warning",
     });

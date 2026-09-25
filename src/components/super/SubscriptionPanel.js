@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useReload } from "@/components/studio2/useReload";
 import { Badge, Button, Num } from "@/app/super/_components/ui";
 import SelectMenu from "@/components/fields/SelectMenu";
+import BillingClaimsPanel from "./BillingClaimsPanel";
 
 // ONE STUDIO'S SUBSCRIPTION, inside the studio dialog. What it is, what it may
 // do today, and the hand-driven events an admin records until a payment
@@ -29,7 +30,7 @@ export const STATUS = {
 };
 
 const EVENT_LABEL = {
-  paid: "Payment recorded", reversed: "Payment reversed", failed: "Payment failed",
+  paid: "Payment recorded", reversed: "Payment reversed", refunded: "Refunded", failed: "Payment failed",
   comp: "Complimentary", "trial-extended": "Trial extended", cancel: "Cancelled",
   resume: "Resumed", "plan-changed": "Plan changed",
   // Not billing events: a warning email that WENT, and a sandbox clock move.
@@ -126,6 +127,10 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
           <span className="block text-xs text-[var(--ad-muted-foreground)]">The payment form below is filled from it, including the band and billing period.</span>
         </div>
       )}
+
+      {/* WHAT THE CUSTOMER TOLD US ABOUT MONEY, and our answers (26/09/2026). */}
+      <BillingClaimsPanel studioId={studioId} data={data} packages={packages} tiers={tiers}
+        onChanged={async () => { const d = await load(); if (d) onChanged?.({ subStatus: d.status, subKind: d.subscription.kind, paidUntil: d.subscription.paidUntil }); }} />
 
       <div className="grid gap-3 text-sm sm:grid-cols-4">
         <div><span className="ad-label">Period</span><p className="capitalize">{s.period}</p></div>

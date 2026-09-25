@@ -24,10 +24,13 @@ import {
 import CreateStudioScreen from "@/components/public/CreateStudioScreen";
 import dynamic from "next/dynamic";
 import { upgradeDict } from "@/shared/studio/upgrade";
+import { billingDict } from "@/shared/studio/billing";
 
 // Fetched only when an owner opens it (see components/billing/UpgradeDialog).
 const UpgradeDialog = dynamic(() => import("@/components/billing/UpgradeDialog"), { ssr: false });
 const SandboxClock = dynamic(() => import("@/components/billing/SandboxClock"), { ssr: false });
+// THE BILLING VIEW (26/09/2026) — fetched only when somebody opens it.
+const BillingCenter = dynamic(() => import("@/components/billing/BillingCenter"), { ssr: false });
 import SecuritySessions from "@/components/public/SecuritySessions";
 import SecurityLock from "@/components/public/SecurityLock";
 import SecurityTwoFactor from "@/components/public/SecurityTwoFactor";
@@ -57,12 +60,15 @@ const PANEL = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-
 
 // Every sidebar destination carries its own icon colour, so the rail reads as a
 // set of distinct places rather than a uniform list.
-const navFor = (tr) => [
+const navFor = (tr, locale) => [
   { key: "overview", label: tr.overview, icon: "dashboard", tone: "text-brand-600 dark:text-brand-400", bg: "bg-brand-500/10" },
   // `accent` is the project's purple scale. Tailwind's default `violet` is
   // overridden in tailwind.config as a SINGLE token, so `violet-600` does not
   // exist and would silently fall through to inherited colour.
   { key: "studios", label: tr.myStudios, icon: "building", tone: "text-accent-600 dark:text-accent-400", bg: "bg-accent-500/10" },
+  // WHERE AN OWNER PAYS NOMPANY AND READS THEIR INVOICES (26/09/2026). Its
+  // label is the billing view's own word, from its own dictionary.
+  { key: "billing", label: billingDict(locale).nav, icon: "wallet", tone: "text-teal-600 dark:text-teal-400", bg: "bg-teal-500/10" },
   { key: "collabs", label: tr.myCollaborations, icon: "team", tone: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
   { key: "personal", label: tr.personalInfo, icon: "person", tone: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
   { key: "calendars", label: tr.calendars, icon: "calendar", tone: "text-sky-600 dark:text-sky-400", bg: "bg-sky-500/10" },
@@ -73,7 +79,7 @@ const navFor = (tr) => [
 // through a browser redirect (never a fetch) and needs to say which tab to
 // reopen via `?view=`, so an arbitrary query value must be checked against
 // something before it drives `setView`.
-const VIEW_KEYS = ["overview", "studios", "collabs", "personal", "calendars", "security"];
+const VIEW_KEYS = ["overview", "studios", "billing", "collabs", "personal", "calendars", "security"];
 
 const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
@@ -95,6 +101,9 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
   // calendar/callback/[provider]/route.ts's landOn). null until that redirect
   // has actually happened.
   const [calendarOutcome, setCalendarOutcome] = useState(null);
+  // Which studio the Billing view opens on — `?studio=<slug>`, sent by the
+  // studio's banner, its shut-down screen and the owner's emails.
+  const [billingSlug, setBillingSlug] = useState("");
 
   const load = useCallback(async () => {
     const [meRes, stRes, dvRes] = await Promise.all([
@@ -120,15 +129,18 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
     const params = new URLSearchParams(window.location.search);
     const v = params.get("view");
     const outcome = params.get("calendar");
+    const studioParam = params.get("studio");
     // Same accepted shape as every other load-on-mount effect in this file
     // (eslint.config.mjs's "known backlog" note) — this one reads
     // window.location instead of fetching, but it is the same pattern.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (v && VIEW_KEYS.includes(v)) setView(v);
     if (outcome) setCalendarOutcome(outcome);
-    if (v || outcome) {
+    if (studioParam) setBillingSlug(studioParam);
+    if (v || outcome || studioParam) {
       params.delete("view");
       params.delete("calendar");
+      params.delete("studio");
       const qs = params.toString();
       window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
     }
@@ -207,7 +219,7 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
         <nav className={cn(RAIL_W, "lg:flex lg:shrink-0 lg:flex-col")}>
           <div className="lg:flex-1">
             <ul className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-              {navFor(tr).map((item) => {
+              {navFor(tr, locale).map((item) => {
                 const on = view === item.key;
                 return (
                   <li key={item.key} className="shrink-0 lg:shrink">
@@ -251,6 +263,7 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
             <>
               {view === "overview" && <Overview identity={identity} owned={owned} collabs={collabs} onGo={setView} onChanged={load} onCreate={() => setCreating(true)} />}
               {view === "studios" && <StudioList title={tr.myStudios} note={tr.workspacesYouOwn} studios={owned} empty={tr.dontOwnStudio} onChanged={load} />}
+              {view === "billing" && <BillingCenter owned={owned} locale={locale} initialSlug={billingSlug} />}
               {view === "collabs" && <StudioGrid title={tr.myCollaborations} note={tr.studiosOthersGave} studios={collabs} empty={tr.notCollaborating} />}
               {view === "personal" && <PersonalInfo identity={identity} onSaved={load} />}
               {view === "calendars" && <Calendars locale={locale} outcome={calendarOutcome} />}
@@ -441,6 +454,7 @@ function StudioRow({ studio, onSaved }) {
           )}
           {/* DOWNLOAD EVERYTHING — the owner may export at any time (Terms 1.4). */}
           <a href={`/api/studios/${studio.slug}/export`} className={BTN_GHOST}>{upgradeDict(locale).download}</a>
+          <a href={`/${locale}/account?view=billing&studio=${encodeURIComponent(studio.slug)}`} className={BTN_GHOST}>{billingDict(locale).nav}</a>
         </div>
         {upgrading && (
           <UpgradeDialog slug={studio.slug} studioName={studio.name} locale={locale} onClose={() => setUpgrading(false)} />
