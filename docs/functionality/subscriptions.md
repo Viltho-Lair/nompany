@@ -118,7 +118,7 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
   on `/account`'s owned studios **when the studio's package has its "Upgrade button" switch
   on** (`/super → Packages`; the owner: "premium shouldn't show upgrade"). A package saved
   before the switch offers it when it costs nothing and is not Premium. That is not by type
-  alone: the seeded default package is stored as "compound". The
+  alone: the once-seeded "Free" package is stored as "compound". The
   default is filled in on read, so the Packages screen shows the real state. The dialog
   has no "No tier": **Basic is the default tier**. Both open one dialog
   (`components/billing/UpgradeDialog`), loaded only when opened.

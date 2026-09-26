@@ -884,7 +884,7 @@ ok("fields are cut to their limits",
   long.name.length === EQ.LIMITS.name && long.message.length === EQ.LIMITS.message);
 
 console.log("\n== an unfilled package is not a price list");
-// THE DEFECT: `ensureDefaultPlan` mints a package called "Free" so a new studio
+// THE DEFECT: the catalogue minted a package called "Free" so a new studio
 // has a plan to be pointed at — no price, no user range, nothing included — and
 // it was minted PUBLIC. `buildPricing` filters on `isPublic`, so that
 // bookkeeping row WAS the public price list: www.nompany.com/api/pricing served
@@ -909,6 +909,22 @@ ok("a priced plan is an offer", PRICE.offersSomething({ ...seeded, monthly: 30 }
 ok("...priced per head", PRICE.offersSomething({ ...seeded, perEmployee: 4 }) === true);
 ok("...or priced in one of its categories",
   PRICE.offersSomething({ ...seeded, categories: [{ monthly: 0 }, { monthly: 12 }] }) === true);
+
+console.log("\n== the starting package is chosen, never generated");
+// THE DEFECT (the owner, 26/09/2026): the catalogue minted a blank "Free"
+// package whenever none existed, so deleting it in /super lasted until the next
+// studio was created. A new studio's package is chosen now, and absent any
+// candidate the answer is null — creation refuses rather than inventing one.
+const CAT = await import("@/lib/data/catalog");
+ok("no package, no starting package", CAT.startingPackageOf([]) === null);
+ok("a compound package nobody chose is not a starting package",
+  CAT.startingPackageOf([{ id: "p1", name: "Standard", type: "compound" }]) === null);
+ok("the switched-on package wins over one called Free",
+  CAT.startingPackageOf([{ id: "free", name: "Free" }, { id: "p2", name: "Starter", startsNewStudios: true }])?.id === "p2");
+ok("...a package already called Free still answers the day this ships",
+  CAT.startingPackageOf([{ id: "p1", name: "Standard", type: "compound" }, { id: "free", name: "Free", type: "compound" }])?.id === "free");
+ok("...then a package of the Free type",
+  CAT.startingPackageOf([{ id: "p1", name: "Standard", type: "compound" }, { id: "p3", name: "Starter", type: "free" }])?.id === "p3");
 
 console.log("\n== a title cannot claim a number the page disproves");
 // THE DEFECT: the /platform page BODY is read from SECTION_DEFS and said

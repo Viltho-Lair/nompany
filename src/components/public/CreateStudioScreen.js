@@ -238,6 +238,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
     setError(
       data.error === "unverified" ? tr.confirmEmailAddressFirst
       : data.error === "free-studio-limit" ? tr.freeStudioLimit(data.limit)
+      : data.error === "no-starting-package" ? tr.noStartingPackage
       : data.error === "slug-taken" ? tr.codeTakenPickAnother
       : data.error === "slug-reserved" ? tr.codeReservedPickAnother
       : data.error === "slug-invalid" ? tr.use3LettersNumbers

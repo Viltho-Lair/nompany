@@ -6,6 +6,7 @@ import { applyDescriptor, readEngagementView, engagementOf } from "../src/platfo
 import { STAGE_REGISTRY } from "../src/platform/engagement/registry.ts";
 import { createUser } from "../src/platform/auth/users.ts";
 import { createStudio } from "../src/modules/main/studios.ts";
+import { plantStartingPackage } from "../src/lib/data/catalog.ts";
 import { getSectionByKey, addRow, readCol } from "../src/platform/db/sections.ts";
 import { backfillStudio } from "../scripts/migrate/backfill-engagements.mjs";
 
@@ -109,6 +110,7 @@ export async function testApplyAndRead() {
 export async function testBackfillStudio() {
   const owner = (await createUser({ email: `bf-${Date.now().toString(36)}@test.invalid`, passwordHash: "x" })).user;
   const slug = `bf-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  await plantStartingPackage(); // an empty catalogue under the prefix
   const created = await createStudio({ ownerUserId: owner.id, name: "Backfill Studio", slug, ownerAlias: "Owner" });
   assert.ok(!created.error, `fixture studio: ${created.error}`);
   const sid = created.studio.id;
@@ -175,6 +177,7 @@ export async function testBackfillStudio() {
 export async function testParity() {
   const owner = (await createUser({ email: `par-${Date.now().toString(36)}@test.invalid`, passwordHash: "x" })).user;
   const slug = `par-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  await plantStartingPackage(); // an empty catalogue under the prefix
   const created = await createStudio({ ownerUserId: owner.id, name: "Parity Studio", slug, ownerAlias: "Owner" });
   assert.ok(!created.error, `fixture studio: ${created.error}`);
   const sid = created.studio.id;
@@ -253,6 +256,7 @@ const ALL_MEMBER_TYPES = [
 export async function testVocabularyParity() {
   const owner = (await createUser({ email: `voc-${Date.now().toString(36)}@test.invalid`, passwordHash: "x" })).user;
   const slug = `voc-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  await plantStartingPackage(); // an empty catalogue under the prefix
   const created = await createStudio({ ownerUserId: owner.id, name: "Vocabulary Studio", slug, ownerAlias: "Owner" });
   assert.ok(!created.error, `fixture studio: ${created.error}`);
   const sid = created.studio.id;

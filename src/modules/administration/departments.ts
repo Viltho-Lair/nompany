@@ -230,7 +230,7 @@ async function seedDepartments(
  * empty.
  *
  * SEEDED LAZILY ON FIRST READ, exactly the way `listRoles` and
- * `ensureDefaultPlan` already self-seed: a studio that existed before this
+ * the starting TIER already self-seed: a studio that existed before this
  * feature gets its chart the first time anybody looks, with no migration to
  * remember. The write happens once and only for a studio holding zero rows.
  *

@@ -17,6 +17,14 @@ Every studio is **born on the default package**, so reaching a third *paid* stud
 upgrading as you go: create, upgrade in `/super`, create again. What cannot happen is a
 third studio sitting on the free package.
 
+**Which package is "the default" is chosen in `/super → Packages`** — the package with **New
+studios start here** switched on (one at a time; switching it on takes it off the others). It
+is **never generated** (the owner, 26/09/2026): it used to be minted as a blank "Free" package
+whenever none existed, so deleting it lasted until the next studio was created. With no
+package switched on, a package named "Free" answers, then the first of the Free type; with
+none of those, creating a studio refuses with `no-starting-package` (503) and the create screen
+says new studios cannot be created right now. `startingPlan`, `lib/data/catalog.ts`.
+
 ## What it stores
 
 Nothing of its own. Ownership is **derived** from `ownerUserId` on the row in

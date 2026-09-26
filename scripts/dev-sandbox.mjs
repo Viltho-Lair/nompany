@@ -60,6 +60,7 @@ register(new URL("../tests/loader.mjs", import.meta.url), { data: { root } });
 const { seedSuperAdmin } = await import("@/platform/auth/superAuth");
 const { createUser, getUserByEmail, getQuestionnaire, updateQuestionnaire, getVerification, updateVerification } = await import("@/platform/auth/users");
 const { createStudio } = await import("@/modules/main/studios");
+const { plantStartingPackage } = await import("@/lib/data/catalog");
 const { hashPassword } = await import("@/platform/auth/passwords");
 
 const EMAIL = "sandbox@nompany.test";
@@ -83,6 +84,9 @@ try {
 if (!user) user = await getUserByEmail(EMAIL);
 
 if (user) {
+  // The sandbox's catalogue is empty under its prefix; production chooses its
+  // starting package in /super and never has one planted.
+  await plantStartingPackage();
   const studio = await createStudio({ ownerUserId: user.id, name: "Sandbox Studio", slug: SLUG, ownerAlias: "Owner" });
   // "slug-taken" is the normal second-run answer, not a problem. Anything else
   // is reported, because a sandbox that silently has no studio is the failure

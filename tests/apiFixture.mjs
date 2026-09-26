@@ -95,6 +95,8 @@ export async function boot(suite) {
   const slug = `${suite}-${rand()}${rand()}`;
   const owner = (await createUser({ email: `${suite}-owner-${rand()}@test.invalid`, passwordHash: "x" })).user;
 
+  // The run's catalogue is empty under its prefix; nothing plants one in production.
+  await (await import("@/lib/data/catalog")).plantStartingPackage();
   const made = await createStudio({
     ownerUserId: owner.id, name: `${suite} test studio`, slug, ownerAlias: "Owner",
   });

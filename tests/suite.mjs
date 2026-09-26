@@ -78,7 +78,7 @@ import { depreciationOf, listAssets, createAsset, editAsset, disposeAsset } from
 import { analyticsLevelOf, analyticsAllows } from "@/lib/analytics";
 import { enabledWidgets, widgetsForRung, WIDGET_KEYS, WIDGET_SECTIONS, DASHBOARD_WIDGETS } from "@/lib/dashboardWidgets";
 import { planOf } from "@/lib/plans";
-import { createCatalogItem, deleteCatalogItem, listCatalog } from "@/lib/data/catalog";
+import { createCatalogItem, deleteCatalogItem, listCatalog, plantStartingPackage } from "@/lib/data/catalog";
 import { drillHref } from "@/components/dashboard/drill";
 import { presetRange } from "@/components/dashboard/dateRange";
 import { toCSV } from "@/components/dashboard/exportTable";
@@ -307,6 +307,9 @@ console.log(`\nintegration suite — namespace "${KEY_PREFIX}"\n`);
 // is a read or a write against the same studio, exactly as a real one is.
 const slug = `t-${rand()}${rand()}`;
 const owner = (await createUser({ email: `owner-${rand()}@test.invalid`, passwordHash: "x" })).user;
+// The run's catalogue is empty under its prefix and nothing plants a package
+// in production any more, so the fixture chooses one the way /super would.
+await plantStartingPackage();
 const created = await createStudio({ ownerUserId: owner.id, name: "Test Studio", slug, ownerAlias: "Owner" });
 if (created.error) { console.error("fixture failed:", created.error); process.exit(1); }
 const studio = created.studio;

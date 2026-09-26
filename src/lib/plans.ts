@@ -113,7 +113,7 @@ export async function loadCatalogues() {
 // person on the other end of a chat window.
 //
 // Matched on the package NAME rather than on its id, because Free is identified
-// by name everywhere else too: `ensureDefaultPlan()` seeds it by name and finds
+// by name everywhere else too: the catalogue once seeded it by name and finds
 // it by name, so a second package called "Free" would already be the same
 // package as far as the platform is concerned. The cost of that choice is that
 // renaming Free turns chat ON for its studios; the alternative — a stored id —

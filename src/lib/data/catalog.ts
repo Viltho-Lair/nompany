@@ -217,6 +217,10 @@ const KINDS: Record<string, CatalogKind> = {
         // inside each package, premium shouldn't show upgrade"). Absent is the
         // package's type — see upgradeButtonOf.
         upgradeButton: upgradeButtonOf({ ...b, type }),
+        // THE PACKAGE A NEW STUDIO IS CREATED ON (the owner, 26/09/2026: the
+        // Free package must not be generated automatically). Chosen here, on
+        // one package at a time — saving it on one takes it off the others.
+        startsNewStudios: Boolean(b.startsNewStudios),
       };
     },
   },
@@ -270,7 +274,7 @@ export const isKind = (k: unknown) => Object.hasOwn(KINDS, String(k || ""));
  * and is not a Premium package — the free package is the one being upgraded
  * out of, and Premium's price is arranged with sales.
  *
- * NOT BY TYPE ALONE: the package `ensureDefaultPlan` seeds for new studios is
+ * NOT BY TYPE ALONE: the "Free" package this file once seeded for new studios was
  * stored as "compound" (the form's default type) with no price and no bands,
  * so "type is free" hid the button from exactly the studios that need it.
  */
@@ -291,10 +295,18 @@ export async function listCatalog(kind: string) {
   return kind === "packages" ? rows.map((r): Row => ({ ...r, upgradeButton: upgradeButtonOf(r) })) : rows;
 }
 
+// ONE STARTING PACKAGE. Two would leave "which one does a new studio get" to
+// list order, so the package just saved with the switch on takes it off the
+// rest, inside the same compare-and-set.
+const oneStarter = (kind: string, rows: Row[], saved: Row | null) =>
+  kind === "packages" && saved?.startsNewStudios
+    ? rows.map((r) => (r.id !== saved.id && r.startsNewStudios ? { ...r, startsNewStudios: false } : r))
+    : rows;
+
 export async function createCatalogItem(kind: string, body: Record<string, unknown>) {
   const spec = KINDS[kind];
   const row = { id: spec.id(), ...spec.clean(body || {}), createdAt: now(), updatedAt: now() };
-  await editArr(spec.key, (rows) => ({ next: [...rows, row] }));
+  await editArr(spec.key, (rows) => ({ next: oneStarter(kind, [...rows, row], row) }));
   return row;
 }
 
@@ -313,7 +325,7 @@ export async function updateCatalogItem(kind: string, id: string, body: Record<s
       updated = { ...r, ...spec.clean({ ...r, ...body }), id: r.id, createdAt: r.createdAt, updatedAt };
       return updated;
     });
-    return updated ? { next, result: updated } : { result: null };
+    return updated ? { next: oneStarter(kind, next, updated), result: updated } : { result: null };
   });
 }
 
@@ -336,51 +348,56 @@ export async function deleteCatalogItem(kind: string, id: string) {
 }
 
 // ---- what every studio starts on --------------------------------------------
-// A studio is created with a package and a tier, so both have to exist before
-// the first one is. Seeded lazily and guarded by name, the same way the
-// registration questionnaire is planted: a migration can be forgotten in an
-// environment, a lazy seed cannot.
+// A studio is created with a package and a tier.
 //
-// Free is created with NO member limit rather than a number invented here. The
-// limit is a commercial decision and belongs in the console; until it is set,
-// nothing is enforced, which is the safe direction to be wrong in.
+// THE PACKAGE IS NEVER GENERATED — the owner, 26/09/2026: the Free package "is
+// auto generated, I do not want it to autogenerate". It used to be: this file
+// minted a package called "Free" whenever none existed, so deleting it in
+// /super lasted only until the next studio was created, and it came back as a
+// blank Compound card (the form's default type). What a studio starts on is a
+// commercial decision, so it is chosen in /super — the package's "New studios
+// start here" switch.
+//
+// Absent a chosen one, the package ALREADY CALLED "Free" answers, then the
+// first package of the Free type — so studios created the day this ships keep
+// landing where they always did, and nobody has to tick a box first. With none
+// of the three, creation refuses (`no-starting-package`) rather than inventing
+// a package.
+//
+// The TIER is still planted when missing: it is not a card on any page.
 export const DEFAULT_PACKAGE = "Free";
 export const DEFAULT_TIER = "Basic";
 
 const byName = (rows: Row[], name: string) =>
   rows.find((r: Row) => String(r.name || "").trim().toLowerCase() === name.toLowerCase()) || null;
 
-export async function ensureDefaultPlan() {
-  const [packages, tiers] = await Promise.all([listCatalog("packages"), listCatalog("tiers")]);
+export function startingPackageOf(packages: Row[]): Row | null {
+  return packages.find((p) => p.startsNewStudios === true)
+    || byName(packages, DEFAULT_PACKAGE)
+    || packages.find((p) => p.type === "free")
+    || null;
+}
 
-  let pkg = byName(packages, DEFAULT_PACKAGE);
-  if (!pkg) {
-    // PRIVATE, AND THAT IS THE WHOLE POINT OF THIS ROW. It exists so a studio
-    // being created has a plan to be pointed at; it is not an offer. Minted
-    // `isPublic: true` it went straight onto the public pricing page — where
-    // `buildPricing` filters on exactly this flag — and, carrying no price, no
-    // user range and nothing included, it published "Free · 0 · for up to 0
-    // users" as the company's entire price list from the first studio ever
-    // created on the Postgres database until somebody read the page.
-    //
-    // A real free plan is a package somebody FILLS IN at /super, with a user
-    // range and what it includes, and switches on deliberately. This is the
-    // fallback underneath it, and the two were the same row.
-    pkg = await createCatalogItem("packages", {
-      name: DEFAULT_PACKAGE, minEmployees: 0, maxEmployees: 0, cost: 0,
-      durationMonths: 0, isPublic: false, color: "green", supportTicketsPerMonth: 0,
-    });
-  }
+export async function startingPlan(): Promise<{ packageId: string; tierId: string } | null> {
+  const [packages, tiers] = await Promise.all([listCatalog("packages"), listCatalog("tiers")]);
+  const pkg = startingPackageOf(packages);
+  if (!pkg) return null;
   let tier = byName(tiers, DEFAULT_TIER);
   if (!tier) {
     tier = await createCatalogItem("tiers", {
       name: DEFAULT_TIER, serviceIds: [], cost: 0, durationMonths: 0, isPublic: true, color: "#64748b",
     });
   }
-  // Both branches above create one when it is missing, so neither can be null
-  // here — and if `byName` ever answered null after a successful create, the
-  // studio would be pointed at a package that does not exist, which is worth
-  // failing loudly rather than defaulting past.
-  if (!pkg || !tier) throw new Error("catalog: default package or tier could not be created");
-  return { packageId: pkg.id, tierId: tier.id };
+  return { packageId: String(pkg.id), tierId: String(tier.id) };
+}
+
+// FOR TESTS AND THE SANDBOX ONLY. Their key prefix gives them an empty
+// catalogue, and a studio cannot be created without a starting package.
+// Idempotent. Nothing in `src` calls it — in production the package is chosen
+// in /super, never planted.
+export async function plantStartingPackage() {
+  if (startingPackageOf(await listCatalog("packages"))) return;
+  await createCatalogItem("packages", {
+    name: DEFAULT_PACKAGE, type: "free", isPublic: false, color: "green", startsNewStudios: true,
+  });
 }

@@ -27,7 +27,7 @@ import { readArr, writeArr, editArr, setJSON, claim, getIndex, release, delPrefi
 import { addCollaborator } from "@/platform/auth/collaborators";
 import { listDepartments } from "@/modules/administration/departments";
 import { seedBuiltinTypes } from "@/platform/engine/builtins";
-import { ensureDefaultPlan } from "@/lib/data/catalog";
+import { startingPlan } from "@/lib/data/catalog";
 import { loadCatalogues, costsNothing } from "@/lib/plans";
 import { startSubscription } from "@/lib/data/subscriptions";
 import { FIELDS_OF_WORK, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfWork";
@@ -272,7 +272,11 @@ export async function createStudio(
   // The default package id is needed BEFORE anything is claimed — it is what
   // the cap counts against — and creation needs it a few lines later anyway, so
   // asking for it here costs nothing.
-  const { packageId, tierId } = await ensureDefaultPlan();
+  // Nothing is claimed yet, so having no package to start on costs nothing —
+  // and no package is invented here (see startingPlan).
+  const plan = await startingPlan();
+  if (!plan) return { error: "no-starting-package" };
+  const { packageId, tierId } = plan;
   // The catalogue answers with a Row, so its ids are `unknown`. Narrowed ONCE,
   // here, rather than at each of the two places the cap counts against it — two
   // coercions is two chances for them to disagree about what an absent id means.
@@ -296,10 +300,9 @@ export async function createStudio(
 
   try {
     const now = new Date().toISOString();
-    // Every studio starts on the Free package and the Standard tier — both
-    // planted by the ensureDefaultPlan() above if they do not exist yet, so the
-    // very first studio created in an environment still lands on a real plan
-    // rather than a dangling id.
+    // Every studio starts on the package chosen in /super and the Basic tier —
+    // startingPlan() above has already refused if there is no such package, so
+    // a studio never lands on a dangling id.
     const studio = {
       id, ownerUserId, name: cleanName, slug: cleanSlug,
       plan: "free", packageId, tierId,

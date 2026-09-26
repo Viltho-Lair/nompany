@@ -47,6 +47,9 @@ export async function POST(request: Request) {
       // A department list the screen could not have sent, or none at all.
       : result.error === "sections-invalid" || result.error === "sections-empty" ? 400
       : result.error === "free-studio-limit" || result.error === "slug-taken" ? 409
+      // No package is marked to start new studios on — the platform's state,
+      // not the caller's mistake.
+      : result.error === "no-starting-package" ? 503
       : 400;
     // `limit` rides along on the cap refusal so the dialog can say what the
     // ceiling actually is rather than hardcoding a number that would drift —

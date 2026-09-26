@@ -89,6 +89,11 @@ const FIELDS = [
   { key: "includes", label: "Includes", type: "lines", placeholder: "Full platform — every department\nUp to 4 employees\nEnglish & Arabic, RTL-ready" },
   { key: "includesAr", label: "Includes (Arabic)", type: "lines" },
 
+  // THE STARTING PACKAGE (26/09/2026). Nothing is generated any more: a new
+  // studio is created on the package with this switch on. One at a time —
+  // switching it on here switches it off on the others.
+  { key: "startsNewStudios", label: "New studios start here", type: "switch", hint: "Every newly created studio is put on this package. Only one package can have it." },
+
   { key: "color", label: "Colour", type: "color", hint: "Pick any colour, or start from one of the four." },
   { key: "isPublic", label: "Public", type: "switch", hint: "Off keeps it out of the public pricing page entirely." },
 ];

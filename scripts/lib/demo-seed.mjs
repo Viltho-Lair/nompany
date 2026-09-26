@@ -204,6 +204,9 @@ export async function seedDemo() {
       await users.updateQuestionnaire(user.id, { completedAt: new Date().toISOString() });
       person[p.key] = { ...p, user };
     }
+    // The sandbox's catalogue is empty under its prefix, and nothing plants a
+    // starting package in production any more.
+    await (await import("@/lib/data/catalog")).plantStartingPackage();
     // Through the account screen's own door, so country, city and currency
     // are set the way a real owner's are.
     const created = must(await createStudioForUser(person.lina.user, {

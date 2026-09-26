@@ -747,8 +747,8 @@ each cost a production deploy to discover:
    as `permission denied for table documents` through the gateway.
 
 **Redis's old data was NOT migrated.** The instance was deleted deliberately — this is a
-from-zero Postgres database, registration included, and `ensureDefaultPlan()` self-seeds
-packages and tiers on first use.
+from-zero Postgres database, registration included. `startingPlan()` self-seeds the tier;
+the PACKAGE a new studio starts on is never generated — it is chosen in /super (26/09/2026).
 
 Cloud SQL's own Data API was evaluated for the gateway's job and **rejected: it has no bind
 parameters**, and tenant-authored JSON interpolated into SQL text is an injection surface

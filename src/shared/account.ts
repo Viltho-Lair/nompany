@@ -20,6 +20,7 @@ type Strings = {
   addressAlreadyTaken: string;
   alreadyHaveCode: string;
   freeStudioLimit: (n: number) => string;
+  noStartingPackage: string;
   askStudioAccessUsing: string;
   asksCode: string;
   thisDevice: string;
@@ -300,6 +301,7 @@ const en: Strings = {
   // and would read as a wall where there is a door. `n` comes from the refusal
   // rather than being written in, so the number cannot drift from the server's.
   freeStudioLimit: (n: number) => `You can own ${n} free studio${n === 1 ? "" : "s"}. Upgrade one of yours to create another.`,
+  noStartingPackage: "New studios cannot be created right now. Please try again later or contact nompany.",
   askStudioAccessUsing: "Ask a studio for access using its company code. Someone there approves the request.",
   asksCode: "Asks for a code",
   thisDevice: "This device",
@@ -592,6 +594,7 @@ const ar: Strings = {
   addressAlreadyTaken: "هذا العنوان محجوز.",
   alreadyHaveCode: "لدي رمز بالفعل",
   freeStudioLimit: (n: number) => `يمكنك امتلاك ${n === 1 ? "استوديو مجاني واحد" : n === 2 ? "استوديوهين مجانيين" : n <= 10 ? `${n} استوديوهات مجانية` : `${n} استوديو مجاني`}. رق أحدها لإنشاء استوديو آخر.`,
+  noStartingPackage: "لا يمكن إنشاء استوديوهات جديدة حاليا. حاول لاحقا أو تواصل مع nompany.",
   askStudioAccessUsing: "اطلب الوصول إلى استوديو برمز الشركة. وسيوافق أحدهم هناك على الطلب.",
   asksCode: "يطلب رمزا",
   thisDevice: "هذا الجهاز",

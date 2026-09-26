@@ -33,14 +33,14 @@ export type PricingPayload = Awaited<ReturnType<typeof buildPricing>>;
 /**
  * IS THIS CARD AN OFFER, or an empty row wearing a name?
  *
- * `ensureDefaultPlan` mints a package called "Free" the first time any studio
+ * The catalogue used to mint a package called "Free" the first time any studio
  * is created, so that a studio has a plan to be pointed at. It is bookkeeping:
  * no price, no user range, nothing included — and it was minted PUBLIC, so
  * `isPublic` alone put it on the pricing page as the entire price list. For
  * months the public page has read "Free · 0 · for up to 0 users", which is not
  * a price, it is a form somebody has not filled in.
  *
- * The seed is private now (lib/data/catalog), which stops the NEXT one. This
+ * Nothing is seeded any more (lib/data/catalog, 26/09/2026). This
  * stops the one already stored, on every studio that has ever created a plan,
  * without anybody editing live data.
  *
