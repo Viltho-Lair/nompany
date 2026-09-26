@@ -269,6 +269,8 @@ export type Profile = {
   photo?: string;
   language?: string;
   workAddress?: string;
+  /** Walkthroughs this person turned off — only `true` is stored (shared/walkthrough). */
+  walkthroughOff?: Partial<Record<string, true>>;
 };
 
 export const getProfile = (userId: string) => getJSON<Profile>(U.profile(userId));
@@ -437,6 +439,8 @@ export type SessionState = {
   scope?: string;
   studioId?: string;
   terminalId?: string;
+  /** Walkthroughs already shown in THIS sign-in, so each comes back at the next one. */
+  toursSeen?: string[];
   ended?: { at: number; reason: string; byLabel?: string; byType?: string };
 };
 export const ENDED_STATE_TTL = 7 * 24 * 60 * 60;

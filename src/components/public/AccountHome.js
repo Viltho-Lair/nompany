@@ -31,6 +31,10 @@ const UpgradeDialog = dynamic(() => import("@/components/billing/UpgradeDialog")
 const SandboxClock = dynamic(() => import("@/components/billing/SandboxClock"), { ssr: false });
 // THE BILLING VIEW (26/09/2026) — fetched only when somebody opens it.
 const BillingCenter = dynamic(() => import("@/components/billing/BillingCenter"), { ssr: false });
+// NOVA'S WALKTHROUGH — fetched only when it opens (components/walkthrough).
+const Walkthrough = dynamic(() => import("@/components/walkthrough/Walkthrough"), { ssr: false });
+import { useWalkthrough, postWalkthrough } from "@/components/walkthrough/useWalkthrough";
+import { walkthroughDict, TOURS } from "@/shared/walkthrough";
 import SecuritySessions from "@/components/public/SecuritySessions";
 import SecurityLock from "@/components/public/SecurityLock";
 import SecurityTwoFactor from "@/components/public/SecurityTwoFactor";
@@ -104,6 +108,12 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
   // Which studio the Billing view opens on — `?studio=<slug>`, sent by the
   // studio's banner, its shut-down screen and the owner's emails.
   const [billingSlug, setBillingSlug] = useState("");
+  // Shown at sign-in until the person ticks "don't show this again". Not when
+  // they were sent here to create a studio — that screen replaces the one the
+  // tour is about — and not in a till's session, which is not theirs.
+  const tour = useWalkthrough("account", { auto: !openCreate && !till });
+  // The tour is ABOUT Overview, so starting it from elsewhere goes there first.
+  const startTour = () => { setCreating(false); setView("overview"); tour.start(); };
 
   const load = useCallback(async () => {
     const [meRes, stRes, dvRes] = await Promise.all([
@@ -178,13 +188,16 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden sm:block"><ThemeToggle labels={chrome?.theme} /></div>
-          <LangMenu current={locale} options={langOptions} label={chrome?.language} align="end" />
+          {/* One box, so the walkthrough can light both personal controls. */}
+          <div data-tour="account-prefs" className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden sm:block"><ThemeToggle labels={chrome?.theme} /></div>
+            <LangMenu current={locale} options={langOptions} label={chrome?.language} align="end" />
+          </div>
           {/* THE LOCK, beside the profile (18/09/2026): locks this sign-in
               everywhere without signing out, and runs the idle timer. */}
           <SessionLock locale={locale} />
           {/* The only sign-out in the product sits behind this avatar. */}
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <div data-tour="account-avatar" className="relative" onClick={(e) => e.stopPropagation()}>
             <button
               type="button" onClick={() => setMenuOpen((o) => !o)}
               aria-haspopup="menu" aria-expanded={menuOpen}
@@ -228,11 +241,11 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
         {/* fixed rail */}
         <nav className={cn(RAIL_W, "lg:flex lg:shrink-0 lg:flex-col")}>
           <div className="lg:flex-1">
-            <ul className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+            <ul data-tour="account-nav" className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
               {navFor(tr, locale).map((item) => {
                 const on = view === item.key;
                 return (
-                  <li key={item.key} className="shrink-0 lg:shrink">
+                  <li key={item.key} data-tour={`account-${item.key}`} className="shrink-0 lg:shrink">
                     <button
                       type="button" onClick={() => { setCreating(false); setView(item.key); }}
                       aria-current={on && !creating ? "page" : undefined}
@@ -275,7 +288,7 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
               {view === "studios" && <StudioList title={tr.myStudios} note={tr.workspacesYouOwn} studios={owned} empty={tr.dontOwnStudio} onChanged={load} />}
               {view === "billing" && <BillingCenter owned={owned} locale={locale} initialSlug={billingSlug} />}
               {view === "collabs" && <StudioGrid title={tr.myCollaborations} note={tr.studiosOthersGave} studios={collabs} empty={tr.notCollaborating} />}
-              {view === "personal" && <PersonalInfo identity={identity} onSaved={load} />}
+              {view === "personal" && <PersonalInfo identity={identity} onSaved={load} onStartTour={startTour} />}
               {view === "calendars" && <Calendars locale={locale} outcome={calendarOutcome} />}
               {view === "security" && <Security devices={devices} onChanged={load} locale={locale} user={identity?.user} />}
             </>
@@ -302,6 +315,10 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
         {/* Balances the links column so the note is centred in the window. */}
         <div className={cn(RAIL_W, "hidden shrink-0 lg:block")} aria-hidden="true" />
       </footer>
+
+      {tour.open && !creating && view === "overview" && (
+        <Walkthrough tour="account" locale={locale} onClose={tour.close} />
+      )}
     </div>
   );
 }
@@ -330,10 +347,10 @@ function StudioCard({ studio, compact = false }) {
 }
 
 // The square action tile that sits to the LEFT of a row of studio tiles.
-function ActionTile({ icon, label, onClick, compact = false }) {
+function ActionTile({ icon, label, onClick, compact = false, tour }) {
   const w = compact ? "w-[104px]" : "w-[132px]";
   return (
-    <button type="button" onClick={onClick} className={cn("group block shrink-0 text-start", w)}>
+    <button type="button" data-tour={tour} onClick={onClick} className={cn("group block shrink-0 text-start", w)}>
       <span className={cn("flex aspect-square flex-col items-center justify-center gap-2 rounded-geex border border-dashed border-slate-300 bg-white/60 transition-colors group-hover:border-brand-500 group-hover:bg-white dark:border-white/20 dark:bg-white/[0.03] dark:group-hover:border-brand-500/50", w)}>
         <Icon name={icon} className="h-6 w-6 text-brand-600 dark:text-brand-400" />
       </span>
@@ -554,7 +571,7 @@ function Overview({ identity, owned, collabs, onGo, onChanged, onCreate }) {
           {owned.length > 4 && ` ${tr.showingFourMostOpened}`}
         </p>
         <StudioStrip
-          action={<ActionTile icon="plus" label={tr.createStudio} onClick={onCreate} compact />}
+          action={<ActionTile icon="plus" label={tr.createStudio} onClick={onCreate} compact tour="account-create" />}
           studios={owned}
           onViewAll={() => onGo("studios")}
         />
@@ -567,7 +584,7 @@ function Overview({ identity, owned, collabs, onGo, onChanged, onCreate }) {
           {collabs.length > 4 && ` ${tr.showingFourMostOpened}`}
         </p>
         <StudioStrip
-          action={<ActionTile icon="team" label={tr.joinStudio} onClick={() => setJoining(true)} compact />}
+          action={<ActionTile icon="team" label={tr.joinStudio} onClick={() => setJoining(true)} compact tour="account-join" />}
           studios={collabs}
           onViewAll={() => onGo("collabs")}
         />
@@ -672,7 +689,7 @@ function JoinStudio({ onChanged, onClose }) {
 // each row an icon slot, a label and the current value. The whole row is the
 // control — pressing anywhere on it opens that field — rather than a separate
 // Edit affordance.
-function PersonalInfo({ identity, onSaved }) {
+function PersonalInfo({ identity, onSaved, onStartTour }) {
   const tr = accountDict(useAccountLocale());
   const profile = identity?.profile || {};
   const [editing, setEditing] = useState(null);
@@ -810,8 +827,85 @@ function PersonalInfo({ identity, onSaved }) {
         })}
       </div>
 
+      <Walkthroughs onStart={onStartTour} />
+
       {photoOpen && <PhotoDialog name={name} photoUrl={profile.photo} onClose={() => setPhotoOpen(false)} onSaved={onSaved} />}
     </div>
+  );
+}
+
+// ---- walkthroughs ----------------------------------------------------------------
+// WHERE A WALKTHROUGH COMES BACK. Ticking "don't show this again" is stored on
+// the profile, so it holds on every device — and this is the switch that
+// undoes it, one per tour. The account's own can also be started right here;
+// the studio's starts inside a studio, from the menu behind your picture.
+function Walkthroughs({ onStart }) {
+  const locale = useAccountLocale();
+  const t = walkthroughDict(locale);
+  const [off, setOff] = useState(null);   // { account, studio } once read
+  const [busy, setBusy] = useState("");
+
+  useEffect(() => {
+    let live = true;
+    fetch("/api/identity/walkthrough", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (live && d) setOff(Object.fromEntries(TOURS.map((k) => [k, Boolean(d[k]?.off)]))); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  async function flip(tour) {
+    if (!off || busy) return;
+    const next = !off[tour];
+    setBusy(tour);
+    const res = await postWalkthrough(tour, next ? "off" : "on");
+    setBusy("");
+    if (res?.ok) setOff((o) => ({ ...o, [tour]: next }));
+  }
+
+  const rows = [
+    { tour: "account", label: t.settingAccount, icon: "person" },
+    { tour: "studio", label: t.settingStudio, icon: "building" },
+  ];
+
+  return (
+    <section className="mt-8">
+      <h3 className="font-display text-lg font-500 text-slate-900 dark:text-white">{t.settingTitle}</h3>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.settingBlurb}</p>
+      <div className={cn(STACK, "mt-4")}>
+        {rows.map((r) => {
+          const on = off ? !off[r.tour] : false;
+          return (
+            <div key={r.tour} className={ROW}>
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+                <Icon name={r.icon} className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col justify-center">
+                <span className={ROW_LABEL}>{r.label}</span>
+                <span className={ROW_VALUE}>{off ? (on ? t.settingOn : t.settingOff) : "…"}</span>
+              </span>
+              {r.tour === "account" && (
+                <button type="button" onClick={onStart} className={cn(BTN_GHOST, "shrink-0")}>{t.startNow}</button>
+              )}
+              <button
+                type="button" role="switch" aria-checked={on} aria-label={r.label}
+                disabled={!off || busy === r.tour}
+                onClick={() => flip(r.tour)}
+                className={cn(
+                  "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 disabled:opacity-60",
+                  on ? "bg-brand-600" : "bg-slate-300 dark:bg-white/20",
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-5 w-5 rounded-full bg-white shadow transition-transform",
+                  on ? "translate-x-[22px] rtl:-translate-x-[22px]" : "translate-x-0.5 rtl:-translate-x-0.5",
+                )} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

@@ -196,6 +196,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
       {(
         <button
           ref={launcherRef}
+          data-tour="nova-launcher"
           type="button"
           onClick={() => setOpen(!open)}
           aria-label={open ? tr.close : tr.askNova}

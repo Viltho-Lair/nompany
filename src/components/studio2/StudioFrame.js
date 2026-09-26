@@ -24,6 +24,10 @@ const MuiRtlProvider = dynamic(() => import("@/components/MuiRtlProvider"));
 // a studio never will, so its words and its price arithmetic stay out of the
 // shell's first load.
 const UpgradeDialog = dynamic(() => import("@/components/billing/UpgradeDialog"), { ssr: false });
+// NOVA'S WALKTHROUGH, fetched only when it opens — once per sign-in at most,
+// and never for anybody who turned it off. See components/walkthrough.
+const Walkthrough = dynamic(() => import("@/components/walkthrough/Walkthrough"), { ssr: false });
+import { useWalkthrough } from "@/components/walkthrough/useWalkthrough";
 import { Icon } from "@/components/studio2/icons";
 import StudioChat from "@/components/studio2/StudioChat";
 import RateNompany from "@/components/studio2/RateNompany";
@@ -492,6 +496,9 @@ export default function StudioFrame({
   // dependencies instead of re-subscribing on every shell render.
   const openNova = useCallback((next) => setCornerChat(next ? "nova" : null), []);
   const openSupport = useCallback((next) => setCornerChat(next ? "support" : null), []);
+  // Shown at sign-in until the person ticks "don't show this again"; the
+  // account menu below turns it back on.
+  const tour = useWalkthrough("studio");
 
   useEffect(() => {
     let alive = true;
@@ -786,7 +793,7 @@ export default function StudioFrame({
           above stay dumb: it closes on ANY click, so the button that opens a
           menu has to not be one of them, or opening would immediately close. */}
       {headerMenus.map((menu) => (
-        <div key={menu.key} className="relative shrink-0">
+        <div key={menu.key} data-tour="studio-marks" className="relative shrink-0">
           <button
             type="button"
             title={menu.label}
@@ -823,7 +830,7 @@ export default function StudioFrame({
       ))}
       </div>
 
-      <nav aria-label={tr.departments} className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
+      <nav data-tour="studio-nav" aria-label={tr.departments} className="flex-1 space-y-0.5 overflow-y-auto px-4 py-6">
         {tree.map((node) => navGroup(node))}
 
       </nav>
@@ -1029,6 +1036,7 @@ export default function StudioFrame({
         <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 bg-[var(--geex-page)] px-5 py-4 sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button
+              data-tour="studio-menu"
               onClick={() => setOpen(true)}
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--geex-surface)] text-slate-600 shadow-geex-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-300 lg:hidden"
               aria-label={tr.openMenu}
@@ -1064,6 +1072,9 @@ export default function StudioFrame({
                 address to navigate to. LangMenu writes the cookie; the refresh
                 re-renders the shell server-side, which is what swaps `dir` and
                 re-mirrors the whole layout in one paint. */}
+            {/* One box, so the walkthrough can light the two personal
+                controls together. Same gap as the row it sits in. */}
+            <div data-tour="studio-prefs" className="flex items-center gap-2">
             <LangMenu
               current={locale}
               label={tr.language}
@@ -1080,10 +1091,11 @@ export default function StudioFrame({
                 class the public site uses, so the Studio follows the choice
                 everywhere and the no-flash script picks it up on next load. */}
             <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
+            </div>
             {/* Beside the theme toggle rather than in the sidebar: it belongs
                 with the other things that are about YOU here, not with the
                 studio's sections. */}
-            <NotificationBell slug={studio.slug} locale={locale} />
+            <span data-tour="studio-bell" className="inline-flex"><NotificationBell slug={studio.slug} locale={locale} /></span>
             <span className="hidden text-sm text-slate-500 dark:text-slate-400 sm:inline">
               {me.alias || tr.member}
               <span className="ms-2 rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">
@@ -1097,7 +1109,7 @@ export default function StudioFrame({
             {/* The avatar is a menu, not a link: going to the account and
                 signing out are both reachable from it, and sign-out lives
                 nowhere else in the studio. */}
-            <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <div data-tour="studio-account" className="relative" onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 onClick={() => setAccountOpen((o) => !o)}
@@ -1131,6 +1143,17 @@ export default function StudioFrame({
                     <Icon name="person" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
                     {tr.goToAccount}
                   </Link>
+                  {/* THE WAY BACK to a walkthrough somebody turned off — and a
+                      way to see it again when they did not. */}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setAccountOpen(false); tour.restart(); }}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-start text-sm font-500 text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"
+                  >
+                    <Icon name="helpCircle" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+                    {tr.showWalkthrough}
+                  </button>
                   <button
                     type="button"
                     role="menuitem"
@@ -1180,6 +1203,10 @@ export default function StudioFrame({
           means anything. It decides nothing itself; the server says whether to
           ask. */}
       <RateNompany />
+
+      {tour.open && (
+        <Walkthrough tour="studio" locale={locale} nova={novaEnabled} support={Boolean(chat?.enabled)} onClose={tour.close} />
+      )}
     </Rtl>
     </div>
     </LiveProvider>

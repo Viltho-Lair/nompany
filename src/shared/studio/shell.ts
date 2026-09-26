@@ -63,6 +63,7 @@ type ShellStrings = {
   signedIn: string;
   myAccount: string;
   goToAccount: string;
+  showWalkthrough: string;
   signOut: string;
   adminsOnly: string;
   // The bell lives in the header, so its words are the shell's.
@@ -132,6 +133,7 @@ const en: ShellStrings = {
   signedIn: "Signed in",
   myAccount: "My account",
   goToAccount: "Go to account",
+  showWalkthrough: "Show the walkthrough",
   signOut: "Sign out",
   adminsOnly: "Admins only",
   notifications: "Notifications",
@@ -195,6 +197,7 @@ const ar: ShellStrings = {
   signedIn: "تم تسجيل الدخول",
   myAccount: "حسابي",
   goToAccount: "الذهاب إلى الحساب",
+  showWalkthrough: "اعرض الجولة التعريفية",
   signOut: "تسجيل الخروج",
   adminsOnly: "للمسؤولين فقط",
   notifications: "الإشعارات",

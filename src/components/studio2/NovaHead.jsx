@@ -11,10 +11,14 @@ import { miscDict } from "@/shared/studio/misc";
 //
 // `idle` adds a gentle CSS bob and an antenna pulse (keyframes in globals.css),
 // off under reduced-motion. No library.
-export default function NovaHead({ className = "h-9 w-9", idle = false }) {
+//
+// `label` overrides the accessible name for a surface outside the studio's
+// locale provider — the account hub's walkthrough — which would otherwise read
+// the English default in an Arabic account.
+export default function NovaHead({ className = "h-9 w-9", idle = false, label = "" }) {
   const tr = miscDict(useStudioLocale());
   return (
-    <svg viewBox="42 26 156 150" className={`${className} ${idle ? "nova-bob" : ""}`} fill="none" role="img" aria-label={tr.nova}>
+    <svg viewBox="42 26 156 150" className={`${className} ${idle ? "nova-bob" : ""}`} fill="none" role="img" aria-label={label || tr.nova}>
       <defs>
         <linearGradient id="nh-body" x1="60" y1="50" x2="185" y2="180" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#f1f5ff" />
