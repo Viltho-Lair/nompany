@@ -15,6 +15,9 @@ type Strings = {
   amount: string;
   addLine: string;
   note: string;
+  /** The optional project a claim is charged to, and the choice of none. */
+  project: string;
+  noProject: string;
   save: string;
   edit: string;
   cancel: string;
@@ -55,12 +58,14 @@ const EN_PROBLEM: Record<string, string> = {
   "not-yours": "Only the person who raised this claim can do that.",
   status: "The claim has moved on since you opened it.",
   amount: "Enter an amount above nought.",
+  project: "That project no longer exists. Choose another, or none.",
   person: "Choose who receives it.",
   "more-than-held": "That is more than the person still holds of this advance.",
   "bank-account": "That is not a money account.",
   forbidden: "You do not have access to expense claims.",
 };
 const AR_PROBLEM: Record<string, string> = {
+  project: "هذا المشروع لم يعد موجودا. اختاروا مشروعا آخر، أو لا شيء.",
   "not-configured": "لم يحدد أحد لاعتماد مطالبات المصروفات. يحددهم المالك أو المشرف في إعدادات الموافقات.",
   "no-approver": "أنتم الوحيدون الذين يعتمدون مطالبات المصروفات، فلا يمكنكم تقديم مطالبة بأنفسكم. اطلبوا من المالك تحديد شخص آخر في إعدادات الموافقات.",
   "own-advance": "لا يمكنكم صرف سلفة لأنفسكم.",
@@ -84,6 +89,8 @@ const en: Strings = {
   amount: "Amount",
   addLine: "Add a line",
   note: "Note",
+  project: "Project",
+  noProject: "— no project —",
   save: "Save",
   edit: "Edit",
   cancel: "Cancel",
@@ -126,6 +133,8 @@ const ar: Strings = {
   amount: "المبلغ",
   addLine: "اضافة سطر",
   note: "ملاحظة",
+  project: "المشروع",
+  noProject: "— بلا مشروع —",
   save: "حفظ",
   edit: "تعديل",
   cancel: "الغاء",

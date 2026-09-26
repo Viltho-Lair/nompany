@@ -464,8 +464,8 @@ type Strings = CommonStrings & {
 
 const en: Strings = {
   settingsLead: "How Finance files what it spends and what it withholds. Both are this studio's own — nothing here is a default anybody else shares.",
-  cashCategories: "Expense categories",
-  cashCategoriesLead: "What an expense can be filed under. Leaving this empty restores the shipped list rather than offering none.",
+  cashCategories: "Expense-claim categories",
+  cashCategoriesLead: "What a line of an expense claim can be filed under. Ordinary expenses are filed under Master data → Categories, not this list. Leaving it empty restores the shipped list rather than offering none.",
   addCategory: "New category",
   withholding: "Withholding tax",
   withholdingLead: "Deducted at source on documents at or above the threshold. An empty list is the normal case and means nothing is withheld — a studio in a jurisdiction with no WHT never sees the column.",
@@ -963,8 +963,8 @@ const en: Strings = {
 
 const ar: Strings = {
   settingsLead: "كيف يصنف قسم المالية ما ينفقه وما يقتطعه. كلاهما خاص بهذا الاستوديو — لا شيء هنا مشترك مع غيره.",
-  cashCategories: "تصنيفات المصروفات",
-  cashCategoriesLead: "ما يمكن تصنيف المصروف تحته. ترك القائمة فارغة يعيد القائمة الافتراضية بدل ألا يبقى شيء.",
+  cashCategories: "تصنيفات مطالبات المصروفات",
+  cashCategoriesLead: "ما يمكن تصنيف بند مطالبة المصروفات تحته. المصروفات العادية تُصنَّف من البيانات الأساسية ← التصنيفات، لا من هذه القائمة. ترك القائمة فارغة يعيد القائمة الافتراضية بدل ألا يبقى شيء.",
   addCategory: "تصنيف جديد",
   withholding: "ضريبة الاقتطاع",
   withholdingLead: "تقتطع من المنبع على المستندات التي تبلغ الحد أو تتجاوزه. القائمة الفارغة هي الحالة الطبيعية وتعني ألا اقتطاع — والاستوديو في بلد بلا اقتطاع لا يرى العمود أصلا.",

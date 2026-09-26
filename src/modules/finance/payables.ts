@@ -21,6 +21,7 @@ import { repo } from "@/platform/db/repo";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals, cleanLines, str, day, cash } from "./finance";
+import { addDaysISO } from "@/shared/dates";
 import { documentVatRate } from "@/shared/vat";
 import type { Bill, FinanceContext } from "./types";
 import { paymentHold, releaseProblem, payProblem, type PaymentHold } from "./hold";
@@ -43,6 +44,23 @@ const Vendors = repo<Record<string, unknown>>("inventoryVendors");
 
 export const BILL_STATUSES = ["Draft", "Received", "Approved", "Paid", "Cancelled", "Disputed"];
 export const BILL_TERMS = ["on-receipt", "net-0", "net-15", "net-30", "net-60"];
+
+/**
+ * THE DUE DATE A BILL'S TERMS IMPLY, or "" when they imply none.
+ *
+ * THE TERMS WERE STORED AND DECIDED NOTHING: a bill's due date was only ever
+ * the one somebody typed, so "Net 30" sat on a bill with no due date and the
+ * aging report counted it as never late. A blank due date now defaults from the
+ * bill date plus the terms — the mirror of an invoice defaulting its due date
+ * from the numbering settings — and a typed one always wins. The bill's own
+ * terms are the only terms there are: a supplier record carries none.
+ */
+export function billDueDate(billDate: unknown, terms: unknown): string {
+  const t = String(terms ?? "");
+  if (!BILL_TERMS.includes(t)) return "";
+  const days = t.startsWith("net-") ? Number(t.slice(4)) : 0;
+  return addDaysISO(billDate, days);
+}
 
 // The same derivation an invoice uses — a Bill has the same lines/vat/payments.
 export const billTotals = invoiceTotals;
@@ -235,7 +253,10 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
     // the caller is only drafting it.
     status: body?.status === "Draft" ? "Draft" : "Received",
     billDate,
-    dueDate: day(body?.dueDate),
+    // TYPED, OR WHAT THE TERMS SAY (`billDueDate`) — only terms the caller
+    // actually gave; the stored "on-receipt" fallback below is a default, not
+    // something anybody agreed with the supplier.
+    dueDate: day(body?.dueDate) || billDueDate(billDate, body?.terms),
     terms: BILL_TERMS.includes(String(body?.terms)) ? String(body?.terms) : "on-receipt",
     notes: str(body?.notes, 2000),
     payments: [],
@@ -310,6 +331,14 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
   if (body?.billDate !== undefined) patch.billDate = day(body.billDate);
   if (body?.dueDate !== undefined) patch.dueDate = day(body.dueDate);
   if (body?.terms !== undefined && BILL_TERMS.includes(String(body.terms))) patch.terms = String(body.terms);
+  // A BLANK DUE DATE FOLLOWS THE TERMS here as on create, whenever this edit
+  // touches the date, the terms or the due date itself — a bill already stored
+  // is left as it is until somebody corrects it.
+  if ((patch.dueDate !== undefined || patch.terms !== undefined || patch.billDate !== undefined)
+    && !(patch.dueDate ?? current.dueDate)) {
+    const due = billDueDate(patch.billDate ?? current.billDate, patch.terms ?? current.terms);
+    if (due) patch.dueDate = due;
+  }
   if (body?.projectId !== undefined) patch.projectId = str(body.projectId, 60);
   // WHO IS OWED AND WHAT ORDER THIS ANSWERS, correctable while the bill is
   // open. The create accepted both and the edit did not, so a bill filed before
@@ -352,7 +381,11 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
       // A NEW CURRENCY OR RATE MOVES WHAT THE BILL IS WORTH IN THE BOOK, exactly
       // as new lines do — and was not re-posted, so a corrected currency left
       // the liability booked in the old one.
-      || patch.currency !== undefined || patch.exchangeRate !== undefined);
+      || patch.currency !== undefined || patch.exchangeRate !== undefined
+      // THE PROJECT AND COST CODE ARE ON THE ENTRY'S COST LINE now
+      // (./postingTags), so refiling a bill moves where the ledger says the
+      // money went — the order too, since a bill with no code takes its PO's.
+      || patch.projectId !== undefined || patch.costCodeId !== undefined || patch.orderId !== undefined);
   const label = `Bill ${current.reference || ""}`.trim();
   const posting = becameReceived
     ? await autoPost(ctx, "bill", id)

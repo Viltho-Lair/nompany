@@ -687,7 +687,7 @@ export const projectsSide: HelpModule = {
       q: { en: "How do I set the default overtime department?", ar: "كيف أحدد القسم الافتراضي للعمل الإضافي؟" },
       a: {
         en: "Choose a department under Overtime in Projects settings and save. When somebody presses Add overtime, the people list opens filtered to that department. If no departments exist yet, add them first in Master data.",
-        ar: "اختر قسما تحت العمل الإضافي في إعدادات المشاريع واحفظ. وعندما يضغط أحد إضافة عمل إضافي، تفتح قائمة الأشخاص مصفاة على ذلك القسم. وإن لم توجد أقسام بعد، فأضفها أولا في البيانات الرئيسية.",
+        ar: "اختر قسما تحت العمل الإضافي في إعدادات المشاريع واحفظ. وعندما يضغط أحد إضافة عمل إضافي، تفتح قائمة الأشخاص مصفاة على ذلك القسم. وإن لم توجد أقسام بعد، فأضفها أولا في البيانات الأساسية.",
       },
       keywords: ["overtime department", "default department", "قسم العمل الإضافي", "القسم الافتراضي"],
       related: ["projects-overtimes.add"],

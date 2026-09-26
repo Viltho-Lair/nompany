@@ -19,6 +19,7 @@ import { nextReference } from "@/modules/main/references";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { autoPost } from "./posting";
 import { storedMoneyAccounts, moneyAccountProblem } from "./ledger";
+import { projectRows } from "./finance";
 import {
   cleanClaimLines, claimTotal, claimPayable, claimMoveProblem, openAdvance, advanceTakes,
 } from "./claims";
@@ -114,6 +115,12 @@ export async function saveClaim(ctx: FinanceContext, body: Record<string, unknow
   const cleaned = cleanClaimLines(body?.lines);
   if ("problems" in cleaned) return { error: "refused" as const, detail: cleaned.problems.join("; ") };
   const fields = { lines: cleaned.lines, note: str(body?.note, 500), projectId: str(body?.projectId, 60) };
+  // A NAMED PROJECT MUST EXIST — the invoice's own check. The claim's posting
+  // tags its expense lines with this id, and a budget cut by project reads the
+  // tag, so an id naming nothing would put real spend where no report looks.
+  if (fields.projectId && !(await projectRows(ctx)).some((p) => p.id === fields.projectId)) {
+    return { error: "project" as const };
+  }
   const id = str(body?.id, 60);
   if (id) {
     const current = await claimById(ctx, id);

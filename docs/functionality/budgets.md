@@ -28,7 +28,9 @@ absorb the studio's overheads. Year-end closing entries are excluded, as the P&L
   variance most worth seeing.
 - Income, expense and result totals, budget against actual.
 - The "which" picker offers the values the ledger has actually posted for that dimension (projects
-  by their number and name), so a budget is cut by something it can be measured against.
+  by their number and name), so a budget is cut by something it can be measured against. Since
+  27/09/2026 invoices, bills, expenses and project-charged claims post their project (and a bill its
+  cost code) on the P&L line (`ledger.md`), so a project appears once one of them has posted.
 
 ## Rights — `finance.budgets`, a new area (view, create, edit, delete)
 
@@ -46,4 +48,7 @@ read (`listSections`), like every new section.
 - **No commitments** (open purchase orders) on the actual side, and no forecast to year end.
 - **No budget versions or approval**, and no copy-from-last-year.
 - **One dimension per budget** — not a project within a department.
+- **Documents posted before 27/09/2026 carry no project or cost code** on their lines and are not
+  backfilled, so a project budget's actual starts from that date; and nothing but an allocation
+  rule posts a deal or a department, so those cuts see allocations alone.
 - **Balance-sheet and cash budgets** (capital expenditure, a cash plan) are not budgets here.

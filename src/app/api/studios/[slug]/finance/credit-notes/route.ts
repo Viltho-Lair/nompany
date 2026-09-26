@@ -9,8 +9,11 @@ export const dynamic = "force-dynamic";
 
 // CREDIT NOTES — money going back.
 //
-// NO PERMISSION KEY OF ITS OWN. A credit note is Cash's content, the way a
-// variation is a contract's: it answers to `finance.cash.*`, and a second right
+// NO PERMISSION KEY OF ITS OWN. A credit note is the invoice's content, the way
+// a variation is a contract's: it answers to `finance.receivables.*` — the
+// invoices' own rights since Finance split into sub-sections, and what
+// ./creditNoteService checks (this said `finance.cash.*`, which it never
+// enforced) — and a second right
 // over the same act would be free to disagree with the first about who may
 // invoice. Issuing is `edit` rather than a verb of its own because it is a
 // transition on a record the holder already owns.

@@ -37,7 +37,15 @@ export const PaymentSchema = z.object({
   date: z.string(),
   method: z.string().optional(),
   note: z.string().max(500).optional(),
+  /**
+   * THE CLIENT'S OWN REFERENCE FOR THE MONEY (a transfer id, a receipt number),
+   * which `recordPayment` has written on every invoice payment and this schema
+   * did not declare. A bill payment keeps a `note` instead.
+   */
+  reference: z.string().max(120).optional(),
   recordedByCollaboratorId: z.string().optional(),
+  /** Who recorded an INVOICE payment — the name `recordPayment` writes; a bill payment writes `recordedByCollaboratorId`. */
+  byCollaboratorId: z.string().optional(),
   recordedAt: z.string().optional(),
   /** Which money account it went through (`isMoneyAccount`). Absent is 1010 Bank. */
   accountId: z.string().max(60).optional(),
@@ -188,6 +196,14 @@ export const ExpenseSchema = z.object({
   /** The campaign this cost belongs to, on a bill's terms (BillSchema). */
   campaignId: z.string().max(60).optional(),
   date: z.string().optional(),
+  /**
+   * WHAT `createExpense` ACTUALLY WRITES: a `description` and `notes`. This
+   * schema declared a `note` and neither of them, so the `Expense` type could
+   * not see the two fields every expense carries.
+   */
+  description: z.string().max(300).optional(),
+  notes: z.string().max(1000).optional(),
+  /** DECLARED AND NEVER WRITTEN by any expense path; kept optional so nothing reading the type breaks. */
   note: z.string().max(500).optional(),
   createdAt: z.string().optional(),
   createdByCollaboratorId: z.string().optional(),

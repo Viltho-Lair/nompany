@@ -16,7 +16,7 @@ export const root: HelpModule = {
       blurb: { en: "What each section does and how to use it", ar: "ما يفعله كل قسم وكيف تستخدمه" } },
     { id: "admin", parent: "root", order: 3, sectionKey: "administration",
       label: { en: "Studio settings & access", ar: "إعدادات الاستوديو والصلاحيات" },
-      blurb: { en: "People, roles, master data, currency, time zone, approvals", ar: "الأشخاص والأدوار والبيانات الرئيسية والعملة والمنطقة الزمنية والموافقات" } },
+      blurb: { en: "People, roles, master data, currency, time zone, approvals", ar: "الأشخاص والأدوار والبيانات الأساسية والعملة والمنطقة الزمنية والموافقات" } },
     { id: "account", parent: "root", order: 4,
       label: { en: "Your account & plan", ar: "حسابك وباقتك" },
       blurb: { en: "Profile, sign-in security, packages and payments", ar: "الملف الشخصي وأمان الدخول والباقات والمدفوعات" } },

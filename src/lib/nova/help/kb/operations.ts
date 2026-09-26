@@ -253,7 +253,7 @@ export const operations: HelpModule = {
       q: { en: "What are bins and why use them?", ar: "ما مواقع التخزين ولماذا أستخدمها؟" },
       a: {
         en: "A bin is a shelf or spot inside one of your locations, so you know where stock physically is, not just how much you hold. Bins live on the Bins tab of Stock and sit inside a location from Master data. The split by bin always adds up to the company total. Stock that names no bin is shown as unbinned, which is normal on the day you start using bins.",
-        ar: "موقع التخزين هو رف أو مكان داخل أحد مواقعك، لتعرف أين يوجد المخزون فعليا لا كم تملك فقط. توجد مواقع التخزين في تبويب مواقع التخزين ضمن شاشة المخزون، وتتبع موقعا من البيانات الرئيسية. ومجموع التوزيع على المواقع يساوي دائما إجمالي الشركة. ويظهر المخزون غير المرتبط بموقع على أنه بلا موقع، وهذا طبيعي في أول يوم تبدأ فيه باستخدامها.",
+        ar: "موقع التخزين هو رف أو مكان داخل أحد مواقعك، لتعرف أين يوجد المخزون فعليا لا كم تملك فقط. توجد مواقع التخزين في تبويب مواقع التخزين ضمن شاشة المخزون، وتتبع موقعا من البيانات الأساسية. ومجموع التوزيع على المواقع يساوي دائما إجمالي الشركة. ويظهر المخزون غير المرتبط بموقع على أنه بلا موقع، وهذا طبيعي في أول يوم تبدأ فيه باستخدامها.",
       },
       keywords: ["bin", "shelf", "rack", "bin location", "رف", "موقع تخزين", "خانة", "مكان الصنف"],
       related: ["inventory.bins-move", "inventory.bins-fields"],
@@ -263,11 +263,11 @@ export const operations: HelpModule = {
       q: { en: "What do I need to create a bin?", ar: "ماذا أحتاج لإنشاء موقع تخزين؟" },
       a: {
         en: "A bin needs a code, a location and optionally a description. The code is what gets scanned and typed, so it cannot contain spaces and is at most sixteen characters. If your studio has no locations yet, add one in Master data first.",
-        ar: "يحتاج موقع التخزين إلى رمز وموقع ووصف اختياري. الرمز هو ما يمسح ويكتب، لذا لا يجوز أن يحتوي على مسافات ولا يتجاوز ستة عشر حرفا. وإذا لم تكن لدى الاستوديو مواقع بعد، فأضف موقعا في البيانات الرئيسية أولا.",
+        ar: "يحتاج موقع التخزين إلى رمز وموقع ووصف اختياري. الرمز هو ما يمسح ويكتب، لذا لا يجوز أن يحتوي على مسافات ولا يتجاوز ستة عشر حرفا. وإذا لم تكن لدى الاستوديو مواقع بعد، فأضف موقعا في البيانات الأساسية أولا.",
       },
       fields: {
         en: ["Code, with no spaces, up to 16 characters, unique within its location", "Location, from Master data", "Description (optional)"],
-        ar: ["الرمز، بلا مسافات، حتى 16 حرفا، وغير مكرر داخل الموقع نفسه", "الموقع، من البيانات الرئيسية", "الوصف (اختياري)"],
+        ar: ["الرمز، بلا مسافات، حتى 16 حرفا، وغير مكرر داخل الموقع نفسه", "الموقع، من البيانات الأساسية", "الوصف (اختياري)"],
       },
       keywords: ["new bin", "bin code", "رمز الموقع", "إنشاء موقع تخزين", "موقع جديد"],
     },
@@ -437,7 +437,7 @@ export const operations: HelpModule = {
       q: { en: "Where do I manage item categories?", ar: "أين أدير فئات الأصناف؟" },
       a: {
         en: "Item categories are kept under Settings, Master data, where you can nest them and give each an Arabic name. Renaming or moving a category keeps it on every item. A category is not the same as an item's Type, which comes from the chosen supplier's list and sets the lead time.",
-        ar: "تحفظ فئات الأصناف في الإعدادات ضمن البيانات الرئيسية، حيث يمكنك تداخلها وإعطاء كل منها اسما بالعربية. وتغيير اسم الفئة أو نقلها يبقيها على كل صنف. والفئة ليست نوع الصنف، فالنوع يأتي من قائمة المورد المختار ويحدد مدة التوريد.",
+        ar: "تحفظ فئات الأصناف في الإعدادات ضمن البيانات الأساسية، حيث يمكنك تداخلها وإعطاء كل منها اسما بالعربية. وتغيير اسم الفئة أو نقلها يبقيها على كل صنف. والفئة ليست نوع الصنف، فالنوع يأتي من قائمة المورد المختار ويحدد مدة التوريد.",
       },
       keywords: ["category", "item category", "product group", "فئة", "فئات الأصناف", "مجموعة المنتجات"],
     },
@@ -1038,7 +1038,7 @@ export const operations: HelpModule = {
       },
       fields: {
         en: ["Title", "Details", "Priority: low, normal, high or urgent", "Machine, from the equipment register", "Place, from Master data", "Photos", "Whether the machine has stopped"],
-        ar: ["العنوان", "التفاصيل", "الأولوية: منخفضة أو عادية أو عالية أو عاجلة", "المعدة، من سجل المعدات", "المكان، من البيانات الرئيسية", "الصور", "هل توقفت المعدة"],
+        ar: ["العنوان", "التفاصيل", "الأولوية: منخفضة أو عادية أو عالية أو عاجلة", "المعدة، من سجل المعدات", "المكان، من البيانات الأساسية", "الصور", "هل توقفت المعدة"],
       },
       keywords: ["request form", "priority", "نموذج الطلب", "أولوية", "بيانات الطلب"],
     },
@@ -1447,11 +1447,11 @@ export const operations: HelpModule = {
       q: { en: "What do I need to record a permit?", ar: "ماذا أحتاج لتسجيل تصريح؟" },
       a: {
         en: "A new permit is Issued if you tick Already issued, which is the default for recording a permit you hold; untick it to record a request. Permit types can be extended with your studio's own under Master data categories.",
-        ar: "يسجل التصريح الجديد مصدرا إذا حددت خيار مصدر بالفعل، وهو الافتراضي لتسجيل تصريح تملكه، وألغ تحديده لتسجيل طلب. ويمكن إضافة أنواع تصاريح خاصة بالاستوديو ضمن فئات البيانات الرئيسية.",
+        ar: "يسجل التصريح الجديد مصدرا إذا حددت خيار مصدر بالفعل، وهو الافتراضي لتسجيل تصريح تملكه، وألغ تحديده لتسجيل طلب. ويمكن إضافة أنواع تصاريح خاصة بالاستوديو ضمن فئات البيانات الأساسية.",
       },
       fields: {
         en: ["Title", "Type, such as hot work or confined space", "Permit number", "Issued by", "Location, from Master data", "Project", "Valid from and valid to", "Who it covers", "Already issued, or still a request"],
-        ar: ["العنوان", "النوع، مثل أعمال ساخنة أو أماكن محصورة", "رقم التصريح", "جهة الإصدار", "الموقع، من البيانات الرئيسية", "المشروع", "صالح من وصالح حتى", "الأشخاص المشمولون", "مصدر بالفعل أو ما زال طلبا"],
+        ar: ["العنوان", "النوع، مثل أعمال ساخنة أو أماكن محصورة", "رقم التصريح", "جهة الإصدار", "الموقع، من البيانات الأساسية", "المشروع", "صالح من وصالح حتى", "الأشخاص المشمولون", "مصدر بالفعل أو ما زال طلبا"],
       },
       keywords: ["new permit", "permit number", "validity", "تصريح جديد", "رقم التصريح", "الصلاحية"],
     },

@@ -27,7 +27,12 @@ place a code is set for a quotation, a date of expiry is issued for each type in
   date always wins, and 0 leaves the due date blank as before. **Only a series that declares
   a payment term takes one** (`hasDueDays` in `modules/administration/numbering.ts`): a
   bill's due date is the supplier's, so a term typed against bills is refused on save and
-  dropped on read.
+  dropped on read. **A bill defaults its own instead, from its TERMS** (27/09/2026,
+  `billDueDate` in `modules/finance/payables.ts`): a blank due date becomes the bill date for
+  on-receipt and net-0, and the bill date plus 15, 30 or 60 days for the net terms — on
+  create, and on an edit that touches the date, the terms or the due date. A typed due date
+  always wins. Supplier records carry no terms, so the bill's own are the only ones there are;
+  bills already stored are not re-dated.
 
 **The currency is frozen onto the document when it is raised.** A quotation and an invoice
 each store the studio's `currency` at that moment, so a document already sent never changes

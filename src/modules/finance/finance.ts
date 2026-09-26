@@ -745,8 +745,10 @@ export async function editExpense(ctx: FinanceContext, id: string, body: Record<
   // WHAT THE LEDGER READS CHANGED, SO THE ENTRY IS REPLACED. Amount, category
   // (which picks the account) and date (which picks the period) are the three
   // an expense's entry is made of; a description or a note is not in the books.
+  // THE PROJECT IS ONE MORE since its cost line carries it (./postingTags):
+  // refiling an expense to another job moves where the ledger says it went.
   const moved = patch.amount !== undefined || patch.category !== undefined || patch.date !== undefined
-    || patch.accountId !== undefined;
+    || patch.accountId !== undefined || patch.projectId !== undefined;
   const posting = moved ? await autoRepost(ctx, "expense", id, `Expense ${expense.reference || ""} corrected`.trim()) : null;
   return { expense, ...(posting ? { posting } : {}) };
 }

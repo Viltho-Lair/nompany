@@ -29,6 +29,7 @@ import { nextReference } from "@/modules/main/references";
 import { invoiceTotals } from "./finance";
 import { splitGross } from "@/shared/vat";
 import { withheldToClear } from "./withholding";
+import { documentTags } from "./postingTags";
 import { isForeign, rateFor, inBase, settlePayment } from "./fx";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import {
@@ -989,9 +990,12 @@ export async function postInvoice(ctx: FinanceContext, invoiceId: string, option
   const { byCode, missing } = await codesToIds(ctx, [AR, REVENUE, VAT_PAYABLE]);
   if (missing.length) return { error: "chart", missing };
 
-  const lines = [
+  // THE REVENUE LINE CARRIES THE INVOICE'S PROJECT (./postingTags), so a budget
+  // cut by project sees what the job earned. New postings only: nothing
+  // rewrites an entry already in the book.
+  const lines: { accountId: string | undefined; debit?: number; credit?: number; projectId?: string; costCodeId?: string }[] = [
     { accountId: byCode.get(AR), debit: totals.total },
-    { accountId: byCode.get(REVENUE), credit: totals.subtotal },
+    { accountId: byCode.get(REVENUE), credit: totals.subtotal, ...documentTags(invoice) },
   ];
   // Only book VAT when there is some, or a zero-rated invoice carries a
   // pointless zero line that fails the one-side check.
@@ -1034,7 +1038,8 @@ export async function postExpense(ctx: FinanceContext, expenseId: string, option
     memo: `Expense ${expense.reference}${expense.category ? ` — ${expense.category}` : ""}`,
     source: { kind: "expense", id: expenseId },
     lines: [
-      { accountId: byCode.get(expenseCode), debit: expense.amount },
+      // THE COST LINE CARRIES THE EXPENSE'S PROJECT (./postingTags).
+      { accountId: byCode.get(expenseCode), debit: expense.amount, ...documentTags(expense) },
       { accountId: paidFrom.id, credit: expense.amount },
     ],
   }, options);
@@ -1373,7 +1378,7 @@ export async function postBill(ctx: FinanceContext, billId: string, options: Pos
   }
 
   const bill = (await repo<Row>("bills").find({ studio: ctx.studio, section: ctx.payablesSection }))
-    .find((b) => b.id === billId) as (Row & { status?: string; category?: string; billDate?: string; reference?: string; vendorName?: string }) | undefined;
+    .find((b) => b.id === billId) as (Row & { status?: string; category?: string; billDate?: string; reference?: string; vendorName?: string; projectId?: string; costCodeId?: string; orderId?: string }) | undefined;
   if (!bill) return { error: "notfound" };
   if (bill.status === "Draft" || bill.status === "Cancelled") return { error: "not-postable", status: bill.status };
 
@@ -1390,8 +1395,15 @@ export async function postBill(ctx: FinanceContext, billId: string, options: Pos
   const { byCode, missing } = await codesToIds(ctx, [expenseCode, VAT_RECOVERABLE, AP]);
   if (missing.length) return { error: "chart", missing };
 
-  const lines: { accountId: string | undefined; debit?: number; credit?: number }[] = [
-    { accountId: byCode.get(expenseCode), debit: base.net },
+  // THE COST LINE CARRIES THE BILL'S PROJECT AND COST CODE (./postingTags) —
+  // the order's code when the bill answers a PO and names none, which is the
+  // project cost roll-up's own rule. The orders are read only when that
+  // inheritance can apply, so an ordinary bill costs no extra round trip.
+  const orders = bill.orderId && !bill.costCodeId && ctx.sheetsSection
+    ? await repo<Row>("materialOrders").find({ studio: ctx.studio, section: ctx.sheetsSection })
+    : [];
+  const lines: { accountId: string | undefined; debit?: number; credit?: number; projectId?: string; costCodeId?: string }[] = [
+    { accountId: byCode.get(expenseCode), debit: base.net, ...documentTags(bill, orders) },
     { accountId: byCode.get(AP), credit: base.total },
   ];
   // INPUT VAT IS RECLAIMABLE, and it is debited to its OWN account rather than

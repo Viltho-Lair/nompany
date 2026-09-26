@@ -72,6 +72,17 @@ reconcile: every row of the breakdown, residue included, adds back to the whole 
 profit. Gate A asserts exactly that, which is the programme's acceptance test — *the deal
 card's profit figure reconciles to the ledger* — finally being answerable.
 
+**What writes them (27/09/2026).** An invoice tags its REVENUE line with its project; an
+expense tags its COST line with its project; a bill tags its COST line with its project and
+cost code — or, naming no code, the code of the placed purchase order it answers, which is
+`projectCosting`'s own rule (`modules/finance/postingTags.ts`, pure, asserted in
+`tests/budgets-model.mjs`). Receivable, payable, VAT and bank lines stay untagged: they are
+the studio's, not a job's — the choice `postClaim` and the asset postings already made. A
+claim naming a project, an asset naming one, and an allocation rule tag theirs too. Refiling
+a bill's project, code or order, or an expense's project, re-posts it (reverse and post), as
+a new amount does. **Entries posted before that date carry no tag and are NOT backfilled** —
+rewriting live journal rows is a migration with its own authorisation.
+
 **The balance sheet is never cut**, and that is a decision. A balance sheet is a statement
 about the whole entity: assets equal liabilities plus equity precisely because every
 posting is in it. Filter it to one deal and the identity breaks — the deal's receivable is
@@ -258,10 +269,11 @@ Stated in words, because a silent gap reads as a finished feature.
   Until that is settled, posting is asked for explicitly and the gap is visible.
 - ~~**A journal line carries no dimension but `projectId`.**~~ **Fixed 08/09/2026.** A
   line now carries `dealId`, `costCodeId` and `departmentId` beside it, the P&L can be cut
-  by any one of them, and `byDimension` reports what each value earned. **What is still
-  missing is the other end**: nothing WRITES a dimension automatically, because nothing
-  posts automatically — so a deal's figures are only as complete as the entries somebody
-  keyed by hand against it.
+  by any one of them, and `byDimension` reports what each value earned. Invoices, bills and
+  expenses write their project and cost code since 27/09/2026 (above). **What is still
+  missing**: no document writes a `dealId` or a `departmentId` (invoices, bills and
+  expenses carry neither — only allocation rules produce them); the manual entry form offers
+  no dimension fields; and entries posted before 27/09/2026 are untagged and not backfilled.
 - **Cash flow classes follow account codes.** No account carries its own cash-flow class,
   so a loan booked under a 2xxx code below 2500 reads as operating. No indirect-method
   reconciliation (profit to operating cash) is shown.

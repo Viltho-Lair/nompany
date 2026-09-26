@@ -4,6 +4,7 @@ import {
   claimsView, saveClaim, removeClaim, moveExpenseClaim, payClaim, giveAdvance, returnAdvance,
 } from "@/modules/finance/claimsService";
 import type { FinanceContext } from "@/modules/finance/types";
+import { referencePickers } from "@/modules/procurement/pickers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,8 +15,17 @@ export const dynamic = "force-dynamic";
 const spec = { auth: "studio", context: financeContext, body: true, name: "finance/claims" };
 
 export const GET = route({ ...spec, body: false }, async (c) => {
-  const result = await claimsView(c as FinanceContext);
-  return refused(result) ? result : { ok: true, ...result };
+  const ctx = c as FinanceContext;
+  const result = await claimsView(ctx);
+  if (refused(result)) return result;
+  // THE PROJECTS A CLAIM MAY NAME — the same reader the bill form uses. The
+  // service took a `projectId` and tagged the claim's ledger lines with it, and
+  // the form had no way to send one, so every claim posted untagged. Only for
+  // somebody who may raise a claim: a picker is for the form.
+  const pickers = result.canCreate
+    ? await referencePickers(ctx.studio, { projects: ctx.projectsListSection }, { projects: true })
+    : {};
+  return { ok: true, ...result, pickers };
 });
 
 export const POST = route(spec, async (c) => {

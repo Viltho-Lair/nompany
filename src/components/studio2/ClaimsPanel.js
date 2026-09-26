@@ -8,6 +8,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { moneyText } from "@/shared/money";
 import { fmtDate } from "@/lib/format";
 import { claimsDict } from "@/shared/studio/claims";
+import { projectOptions } from "@/components/studio2/pickerOptions";
 
 // PAYABLES → CLAIMS (modules/finance/claims): expense claims and staff
 // advances. What each person may do is decided by the server and handed back
@@ -59,9 +60,13 @@ export default function ClaimsPanel({ slug, locale, onDenied }) {
   );
 }
 
-function ClaimForm({ tr, categories, initial, busy, onSave, onCancel }) {
+function ClaimForm({ tr, categories, pickers, initial, busy, onSave, onCancel }) {
   const [lines, setLines] = useState(() => (initial?.lines?.length ? initial.lines.map((l) => ({ ...l, amount: String(l.amount) })) : [blankLine()]));
   const [note, setNote] = useState(initial?.note || "");
+  // THE PROJECT IT IS CHARGED TO, optional: a claim naming one tags its ledger
+  // lines with it, so a project budget sees the spend. The service always took
+  // it; the form never offered it.
+  const [projectId, setProjectId] = useState(initial?.projectId || "");
   const patch = (i, p) => setLines(lines.map((l, n) => (n === i ? { ...l, ...p } : l)));
   return (
     <div className="space-y-2 rounded-geex border border-slate-200 p-3 dark:border-white/10">
@@ -76,10 +81,12 @@ function ClaimForm({ tr, categories, initial, busy, onSave, onCancel }) {
         </div>
       ))}
       <button className={ghost} onClick={() => setLines([...lines, blankLine()])}>{tr.addLine}</button>
+      <Field label={tr.project} as="select" className="w-72" value={projectId}
+        options={[{ value: "", label: tr.noProject }, ...projectOptions(pickers)]} onChange={setProjectId} />
       <Field label={tr.note} className="w-full" value={note} onChange={setNote} />
       <div className="flex gap-2">
         <button className={primary} disabled={busy}
-          onClick={() => onSave({ lines: lines.map((l) => ({ ...l, amount: Number(l.amount) })), note })}>{tr.save}</button>
+          onClick={() => onSave({ lines: lines.map((l) => ({ ...l, amount: Number(l.amount) })), note, projectId })}>{tr.save}</button>
         <button className={ghost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </div>
@@ -87,7 +94,7 @@ function ClaimForm({ tr, categories, initial, busy, onSave, onCancel }) {
 }
 
 function Claims({ slug, tr, data, busy, post }) {
-  const { claims = [], me, canCreate, canPay, categories = [], moneyAccounts = [] } = data;
+  const { claims = [], me, canCreate, canPay, categories = [], moneyAccounts = [], pickers = {} } = data;
   const [editing, setEditing] = useState(null);
   const [paying, setPaying] = useState(null);
   const save = async (body) => { if (await post({ action: "save", ...(editing?.id ? { id: editing.id } : {}), ...body })) setEditing(null); };
@@ -163,7 +170,7 @@ function Claims({ slug, tr, data, busy, post }) {
         </div>
       )}
       {canCreate && !editing && <button className={ghost} onClick={() => setEditing({})}>{tr.newClaim}</button>}
-      {editing && <ClaimForm tr={tr} categories={categories} initial={editing} busy={busy} onSave={save} onCancel={() => setEditing(null)} />}
+      {editing && <ClaimForm tr={tr} categories={categories} pickers={pickers} initial={editing} busy={busy} onSave={save} onCancel={() => setEditing(null)} />}
     </section>
   );
 }

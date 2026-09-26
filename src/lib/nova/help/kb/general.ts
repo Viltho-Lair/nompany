@@ -35,7 +35,7 @@ export const general: HelpModule = {
       label: { en: "Access and roles", ar: "الصلاحيات والأدوار" },
       blurb: { en: "What each role may do, and who may grant it", ar: "ما يستطيع كل دور فعله، ومن يمكنه منحه" } },
     { id: "admin.master", parent: "admin", order: 3, sectionKey: "administration-master",
-      label: { en: "Master data", ar: "البيانات الرئيسية" },
+      label: { en: "Master data", ar: "البيانات الأساسية" },
       blurb: { en: "Locations, departments, cost codes, numbering and units", ar: "المواقع والإدارات ورموز التكلفة والترقيم والوحدات" } },
     { id: "admin.settings", parent: "admin", order: 4, sectionKey: "administration-settings",
       label: { en: "Studio settings", ar: "إعدادات الاستوديو" },
@@ -99,7 +99,7 @@ export const general: HelpModule = {
       q: { en: "What is the difference between a section and a department?", ar: "ما الفرق بين القسم والإدارة؟" },
       a: {
         en: "A section is a part of the product, such as Finance & Accounting or Projects, and it decides which screens exist and who may open them. A department is part of your company's org chart, such as Site Execution or Legal, kept in Master data with its parent and manager. A department can work across several sections or none, and it never grants access by itself; roles do that.",
-        ar: "القسم جزء من المنتج، مثل المالية والمحاسبة أو المشاريع، ويحدد الشاشات الموجودة ومن يمكنه فتحها. أما الإدارة فهي جزء من الهيكل التنظيمي لشركتك، مثل التنفيذ الميداني أو الشؤون القانونية، وتُحفظ في البيانات الرئيسية مع الإدارة الأم والمدير. يمكن أن تعمل الإدارة عبر عدة أقسام أو لا شيء منها، ولا تمنح أي صلاحية بنفسها؛ فالأدوار هي التي تفعل ذلك.",
+        ar: "القسم جزء من المنتج، مثل المالية والمحاسبة أو المشاريع، ويحدد الشاشات الموجودة ومن يمكنه فتحها. أما الإدارة فهي جزء من الهيكل التنظيمي لشركتك، مثل التنفيذ الميداني أو الشؤون القانونية، وتُحفظ في البيانات الأساسية مع الإدارة الأم والمدير. يمكن أن تعمل الإدارة عبر عدة أقسام أو لا شيء منها، ولا تمنح أي صلاحية بنفسها؛ فالأدوار هي التي تفعل ذلك.",
       },
       keywords: ["section", "department", "org chart", "module", "قسم", "إدارة", "هيكل تنظيمي", "وحدة"],
       related: ["admin.master.departments", "start.switch-sections"],
@@ -134,7 +134,7 @@ export const general: HelpModule = {
       q: { en: "Which parts of the studio are always there?", ar: "ما الأجزاء الموجودة دائما في الاستوديو؟" },
       a: {
         en: "Main, Approvals and Settings cannot be switched off. Main is your home page, Approvals is where you answer what is waiting on you, and Settings holds People, Access, Master data and Studio settings. Being always on does not mean everyone can open them: Main and the Settings screens still need the matching right.",
-        ar: "لا يمكن إيقاف الرئيسية والموافقات والإعدادات. الرئيسية صفحتك الأولى، والموافقات مكان الرد على ما ينتظرك، والإعدادات تضم الأشخاص والصلاحيات والبيانات الرئيسية وإعدادات الاستوديو. كونها مفعّلة دائما لا يعني أن الجميع يستطيع فتحها: فالرئيسية وشاشات الإعدادات تحتاج الصلاحية المناسبة.",
+        ar: "لا يمكن إيقاف الرئيسية والموافقات والإعدادات. الرئيسية صفحتك الأولى، والموافقات مكان الرد على ما ينتظرك، والإعدادات تضم الأشخاص والصلاحيات والبيانات الأساسية وإعدادات الاستوديو. كونها مفعّلة دائما لا يعني أن الجميع يستطيع فتحها: فالرئيسية وشاشات الإعدادات تحتاج الصلاحية المناسبة.",
       },
       keywords: ["always on", "required", "main", "approvals", "settings", "دائما", "إلزامي", "الرئيسية", "الموافقات"],
       related: ["start.switch-sections", "main.about"],
@@ -178,7 +178,7 @@ export const general: HelpModule = {
       q: { en: "Where are the studio's settings?", ar: "أين إعدادات الاستوديو؟" },
       a: {
         en: "Click Settings at the bottom of the sidebar. It holds People, Access, Master data and Studio settings: who is in the studio, what they may do, the reference data every department reads, and how the studio itself is set up. You only see the parts you have been granted; if none, the page says Settings is held by the people who administer the studio.",
-        ar: "اضغط الإعدادات في أسفل الشريط الجانبي. تضم الأشخاص والصلاحيات والبيانات الرئيسية وإعدادات الاستوديو: من في الاستوديو، وما يمكنهم فعله، والبيانات المرجعية التي تقرؤها كل الأقسام، وكيفية إعداد الاستوديو نفسه. لا ترى إلا الأجزاء الممنوحة لك؛ وإن لم يكن لك شيء منها فستخبرك الصفحة بأن الإعدادات بيد من يديرون الاستوديو.",
+        ar: "اضغط الإعدادات في أسفل الشريط الجانبي. تضم الأشخاص والصلاحيات والبيانات الأساسية وإعدادات الاستوديو: من في الاستوديو، وما يمكنهم فعله، والبيانات المرجعية التي تقرؤها كل الأقسام، وكيفية إعداد الاستوديو نفسه. لا ترى إلا الأجزاء الممنوحة لك؛ وإن لم يكن لك شيء منها فستخبرك الصفحة بأن الإعدادات بيد من يديرون الاستوديو.",
       },
       keywords: ["settings", "administration", "configuration", "admin", "الإعدادات", "الإدارة", "التهيئة", "المسؤول"],
       related: ["admin.settings.about", "admin.people.about"],
@@ -216,7 +216,7 @@ export const general: HelpModule = {
       q: { en: "How do notifications work?", ar: "كيف تعمل الإشعارات؟" },
       a: {
         en: "The bell in the header shows notifications addressed to you, such as an approval waiting on you or a leave request, with a count of unread ones. Open it to read them, and use Mark all read to clear the count. Notifications are shown in your own language, and an admin can change their wording in Master data.",
-        ar: "يعرض الجرس في الشريط العلوي الإشعارات الموجهة إليك، مثل موافقة تنتظرك أو طلب إجازة، مع عدد غير المقروء منها. افتحه لقراءتها، واستخدم تعليم الكل كمقروء لتصفير العدد. تظهر الإشعارات بلغتك، ويمكن للمسؤول تغيير صياغتها من البيانات الرئيسية.",
+        ar: "يعرض الجرس في الشريط العلوي الإشعارات الموجهة إليك، مثل موافقة تنتظرك أو طلب إجازة، مع عدد غير المقروء منها. افتحه لقراءتها، واستخدم تعليم الكل كمقروء لتصفير العدد. تظهر الإشعارات بلغتك، ويمكن للمسؤول تغيير صياغتها من البيانات الأساسية.",
       },
       keywords: ["notifications", "bell", "alerts", "unread", "الإشعارات", "الجرس", "التنبيهات", "غير مقروء"],
       related: ["start.notifications-email", "admin.master.notification-wording"],
@@ -367,7 +367,7 @@ export const general: HelpModule = {
         ar: [
           "إعدادات الاستوديو: تحقق من العملة واضبط المنطقة الزمنية وساعات العمل والشعار.",
           "إعدادات الاستوديو، الأقسام: أوقف أي قسم لا تعمل به.",
-          "البيانات الرئيسية: أضف إداراتك مع الإدارات الأم والمديرين، وأضف مواقعك.",
+          "البيانات الأساسية: أضف إداراتك مع الإدارات الأم والمديرين، وأضف مواقعك.",
           "الموارد البشرية، الأدوار: أضف الأدوار الجاهزة التي تحتاجها إداراتك.",
           "الصلاحيات: راجع ما يستطيع كل دور فعله.",
           "الأشخاص: شارك رمز الشركة ووافق على من يطلب الانضمام.",
@@ -397,7 +397,7 @@ export const general: HelpModule = {
       },
       steps: {
         en: ["Make sure the studio's field of work is set, and your departments have codes in Master data.", "Open Human Resources, then Roles.", "Under a department, choose Add pre-built roles, or name a role of your own.", "Open Access to check or adjust what each role may do."],
-        ar: ["تأكد من ضبط مجال عمل الاستوديو، ومن أن لإداراتك رموزا في البيانات الرئيسية.", "افتح الموارد البشرية ثم الأدوار.", "تحت إحدى الإدارات اختر إضافة أدوار جاهزة، أو سمِّ دورا خاصا بك.", "افتح الصلاحيات لمراجعة ما يستطيع كل دور فعله أو تعديله."],
+        ar: ["تأكد من ضبط مجال عمل الاستوديو، ومن أن لإداراتك رموزا في البيانات الأساسية.", "افتح الموارد البشرية ثم الأدوار.", "تحت إحدى الإدارات اختر إضافة أدوار جاهزة، أو سمِّ دورا خاصا بك.", "افتح الصلاحيات لمراجعة ما يستطيع كل دور فعله أو تعديله."],
       },
       keywords: ["roles", "job titles", "permissions", "team", "الأدوار", "المسميات الوظيفية", "الصلاحيات", "الفريق"],
       related: ["admin.access.library", "admin.access.grant"],
@@ -617,7 +617,7 @@ export const general: HelpModule = {
       },
       steps: {
         en: ["Set the field of work in Studio settings, and give the department a code in Master data.", "Open Human Resources, then Roles.", "Under the department, choose Add pre-built roles.", "Search, tick the jobs you want, and add them."],
-        ar: ["اضبط مجال العمل في إعدادات الاستوديو، وأعط الإدارة رمزا في البيانات الرئيسية.", "افتح الموارد البشرية ثم الأدوار.", "تحت الإدارة اختر إضافة أدوار جاهزة.", "ابحث وحدد الوظائف التي تريدها وأضفها."],
+        ar: ["اضبط مجال العمل في إعدادات الاستوديو، وأعط الإدارة رمزا في البيانات الأساسية.", "افتح الموارد البشرية ثم الأدوار.", "تحت الإدارة اختر إضافة أدوار جاهزة.", "ابحث وحدد الوظائف التي تريدها وأضفها."],
       },
       keywords: ["pre-built role", "role library", "job catalogue", "template role", "دور جاهز", "مكتبة الأدوار", "دليل الوظائف", "قالب دور"],
       related: ["admin.access.custom-role", "start.first-roles"],
@@ -649,12 +649,12 @@ export const general: HelpModule = {
     {
       id: "admin.master.about", topic: "admin.master", kind: "about",
       open: "administration-master",
-      q: { en: "What is Master data?", ar: "ما هي البيانات الرئيسية؟" },
+      q: { en: "What is Master data?", ar: "ما هي البيانات الأساسية؟" },
       a: {
         en: "Master data holds the studio's reference lists that several departments read and none owns. Its tabs are Locations, Departments, Numbering, Units, Categories, Cost codes, Notices, API keys, Client tags and Item categories. Changing these needs the Master data right, and numbering and units also need the right to edit studio settings.",
-        ar: "تضم البيانات الرئيسية القوائم المرجعية للاستوديو التي تقرؤها عدة أقسام ولا يملكها أي منها. تبويباتها: المواقع، والإدارات، والترقيم، والوحدات، والفئات، ورموز التكلفة، والإشعارات، ومفاتيح API، ووسوم العملاء، وفئات الأصناف. يحتاج تغييرها إلى صلاحية البيانات الرئيسية، ويحتاج الترقيم والوحدات أيضا إلى صلاحية تعديل إعدادات الاستوديو.",
+        ar: "تضم البيانات الأساسية القوائم المرجعية للاستوديو التي تقرؤها عدة أقسام ولا يملكها أي منها. تبويباتها: المواقع، والإدارات، والترقيم، والوحدات، والفئات، ورموز التكلفة، والإشعارات، ومفاتيح API، ووسوم العملاء، وفئات الأصناف. يحتاج تغييرها إلى صلاحية البيانات الأساسية، ويحتاج الترقيم والوحدات أيضا إلى صلاحية تعديل إعدادات الاستوديو.",
       },
-      keywords: ["master data", "reference data", "lists", "setup", "البيانات الرئيسية", "البيانات المرجعية", "القوائم", "الإعداد"],
+      keywords: ["master data", "reference data", "lists", "setup", "البيانات الأساسية", "البيانات المرجعية", "القوائم", "الإعداد"],
       related: ["admin.master.locations", "admin.master.departments"],
     },
     {
@@ -667,7 +667,7 @@ export const general: HelpModule = {
       },
       steps: {
         en: ["Open Settings, then Master data.", "Open the Locations tab and add a location.", "Name it and set its position: Use my location, a pin on the map, or a map link.", "Add a note on how to get there if it helps, then save."],
-        ar: ["افتح الإعدادات ثم البيانات الرئيسية.", "افتح تبويب المواقع وأضف موقعا.", "سمّه وحدد مكانه: استخدام موقعي، أو دبوس على الخريطة، أو رابط خريطة.", "أضف ملاحظة عن كيفية الوصول إن كانت مفيدة، ثم احفظ."],
+        ar: ["افتح الإعدادات ثم البيانات الأساسية.", "افتح تبويب المواقع وأضف موقعا.", "سمّه وحدد مكانه: استخدام موقعي، أو دبوس على الخريطة، أو رابط خريطة.", "أضف ملاحظة عن كيفية الوصول إن كانت مفيدة، ثم احفظ."],
       },
       keywords: ["location", "site", "branch", "address", "map", "موقع", "فرع", "عنوان", "خريطة"],
       related: ["admin.master.location-delete"],
@@ -688,11 +688,11 @@ export const general: HelpModule = {
       q: { en: "How do I set up my company's departments?", ar: "كيف أعدّ إدارات شركتي؟" },
       a: {
         en: "Departments are your org chart, kept on the Departments tab of Master data. Each has a name, an optional code, a parent department and a manager, and can say which sections its work lives in. A new studio starts with a few common ones, and setting the field of work offers your trade's usual chart.",
-        ar: "الإدارات هي هيكلك التنظيمي، وتُحفظ في تبويب الإدارات في البيانات الرئيسية. لكل إدارة اسم ورمز اختياري وإدارة أم ومدير، ويمكن أن تحدد الأقسام التي يجري فيها عملها. يبدأ الاستوديو الجديد ببعض الإدارات الشائعة، وضبط مجال العمل يعرض الهيكل المعتاد في مجالك.",
+        ar: "الإدارات هي هيكلك التنظيمي، وتُحفظ في تبويب الإدارات في البيانات الأساسية. لكل إدارة اسم ورمز اختياري وإدارة أم ومدير، ويمكن أن تحدد الأقسام التي يجري فيها عملها. يبدأ الاستوديو الجديد ببعض الإدارات الشائعة، وضبط مجال العمل يعرض الهيكل المعتاد في مجالك.",
       },
       steps: {
         en: ["Open Settings, then Master data.", "Open the Departments tab.", "Add a department with its name and code.", "Choose its parent and its manager, and the sections it works in, then save."],
-        ar: ["افتح الإعدادات ثم البيانات الرئيسية.", "افتح تبويب الإدارات.", "أضف إدارة باسمها ورمزها.", "اختر إدارتها الأم ومديرها والأقسام التي تعمل فيها، ثم احفظ."],
+        ar: ["افتح الإعدادات ثم البيانات الأساسية.", "افتح تبويب الإدارات.", "أضف إدارة باسمها ورمزها.", "اختر إدارتها الأم ومديرها والأقسام التي تعمل فيها، ثم احفظ."],
       },
       keywords: ["departments", "org chart", "organisation", "hierarchy", "manager", "الإدارات", "الهيكل التنظيمي", "التسلسل", "مدير"],
       related: ["admin.master.department-grants-nothing", "admin.access.scope"],
@@ -734,7 +734,7 @@ export const general: HelpModule = {
       q: { en: "How do I change how invoice and other reference numbers look?", ar: "كيف أغيّر شكل أرقام الفواتير والمراجع الأخرى؟" },
       a: {
         en: "The Numbering tab in Master data sets the prefix for each kind of document, and shows an example of the next reference. A prefix is a capital letter followed by up to seven capitals or digits. Changing a prefix renumbers nothing already issued, and reference numbers only ever move forward, so a deleted invoice's number is never reissued. The invoice series also carries the default days to pay.",
-        ar: "يضبط تبويب الترقيم في البيانات الرئيسية البادئة لكل نوع من المستندات، ويعرض مثالا للمرجع التالي. البادئة حرف كبير يليه حتى سبعة أحرف كبيرة أو أرقام. تغيير البادئة لا يعيد ترقيم أي شيء صادر، وأرقام المراجع تتقدم دائما إلى الأمام، فلا يُعاد إصدار رقم فاتورة محذوفة أبدا. ويحمل تسلسل الفواتير أيضا مدة السداد الافتراضية.",
+        ar: "يضبط تبويب الترقيم في البيانات الأساسية البادئة لكل نوع من المستندات، ويعرض مثالا للمرجع التالي. البادئة حرف كبير يليه حتى سبعة أحرف كبيرة أو أرقام. تغيير البادئة لا يعيد ترقيم أي شيء صادر، وأرقام المراجع تتقدم دائما إلى الأمام، فلا يُعاد إصدار رقم فاتورة محذوفة أبدا. ويحمل تسلسل الفواتير أيضا مدة السداد الافتراضية.",
       },
       keywords: ["numbering", "prefix", "invoice number", "reference", "sequence", "الترقيم", "البادئة", "رقم الفاتورة", "المرجع", "التسلسل"],
       related: ["admin.master.about"],
@@ -745,7 +745,7 @@ export const general: HelpModule = {
       q: { en: "How do I add a unit of measure?", ar: "كيف أضيف وحدة قياس؟" },
       a: {
         en: "Add it on the Units tab of Master data. The standard units come first and cannot be removed, but you can switch off one you never use. A unit is a label only: converting between units, such as a box of twelve into pieces, is not available yet.",
-        ar: "أضفها من تبويب الوحدات في البيانات الرئيسية. تأتي الوحدات القياسية أولا ولا يمكن حذفها، لكن يمكنك إيقاف وحدة لا تستخدمها. الوحدة مجرد تسمية: فالتحويل بين الوحدات، مثل تحويل علبة من اثنتي عشرة قطعة إلى قطع، غير متاح بعد.",
+        ar: "أضفها من تبويب الوحدات في البيانات الأساسية. تأتي الوحدات القياسية أولا ولا يمكن حذفها، لكن يمكنك إيقاف وحدة لا تستخدمها. الوحدة مجرد تسمية: فالتحويل بين الوحدات، مثل تحويل علبة من اثنتي عشرة قطعة إلى قطع، غير متاح بعد.",
       },
       keywords: ["units", "UoM", "unit of measure", "kg", "pieces", "الوحدات", "وحدة القياس", "كيلو", "قطعة"],
       related: ["admin.master.about"],
@@ -756,7 +756,7 @@ export const general: HelpModule = {
       q: { en: "Can I change the wording of notifications?", ar: "هل يمكنني تغيير صياغة الإشعارات؟" },
       a: {
         en: "Yes, on the Notices tab of Master data, per type and per language. The screen shows the placeholders you may use, such as the person's name, and a title cannot be left blank. Anything you have not changed keeps nompany's own wording, including later improvements to it.",
-        ar: "نعم، من تبويب الإشعارات في البيانات الرئيسية، لكل نوع ولكل لغة. تعرض الشاشة العناصر النائبة التي يمكنك استخدامها، مثل اسم الشخص، ولا يمكن ترك العنوان فارغا. وكل ما لم تغيّره يحتفظ بصياغة nompany نفسها، بما في ذلك تحسيناتها اللاحقة.",
+        ar: "نعم، من تبويب الإشعارات في البيانات الأساسية، لكل نوع ولكل لغة. تعرض الشاشة العناصر النائبة التي يمكنك استخدامها، مثل اسم الشخص، ولا يمكن ترك العنوان فارغا. وكل ما لم تغيّره يحتفظ بصياغة nompany نفسها، بما في ذلك تحسيناتها اللاحقة.",
       },
       keywords: ["notification text", "wording", "template", "message", "نص الإشعار", "الصياغة", "قالب", "رسالة"],
       related: ["start.notifications"],

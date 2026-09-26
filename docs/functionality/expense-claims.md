@@ -52,7 +52,9 @@ studio's chart on its next read.
 - **Advance handed over:** Dr 1250, Cr the money account (`advance`).
 - **Claim approved** (dated the approval day): Dr each line's expense account — by category, the
   same map an expense uses (Materials and Subcontractor to 5000, Salaries 5100, Rent 5200,
-  Utilities 5300, anything else 5900) — with the claim's project on the lines; Cr **1250** for what
+  Utilities 5300, anything else 5900) — with the claim's project on the lines (the claim form
+  offers an optional Project picker since 27/09/2026, from the same `referencePickers` the bill
+  form reads; before it the service took a `projectId` nothing could send); Cr **1250** for what
   the claimant still holds of their advances (frozen on the claim as `fromAdvance`), Cr **2210** for
   the rest (`claim`). A claim an advance covers entirely is **Paid** on approval — nothing is left
   to pay.

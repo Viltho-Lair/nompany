@@ -62,6 +62,26 @@ ok("A PROJECT'S BUDGET IS MEASURED AGAINST ITS OWN LINES — the studio's rent i
   !rc.rows.some((x) => x.accountId === "rent") && rc.rows.find((x) => x.accountId === "rev").actual === 1500, JSON.stringify(rc.rows));
 ok("a month outside the year reads the whole year", B.budgetVsActual(budget, book, chart, { through: "2030-01" }).months === 12);
 
+// THE DEFECT (27/09/2026): invoices, bills and expenses posted with no project
+// or cost code on any line, although each document named them — so a budget
+// cut by project, and the "Which" picker built from what the ledger posted, saw
+// almost nothing but allocations, assets and claims. `documentTags` is what
+// their P&L line now carries (modules/finance/postingTags).
+const { documentTags } = await import("../src/modules/finance/postingTags.ts");
+ok("AN INVOICE'S OR AN EXPENSE'S PROJECT IS ON ITS LINE",
+  JSON.stringify(documentTags({ projectId: "p1" })) === JSON.stringify({ projectId: "p1" }));
+ok("a document naming nothing tags nothing — absent, never empty",
+  JSON.stringify(documentTags({ projectId: "", costCodeId: "  " })) === "{}");
+ok("A BILL'S OWN CODE IS ON ITS LINE",
+  documentTags({ projectId: "p1", costCodeId: "cc1" }).costCodeId === "cc1");
+const orders = [{ id: "po1", costCodeId: "ccPO", status: "Ordered" }, { id: "po2", costCodeId: "ccX", status: "Cancelled" }];
+ok("A BILL ANSWERING A PO WITH NO CODE OF ITS OWN TAKES THE ORDER'S — the project roll-up's rule",
+  documentTags({ projectId: "p1", orderId: "po1" }, orders).costCodeId === "ccPO");
+ok("the bill's own code wins over its order's",
+  documentTags({ costCodeId: "cc1", orderId: "po1" }, orders).costCodeId === "cc1");
+ok("a cancelled order lends no code, as it commits nothing in the roll-up",
+  documentTags({ orderId: "po2" }, orders).costCodeId === undefined);
+
 console.log(fails ? `\nbudgets model: ${fails} FAILURES\n` : "\nbudgets model: all passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
 process.exitCode = fails ? 1 : 0;

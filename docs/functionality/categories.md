@@ -19,6 +19,10 @@ them:**
 | Location kinds | 4 in `modules/operations/operations.ts` | places the studio works from |
 | Permit types | 7 in `modules/operations/operations.ts` | permits to work |
 
+(**Not the same list as Finance settings → "Expense-claim categories"** — `cashCategories`,
+which files expense-CLAIM lines and nothing else. Its on-screen text said it was what "an
+expense" is filed under until 27/09/2026; an ordinary expense reads the list above.)
+
 A haulier could not add "Freight forwarding"; a studio with study leave had
 nowhere to put it; a hospital group filing a location as "Ward" got "Site".
 
