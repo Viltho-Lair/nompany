@@ -150,6 +150,11 @@ type Strings = CommonStrings & {
   ticket: string;
   ticketAlreadyTechnicalCan: string;
   ticketCreated: string;
+  // The ticket timeline's other two lines. The quotation number and the
+  // commenter's name are data and pass through untouched; only the words
+  // around them are the studio's language.
+  timelineQuotationRaised: (ref: string) => string;
+  timelineCommentBy: (who: string) => string;
   ticketInfo: string;
   ticketNoLongerExists: string;
   ticketNoLongerExists2: string;
@@ -232,7 +237,7 @@ const en: Strings = {
   fileDidnUpload: "That file didn't upload.",
   fileTooLarge5: "That file is too large — 5 MB is the limit.",
   goesWhoeverHoldsManagement: "Goes to the people Approval settings name for a client's PO. Approving it issues the project number.",
-  handTicketTechnicalPricing: "Hand this ticket to Technical for pricing",
+  handTicketTechnicalPricing: "Hand this ticket to Quotations for pricing",
   howWouldYouRate: "How would you rate nompany?",
   industry: "Industry",
   infinityLeft: "left",
@@ -316,15 +321,17 @@ const en: Strings = {
   pendingApproval: (granted, required) => `Pending approval (${granted}/${required})`,
   approvalRejectedSendAgain: "Rejected — send again",
   poRejectedSendAgain: "PO rejected — submit again",
-  studioNoTechnicalSection: "This studio has no Technical section to send an RFQ to.",
+  studioNoTechnicalSection: "This studio has no Quotations section to send an RFQ to.",
   submitPo: "Submit PO",
   submitPoFinance: "Submit PO for approval",
-  technicalTicketCanRequest: "Technical has this ticket. You can request another RFQ once the quotation comes back.",
-  technicalTicketQuotationWill: "Technical has this ticket — the quotation will appear here once it is raised.",
+  technicalTicketCanRequest: "Quotations has this ticket. You can request another RFQ once the quotation comes back.",
+  technicalTicketQuotationWill: "Quotations has this ticket — the quotation will appear here once it is raised.",
   thankNoted: "Thank you — noted.",
   ticket: "Ticket",
-  ticketAlreadyTechnicalCan: "That ticket is already with Technical — you can send it again once the quotation comes back.",
+  ticketAlreadyTechnicalCan: "That ticket is already with Quotations — you can send it again once the quotation comes back.",
   ticketCreated: "Ticket created",
+  timelineQuotationRaised: (ref) => (ref ? `Quotation ${ref} raised` : "Quotation raised"),
+  timelineCommentBy: (who) => `Comment by ${who || "someone"}`,
   ticketInfo: "Ticket info",
   ticketNoLongerExists: "That ticket no longer exists.",
   ticketNoLongerExists2: "That ticket no longer exists — reload the page.",
@@ -399,7 +406,7 @@ const ar: Strings = {
   fileDidnUpload: "لم يرفع ذلك الملف.",
   fileTooLarge5: "هذا الملف كبير جدا — الحد 5 ميجابايت.",
   goesWhoeverHoldsManagement: "يذهب إلى من تسميهم إعدادات الموافقات لأمر شراء العميل. واعتماده يصدر رقم المشروع.",
-  handTicketTechnicalPricing: "سلم هذه التذكرة إلى القسم الفني للتسعير",
+  handTicketTechnicalPricing: "سلم هذه التذكرة إلى قسم عروض الأسعار للتسعير",
   howWouldYouRate: "كيف تقيم nompany؟",
   industry: "النشاط",
   infinityLeft: "متبق",
@@ -487,15 +494,17 @@ const ar: Strings = {
   pendingApproval: (granted, required) => `بانتظار الاعتماد (${granted}/${required})`,
   approvalRejectedSendAgain: "مرفوض — أرسله مجددًا",
   poRejectedSendAgain: "رُفض أمر الشراء — قدّمه مجددًا",
-  studioNoTechnicalSection: "لا يوجد قسم فني في هذا الاستوديو لإرسال طلب عرض سعر إليه.",
+  studioNoTechnicalSection: "لا يوجد قسم عروض أسعار في هذا الاستوديو لإرسال طلب عرض سعر إليه.",
   submitPo: "أرسل أمر الشراء",
   submitPoFinance: "إرسال أمر الشراء للاعتماد",
-  technicalTicketCanRequest: "التذكرة لدى القسم الفني. يمكنك طلب عرض سعر آخر بعد عودة العرض الحالي.",
-  technicalTicketQuotationWill: "التذكرة لدى القسم الفني — سيظهر عرض السعر هنا بمجرد رفعه.",
+  technicalTicketCanRequest: "التذكرة لدى قسم عروض الأسعار. يمكنك طلب عرض سعر آخر بعد عودة العرض الحالي.",
+  technicalTicketQuotationWill: "التذكرة لدى قسم عروض الأسعار — سيظهر عرض السعر هنا بمجرد رفعه.",
   thankNoted: "شكرا لك — سجل ذلك.",
   ticket: "التذكرة",
-  ticketAlreadyTechnicalCan: "هذه التذكرة مع القسم الفني بالفعل — يمكنك إرسالها مجددا بعد عودة عرض السعر.",
+  ticketAlreadyTechnicalCan: "هذه التذكرة مع قسم عروض الأسعار بالفعل — يمكنك إرسالها مجددا بعد عودة عرض السعر.",
   ticketCreated: "أنشئت التذكرة",
+  timelineQuotationRaised: (ref) => (ref ? `رفع عرض السعر ${ref}` : "رفع عرض سعر"),
+  timelineCommentBy: (who) => `تعليق من ${who || "أحد الأعضاء"}`,
   ticketInfo: "معلومات التذكرة",
   ticketNoLongerExists: "لم تعد هذه التذكرة موجودة.",
   ticketNoLongerExists2: "لم تعد هذه التذكرة موجودة — أعد تحميل الصفحة.",

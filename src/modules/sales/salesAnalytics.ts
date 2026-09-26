@@ -126,25 +126,35 @@ export function atRiskTickets(tickets: TicketView[], days = 14) {
 //
 // `aliasOf` maps CollaboratorID → name. Every caller already holds one; without
 // it the column still renders, naming the section rather than a person.
+//
+// `text` IS ENGLISH AND IS NOT WHAT A SCREEN DRAWS. It stays because tests and
+// any caller without a dictionary read it; a screen draws `phase` and `who`
+// through its dictionary (`salesDict().rfqLine`), because an Arabic studio was
+// shown "Handled by Sara" in the one column every Sales reader looks at. `who`
+// is "" when nobody resolves, and the dictionary names the department then.
+export type RfqPhase = "none" | "requested" | "in-review" | "rejected" | "handled" | "completed";
+
 export function rfqInfo(
   ticket: { rfq?: RfqSummary | null } | null | undefined,
   aliasOf: Record<string, string> = {},
 ) {
   const rfq = ticket?.rfq;
-  if (!rfq) return { text: "—", tone: "text-slate-400", status: null, ref: "", requested: false, quoted: false };
+  if (!rfq) return { text: "—", phase: "none" as RfqPhase, who: "", tone: "text-slate-400", status: null, ref: "", requested: false, quoted: false };
   if (!rfq.quotationId) {
     const rejected = rfq.status === "Rejected";
     const tone = rejected ? "text-rose-600 dark:text-rose-400"
       : rfq.status === "In-review" ? "text-amber-600 dark:text-amber-400"
       : "text-slate-500 dark:text-slate-400";
     const text = rejected ? "Rejected" : rfq.status === "In-review" ? "In-review" : "Requested";
-    return { text, tone, status: rfq.status, ref: rfq.reference || "", requested: true, quoted: false };
+    const phase: RfqPhase = rejected ? "rejected" : rfq.status === "In-review" ? "in-review" : "requested";
+    return { text, phase, who: "", tone, status: rfq.status, ref: rfq.reference || "", requested: true, quoted: false };
   }
   const done = Boolean(rfq.quotationSubmitted);
   const who = done
     ? rfq.completedByCollaboratorId || rfq.handledByCollaboratorId
     : rfq.handledByCollaboratorId;
-  const person = aliasOf[who] || who || "Technical";
+  const named = aliasOf[who] || who || "";
+  const person = named || "Quotations";
   const tone = ({
     Rejected: "text-rose-600 dark:text-rose-400",
     Approved: "text-emerald-600 dark:text-emerald-400",
@@ -152,6 +162,8 @@ export function rfqInfo(
   const rev = Number(rfq.submittedRevision) || 1;
   return {
     text: `${done ? "Completed" : "Handled"} by ${person}`,
+    phase: (done ? "completed" : "handled") as RfqPhase,
+    who: named,
     tone,
     status: rfq.quotationStatus,
     ref: done

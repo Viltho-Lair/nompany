@@ -147,8 +147,11 @@ unusable on a phone and invisible to a keyboard.)
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **No lead capture.** A deal still starts as a ticket somebody types. There is no web form,
-  no inbound email parsing, no import, and no deduplication against existing clients.
+- **Lead capture is three doors, and no more.** A deal starts as a ticket somebody types, or as
+  a lead raised by Marketing from a campaign, by an answer to a Marketing form set to make leads,
+  or by Customer insights sending chosen customers to Sales (`leads.md`, `forms.md`,
+  `customer-insights.md`). There is still no inbound email parsing and no import of deals from
+  a spreadsheet.
 - **No lost-reason vocabulary.** The reason is free text, so "price" and "too expensive" are
   two different answers and nothing can group them. The studio-settings list that would fix
   that is not built, and until it is, "why do we lose" is answerable one deal at a time

@@ -9,7 +9,7 @@ import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
-import { fmtTime } from "@/lib/format";
+import { fmtDate, fmtTime } from "@/lib/format";
 import { useReload } from "@/components/studio2/useReload";
 import { moneyText } from "@/shared/money";
 
@@ -61,10 +61,12 @@ export default function StudioSalesLive({ studio }) {
   const cell = (t, key, aliasOf) => {
     if (key === "owner") return aliasOf[t.assignedToCollaboratorId] || "—";
     if (key === "locationCity") return t.location?.city || "—";
-    if (key === "createdAt" || key === "updatedAt") return String(t[key] || t.createdAt || "").slice(0, 10) || "—";
+    // Through fmtDate, the studio's own format — a sliced ISO string read
+    // 2026-09-27 in a studio that reads dates as 27/09/2026 everywhere else.
+    if (key === "createdAt" || key === "updatedAt") return fmtDate(t[key] || t.createdAt) || "—";
     if (key === "value" || key === "clientBudget") return t[key] == null || t[key] === "" ? "—" : money(t[key]);
     if (key === "probability") return `${Number(t.probability ?? 0)}%`;
-    if (key === "rfq") return rfqInfo(t, aliasOf).text;
+    if (key === "rfq") { const r = rfqInfo(t, aliasOf); return sales.rfqLine(r.phase, r.who); }
     return t[key] === "" || t[key] == null ? "—" : String(t[key]);
   };
 

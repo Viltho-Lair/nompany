@@ -48,6 +48,9 @@ type Strings = CommonStrings & {
   vat: string;
   total: string;
 
+  // A move's BUTTON, keyed by the stored token it moves to. The token is what
+  // is sent and stored; only the words are chosen here. The Arabic button
+  // used to wrap the English token itself ("اجعله Confirmed").
   moveTo: (status: string) => string;
   deleteOrder: string;
   confirmDelete: (number: string) => string;
@@ -58,6 +61,9 @@ type Strings = CommonStrings & {
   refuseReadOnly: string;
   refuseWrongState: string;
   refuseDeal: string;
+  refuseNotFound: string;
+  refuseNoSection: string;
+  refuseTitle: string;
 };
 
 const en: Strings = {
@@ -98,7 +104,11 @@ const en: Strings = {
   vat: "VAT",
   total: "Total",
 
-  moveTo: (status) => `Mark ${status}`,
+  moveTo: (status) =>
+    status === "Confirmed" ? "Confirm"
+    : status === "Fulfilled" ? "Mark fulfilled"
+    : status === "Cancelled" ? "Cancel order"
+    : `Mark ${status}`,
   deleteOrder: "Delete",
   confirmDelete: (number) => `Delete ${number}? Only a draft can be deleted — a confirmed order is cancelled instead, so the trail survives.`,
 
@@ -108,6 +118,9 @@ const en: Strings = {
   refuseReadOnly: "The lines and the VAT rate cannot change once the order is confirmed.",
   refuseWrongState: "Only a draft can be deleted. Cancel it instead.",
   refuseDeal: "An order has to belong to a deal.",
+  refuseNotFound: "This order no longer exists. Somebody may have deleted it; reload the list.",
+  refuseNoSection: "Sales orders are not switched on in this studio.",
+  refuseTitle: "Give the order a title.",
 };
 
 const ar: Strings = {
@@ -148,7 +161,11 @@ const ar: Strings = {
   vat: "الضريبة",
   total: "الإجمالي",
 
-  moveTo: (status) => `اجعله ${status}`,
+  moveTo: (status) =>
+    status === "Confirmed" ? "تأكيد"
+    : status === "Fulfilled" ? "تم التنفيذ"
+    : status === "Cancelled" ? "إلغاء الأمر"
+    : `اجعله ${status}`,
   deleteOrder: "حذف",
   confirmDelete: (number) => `حذف ${number}؟ المسودة وحدها تحذف — الأمر المؤكد يلغى بدل ذلك، ليبقى الأثر.`,
 
@@ -158,6 +175,9 @@ const ar: Strings = {
   refuseReadOnly: "لا تتغير البنود ولا نسبة الضريبة بعد تأكيد الأمر.",
   refuseWrongState: "المسودة وحدها تحذف. ألغ الأمر بدل ذلك.",
   refuseDeal: "لا بد أن ينتمي الأمر إلى صفقة.",
+  refuseNotFound: "هذا الأمر لم يعد موجودا. ربما حذفه أحدهم؛ أعد تحميل القائمة.",
+  refuseNoSection: "أوامر البيع غير مفعّلة في هذا الاستوديو.",
+  refuseTitle: "أعط الأمر عنوانا.",
 };
 
 const salesOrders = { en, ar };

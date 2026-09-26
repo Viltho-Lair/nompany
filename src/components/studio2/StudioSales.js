@@ -463,7 +463,7 @@ function Tickets({ tickets, people, canManage, slug, hasTechnical, statuses, urg
       renderCell: ({ row }) => (
         <span className="min-w-0">
           {row._rfq.requested
-            ? <span className={`block text-xs font-600 ${row._rfq.tone}`}>{row._rfq.text}</span>
+            ? <span className={`block text-xs font-600 ${row._rfq.tone}`}>{tr.rfqLine(row._rfq.phase, row._rfq.who)}</span>
             : <span className="text-slate-400">—</span>}
           {row.rfqCount > 1 && <span className="block text-[11px] text-slate-400">{tr.rfqRaisedCount(row.rfqCount)}</span>}
         </span>

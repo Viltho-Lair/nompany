@@ -208,6 +208,10 @@ export async function updateOrder(
   const existing = await Orders.byId(scope, id);
   if (!existing) return { error: "notfound" };
 
+  // THE TITLE createOrder REQUIRES, an edit may not take away. An edit sending
+  // a blank title used to store it, leaving a register row with no name.
+  if (body?.title !== undefined && !str(body.title, 200)) return { error: "title" };
+
   // THE LINES CLOSE WHEN THE ORDER IS CONFIRMED. What was agreed is what was
   // agreed; changing it afterwards is an amendment or a new order, not an edit,
   // and the total a customer was told would move under them silently.

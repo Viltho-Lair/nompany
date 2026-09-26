@@ -106,8 +106,8 @@ Stated in words, because a silent gap reads as a finished feature.
   no Finance section to read through.
 - **No activity timeline.** Comments, stage moves and document events all exist as data and
   none is shown here — there is no single ordered "what happened with this company, when".
-- **Nothing is editable from this page**, including the client's own fields. Editing still
-  means going back to the list.
+- **Only the agreed rates are editable from this page** (`pricing.md`) — the client's own
+  fields, contacts and sites are not; editing those still means going back to the list.
 - **No cross-customer view.** There is no "top customers by won value" list, no ranking and no
   comparison; this answers one company at a time.
 - **No engagement grouping.** The deals are listed flat rather than grouped by the engagement

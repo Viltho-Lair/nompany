@@ -60,7 +60,9 @@ what a stored rate may be:
 The catalogue is read **only** on a request that actually carries rates — renaming a client or
 adding a contact pays nothing for the check. A studio with no Inventory section has no
 catalogue to check against and is refused with `no-catalogue`, rather than storing rates that
-could never match anything.
+could never match anything. The rates editor says so in words (agreed rates price Registered
+Items, which need Inventory) inside the dialog; until 27/09/2026 the bare token replaced the
+whole customer page.
 
 **The rate table never leaves the server.** `catalogueItems` resolves the price and returns the
 number plus a basis token. Technical builds the quotation and is reached on Technical's grant,

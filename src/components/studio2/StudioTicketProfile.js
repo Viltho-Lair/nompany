@@ -229,10 +229,12 @@ export default function StudioTicketProfile({ slug, ticketId, initial }) {
     { at: ticket.createdAt, label: tr.ticketCreated },
     ...mine.map((q) => ({
       at: q.createdAt,
-      label: `Quotation ${q.number || ""}${Number(q.revision) > 1 ? ` Rev ${q.revision}` : ""} raised`.replace(/\s+/g, " ").trim(),
+      // The reference keeps "Rev N" as rfqInfo writes it — it is part of the
+      // number a client quotes back — and only the sentence around it is translated.
+      label: tr.timelineQuotationRaised(`${q.number || ""}${Number(q.revision) > 1 ? ` Rev ${q.revision}` : ""}`.trim()),
     })),
     ...(approval?.at ? [{ at: approval.at, label: tr.quotationApproved }] : []),
-    ...(ticket.comments || []).map((c) => ({ at: c.at, label: `Comment by ${aliasOf[c.byCollaboratorId] || "someone"}` })),
+    ...(ticket.comments || []).map((c) => ({ at: c.at, label: tr.timelineCommentBy(aliasOf[c.byCollaboratorId] || "") })),
     ...(ticket.updatedAt && ticket.updatedAt !== ticket.createdAt ? [{ at: ticket.updatedAt, label: tr.lastUpdated }] : []),
   ].filter((e) => e.at).sort((a, b) => String(a.at).localeCompare(String(b.at)));
 
@@ -466,7 +468,7 @@ export default function StudioTicketProfile({ slug, ticketId, initial }) {
                   quotation once there is one, the RFQ while there is not. */}
               {canRequestRfq && rfq.requested && (
                 <p className={`text-center text-xs font-600 ${rfq.tone}`}>
-                  {rfq.ref ? `${rfq.ref} · ` : ""}{rfq.text}
+                  {rfq.ref ? `${rfq.ref} · ` : ""}{salesTr.rfqLine(rfq.phase, rfq.who)}
                 </p>
               )}
             </div>

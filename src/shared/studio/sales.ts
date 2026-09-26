@@ -50,6 +50,9 @@ type Strings = CommonStrings & {
   rateNote: string;
   listPriceIs: (v: string) => string;
   itemNoLongerExists: string;
+  // The save refused with `no-catalogue`: a studio with no Inventory section
+  // has nothing for a rate to name.
+  errNoCatalogue: string;
   save: string;
   // The page a member with `crmSales.clients.view` and no commercial right
   // sees: the company and its people, and deliberately nothing else. Said in
@@ -67,9 +70,10 @@ type Strings = CommonStrings & {
   pipelineSub: string;
   loadingPipeline: string;
   noDealsYet: string;
-  // What to DO, not the heading repeated. A deal starts as a ticket today —
-  // there is no lead capture yet, and saying so is better than implying the
-  // board fills itself.
+  // What to DO, not the heading repeated. A deal is always a ticket — raised
+  // here, or arriving as a lead from Marketing's campaigns and forms or from
+  // Customer insights. This said "there is no lead capture yet" after lead
+  // capture shipped; the board does fill itself now, from those three.
   noDealsYetBody: string;
   noDealsHere: string;
   weighted: string;
@@ -161,6 +165,9 @@ type Strings = CommonStrings & {
   colOwner: string;
   colValueQuoted: string;
   colRfq: string;
+  // WHAT THE RFQ COLUMN SAYS, from the phase rfqInfo derives. The person's name
+  // is data and passes through; with nobody named, the department is.
+  rfqLine: (phase: string, who: string) => string;
   colProbability: string;
   colUpdated: string;
 
@@ -288,6 +295,7 @@ const en: Strings = {
   // A rate whose item has since been deleted. Shown rather than hidden: it is a
   // promise the studio made, and the next save is what clears it.
   itemNoLongerExists: "This item no longer exists",
+  errNoCatalogue: "Agreed rates price Registered Items, which live in Inventory. This studio has no Inventory section, so there is nothing for a rate to name.",
   save: "Save",
   onlyTheCompany: "The company, and no commercial history",
   onlyTheCompanyBody: "Deals, quotations, contracts and projects each need their own access. Ask an administrator if you should be seeing them here.",
@@ -295,7 +303,7 @@ const en: Strings = {
   pipelineSub: "Where every open deal stands, and what the funnel is worth.",
   loadingPipeline: "Loading the pipeline…",
   noDealsYet: "No open deals",
-  noDealsYetBody: "A deal starts as a ticket. Raise one and it appears here, at the stage it has reached.",
+  noDealsYetBody: "A deal is a ticket: raise one here, or it arrives as a lead from Marketing's campaigns and forms or from Customer insights. It appears on the board at the stage it has reached.",
   noDealsHere: "Nothing at this stage.",
   weighted: "Weighted",
   // Said in place of a number on the held column, because zero would be a
@@ -312,7 +320,7 @@ const en: Strings = {
   contractsWhatWasAgreed: "What was agreed, and what has moved since.",
   loadingContracts: "Loading contracts…",
   noContractsYet: "No contracts yet",
-  contractsAppearWhenQuotationWon: "A contract is what a won quotation becomes. Sign one against a deal and it appears here.",
+  contractsAppearWhenQuotationWon: "A contract is what a won quotation becomes. Contracts already recorded against a deal appear here; this screen does not record new ones yet.",
   signedOn: "Signed",
   variations: "Variations",
   noVariationsYet: "No variations against this contract.",
@@ -358,9 +366,9 @@ const en: Strings = {
   errClient: "Name the client.",
   errDeadline: "Deadline is required.",
   errIndustry: "Type of industry is required.",
-  errServices: "Pick at least one service. Add them in Sales → Settings.",
+  errServices: "Pick at least one service. Add them in Studio Settings → Service Actions.",
   errBudget: "Client budget must be a non-negative number.",
-  errAlready: "That ticket is already with Technical — you can send it again once the quotation comes back.",
+  errAlready: "That ticket is already with Quotations — you can send it again once the quotation comes back.",
   errNoTechnical: "This studio has no Quotations section to send an RFQ to.",
   errRfqForbidden: "You're not allowed to raise an RFQ.",
   errTicketGone: "That ticket no longer exists — reload the page.",
@@ -378,6 +386,13 @@ const en: Strings = {
   colOwner: "Owner",
   colValueQuoted: "Value Quoted",
   colRfq: "RFQ",
+  rfqLine: (phase, who) =>
+    phase === "requested" ? "Requested"
+    : phase === "in-review" ? "In review"
+    : phase === "rejected" ? "Rejected"
+    : phase === "handled" ? `Handled by ${who || "Quotations"}`
+    : phase === "completed" ? `Completed by ${who || "Quotations"}`
+    : "—",
   colProbability: "Prob.",
   colUpdated: "Updated",
 
@@ -465,7 +480,7 @@ const en: Strings = {
   positionsTitle: "Contact positions",
   positionsHelp: "Offered as a contact's position.",
   liveViewLead:
-    "Choose the ticket columns the Live view shows. This is a shared setting — it applies to everyone. At least one is kept.",
+    "Choose the ticket columns the Live view shows. This is a shared setting — it applies to everyone. Untick them all and the five defaults come back: Ref, Title, Client, Status and Deadline.",
   saveColumns: "Save columns",
   settingsReadOnly: "You have view-only access to Sales settings.",
   addAndEnter: "Add and press Enter",
@@ -507,6 +522,7 @@ const ar: Strings = {
   rateNote: "ملاحظة",
   listPriceIs: (v) => `سعر القائمة ${v}`,
   itemNoLongerExists: "لم يعد هذا الصنف موجودا",
+  errNoCatalogue: "الأسعار المتفق عليها تسعر الأصناف المسجلة، وهي في المخزون. ولا يوجد في هذا الاستوديو قسم مخزون، فلا صنف يسميه السعر.",
   save: "حفظ",
   onlyTheCompany: "بيانات الشركة فقط، دون السجل التجاري",
   onlyTheCompanyBody: "الصفقات وعروض الأسعار والعقود والمشاريع يحتاج كل منها إلى صلاحية خاصة به. راجع المسؤول إن كان ينبغي أن تراها هنا.",
@@ -514,7 +530,7 @@ const ar: Strings = {
   pipelineSub: "أين تقف كل صفقة مفتوحة، وكم يساوي المسار.",
   loadingPipeline: "جار تحميل مسار الصفقات…",
   noDealsYet: "لا توجد صفقات مفتوحة",
-  noDealsYetBody: "تبدأ الصفقة بتذكرة. أنشئ واحدة وستظهر هنا في المرحلة التي بلغتها.",
+  noDealsYetBody: "الصفقة تذكرة: أنشئها هنا، أو تصل عميلا محتملا من حملات التسويق ونماذجه أو من رؤى العملاء. وتظهر على اللوحة في المرحلة التي بلغتها.",
   noDealsHere: "لا شيء في هذه المرحلة.",
   weighted: "القيمة المرجحة",
   notForecast: "خارج التوقع",
@@ -529,7 +545,7 @@ const ar: Strings = {
   contractsWhatWasAgreed: "ما تم الاتفاق عليه، وما تغير منذ ذلك.",
   loadingContracts: "جار تحميل العقود…",
   noContractsYet: "لا توجد عقود بعد",
-  contractsAppearWhenQuotationWon: "العقد هو ما يصير إليه عرض السعر المربوح. وقع عقدا على صفقة وسيظهر هنا.",
+  contractsAppearWhenQuotationWon: "العقد هو ما يصير إليه عرض السعر المربوح. تظهر هنا العقود المسجلة من قبل على الصفقات؛ ولا تسجل هذه الشاشة عقودا جديدة بعد.",
   signedOn: "تاريخ التوقيع",
   variations: "التغييرات",
   noVariationsYet: "لا توجد تغييرات على هذا العقد.",
@@ -578,9 +594,9 @@ const ar: Strings = {
   errClient: "حدد اسم العميل.",
   errDeadline: "الموعد النهائي مطلوب.",
   errIndustry: "نوع النشاط مطلوب.",
-  errServices: "اختر خدمة واحدة على الأقل. أضفها من المبيعات ← الإعدادات.",
+  errServices: "اختر خدمة واحدة على الأقل. أضفها من إعدادات الاستوديو ← إجراءات الخدمة.",
   errBudget: "يجب أن تكون ميزانية العميل رقما غير سالب.",
-  errAlready: "هذه التذكرة مع القسم الفني بالفعل — يمكنك إرسالها مجددا بعد عودة عرض السعر.",
+  errAlready: "هذه التذكرة مع قسم عروض الأسعار بالفعل — يمكنك إرسالها مجددا بعد عودة عرض السعر.",
   errNoTechnical: "لا يوجد قسم عروض أسعار في هذا الاستوديو لإرسال طلب عرض سعر إليه.",
   errRfqForbidden: "لا يسمح لك برفع طلب عرض سعر.",
   errTicketGone: "لم تعد هذه التذكرة موجودة — أعد تحميل الصفحة.",
@@ -601,6 +617,13 @@ const ar: Strings = {
   // this one.
   colValueQuoted: "القيمة المعروضة",
   colRfq: "طلب عرض السعر",
+  rfqLine: (phase, who) =>
+    phase === "requested" ? "مطلوب"
+    : phase === "in-review" ? "قيد المراجعة"
+    : phase === "rejected" ? "مرفوض"
+    : phase === "handled" ? `يتولاه ${who || "قسم عروض الأسعار"}`
+    : phase === "completed" ? `أكمله ${who || "قسم عروض الأسعار"}`
+    : "—",
   colProbability: "الاحتمال",
   colUpdated: "آخر تحديث",
 
@@ -700,7 +723,7 @@ const ar: Strings = {
   positionsTitle: "مناصب جهات الاتصال",
   positionsHelp: "تعرض كمنصب لجهة الاتصال.",
   liveViewLead:
-    "اختر أعمدة التذاكر التي يعرضها العرض المباشر. هذا إعداد مشترك — ينطبق على الجميع. ويبقى عمود واحد على الأقل.",
+    "اختر أعمدة التذاكر التي يعرضها العرض المباشر. هذا إعداد مشترك — ينطبق على الجميع. وإن ألغيت تحديدها كلها عادت الأعمدة الخمسة الافتراضية: المرجع والعنوان والعميل والحالة والموعد النهائي.",
   saveColumns: "حفظ الأعمدة",
   settingsReadOnly: "لديك صلاحية عرض فقط على إعدادات المبيعات.",
   addAndEnter: "اكتب ثم اضغط Enter",

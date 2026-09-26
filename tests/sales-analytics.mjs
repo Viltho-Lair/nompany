@@ -152,5 +152,29 @@ const moved = A.stalledDeals([t({
 })], 30, now);
 ok("...but a deal that moved yesterday is not stuck", moved.length === 0, JSON.stringify(moved));
 
+console.log("\n== the RFQ column, in the reader's language");
+
+// THE DEFECT: the column drew rfqInfo's English `text`, so an Arabic studio read
+// "Handled by Sara" and "Requested". rfqInfo now hands back a PHASE and the
+// bare name, and the dictionary chooses the words.
+const { salesDict } = await import("@/shared/studio/sales");
+const ar = salesDict("ar");
+const cases = [
+  [{}, "none"],
+  [{ rfq: { status: "Requested" } }, "requested"],
+  [{ rfq: { status: "In-review" } }, "in-review"],
+  [{ rfq: { status: "Rejected" } }, "rejected"],
+  [{ rfq: { quotationId: "q", handledByCollaboratorId: "c1" } }, "handled"],
+  [{ rfq: { quotationId: "q", quotationSubmitted: true, completedByCollaboratorId: "c1" } }, "completed"],
+];
+const phases = cases.map(([tk]) => A.rfqInfo(tk, { c1: "Sara" }).phase);
+ok("every RFQ state has a phase", phases.every((p, i) => p === cases[i][1]), JSON.stringify(phases));
+const arWords = cases.map(([tk]) => { const r = A.rfqInfo(tk, { c1: "Sara" }); return ar.rfqLine(r.phase, r.who); });
+ok("...and no Arabic line carries an English word except the typed name",
+  arWords.every((w) => !/[A-Za-z]/.test(w.replace("Sara", ""))), JSON.stringify(arWords));
+ok("with nobody named, the department is Quotations — not Technical",
+  A.rfqInfo({ rfq: { quotationId: "q" } }).who === ""
+    && salesDict("en").rfqLine("handled", "") === "Handled by Quotations");
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

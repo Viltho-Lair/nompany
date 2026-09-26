@@ -23,6 +23,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 // how two screens end up disagreeing about what a number looks like.
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, th, fmtDate, money } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { movesFrom, orderDeletable, orderLinesEditable } from "@/modules/sales/orderStatus";
 import { taxDict, taxCategoryOptions } from "@/shared/studio/tax";
@@ -39,6 +40,11 @@ function refusal(tr, token) {
     case "read-only": return tr.refuseReadOnly;
     case "wrong-state": return tr.refuseWrongState;
     case "deal": return tr.refuseDeal;
+    // The server requires a title (createOrder refuses "title"); the raw token
+    // was what reached the screen before this line.
+    case "title": return tr.refuseTitle;
+    case "notfound": return tr.refuseNotFound;
+    case "no-section": return tr.refuseNoSection;
     default: return token;
   }
 }
@@ -149,7 +155,7 @@ export default function StudioOrders({ slug, initial }) {
         </div>
         {rights.canCreate && (
           <button type="button" className={btn}
-            onClick={() => setForm({ lines: [{ ...BLANK_LINE }], vatRate: vat.rate, status: "Draft" })}>
+            onClick={() => { setError(""); setForm({ lines: [{ ...BLANK_LINE }], vatRate: vat.rate, status: "Draft" }); }}>
             {tr.newOrder}
           </button>
         )}
@@ -192,7 +198,7 @@ export default function StudioOrders({ slug, initial }) {
                       ))}
                       {rights.canEdit && (
                         <button type="button" className={btnRow}
-                          onClick={() => setForm({ ...o, lines: [...(o.lines || [])] })}>
+                          onClick={() => { setError(""); setForm({ ...o, lines: [...(o.lines || [])] }); }}>
                           {tr.editOrder}
                         </button>
                       )}
@@ -222,7 +228,7 @@ export default function StudioOrders({ slug, initial }) {
       {form && (
         <Dialog title={form.id ? tr.editOrder : tr.newOrder} onClose={() => setForm(null)}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={tr.fldTitle} value={form.title || ""}
+            <Field label={tr.fldTitle} required value={form.title || ""}
               onChange={(v) => setForm((p) => ({ ...p, title: v }))} />
             {/* THE DEAL IS CHOSEN ONLY WHEN THE ORDER IS RAISED. It is stored as
                 the deal that exists, not the ticket's derived id, so an edit
@@ -244,10 +250,15 @@ export default function StudioOrders({ slug, initial }) {
             <Field label={tr.fldContract} as="select" value={form.contractId || ""} disabled={!!form.id}
               onChange={(v) => setForm((p) => ({ ...p, contractId: v }))}
               options={linkOptions.contracts} />
-            <Field label={tr.fldOrderedOn} value={form.orderedOn || ""}
-              onChange={(v) => setForm((p) => ({ ...p, orderedOn: v }))} />
-            <Field label={tr.fldRequiredBy} value={form.requiredBy || ""}
-              onChange={(v) => setForm((p) => ({ ...p, requiredBy: v }))} />
+            {/* THE SHARED PICKER, speaking yyyy-mm-dd — what fmtDate reads back
+                in the register's columns. A text box let anything be typed,
+                and anything typed is what fmtDate then failed to read. */}
+            <Field label={tr.fldOrderedOn} filled={!!form.orderedOn}>
+              <StudioDate value={form.orderedOn || ""} onChange={(iso) => setForm((p) => ({ ...p, orderedOn: iso }))} />
+            </Field>
+            <Field label={tr.fldRequiredBy} filled={!!form.requiredBy}>
+              <StudioDate value={form.requiredBy || ""} onChange={(iso) => setForm((p) => ({ ...p, requiredBy: iso }))} />
+            </Field>
             {vat.on && (
               <Field label={tr.fldVatRate} value={String(form.vatRate ?? 0)} disabled={!editable}
                 onChange={(v) => setForm((p) => ({ ...p, vatRate: Number(v) || 0 }))} />
@@ -305,6 +316,10 @@ export default function StudioOrders({ slug, initial }) {
               <span className="num">{money(totals.total, form.currency)}</span></div>
           </div>
 
+          {/* A refusal of THIS save is said here as well: the register's own
+              line sits behind the dialog, so a refused title or deal read as a
+              Save button that did nothing. */}
+          {error && <p role="alert" className="mt-3 text-sm text-[var(--geex-danger)]">{error}</p>}
           <div className="mt-5 flex justify-end gap-2">
             <button type="button" className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
             <button type="button" className={btn} disabled={busy}

@@ -66,7 +66,12 @@ export async function customerProfile(ctx: SalesContext, id: string) {
     // is no separate right and the page's own `crmSales.clients.view` covers it.
     // Changing one is editing the client, and answers to clients.edit; the
     // catalogue below is fetched only for somebody who may actually pick from it.
-    editRates: !requirePermission(access, "crmSales.clients.edit"),
+    //
+    // AND ONLY WHERE THERE IS A CATALOGUE. A rate names a Registered Item, and a
+    // studio with no Inventory section has none, so the save is refused with
+    // `no-catalogue` — offering the button there was offering a dialog whose
+    // only possible outcome is a refusal.
+    editRates: !requirePermission(access, "crmSales.clients.edit") && Boolean(ctx.inventoryItemsSection),
     // A TENDER CAN START HERE. The page offers "Add a tender" to somebody who
     // may create one, and the register opens its dialog with this customer
     // chosen — no read, only the right.

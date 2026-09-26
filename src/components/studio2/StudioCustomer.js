@@ -75,6 +75,10 @@ export default function StudioCustomer({ slug, clientId, initial }) {
   // what is stored, so cancelling genuinely cancels rather than leaving the
   // screen showing edits nobody saved.
   const [draft, setDraft] = useState(null);
+  // A refused RATES save is said inside the editor, not through `error`,
+  // which replaces the whole page — a refusal there wiped the customer off the
+  // screen and printed the bare token ("no-catalogue") in its place.
+  const [rateError, setRateError] = useState("");
   const [busy, setBusy] = useState(false);
 
   // READ AND APPLY ARE SEPARATE, and the reason is a race this page can lose in
@@ -138,7 +142,7 @@ export default function StudioCustomer({ slug, clientId, initial }) {
   // place that decides what a stored rate may be, and a row priced at zero is
   // how the editor removes one.
   const saveRates = async () => {
-    setBusy(true);
+    setBusy(true); setRateError("");
     const res = await fetch(`/api/studios/${slug}/sales/clients`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -146,7 +150,15 @@ export default function StudioCustomer({ slug, clientId, initial }) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(out.error || "failed"); return; }
+    if (!res.ok) {
+      setRateError(
+        out.error === "no-catalogue" ? tr.errNoCatalogue
+        : out.error === "notfound" ? tr.customerNotFound
+        : out.error === "forbidden" || out.error === "read-only" ? tr.errClientForbidden
+        : tr.saveFailed,
+      );
+      return;
+    }
     setDraft(null);
     apply(await read());
   };
@@ -262,7 +274,7 @@ export default function StudioCustomer({ slug, clientId, initial }) {
             <p className={sub}>{tr.agreedRatesSub}</p>
           </div>
           {may.editRates && (
-            <button type="button" className={btnGhost} onClick={() => setDraft(data.rates.map((r) => ({ ...r })))}>
+            <button type="button" className={btnGhost} onClick={() => { setRateError(""); setDraft(data.rates.map((r) => ({ ...r }))); }}>
               {tr.editRates}
             </button>
           )}
@@ -332,7 +344,7 @@ export default function StudioCustomer({ slug, clientId, initial }) {
       )}
 
       {draft && (
-        <Dialog title={tr.agreedRates} description={tr.agreedRatesSub} onClose={() => setDraft(null)} width="max-w-[720px]">
+        <Dialog title={tr.agreedRates} description={tr.agreedRatesSub} onClose={() => { setDraft(null); setRateError(""); }} width="max-w-[720px]">
           <div className="space-y-4">
             {draft.map((r, i) => (
               <div key={i} className="grid gap-3 sm:grid-cols-[1fr,9rem,1fr,auto] sm:items-start">
@@ -349,13 +361,14 @@ export default function StudioCustomer({ slug, clientId, initial }) {
                   onClick={() => setDraft((d) => d.filter((_, j) => j !== i))}>×</button>
               </div>
             ))}
+            {rateError && <p role="alert" className="text-sm text-rose-600 dark:text-rose-300">{rateError}</p>}
             <div className="flex flex-wrap justify-between gap-2">
               <button type="button" className={btnGhost}
                 onClick={() => setDraft((d) => [...d, { itemId: "", unitPrice: "", note: "" }])}>
                 {tr.addRate}
               </button>
               <span className="flex gap-2">
-                <button type="button" className={btnGhost} onClick={() => setDraft(null)}>{tr.cancel}</button>
+                <button type="button" className={btnGhost} onClick={() => { setDraft(null); setRateError(""); }}>{tr.cancel}</button>
                 <button type="button" className={btn} disabled={busy} onClick={saveRates}>{tr.save}</button>
               </span>
             </div>

@@ -42,6 +42,13 @@ recomputing on every read would silently re-price a confirmed order the day a VA
 changed. **Past Draft the RATE is locked with the lines**, and `updateOrder` carries the
 stored totals rather than recomputing them: a different `vatRate` is refused
 `read-only`, an unchanged one is accepted so a title or date can still be corrected.
+A title can be corrected but not CLEARED: `updateOrder` refuses a blank one with `title`,
+the same refusal `createOrder` gives (since 27/09/2026 — before that an edit could store an
+order with no title). The form marks Title required, says a refusal inside the dialog rather
+than behind it, and the two dates are the shared picker (`fields/StudioDate`), storing
+`yyyy-mm-dd` as `fmtDate` reads it; they were free text boxes. The move buttons are worded
+per target status (Confirm, Mark fulfilled, Cancel order) from the dictionary — the Arabic ones
+had carried the English token.
 Until 24/09/2026 the lines were locked and the rate was not, so a confirmed order's total
 could still be moved by an edit.
 
