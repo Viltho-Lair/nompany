@@ -26,7 +26,10 @@ import { GOOGLE_DATA_BLOCKS } from "./legalGoogleData";
 export const PRIVACY_META: LegalMeta = {
   version: "1.3",
   effective: "04/09/2026",
-  // 1.3 (26/09/2026): §9 — Google Analytics on the public marketing pages, after consent.
+  // 1.3 (26/09/2026): §5 and §9 — Google Analytics on the public marketing pages,
+  // after consent. Not a material change under §10.1: it touches no account
+  // holder's data and nothing in the Service, and it runs only for a visitor who
+  // opts in on a public page, so no notice was sent.
   // 1.2 (24/09/2026): the summary names the unpaid-account deletion (Terms 1.4).
   // 1.1 (24/09/2026): the summary of Terms §10 follows its new deletion rule.
   updated: "26/09/2026",
