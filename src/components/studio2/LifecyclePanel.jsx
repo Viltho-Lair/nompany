@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { lifecycleDict } from "@/shared/studio/lifecycle";
@@ -53,7 +54,7 @@ export default function LifecyclePanel({ slug, locale = "en" }) {
   }, [slug, load, tr]);
 
   if (problem && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p>;
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { people = [], contracts = [], events = [], attention = [], pack, vocabulary } = data;
   const open = people.find((p) => p.collaboratorId === openId) || null;

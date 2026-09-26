@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useEffect, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { useReload } from "@/components/studio2/useReload";
@@ -48,7 +49,7 @@ export default function ClaimsPanel({ slug, locale, onDenied }) {
     return body;
   }, [slug, load, tr]);
 
-  if (!data) return problem ? <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p> : <p className="text-sm text-slate-500">…</p>;
+  if (!data) return problem ? <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p> : <ScreenSkeleton />;
   return (
     <div className="space-y-8">
       {problem && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{problem}</p>}

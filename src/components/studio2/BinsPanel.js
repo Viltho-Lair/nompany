@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { binsDict } from "@/shared/studio/bins";
@@ -54,7 +55,7 @@ export default function BinsPanel({ slug, locale = "en" }) {
     return true;
   }, [slug, load, setBusy, setProblem]);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { bins = [], locations = [], unbinned = [], negative = [], canManage } = data;
   const codeOf = (id) => bins.find((b) => b.id === id)?.code || "";

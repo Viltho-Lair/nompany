@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { dispatchDict } from "@/shared/studio/dispatch";
@@ -50,7 +51,7 @@ export default function DispatchPanel({ slug, locale = "en" }) {
 
   useReload(load);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { lanes = [], unassigned = [], stranded = [], totalHours, today } = data;
   const time = (v) => (v ? String(v).slice(11, 16) : "—");

@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { attendanceDict } from "@/shared/studio/attendance";
@@ -35,7 +36,7 @@ export default function AttendancePanel({ slug, locale = "en" }) {
 
   useReload(load);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { sheet = [], month = [], canManage } = data;
   const valueOf = (row, field) => (draft[row.collaboratorId]?.[field] ?? row[field]);

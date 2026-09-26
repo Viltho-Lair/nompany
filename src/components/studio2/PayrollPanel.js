@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { Fragment, useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { payrollDict } from "@/shared/studio/payroll";
@@ -221,7 +222,7 @@ export default function PayrollPanel({ slug, locale = "en" }) {
     else setProblem(tr.slipFailed);
   };
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { people = [], runs = [], canManage, ssEnabled, eosEnabled, wpsEnabled, sifReady } = data;
   const withPay = people.filter((p) => p.basic !== null);

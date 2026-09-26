@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { valuationDict } from "@/shared/studio/valuation";
 import { useReload } from "@/components/studio2/useReload";
@@ -39,7 +40,7 @@ export default function ValuationPanel({ slug, locale = "en", currency = "" }) {
   useReload(load);
 
   if (problem && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p>;
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { items = [], total = 0, uncosted = 0, method: shown, studioMethod, preview } = data;
   const amount = (n) => `${money(n)}${currency ? ` ${currency}` : ""}`;

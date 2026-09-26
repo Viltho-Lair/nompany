@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { shopFloorDict } from "@/shared/studio/shopfloor";
@@ -44,7 +45,7 @@ export default function ShopFloorPanel({ slug, locale = "en" }) {
     return true;
   }, [slug, load, tr, setBusy, setProblem]);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { orders = [], myRun = null, otherRuns = [], batches = [], awaitingCheck = [], canLog, canCheck } = data;
   const busyElsewhere = (id) => otherRuns.some((r) => r.workOrderId === id);

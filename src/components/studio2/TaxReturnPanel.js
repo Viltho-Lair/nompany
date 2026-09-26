@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { ledgerDict } from "@/shared/studio/ledger";
 import { Field } from "@/components/fields/Field";
@@ -44,7 +45,7 @@ export default function TaxReturnPanel({ slug, locale }) {
   const move = (patch) => setAsked({ from, to, ...patch });
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
   // NO VAT, NO RETURN — and the withheld tax to claim is still said, because
   // withholding does not depend on being registered for VAT.
   if (!data.enabled) return (

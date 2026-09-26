@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useRef, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { fieldDict } from "@/shared/studio/field";
@@ -46,7 +47,7 @@ export default function FieldViewPanel({ slug, locale = "en" }) {
     await load();
   }, [slug, load, setBusy, setProblem]);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { jobs = [], outstanding, completed, awaitingSignature = [], workOrders = [] } = data;
   const mt = maintenanceDict(locale);

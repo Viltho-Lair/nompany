@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { batchesDict } from "@/shared/studio/batches";
@@ -51,7 +52,7 @@ export default function BatchesPanel({ slug, locale = "en" }) {
     return true;
   }, [slug, load, setBusy, setProblem]);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { batches = [], alerts = [], untracked = [], items = [], canManage, asOf } = data;
   // The state a row is in decides its colour, and `empty` is deliberately not a

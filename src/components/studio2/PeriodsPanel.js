@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { periodsDict } from "@/shared/studio/periods";
@@ -48,7 +49,7 @@ export default function PeriodsPanel({ slug, locale = "en" }) {
     return true;
   }, [slug, load, tr, setBusy, setProblem]);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { periods: rows = [], preview, canClose, years, checklist } = data;
 

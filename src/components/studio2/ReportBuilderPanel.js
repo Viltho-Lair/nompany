@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { builderDict } from "@/shared/studio/builder";
@@ -49,7 +50,7 @@ export default function ReportBuilderPanel({ slug, locale = "en" }) {
     return body;
   }, [slug, setBusy, setProblem]);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { datasets = [], reports = [], targets = [] } = data;
   const chosen = datasets.find((d) => d.key === spec.dataset) || null;

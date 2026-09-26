@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { manpowerDict } from "@/shared/studio/manpower";
@@ -46,7 +47,7 @@ export default function ManpowerPanel({ slug, locale = "en" }) {
     return true;
   }, [slug, load, tr, setBusy, setProblem]);
 
-  if (!data) return <p className="text-sm text-slate-500 dark:text-slate-400">…</p>;
+  if (!data) return <ScreenSkeleton />;
 
   const { plans = [], gaps = [], upcoming = [], roles = [], projects = [], canManage } = data;
   // THE FIRST DAY EACH ROLE GOES SHORT, which is the sentence somebody can act

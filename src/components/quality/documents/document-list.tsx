@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { qualityDict } from "@/shared/studio/quality";
 import { useCallback, useState } from "react";
@@ -137,7 +138,7 @@ export function DocumentList({
       )}
 
       {documents === null ? (
-        <p className="text-sm text-muted-foreground">{tr.loading}</p>
+        <ScreenSkeleton loadingLabel={tr.loading} />
       ) : documents.length === 0 ? (
         <div className="rounded-geex border border-border bg-card px-6 py-16 text-center">
           <span className="mx-auto mb-3 grid size-12 place-items-center rounded-xl bg-muted text-muted-foreground">

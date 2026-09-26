@@ -1,5 +1,6 @@
 "use client";
 
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { useReload } from "@/components/studio2/useReload";
@@ -42,7 +43,7 @@ export default function AllocationsPanel({ slug, locale }) {
     return body;
   };
 
-  if (!data) return problem ? <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p> : <p className="text-sm text-slate-500">…</p>;
+  if (!data) return problem ? <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p> : <ScreenSkeleton />;
   const { rules = [], accounts = [], dimensionValues = {}, canPost } = data;
   const accountName = (id) => { const a = accounts.find((x) => x.id === id); return a ? `${a.code} ${a.name}` : ""; };
   const labelOf = (dim, v) => (dimensionValues[dim] || []).find((x) => x.value === v)?.label || v;
