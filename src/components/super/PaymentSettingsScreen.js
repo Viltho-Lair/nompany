@@ -3,6 +3,12 @@
 import { useCallback, useState } from "react";
 import { Card, CardHead, CardBody, Button, Badge } from "@/app/super/_components/ui";
 import { useReload } from "@/components/studio2/useReload";
+import SelectMenu from "@/components/fields/SelectMenu";
+import { CURRENCY_OPTIONS } from "@/shared/currencies";
+
+// PICKED FROM THE LIST, never typed (26/09/2026): a typed code could name a
+// currency nothing else in /super knows. Blank is still "any currency".
+const ACCOUNT_CURRENCIES = [{ value: "", label: "Any currency" }, ...CURRENCY_OPTIONS];
 
 // /super → PAYMENTS — how customers pay nompany (the owner, 26/09/2026).
 //
@@ -99,8 +105,8 @@ export default function PaymentSettingsScreen() {
             <fieldset key={a.id || `new-${i}`} className="rounded-md border p-3" style={{ borderColor: "var(--ad-border)" }}>
               <legend className="px-1 text-xs font-600">{a.label || `Account ${i + 1}`}</legend>
               <div className="grid gap-3 sm:grid-cols-3">
-                <Field label="Label (console only)"><input className="ad-input" value={a.label} onChange={(e) => account(i, { label: e.target.value })} placeholder="Arab Bank — USD" /></Field>
-                <Field label="Currency it takes" hint="Blank takes any currency. Customers see the account for their currency first."><input className="ad-input uppercase" maxLength={3} value={a.currency} onChange={(e) => account(i, { currency: e.target.value })} placeholder="USD" /></Field>
+                <Field label="Label (console only)"><input className="ad-input" value={a.label} onChange={(e) => account(i, { label: e.target.value })} placeholder="Arab Bank — current account" /></Field>
+                <Field label="Currency it takes" hint="Any currency takes every payment. Customers see the account for their currency first."><SelectMenu className="ad-input" value={a.currency || ""} aria-label="Currency it takes" onChange={(v) => account(i, { currency: v })} options={ACCOUNT_CURRENCIES} /></Field>
                 <Field label="Account name"><input className="ad-input" value={a.accountName} onChange={(e) => account(i, { accountName: e.target.value })} /></Field>
                 <Field label="IBAN"><input className="ad-input font-mono" value={a.iban} onChange={(e) => account(i, { iban: e.target.value })} /></Field>
                 <Field label="SWIFT / BIC"><input className="ad-input font-mono uppercase" maxLength={11} value={a.swift} onChange={(e) => account(i, { swift: e.target.value })} /></Field>

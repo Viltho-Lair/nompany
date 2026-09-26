@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Card, CardHead, CardBody, Table, Button, Badge, Skeleton } from "@/app/super/_components/ui";
 import { useReload } from "@/components/studio2/useReload";
 import SelectMenu from "@/components/fields/SelectMenu";
-import { CURRENCIES_FROM_EXCHANGE_API } from "@/shared/currencies";
+import { CURRENCY_OPTIONS } from "@/shared/currencies";
 import { HOME_COUNTRY, priceKey, regionalPrice, totalFor } from "@/shared/priceRegions";
 
 // REGIONAL PRICING — where a package costs what (23/09/2026, the owner, after
@@ -18,7 +18,6 @@ import { HOME_COUNTRY, priceKey, regionalPrice, totalFor } from "@/shared/priceR
 // region and what the checkout will charge. The base list on the Packages and
 // Tiers screens is what they are suggested FROM.
 
-const CURRENCY_OPTIONS = CURRENCIES_FROM_EXCHANGE_API.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }));
 
 const input = "ad-input";
 const label = "ad-label";
@@ -281,7 +280,9 @@ function PriceTable({ region, data, onSave }) {
     <Card>
       <CardHead
         title={`Prices in ${region.currency}`}
-        sub={rate === null
+        sub={!data.baseCurrency
+          ? "No base currency is chosen yet, so nothing can be suggested. Choose one in Packages → Pricing settings."
+          : rate === null
           ? `No exchange rate from ${data.baseCurrency} to ${region.currency} today, so nothing can be suggested — every price here has to be fixed by hand.`
           : `Base prices are in ${data.baseCurrency}. 1 ${data.baseCurrency} = ${Number(rate.toFixed(4))} ${region.currency} today${data.stale ? " (rates are out of date)" : ""}. An empty box uses the suggestion.`}
         action={(
@@ -311,7 +312,7 @@ function PriceTable({ region, data, onSave }) {
         {shown.length === 0 ? (
           <p className={`p-5 ${muted}`}>{tab === "tier" ? "No tiers yet — add them on the Tiers screen first." : "No packages yet — add them on the Packages screen first."}</p>
         ) : (
-          <Table className="mt-4" head={["Item", `Base (${data.baseCurrency})`, `Suggested (${region.currency})`, `Price (${region.currency})`, tab === "tier" ? "Per month" : "Monthly total", ""]}>
+          <Table className="mt-4" head={["Item", data.baseCurrency ? `Base (${data.baseCurrency})` : "Base", `Suggested (${region.currency})`, `Price (${region.currency})`, tab === "tier" ? "Per month" : "Monthly total", ""]}>
             {shown.map((r) => {
               const s = suggestion(r);
               const value = typed[r.key];

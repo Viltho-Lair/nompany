@@ -41,6 +41,10 @@ export const GET = route(spec, async ({ params }) => {
     dates: ladderDates(doc.subscription),
     ladder: LADDER,
     trialMonths: settings.trialMonths,
+    // THE CURRENCY EVERY PAYMENT AND REFUND IS RECORDED IN (26/09/2026): the
+    // catalogue's, chosen in Packages → Pricing settings. The panel shows it and
+    // cannot change it — the server ignores a typed one.
+    baseCurrency: settings.baseCurrency,
     // WHAT THE OWNER ASKED TO PAY FOR (the upgrade button, 24/09/2026): the
     // package, band, tier, cycle and the price quoted in their region, locked on
     // the request. The panel shows it and fills the payment form from it.

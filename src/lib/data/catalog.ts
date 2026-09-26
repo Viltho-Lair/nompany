@@ -10,6 +10,7 @@ import { readArr, editArr, getJSON, setJSON } from "@/platform/db/store";
 import { ID, REG } from "@/platform/db/keys";
 import { normalizeColor, hexForName, DEFAULT_HEX } from "@/lib/planColors";
 import { ANALYTICS_LEVELS } from "@/lib/analytics";
+import { isKnownCurrency } from "@/shared/currencies";
 import { WIDGET_KEYS } from "@/lib/dashboardWidgets";
 import { roundMoney } from "@/shared/money";
 import type { Row } from "@/platform/db/store";
@@ -76,7 +77,12 @@ function cleanLines(v: unknown) {
 // owner, 23/09/2026: three). The grace months that sat beside this are gone:
 // the unpaid ladder (20 / 90 / 365 days, 24/09/2026) is shared/subscription's
 // LADDER, and a setting nothing reads would be a knob that moves nothing.
-export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0, baseCurrency: "USD", taxPercent: 16, trialMonths: 3 };
+//
+// THE BASE CURRENCY HAS NO DEFAULT (the owner, 26/09/2026: "do not make it hard
+// coded"). It was "USD", which nothing could change, so a catalogue typed in
+// dinars was labelled and converted as dollars. Unset is "" and the console asks
+// for one (Packages → Pricing settings) rather than guessing.
+export const DEFAULT_CATALOG_SETTINGS = { yearlyDiscountPct: 0, baseCurrency: "", taxPercent: 16, trialMonths: 3 };
 
 // A whole number of months, 0–36. Absent is the default, never nought: a
 // settings object saved before these existed must not end every trial today.
@@ -86,9 +92,11 @@ const months = (v: unknown, fallback: number) => {
   return Number.isFinite(n) ? Math.min(36, Math.max(0, n)) : fallback;
 };
 
-const CODE = (v: unknown, fallback: string) => {
+// A currency the picker offers, or unset. Anything else is unset rather than a
+// substitute, because a substitute is a guess about what the prices mean.
+const CODE = (v: unknown) => {
   const c = String(v ?? "").trim().toUpperCase();
-  return /^[A-Z]{3}$/.test(c) ? c : fallback;
+  return isKnownCurrency(c) ? c : "";
 };
 
 export async function getCatalogSettings() {
@@ -96,7 +104,7 @@ export async function getCatalogSettings() {
   return {
     ...DEFAULT_CATALOG_SETTINGS, ...stored,
     yearlyDiscountPct: pct(stored.yearlyDiscountPct),
-    baseCurrency: CODE(stored.baseCurrency, DEFAULT_CATALOG_SETTINGS.baseCurrency),
+    baseCurrency: CODE(stored.baseCurrency),
     // ABSENT IS THE DEFAULT, not nought: a settings object saved before this
     // field existed must not publish nompany's prices as tax-free.
     taxPercent: stored.taxPercent === undefined ? DEFAULT_CATALOG_SETTINGS.taxPercent : pct(stored.taxPercent),
@@ -107,7 +115,7 @@ export async function getCatalogSettings() {
 export async function saveCatalogSettings(patch: Record<string, unknown>) {
   const next = {
     yearlyDiscountPct: pct(patch?.yearlyDiscountPct),
-    baseCurrency: CODE(patch?.baseCurrency, DEFAULT_CATALOG_SETTINGS.baseCurrency),
+    baseCurrency: CODE(patch?.baseCurrency),
     taxPercent: patch?.taxPercent === undefined ? DEFAULT_CATALOG_SETTINGS.taxPercent : pct(patch.taxPercent),
     trialMonths: months(patch?.trialMonths, DEFAULT_CATALOG_SETTINGS.trialMonths),
   };

@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardHead, CardBody, Table, Button, Badge, Icon } from "@/app/super/_components/ui";
 import { toneOf, planTagStyle, normalizeColor, PRESETS, DEFAULT_HEX } from "@/lib/planColors";
 import { widgetsBySection, widgetsForRung } from "@/lib/dashboardWidgets";
 import { ANALYTICS_LEVELS } from "@/lib/analytics";
 import SelectMenu from "@/components/fields/SelectMenu";
+import { CURRENCY_OPTIONS } from "@/shared/currencies";
 import { useReload } from "@/components/studio2/useReload";
 
 // Packages and Tiers are the same screen with different fields, so they are one
@@ -471,6 +473,7 @@ function DashboardWidgetPicker({ picked, onChange }) {
 // when it is opened rather than with the page — nobody pays for it until they
 // ask.
 function CatalogSettings({ config, onClose }) {
+  const router = useRouter();
   const [value, setValue] = useState(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -490,6 +493,8 @@ function CatalogSettings({ config, onClose }) {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value),
     }).catch(() => {});
     setBusy(false); setSaved(true);
+    // The page prints the base currency beside its figures, read on the server.
+    router.refresh();
   }
 
   return (
@@ -504,6 +509,19 @@ function CatalogSettings({ config, onClose }) {
           <p className="mt-5 text-sm text-[var(--ad-muted-foreground)]">Loading…</p>
         ) : (
           <div className="mt-5">
+            {/* THE BASE LIST'S CURRENCY. It was stored and read everywhere — the
+                tier costs, the pricing page, every regional suggestion — and
+                could not be set, so every catalogue sat on the USD default. It
+                RENAMES the figures rather than converting them: a tier at 50
+                reads as 50 of the new currency. */}
+            <label className={label} htmlFor="base-currency">Base currency</label>
+            <SelectMenu id="base-currency" className={input} value={value.baseCurrency || ""} aria-label="Base currency" placeholder="Choose a currency"
+              onChange={(v) => { setValue({ ...value, baseCurrency: v }); setSaved(false); }}
+              options={CURRENCY_OPTIONS} />
+            <p className="mt-1.5 mb-5 text-xs text-[var(--ad-muted-foreground)]">
+              The currency every package and tier price is typed in. Nothing is assumed until one is chosen. Changing it does not convert them — 50 stays 50, in the new currency. Fixed regional prices are unaffected.
+            </p>
+
             <label className={label} htmlFor="yearly-discount">Yearly discount</label>
             <div className="flex items-center gap-2">
               <input id="yearly-discount" className={input} type="number" min="0" max="100" step="0.01"

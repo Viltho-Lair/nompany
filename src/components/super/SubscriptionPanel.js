@@ -38,6 +38,7 @@ const EVENT_LABEL = {
 };
 
 const REFUSAL = {
+  "no-base-currency": "Choose the base currency in Packages → Pricing settings first — payments are recorded in it.",
   complimentary: "This studio is complimentary. Take that off before recording a payment.",
   "bad-periods": "Periods must be a whole number from 1 to 36.",
   "not-trial": "Only a trial can be extended.",
@@ -147,7 +148,8 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
           <div className="grid gap-2 sm:grid-cols-[5rem,1fr,5rem,1fr]">
             <input className="ad-input" type="number" min="1" max="36" value={form.periods} aria-label="Periods paid" onChange={(e) => set({ periods: e.target.value })} />
             <input className="ad-input" type="number" min="0" step="any" placeholder="Amount" value={form.amount} aria-label="Amount" onChange={(e) => set({ amount: e.target.value })} />
-            <input className="ad-input uppercase" maxLength={3} placeholder="JOD" value={form.currency} aria-label="Currency" onChange={(e) => set({ currency: e.target.value })} />
+            {/* The catalogue's currency, shown and never typed (26/09/2026). */}
+            <input className="ad-input" readOnly value={data.baseCurrency || "—"} aria-label="Currency" title={data.baseCurrency ? "Set in Packages → Pricing settings" : "No base currency chosen yet"} />
             <input className="ad-input" placeholder="Bank reference" value={form.reference} aria-label="Bank reference" onChange={(e) => set({ reference: e.target.value })} />
           </div>
           {/* THE PACKAGE THE MONEY IS FOR. A paid package applies once it is paid

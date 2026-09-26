@@ -24,7 +24,7 @@ import { sendEmail } from "@/platform/notify/email";
 import { billingNoticeEmail } from "@/platform/notify/emailTemplates";
 import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
 import { getStudioById, updateStudio } from "@/modules/main/studios";
-import { listCatalog } from "@/lib/data/catalog";
+import { listCatalog, getCatalogSettings } from "@/lib/data/catalog";
 import { SITE_URL } from "@/lib/seo";
 import { studioLocale } from "@/shared/locale";
 import { getSubscription, recordEvent, effectiveAccess, type SubscriptionDoc } from "./subscriptions";
@@ -265,8 +265,16 @@ export async function saveBillingProfile(studioId: string, body: Record<string, 
  * package, band and tier checked against the catalogue: a package applies to
  * the studio it was paid for, once paid (24/09/2026). Shared by "record a
  * payment" and "confirm a transfer", so the two cannot accept different things.
+ *
+ * THE CURRENCY IS THE CATALOGUE'S, NOT THE REQUEST'S (the owner, 26/09/2026:
+ * whatever is invoiced or paid from /super uses the currency selected in
+ * Packages → Pricing settings). A typed code let one studio's payments be in
+ * three currencies by accident; whatever the body says is ignored. With none
+ * chosen, a payment carrying money is refused rather than recorded in nothing.
  */
 export async function parsePaidEvent(id: string, body: Record<string, unknown>): Promise<BillingEvent | { error: string }> {
+  const { baseCurrency } = await getCatalogSettings();
+  if (!baseCurrency && Number(body.amount) > 0) return { error: "no-base-currency" };
   const packageId = text(body.packageId, 80);
   const categoryId = text(body.categoryId, 40);
   const tierId = text(body.tierId, 80);
@@ -278,7 +286,7 @@ export async function parsePaidEvent(id: string, body: Record<string, unknown>):
   if (tierId && !(await listCatalog("tiers")).some((t) => t.id === tierId)) return { error: "unknown-tier" };
   return {
     id, type: "paid", periods: Number(body.periods),
-    amount: Number(body.amount) || 0, currency: text(body.currency, 3).toUpperCase(),
+    amount: Number(body.amount) || 0, currency: baseCurrency,
     method: text(body.method, 40) || "bank-transfer", reference: text(body.reference, 120),
     ...(packageId ? { packageId } : {}), ...(categoryId ? { categoryId } : {}), ...(tierId ? { tierId } : {}),
     ...(body.seats !== undefined && body.seats !== "" ? { seats: Number(body.seats) } : {}),
@@ -473,7 +481,11 @@ export async function recordRefund(studioId: string, by: string, body: Record<st
   if (invoiceNo && !invoice) return { error: "unknown-invoice" };
 
   const amount = Number(body.amount);
-  const currency = invoice?.currency || text(body.currency, 3).toUpperCase();
+  // A credit note is in its INVOICE's currency, whatever the catalogue says
+  // today — an invoice issued in dollars is credited in dollars. A refund against
+  // no invoice is in the catalogue's currency, like every payment (26/09/2026).
+  const currency = invoice?.currency || (await getCatalogSettings()).baseCurrency;
+  if (!currency && amount > 0) return { error: "no-base-currency" };
   const reason = text(body.reason, 500);
   let credit: ReturnType<typeof creditFigures> | null = null;
   if (invoice) {

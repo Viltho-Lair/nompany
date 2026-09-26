@@ -23,6 +23,7 @@ const newId = () => (globalThis.crypto?.randomUUID?.() || `ev_${Date.now().toStr
 const dmy = (d) => (/^\d{4}-\d{2}-\d{2}/.test(String(d || "")) ? String(d).slice(0, 10).split("-").reverse().join("/") : "—");
 
 const REFUSAL = {
+  "no-base-currency": "Choose the base currency in Packages → Pricing settings first — payments are recorded in it.",
   answered: "Somebody already answered this.",
   "missing-reason": "Give the reason in a few words — the owner is emailed it.",
   "bad-periods": "Periods must be a whole number from 0 to 36.",
@@ -89,13 +90,14 @@ export default function BillingClaimsPanel({ studioId, data, packages = [], tier
       {!requestId && (
         <SelectMenu className="ad-select" value={form.invoiceNo} aria-label="Invoice refunded" onChange={(v) => {
           const inv = invoices.find((d) => d.number === v);
-          set({ invoiceNo: v, currency: inv?.currency || form.currency, amount: inv ? String(Math.max(0, inv.total - (inv.credited || 0))) : form.amount });
+          set({ invoiceNo: v, currency: inv?.currency || "", amount: inv ? String(Math.max(0, inv.total - (inv.credited || 0))) : form.amount });
         }}
           options={[{ value: "", label: "No invoice (no credit note)" }, ...invoices.map((d) => ({ value: d.number, label: `${d.number} — ${d.total} ${d.currency}` }))]} />
       )}
       <div className="grid gap-2 sm:grid-cols-[1fr,5rem,6rem]">
         <input className="ad-input" type="number" min="0" step="any" placeholder="Amount refunded" value={form.amount} aria-label="Amount refunded" onChange={(e) => set({ amount: e.target.value })} />
-        <input className="ad-input uppercase" maxLength={3} placeholder="USD" value={form.currency} disabled={Boolean(form.invoiceNo)} aria-label="Currency" onChange={(e) => set({ currency: e.target.value })} />
+        {/* An invoice's own currency, or the catalogue's — never typed (26/09/2026). */}
+        <input className="ad-input" readOnly value={form.currency || data.baseCurrency || "—"} aria-label="Currency" />
         <input className="ad-input" type="number" min="0" max="36" value={form.periods} aria-label="Periods taken back" title="Paid periods taken back" onChange={(e) => set({ periods: e.target.value })} />
       </div>
       <input className="ad-input" placeholder="Bank reference of the refund" value={form.reference} aria-label="Refund bank reference" onChange={(e) => set({ reference: e.target.value })} />
@@ -130,9 +132,15 @@ export default function BillingClaimsPanel({ studioId, data, packages = [], tier
                   {open === `confirm:${c.id}` ? (
                     <div className="mt-2 space-y-2 rounded-md border p-3" style={{ borderColor: "var(--ad-border)" }}>
                       <p className={muted}>What actually arrived. The plan comes from the owner&apos;s request; blank keeps the studio&apos;s current one.</p>
+                      {/* THEY MAY HAVE SENT ANOTHER CURRENCY — a region prices in its own —
+                          and the payment is recorded in the catalogue's, so the amount has
+                          to be what that is worth in it, not the figure they typed. */}
+                      {c.currency && data.baseCurrency && c.currency !== data.baseCurrency && (
+                        <p className="text-sm" style={{ color: "var(--ad-warning)" }}>They say they sent {c.currency}; this is recorded in {data.baseCurrency}. Enter what arrived in {data.baseCurrency}.</p>
+                      )}
                       <div className="grid gap-2 sm:grid-cols-[1fr,5rem,5rem]">
                         <input className="ad-input" type="number" min="0" step="any" value={form.amount} aria-label="Amount received" onChange={(e) => set({ amount: e.target.value })} />
-                        <input className="ad-input uppercase" maxLength={3} value={form.currency} aria-label="Currency" onChange={(e) => set({ currency: e.target.value })} />
+                        <input className="ad-input" readOnly value={data.baseCurrency || "—"} aria-label="Currency" />
                         <input className="ad-input" type="number" min="1" max="36" value={form.periods} aria-label="Periods paid" title="Periods paid" onChange={(e) => set({ periods: e.target.value })} />
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">

@@ -1,5 +1,6 @@
 import { PageHeader } from "../../_components/ui";
 import CatalogEditor from "@/components/super/CatalogEditor";
+import { getCatalogSettings } from "@/lib/data/catalog";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Packages" };
@@ -25,7 +26,10 @@ const TYPES = [
 const ONLY_COMPOUND = { field: "type", equals: "compound", fallback: "compound" };
 const NOT_COMPOUND = { field: "type", notEquals: "compound", fallback: "compound" };
 
-const FIELDS = [
+// `base` is the catalogue's base currency, printed beside every figure so a
+// package reads in the same currency the tiers do (the owner, 26/09/2026: the
+// tiers said USD while the packages said nothing and were meant as JOD).
+const fieldsFor = (base) => [
   { key: "name", label: "Name", type: "text", placeholder: "Small" },
   { key: "nameAr", label: "Name (Arabic)", type: "text", placeholder: "صغيرة" },
   { key: "type", label: "Card type", type: "select", options: TYPES },
@@ -44,9 +48,9 @@ const FIELDS = [
   },
   { key: "minEmployees", label: "Min employees", type: "number", showWhen: NOT_COMPOUND },
   { key: "maxEmployees", label: "Max employees", type: "number", showWhen: NOT_COMPOUND, zeroLabel: "No limit", hint: "0 means no upper limit." },
-  { key: "costPerEmployee", label: "Cost per employee", type: "number", showWhen: NOT_COMPOUND, hint: "The base price. Each region's own price is set under Regional pricing." },
+  { key: "costPerEmployee", label: "Cost per employee", type: "number", prefix: base ? `${base} ` : "", showWhen: NOT_COMPOUND, hint: "The base price. Each region's own price is set under Regional pricing." },
   {
-    key: "cost", label: "Total cost", type: "computed",
+    key: "cost", label: "Total cost", type: "computed", prefix: base ? `${base} ` : "",
     multiply: ["costPerEmployee", "maxEmployees"],
     whenZero: "costPerEmployee",
     showWhen: NOT_COMPOUND,
@@ -102,14 +106,15 @@ const FIELDS = [
 // everything shows nothing.
 const COLUMNS = ["name", "type", "usersLabel", "cost", "chatEnabled", "includes", "isPublic"];
 
-export default function PackagesPage() {
+export default async function PackagesPage() {
+  const { baseCurrency } = await getCatalogSettings();
   return (
     <>
       <PageHeader
         title="Packages"
       />
       <CatalogEditor
-        kind="packages" title="Packages" fields={FIELDS}
+        kind="packages" title="Packages" fields={fieldsFor(baseCurrency)}
         columns={COLUMNS}
         settings={{ title: "Pricing settings", sub: "Applies to every package on the public pricing page." }}
       />

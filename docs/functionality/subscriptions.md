@@ -264,6 +264,17 @@ stays a way to pay after online payment ships.
     **paid periods taken back only when the console says so** (0 leaves the studio paid).
     Against an invoice it issues a **credit note** at the invoice's tax rate, never more
     than is left on the invoice. The owner is emailed.
+- **One currency for everything /super issues (26/09/2026, the owner)**: the catalogue's
+  base currency, chosen in Packages → Pricing settings (`regional-pricing.md`).
+  - A payment, recorded or confirmed from a claim, is stored in it whatever the request
+    says (`parsePaidEvent`), so its invoice is too. The console shows it and cannot type
+    one. With none chosen, a payment carrying money is refused (`no-base-currency`).
+  - A refund against an invoice is in **that invoice's** currency, because a credit note
+    has to match what it credits; a refund against no invoice is in the base currency.
+  - The owner's own claim still says the currency they SENT. When it differs, the
+    confirm form says so, and the console enters what arrived in the base currency.
+  - A bank account's currency is picked from the currency list, or "Any currency".
+  - Payments and documents recorded before this keep the currency they were stored in.
 
 ## Not built yet
 

@@ -25,6 +25,14 @@ country pack (`official-values.md`), which is how a studio adapts to its country
 The catalogue settings (`g:catalogSettings`) gained `taxPercent`, default **16**. Prices
 are **before tax**; this is the rate added on top.
 
+Their `baseCurrency` is the currency every package and tier price is TYPED in, picked
+from the currency list in Packages → Pricing settings (26/09/2026 — before that nothing
+could set it and a hard-coded USD stood in). **It has no default**: unset is `""`, the
+console asks for one, and Regional pricing suggests nothing until it is chosen. Both the Packages and Tiers tables print it
+beside their figures. **Changing it renames the figures, it does not convert them**: a tier
+at 50 reads as 50 of the new currency. Fixed regional prices are in their region's own
+currency and do not move; suggestions re-derive from the new base.
+
 ## What it does
 
 - **A price is fixed or suggested.** A fixed price is what the owner typed, and it

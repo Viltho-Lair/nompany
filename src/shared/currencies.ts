@@ -206,6 +206,10 @@ export type Rates = Record<string, number | string>;
 export const CURRENCIES_FROM_EXCHANGE_API: Currency[] =
   TABLE.map(([code, name, country]) => ({ code, name, country }));
 
+// The picker's rows — "JOD — Jordanian Dinar". One list, shared by every
+// currency dropdown in /super, so two dropdowns cannot word a currency differently.
+export const CURRENCY_OPTIONS = CURRENCIES_FROM_EXCHANGE_API.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }));
+
 const BY_CODE = new Map(CURRENCIES_FROM_EXCHANGE_API.map((c) => [c.code, c]));
 
 // Look one up. Unknown codes come back as a stub rather than undefined, so a
