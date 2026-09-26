@@ -277,7 +277,7 @@ for (const root of M.MANUAL_FROM_HELP) {
   const sample = pay.entries.find((e) => inRoot.some((x) => x.id === e.id));
   ok(`${root}: Nova's answers link into the chapter`, Boolean(sample?.doc));
 }
-const outside = K.helpPayload("en", K.studioFilter([])).entries.find((e) => e.id.startsWith("quotations"));
+const outside = K.helpPayload("en", K.studioFilter([])).entries.find((e) => e.id.startsWith("pos"));
 ok("a department still written by hand gets no documentation link", outside && outside.doc === "");
 
 console.log(fails ? `\n${fails} failure(s)` : "\nall passed");

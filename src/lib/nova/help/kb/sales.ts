@@ -1,37 +1,19 @@
 import type { HelpModule } from "../types";
 
-// NOVA'S HELP FOR THE SELLING DEPARTMENTS — Quotations, Point of Sale and
-// Marketing.
+// NOVA'S HELP FOR THE SELLING DEPARTMENTS — Point of Sale and Marketing.
 //
-// CRM & SALES MOVED OUT, 27/09/2026, to `./crmSales.ts`: its entries became the
-// CRM & Sales chapter of the studio manual (see `../manual.ts`), and a module
-// that is a chapter is written to that module's own ordering rules. Its entry
-// ids did not change, and entries here still link to them by id.
+// CRM & SALES MOVED OUT, 27/09/2026, to `./crmSales.ts`, and QUOTATIONS the
+// same day, to `./quotations.ts`: each one's entries became that department's
+// chapter of the studio manual (see `../manual.ts`), and a module that is a
+// chapter is written to that module's own ordering rules. Their entry ids did
+// not change, and entries here still link to them by id.
 //
-// WRITTEN FROM `docs/functionality/*.md` AND THE STUDIO MANUAL
-// (`shared/studio/manualQuotations.ts`), which was itself written from the code. Where a doc lists something under "Not built yet" and a
+// WRITTEN FROM `docs/functionality/*.md`. Where a doc lists something under "Not built yet" and a
 // person would plausibly ask for it, the entry says in words that it is not
 // available — a help desk that is silent about a gap reads as a feature nobody
 // can find. When one of those ships, its entry changes in the same commit.
 export const sales: HelpModule = {
   topics: [
-    // ---- Quotations ----------------------------------------------------------
-    { id: "dept.quotations", parent: "departments", sectionKey: "quotations", order: 2,
-      label: { en: "Quotations", ar: "عروض الأسعار" },
-      blurb: { en: "Pricing the work Sales asks for", ar: "تسعير الأعمال التي تطلبها المبيعات" } },
-    { id: "dept.quotations-rfq", parent: "dept.quotations", sectionKey: "quotations-rfq", order: 1,
-      label: { en: "RFQs", ar: "طلبات عروض الأسعار" },
-      blurb: { en: "The desk where price requests from Sales arrive", ar: "المكتب الذي تصل إليه طلبات التسعير من المبيعات" } },
-    { id: "dept.quotations-register", parent: "dept.quotations", sectionKey: "quotations-register", order: 2,
-      label: { en: "Quotations", ar: "عروض الأسعار" },
-      blurb: { en: "Every quotation, built, revised and approved", ar: "كل عروض الأسعار: بناؤها ومراجعتها واعتمادها" } },
-    { id: "dept.quotations-live", parent: "dept.quotations", sectionKey: "quotations-live", order: 3,
-      label: { en: "Live view", ar: "العرض المباشر" },
-      blurb: { en: "A full-screen table of quotations", ar: "جدول عروض الأسعار بملء الشاشة" } },
-    { id: "dept.quotations-settings", parent: "dept.quotations", sectionKey: "quotations-settings", order: 4,
-      label: { en: "Settings", ar: "الإعدادات" },
-      blurb: { en: "Numbering, validity and Live view columns", ar: "الترقيم ومدة الصلاحية وأعمدة العرض المباشر" } },
-
     // ---- Point of Sale -------------------------------------------------------
     { id: "dept.pos", parent: "departments", sectionKey: "pos", order: 17,
       label: { en: "Point of Sale", ar: "نقطة البيع" },
@@ -86,164 +68,6 @@ export const sales: HelpModule = {
   ],
 
   entries: [
-    // =========================================================================
-    // QUOTATIONS
-    // =========================================================================
-    { id: "quotations.about", topic: "dept.quotations", kind: "about", common: true, open: "quotations",
-      q: { en: "What is the Quotations department for?", ar: "ما الغرض من قسم عروض الأسعار؟" },
-      a: { en: "A quotation is engineering work, so it is built here rather than in Sales. Sales asks with an RFQ raised from a ticket, this department answers with a priced quotation, and the quotation goes back to the ticket. Sales never prices the work, and Quotations never decides whether the deal is won. The department has a dashboard, the RFQs desk, the quotations list, a Live view and Settings.",
-           ar: "عرض السعر عمل هندسي، لذلك يبنى هنا لا في المبيعات. تطلب المبيعات عبر طلب عرض سعر من تذكرة، ويرد هذا القسم بعرض مسعر يعود إلى التذكرة. لا تسعر المبيعات العمل أبدا، ولا يقرر قسم عروض الأسعار الفوز بالصفقة. يضم القسم لوحة معلومات ومكتب الطلبات وقائمة العروض والعرض المباشر والإعدادات." },
-      keywords: ["quotation", "quote", "presales", "estimate", "offer", "عرض سعر", "تسعير", "ما قبل البيع", "عرض"],
-      related: ["quotations-rfq.about", "quotations-register.about"] },
-    { id: "quotations.dashboard", topic: "dept.quotations", kind: "about", open: "quotations",
-      q: { en: "What does the Quotations dashboard show?", ar: "ماذا تعرض لوحة معلومات عروض الأسعار؟" },
-      a: { en: "Four figures: open RFQs (requests not yet converted or turned down), quotations out (sent or approved), the average days from a quotation being created to being approved, and the total value of all quotations. Depending on your plan, charts follow, such as quotations raised per day, requests by status, value by month and the handlers with the most quotations. The dashboard is a right of its own.",
-           ar: "أربعة أرقام: طلبات العروض المفتوحة (التي لم تحول أو ترفض بعد)، والعروض الصادرة (المرسلة أو المعتمدة)، ومتوسط الأيام من إنشاء العرض حتى اعتماده، والقيمة الإجمالية لكل العروض. وحسب باقتك تليها رسوم بيانية مثل العروض المنشأة يوميا، والطلبات حسب الحالة، والقيمة حسب الشهر، والمسؤولون الأكثر عروضا. لوحة المعلومات صلاحية مستقلة." },
-      keywords: ["dashboard", "turnaround", "open rfqs", "quotation value", "لوحة المعلومات", "مدة الإنجاز", "قيمة العروض"],
-      related: ["quotations.about"] },
-    { id: "quotations.internal", topic: "dept.quotations", kind: "fields", open: "quotations-register",
-      q: { en: "What do I need to raise a quotation without a Sales ticket?", ar: "ما الذي أحتاجه لإنشاء عرض سعر دون تذكرة مبيعات؟" },
-      a: { en: "New quotation on the Quotations screen raises an internal quotation, for work that never went through a Sales ticket. It is numbered, starts as New and empty, and is priced in the builder like any other. An internal quotation has no ticket, so it has no revisions, nothing in Sales changes, and you request its approval from its row once it is Completed.",
-           ar: "زر عرض جديد في شاشة العروض ينشئ عرضا داخليا لعمل لم يمر بتذكرة مبيعات. يرقم ويبدأ بحالة جديد وفارغا، ويسعر في أداة البناء كغيره. وبما أن العرض الداخلي بلا تذكرة فلا مراجعات له ولا يتغير شيء في المبيعات، وتطلب اعتماده من صفه بعد اكتماله." },
-      fields: { en: ["Sequence (required): which numbering to use", "Client (required): an existing customer or a new name", "Title, type of industry, deadline and description (all required)", "Contact and location (optional)", "Handled by: you, unless you may assign quotations"],
-                ar: ["التسلسل (مطلوب): أي ترقيم يستخدم", "العميل (مطلوب): عميل موجود أو اسم جديد", "العنوان ونوع المجال والموعد النهائي والوصف (كلها مطلوبة)", "جهة الاتصال والموقع (اختياري)", "المسؤول: أنت، إلا إن كنت تملك صلاحية إسناد العروض"] },
-      keywords: ["internal quotation", "new quotation", "without ticket", "عرض داخلي", "عرض جديد", "بدون تذكرة"],
-      related: ["quotations-register.build"] },
-
-    // ---- RFQs --------------------------------------------------------------
-    { id: "quotations-rfq.about", topic: "dept.quotations-rfq", kind: "about", common: true, open: "quotations-rfq",
-      q: { en: "What is the RFQs desk?", ar: "ما هو مكتب طلبات عروض الأسعار؟" },
-      a: { en: "The RFQs desk is where every price request from Sales arrives; the desk's staff and everybody who builds quotations are told when one lands. Each request is reviewed, converted into a quotation, or turned down. Everything about the deal is read from the Sales ticket as it is now, so a correction Sales makes shows here too. Whoever converts a request handles the quotation unless somebody with the right to assign names another person.",
-           ar: "مكتب الطلبات هو المكان الذي تصل إليه كل طلبات التسعير من المبيعات، ويبلغ موظفو المكتب وكل من يبني العروض عند وصول طلب. يراجع كل طلب ثم يحول إلى عرض سعر أو يرفض. تقرأ كل تفاصيل الصفقة من تذكرة المبيعات كما هي الآن، فأي تصحيح تجريه المبيعات يظهر هنا أيضا. ومن يحول الطلب يتولى العرض ما لم يسم من يملك صلاحية الإسناد شخصا آخر." },
-      keywords: ["rfq", "request for quotation", "intake", "desk", "queue", "طلب عرض سعر", "مكتب الطلبات", "طابور"],
-      related: ["quotations-rfq.convert", "quotations-rfq.reject"] },
-    { id: "quotations-rfq.convert", topic: "dept.quotations-rfq", kind: "howto", common: true, open: "quotations-rfq",
-      q: { en: "How do I turn an RFQ into a quotation?", ar: "كيف أحول طلب عرض سعر إلى عرض سعر؟" },
-      a: { en: "The first quotation for a ticket takes the next number from the default sequence. A later request on the same ticket keeps the number and becomes the next revision, starting from a copy of the previous one. The request becomes Converted and the Sales ticket shows who is handling it.",
-           ar: "يأخذ أول عرض للتذكرة الرقم التالي من التسلسل الافتراضي. أما الطلب اللاحق على التذكرة نفسها فيحتفظ بالرقم ويصبح المراجعة التالية، بدءا من نسخة من المراجعة السابقة. تصبح حالة الطلب محولا، وتعرض تذكرة المبيعات من يتولى العرض." },
-      steps: { en: ["Open the request; mark it In review and Save while you look into it.", "Press Convert.", "Check the customer, title, urgency and industry, which come from Sales.", "If you may assign quotations, choose who handles it.", "Press Convert and open the new quotation in the builder."],
-               ar: ["افتح الطلب، واجعل حالته قيد المراجعة واحفظ أثناء دراسته.", "اضغط تحويل.", "تحقق من العميل والعنوان والأولوية والمجال القادمة من المبيعات.", "إن كنت تملك صلاحية إسناد العروض فاختر من يتولاه.", "اضغط تحويل وافتح العرض الجديد في أداة البناء."] },
-      keywords: ["convert", "in review", "handle rfq", "assign handler", "تحويل", "قيد المراجعة", "إسناد العرض"],
-      related: ["quotations-register.build", "quotations-rfq.reject"] },
-    { id: "quotations-rfq.reject", topic: "dept.quotations-rfq", kind: "troubleshoot", open: "quotations-rfq",
-      q: { en: "What happens when I turn an RFQ down, and can I undo it?", ar: "ماذا يحدث عند رفض طلب عرض سعر، وهل يمكن التراجع؟" },
-      a: { en: "Saving a request as Rejected is final: it can no longer be converted or changed. It closes the Sales deal as lost, if it was still at Lead or Opportunity, with the reason that Quotations turned the RFQ down. Rejecting asks no reason and tells nobody by itself, so write why in the description before saving; Sales will read it there.",
-           ar: "حفظ الطلب بحالة مرفوض نهائي: لا يمكن تحويله أو تغييره بعدها. ويغلق صفقة المبيعات كخاسرة إن كانت ما زالت في مرحلة عميل محتمل أو فرصة، مع سبب أن قسم عروض الأسعار رفض الطلب. الرفض لا يطلب سببا ولا يبلغ أحدا تلقائيا، فاكتب السبب في الوصف قبل الحفظ؛ وستقرؤه المبيعات هناك." },
-      keywords: ["reject rfq", "decline", "turn down", "undo reject", "رفض الطلب", "اعتذار", "التراجع عن الرفض"],
-      related: ["crm-sales-pipeline.reopen-closed"] },
-    { id: "quotations-rfq.raise", topic: "dept.quotations-rfq", kind: "howto", open: "quotations-rfq",
-      q: { en: "Can I raise an RFQ from the desk instead of from Sales?", ar: "هل يمكنني رفع طلب عرض سعر من المكتب بدلا من المبيعات؟" },
-      a: { en: "Yes, Raise an RFQ on the desk does the same as Request RFQ on a ticket, for somebody who works in both departments; it needs the right to create RFQs. The request is referenced RFQ followed by the ticket's reference, and a ticket still at Lead moves to Opportunity.",
-           ar: "نعم، زر رفع طلب عرض سعر في المكتب يؤدي ما يؤديه زر طلب عرض سعر في التذكرة، لمن يعمل في القسمين؛ ويحتاج إلى صلاحية إنشاء الطلبات. يكون مرجع الطلب RFQ متبوعا بمرجع التذكرة، وتنتقل التذكرة التي ما زالت عميلا محتملا إلى فرصة." },
-      steps: { en: ["Press Raise an RFQ.", "Choose the ticket that needs pricing and write what is needed.", "Press Raise RFQ."],
-               ar: ["اضغط رفع طلب عرض سعر.", "اختر التذكرة التي تحتاج إلى تسعير واكتب المطلوب.", "اضغط رفع الطلب."] },
-      keywords: ["raise rfq", "new rfq", "create request", "رفع طلب", "طلب جديد"],
-      related: ["quotations-rfq.cannot-raise"] },
-    { id: "quotations-rfq.cannot-raise", topic: "dept.quotations-rfq", kind: "troubleshoot", open: "quotations-rfq",
-      q: { en: "Why is a ticket not offered when I raise an RFQ?", ar: "لماذا لا تظهر تذكرة عند رفع طلب عرض سعر؟" },
-      a: { en: "Only open deals are offered: a ticket already won, lost, cancelled or dropped has nobody waiting on a price, and a closed deal is refused. A ticket with a request already waiting is left out, because there is one request at a time per ticket. So is a ticket whose latest quotation is approved; a change after approval is a new ticket.",
-           ar: "تعرض الصفقات المفتوحة فقط: فالتذكرة الفائزة أو الخاسرة أو الملغاة أو المسقطة لا ينتظر أحد سعرا لها، وترفض الصفقة المغلقة. وتستبعد التذكرة التي لديها طلب معلق، لأنه لا يسمح إلا بطلب واحد في كل مرة لكل تذكرة. وكذلك التذكرة التي اعتمد آخر عرض لها؛ فالتغيير بعد الاعتماد يكون بتذكرة جديدة." },
-      keywords: ["ticket missing", "cannot raise", "closed deal", "already requested", "تذكرة غير ظاهرة", "لا يمكن الرفع", "صفقة مغلقة"],
-      related: ["quotations-rfq.raise", "crm-sales-tickets.request-rfq"] },
-
-    // ---- Quotations register -----------------------------------------------
-    { id: "quotations-register.about", topic: "dept.quotations-register", kind: "about", common: true, open: "quotations-register",
-      q: { en: "What is on the quotations list?", ar: "ماذا تضم قائمة عروض الأسعار؟" },
-      a: { en: "Every quotation the studio has written, from Sales and internal, every revision, newest first; an amber stripe marks one that is New or Draft. You can search, filter by handler, customer, status, urgency and date, and choose columns. Each row offers Open, Request approval (internal quotations), Assign, Lock, Unlock and Close, each shown only if you hold that right. Assigning hands the quotation to somebody else, who is told at once.",
-           ar: "كل عروض الأسعار التي كتبها الاستوديو، من المبيعات والداخلية، بكل مراجعاتها، الأحدث أولا، ويميز شريط كهرماني العرض الجديد أو المسودة. يمكنك البحث والتصفية حسب المسؤول والعميل والحالة والأولوية والتاريخ واختيار الأعمدة. ويعرض كل صف أزرار الفتح وطلب الاعتماد (للعروض الداخلية) والإسناد والقفل وفك القفل والإغلاق، ويظهر كل منها لمن يملك صلاحيته فقط. والإسناد يسلم العرض لشخص آخر يبلغ فورا." },
-      keywords: ["quotation list", "register", "assign quotation", "handler", "قائمة العروض", "سجل العروض", "إسناد العرض"],
-      related: ["quotations-register.build", "quotations-register.locked"] },
-    { id: "quotations-register.build", topic: "dept.quotations-register", kind: "howto", common: true, open: "quotations-register",
-      q: { en: "How do I build and submit a quotation?", ar: "كيف أبني عرض سعر وأقدمه؟" },
-      a: { en: "A quotation is made of tables, one for each section of the work, each holding its lines. A line's price comes from Inventory's Registered Items and is never typed; something that is not a registered item can be described but carries no price. Save keeps your work as a Draft; Submit finishes it as Completed, and it needs at least one line with a description. The total is always recalculated from the lines when you save.",
-           ar: "يتكون عرض السعر من جداول، جدول لكل قسم من العمل، يضم كل منها بنوده. يأتي سعر البند من الأصناف المسجلة في المخزون ولا يكتب يدويا؛ ويمكن وصف ما ليس صنفا مسجلا لكنه لا يحمل سعرا. الحفظ يبقي عملك مسودة، والتقديم ينهيه بحالة مكتمل ويتطلب بندا واحدا على الأقل له وصف. ويعاد حساب الإجمالي دائما من البنود عند الحفظ." },
-      steps: { en: ["Open the quotation from the list; a New one becomes a Draft.", "Press Add table and give the section a title.", "Press Add row, type a registered item's name and choose it.", "Set the quantity and any line discount.", "Check VAT and Valid until, then Save.", "Press Submit when it is finished."],
-               ar: ["افتح العرض من القائمة؛ ويصبح العرض الجديد مسودة.", "اضغط إضافة جدول وأعط القسم عنوانا.", "اضغط إضافة صف، واكتب اسم صنف مسجل واختره.", "حدد الكمية وأي خصم على البند.", "تحقق من الضريبة وتاريخ الصلاحية ثم احفظ.", "اضغط تقديم عند الانتهاء."] },
-      keywords: ["builder", "price quotation", "add line", "submit", "tables", "أداة البناء", "تسعير العرض", "إضافة بند", "تقديم"],
-      related: ["quotations-register.prices", "quotations-register.approval"] },
-    { id: "quotations-register.prices", topic: "dept.quotations-register", kind: "about", open: "quotations-register",
-      q: { en: "Where do the prices on a quotation come from?", ar: "من أين تأتي الأسعار في عرض السعر؟" },
-      a: { en: "For each item the builder uses the first that exists: the price agreed with this customer (marked Customer's agreed rate), then the item's sell price, then its landed cost converted at today's rate (marked At cost, not priced). Prices are copied, so changing an item's price later does not re-price a quotation already written. An item in another currency that cannot be converted today is priced at zero with a warning. Nothing warns yet when a quotation goes out below cost.",
-           ar: "تستخدم أداة البناء لكل صنف أول ما يتوفر: السعر المتفق عليه مع هذا العميل (ويعلم بأنه سعر العميل المتفق عليه)، ثم سعر بيع الصنف، ثم تكلفته الواصلة محولة بسعر صرف اليوم (ويعلم بأنه بالتكلفة وغير مسعر). تنسخ الأسعار، فتغيير سعر الصنف لاحقا لا يعيد تسعير عرض مكتوب. والصنف بعملة أخرى لا يمكن تحويلها اليوم يسعر بصفر مع تحذير. ولا يوجد بعد تحذير عند إرسال عرض بأقل من التكلفة." },
-      keywords: ["price", "sell price", "cost", "agreed rate", "margin", "السعر", "سعر البيع", "التكلفة", "هامش الربح"],
-      related: ["crm-sales-clients.agreed-rates", "quotations-register.build"] },
-    { id: "quotations-register.revisions", topic: "dept.quotations-register", kind: "about", open: "quotations-register",
-      q: { en: "How do revisions work, and how do I see what changed?", ar: "كيف تعمل المراجعات، وكيف أرى ما تغير؟" },
-      a: { en: "When a customer asks for changes, Sales requests another RFQ, and converting it keeps the quotation number, adds one to the revision and starts from a copy of the last one. The earlier revision is locked and stays in the list. In the builder, Compare with Rev N shows lines added, changed and removed, sections renamed or moved, the VAT rate and the two totals. Comparison is only against the revision immediately before, and it cannot be printed yet.",
-           ar: "عندما يطلب العميل تعديلات، تطلب المبيعات عرض سعر آخر، وتحويله يحتفظ برقم العرض ويزيد رقم المراجعة ويبدأ من نسخة من الأخيرة. تقفل المراجعة السابقة وتبقى في القائمة. وفي أداة البناء يعرض زر المقارنة مع المراجعة السابقة البنود المضافة والمعدلة والمحذوفة، والأقسام المعاد تسميتها أو المنقولة، ونسبة الضريبة، والإجماليين. المقارنة مع المراجعة السابقة مباشرة فقط، ولا يمكن طباعتها بعد." },
-      keywords: ["revision", "rev", "compare", "what changed", "version", "مراجعة", "مقارنة", "ما الذي تغير", "إصدار"],
-      related: ["crm-sales-tickets.request-rfq"] },
-    { id: "quotations-register.locked", topic: "dept.quotations-register", kind: "troubleshoot", open: "quotations-register",
-      q: { en: "Why can't I edit or delete a quotation?", ar: "لماذا لا أستطيع تعديل عرض سعر أو حذفه؟" },
-      a: { en: "A quotation is never deleted; it is closed. Close asks why, then keeps the quotation with its number and every revision, and a closed quotation is final. A locked quotation, shown with a padlock, opens view only; it was locked by hand after approval or because a newer revision replaced it. Unlocking is a right of its own. You may also simply lack the right to edit quotations.",
-           ar: "لا يحذف عرض السعر أبدا بل يغلق. يطلب الإغلاق سببا ثم يحتفظ بالعرض برقمه وكل مراجعاته، والعرض المغلق نهائي. أما العرض المقفل، المعلم بقفل، فيفتح للعرض فقط؛ وقد قفل يدويا بعد الاعتماد أو لأن مراجعة أحدث حلت محله. فك القفل صلاحية مستقلة. وقد تكون ببساطة لا تملك صلاحية تعديل العروض." },
-      keywords: ["delete quotation", "locked", "padlock", "close quotation", "unlock", "حذف العرض", "مقفل", "إغلاق العرض", "فك القفل"],
-      related: ["quotations-register.revisions"] },
-    { id: "quotations-register.approval", topic: "dept.quotations-register", kind: "howto", open: "quotations-register",
-      q: { en: "How is a quotation approved?", ar: "كيف يعتمد عرض السعر؟" },
-      a: { en: "A quotation from a Sales ticket is sent for approval by Sales, from the ticket. An internal quotation is sent from here once it is Completed, with Request approval on its row. It goes step by step to the people named for quotations in Approval settings; until an Admin names them the request is refused. The person who asks is not asked to approve, and a turned-down approval shows the reason so you can fix it and ask again.",
-           ar: "العرض القادم من تذكرة مبيعات ترسله المبيعات للاعتماد من التذكرة. أما العرض الداخلي فيرسل من هنا بعد اكتماله بزر طلب الاعتماد في صفه. ويمر خطوة بخطوة على الأشخاص المسمين للعروض في إعدادات الموافقات، ويرفض الطلب إلى أن يسميهم المسؤول. لا يطلب من صاحب الطلب أن يعتمده، ويعرض الاعتماد المرفوض سببه لتصلح المطلوب وتطلب مجددا." },
-      steps: { en: ["Make sure the quotation is Completed.", "Press Request approval on its row.", "Follow the steps signed on the row.", "Once approved, it can be locked."],
-               ar: ["تأكد من أن العرض مكتمل.", "اضغط طلب الاعتماد في صفه.", "تابع الخطوات الموقعة في الصف.", "بعد الاعتماد يمكن قفله."] },
-      keywords: ["approve quotation", "request approval", "approvers", "اعتماد العرض", "طلب اعتماد", "المعتمدون"],
-      related: ["crm-sales-tickets.approval-po", "quotations.internal"] },
-    { id: "quotations-register.print", topic: "dept.quotations", kind: "howto", open: "quotations-register",
-      q: { en: "How do I print a quotation or save it as a PDF?", ar: "كيف أطبع عرض السعر أو أحفظه كملف PDF؟" },
-      a: { en: "Print, in the builder, opens the quotation on the studio's own quotation layout in a new tab, in English or Arabic, ready for the printer or a PDF. It prints what was saved, and one not yet approved carries a DRAFT stamp. The layout is designed in Engineering & Documents; if the studio has none yet, the page says so.",
-           ar: "زر الطباعة في أداة البناء يفتح العرض بتصميم عرض السعر الخاص بالاستوديو في تبويب جديد، بالعربية أو الإنجليزية، جاهزا للطابعة أو لملف PDF. يطبع ما تم حفظه، ويحمل العرض غير المعتمد بعد ختم مسودة. يصمم القالب في قسم الهندسة والوثائق، وإن لم يكن للاستوديو قالب بعد فالصفحة تقول ذلك." },
-      steps: { en: ["Save the quotation.","Press Print in the builder.","Choose English or Arabic, then print or save as PDF from the browser."],
-               ar: ["احفظ العرض.","اضغط طباعة في أداة البناء.","اختر العربية أو الإنجليزية، ثم اطبع أو احفظ كملف PDF من المتصفح."] },
-      keywords: ["print", "pdf", "layout", "template", "draft stamp", "طباعة", "قالب", "ختم مسودة"],
-      related: ["quotations-register.approval"] },
-
-    // ---- Live view ---------------------------------------------------------
-    { id: "quotations-live.about", topic: "dept.quotations-live", kind: "about", common: true, open: "quotations-live",
-      q: { en: "What is the Quotations Live view?", ar: "ما هو العرض المباشر لعروض الأسعار؟" },
-      a: { en: "A full-screen table of every quotation, newest first, refreshing every five seconds, meant for a wall screen. Pause stops it on this screen and Resume starts it again. The back arrow returns to Quotations.",
-           ar: "جدول بملء الشاشة لكل عروض الأسعار، الأحدث أولا، يتحدث كل خمس ثوان، ومخصص لشاشة الحائط. يوقفه زر الإيقاف المؤقت على هذه الشاشة ويعيده زر الاستئناف. ويعود سهم الرجوع إلى قسم عروض الأسعار." },
-      keywords: ["live view", "wall screen", "tv", "العرض المباشر", "شاشة الحائط"],
-      related: ["quotations-live.columns", "quotations-live.stopped"] },
-    { id: "quotations-live.columns", topic: "dept.quotations-live", kind: "howto", open: "quotations-settings",
-      q: { en: "How do I choose the columns on the Quotations Live view?", ar: "كيف أختار أعمدة العرض المباشر لعروض الأسعار؟" },
-      a: { en: "The columns are the same for everybody and are set in Quotations Settings by somebody who may change them. If you untick them all, the default columns come back.",
-           ar: "الأعمدة واحدة للجميع، ويضبطها في إعدادات عروض الأسعار من يملك صلاحية تغييرها. وإذا ألغيت تحديدها كلها تعود الأعمدة الافتراضية." },
-      steps: { en: ["Press Change columns on the Live view, or open Quotations Settings.", "Tick the columns to show.", "Press Save columns."],
-               ar: ["اضغط تغيير الأعمدة في العرض المباشر، أو افتح إعدادات عروض الأسعار.", "حدد الأعمدة المطلوبة.", "اضغط حفظ الأعمدة."] },
-      keywords: ["columns", "customise", "الأعمدة", "تخصيص"],
-      related: ["quotations-settings.numbering"] },
-    { id: "quotations-live.stopped", topic: "dept.quotations-live", kind: "troubleshoot", open: "quotations-live",
-      q: { en: "Why has the Live view stopped updating?", ar: "لماذا توقف العرض المباشر عن التحديث؟" },
-      a: { en: "It pauses by itself while the browser tab is hidden, and it stays paused if somebody pressed Pause on that screen. Press Resume to start it again. Opening it at all needs the Live view right.",
-           ar: "يتوقف تلقائيا ما دام تبويب المتصفح مخفيا، ويبقى متوقفا إذا ضغط أحدهم زر الإيقاف المؤقت على تلك الشاشة. اضغط استئناف لتشغيله مجددا. ويتطلب فتحه أصلا صلاحية العرض المباشر." },
-      keywords: ["not refreshing", "frozen", "paused", "لا يتحدث", "متجمد", "متوقف"],
-      related: ["quotations-live.about"] },
-
-    // ---- Settings ----------------------------------------------------------
-    { id: "quotations-settings.about", topic: "dept.quotations-settings", kind: "about", open: "quotations-settings",
-      q: { en: "What can I set in Quotations settings?", ar: "ما الذي يمكنني ضبطه في إعدادات عروض الأسعار؟" },
-      a: { en: "Quotations settings hold how quotations are numbered, how long they stay valid, and which columns the Live view shows. Numbering is one or more sequences, one of them the default for Sales tickets. Viewing and changing the settings are separate rights, listed under Quotations on the Access screen.",
-           ar: "تضم إعدادات عروض الأسعار طريقة ترقيم العروض ومدة صلاحيتها والأعمدة التي يعرضها العرض المباشر. والترقيم تسلسل واحد أو أكثر، أحدها الافتراضي لتذاكر المبيعات. وعرض الإعدادات وتغييرها صلاحيتان منفصلتان مدرجتان تحت عروض الأسعار في شاشة الصلاحيات." },
-      keywords: ["quotation settings", "configure quotations", "إعدادات العروض", "ضبط عروض الأسعار", "الإعدادات"],
-      related: ["quotations-settings.numbering", "quotations-live.columns"] },
-    { id: "quotations-settings.numbering", topic: "dept.quotations-settings", kind: "settings", common: true, open: "quotations-settings",
-      q: { en: "How do I set up quotation numbering?", ar: "كيف أضبط ترقيم عروض الأسعار؟" },
-      a: { en: "Quotation numbering is one or more sequences, each numbering its quotations as its prefix followed by four digits, such as Q-0001. Each sequence has a label, a unique prefix of up to 12 characters, a start number and how many days its quotations stay valid. One sequence is the default for Sales tickets and for New quotation. Add sequence adds one, Remove deletes one but at least one is always kept, then press Save numbering.",
-           ar: "ترقيم العروض تسلسل واحد أو أكثر، يرقم كل منها عروضه ببادئته متبوعة بأربعة أرقام مثل Q-0001. لكل تسلسل اسم وبادئة فريدة حتى 12 حرفا ورقم بداية وعدد أيام صلاحية عروضه. ويكون أحد التسلسلات الافتراضي لتذاكر المبيعات وللعرض الجديد. زر إضافة تسلسل يضيف واحدا، وزر الحذف يحذف واحدا مع إبقاء تسلسل واحد دائما، ثم اضغط حفظ الترقيم." },
-      keywords: ["numbering", "prefix", "sequence", "quotation number", "الترقيم", "البادئة", "التسلسل", "رقم العرض"],
-      related: ["quotations-settings.validity", "quotations-settings.number-reuse"] },
-    { id: "quotations-settings.validity", topic: "dept.quotations-settings", kind: "settings", open: "quotations-settings",
-      q: { en: "How long does a quotation stay valid?", ar: "ما مدة صلاحية عرض السعر؟" },
-      a: { en: "Each numbering sequence has Valid for (days), up to a year, and 0 means no expiry. A new quotation's Valid until date is proposed from its sequence, and you can change it or clear it in the builder.",
-           ar: "لكل تسلسل ترقيم حقل صالح لمدة (بالأيام) حتى سنة، والصفر يعني بلا انتهاء. ويقترح تاريخ صلاحية العرض الجديد من تسلسله، ويمكنك تغييره أو مسحه في أداة البناء." },
-      keywords: ["valid until", "expiry", "validity", "صالح حتى", "انتهاء الصلاحية", "مدة الصلاحية"],
-      related: ["quotations-settings.numbering"] },
-    { id: "quotations-settings.number-reuse", topic: "dept.quotations-settings", kind: "troubleshoot", open: "quotations-settings",
-      q: { en: "Why was a quotation number skipped, and can I reuse one?", ar: "لماذا تخطى الترقيم رقما، وهل يمكن إعادة استخدام رقم؟" },
-      a: { en: "A number, once issued, is never issued again: the next is always above the highest the sequence has used. Quotations are closed rather than deleted, so a number a customer holds is never given to another quotation. A revision keeps its quotation's number and adds a Rev badge.",
-           ar: "الرقم بعد إصداره لا يصدر مرة أخرى أبدا، فالتالي دائما أعلى من أعلى رقم استخدمه التسلسل. وتغلق العروض بدلا من حذفها، فلا يمنح رقم بحوزة عميل لعرض آخر. والمراجعة تحتفظ برقم عرضها وتضيف علامة المراجعة." },
-      keywords: ["skipped number", "reuse number", "gap", "رقم متخطى", "إعادة استخدام الرقم", "فجوة"],
-      related: ["quotations-settings.numbering"] },
-
     // =========================================================================
     // POINT OF SALE
     // =========================================================================
