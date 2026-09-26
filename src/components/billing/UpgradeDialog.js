@@ -49,10 +49,19 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
     setBilling(res.ok ? await res.json() : null);
   }, [slug]);
 
+  // A THROWN FETCH IS A FAILURE TOO, not an endless "…": a network error or a
+  // body that is not JSON used to leave the dialog loading forever.
   const load = useCallback(async () => {
-    const res = await fetch(`/api/studios/${slug}/upgrade`, { cache: "no-store" });
-    if (!res.ok) { setError(t.failed); return; }
-    const d = await res.json();
+    setError("");
+    let d;
+    try {
+      const res = await fetch(`/api/studios/${slug}/upgrade`, { cache: "no-store" });
+      if (!res.ok) { setError(t.failed); return; }
+      d = await res.json();
+    } catch {
+      setError(t.failed);
+      return;
+    }
     setData(d);
     if (d.request) await loadBilling();
     const cards = d.list?.cards || [];
@@ -118,8 +127,22 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
         <h2 className="font-display text-lg font-800">{t.title(studioName)}</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.lead}</p>
 
-        {!data ? (
-          <p className="mt-5 text-sm text-slate-500">{error || "…"}</p>
+        {!data && error ? (
+          <div className="mt-5 space-y-3 text-sm">
+            <p className="text-rose-600" role="alert">{error}</p>
+            <button type="button" className={pill(false)} onClick={load}>{t.retry}</button>
+          </div>
+        ) : !data ? (
+          <div className="mt-5 animate-pulse space-y-5" aria-busy="true">
+            <div className="flex flex-wrap gap-2">
+              {[20, 24, 16].map((w) => <div key={w} className="h-8 rounded-full bg-slate-100 dark:bg-white/10" style={{ width: `${w * 4}px` }} />)}
+            </div>
+            <div className="flex gap-2">
+              {[20, 16].map((w) => <div key={w} className="h-8 rounded-full bg-slate-100 dark:bg-white/10" style={{ width: `${w * 4}px` }} />)}
+            </div>
+            <div className="h-28 rounded-xl bg-slate-50 dark:bg-white/5" />
+            <div className="h-10 rounded-full bg-slate-100 dark:bg-white/10" />
+          </div>
         ) : pending ? (
           <div className="mt-5 space-y-3 text-sm">
             <p>{t.pending(day(data.request.requestedAt))}</p>

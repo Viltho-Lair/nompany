@@ -32,6 +32,7 @@ type Strings = {
   withdraw: string;
   close: string;
   failed: string;
+  retry: string;
   asked: string;
   /** The account page's link to the studio's full export. */
   download: string;
@@ -62,6 +63,7 @@ const en: Strings = {
   withdraw: "Withdraw the request",
   close: "Close",
   failed: "That didn't go through. Try again.",
+  retry: "Try again",
   asked: "The package you picked when you signed up is selected.",
   download: "Download everything",
 };
@@ -91,6 +93,7 @@ const ar: Strings = {
   withdraw: "اسحب الطلب",
   close: "إغلاق",
   failed: "لم يتم ذلك. حاول مرة أخرى.",
+  retry: "حاول مرة أخرى",
   asked: "تم اختيار الباقة التي اخترتها عند التسجيل.",
   download: "تنزيل كل البيانات",
 };
