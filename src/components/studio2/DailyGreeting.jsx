@@ -12,10 +12,18 @@ import { daypartFor } from "@/shared/greeting";
    IT FLOATS; IT DOES NOT TAKE A PLACE IN THE ROW — the owner's instruction,
    10/09/2026. It was a flex item in the header, so a message arriving pushed
    the title and the controls sideways (and below `lg` wrapped the header onto
-   a second line), and closing it moved them back. It is absolutely positioned
-   now, against the sticky header: centred IN the header from `lg` up, and
-   hanging just BELOW it on a narrow screen, where the middle of the header is
-   the title. Nothing around it moves when it appears, rotates or closes.
+   a second line), and closing it moved them back. Below `lg` it is absolutely
+   positioned against the sticky header, hanging just BELOW it, where the
+   middle of the header is the title.
+
+   FROM `lg` UP IT FILLS THE GAP, NOT THE MIDDLE — 26/09/2026. It was centred
+   over the whole header at 46% of its width, and the controls on the end side
+   (language, theme, bell, name, lock, avatar) are wider than the other half,
+   so the band sat on top of the buttons. It is a flex item there now with a
+   ZERO basis and `min-w-0`: it takes only the space `justify-between` already
+   leaves between the title and the controls, so it can neither push them nor
+   wrap the row, and nothing moves when it appears, rotates or closes — the
+   thing the absolute position was bought for, kept without the overlap.
 
    ONE BOX, HOWEVER MANY MESSAGES. The header is a single row and the band is one
    item in it, so a second message cannot be a second band without the header
@@ -153,7 +161,7 @@ export default function DailyGreeting({ slug }) {
 
   return (
     <div
-      className="greeting-band absolute start-1/2 top-full z-30 mt-1 flex w-[calc(100%-2.5rem)] max-w-2xl -translate-x-1/2 items-center gap-2.5 px-3.5 py-1.5 rtl:translate-x-1/2 lg:top-1/2 lg:mt-0 lg:w-[min(40rem,46%)] lg:-translate-y-1/2"
+      className="greeting-band absolute start-1/2 top-full z-30 mt-1 flex w-[calc(100%-2.5rem)] max-w-2xl -translate-x-1/2 items-center gap-2.5 px-3.5 py-1.5 rtl:translate-x-1/2 lg:static lg:mx-auto lg:mt-0 lg:w-auto lg:min-w-0 lg:max-w-[40rem] lg:flex-1 lg:basis-0 lg:translate-x-0 lg:rtl:translate-x-0"
       style={style}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}

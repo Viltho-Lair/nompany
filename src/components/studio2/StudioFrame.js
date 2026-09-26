@@ -1036,12 +1036,12 @@ export default function StudioFrame({
             </div>
           </div>
 
-          {/* THE BROADCAST BAND FLOATS OVER THE HEADER rather than sitting in the
-              row: absolutely positioned against this sticky header (a sticky
-              element is a containing block), so a message appearing, rotating
-              or closing never moves the title or the controls. It used to be a
-              flex item here with `order-last`, and every message shifted the
-              bar. See DailyGreeting for where it sits at each width. */}
+          {/* THE BROADCAST BAND NEVER MOVES THE TITLE OR THE CONTROLS. Below `lg`
+              it hangs under this sticky header (a sticky element is a containing
+              block); from `lg` up it fills only the gap between the two with a
+              zero flex basis, so it cannot push them — and, unlike the centred
+              float it replaced, cannot cover the buttons either. See
+              DailyGreeting for where it sits at each width. */}
           <DailyGreeting slug={studio.slug} />
 
           <div className="flex items-center gap-2">
