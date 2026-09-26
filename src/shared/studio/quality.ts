@@ -8,6 +8,10 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  confirmReadRevision: (rev: string) => string;
+  youAcknowledgedRevision: (rev: string, on: string) => string;
+  shareLinkBefore: string;
+  shareLinkAfter: string;
   acknowledged: string;
   appliesToEverySelectedCell: string;
   chooseRecipients: string;
@@ -244,6 +248,10 @@ type Strings = CommonStrings & {
 };
 
 const en: Strings = {
+  confirmReadRevision: (rev) => `Confirm you have read revision ${rev} and will work to it.`,
+  youAcknowledgedRevision: (rev, on) => `You acknowledged revision ${rev} on ${on}.`,
+  shareLinkBefore: "Anybody with the link can read the issued revision without an account. It is stamped",
+  shareLinkAfter: ", bound to that one revision, and expires.",
   ...commonEn,
   acknowledged: "Acknowledged",
   appliesToEverySelectedCell: "Applies to every selected cell. Drag across cells first to format several at once.",
@@ -479,6 +487,10 @@ const en: Strings = {
 };
 
 const ar: Strings = {
+  confirmReadRevision: (rev) => `أكّد أنك قرأت المراجعة ${rev} وستعمل بموجبها.`,
+  youAcknowledgedRevision: (rev, on) => `أقررت بالمراجعة ${rev} بتاريخ ${on}.`,
+  shareLinkBefore: "يمكن لأي شخص لديه الرابط قراءة المراجعة الصادرة دون حساب. تُختم بعبارة",
+  shareLinkAfter: "، وترتبط بتلك المراجعة وحدها، وتنتهي صلاحيتها.",
   ...commonAr,
   acknowledged: "أقر به",
   appliesToEverySelectedCell: "يطبق على كل خلية محددة. اسحب عبر الخلايا أولا لتنسيق عدة خلايا دفعة واحدة.",

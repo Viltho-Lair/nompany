@@ -175,7 +175,7 @@ export default function OperationsDashboard({
 
         <Widget title={tr.shiftsWeek} hint={tr.coverageAcrossRotaWindow} span={2} {...gate("operations.shifts-this-week")} lockedWhat={tr.shiftsWeek}>
           {anyShiftsThisWeek ? (
-            <ChartFrame labels={days.map((d) => fmtWeekday(d.iso))} height={200}>
+            <ChartFrame labels={days.map((d) => fmtWeekday(d.iso, false, locale))} height={200}>
               <BarChart height={200}
                 labels={days.map((d) => d.iso)}
                 series={[{ name: tr.seriesShifts, data: days.map((d) => d.count), color: "rgb(var(--chart-1))" }]} />
@@ -221,7 +221,7 @@ export default function OperationsDashboard({
         {/* ---- the richer half (10/09/2026) ---- */}
         <Widget title={tr.dashShiftHeat} hint={tr.dashShiftHeatHint} span={2} {...gate("operations.shift-heat")} lockedWhat={tr.dashShiftHeat}>
           {heatRows.length ? (
-            <HeatGrid columns={days.map((x) => fmtWeekday(x.iso))} rows={heatRows} />
+            <HeatGrid columns={days.map((x) => fmtWeekday(x.iso, false, locale))} rows={heatRows} />
           ) : <DashEmpty text={tr.nothingScheduledYet} />}
         </Widget>
 

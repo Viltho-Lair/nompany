@@ -8,6 +8,7 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  needsRenewing: (days: number) => string;
   coloursCalendarDraws: string;
   countPermits: (n: number) => string;
   countShifts: (n: number) => string;
@@ -197,9 +198,15 @@ type Strings = CommonStrings & {
   dashStateByType: string;
   dashStateByTypeHint: string;
   dashOther: string;
+  moreShiftsLater: (n: number) => string;
+  copyRoster: string;
+  copiedRoster: string;
+  turnOffWorkingHoursOnly: string;
+  gridWouldRun: (from: string, to: string) => string;
 };
 
 const en: Strings = {
+  needsRenewing: (days) => `Needs renewing — expired, or within ${days} days`,
   ...commonEn,
   coloursCalendarDraws: "The colours the calendar draws shifts in. These kinds are fixed — recolour or rename them, but they cannot be added to or removed, because a shift whose kind has no entry would have no colour to be drawn in.",
   countPermits: (n) => `${n} ${n === 1 ? "permit" : "permits"}`,
@@ -396,9 +403,15 @@ const en: Strings = {
   dashStateByType: "Permit state by type",
   dashStateByTypeHint: "Valid, expiring and expired within each kind",
   dashOther: "Other",
+  moreShiftsLater: (n) => `${n} more ${n === 1 ? "shift" : "shifts"} scheduled beyond this week.`,
+  copyRoster: "copy",
+  copiedRoster: "copied",
+  turnOffWorkingHoursOnly: 'Turn off "working hours only" in Settings to see them.',
+  gridWouldRun: (from, to) => `The grid would run ${from}–${to}. Anything scheduled outside that is listed under the calendar rather than drawn.`,
 };
 
 const ar: Strings = {
+  needsRenewing: (days) => `بحاجة إلى تجديد — منتهية أو تنتهي خلال ${days} يومًا`,
   ...commonAr,
   coloursCalendarDraws: "الألوان التي يرسم بها التقويم الورديات. وهذه الأنواع ثابتة — أعد تلوينها أو تسميتها، لكن لا يمكن الإضافة إليها أو الحذف منها، لأن وردية بلا نوع مسجل لن يكون لها لون ترسم به.",
   countPermits: (n) => `${n === 1 ? "تصريح واحد" : n === 2 ? "تصريحان" : n <= 10 ? `${n} تصاريح` : `${n} تصريحا`}`,
@@ -595,6 +608,11 @@ const ar: Strings = {
   dashStateByType: "حالة التصاريح حسب النوع",
   dashStateByTypeHint: "الصالحة والقريبة الانتهاء والمنتهية ضمن كل نوع",
   dashOther: "أخرى",
+  moreShiftsLater: (n) => `${n === 1 ? "وردية واحدة أخرى مجدولة" : n === 2 ? "ورديتان أخريان مجدولتان" : n <= 10 ? `${n} ورديات أخرى مجدولة` : `${n} وردية أخرى مجدولة`} بعد هذا الأسبوع.`,
+  copyRoster: "نسخ",
+  copiedRoster: "تم النسخ",
+  turnOffWorkingHoursOnly: "أوقف خيار «ساعات العمل فقط» في الإعدادات لعرضها.",
+  gridWouldRun: (from, to) => `سيمتد الجدول من ${from} إلى ${to}. ما يُجدول خارج ذلك يُدرج أسفل التقويم بدلاً من رسمه.`,
 };
 
 const operations = { en, ar };

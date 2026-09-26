@@ -304,7 +304,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
             {!room ? (
               <div className="space-y-4 p-5">
                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                  Start a chat with the nompany team about {studioName}.
+                  {tr.startChatAbout(studioName)}
                 </p>
                 <div className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 text-xs dark:border-white/10">
                   <p className="text-slate-500 dark:text-slate-400">{tr.shownToUsAs3}</p>

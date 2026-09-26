@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { summaryDict } from "@/shared/studio/summary";
+import { engineWords } from "@/shared/studio/engineTypes";
 import { BarChart, ChartFrame, PALETTE } from "@/components/charts";
 import { useReload } from "@/components/studio2/useReload";
 
@@ -62,7 +63,7 @@ export default function StudioSectionSummary({ slug, sectionKey, locale = "en", 
           <div key={r.typeKey}
             className="rounded-xl border border-slate-200 bg-white p-4 dark:border-white/15 dark:bg-[#191921]">
             <div className="flex items-baseline justify-between gap-2">
-              <p className="min-w-0 truncate font-display text-sm font-700 text-slate-900 dark:text-white">{r.label}</p>
+              <p className="min-w-0 truncate font-display text-sm font-700 text-slate-900 dark:text-white">{engineWords({ key: r.typeKey, origin: r.origin }, locale).label(r.label)}</p>
               <span className="num shrink-0 text-sm text-slate-500 dark:text-slate-400">{r.total}</span>
             </div>
 
@@ -84,9 +85,9 @@ export default function StudioSectionSummary({ slug, sectionKey, locale = "en", 
             {/* EVERY DECLARED STATUS, INCLUDING THE EMPTY ONES, in the type's
                 own order. A funnel that hides its empty rungs cannot show that
                 nothing has reached the last one — which is what it is read for.
-                Statuses are the STUDIO'S words (a type's own declaration) and
-                are therefore never translated, the rule section names, client
-                names and service actions all follow. */}
+                Statuses are the TYPE'S words: a studio's own type shows them as
+                typed, the rule section names and client names follow; a
+                built-in's translate on display (`engineWords`). */}
             {/* THE CARD'S SHAPE BEFORE ITS NUMBERS: one strip split by status, in
                 the type's own order, so where a register's records pile up reads
                 at a glance. The rows below carry the same colours as their key. */}
@@ -102,7 +103,7 @@ export default function StudioSectionSummary({ slug, sectionKey, locale = "en", 
                 <li key={b.status} className="flex items-baseline justify-between gap-2 text-xs">
                   <span className={`min-w-0 truncate ${b.count ? "text-slate-600 dark:text-slate-300" : "text-slate-400 dark:text-slate-500"}`}>
                     <span aria-hidden="true" className="me-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ backgroundColor: PALETTE[bi % PALETTE.length], opacity: b.count ? 1 : 0.35 }} />
-                    {b.status}
+                    {engineWords({ key: r.typeKey, origin: r.origin }, locale).word(b.status)}
                   </span>
                   <span className={`num shrink-0 ${b.count ? "text-slate-900 dark:text-white" : "text-slate-300 dark:text-slate-600"}`}>
                     {b.count}
@@ -122,7 +123,7 @@ export default function StudioSectionSummary({ slug, sectionKey, locale = "en", 
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-white/15 dark:bg-[#191921]">
           <h4 className="font-display text-xs font-700 text-slate-900 dark:text-white">{tr.chartTitle}</h4>
           <div className="mt-3">
-            <ChartFrame labels={data.registers.map((r) => r.label)} height={160}
+            <ChartFrame labels={data.registers.map((r) => engineWords({ key: r.typeKey, origin: r.origin }, locale).label(r.label))} height={160}
               legend={[{ name: tr.open, color: "rgb(var(--chart-1))" }, { name: tr.overdueWord, color: "rgb(var(--chart-3))" }]}>
               <BarChart height={160} rtl={locale === "ar"} labels={data.registers.map((r) => r.typeKey)}
                 series={[
@@ -144,17 +145,21 @@ export default function StudioSectionSummary({ slug, sectionKey, locale = "en", 
             {tr.attention(data.totalOverdue)}
           </h4>
           <ul className="mt-2 space-y-1">
-            {data.attention.map((a) => (
+            {data.attention.map((a) => {
+              // The row's register, for whether its words are the product's.
+              const w = engineWords({ key: a.typeKey, origin: data.registers.find((r) => r.typeKey === a.typeKey)?.origin }, locale);
+              return (
               <li key={`${a.typeKey}:${a.id}`} className="flex flex-wrap items-baseline gap-x-2 text-xs">
                 <span className="font-mono text-slate-700 dark:text-slate-200">{a.reference || a.id}</span>
-                <span className="text-slate-500 dark:text-slate-400">{a.status}</span>
+                <span className="text-slate-500 dark:text-slate-400">{w.word(a.status)}</span>
                 {/* The FIELD's own label, so a person is told which date is
                     past — "Action due" and "Valid to" send you to different
                     places, and "overdue" alone sends you to neither. */}
-                <span className="ms-auto text-slate-500 dark:text-slate-400">{a.label}</span>
+                <span className="ms-auto text-slate-500 dark:text-slate-400">{w.field(a.field, a.label)}</span>
                 <span className="num text-rose-700 dark:text-rose-300">{tr.daysLate(a.daysLate)}</span>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
       )}

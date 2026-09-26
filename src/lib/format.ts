@@ -27,7 +27,13 @@ export function fmtDate(v: unknown) { return formatDate(v, active()); }
 export function fmtDateTime(v: unknown) { return formatDateTime(v, active()); }
 // A weekday LABEL ("Mon", or "الإثنين" for an Arabic tenant). The one date
 // output that localises fully — see formatWeekday. `long` gives "Monday".
-export function fmtWeekday(v: unknown, long = false) { return formatWeekday(v, active(), long); }
+// `locale` is the READER's language: the tenant config this reads is never
+// set on the client, so without it every weekday came out English — "SUN" down
+// the side of an Arabic studio's calendar.
+export function fmtWeekday(v: unknown, long = false, locale?: string) {
+  const cfg = active();
+  return formatWeekday(v, locale === "ar" ? { ...cfg, dateLocale: "ar" } : cfg, long);
+}
 // A clock time ("14:30"), tenant hour convention. For live-view "last polled".
 export function fmtTime(v: unknown) { return formatTime(v, active()); }
 

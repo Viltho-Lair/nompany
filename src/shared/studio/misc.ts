@@ -8,6 +8,7 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  startChatAbout: (studio: string) => string;
   attachThePo: string;
   chatUnread: (n: number) => string;
   chatsArentStored: string;
@@ -178,6 +179,7 @@ type Strings = CommonStrings & {
 };
 
 const en: Strings = {
+  startChatAbout: (studio) => `Start a chat with the nompany team about ${studio}.`,
   ...commonEn,
   attachThePo: "Attach the PO",
   chatUnread: (n) => `Chat with nompany, ${n} new message${n === 1 ? "" : "s"}`,
@@ -341,6 +343,7 @@ const en: Strings = {
 };
 
 const ar: Strings = {
+  startChatAbout: (studio) => `ابدأ محادثة مع فريق nompany بشأن ${studio}.`,
   ...commonAr,
   attachThePo: "أرفق أمر الشراء",
   chatUnread: (n) => `محادثة مع nompany، ${n === 1 ? "رسالة جديدة واحدة" : n === 2 ? "رسالتان جديدتان" : n <= 10 ? `${n} رسائل جديدة` : `${n} رسالة جديدة`}`,

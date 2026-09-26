@@ -52,7 +52,6 @@ const btnGhost = "rounded-full border border-slate-200 px-4 py-2 font-display te
 
 const fmt = fmtDate;
 // A weekday LABEL localises fully — Arabic wants the Arabic day name, not "Sat".
-const dayName = (iso) => fmtWeekday(iso);
 
 // OPERATIONS — where the work happens, who is on site when, and the paperwork
 // that says they may be there. Discrete work items live elsewhere; this is about
@@ -299,7 +298,8 @@ function message(out, tr) {
 // Two readings of the same rota: the CALENDAR, which answers "who is where at
 // 10am on Tuesday", and the LIST, which is easier to scan and to remove from.
 function Schedule({ shifts, people, locations, window, settings, canManage, busy, send }) {
-  const tr = operationsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = operationsDict(locale);
   const [adding, setAdding] = useState(false);
   const [mode, setMode] = useState("calendar");
   // Which week the calendar is showing, as an offset from the current one — so
@@ -357,7 +357,7 @@ function Schedule({ shifts, people, locations, window, settings, canManage, busy
           {days.map((d) => (
             <li key={d.iso} className="flex flex-wrap gap-4 py-3 first:pt-0 last:pb-0">
               <div className="w-24 shrink-0">
-                <p className="font-600 text-slate-900 dark:text-white">{dayName(d.iso)}</p>
+                <p className="font-600 text-slate-900 dark:text-white">{fmtWeekday(d.iso, false, locale)}</p>
                 <p className="text-xs text-slate-400">{fmt(d.iso)}</p>
               </div>
               <div className="min-w-0 flex-1">
@@ -386,7 +386,7 @@ function Schedule({ shifts, people, locations, window, settings, canManage, busy
         </ul>
         {later.length > 0 && (
           <p className="mt-4 border-t border-slate-100 pt-3 text-sm text-slate-500 dark:border-white/5 dark:text-slate-400">
-            {later.length} more {later.length === 1 ? "shift" : "shifts"} scheduled beyond this week.
+            {tr.moreShiftsLater(later.length)}
           </p>
         )}
       </section>
@@ -399,7 +399,8 @@ function Schedule({ shifts, people, locations, window, settings, canManage, busy
 // hour window the studio configured, so the picture and the times can never
 // disagree — the geometry IS the times.
 function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
-  const tr = operationsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = operationsDict(locale);
   const [copied, setCopied] = useState("");
   const schedule = useMemo(() => normalizeSchedule(settings?.workSchedule), [settings]);
   const legend = useMemo(() => normalizeLegend(settings?.legend), [settings]);
@@ -422,12 +423,12 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
       iso, date,
       // Full name for the copied roster text; short (Sun/Mon…) for the column.
       dayName: DAYS[date.getDay()],
-      dayShort: fmtWeekday(iso),
+      dayShort: fmtWeekday(iso, false, locale),
       working: schedule[DAYS[date.getDay()]]?.on,
       today: iso === dayKey(new Date()),
       shifts: shifts.filter((s) => s.date === iso),
     };
-  }), [weekStart, schedule, shifts]);
+  }), [weekStart, schedule, shifts, locale]);
 
   const hours = [];
   for (let h = Math.floor(windowFrom); h < Math.ceil(windowTo); h++) hours.push(h);
@@ -504,7 +505,7 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
                 {c.shifts.length > 0 && (
                   <button type="button" onClick={() => copyRoster(c)}
                     className="ms-auto shrink-0 text-[10px] font-600 text-brand-700 hover:underline dark:text-brand-300">
-                    {copied === c.iso ? "copied" : "copy"}
+                    {copied === c.iso ? tr.copiedRoster : tr.copyRoster}
                   </button>
                 )}
               </div>
@@ -542,7 +543,7 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
           <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-amber-700 dark:border-white/5 dark:text-amber-300">
             {tr.nShiftsOutside(hidden.length)}
             ({hidden.map((s) => `${s.alias} ${s.startTime}–${s.endTime}`).join(", ")}).
-            Turn off &quot;working hours only&quot; in Settings to see them.
+            {" "}{tr.turnOffWorkingHoursOnly}
           </p>
         );
       })()}
@@ -853,8 +854,7 @@ function OperationsSettings({ settings, canManage, busy, onSave }) {
           {tr.showOnlyWorkingHours}
         </label>
         <p className="mt-1 text-xs text-slate-400">
-          The grid would run {String(from).padStart(2, "0")}:00–{String(to).padStart(2, "0")}:00.
-          Anything scheduled outside that is listed under the calendar rather than drawn.
+          {tr.gridWouldRun(`${String(from).padStart(2, "0")}:00`, `${String(to).padStart(2, "0")}:00`)}
         </p>
       </section>
 

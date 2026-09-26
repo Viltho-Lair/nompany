@@ -15,6 +15,9 @@
 export type SummaryType = {
   key: string;
   label: string;
+  /** "builtin" for a type this repository declares — whose words the screen
+   *  translates on display. Carried through so the card can tell. */
+  origin?: string;
   statuses: readonly string[];
   /** The declared moves. What makes an ending derivable rather than guessed. */
   transitions?: readonly { from: string; to: string }[];
@@ -48,6 +51,7 @@ export type Overdue = {
 export type RegisterSummary = {
   typeKey: string;
   label: string;
+  origin: string;
   total: number;
   /** Every DECLARED status, in the type's own order, including the empty ones. */
   byStatus: StatusCount[];
@@ -204,6 +208,7 @@ export function summariseSection(
     return {
       typeKey: t.key,
       label: t.label,
+      origin: String(t.origin || ""),
       total: mine.length,
       byStatus,
       open: mine.filter((r) => openOf(t.statuses, String(r.status ?? ""), t.transitions)).length,

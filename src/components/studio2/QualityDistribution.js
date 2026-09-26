@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { qualityDict } from "@/shared/studio/quality";
-import { Dialog, btn, btnGhost, input, microLabel } from "@/components/studio2/ui";
+import { Dialog, btn, btnGhost, fmtDate, input, microLabel } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { useReload } from "@/components/studio2/useReload";
 
@@ -78,7 +78,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
         <div className="rounded-geex border border-amber-300 bg-amber-50 p-4 dark:border-amber-500/25 dark:bg-amber-500/10">
           <p className="text-sm font-600 text-amber-900 dark:text-amber-200">{tr.documentIssued}</p>
           <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
-            Confirm you have read revision {dist?.rev} and will work to it.
+            {tr.confirmReadRevision(dist?.rev)}
           </p>
           <button type="button" className={`${btn} mt-3`} disabled={busy}
             onClick={() => send({ action: "acknowledge" })}>
@@ -88,7 +88,7 @@ export default function QualityDistribution({ slug, documentId, document }) {
       )}
       {data?.mine?.acknowledgedAt && (
         <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
-          You acknowledged revision {dist?.rev} on {String(data.mine.acknowledgedAt).slice(0, 10)}.
+          {tr.youAcknowledgedRevision(dist?.rev, fmtDate(data.mine.acknowledgedAt))}
         </p>
       )}
 
@@ -224,8 +224,8 @@ export default function QualityDistribution({ slug, documentId, document }) {
           ) : (
             <>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Anybody with the link can read the issued revision without an account. It is stamped
-                {" "}<span className="font-600">{tr.uncontrolledCopy}</span>, bound to that one revision, and expires.
+                {tr.shareLinkBefore}
+                {" "}<span className="font-600">{tr.uncontrolledCopy}</span>{tr.shareLinkAfter}
               </p>
               <div className="mt-4 max-w-xs">
                 <Field label={tr.expiresAfter} as="select" value={String(days)}

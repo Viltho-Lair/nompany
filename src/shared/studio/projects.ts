@@ -8,6 +8,7 @@ import { commonEn, commonAr, type CommonStrings } from "./common";
 // nothing may enumerate them.
 
 type Strings = CommonStrings & {
+  pickProjectFromBar: string;
   closure: string;
   closureSub: string;
   loadingClosure: string;
@@ -479,6 +480,7 @@ type Strings = CommonStrings & {
 };
 
 const en: Strings = {
+  pickProjectFromBar: "Pick a project from the bar below. Main and Bulk appear as tabs at the top.",
   ...commonEn,
   closure: "Closing out",
   closureSub: "The punch list, practical completion, and how long this job is still supported.",
@@ -953,6 +955,7 @@ const en: Strings = {
 };
 
 const ar: Strings = {
+  pickProjectFromBar: "اختر مشروعًا من الشريط أدناه. تظهر الورقتان الرئيسية والمجمّعة كتبويبات في الأعلى.",
   ...commonAr,
   closure: "الإغلاق",
   closureSub: "قائمة الملاحظات، والإنجاز الفعلي، ومدة الدعم المتبقية.",

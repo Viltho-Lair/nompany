@@ -291,7 +291,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
         <div className="flex flex-1 items-center justify-center">
           {isInventory ? (
             <p className="max-w-sm text-center text-sm text-slate-500 dark:text-slate-400">
-              Pick a project from the bar below. Main and Bulk appear as tabs at the top.
+              {tr.pickProjectFromBar}
               {sheets.length === 0 && ` ${tr.noProjectsSigned}`}
             </p>
           ) : (

@@ -58,7 +58,7 @@ export default function PermitsPanel({ rows, locations, people, projects, types,
       {attention.length > 0 && (
         <div className="rounded-geex border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
           <p className="font-display text-sm font-700 text-amber-800 dark:text-amber-200">
-            Needs renewing — expired, or within {windowDays} days
+            {tr.needsRenewing(windowDays)}
           </p>
           <ul className="mt-2 space-y-1 text-sm text-amber-800 dark:text-amber-200">
             {attention.map((p) => (
