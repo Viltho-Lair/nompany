@@ -1,5 +1,4 @@
 import { defaultLocale, type Locale } from "../locale";
-import { crmSalesEn, crmSalesAr } from "./manualCrmSales";
 import { quotationsEn, quotationsAr } from "./manualQuotations";
 
 // THE STUDIO MANUAL — what each department is for, written for the person doing
@@ -551,13 +550,15 @@ const en: Strings = {
   contents: "On this page",
   departments: "Departments",
   // In the sidebar's order, so the manual reads the way the studio is laid out.
-  articles: [crmSalesEn, quotationsEn, maintenanceEn],
+  // CRM & Sales is not here: its chapter is composed from Nova's help entries
+  // (lib/nova/help/manual, MANUAL_FROM_HELP), 27/09/2026.
+  articles: [quotationsEn, maintenanceEn],
 };
 
 const ar: Strings = {
   contents: "في هذه الصفحة",
   departments: "الأقسام",
-  articles: [crmSalesAr, quotationsAr, maintenanceAr],
+  articles: [quotationsAr, maintenanceAr],
 };
 
 const manual = { en, ar };

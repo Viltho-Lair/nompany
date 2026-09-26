@@ -27,7 +27,7 @@ import type { ManualArticle, ManualBlock, ManualSection } from "@/shared/studio/
 import type { HelpEntry, HelpTopic } from "./types";
 
 /** Departments whose manual chapter is composed from their help entries. */
-export const MANUAL_FROM_HELP = ["finance", "hr"] as const;
+export const MANUAL_FROM_HELP = ["crm-sales", "finance", "hr"] as const;
 
 type Locale = "en" | "ar";
 

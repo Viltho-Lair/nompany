@@ -80,7 +80,10 @@ It is not a regex. It uses standard FAQ retrieval:
 - **Synonyms.** A cross-department table: vacation and leave, vendor and supplier, bill and
   invoice, and so on, in both languages. An expanded word counts for 0.8 of the typed one.
 - **The screen you are on** raises that section's entries by ×1.25, and its department's by
-  ×1.1. This breaks ties such as "how do I add one?" without overruling a clear match.
+  ×1.1. A vague question of one or two meaningful words gets a bigger lift, ×1.8 and ×1.3,
+  because the screen is then most of the evidence: "how do I add one?" on Suppliers is about
+  suppliers. A full sentence says what it is about by itself, so a clear match is not
+  overruled.
 - **A taught phrasing counts as a question** for the focus measure, so wording support linked is answered outright rather than only suggested — found by sending a real question and teaching it, 2026-09-26.
 - **The decision uses coverage and lead, never a raw score**, because BM25's scale shifts with
   every entry added. A single word is never answered outright.

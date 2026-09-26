@@ -8,18 +8,19 @@
 
 import { createHash } from "node:crypto";
 import type { HelpEntry, HelpModule, HelpTopic } from "./types";
-import { buildIndex, decide, search, type HelpAlias, type HelpDecision, type HelpIndex } from "./search";
+import { buildIndex, decide, search, tokens, type HelpAlias, type HelpDecision, type HelpIndex } from "./search";
 import { MANUAL_FROM_HELP, composeManualArticle, manualAnchors } from "./manual";
 import type { ManualArticle } from "@/shared/studio/manual";
 import { root } from "./kb/root";
 import { general } from "./kb/general";
 import { sales } from "./kb/sales";
+import { crmSales } from "./kb/crmSales";
 import { projectsSide } from "./kb/projectsSide";
 import { operations } from "./kb/operations";
 import { hr } from "./kb/hr";
 import { finance } from "./kb/finance";
 
-export const HELP_MODULES: HelpModule[] = [root, general, sales, projectsSide, operations, hr, finance];
+export const HELP_MODULES: HelpModule[] = [root, general, crmSales, sales, projectsSide, operations, hr, finance];
 
 export const HELP_TOPICS: HelpTopic[] = HELP_MODULES.flatMap((m) => m.topics);
 export const HELP_ENTRIES: HelpEntry[] = HELP_MODULES.flatMap((m) => m.entries);
@@ -161,13 +162,21 @@ export function helpSearch(
   // The department the screen sits in, read off the tree rather than the key's
   // spelling — "crm-sales-pipeline" does not split into its root on a hyphen.
   const viewRoot = sectionChain(`dept.${view}`).at(-1) || view;
+  // THE VAGUER THE QUESTION, THE MORE THE SCREEN COUNTS. "How do I add one?"
+  // is one meaningful word, and on the Suppliers screen it means suppliers —
+  // a light lift lost it to "How do I add a customer?", whose short question
+  // explains "add" better (found when CRM & Sales grew, 27/09/2026). A full
+  // sentence says what it is about by itself, so its lift stays small.
+  const vague = tokens(query).length <= 2;
+  const here = vague ? 1.8 : 1.25;
+  const dept = vague ? 1.3 : 1.1;
   const boost = (id: string) => {
     if (!view) return 1;
     const e = entryById.get(id);
     if (!e) return 1;
     const chain = sectionChain(e.topic);
-    if (e.open === view || chain.includes(view)) return 1.25;
-    if (chain.some((k) => k === viewRoot)) return 1.1;
+    if (e.open === view || chain.includes(view)) return here;
+    if (chain.some((k) => k === viewRoot)) return dept;
     return 1;
   };
   return decide(search(index, query, { allow: opts.filter.entryOk, exclude: opts.exclude, boost, limit: 5 }));
