@@ -137,6 +137,10 @@ deliberately: a per-person override must not let whoever opens the screen first 
 what everyone else sees. (A third set lived here — six built-in planner templates, in
 `plannerTemplates.ts` — until the presets themselves were removed as demo data.)
 
+**The built-in record registers are code, not data**, though they are stored per studio:
+a studio cannot rename or edit them, so their names, fields, statuses and options translate
+on display (`shared/studio/engineTypes.ts`). A register a studio declares itself is data.
+
 **Counts are functions, not templates.** English needs two forms and Arabic needs four in
 the ranges these screens reach (1, 2, 3–10, 11+). `${n} item(s)` is only correct in the
 language it was written in, so every counted phrase is a function in the dictionary.

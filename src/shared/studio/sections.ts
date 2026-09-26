@@ -1,4 +1,5 @@
 import { defaultLocale, type Locale } from "../locale";
+import { BUILTIN_SECTION_AR } from "./engineTypes";
 
 // WHAT A SECTION IS CALLED, in the reader's language.
 //
@@ -187,6 +188,12 @@ const ar: SectionMap = {
 
   approvals: "الموافقات",
   "approvals-settings": "إعدادات الموافقات",
+
+  // THE BUILT-IN REGISTERS' OWN SECTIONS, `engine-<type>`. They are not in
+  // SECTION_DEFS — the engine plants them at runtime beside the type row — so
+  // their names came off the row in English on every Arabic sidebar. Their
+  // words live with the rest of the built-in types' (./engineTypes).
+  ...BUILTIN_SECTION_AR,
 };
 
 const maps: Partial<Record<Locale, SectionMap>> = { ar };

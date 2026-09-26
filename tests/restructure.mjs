@@ -791,6 +791,37 @@ export async function testEverySectionHasAnArabicName(t) {
   }
 }
 
+// THE BUILT-IN REGISTERS ARE THE HALF OF THE SIDEBAR THAT TEST CANNOT SEE.
+// Their sections (`engine-<type>`) are planted at runtime, not declared in
+// SECTION_DEFS, so every one of them read English in an Arabic studio — the
+// sidebar row, the heading, every field, status and option — and nothing
+// failed. A word added to a declaration without its Arabic here falls back to
+// English silently, exactly as those did. ISO standards are names, not words,
+// and are the only values allowed through untranslated.
+export async function testEveryBuiltinRegisterSpeaksArabic(t) {
+  const { engineWords } = await import("../src/shared/studio/engineTypes.ts");
+  for (const decl of BUILTIN_TYPES) {
+    const w = engineWords({ key: decl.key, origin: "builtin" }, "ar");
+    const name = sectionName(`engine-${decl.key}`, decl.label, "ar");
+    t.equal(/[A-Za-z]/.test(name.replaceAll("HSE", "")), false, `engine-${decl.key} has an Arabic sidebar name (got "${name}")`);
+    t.equal(w.label(decl.label) !== decl.label, true, `${decl.key}'s label has an Arabic word`);
+    for (const f of decl.fields) {
+      t.equal(w.field(f.key, f.label) !== f.label, true, `${decl.key}.${f.key} has an Arabic label`);
+      for (const o of f.options || []) {
+        if (/^ISO /.test(String(o))) continue;
+        t.equal(w.word(o) !== String(o), true, `${decl.key}.${f.key} option "${o}" has an Arabic word`);
+      }
+    }
+    for (const st of decl.statuses) {
+      t.equal(w.word(st) !== st, true, `${decl.key} status "${st}" has an Arabic word`);
+    }
+  }
+  // A studio's own type is data: nothing it typed is looked up, even a word
+  // that happens to match a built-in's.
+  const own = engineWords({ key: "workorder", origin: "studio" }, "ar");
+  t.equal(own.word("Open"), "Open", "a studio-declared type's words are shown as typed");
+}
+
 // ---- Task 8: the nav and the router -----------------------------------------
 // The task-8 brief invented `navFor(...)` as the thing to test against — no
 // such function exists anywhere in the codebase (the only `navFor` in the repo
@@ -2333,6 +2364,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEscalatesRefusesAnUnmappedPersonalOverrideToo,
       testEscalationAndEffectivePermissionsAgreeOnTheSameStoredKey,
       testEverySectionHasAnArabicName,
+      testEveryBuiltinRegisterSpeaksArabic,
       testEmptySectionsDoNotRender,
       testEveryKeyWithNothingToShowIsDeclared,
       testMotionStaysInsideTheLanding,

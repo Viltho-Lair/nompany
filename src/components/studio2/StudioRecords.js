@@ -10,11 +10,13 @@
 // HAND-BUILT SCREENS — read, apply, reload, send, refusal, the error banner and
 // the loading skeleton. This is the copy that replaces them.
 //
-// EVERY WORD THE TYPE SUPPLIES IS RENDERED VERBATIM. Its label, its field
-// labels and its status words were typed into a studio's type editor, so they
-// are tenant DATA and are never translated — the rule section names, client
-// names and role names already follow. The only translated strings on this
-// screen are its own chrome, and they name no type.
+// A STUDIO'S OWN TYPE IS RENDERED VERBATIM. Its label, its field labels and its
+// status words were typed into a studio's type editor, so they are tenant DATA
+// and are never translated — the rule section names, client names and role
+// names already follow. THE BUILT-INS ARE NOT THAT: this repository declares
+// them and a studio cannot edit them, so their words translate on display
+// through `engineWords` (shared/studio/engineTypes), keyed by the stored token.
+// Every value written, filtered on, moved to or exported stays the stored word.
 //
 // FOUR ACTS, ONE PER RIGHT, AND NOT ONE MORE THAN THE PAYLOAD ALLOWS.
 // `engine.<typeKey>.<verb>` mints create, edit and delete for every declared
@@ -32,6 +34,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { restDict } from "@/shared/studio/rest";
+import { engineWords } from "@/shared/studio/engineTypes";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, th, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate, money } from "@/components/studio2/ui";
@@ -98,11 +101,11 @@ function refusal(tr, token) {
  * `Field.onChange` HANDS OVER THE VALUE, not the event — for the input, the
  * textarea and the select alike — so every handler below takes `v`.
  */
-function controlFor(tr, field, value, onChange, refOptions) {
+function controlFor(tr, w, field, value, onChange, refOptions) {
   // `key` IS PASSED EXPLICITLY ON EACH ELEMENT, never through this spread.
   // React reads `key` off the JSX call rather than off props, so a spread
   // carrying one is a warning at runtime and nothing at build time.
-  const common = { label: field.label, required: !!field.required };
+  const common = { label: w.field(field.key, field.label), required: !!field.required };
 
   if (field.kind === "boolean") {
     // A YES/NO SELECT rather than a checkbox: a checkbox is the one control the
@@ -126,7 +129,7 @@ function controlFor(tr, field, value, onChange, refOptions) {
           // A REQUIRED SELECT OFFERS NO WAY BACK TO EMPTY, which is the whole of
           // what required can mean on a control that always shows something.
           ...(field.required ? [] : [{ value: "", label: "" }]),
-          ...(field.options || []).map((o) => ({ value: String(o), label: String(o) })),
+          ...(field.options || []).map((o) => ({ value: String(o), label: w.word(o) })),
         ]} />
     );
   }
@@ -176,11 +179,12 @@ function controlFor(tr, field, value, onChange, refOptions) {
  * `coerceValue` hands back null for exactly that case, so the dash is the
  * store's own answer rather than this screen's guess.
  */
-function cell(tr, field, value, references) {
+function cell(tr, w, field, value, references) {
   if (field.kind === "boolean") return value ? tr.yes : tr.no;
   if (value === null || value === undefined || value === "") return "—";
   if (field.kind === "date") return fmtDate(value);
   if (field.kind === "money") return money(value);
+  if (field.kind === "select") return w.word(value);
   if (field.kind === "reference") {
     // THREE ANSWERS, AND THEY ARE DIFFERENT FACTS.
     //
@@ -233,7 +237,8 @@ function SortHead({ label, col, sort, onSort }) {
 // `initial` is the records/<typeKey> body the studio page answered in its own
 // render, so the register paints at once; absent, it fetches on mount as before.
 export default function StudioRecords({ slug, typeKey, initial }) {
-  const tr = restDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = restDict(locale);
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -371,6 +376,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
   if (!data) return <ScreenSkeleton loadingLabel={tr.recordsLoading} />;
 
   const { type, records, canCreate, canEdit, canDelete } = data;
+  const w = engineWords(type, locale);
   // COLUMNS RESOLVE THROUGH THE FIELDS, in the declaration's order. A column
   // naming a field the type no longer declares draws nothing rather than an
   // empty column header for ever — `typeProblem` refuses that on the way in,
@@ -390,6 +396,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
     if (!needle) return true;
     if (String(r.reference || "").toLowerCase().includes(needle)) return true;
     if (String(r.status || "").toLowerCase().includes(needle)) return true;
+    if (w.word(r.status).toLowerCase().includes(needle)) return true;
     return Object.values(r.values || {}).some((v) => String(v ?? "").toLowerCase().includes(needle));
   };
 
@@ -421,7 +428,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
   // spreadsheet with 50 rows.
   const exportCsv = () => {
     const cols = ["reference", ...columns.map((f) => f.key), "status"];
-    const heads = [tr.reference, ...columns.map((f) => f.label), tr.status];
+    const heads = [tr.reference, ...columns.map((f) => w.field(f.key, f.label)), tr.status];
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const body = shown.map((r) => cols.map((c) =>
       esc(c === "reference" ? r.reference : c === "status" ? r.status : r.values?.[c])).join(","));
@@ -443,7 +450,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
       {notice && <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{notice}</p>}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className={h2}>{type.label}</h2>
+        <h2 className={h2}>{w.label(type.label)}</h2>
         {canCreate && (
           <button type="button" className={btn}
             onClick={() => { loadRefOptions(type); setForm({ values: blankValues(type) }); }}>
@@ -471,7 +478,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
               value={status}
               onChange={(v) => { setStatus(v); setLimit(PAGE); }}
               options={[{ value: "", label: tr.recordFilterAll },
-                ...(type.statuses || []).map((st) => ({ value: st, label: st }))]} />
+                ...(type.statuses || []).map((st) => ({ value: st, label: w.word(st) }))]} />
           )}
           <span className="num text-[12px] text-slate-400 dark:text-slate-500">
             {tr.recordCount(shown.length, records.length)}
@@ -505,7 +512,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
                   </th>
                   {columns.map((f) => (
                     <th key={f.key} className={`${th} text-start`}>
-                      <SortHead label={f.label} col={f.key} sort={sort} onSort={toggleSort} />
+                      <SortHead label={w.field(f.key, f.label)} col={f.key} sort={sort} onSort={toggleSort} />
                     </th>
                   ))}
                   <th className={`${th} text-start`}>
@@ -519,18 +526,19 @@ export default function StudioRecords({ slug, typeKey, initial }) {
                   <tr key={r.id}>
                     <td className="py-3 pe-4 font-mono text-xs text-slate-500 dark:text-slate-400">{r.reference}</td>
                     {columns.map((f) => (
-                      <td key={f.key} className="py-3 pe-4 text-[var(--geex-ink)]">{cell(tr, f, r.values?.[f.key], data.references)}</td>
+                      <td key={f.key} className="py-3 pe-4 text-[var(--geex-ink)]">{cell(tr, w, f, r.values?.[f.key], data.references)}</td>
                     ))}
                     <td className="py-3 pe-4">
-                      {/* THE STATUS WORD IS THE STUDIO'S OWN, so the pill is
-                          handed it as an explicit `label`: `statusLabel` would
+                      {/* THE STATUS WORD IS THE TYPE'S OWN, so the pill is
+                          handed it as an explicit `label` — `engineWords`
+                          translates it only when the type is a built-in: `statusLabel` would
                           otherwise look a tenant's word up in a dictionary of
                           the product's built-in ladders, and a chance collision
                           there would translate a word nobody asked to have
                           translated. No `kind` either — this type's ladder is a
                           row, so it has no colour map and takes the neutral
                           fallback. */}
-                      <StatusPill status={r.status} label={r.status} />
+                      <StatusPill status={r.status} label={w.word(r.status)} />
                     </td>
                     {acting && (
                       <td className="py-3">
@@ -538,7 +546,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
                           {canEdit && movesFrom(r.status).map((t) => (
                             <button key={t.to} type="button" className={btnRow} disabled={busy}
                               onClick={() => send("PUT", { id: r.id, action: "move", to: t.to })}>
-                              {tr.recordMove(t.to)}
+                              {tr.recordMove(w.word(t.to))}
                             </button>
                           ))}
                           {canEdit && (
@@ -573,10 +581,10 @@ export default function StudioRecords({ slug, typeKey, initial }) {
       )}
 
       {form && (
-        <Dialog title={type.label} onClose={() => setForm(null)}>
+        <Dialog title={w.label(type.label)} onClose={() => setForm(null)}>
           <div className="space-y-3">
             {(type.fields || []).map((f) => controlFor(
-              tr, f, form.values[f.key],
+              tr, w, f, form.values[f.key],
               (v) => setForm((prev) => ({ ...prev, values: { ...prev.values, [f.key]: v } })),
               refOptions,
             ))}

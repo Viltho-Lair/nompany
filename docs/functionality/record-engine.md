@@ -150,6 +150,17 @@ already resolved (`params`), not the URL parsed a second time.
 **One screen**, generic. The GET hands back the declaration beside the rows, because a
 generic screen has no other way to know what columns to draw or what moves to offer.
 
+**A built-in type speaks the reader's language; a studio's own type does not.** The
+twenty-four built-ins are declared in `platform/engine/builtins.ts`, and a studio cannot edit
+them, so their label, field labels, statuses and select options are code rather than data.
+They translate ON DISPLAY through `engineWords` (`shared/studio/engineTypes.ts`), keyed by
+the stored token, and only when `origin` is `"builtin"`. Their sidebar rows
+(`engine-<type>`) take the same words through `sectionName`. Nothing stored changes: a
+status is still `"In progress"` in the row, the API, a rule's trigger, a move and the CSV
+values. Until 26/09/2026 the screen rendered every one of these words verbatim, so an Arabic
+studio read "Work orders", "Planned" and "Released" in its sidebar and on every row.
+`testEveryBuiltinRegisterSpeaksArabic` fails on a declared word with no Arabic.
+
 **A reference per record**, minted through `nextReference`, so invariant 10 holds — a
 deleted record does not let the next create reissue its number.
 
