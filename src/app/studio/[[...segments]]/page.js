@@ -194,42 +194,31 @@ const KEYED_FIRST_PAYLOAD = {
 // of them whichever screen is named. The four heaviest — the document editor
 // and the planner, together TipTap and MUI's date pickers — declare their split
 // inside a client module instead, where `import()` survives to runtime.
-// components/studio2/HeavyScreens holds the measurement and the reasoning; the
-// screens below are unchanged because their weight has not been measured yet,
-// and moving code on a hunch is how the last split came to look like it worked.
+// components/studio2/HeavyScreens holds the measurement and the reasoning.
+//
+// EVERY CLIENT SCREEN LIVES THERE NOW (26/09/2026), not just the four heaviest:
+// measured, the thirty-four client screens that were still declared below had
+// become ONE 302 KB chunk on every tenant page. What stays below is only the
+// screens that are themselves Server Components — a client module cannot import
+// one — and their own client children still ride this route's first load, so
+// the next saving is inside those wrappers, not here.
 import {
   DocumentList, DocumentView, DocumentPrint, StudioPlanner, StudioPlannerList, PlanPrint, StudioPos,
   PosDashboard, StudioPosSales, StudioPosShifts, StudioPosSettings, StudioPosReturns, StudioPosPromotions,
+  StudioSectionSummary, StudioLandedCost, StudioSafety, StudioSalesLive, StudioTechnicalLive,
+  StudioPeople, StudioRoles, StudioSettings, CustomerInsightsDashboard, StudioProjectHub,
+  StudioMarketingCalendar, StudioMarketingPartners, StudioMarketingContent,
+  StudioMarketingEvents, StudioAudiences, StudioMarketingBudget, StudioForms,
+  StudioPurchaseOrders, StudioPermits, StudioPlantAllocation, StudioProduction, StudioSales,
+  StudioTicketProfile, StudioSheetViewer, SalesQuotationViewer, StudioTechnical,
+  StudioProjects, StudioHr, StudioInventory, StudioFinance, StudioApprovals,
+  StudioOperations, StudioMain, StudioEngagements,
 } from "@/components/studio2/HeavyScreens";
 
 const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
-// The generic section dashboard's register panel — reached from five sections,
-// so it rides the same dynamic boundary the rest of them do.
-const StudioSectionSummary = nextDynamic(() => import("@/components/studio2/StudioSectionSummary"));
-// Logistics' root only — the landed-cost reconciliation, beside the register
-// summary every engine section gets.
-const StudioLandedCost = nextDynamic(() => import("@/components/studio2/LandedCostPanel"));
-// Quality & HSE only — LTIFR is a fact about injuries and hours worked, not
-// about registers in general, so it is mounted by key rather than joining the
-// panel every engine section gets.
-const StudioSafety = nextDynamic(() => import("@/components/studio2/StudioSafety"));
 // A SERVER COMPONENT — no client state, and an export is a link rather than a
 // fetch. It is still dynamic so the route does not carry it until reached.
 const StudioReports = nextDynamic(() => import("@/components/studio2/StudioReports"));
-const StudioSalesLive = nextDynamic(() => import("@/components/studio2/StudioSalesLive"));
-const StudioTechnicalLive = nextDynamic(() => import("@/components/studio2/StudioTechnicalLive"));
-const StudioPeople = nextDynamic(
-  () => import("@/components/studio2/StudioPeople"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioRoles = nextDynamic(
-  () => import("@/components/studio2/StudioRoles"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioSettings = nextDynamic(
-  () => import("@/components/studio2/StudioSettings"),
-  { loading: () => <ScreenSkeleton /> },
-);
 const StudioMasterData = nextDynamic(
   () => import("@/components/studio2/StudioMasterData"),
   { loading: () => <ScreenSkeleton /> },
@@ -244,11 +233,6 @@ const StudioOrders = nextDynamic(
 );
 const StudioResourceLoad = nextDynamic(
   () => import("@/components/studio2/StudioResourceLoad"),
-  { loading: () => <ScreenSkeleton /> },
-);
-// Customer insights (19/09/2026): the buying-pattern analysis, advanced tier.
-const CustomerInsightsDashboard = nextDynamic(
-  () => import("@/components/studio2/CustomerInsightsDashboard"),
   { loading: () => <ScreenSkeleton /> },
 );
 const StudioPipeline = nextDynamic(
@@ -269,12 +253,6 @@ const StudioReceiving = nextDynamic(
 );
 const ProcurementDashboard = nextDynamic(
   () => import("@/components/studio2/ProcurementDashboard"),
-  { loading: () => <ScreenSkeleton /> },
-);
-// ONE PROJECT'S PAGE, all six tabs of it — see StudioProjectHub, which loads
-// each tab as its own chunk (a client module, so those splits are real).
-const StudioProjectHub = nextDynamic(
-  () => import("@/components/studio2/StudioProjectHub"),
   { loading: () => <ScreenSkeleton /> },
 );
 const StudioExpediting = nextDynamic(
@@ -331,65 +309,12 @@ const StudioCampaigns = nextDynamic(
   () => import("@/components/studio2/StudioCampaigns"),
   { loading: () => <ScreenSkeleton /> },
 );
-// Forms (19/09/2026): the list, and one form's editor at /marketing-forms/<id>.
-// Planning & calendar (22/09/2026): what runs when, across channels.
-const StudioMarketingCalendar = nextDynamic(
-  () => import("@/components/studio2/StudioMarketingCalendar"),
-  { loading: () => <ScreenSkeleton /> },
-);
-// Partners & influencers (22/09/2026): who brings the work, and what it brought.
-const StudioMarketingPartners = nextDynamic(
-  () => import("@/components/studio2/StudioMarketingPartners"),
-  { loading: () => <ScreenSkeleton /> },
-);
-// Content & brand assets (22/09/2026): what was made for each campaign.
-const StudioMarketingContent = nextDynamic(
-  () => import("@/components/studio2/StudioMarketingContent"),
-  { loading: () => <ScreenSkeleton /> },
-);
-// Events & webinars (22/09/2026): what is on, who signed up, and who came.
-const StudioMarketingEvents = nextDynamic(
-  () => import("@/components/studio2/StudioMarketingEvents"),
-  { loading: () => <ScreenSkeleton /> },
-);
-// Audiences & consent (21/09/2026): who the studio may contact, and why.
-const StudioAudiences = nextDynamic(
-  () => import("@/components/studio2/StudioAudiences"),
-  { loading: () => <ScreenSkeleton /> },
-);
-// Budget & spend (21/09/2026): campaigns against what Finance recorded.
-const StudioMarketingBudget = nextDynamic(
-  () => import("@/components/studio2/StudioMarketingBudget"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioForms = nextDynamic(
-  () => import("@/components/studio2/StudioForms"),
-  { loading: () => <ScreenSkeleton /> },
-);
 const StudioFormEditor = nextDynamic(
   () => import("@/components/studio2/StudioFormEditor"),
   { loading: () => <ScreenSkeleton /> },
 );
-// The purchase order register (tier 5) — see StudioPurchaseOrders.
-const StudioPurchaseOrders = nextDynamic(
-  () => import("@/components/studio2/StudioPurchaseOrders"),
-  { loading: () => <ScreenSkeleton /> },
-);
-// The one permit register, in Quality & HSE (tier 5) — see StudioPermits.
-const StudioPermits = nextDynamic(
-  () => import("@/components/studio2/StudioPermits"),
-  { loading: () => <ScreenSkeleton /> },
-);
 const StudioRates = nextDynamic(
   () => import("@/components/studio2/StudioRates"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioPlantAllocation = nextDynamic(
-  () => import("@/components/studio2/StudioPlantAllocation"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioProduction = nextDynamic(
-  () => import("@/components/studio2/StudioProduction"),
   { loading: () => <ScreenSkeleton /> },
 );
 const StudioBoq = nextDynamic(
@@ -408,61 +333,6 @@ const StudioCustomer = nextDynamic(
   // department skeleton would reserve a chart where a document is coming,
   // which makes the arrival a jump.
   { loading: () => <RecordSkeleton /> },
-);
-const StudioSales = nextDynamic(
-  () => import("@/components/studio2/StudioSales"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioTicketProfile = nextDynamic(
-  () => import("@/components/studio2/StudioTicketProfile"),
-  { loading: () => <ScreenSkeleton /> },
-);
-// The project planner — a full-screen app (the list) and one plan's schedule.
-// Reached through Operations (the whole app) and through a project (its own
-// plans), so both the studio route branches below hand it the plan's API base.
-const StudioSheetViewer = nextDynamic(
-  () => import("@/components/studio2/StudioSheetViewer"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const SalesQuotationViewer = nextDynamic(
-  () => import("@/components/studio2/SalesQuotationViewer"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioTechnical = nextDynamic(
-  () => import("@/components/studio2/StudioTechnical"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioProjects = nextDynamic(
-  () => import("@/components/studio2/StudioProjects"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioHr = nextDynamic(
-  () => import("@/components/studio2/StudioHr"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioInventory = nextDynamic(
-  () => import("@/components/studio2/StudioInventory"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioFinance = nextDynamic(
-  () => import("@/components/studio2/StudioFinance"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioApprovals = nextDynamic(
-  () => import("@/components/studio2/StudioApprovals"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioOperations = nextDynamic(
-  () => import("@/components/studio2/StudioOperations"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioMain = nextDynamic(
-  () => import("@/components/studio2/StudioMain"),
-  { loading: () => <ScreenSkeleton /> },
-);
-const StudioEngagements = nextDynamic(
-  () => import("@/components/studio2/StudioEngagements"),
-  { loading: () => <ScreenSkeleton /> },
 );
 // ONE COMPONENT FOR EVERY DECLARED RECORD TYPE, however many a studio declares.
 // It is imported once here and pointed at a type key, not imported once per
