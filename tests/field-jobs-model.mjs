@@ -33,6 +33,33 @@ ok("a leap day's yearly visit lands on the 28th", P.nextOccurrence("2028-02-29",
 ok("a frequency nobody can read answers nothing", P.nextOccurrence("2026-09-11", "Fortnightly") === "");
 ok("a date nobody can read answers nothing", P.nextOccurrence("soon", "Monthly") === "");
 
+// MONTHLY PLANS DRIFTED TO THE 28TH (27/09/2026): counted from the previous due
+// date alone, 31 Jan → 28 Feb → 28 Mar → 28 Apr for ever — February's clamp
+// became the plan's day while the comment above the function promised no drift.
+// The anchor is the plan's own day of the month; without one, nothing changes.
+{
+  const walk = (from, n, anchor) => {
+    const out = [from];
+    for (let i = 0; i < n; i += 1) out.push(P.nextOccurrence(out.at(-1), "Monthly", anchor));
+    return out.join(",");
+  };
+  ok("ANCHORED TO THE 31ST, A MONTHLY PLAN RETURNS TO IT AFTER FEBRUARY",
+    walk("2027-01-31", 3, 31) === "2027-01-31,2027-02-28,2027-03-31,2027-04-30", walk("2027-01-31", 3, 31));
+  ok("...and to the 29th in a leap year", P.nextOccurrence("2028-01-31", "Monthly", 31) === "2028-02-29");
+  ok("quarterly anchored to the 31st comes back to it",
+    P.nextOccurrence("2027-02-28", "Quarterly", 31) === "2027-05-31");
+  ok("no anchor is the old arithmetic (a floating plan's)", P.nextOccurrence("2027-02-28", "Monthly") === "2027-03-28");
+  ok("an anchor nobody can read is ignored", P.nextOccurrence("2027-02-28", "Monthly", 40) === "2027-03-28");
+  ok("weekly ignores the anchor", P.nextOccurrence("2027-02-28", "Weekly", 31) === "2027-03-07");
+  // AN EXISTING PLAN, WRITTEN BEFORE ANCHORS: read off its occurrences.
+  ok("below the 28th the due date's own day is the anchor",
+    P.occurrenceAnchor("2027-03-15", ["2027-01-31"]) === 15);
+  ok("A PLAN ALREADY DRIFTED TO THE 28TH RECOVERS ITS DAY FROM ITS HISTORY",
+    P.occurrenceAnchor("2027-03-28", ["2027-01-31", "2027-02-28"]) === 31);
+  ok("with no history, its own day", P.occurrenceAnchor("2027-03-30", []) === 30);
+  ok("no due date, no anchor", P.occurrenceAnchor("", ["2027-01-31"]) === null);
+}
+
 console.log("\n== what a service order becomes");
 
 const order = {

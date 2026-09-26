@@ -21,7 +21,7 @@
 // until the open one is finished, and arrives already overdue — which is the
 // honest state, and what compliance then reports.
 
-import { nextOccurrence, PLAN_FREQUENCIES } from "@/modules/operations/planSchedule";
+import { nextOccurrence, occurrenceAnchor, PLAN_FREQUENCIES } from "@/modules/operations/planSchedule";
 import { addDaysISO } from "@/shared/dates";
 import { orderOpen } from "./model";
 import { isMeterUnit } from "./meters";
@@ -79,7 +79,7 @@ export const checklistFor = (labels: readonly string[]) =>
 
 type PlanLike = {
   id?: unknown; title?: unknown; status?: unknown; frequency?: unknown; scheduleMode?: unknown;
-  nextDue?: unknown; leadDays?: unknown; checklist?: unknown;
+  nextDue?: unknown; dueDay?: unknown; leadDays?: unknown; checklist?: unknown;
   trigger?: unknown; assetId?: unknown; meterUnit?: unknown; meterEvery?: unknown; nextDueReading?: unknown;
   conditionLabel?: unknown; conditionUnit?: unknown; limitLow?: unknown; limitHigh?: unknown;
 };
@@ -175,11 +175,28 @@ export function nextDueReadingOnClose(
  * already finished, the date moves on from the occurrence, so a plan whose
  * completion update was lost is not stuck for ever.
  */
+/**
+ * THE DAY OF THE MONTH A FIXED PLAN FALLS ON — what it was set to (`dueDay`,
+ * written when a person types the due date), else read off its next due date
+ * and the occurrences its orders answered (`occurrenceAnchor`), so a plan
+ * written before anchors existed keeps its day rather than the one February
+ * clamped it to. Null for a floating plan: its next date follows the day the
+ * work was done, and anchoring it to the day it was first set up would undo
+ * the whole point of floating.
+ */
+export function planAnchor(plan: PlanLike, orders: readonly OrderLike[]): number | null {
+  if (text(plan.scheduleMode) === "floating") return null;
+  const stored = Number(plan.dueDay);
+  if (Number.isInteger(stored) && stored >= 1 && stored <= 31) return stored;
+  const mine = orders.filter((o) => text(o.pmPlanId) === text(plan.id)).map((o) => text(o.pmDueOn));
+  return occurrenceAnchor(plan.nextDue, mine);
+}
+
 export function raiseDecision(
   plan: PlanLike,
   orders: readonly OrderLike[],
   today: string,
-): { raise: boolean; occurrence: string; next: string | null } | null {
+): { raise: boolean; occurrence: string; next: string | null; anchor: number | null } | null {
   // NEITHER A METER PLAN NOR A CONDITION ONE IS ON THE CALENDAR —
   // `meterRaiseDecision` and `conditionRaiseDecision` answer those.
   if (text(plan.status) !== "Active" || isMeterPlan(plan) || isConditionPlan(plan)) return null;
@@ -191,10 +208,11 @@ export function raiseDecision(
   if (today < addDaysISO(occurrence, -lead)) return null;
 
   const floating = text(plan.scheduleMode) === "floating";
-  const following = nextOccurrence(occurrence, plan.frequency) || null;
+  const anchor = planAnchor(plan, mine);
+  const following = nextOccurrence(occurrence, plan.frequency, anchor) || null;
   const already = mine.some((o) => text(o.pmDueOn) === occurrence);
-  if (already) return { raise: false, occurrence, next: following };
-  return { raise: true, occurrence, next: floating ? null : following };
+  if (already) return { raise: false, occurrence, next: following, anchor };
+  return { raise: true, occurrence, next: floating ? null : following, anchor };
 }
 
 /**

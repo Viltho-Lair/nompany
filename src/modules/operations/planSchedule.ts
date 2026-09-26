@@ -30,8 +30,16 @@ export type PlanFrequency = (typeof PLAN_FREQUENCIES)[number];
  * on the 31st of January is next due on the last day of February, not in March,
  * because a visit that drifts a month late every time it meets a short month is
  * a schedule nobody asked for.
+ *
+ * AND CLAMPING IS NOT DRIFTING — pass the plan's own day of the month as
+ * `anchorDay`. Counted from the previous due date alone, a plan on the 31st
+ * went 31 Jan → 28 Feb → 28 Mar → 28 Apr for ever: February's clamp became
+ * the plan's new day, which is the drift this comment always claimed not to
+ * have. With the anchor, 31 Jan → 28 Feb → 31 Mar → 30 Apr. Without one the
+ * day of `iso` is the anchor, which is exactly the old arithmetic — right for
+ * a floating plan, whose next date is meant to follow the completion day.
  */
-export function nextOccurrence(iso: unknown, frequency: unknown): string {
+export function nextOccurrence(iso: unknown, frequency: unknown, anchorDay?: unknown): string {
   const day = String(iso ?? "").slice(0, 10);
   const m = ISO_DAY.exec(day);
   if (!m) return "";
@@ -42,8 +50,35 @@ export function nextOccurrence(iso: unknown, frequency: unknown): string {
   const year = Number(m[1]) + Math.floor(total / 12);
   const month = total % 12;
   const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  const date = Math.min(Number(m[3]), last);
+  const anchor = Number(anchorDay);
+  const wanted = Number.isInteger(anchor) && anchor >= 1 && anchor <= 31 ? anchor : Number(m[3]);
+  const date = Math.min(wanted, last);
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
+}
+
+/**
+ * WHICH DAY OF THE MONTH A PLAN FALLS ON, read off its next due date and the
+ * occurrences it has already raised — nothing stored says, and existing plans
+ * must keep working without a migration.
+ *
+ * Below the 28th the next due date's own day IS the anchor: no clamp can have
+ * produced it, so it is the day the plan was set up on or the day somebody
+ * deliberately moved it to. From the 28th up it may be a clamp that has
+ * already drifted (31 Jan → 28 Feb → 28 Mar), and the plan's earlier
+ * occurrences remember the day it really falls on — a clamp only ever LOWERS
+ * the day, so the largest seen is the anchor. The one case this reads wrong is
+ * a plan somebody moved by hand from the 31st to the 28th–30th, and it is the
+ * price of repairing the far commoner case: every plan that ever met February.
+ */
+export function occurrenceAnchor(nextDue: unknown, earlier: readonly unknown[] = []): number | null {
+  const m = ISO_DAY.exec(String(nextDue ?? "").slice(0, 10));
+  if (!m) return null;
+  const own = Number(m[3]);
+  if (own < 28) return own;
+  return earlier.reduce<number>((best, e) => {
+    const x = ISO_DAY.exec(String(e ?? "").slice(0, 10));
+    return x && Number(x[3]) > best ? Number(x[3]) : best;
+  }, own);
 }
 
 /** A service order's state, as a job's. `On site` is the only one in flight. */

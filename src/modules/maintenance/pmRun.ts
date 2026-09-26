@@ -101,12 +101,16 @@ export async function raiseDuePmOrders(studioId: string, todayISO: string): Prom
     if (d.raise) { await raise(plan, { dueOn: d.occurrence, pmDueOn: d.occurrence }); raised += 1; }
     // MOVED ON EVEN WHEN THE ORDER ALREADY EXISTED — the crash-between case —
     // and only if the plan still points at the occurrence judged, so a plan
-    // somebody re-dated since the read is left as they set it.
+    // somebody re-dated since the read is left as they set it. THE ANCHOR IS
+    // STAMPED THE FIRST TIME a plan without one moves on, so the day it was
+    // read off (`planAnchor`) stops depending on its orders still existing.
     if (d.next) {
       const next = d.next;
       const stamp = new Date().toISOString();
       await Plans.update({ studio: at, section: plansSection }, plan.id, (row) =>
-        (row.nextDue === d.occurrence ? { nextDue: next, updatedAt: stamp } : {}));
+        (row.nextDue === d.occurrence
+          ? { nextDue: next, ...(row.dueDay === undefined && d.anchor !== null ? { dueDay: d.anchor } : {}), updatedAt: stamp }
+          : {}));
     }
   }
   return raised;
@@ -223,6 +227,9 @@ export async function raiseDueContractOrders(studioId: string, todayISO: string)
       dueOn: d.dueOn,
       slaId: c.id,
       slaVisit: d.visit,
+      // THE VISIT'S OWN DATE, kept apart from `dueOn`, which may be moved:
+      // it is what places the order in its term (`orderInTerm`).
+      slaDueOn: d.dueOn,
     }, "system");
     orders.push(order);
     await announce(studioId, order, []);

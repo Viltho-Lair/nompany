@@ -29,7 +29,7 @@ import { engineSectionKey } from "@/platform/access";
 import type { EngineRecord } from "@/platform/engine/schema";
 import type { Job } from "./jobSchema";
 import { insertJob } from "./jobs";
-import { nextOccurrence } from "./planSchedule";
+import { nextOccurrence, occurrenceAnchor } from "./planSchedule";
 
 const Jobs = repo<Job>("jobs");
 const Records = repo<EngineRecord>("engineRecords");
@@ -77,7 +77,9 @@ export async function raiseDuePlanJobs(studioId: string, todayISO: string): Prom
     // case, and leaving the date where it was would stall the plan for ever.
     // A frequency nobody can read leaves it alone: tomorrow's run then finds
     // the job and raises nothing, which is stuck but never duplicated.
-    const next = nextOccurrence(due, v.frequency);
+    // ANCHORED to the day the plan falls on, read off the occurrences its jobs
+    // answered — or a plan on the 31st takes February's 28th as its day for ever.
+    const next = nextOccurrence(due, v.frequency, occurrenceAnchor(due, mine.map((j) => j.planOccurrence)));
     if (next) {
       const at = new Date().toISOString();
       await Records.update({ studio, section: planSection } as never, plan.id, (row) => ({

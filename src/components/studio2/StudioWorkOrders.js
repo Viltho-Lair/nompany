@@ -355,7 +355,12 @@ export default function StudioWorkOrders({ slug, initial }) {
                 )}
               </div>
 
-              {(canEdit || canDelete) && (
+              {/* canIssue JOINS THE ROW'S GATE: a storeman who may only VIEW work
+                  orders still issues parts to them — the server asks for
+                  inventory.stock.edit and nothing about the order — and inside
+                  an edit-or-delete gate the one button they may press was never
+                  drawn. */}
+              {(canEdit || canDelete || canIssue) && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {canEdit && (ORDER_MOVES[o.status] || []).map((to) => (
                     <button key={to} type="button" disabled={busy} onClick={() => move(o, to)}
@@ -513,7 +518,6 @@ export default function StudioWorkOrders({ slug, initial }) {
             )}
             {completing.down && (
               <Field label={tr.upAt} type="datetime-local" value={completing.upAt}
-                hint={tr.downNow("—").replace("—", "").trim() ? undefined : undefined}
                 onChange={(v) => setCompleting((c) => ({ ...c, upAt: v }))} />
             )}
             <div className="flex justify-end gap-2">

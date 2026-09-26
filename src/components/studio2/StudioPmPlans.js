@@ -181,7 +181,7 @@ export default function StudioPmPlans({ slug, initial }) {
       {form && (
         <Dialog title={form.id ? tr.editPlan : tr.newPlan} onClose={() => setForm(null)} width="max-w-[760px]">
           <div className="space-y-4">
-            <Field label={tr.title} required value={form.title}
+            <Field label={tr.planName} required value={form.title}
               onChange={(v) => setForm((f) => ({ ...f, title: v }))} inputProps={{ maxLength: 200 }} />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={tr.trigger} as="select" required value={form.trigger}

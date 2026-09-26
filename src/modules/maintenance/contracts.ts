@@ -63,6 +63,7 @@ type ContractLike = {
 };
 type OrderLike = {
   id?: unknown; reference?: unknown; status?: unknown; slaId?: unknown; slaVisit?: unknown; slaEmergency?: unknown;
+  slaDueOn?: unknown; dueOn?: unknown;
 };
 
 const durationOf = (c: ContractLike) => Number(c.durationDays) || DEFAULT_DURATION_DAYS;
@@ -82,6 +83,39 @@ export function plannedVisits(c: ContractLike): { index: number; dueOn: string }
   const interval = durationOf(c) / n;
   return Array.from({ length: n }, (_, i) => ({ index: i + 1, dueOn: addDaysISO(start, (i + 1) * interval) }));
 }
+
+/**
+ * WHICH TERM AN ORDER'S VISIT BELONGS TO. A visit is named by its NUMBER, and
+ * a number is not an identity across terms: a contract renewed by moving its
+ * start to its old end has a visit 1 again, and matching by number alone read
+ * the old term's visit-1 order as the new one's — every visit number already
+ * served read as done and the daily run never raised the new term at all.
+ *
+ * So an order counts for the contract's CURRENT term only when the visit it
+ * was raised for fell due after the current start. Every visit falls due
+ * strictly after its term's start (visit 1 is start + one interval, at least a
+ * day), and every visit of a term that ended is on or before that term's end —
+ * which is where a renewal puts the new start. The old term's orders stay what
+ * they were; they are simply not this term's.
+ *
+ * THE DATE IS `slaDueOn`, the visit's own date stamped when it was raised, and
+ * not `dueOn`, which somebody may move when they reschedule the work. Orders
+ * raised before `slaDueOn` existed carry the same date in `dueOn` — the run
+ * wrote both from the one visit — so they are read by that with nothing
+ * migrated. An order with neither date cannot be placed and keeps the old
+ * reading (it counts), because dropping it would re-raise a visit already
+ * served. Correcting a start by less than an interval moves no visit across
+ * the line, so a typo fixed is not a renewal.
+ */
+export function orderInTerm(c: ContractLike, o: OrderLike): boolean {
+  const start = day(c.startDate);
+  const visitDay = day(o.slaDueOn) || day(o.dueOn);
+  return !start || !visitDay || visitDay > start;
+}
+
+/** The planned-visit orders of THIS contract's current term — see `orderInTerm`. */
+export const termOrders = (c: ContractLike, orders: readonly OrderLike[]) =>
+  orders.filter((o) => text(o.slaId) === text(c.id) && !o.slaEmergency && orderInTerm(c, o));
 
 export const CONTRACT_STATES = ["upcoming", "active", "ended", "cancelled"] as const;
 export type ContractState = (typeof CONTRACT_STATES)[number];
@@ -120,7 +154,7 @@ export type VisitState = (typeof VISIT_STATES)[number];
  */
 export function contractVisits(c: ContractLike, orders: readonly OrderLike[], today: string) {
   const ticked = new Set((Array.isArray(c.completedVisits) ? c.completedVisits : []).map((n) => Number(n)));
-  const mine = orders.filter((o) => text(o.slaId) === text(c.id) && !o.slaEmergency);
+  const mine = termOrders(c, orders);
   const cancelledContract = text(c.status) === "Cancelled";
   const graceFrom = addDaysISO(today, -RAISE_GRACE_DAYS);
   return plannedVisits(c).map((v) => {
@@ -146,7 +180,9 @@ export function contractVisits(c: ContractLike, orders: readonly OrderLike[], to
  * THE VISIT THE DAILY RUN SHOULD RAISE NOW, or null. The earliest one due, and
  * only one a day — a contract entered late is caught up a visit at a time
  * rather than as a wall of orders for the same customer on one morning.
- * Idempotent: a visit with an order is never due again.
+ * Idempotent: a visit with an order IN THIS TERM is never due again — and a
+ * renewed term's visits are due again, because last term's orders are not
+ * this term's (`orderInTerm`).
  */
 export function contractRaiseDecision(
   c: ContractLike, orders: readonly OrderLike[], today: string, keptByPlans = false,

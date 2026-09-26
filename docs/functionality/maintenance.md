@@ -140,7 +140,15 @@ its lead days, has arrived. Every decision is `raiseDecision`'s, pure in `schedu
   patch, so a stale order finishing late never drags a plan back.
 - **The studio acts** (`system`), and assignees are told through the same notice a person sends.
 - The occurrence arithmetic is Field Service's `nextOccurrence`, imported — calendar months
-  clamped to the month's end.
+  clamped to the month's end, and **anchored to the plan's own day of the month**, so a fixed
+  plan on the 31st runs 31 Jan → 28 Feb → 31 Mar → 30 Apr. Until 27/09/2026 each date was
+  counted from the one before, so February's clamp became the plan's day and it ran on the 28th
+  for ever. The anchor is `dueDay`, stamped when a person types or moves the due date; a plan
+  written before it reads its day off its due date and the occurrences its orders answered
+  (`planAnchor` → `occurrenceAnchor` — a clamp only lowers the day, so the largest seen is
+  the plan's) and is stamped the next time it moves on. A floating plan is not anchored: its next
+  date follows the day the work was done. Field Service's own plan run is anchored the same way,
+  off the occurrences its jobs answered.
 
 **The checklist is the plan.** Each order raised gets its own copy of the steps with a tick each;
 editing the plan re-words nothing already issued. Steps tick while the work is open, under a
@@ -261,7 +269,12 @@ skips that trigger. A plan written before meters existed has no `trigger` and re
 so a reading that crosses 250 hours raises the service now rather than at tomorrow's cron (which
 still runs every plan, and raises nothing twice). The run is called from the route, not the
 service, because the run writes orders through the service — the other way round is an import loop.
-The reading stands whatever the run does. PM compliance counts calendar plans only.
+The reading stands whatever the run does. **PM compliance scores meter plans too**, by
+overshoot in the meter's own unit rather than in days (`meterComplianceWindow`, a tenth of the
+interval): a finished order is late when the meter at completion (`meterAtClose`) had run past
+its trigger plus the window, and open work is late once the machine's latest reading has. An
+order finished before `meterAtClose` was stamped cannot be measured and counts as on time.
+Condition points are not scored (below).
 
 ### Service contracts (SLA) (11/09/2026)
 
@@ -286,6 +299,16 @@ and a checklist. Rules in `contracts.ts`, pure — the screen refuses exactly wh
 **The visit dates are arithmetic**: visit k falls on start + k × (length ÷ visits), rounded to
 the day, so the last lands on the end — the same sum the Projects screen used, so every contract
 kept its dates. Editing the start, length or count reschedules every visit.
+
+**A visit's number is not its identity across terms.** A renewal moves the start (usually to the
+old end), and visit 1 exists again; until 27/09/2026 a visit was matched to its order by number
+alone, so every number the old term had served read as done and the new term was never raised.
+An order now counts for the current term only when the visit it was raised for fell due AFTER
+the current start (`orderInTerm` in `contracts.ts`) — every visit falls due after its own term's
+start and on or before its end. The date is `slaDueOn`, stamped on the order when the run raises
+it and never edited; orders raised before it existed are placed by their `dueOn`, which the run
+set to the same date, so nothing was migrated. An order with neither date keeps the old reading.
+Correcting a start by less than one visit interval moves nothing across the line.
 
 **Each visit becomes a work order by itself.** The daily run (`raiseDueContractOrders` in
 `pmRun.ts`, on `cron/daily-notices` in its own `try`) raises a preventive order for a contract's
@@ -313,7 +336,8 @@ work order. Two call-outs at the same instant can both take the last one; the re
 shows it.
 
 **Cancelled is the one stored state**; active, not started and ended are read off the dates, so a
-renewal is new dates on the same contract. A cancelled contract raises nothing and takes no
+renewal is new dates on the same contract, and the new term's visits are raised afresh while the
+old term's orders stay on the machines' history. A cancelled contract raises nothing and takes no
 call-outs, and is reinstated from the same screen. **Only a contract that has raised nothing
 deletes** — once a visit, a call-out or a plan names it, cancel it instead.
 
@@ -390,7 +414,9 @@ before it can be completed — which nobody can do for a reading that is merely 
 Recorded on the Machines screen, where each machine lists its points; the reading is judged
 the moment it is saved (the conditions route), and the daily cron runs the same pass again as
 the recovery path, because that route swallows a failed run deliberately: a measurement is a
-fact about the machine, and losing it would be the wrong half to drop.
+fact about the machine, and losing it would be the wrong half to drop. **A retired point takes
+no readings** (`condition-retired`) — its own refusal, where it once borrowed the plan editor's
+"a retired plan is not edited", which described something nobody was doing.
 
 ### The dashboard (12/09/2026)
 
@@ -487,6 +513,9 @@ paths, and nothing else is accepted.
   call-out past the allowance is refused rather than charged.
 - **Renewal as an act.** A contract is renewed by moving its dates; nothing reminds anybody that
   one is ending.
+- **Hand ticks know no term.** `completedVisits` stores visit NUMBERS, so a visit ticked by hand
+  in the old term still reads as done for the same number after a renewal; orders are placed in
+  their term (`orderInTerm`), ticks are not. Untick them on the renewed contract.
 - **The customer is typed**, not a CRM client, as the installed base types it.
 - **The dispatch board's job form** still offers Field Service's old contract register, which
   new studios do not have, rather than service contracts.

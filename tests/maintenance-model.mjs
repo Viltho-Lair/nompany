@@ -238,6 +238,22 @@ ok("another plan's open order does not",
   ok("...and the date still moves on", d?.next === "2026-10-15");
 }
 ok("month ends clamp (31 Jan → 28 Feb)", S.raiseDecision(plan({ nextDue: "2027-01-31" }), [], "2027-01-31")?.next === "2027-02-28");
+// MONTHLY PLANS DRIFTED TO THE 28TH (27/09/2026): the next date was counted from
+// the clamped one, so a plan on the 31st ran on the 28th for ever after February.
+{
+  const feb = plan({ nextDue: "2027-02-28", dueDay: 31 });
+  ok("A PLAN ON THE 31ST GOES BACK TO THE 31ST AFTER FEBRUARY",
+    S.raiseDecision(feb, [], "2027-02-28")?.next === "2027-03-31", String(S.raiseDecision(feb, [], "2027-02-28")?.next));
+  const history = [{ pmPlanId: "p1", pmDueOn: "2027-01-31", status: "Completed" }];
+  const legacy = S.raiseDecision(plan({ nextDue: "2027-02-28" }), history, "2027-02-28");
+  ok("a plan written before dueDay reads its day off the orders it raised", legacy?.next === "2027-03-31" && legacy.anchor === 31,
+    JSON.stringify(legacy));
+  ok("...and not off another plan's", S.raiseDecision(plan({ nextDue: "2027-02-28" }),
+    [{ pmPlanId: "p2", pmDueOn: "2027-01-31", status: "Completed" }], "2027-02-28")?.next === "2027-03-28");
+  ok("a stored day wins over the history", S.planAnchor(plan({ nextDue: "2027-02-28", dueDay: 30 }), history) === 30);
+  ok("a floating plan is not anchored — it follows the day the work was done",
+    S.planAnchor(plan({ scheduleMode: "floating", nextDue: "2027-02-28", dueDay: 31 }), history) === null);
+}
 
 console.log("\n== a floating plan, on close");
 {
@@ -688,6 +704,32 @@ console.log("\n== service contracts");
   ok("one visit a run, the earliest", C.contractRaiseDecision(sla({ visits: 365 }), [], "2026-01-05")?.visit === 1);
   ok("a cancelled contract raises nothing", C.contractRaiseDecision(sla({ status: "Cancelled" }), [], "2026-04-02") === null);
   ok("A CONTRACT ITS PLANS KEEP RAISES NOTHING ITSELF", C.contractRaiseDecision(sla(), [], "2026-04-02", true) === null);
+
+  // CONTRACT RENEWAL BROKE ITS VISITS (27/09/2026): a visit was matched to its
+  // order by NUMBER alone, so moving the dates for a new term read every visit
+  // the old term had served as done and the run never raised the new term.
+  {
+    // Last term's four visits, all served; raised before `slaDueOn`, so they
+    // carry the visit date in `dueOn` only — the rows live studios hold.
+    const oldTerm = C.plannedVisits(sla()).map((pv) => o(pv.index, "Completed", { dueOn: pv.dueOn }));
+    const renewed = sla({ startDate: "2027-01-01" });
+    const firstNew = C.plannedVisits(renewed)[0];
+    ok("A RENEWED TERM'S FIRST VISIT IS DUE, NOT DONE BY LAST TERM'S ORDER",
+      C.contractVisits(renewed, oldTerm, firstNew.dueOn)[0].state === "due", C.contractVisits(renewed, oldTerm, firstNew.dueOn)[0].state);
+    ok("...and the run raises it", C.contractRaiseDecision(renewed, oldTerm, firstNew.dueOn)?.visit === 1);
+    ok("the old term still reads all four done before the dates move",
+      C.contractVisits(sla(), oldTerm, "2027-01-01").every((x) => x.state === "done"));
+    const raisedNew = [...oldTerm, o(1, "Open", { id: "n1", slaDueOn: firstNew.dueOn, dueOn: firstNew.dueOn })];
+    ok("the new term's own order is its visit 1", C.contractVisits(renewed, raisedNew, firstNew.dueOn)[0].order?.id === "n1");
+    ok("...so it is not raised twice", C.contractRaiseDecision(renewed, raisedNew, firstNew.dueOn) === null);
+    // `slaDueOn` places the order even after somebody reschedules its dueOn.
+    const moved = [o(1, "Open", { slaDueOn: "2026-04-02", dueOn: "2025-12-01" })];
+    ok("a rescheduled order still counts for the visit it was raised for", v(moved, "2026-04-02")[0].state === "open");
+    ok("an order with no date at all keeps the old reading", v([o(1, "Completed")], "2026-05-01")[0].state === "done");
+    // A START CORRECTED BY A FEW DAYS IS NOT A RENEWAL.
+    ok("correcting the start by less than an interval moves no order out",
+      C.contractVisits(sla({ startDate: "2026-01-05" }), oldTerm, "2026-05-01")[0].state === "done");
+  }
 
   const co = (status) => ({ slaId: "s1", slaEmergency: true, status });
   ok("call-outs used counts orders not cancelled", C.callOutsUsed(sla(), [co("Open"), co("Cancelled"), co("Closed")]) === 2);

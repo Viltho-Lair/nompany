@@ -110,6 +110,8 @@ type Strings = {
   plans: string;
   plansSub: string;
   newPlan: string;
+  /** A plan's name — not `title` ("What is wrong"): nothing is wrong yet, it is work planned. */
+  planName: string;
   editPlan: string;
   frequency: string;
   frequencyName: (token: string) => string;
@@ -240,6 +242,8 @@ type Strings = {
   tickDone: string;
   callOut: string;
   callOutTitle: (name: string) => string;
+  /** What a call-out is about — the customer's report, in their words. */
+  callOutName: string;
   callOutHint: string;
   callOutsHeading: string;
   noCallOuts: string;
@@ -416,6 +420,7 @@ const en: Strings = {
   plans: "Preventive plans",
   plansSub: "Work that comes round on a calendar. Each plan raises a work order when it falls due — one open at a time — and the order carries the plan's checklist.",
   newPlan: "New plan",
+  planName: "What needs doing",
   editPlan: "Edit plan",
   frequency: "How often",
   frequencyName: (t) => EN_FREQ[t] || t,
@@ -553,6 +558,7 @@ const en: Strings = {
   tickDone: "Done outside the system",
   callOut: "Log a call-out",
   callOutTitle: (name) => `Call-out under ${name}`,
+  callOutName: "What the customer called about",
   callOutHint: "A corrective work order under this contract, counted against its allowance.",
   callOutsHeading: "Call-outs",
   noCallOuts: "No call-outs yet.",
@@ -656,6 +662,7 @@ const en: Strings = {
     "condition-value": "Enter the reading.",
     "condition-future": "A reading cannot be in the future.",
     "condition-plan": "That condition point no longer exists.",
+    "condition-retired": "This condition point is retired and takes no more readings.",
     installed: "That unit is not in Field Service's installed base.",
     contract: "That service contract does not exist.",
     "not-covered": "This contract does not cover that unit.",
@@ -790,6 +797,7 @@ const ar: Strings = {
   plans: "الخطط الوقائية",
   plansSub: "عمل يتكرر حسب جدول. كل خطة تنشئ أمر عمل عند استحقاقها — أمر مفتوح واحد في كل مرة — ويحمل الأمر قائمة تحقق الخطة.",
   newPlan: "خطة جديدة",
+  planName: "ما المطلوب عمله",
   editPlan: "تعديل الخطة",
   frequency: "التكرار",
   frequencyName: (t) => AR_FREQ[t] || t,
@@ -927,6 +935,7 @@ const ar: Strings = {
   tickDone: "نفذت خارج النظام",
   callOut: "تسجيل بلاغ طارئ",
   callOutTitle: (name) => `بلاغ طارئ ضمن ${name}`,
+  callOutName: "سبب بلاغ العميل",
   callOutHint: "أمر عمل تصحيحي ضمن هذا العقد، يحسب من العدد المسموح.",
   callOutsHeading: "البلاغات الطارئة",
   noCallOuts: "لا توجد بلاغات طارئة بعد.",
@@ -1030,6 +1039,7 @@ const ar: Strings = {
     "condition-value": "أدخل القراءة.",
     "condition-future": "لا تسجل قراءة في المستقبل.",
     "condition-plan": "نقطة القياس هذه لم تعد موجودة.",
+    "condition-retired": "نقطة القياس هذه منتهية ولا تقبل قراءات جديدة.",
     installed: "هذه الوحدة ليست في قاعدة المعدات المركبة.",
     contract: "عقد الخدمة هذا غير موجود.",
     "not-covered": "هذا العقد لا يغطي تلك الوحدة.",

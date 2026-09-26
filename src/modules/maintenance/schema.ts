@@ -141,6 +141,13 @@ export const WorkOrderSchema = z.object({
   slaId: z.string().max(60).optional(),
   /** Which planned visit it is (1-based) — idempotency for the daily run. */
   slaVisit: z.number().optional(),
+  /**
+   * THE DAY THAT VISIT FELL DUE, as raised — a visit NUMBER repeats every term,
+   * so this is what says which term the order served (./contracts
+   * `orderInTerm`). Never edited; `dueOn` is the one a person reschedules.
+   * Absent on orders raised before 27/09/2026, whose `dueOn` carries it.
+   */
+  slaDueOn: z.string().max(10).optional(),
   /** A call-out under the contract's allowance, rather than a planned visit. */
   slaEmergency: z.boolean().optional(),
   /** The engine record this was folded from, so a re-run of the fold skips it. */
@@ -182,6 +189,14 @@ export const PmPlanSchema = z.object({
   /** fixed · floating. */
   scheduleMode: z.string(),
   nextDue: z.string().max(10),
+  /**
+   * THE DAY OF THE MONTH A FIXED PLAN FALLS ON — the day of the due date a
+   * person last typed. Without it a plan on the 31st took February's clamp as
+   * its new day and ran on the 28th for ever after (`nextOccurrence`). Absent
+   * on plans written before 27/09/2026, which read it off their history
+   * (`planAnchor`) and have it stamped the next time they move on.
+   */
+  dueDay: z.number().int().min(1).max(31).optional(),
   leadDays: z.number(),
   estimatedHours: z.number().nullable(),
   /** Step labels. Each order gets its own ticked copy. */

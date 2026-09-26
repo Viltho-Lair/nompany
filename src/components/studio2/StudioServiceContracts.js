@@ -254,7 +254,7 @@ export default function StudioServiceContracts({ slug, initial }) {
       {callOut && (
         <Dialog title={tr.callOutTitle(callOut.name || "—")} description={tr.callOutHint} onClose={() => setCallOut(null)} width="max-w-[640px]">
           <div className="space-y-4">
-            <Field label={tr.title} required value={callOut.title}
+            <Field label={tr.callOutName} required value={callOut.title}
               onChange={(v) => setCallOut((c) => ({ ...c, title: v }))} inputProps={{ maxLength: 200 }} />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={tr.priority} as="select" required value={callOut.priority}

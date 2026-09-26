@@ -54,7 +54,7 @@ import {
   MAX_CONDITION_LABEL, MAX_CONDITION_UNIT, conditionReadingProblem, conditionState, latestConditionReading,
 } from "./condition";
 import {
-  CONTRACT_COVERS, contractProblem, contractSummary, contractVisits, callOutProblem,
+  CONTRACT_COVERS, contractProblem, contractSummary, contractVisits, callOutProblem, termOrders,
 } from "./contracts";
 import type { ConditionReading, LabourEntry, MeterReading, PmPlan, Sla, WorkOrder, WorkRequest } from "./schema";
 import type { Section } from "@/platform/db/sections";
@@ -857,7 +857,9 @@ export async function recordConditionReading(ctx: MaintenanceContext, body: Reco
   // THE POINT IS THE PLAN, so a reading with no condition plan behind it has
   // nothing to be in range OF.
   if (!plan || plan.trigger !== "condition") return { error: "condition-plan" };
-  if (plan.status === "Retired") return { error: "retired" };
+  // ITS OWN REFUSAL, not the plan editor's `retired` ("a retired plan is not
+  // edited"): nobody here is editing a plan, they are writing down a gauge.
+  if (plan.status === "Retired") return { error: "condition-retired" };
   const readAt = body?.readAt ? instant(body.readAt) : now();
   const problem = conditionReadingProblem({ value: body?.value, readAt }, now());
   if (problem) return { error: problem };
@@ -1028,6 +1030,8 @@ export async function createPlan(ctx: MaintenanceContext, body: Record<string, u
     type: "preventive", priority: "normal", scheduleMode: "fixed", leadDays: 0, trigger: "calendar",
     ...planFields(body || {}),
   };
+  // THE DAY TYPED IS THE PLAN'S DAY OF THE MONTH (`dueDay`, schema.ts).
+  if (fields.nextDue) fields.dueDay = Number(String(fields.nextDue).slice(8, 10));
   const draft = { ...fields, title: str(body?.title, 200) };
   const problem = planProblem(draft) || await linkProblem(ctx, {
     assetId: String(fields.assetId || ""), locationId: String(fields.locationId || ""),
@@ -1074,6 +1078,10 @@ export async function editPlan(ctx: MaintenanceContext, id: string, body: Record
   if (current.status === "Retired") return { error: "retired" };
   const patch = planFields(body || {});
   if (body?.title !== undefined) patch.title = str(body.title, 200);
+  // A DUE DATE A PERSON MOVED IS THE PLAN'S NEW DAY OF THE MONTH — but only when
+  // it MOVED: the form sends the date back on every save, and taking a clamped
+  // 28 February as the day would be the drift `dueDay` exists to stop.
+  if (patch.nextDue && patch.nextDue !== current.nextDue) patch.dueDay = Number(String(patch.nextDue).slice(8, 10));
   // JUDGED WHOLE: a patch that only changes the frequency is still a plan that
   // must have a title and a due date afterwards.
   const problem = planProblem({ ...current, ...patch }) || await linkProblem(ctx, {
@@ -1296,12 +1304,16 @@ export async function tickVisit(ctx: MaintenanceContext, id: string, body: Recor
   const visit = Math.round(Number(body?.visit));
   const done = body?.done === true || body?.done === "true";
   const raised = await Orders.find(orderScope(ctx), { where: { slaId: id } });
-  if (raised.some((o) => !o.slaEmergency && Number(o.slaVisit) === visit)) return { error: "visit-has-order" };
   const at = now();
   const seen = { problem: null as string | null };
   const contract = await Contracts.update(scope, id, (row) => {
     const count = Math.max(1, Math.round(Number(row.visits) || 1));
-    seen.problem = row.status === "Cancelled" ? "contract-cancelled"
+    // AN ORDER OF THIS TERM (`termOrders`): last term's visit 3 is not this
+    // term's, and refusing the tick on its account would be the renewal
+    // defect again, from the other side. Judged against the row being written,
+    // whose dates are the ones that decide the term.
+    seen.problem = termOrders(row, raised).some((o) => Number(o.slaVisit) === visit) ? "visit-has-order"
+      : row.status === "Cancelled" ? "contract-cancelled"
       : visit >= 1 && visit <= count ? null : "visit";
     if (seen.problem) return {};
     const set = new Set((row.completedVisits || []).map(Number));

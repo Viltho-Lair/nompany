@@ -22,9 +22,11 @@ import type { HelpModule } from "../types";
 // (raiseCallOut); and "one open order at a time" is a PLAN's rule — a contract
 // raises one VISIT a day and several of its visits may be open at once
 // (contractRaiseDecision). It also said a renewal is new dates on the same
-// contract; the code matches visits to their orders by NUMBER (contractVisits),
-// so a renewed term's visits read as done by the old term's orders, and
-// `maintenance-contracts.renew` says so.
+// contract, which was then untrue — visits were matched to their orders by
+// NUMBER, so a renewed term read as done by the old term's orders — and is true
+// since 27/09/2026: an order counts only for the term its visit fell due in
+// (orderInTerm in modules/maintenance/contracts.ts). Hand ticks still carry no
+// term, and `maintenance-contracts.renew` says so.
 //
 // MOVED OUT OF `./operations.ts`, 27/09/2026, when the chapter above became this
 // file. Its topic and entry ids did not change, and entries elsewhere may still
@@ -35,8 +37,10 @@ import type { HelpModule } from "../types";
 // above it, the component and schema its list was checked against, so the next
 // person can re-verify it rather than trust it. What a doc lists under "Not
 // built yet" is answered here as NOT AVAILABLE YET, never as a feature. The
-// words are the screens' own (`shared/studio/maintenance.ts`): a report's title
-// field reads "What is wrong" on every form, plans and call-outs included.
+// words are the screens' own (`shared/studio/maintenance.ts`): the title field
+// reads "What is wrong" on a report and a work order, "What needs doing" on a
+// plan (planName) and "What the customer called about" on a call-out
+// (callOutName) — until 27/09/2026 all four borrowed the report's label.
 //
 // SERVICE CONTRACTS ARE FILED UNDER `projects-sla`, a filed-only section with no
 // screen; nothing here may `open` it. Their screen is `maintenance-contracts`,
@@ -849,8 +853,8 @@ export const maintenance: HelpModule = {
       id: "maintenance-orders.work", topic: "dept.maintenance-orders", kind: "howto", open: "maintenance-orders",
       q: { en: "How do I work a work order from start to finish?", ar: "كيف أنفذ أمر العمل من البداية إلى النهاية؟" },
       a: {
-        en: "These are the technician's steps, each a button on the order's card. They need the Work orders edit right, and taking parts also needs Inventory's Stock edit right.",
-        ar: "هذه خطوات الفني، وكل منها زر على بطاقة الأمر. وتحتاج إلى صلاحية تعديل أوامر العمل، ويحتاج أخذ القطع أيضًا إلى صلاحية تعديل المخزون.",
+        en: "These are the technician's steps, each a button on the order's card. They need the Work orders edit right, except taking parts, which needs Inventory's Stock edit right instead.",
+        ar: "هذه خطوات الفني، وكل منها زر على بطاقة الأمر. وتحتاج إلى صلاحية تعديل أوامر العمل، ما عدا أخذ القطع، فيحتاج بدلًا منها إلى صلاحية تعديل المخزون.",
       },
       steps: {
         en: [
@@ -985,8 +989,8 @@ export const maintenance: HelpModule = {
       id: "maintenance-orders.parts", topic: "dept.maintenance-orders", kind: "howto", open: "maintenance-orders",
       q: { en: "How do I issue spare parts to a work order?", ar: "كيف أصرف قطع الغيار لأمر العمل؟" },
       a: {
-        en: "Parts come out of Inventory onto the order as stock movements that name it, so the stock count and the order always agree. The Parts button is shown to somebody who may edit work orders and also holds Inventory's Stock edit right, on any order that is not Closed or Cancelled. An issue cannot take an item below nought, and a return cannot give back more than the order kept. No approval is needed: parts going to authorised work are consumption, not a write-off.",
-        ar: "تخرج القطع من المخزون إلى الأمر كحركات مخزون تسمّيه، فيتفق رصيد المخزون والأمر دائمًا. ويظهر زر «القطع» لمن يملك تعديل أوامر العمل ويملك أيضًا صلاحية تعديل المخزون، على أي أمر غير مغلق أو ملغى. ولا يُنزل الصرف الصنف تحت الصفر، ولا يُرجع الإرجاع أكثر مما احتفظ به الأمر. ولا يحتاج ذلك إلى اعتماد: فالقطع التي تذهب إلى عمل معتمد استهلاك لا شطب.",
+        en: "Parts come out of Inventory onto the order as stock movements that name it, so the stock count and the order always agree. The Parts button is shown to anybody who can see the work order and holds Inventory's Stock edit right, on any order that is not Closed or Cancelled, so a storeman who may only view work orders can still issue to them. An issue cannot take an item below nought, and a return cannot give back more than the order kept. No approval is needed: parts going to authorised work are consumption, not a write-off.",
+        ar: "تخرج القطع من المخزون إلى الأمر كحركات مخزون تسمّيه، فيتفق رصيد المخزون والأمر دائمًا. ويظهر زر «القطع» لكل من يرى أمر العمل ويملك صلاحية تعديل المخزون، على أي أمر غير مغلق أو ملغى، فيستطيع أمين المخزن الذي لا يملك إلا عرض أوامر العمل أن يصرف لها. ولا يُنزل الصرف الصنف تحت الصفر، ولا يُرجع الإرجاع أكثر مما احتفظ به الأمر. ولا يحتاج ذلك إلى اعتماد: فالقطع التي تذهب إلى عمل معتمد استهلاك لا شطب.",
       },
       steps: {
         en: [
@@ -1049,8 +1053,8 @@ export const maintenance: HelpModule = {
       id: "maintenance-orders.parts-refused", topic: "dept.maintenance-orders", kind: "troubleshoot", open: "maintenance-orders",
       q: { en: "Why can't I issue or return parts?", ar: "لماذا لا أستطيع صرف القطع أو إرجاعها؟" },
       a: {
-        en: "There is not enough of that in stock means the issue would take the item below nought, so the stock must be received in Inventory first. A return cannot give back more than this order was given, and Closed or Cancelled work takes no parts either way. If the Parts button is missing, you need Inventory's Stock edit right as well as the right to edit work orders, and if the item list is empty, Inventory has no registered items yet.",
-        ar: "عبارة «لا يوجد ما يكفي من هذا الصنف في المخزون» تعني أن الصرف سينزل بالصنف تحت الصفر، فيجب استلام المخزون أولًا في المخزون. ولا يُرجع أكثر مما صُرف لهذا الأمر، ولا يقبل العمل المغلق أو الملغى قطعًا صرفًا ولا إرجاعًا. وإن غاب زر «القطع» فأنت تحتاج إلى صلاحية تعديل المخزون مع صلاحية تعديل أوامر العمل، وإن كانت قائمة الأصناف فارغة فليس في المخزون أصناف مسجلة بعد.",
+        en: "There is not enough of that in stock means the issue would take the item below nought, so the stock must be received in Inventory first. A return cannot give back more than this order was given, and Closed or Cancelled work takes no parts either way. If the Parts button is missing, you need Inventory's Stock edit right (the Work orders edit right is not needed), and if the item list is empty, Inventory has no registered items yet.",
+        ar: "عبارة «لا يوجد ما يكفي من هذا الصنف في المخزون» تعني أن الصرف سينزل بالصنف تحت الصفر، فيجب استلام المخزون أولًا في المخزون. ولا يُرجع أكثر مما صُرف لهذا الأمر، ولا يقبل العمل المغلق أو الملغى قطعًا صرفًا ولا إرجاعًا. وإن غاب زر «القطع» فأنت تحتاج إلى صلاحية تعديل المخزون (ولا تلزم صلاحية تعديل أوامر العمل)، وإن كانت قائمة الأصناف فارغة فليس في المخزون أصناف مسجلة بعد.",
       },
       keywords: ["cannot issue parts", "not enough stock", "insufficient", "over return", "لا أستطيع صرف القطع", "لا يكفي المخزون", "غير كاف", "إرجاع زائد"],
       related: ["maintenance-orders.parts", "inventory-stock.insufficient"],
@@ -1192,7 +1196,7 @@ export const maintenance: HelpModule = {
       },
       fields: {
         en: [
-          "What is wrong (required): the plan's title, up to 200 characters, which each order it raises carries",
+          "What needs doing (required): the plan's title, up to 200 characters, which each order it raises carries",
           "Runs on (required): The calendar, A meter, or A measurement",
           "The next date counts from (required, except for a measurement): the calendar (fixed), or when it was last done (floating)",
           "Type of work (required): Preventive or Inspection",
@@ -1206,7 +1210,7 @@ export const maintenance: HelpModule = {
           "Details: up to 4000 characters",
         ],
         ar: [
-          "ما المشكلة (مطلوب): عنوان الخطة حتى 200 حرف، ويحمله كل أمر تنشئه",
+          "ما المطلوب عمله (مطلوب): عنوان الخطة حتى 200 حرف، ويحمله كل أمر تنشئه",
           "تعمل حسب (مطلوب): التقويم، أو عداد، أو قياس",
           "الموعد التالي يحسب من (مطلوب، ما عدا القياس): التقويم (ثابت)، أو آخر تنفيذ (متحرك)",
           "نوع العمل (مطلوب): وقائية أو فحص",
@@ -1232,8 +1236,8 @@ export const maintenance: HelpModule = {
       id: "maintenance-plans.calendar-fields", topic: "dept.maintenance-plans", kind: "fields", open: "maintenance-plans",
       q: { en: "What does a calendar plan need?", ar: "ماذا تحتاج خطة التقويم؟" },
       a: {
-        en: "A calendar plan raises its order when the due date, less the days early, arrives, and the order is due on the plan's date. Months are counted on the calendar from the previous due date, and a date that does not exist in the next month becomes that month's last day: a monthly plan due on 31 January is next due on 28 February, and on the 28th after that.",
-        ar: "تنشئ خطة التقويم أمرها حين يحل تاريخ الاستحقاق مطروحًا منه أيام التقديم، ويكون الأمر مستحقًّا في تاريخ الخطة. وتُحسب الأشهر بالتقويم من تاريخ الاستحقاق السابق، والتاريخ غير الموجود في الشهر التالي يصبح آخر يوم فيه: فالخطة الشهرية المستحقة في 31 يناير تستحق بعدها في 28 فبراير، ثم في يوم 28 بعد ذلك.",
+        en: "A calendar plan raises its order when the due date, less the days early, arrives, and the order is due on the plan's date. Months are counted on the calendar and the plan keeps its own day of the month: a day a month does not have becomes that month's last day, and the plan goes back to its day as soon as a month has it. A monthly plan due on 31 January is next due on 28 February, then 31 March and 30 April. Typing a new due date makes its day the plan's day. A floating plan counts from the day the work was done instead.",
+        ar: "تنشئ خطة التقويم أمرها حين يحل تاريخ الاستحقاق مطروحًا منه أيام التقديم، ويكون الأمر مستحقًّا في تاريخ الخطة. وتُحسب الأشهر بالتقويم وتحتفظ الخطة بيومها من الشهر: فاليوم الذي لا يوجد في شهر ما يصبح آخر يوم فيه، وتعود الخطة إلى يومها حين يتوفر في الشهر. فالخطة الشهرية المستحقة في 31 يناير تستحق بعدها في 28 فبراير، ثم 31 مارس و30 أبريل. وكتابة تاريخ استحقاق جديد تجعل يومه يوم الخطة. أما الخطة المتحركة فتُحسب من يوم تنفيذ العمل.",
       },
       fields: {
         en: [
@@ -1594,7 +1598,7 @@ export const maintenance: HelpModule = {
       related: ["maintenance-contracts.create", "maintenance-contracts.save-refused"],
     },
     // Checked against src/components/studio2/StudioServiceContracts.js (the Log
-    // a call-out dialog: What is wrong, required; Priority, required; Due;
+    // a call-out dialog: What the customer called about, required; Priority, required; Due;
     // Customer's unit only when the contract covers more than one; Assigned to;
     // Details) and raiseCallOut in src/modules/maintenance/maintenance.ts, which
     // writes a corrective WorkOrderSchema row with slaEmergency set.
@@ -1607,7 +1611,7 @@ export const maintenance: HelpModule = {
       },
       fields: {
         en: [
-          "What is wrong (required): up to 200 characters",
+          "What the customer called about (required): up to 200 characters",
           "Priority (required): starts at High",
           "Due: starts at today",
           "Customer's unit: shown only when the contract covers more than one",
@@ -1615,7 +1619,7 @@ export const maintenance: HelpModule = {
           "Details: up to 4000 characters",
         ],
         ar: [
-          "ما المشكلة (مطلوب): حتى 200 حرف",
+          "سبب بلاغ العميل (مطلوب): حتى 200 حرف",
           "الأولوية (مطلوبة): تبدأ بعالية",
           "الموعد: يبدأ بتاريخ اليوم",
           "وحدة العميل: لا تظهر إلا حين يغطي العقد أكثر من وحدة",
@@ -1720,19 +1724,21 @@ export const maintenance: HelpModule = {
       id: "maintenance-contracts.renew", topic: "dept.maintenance-contracts", kind: "howto", open: "maintenance-contracts",
       q: { en: "How do I renew a contract?", ar: "كيف أجدد عقدًا؟" },
       a: {
-        en: "Nothing reminds you that a contract is ending, but the dashboard counts those ending within 60 days. Renewing is not a separate step: the product's way is to give the same contract new dates. But visits are matched to their work orders by number, so after moving the dates every visit that already had a work order in the old term reads as done and is not raised again. For a new term, set up a new contract instead.",
-        ar: "لا شيء يذكّرك بقرب انتهاء العقد، لكن لوحة المعلومات تعدّ العقود التي تنتهي خلال 60 يومًا. والتجديد ليس خطوة مستقلة: فطريقة النظام هي إعطاء العقد نفسه تواريخ جديدة. لكن الزيارات تُطابق مع أوامر عملها بأرقامها، فبعد تحريك التواريخ تظهر كل زيارة كان لها أمر عمل في المدة القديمة منجزة ولا تُنشأ مرة أخرى. لذلك أعدّ عقدًا جديدًا للمدة الجديدة.",
+        en: "Nothing reminds you that a contract is ending, but the dashboard counts those ending within 60 days. Renewing is not a separate step: give the same contract new dates. A work order counts only for the term its visit fell due in, so the new term's visits are raised afresh as they fall due, and the old term's work orders stay on the machines' history. A visit ticked as done by hand has no term, though, so a tick from the old term still marks the same visit number done; untick those after renewing.",
+        ar: "لا شيء يذكّرك بقرب انتهاء العقد، لكن لوحة المعلومات تعدّ العقود التي تنتهي خلال 60 يومًا. والتجديد ليس خطوة مستقلة: أعطِ العقد نفسه تواريخ جديدة. فأمر العمل لا يُحسب إلا للمدة التي استحقت فيها زيارته، لذلك تُنشأ زيارات المدة الجديدة من جديد حين تستحق، وتبقى أوامر عمل المدة القديمة في سجل الآلات. لكن الزيارة المعلَّمة منجزة يدويًا لا مدة لها، فتبقى علامة المدة القديمة تجعل رقم الزيارة نفسه منجزًا؛ فأزِل تلك العلامات بعد التجديد.",
       },
       steps: {
         en: [
-          "Open Maintenance, then Service contracts (SLA), and press New contract",
-          "Fill it in for the new term, with the same customer, cover, place, units, people and checklist",
-          "Cancel the old contract once its term has ended, if you want it out of the way",
+          "Open Maintenance, then Service contracts (SLA), and press Edit on the contract",
+          "Set Starts to the first day of the new term, usually the day the old one ended, and change Length (days), the planned visits and the value if they change",
+          "Save; the new term's visits are raised as they fall due",
+          "Open Visits and untick any visit ticked by hand in the old term",
         ],
         ar: [
-          "افتح الصيانة ثم عقود الخدمة، واضغط «عقد جديد»",
-          "املأه للمدة الجديدة، بالعميل والتغطية والمكان والوحدات والأشخاص وقائمة التحقق نفسها",
-          "ألغِ العقد القديم بعد انتهاء مدته إن أردت إبعاده",
+          "افتح الصيانة ثم عقود الخدمة، واضغط «تعديل» على العقد",
+          "اجعل «يبدأ» أول يوم في المدة الجديدة، وهو عادة يوم انتهاء القديمة، وغيّر «المدة (بالأيام)» والزيارات المخططة والقيمة إن تغيرت",
+          "احفظ؛ فتُنشأ زيارات المدة الجديدة حين تستحق",
+          "افتح «الزيارات» وأزِل العلامة عن أي زيارة عُلّمت يدويًا في المدة القديمة",
         ],
       },
       keywords: ["renew contract", "renewal", "extend contract", "new term", "تجديد العقد", "تجديد", "تمديد العقد", "مدة جديدة"],
@@ -2017,8 +2023,8 @@ export const maintenance: HelpModule = {
       id: "maintenance-assets.condition-refused", topic: "dept.maintenance-assets", kind: "troubleshoot", open: "maintenance-assets",
       q: { en: "Why was a condition reading refused, or why did it raise nothing?", ar: "لماذا رُفضت قراءة القياس، أو لماذا لم تنشئ شيئًا؟" },
       a: {
-        en: "A condition reading is refused only when it is blank or dated in the future; it may go down, be below nought or be earlier than the latest. A point whose plan was retired or deleted takes no readings. A reading inside the limits raises nothing, and so does one on a paused point or one taken while the point's previous work order is still open.",
-        ar: "لا تُرفض قراءة القياس إلا حين تكون فارغة أو مؤرخة في المستقبل؛ فيمكن أن تنخفض، أو تكون دون الصفر، أو قبل آخر قراءة. والنقطة التي أُنهيت خطتها أو حُذفت لا تقبل قراءات. والقراءة ضمن الحدود لا تنشئ شيئًا، وكذلك القراءة على نقطة موقوفة، أو المأخوذة وأمر العمل السابق للنقطة ما زال مفتوحًا.",
+        en: "A condition reading is refused only when it is blank or dated in the future; it may go down, be below nought or be earlier than the latest. A point whose plan was deleted takes no readings, and a retired point refuses them, saying it is retired and takes no more readings. A reading inside the limits raises nothing, and so does one on a paused point or one taken while the point's previous work order is still open.",
+        ar: "لا تُرفض قراءة القياس إلا حين تكون فارغة أو مؤرخة في المستقبل؛ فيمكن أن تنخفض، أو تكون دون الصفر، أو قبل آخر قراءة. والنقطة التي حُذفت خطتها لا تقبل قراءات، والنقطة المنتهية ترفضها بعبارة «نقطة القياس هذه منتهية ولا تقبل قراءات جديدة». والقراءة ضمن الحدود لا تنشئ شيئًا، وكذلك القراءة على نقطة موقوفة، أو المأخوذة وأمر العمل السابق للنقطة ما زال مفتوحًا.",
       },
       keywords: ["condition reading refused", "no work order raised", "in range", "paused point", "رفض قراءة القياس", "لم ينشأ أمر", "ضمن المدى", "نقطة موقوفة"],
       related: ["maintenance-plans.condition", "maintenance-plans.not-raised"],
