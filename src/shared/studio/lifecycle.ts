@@ -81,12 +81,20 @@ type Strings = {
   contractTypeLabel: (token: string) => string;
   reasonLabel: (token: string) => string;
   eventLabel: (token: string) => string;
+  // transfers and promotions — history without a state change
+  transfer: string;
+  promotion: string;
+  toDepartment: string;
+  noDepartment: string;
+  transferLead: string;
+  promotionLead: string;
 };
 
 const EN_MOVES: Record<string, string> = {
   hire: "Rehire", start: "Start", confirm: "Confirm", suspend: "Suspend",
   reinstate: "Reinstate", giveNotice: "Give notice", withdrawNotice: "Withdraw notice",
   exit: "Record the exit",
+  probation: "Place on probation",
 };
 const EN_MOVE_LEAD: Record<string, string> = {
   hire: "They worked here before. This starts a new employment; the old one stays in the history.",
@@ -97,6 +105,7 @@ const EN_MOVE_LEAD: Record<string, string> = {
   giveNotice: "Either side has given notice. They stay on the payroll until the last working day.",
   exit: "Their last day. This is what the final settlement is calculated on.",
   withdrawNotice: "The notice is off and they stay.",
+  probation: "Their first contract has a probation period that has not run out, and nobody has confirmed them. It runs from the contract's start date.",
 };
 const EN_TYPES: Record<string, string> = {
   Permanent: "Permanent", "Fixed term": "Fixed term", "Part time": "Part time",
@@ -107,7 +116,7 @@ const EN_REASONS: Record<string, string> = {
   Redundancy: "Redundancy", Retirement: "Retired", Death: "Death in service",
 };
 const EN_EVENTS: Record<string, string> = {
-  ...EN_MOVES, contract: "Contract signed", amendment: "Contract amended",
+  ...EN_MOVES, probation: "Placed on probation", contract: "Contract signed", amendment: "Contract amended",
   transfer: "Transferred", promotion: "Promoted", note: "Note",
 };
 const EN_PROBLEMS: Record<string, string> = {
@@ -127,6 +136,10 @@ const EN_PROBLEMS: Record<string, string> = {
   department: "That department is not part of this studio.",
   forbidden: "That person is not in your part of the studio.",
   "read-only": "You have view-only access here.",
+  "no-contract": "They have no contract, so nothing says there is a probation.",
+  "no-probation": "Their contract has no probation period.",
+  "probation-over": "The probation in their contract has already run out.",
+  confirmed: "They have already been confirmed.",
 };
 
 const en: Strings = {
@@ -198,6 +211,12 @@ const en: Strings = {
   contractTypeLabel: (t) => EN_TYPES[t] || t,
   reasonLabel: (t) => EN_REASONS[t] || t,
   eventLabel: (t) => EN_EVENTS[t] || t,
+  transfer: "Transfer",
+  promotion: "Promotion",
+  toDepartment: "To department",
+  noDepartment: "No department",
+  transferLead: "Moves them to another department from the date below. Their manager's view of them moves with them.",
+  promotionLead: "Recorded in their history. A new job title or pay goes on an amended contract and their pay record.",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -205,6 +224,7 @@ const AR_MOVES: Record<string, string> = {
   hire: "اعادة توظيف", start: "مباشرة العمل", confirm: "تثبيت", suspend: "ايقاف",
   reinstate: "اعادة الى العمل", giveNotice: "تقديم اشعار", withdrawNotice: "سحب الاشعار",
   exit: "تسجيل انهاء الخدمة",
+  probation: "وضع تحت التجربة",
 };
 const AR_MOVE_LEAD: Record<string, string> = {
   hire: "عمل هنا سابقا. هذه خدمة جديدة، والخدمة القديمة تبقى في السجل.",
@@ -215,6 +235,7 @@ const AR_MOVE_LEAD: Record<string, string> = {
   giveNotice: "قدم أحد الطرفين اشعارا. يبقى على كشف الرواتب حتى آخر يوم عمل.",
   exit: "آخر يوم عمل. عليه تحسب المستحقات النهائية.",
   withdrawNotice: "سحب الاشعار ويبقى في عمله.",
+  probation: "عقده الأول فيه فترة تجربة لم تنته، ولم يثبته أحد بعد. تبدأ التجربة من تاريخ بداية العقد.",
 };
 const AR_TYPES: Record<string, string> = {
   Permanent: "غير محدد المدة", "Fixed term": "محدد المدة", "Part time": "دوام جزئي",
@@ -245,6 +266,10 @@ const AR_PROBLEMS: Record<string, string> = {
   department: "هذا القسم ليس من هذه المنشأة.",
   forbidden: "هذا الموظف ليس ضمن نطاقكم.",
   "read-only": "صلاحيتكم هنا للاطلاع فقط.",
+  "no-contract": "لا يوجد له عقد، فلا شيء يثبت وجود فترة تجربة.",
+  "no-probation": "عقده بلا فترة تجربة.",
+  "probation-over": "فترة التجربة في عقده انتهت بالفعل.",
+  confirmed: "تم تثبيته بالفعل.",
 };
 
 const ar: Strings = {
@@ -313,6 +338,12 @@ const ar: Strings = {
   contractTypeLabel: (t) => AR_TYPES[t] || t,
   reasonLabel: (t) => AR_REASONS[t] || t,
   eventLabel: (t) => AR_EVENTS[t] || t,
+  transfer: "نقل",
+  promotion: "ترقية",
+  toDepartment: "الى القسم",
+  noDepartment: "بلا قسم",
+  transferLead: "ينقل الى قسم آخر من التاريخ أدناه. ونطاق اطلاع مديره عليه ينتقل معه.",
+  promotionLead: "تسجل في سجله. المسمى الجديد أو الراتب الجديد يوضع في عقد معدل وفي سجل الراتب.",
 };
 
 const dict = { en, ar };

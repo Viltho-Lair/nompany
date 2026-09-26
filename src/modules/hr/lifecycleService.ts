@@ -27,7 +27,7 @@ import {
   EMPLOYMENT_STATUSES, EXIT_REASONS, MOVES, MOVE_KEYS, RECORD_EVENTS,
   attentionList, cleanContract, contractAt, contractProblems, contractsOf,
   daysBetween, employmentPackFor, moveProblem, movesFrom, noticeDaysFor, noticeEndsOn,
-  probationEndsOn, settlement, statusOf,
+  probationEndsOn, probationProblem, settlement, statusOf,
 } from "./lifecycle";
 import type { EmploymentContract, EmploymentStatus, LifecycleEvent, Move, Settlement } from "./lifecycle";
 import { listDepartments, leaveOpenDays, DEFAULT_LEAVE_TYPE } from "./hr";
@@ -99,6 +99,10 @@ export async function lifecycleView(ctx: HrContext) {
   ]);
   const people = rawPeople as unknown as PersonRow[];
   const seen = await visible(ctx, people);
+  const mayManage = !requirePermission(ctx.access, "hr.lifecycle.edit");
+  // THE ORG CHART, for the Transfer dialog — only to somebody who may record
+  // one, since nothing else on this screen names a department.
+  const departments = mayManage ? await listDepartments(ctx) : [];
   const mine = people.filter((p) => seen.has(p.id));
 
   const pack = packOn(ctx, asOf);
@@ -123,7 +127,8 @@ export async function lifecycleView(ctx: HrContext) {
       versions: contractsOf(contracts, p.id).length,
       probationEndsOn: status === "Probation" ? probationEndsOn(current) : "",
       /** What this reader may do to this person, so the screen offers no button the service refuses. */
-      moves: movesFrom(status),
+      // `probation` ONLY WHERE ITS GUARD PASSES — Active alone is not enough.
+      moves: movesFrom(status).filter((m) => m !== "probation" || !probationProblem(contracts, events, p.id, asOf)),
     };
   }).sort((a, b) => a.alias.localeCompare(b.alias));
 
@@ -154,7 +159,8 @@ export async function lifecycleView(ctx: HrContext) {
       recordEvents: Object.keys(RECORD_EVENTS),
       exitReasons: EXIT_REASONS,
     },
-    canManage: !requirePermission(ctx.access, "hr.lifecycle.edit"),
+    canManage: mayManage,
+    departments: departments.map((d) => ({ id: d.id, name: d.name })),
     canCreate: !requirePermission(ctx.access, "hr.lifecycle.create"),
     canOffboard: !requirePermission(ctx.access, "hr.lifecycle.offboard"),
     /** Whether this reader may be shown any money at all — see the file header. */
@@ -218,7 +224,32 @@ export async function saveContract(ctx: HrContext, body: Record<string, unknown>
     payload: { contractId: contract.id, type: contract.type, jobTitle: contract.jobTitle },
   });
 
-  return { contract };
+  // A NEW JOINER'S FIRST CONTRACT PUTS THEM ON PROBATION BY ITSELF when it
+  // carries one that is still running. Everybody is born Active, so leaving the
+  // move to a button meant every studio had to remember it for every hire — and
+  // the reminder a probation exists for would stay silent until somebody did.
+  // The paper is the fact: a contract that says "three months' probation" and
+  // started last week means the person IS on probation, and the status follows.
+  //
+  // ONLY A FIRST CONTRACT, ONLY FROM ACTIVE, and only where the `probation`
+  // move's own guard passes — so an amendment never re-opens a trial, somebody
+  // suspended or on notice is not moved, and a contract backdated past its
+  // probation leaves them Active. It goes through `commitMove`, the single
+  // writer of `employmentStatus`; signing the contract is the authority, since
+  // the probation is a term written in it.
+  let status: EmploymentStatus | undefined;
+  const firstContract = !amending && !contracts.some((c) => c.collaboratorId === collaboratorId);
+  if (firstContract && statusOf(person as PersonRow) === "Active") {
+    const events = await Events.find(scope(ctx), { where: { collaboratorId } });
+    if (!probationProblem([contract], events, collaboratorId, today())) {
+      await commitMove(ctx, people, collaboratorId, "probation", { employmentStatus: MOVES.probation.to }, {
+        effectiveDate: contract.startDate, note: "", payload: { contractId: contract.id, automatic: true },
+      });
+      status = MOVES.probation.to;
+    }
+  }
+
+  return { contract, ...(status ? { status } : {}) };
 }
 
 // ---- the moves --------------------------------------------------------------------
@@ -261,6 +292,15 @@ export async function moveEmployment(ctx: HrContext, body: MoveBody) {
   const contracts = await Contracts.find(scope(ctx));
   const current = contractAt(contracts, collaboratorId, effectiveDate);
   const pack = packOn(ctx, effectiveDate);
+
+  // PUTTING SOMEBODY ON PROBATION needs the contract to say so, judged TODAY:
+  // a probation that has run out is not one anybody can be placed on, whatever
+  // date the move is recorded against.
+  if (move === "probation") {
+    const events = await Events.find(scope(ctx), { where: { collaboratorId } });
+    const why = probationProblem(contracts, events, collaboratorId, today());
+    if (why) return { error: why, status };
+  }
 
   const patch: Record<string, unknown> = { employmentStatus: MOVES[move].to };
   const payload: Record<string, unknown> = {};
@@ -323,10 +363,26 @@ export async function moveEmployment(ctx: HrContext, body: MoveBody) {
     patch.dateOfJoin = effectiveDate;
   }
 
+  const event = await commitMove(ctx, people, collaboratorId, move, patch, {
+    effectiveDate, note: str(body?.note, 500), payload,
+  });
+  return { ok: true, status: MOVES[move].to, event };
+}
+
+/**
+ * THE ONE WRITER OF `employmentStatus`: the row, the log entry, and the note to
+ * the person — for `moveEmployment` and for the probation a first contract
+ * starts (`saveContract`). Two callers of one function, so the row and the log
+ * cannot disagree about how somebody got where they are.
+ */
+async function commitMove(
+  ctx: HrContext, people: readonly PersonRow[], collaboratorId: string, move: Move,
+  patch: Record<string, unknown>,
+  { effectiveDate, note, payload }: { effectiveDate: string; note: string; payload: Record<string, unknown> },
+) {
   await updateCollaborator(ctx.studio.id, collaboratorId, patch);
   const event = await writeEvent(ctx, {
-    collaboratorId, type: move, status: MOVES[move].to, effectiveDate,
-    note: str(body?.note, 500), payload,
+    collaboratorId, type: move, status: MOVES[move].to, effectiveDate, note, payload,
   });
 
   // THEY ARE TOLD WHAT HAPPENED TO THEIR OWN EMPLOYMENT — nobody should learn
@@ -345,8 +401,7 @@ export async function moveEmployment(ctx: HrContext, body: MoveBody) {
       params: { move: MOVES[move].label, date: effectiveDate },
     }, { userIdOf }).catch(() => { /* a notification must never fail the move that caused it */ });
   }
-
-  return { ok: true, status: MOVES[move].to, event };
+  return event;
 }
 
 const reasonOr = (v: unknown) =>

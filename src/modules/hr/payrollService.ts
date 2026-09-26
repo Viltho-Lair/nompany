@@ -52,7 +52,25 @@ type Run = {
   approvedByCollaboratorId?: string;
   approvedAt?: string;
   paidAt?: string;
+  /**
+   * WHAT THE LEDGER SAID the last time this run was offered to it — see
+   * `postRunToLedger`. A REPORT, NOT THE TRUTH: whether a run is in the books
+   * is decided by the journal (`alreadyPosted`, keyed by the run's id), and
+   * this copy exists so the payroll screen can say "not in the ledger, and
+   * why" without HR reading Finance's journal on every list. Absent on a run
+   * nobody has offered yet — every run approved before 27/09/2026.
+   */
+  ledger?: RunLedger;
+  /**
+   * SET THE MOMENT A DRAFT IS BEING DISCARDED, before the row is removed — see
+   * `deleteRun`. An approval landing in between refuses a run carrying it, so
+   * a run can never be approved and deleted in the same instant.
+   */
+  discardingAt?: string;
 };
+
+/** The ledger's last answer about a run. `entryId` is "" when the entry was already there. */
+export type RunLedger = { at: string; posted: boolean; entryId?: string; reason?: string };
 
 const Pay = repo<PayRecord & { id: string }>("payRecords");
 const Runs = repo<Run>("payrollRuns");
@@ -108,6 +126,7 @@ export async function listPay(ctx: HrContext) {
     approvalRows(ctx.studio, ctx.approvalsSection),
   ]);
   const mayAsk = !requirePermission(ctx.access, "hr.payroll.edit");
+  const mayPrepare = !requirePermission(ctx.access, "hr.payroll.create");
   const alias = Object.fromEntries(people.map((c) => [String(c.id), String(c.alias || "Unnamed")]));
   const rules = statutoryRulesOf(ctx.studio);
   // The scheme the studio's COUNTRY runs, which decides whether its saved WPS
@@ -184,10 +203,23 @@ export async function listPay(ctx: HrContext) {
         // a draft nobody has asked about, or whose last request was turned down.
         ...(() => {
           const approval = approvalSummary(approvals, PAYROLL_APPROVAL, r.id);
-          return { approval, canRequestApproval: mayAsk && r.status === "Draft" && (!approval || approval.rejected) };
+          return {
+            approval,
+            canRequestApproval: mayAsk && r.status === "Draft" && (!approval || approval.rejected),
+            // A WRONG DRAFT CAN BE THROWN AWAY — see `deleteRun` for the rules,
+            // which this mirrors so the screen offers no button the server refuses.
+            canDelete: mayPrepare && r.status === "Draft" && approval?.status !== "Pending",
+          };
         })(),
+        // WHETHER THE WAGE BILL REACHED THE BOOKS, as the ledger last answered.
+        ledger: r.ledger || null,
       })),
     canManage: mayAsk,
+    // PREPARING IS `create`, NOT `edit` — the server has always asked for
+    // create (`prepareRun`), and the button asked the screen for edit, so an
+    // editor was offered a button that refused and a preparer holding create
+    // alone was offered none.
+    canPrepare: mayPrepare,
   };
 }
 
@@ -213,7 +245,9 @@ export async function savePay(ctx: HrContext, body: Record<string, unknown>) {
  * PREPARE A RUN for a period.
  *
  * ONE RUN PER PERIOD. A second September is two wage bills for one month, and
- * whichever posted first would be the one the ledger believes.
+ * whichever posted first would be the one the ledger believes. A WRONG one is
+ * put right by deleting the draft (`deleteRun`) and preparing the month again —
+ * the duplicate check reads the runs as they stand, so a discarded month is free.
  *
  * SOMEBODY WITH NO PAY RECORD IS NOT ON IT. They are not paid nothing — nothing
  * has been decided about their pay — and putting a nought line on the run would
@@ -378,7 +412,81 @@ export async function moveRun(ctx: HrContext, id: string, next: RunStatus) {
     status: next,
     ...(next === "Paid" ? { paidAt: at } : {}),
   });
-  return updated ? { run: updated } : { error: "notfound" };
+  if (!updated) return { error: "notfound" };
+  // PAYING IS A SECOND CHANCE AT THE BOOKS, not a second posting. The ledger
+  // has no payroll PAYMENT entry — `postPayroll` is the only one, and it credits
+  // Payroll Payable for Finance to clear when the bank moves the money — so
+  // there is nothing new to post here. What there may be is an approval whose
+  // posting was refused (a closed month, a chart short an account); offering
+  // the run again costs one idempotent call and repairs it if the cause is gone.
+  if (next === "Paid" && !updated.ledger?.posted) {
+    const ledger = await postRunToLedger(ctx.studio, id, String(ctx.collaborator.id));
+    return { run: { ...updated, ledger }, ledger };
+  }
+  return { run: updated };
+}
+
+/**
+ * OFFER AN APPROVED RUN TO THE LEDGER AGAIN — the repair for an approval whose
+ * posting was refused, once somebody has reopened the month or completed the
+ * chart. Idempotent all the way down: the journal refuses a second entry for
+ * the same run (`already-posted`), and that answer is read as "it is there".
+ */
+export async function postRunAgain(ctx: HrContext, id: string) {
+  const denied = requirePermission(ctx.access, "hr.payroll.edit");
+  if (denied) return denied;
+  const run = await Runs.byId(scope(ctx), String(id));
+  if (!run) return { error: "notfound" };
+  if (run.status === "Draft") return { error: "not-approved", status: run.status };
+  const ledger = await postRunToLedger(ctx.studio, run.id, String(ctx.collaborator.id));
+  return { run: { ...run, ledger }, ledger };
+}
+
+/**
+ * THROW AWAY A WRONG DRAFT, so the month can be prepared again.
+ *
+ * ONLY A DRAFT. Its lines are frozen, so a run prepared on a wrong pay record
+ * could not be corrected, and `prepareRun` refuses a second run for the month —
+ * a mistake was permanent. An APPROVED or PAID run is never deleted: somebody
+ * authorised those figures, the bank file may have gone, and the ledger holds
+ * its entry (a Draft never reaches the ledger — `postPayroll` refuses one).
+ * A draft whose approval is still PENDING is refused too, because an approver
+ * would otherwise be asked to authorise a run that no longer exists; a draft
+ * whose approval was TURNED DOWN is exactly the one that most needs discarding.
+ *
+ * `create`, THE RIGHT THAT PREPARED IT. Discarding a draft is un-preparing it;
+ * no figure anybody authorised is lost, which is why no `delete` verb was
+ * minted for it.
+ *
+ * NOTHING MOVES BACKWARD (invariant 10): a run carries no reference number —
+ * it is named by its month — so there is no counter to rewind, and the
+ * approval rows that named the draft stay on the Approvals page as history.
+ *
+ * TWO WRITES, IN THIS ORDER. The row is first MARKED, by a function patch that
+ * only marks a Draft (invariant 8), and approving refuses a marked run; only
+ * then is it removed. So an approval landing between the check and the removal
+ * can never produce a run that was approved and then deleted.
+ */
+export async function deleteRun(ctx: HrContext, id: string) {
+  const denied = requirePermission(ctx.access, "hr.payroll.create");
+  if (denied) return denied;
+  const run = await Runs.byId(scope(ctx), String(id));
+  if (!run) return { error: "notfound" };
+  if (run.status !== "Draft" || run.ledger?.posted) return { error: "approved", status: run.status };
+
+  const approvals = await approvalRows(ctx.studio, ctx.approvalsSection);
+  if (approvalSummary(approvals, PAYROLL_APPROVAL, run.id)?.status === "Pending") {
+    return { error: "already-pending" };
+  }
+
+  const at = new Date().toISOString();
+  const marked = await Runs.update(scope(ctx), run.id, (cur) => ((cur as Run).status !== "Draft" ? cur : {
+    ...cur, discardingAt: at,
+  }));
+  if (!marked || marked.status !== "Draft" || marked.discardingAt !== at) {
+    return { error: "approved", status: marked?.status || run.status };
+  }
+  return (await Runs.remove(scope(ctx), run.id)) ? { removed: run.id, period: run.period } : { error: "notfound" };
 }
 
 /** The approval type a payroll run asks for. Its key is stored — see modules/approvals/registry. */
@@ -409,7 +517,11 @@ export async function requestRunApproval(ctx: HrContext, id: string) {
   // one who asked — what the last yes would have written.
   if (asked.notNeeded) {
     const run2 = await markRunApproved(scope(ctx), run.id, String(ctx.collaborator.id));
-    return { run: run2 || run, approval: null };
+    if (!run2) return { run, approval: null };
+    // APPROVED HERE IS APPROVED — the wage bill posts exactly as it would on
+    // the Approvals page's last yes, and the ledger's answer rides back.
+    const ledger = await postRunToLedger(ctx.studio, run.id, String(ctx.collaborator.id));
+    return { run: { ...run2, ledger }, approval: null, ledger };
   }
   return { run, approval: asked.approval ?? null };
 }
@@ -417,10 +529,73 @@ export async function requestRunApproval(ctx: HrContext, id: string) {
 /** Approved, once, and only from Draft. `approvedByCollaboratorId` is whoever gave the last yes. */
 async function markRunApproved(where: { studio: StudioRef; section: HrContext["employeesSection"] }, id: string, by: string) {
   const at = new Date().toISOString();
-  const run = await Runs.update(where, id, (cur) => ((cur as Run).status !== "Draft" ? cur : {
+  // A DRAFT BEING DISCARDED IS NOT APPROVED — see `deleteRun`.
+  const run = await Runs.update(where, id, (cur) => ((cur as Run).status !== "Draft" || (cur as Run).discardingAt ? cur : {
     ...cur, status: "Approved", approvedByCollaboratorId: by, approvedAt: at,
   }));
   return run && run.status === "Approved" && run.approvedAt === at ? run : null;
+}
+
+/**
+ * AN APPROVED RUN IS A COST, SO IT GOES TO THE LEDGER — through Finance's own
+ * `postPayroll`, never a second posting path in HR. Until 27/09/2026 nothing
+ * called it: payroll.md said an approved run posts the wage bill, and the only
+ * way in was somebody in Finance posting each run by hand from the ledger route.
+ *
+ * WITH THE STUDIO'S AUTHORITY, not the approver's, for the reason `autoPost`
+ * gives: whoever authorised the run has done the act that makes the entry true,
+ * and asking a payroll approver for `finance.ledger.post` would leave the books
+ * complete only in studios where the two happen to coincide. The accounts the
+ * entry touches are `postPayroll`'s choice, not theirs.
+ *
+ * IDEMPOTENT BECAUSE THE JOURNAL IS. `postPayroll` refuses a run that already
+ * has an entry (`alreadyPosted`, keyed by the run's id) — the rule every other
+ * document follows — so a retried approval, a second press of Paid and an
+ * explicit "post again" all land one entry at most. That refusal is read as
+ * success here: the entry the question is about exists.
+ *
+ * IT NEVER FAILS THE APPROVAL — the posture bills, claims and a till's closed
+ * shift all take. The run WAS approved; a CLOSED PERIOD (`postEntry` refuses a
+ * date in a month Finance has locked, and a run is dated its period's last
+ * day), a chart missing Salaries or Payroll Payable, or a studio without
+ * Finance stops the ENTRY and not the approval. The refusal is STORED ON THE
+ * RUN and returned to the caller, so the payroll screen shows it — a silent
+ * log is how "the books are complete" becomes untrue quietly. Marking the run
+ * Paid, or `postRunAgain`, offers it again once the cause is gone.
+ */
+async function postRunToLedger(studio: StudioRef, runId: string, by: string): Promise<RunLedger> {
+  const at = new Date().toISOString();
+  let answer: RunLedger;
+  try {
+    // IMPORTED WHEN NEEDED, as a till's closed shift does: Finance is a section
+    // a studio can be without, and HR must not load it to list a payroll.
+    const { financeContext } = await import("@/modules/finance/finance");
+    const { autoPost } = await import("@/modules/finance/posting");
+    const finance = await financeContext.asApprover(studio.id, by);
+    if (finance.error) {
+      answer = { at, posted: false, reason: String(finance.error) };
+    } else {
+      const posted = await autoPost(finance, "payroll", runId);
+      answer = posted.posted
+        ? { at, posted: true, entryId: posted.entryId }
+        : posted.reason === "already-posted"
+          ? { at, posted: true, entryId: "" }
+          : { at, posted: false, reason: posted.reason };
+    }
+  } catch (e) {
+    // A THROWN STORE ERROR IS STILL AN ANSWER, and still not the approval's
+    // failure: the run is approved, and the screen must say the books are short.
+    answer = { at, posted: false, reason: String((e as Error)?.message || "error").slice(0, 80) };
+  }
+  // IMPORTED WHEN NEEDED: ./hr imports the services beside it.
+  // The REPORT failing to land loses the report, never the entry or the
+  // approval — the answer is still returned to whoever is waiting on it.
+  try {
+    const { hrContext } = await import("./hr");
+    const hr = await hrContext.asApprover(studio.id, by);
+    if (!hr.error) await Runs.update(scope(hr), runId, (cur) => ({ ...cur, ledger: answer }));
+  } catch { /* see above */ }
+  return answer;
 }
 
 /** The run an approval names, in a context carrying the studio's authority. */
@@ -443,12 +618,21 @@ export const payrollApproval = {
   ready: async (studio: StudioRef, approval: Approval, by: string) => {
     const found = await runFor(studio, approval, by);
     if ("error" in found) return found;
+    // A DRAFT BEING DISCARDED is, for an approver, already gone.
+    if (found.run.discardingAt) return { error: "notfound" } as Refusal;
     return found.run.status === "Draft" ? null : ({ error: "already-decided", status: found.run.status } as Refusal);
   },
   approved: async (studio: StudioRef, approval: Approval, by: string) => {
     const found = await runFor(studio, approval, by);
     if ("error" in found) return found;
-    return (await markRunApproved(scope(found.ctx), found.run.id, by)) ? ("done" as const) : ({ error: "already-decided" } as Refusal);
+    if (!(await markRunApproved(scope(found.ctx), found.run.id, by))) return { error: "already-decided" } as Refusal;
+    // THE WAGE BILL POSTS ON THE LAST YES. Its answer is stored on the run and
+    // never turned into a refusal here: the approval is decided and the run has
+    // moved, so reporting "could not finish" would offer a retry the run —
+    // Approved now — can only refuse. The payroll screen says what the ledger
+    // said instead, and offers to post again.
+    await postRunToLedger(studio, found.run.id, by);
+    return "done" as const;
   },
 };
 

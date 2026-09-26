@@ -139,6 +139,15 @@ export default function LifecyclePanel({ slug, locale = "en" }) {
             if (await send("", "POST", { ...payload, move: dialog.move, collaboratorId: dialog.person.collaboratorId })) setDialog(null);
           }} />
       )}
+      {dialog?.kind === "record" && (
+        <RecordDialog tr={tr} type={dialog.type} person={dialog.person} departments={data.departments || []}
+          busy={busy} onClose={() => setDialog(null)}
+          onSave={async (payload) => {
+            // A PUT, NOT A MOVE: a transfer or a promotion is history that does
+            // not change whether somebody is employed — the route's own split.
+            if (await send("", "PUT", { ...payload, type: dialog.type, collaboratorId: dialog.person.collaboratorId })) setDialog(null);
+          }} />
+      )}
     </div>
   );
 }
@@ -234,6 +243,17 @@ function PersonPanel({ person, contracts, events, tr, data, pack, onClose, onAct
                 {tr.move(m)}
               </button>
             ))}
+          {/* TRANSFER AND PROMOTION HAD NO BUTTON — the API recorded them and
+              nothing on screen could ask it. They answer to `edit`, as the
+              service does, and are offered to anybody still employed. */}
+          {data.canManage && person.status !== "Exited" && (
+            <>
+              <button type="button" className={btnGhost}
+                onClick={() => onAct({ kind: "record", type: "transfer", person })}>{tr.transfer}</button>
+              <button type="button" className={btnGhost}
+                onClick={() => onAct({ kind: "record", type: "promotion", person })}>{tr.promotion}</button>
+            </>
+          )}
         </div>
       )}
 
@@ -427,6 +447,40 @@ function MoveDialog({ tr, move, person, vocabulary, slug, busy, canSeePay, onClo
           <button type="button" className={btnGhost} onClick={onClose}>{tr.cancel}</button>
           <button type="button" className={btn} disabled={busy || !form.effectiveDate}
             onClick={() => onSave(form)}>{busy ? tr.saving : tr.save}</button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+// ---- a transfer or a promotion ------------------------------------------------------------
+function RecordDialog({ tr, type, person, departments, busy, onClose, onSave }) {
+  const [form, setForm] = useState(() => ({
+    effectiveDate: new Date().toISOString().slice(0, 10),
+    toDepartmentId: person.departmentId || "",
+    note: "",
+  }));
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const transfer = type === "transfer";
+  return (
+    <Dialog title={`${transfer ? tr.transfer : tr.promotion} — ${person.alias}`} onClose={onClose}>
+      <div className="space-y-4">
+        <p className="text-sm text-slate-500 dark:text-slate-400">{transfer ? tr.transferLead : tr.promotionLead}</p>
+        <Field label={tr.effectiveDate} type="date" required
+          value={form.effectiveDate} onChange={(v) => set("effectiveDate", v)} />
+        {transfer && (
+          <Field label={tr.toDepartment} as="select" value={form.toDepartmentId}
+            onChange={(v) => set("toDepartmentId", v)}
+            options={[{ value: "", label: tr.noDepartment }, ...departments.map((d) => ({ value: d.id, label: d.name }))]} />
+        )}
+        <Field label={tr.note} as="textarea" value={form.note} onChange={(v) => set("note", v)} />
+        <div className="flex justify-end gap-2">
+          <button type="button" className={btnGhost} onClick={onClose}>{tr.cancel}</button>
+          <button type="button" className={btn}
+            disabled={busy || !form.effectiveDate || (transfer && form.toDepartmentId === (person.departmentId || ""))}
+            onClick={() => onSave(transfer ? form : { effectiveDate: form.effectiveDate, note: form.note })}>
+            {busy ? tr.saving : tr.save}
+          </button>
         </div>
       </div>
     </Dialog>

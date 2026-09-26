@@ -9,9 +9,10 @@ import type { HelpModule } from "../types";
 // else is written about HR for users — this file is the single source.
 //
 // DRAWN FROM THE CODE, not from the docs. Where docs/functionality/ and the
-// screens disagree, the screens win: a transfer or promotion, for one, can be
-// recorded through the API (lifecycle.md says so) but the Lifecycle screen has
-// no button for it, so it is answered here as not on the screen. Every `fields`
+// screens disagree, the screens win: a transfer or promotion, for one, was
+// recordable through the API (lifecycle.md said so) long before the Lifecycle
+// screen had a button for it (27/09/2026), and was answered here as not on the
+// screen until it did. Every `fields`
 // entry names, in a comment above it, the component and schema its list was
 // checked against, so the next person can re-verify it rather than trust it.
 // What a doc lists under "Not built yet" is answered here as NOT AVAILABLE YET,
@@ -59,7 +60,7 @@ export const hr: HelpModule = {
       q: { en: "How is Human Resources organised?", ar: "كيف يُنظَّم قسم الموارد البشرية؟" },
       a: {
         en: "HR has five parts. Employees holds each person's record, their identity document and certifications, the roles the studio names, and the Manpower tab that compares planned work with the people holding each role. Lifecycle & contracts holds the employment itself: contracts and their amendments, probation, suspension, notice, the exit and the final settlement. Time & attendance is the daily sheet of who was in; Leave holds requests, approvals and balances; Payroll holds each person's pay record, the monthly runs, payslips and bank files. The rules several parts share, such as leave allowances, social security and end of service, are set once in Studio settings under Employment rules, and the department list is kept in Master data.",
-        ar: "يتكون قسم الموارد البشرية من خمسة أجزاء. يضم الموظفون سجل كل شخص ووثيقة هويته وشهاداته، والأدوار التي يحددها الاستوديو، وتبويب القوى العاملة الذي يقارن العمل المخطط بعدد من يشغلون كل دور. وتضم دورة الخدمة والعقود علاقة العمل نفسها: العقود وتعديلاتها، وفترة التجربة، والإيقاف، والإشعار، وانتهاء الخدمة، والتسوية النهائية. والوقت والحضور هو الكشف اليومي لمن حضر؛ وتضم الإجازات الطلبات والموافقات والأرصدة؛ وتضم الرواتب سجل الراتب لكل شخص ودورات الرواتب الشهرية وقسائم الرواتب وملفات البنك. أما القواعد التي تشترك فيها عدة أجزاء، كأرصدة الإجازات والضمان الاجتماعي ومكافأة نهاية الخدمة، فتُضبط مرة واحدة في إعدادات الاستوديو ضمن قواعد التوظيف، وتُحفظ قائمة الأقسام في البيانات الرئيسية.",
+        ar: "يتكون قسم الموارد البشرية من خمسة أجزاء. يضم الموظفون سجل كل شخص ووثيقة هويته وشهاداته، والأدوار التي يحددها الاستوديو، وتبويب القوى العاملة الذي يقارن العمل المخطط بعدد من يشغلون كل دور. وتضم دورة الخدمة والعقود علاقة العمل نفسها: العقود وتعديلاتها، وفترة التجربة، والإيقاف، والإشعار، وانتهاء الخدمة، والتسوية النهائية. والوقت والحضور هو الكشف اليومي لمن حضر؛ وتضم الإجازات الطلبات والموافقات والأرصدة؛ وتضم الرواتب سجل الراتب لكل شخص ودورات الرواتب الشهرية وقسائم الرواتب وملفات البنك. أما القواعد التي تشترك فيها عدة أجزاء، كأرصدة الإجازات والضمان الاجتماعي ومكافأة نهاية الخدمة، فتُضبط مرة واحدة في إعدادات الاستوديو ضمن قواعد التوظيف، وتُحفظ قائمة الأقسام في البيانات الأساسية.",
       },
       keywords: ["HR sections", "HR parts", "where is", "HR menu", "أقسام الموارد البشرية", "أجزاء الموارد البشرية", "أين أجد", "قائمة الموارد البشرية"],
       related: ["hr.about", "hr.setup"],
@@ -116,9 +117,9 @@ export const hr: HelpModule = {
         ar: [
           "في إعدادات الاستوديو يختار المالك بلد الاستوديو، فهو يحدد أنواع العقود وفترات التجربة والإشعار المعروضة والقيم الجاهزة من القانون",
           "في إعدادات الاستوديو حدد العملة التي تُصرف بها جميع الرواتب، وساعات العمل إن كانت الإجازات ستُحتسب بأيام العمل فقط",
-          "في البيانات الرئيسية، في تبويب الأقسام، أعدّ أقسامك مع الأقسام الأم والمديرين",
+          "في البيانات الأساسية، في تبويب الأقسام، أعدّ أقسامك مع الأقسام الأم والمديرين",
           "في الموارد البشرية، في تبويب الأدوار ضمن الموظفين، أضف أدواراً جاهزة لكل قسم؛ وفي شاشة الصلاحيات راجع ما يستطيعه كل دور ومن يملك صلاحيات الموارد البشرية",
-          "في البيانات الرئيسية، ضمن الفئات، أضف أي أنواع إجازات تستخدمها شركتك إضافة إلى الأنواع الخمسة المرفقة بالنظام",
+          "في البيانات الأساسية، ضمن الفئات، أضف أي أنواع إجازات تستخدمها شركتك إضافة إلى الأنواع الخمسة المرفقة بالنظام",
           "في إعدادات الاستوديو، ضمن قواعد التوظيف، املأ أرصدة الإجازات والضمان الاجتماعي ومكافأة نهاية الخدمة من قانون بلدك، ثم راجعها واحفظها",
           "في إعدادات الموافقات، سمِّ من يعتمد طلبات الإجازة ودورات الرواتب",
           "في الموظفين، ضع كل شخص في قسم وسجّل تاريخ التحاقه ووثيقة هويته",
@@ -225,7 +226,7 @@ export const hr: HelpModule = {
           "Certifications held",
         ],
         ar: [
-          "القسم: أحد أقسام الاستوديو من البيانات الرئيسية",
+          "القسم: أحد أقسام الاستوديو من البيانات الأساسية",
           "الرقم الوظيفي، مثل EMP-014",
           "تاريخ الالتحاق",
           "الجوال",
@@ -294,7 +295,7 @@ export const hr: HelpModule = {
       q: { en: "How do I place somebody in a department?", ar: "كيف أضع شخصاً في قسم؟" },
       a: {
         en: "Placing a person is HR's; keeping the list of departments is Master data's. The department decides who can see the person when rights are limited to a department, so a person with none is seen only by people who cover the whole studio. The People count at the top shows how many are still unplaced.",
-        ar: "وضع الشخص في قسم من اختصاص الموارد البشرية، أما قائمة الأقسام فمن اختصاص البيانات الرئيسية. ويحدد القسم من يستطيع رؤية الشخص عندما تكون الصلاحيات مقصورة على قسم، فالشخص الذي لا قسم له لا يراه إلا من تشمل صلاحياتهم الاستوديو كله. ويُظهر العدد أعلى الشاشة كم شخصاً لم يوضع بعد.",
+        ar: "وضع الشخص في قسم من اختصاص الموارد البشرية، أما قائمة الأقسام فمن اختصاص البيانات الأساسية. ويحدد القسم من يستطيع رؤية الشخص عندما تكون الصلاحيات مقصورة على قسم، فالشخص الذي لا قسم له لا يراه إلا من تشمل صلاحياتهم الاستوديو كله. ويُظهر العدد أعلى الشاشة كم شخصاً لم يوضع بعد.",
       },
       steps: {
         en: ["Open Employees on the People tab", "Search for the person, or look for the amber Not placed yet", "Choose Edit", "Pick the Department", "Save"],
@@ -434,9 +435,9 @@ export const hr: HelpModule = {
       q: { en: "Where is the list of departments kept?", ar: "أين تُحفظ قائمة الأقسام؟" },
       a: {
         en: "The departments you place people in are your studio's org chart, kept on the Departments tab of Master data under Settings, with each department's parent and manager. HR only places people in them. Re-parenting a department changes what a department-limited manager can see, which is why it is kept away from HR rights.",
-        ar: "الأقسام التي تضع فيها الموظفين هي الهيكل التنظيمي للاستوديو، وتُحفظ في تبويب الأقسام في البيانات الرئيسية ضمن الإعدادات، مع القسم الأم والمدير لكل قسم. وتكتفي الموارد البشرية بوضع الأشخاص فيها. وتغيير القسم الأم لقسم ما يغيّر ما يراه المدير المقصور على قسمه، ولهذا أُبعد عن صلاحيات الموارد البشرية.",
+        ar: "الأقسام التي تضع فيها الموظفين هي الهيكل التنظيمي للاستوديو، وتُحفظ في تبويب الأقسام في البيانات الأساسية ضمن الإعدادات، مع القسم الأم والمدير لكل قسم. وتكتفي الموارد البشرية بوضع الأشخاص فيها. وتغيير القسم الأم لقسم ما يغيّر ما يراه المدير المقصور على قسمه، ولهذا أُبعد عن صلاحيات الموارد البشرية.",
       },
-      keywords: ["departments list", "org chart", "master data", "قائمة الأقسام", "الهيكل التنظيمي", "البيانات الرئيسية"],
+      keywords: ["departments list", "org chart", "master data", "قائمة الأقسام", "الهيكل التنظيمي", "البيانات الأساسية"],
       related: ["admin.master.departments", "hr-employees.place"],
     },
     {
@@ -474,7 +475,7 @@ export const hr: HelpModule = {
       q: { en: "Why is somebody shown as Not placed yet?", ar: "لماذا يظهر شخص بعبارة لم يوضع بعد؟" },
       a: {
         en: "Nobody has chosen a department for them, or the department they were in has since been deleted from Master data. Until they are placed, managers whose rights are limited to a department cannot see them at all. Edit the person and pick a department.",
-        ar: "لم يختر أحد قسماً له، أو حُذف القسم الذي كان فيه من البيانات الرئيسية. وإلى أن يوضع في قسم لا يستطيع المديرون المقصورة صلاحياتهم على قسم رؤيته إطلاقاً. عدّل بيانات الشخص واختر قسماً.",
+        ar: "لم يختر أحد قسماً له، أو حُذف القسم الذي كان فيه من البيانات الأساسية. وإلى أن يوضع في قسم لا يستطيع المديرون المقصورة صلاحياتهم على قسم رؤيته إطلاقاً. عدّل بيانات الشخص واختر قسماً.",
       },
       keywords: ["not placed", "unassigned", "no department", "لم يوضع", "غير مسند", "بلا قسم"],
       related: ["hr-employees.place", "hr.department-scope"],
@@ -544,7 +545,7 @@ export const hr: HelpModule = {
       q: { en: "Why is the pre-built roles list empty?", ar: "لماذا قائمة الأدوار الجاهزة فارغة؟" },
       a: {
         en: "The catalogue needs two things to know which titles to offer: the studio's field of work, set in Studio settings, and a code on the department, set in Master data. The empty list says which of the two is missing. If both are set and nothing matches your search, try a shorter word.",
-        ar: "يحتاج الدليل إلى أمرين ليعرف المسميات التي يعرضها: مجال عمل الاستوديو، ويُحدَّد في إعدادات الاستوديو، ورمز للقسم، ويُحدَّد في البيانات الرئيسية. وتبين القائمة الفارغة أيهما ناقص. وإن كان كلاهما محدداً ولم يطابق بحثك شيء، فجرّب كلمة أقصر.",
+        ar: "يحتاج الدليل إلى أمرين ليعرف المسميات التي يعرضها: مجال عمل الاستوديو، ويُحدَّد في إعدادات الاستوديو، ورمز للقسم، ويُحدَّد في البيانات الأساسية. وتبين القائمة الفارغة أيهما ناقص. وإن كان كلاهما محدداً ولم يطابق بحثك شيء، فجرّب كلمة أقصر.",
       },
       keywords: ["pre-built empty", "role library empty", "no matching titles", "field of work", "الأدوار الجاهزة فارغة", "مكتبة الأدوار فارغة", "مجال العمل", "رمز القسم"],
       related: ["hr-employees.library", "admin.settings.field-of-work"],
@@ -595,8 +596,8 @@ export const hr: HelpModule = {
       id: "hr-lifecycle.states", topic: "dept.hr-lifecycle", kind: "about", open: "hr-lifecycle",
       q: { en: "What are the employment states and how does somebody move between them?", ar: "ما حالات الخدمة وكيف ينتقل الموظف بينها؟" },
       a: {
-        en: "There are six states. Not started (Onboarding) moves to On probation with Start, and probation ends with Confirm, which makes them Active; Active or on probation can be Suspended and then Reinstated. Give notice puts somebody in Notice, where they stay employed and paid until their last working day, and Withdraw notice brings them back to Active. Record the exit ends the employment from any state, and Rehire starts a new employment for somebody who left, keeping the old one in the history. Everybody who joined the studio before a step was recorded counts as Active, and the screen only ever offers the steps a person's state allows.",
-        ar: "هناك ست حالات. تنتقل حالة لم يباشر بعد إلى تحت التجربة بخطوة مباشرة العمل، وتنتهي التجربة بخطوة التثبيت فيصبح الموظف على رأس العمل؛ ويمكن إيقاف من هو على رأس العمل أو تحت التجربة ثم إعادته إلى العمل. وتقديم إشعار يضع الموظف في فترة الإشعار، ويبقى فيها على رأس العمل ويتقاضى راتبه حتى آخر يوم عمل، وسحب الإشعار يعيده إلى العمل. ويُنهي تسجيل انهاء الخدمة علاقة العمل من أي حالة، وتبدأ إعادة التوظيف خدمة جديدة لمن غادر مع بقاء الخدمة السابقة في السجل. ويُعد كل من انضم إلى الاستوديو قبل تسجيل أي خطوة على رأس العمل، ولا تعرض الشاشة إلا الخطوات التي تسمح بها حالة الشخص.",
+        en: "There are six states. Not started (Onboarding) moves to On probation with Start, and probation ends with Confirm, which makes them Active; Active or on probation can be Suspended and then Reinstated. Give notice puts somebody in Notice, where they stay employed and paid until their last working day, and Withdraw notice brings them back to Active. Record the exit ends the employment from any state, and Rehire starts a new employment for somebody who left, keeping the old one in the history. Everybody who joins the studio starts as Active; their first contract puts them On probation by itself when it carries a probation that has not run out, and Place on probation does the same by hand for an Active person whose first contract has one and who has not been confirmed. The screen only ever offers the steps a person's state allows.",
+        ar: "هناك ست حالات. تنتقل حالة لم يباشر بعد إلى تحت التجربة بخطوة مباشرة العمل، وتنتهي التجربة بخطوة التثبيت فيصبح الموظف على رأس العمل؛ ويمكن إيقاف من هو على رأس العمل أو تحت التجربة ثم إعادته إلى العمل. وتقديم إشعار يضع الموظف في فترة الإشعار، ويبقى فيها على رأس العمل ويتقاضى راتبه حتى آخر يوم عمل، وسحب الإشعار يعيده إلى العمل. ويُنهي تسجيل انهاء الخدمة علاقة العمل من أي حالة، وتبدأ إعادة التوظيف خدمة جديدة لمن غادر مع بقاء الخدمة السابقة في السجل. ويبدأ كل من ينضم إلى الاستوديو على رأس العمل؛ ويضعه عقده الأول تحت التجربة تلقائياً إن كانت فيه فترة تجربة لم تنته، وتفعل خطوة وضع تحت التجربة الشيء نفسه يدوياً لمن هو على رأس العمل وفي عقده الأول فترة تجربة ولم يُثبَّت بعد. ولا تعرض الشاشة إلا الخطوات التي تسمح بها حالة الشخص.",
       },
       keywords: ["employment states", "status", "suspended", "notice", "exited", "حالات الخدمة", "الحالة", "على رأس العمل", "موقوف", "منتهية"],
       related: ["hr-lifecycle.move-refused", "hr-lifecycle.probation-new-joiner"],
@@ -701,8 +702,8 @@ export const hr: HelpModule = {
       id: "hr-lifecycle.move-fields", topic: "dept.hr-lifecycle", kind: "fields", open: "hr-lifecycle",
       q: { en: "What do I fill in to start, confirm, suspend or reinstate somebody?", ar: "ما الذي أملؤه لمباشرة عمل موظف أو تثبيته أو إيقافه أو إعادته؟" },
       a: {
-        en: "Start, Confirm, Suspend, Reinstate, Withdraw notice and Rehire all use the same short form. The effective date is required and starts as today; change it when you record a step after the fact, for example a confirmation that happened on the day probation ended.",
-        ar: "تستخدم خطوات مباشرة العمل والتثبيت والإيقاف والإعادة إلى العمل وسحب الإشعار وإعادة التوظيف النموذج القصير نفسه. وتاريخ السريان إلزامي ويبدأ بتاريخ اليوم؛ غيّره عندما تسجل خطوة بعد وقوعها، كتثبيت تم في يوم انتهاء فترة التجربة.",
+        en: "Start, Confirm, Place on probation, Suspend, Reinstate, Withdraw notice and Rehire all use the same short form. The effective date is required and starts as today; change it when you record a step after the fact, for example a confirmation that happened on the day probation ended.",
+        ar: "تستخدم خطوات مباشرة العمل والتثبيت والوضع تحت التجربة والإيقاف والإعادة إلى العمل وسحب الإشعار وإعادة التوظيف النموذج القصير نفسه. وتاريخ السريان إلزامي ويبدأ بتاريخ اليوم؛ غيّره عندما تسجل خطوة بعد وقوعها، كتثبيت تم في يوم انتهاء فترة التجربة.",
       },
       fields: {
         en: ["Effective: the day it happened (required)", "Note"],
@@ -933,10 +934,10 @@ export const hr: HelpModule = {
     },
     {
       id: "hr-lifecycle.probation-new-joiner", topic: "dept.hr-lifecycle", kind: "troubleshoot", open: "hr-lifecycle",
-      q: { en: "Why can't I put a new joiner on probation?", ar: "لماذا لا أستطيع وضع موظف انضم حديثاً تحت التجربة؟" },
+      q: { en: "How do I put a new joiner on probation?", ar: "كيف أضع موظفاً انضم حديثاً تحت التجربة؟" },
       a: {
-        en: "Everybody who joins the studio starts as Active, and there is no step yet from Active back to Not started or On probation; those states are reached today only by rehiring somebody who left. You can still record their contract with its probation months, but they will not appear in Running out when probation ends, so keep your own reminder for now.",
-        ar: "يبدأ كل من ينضم إلى الاستوديو بحالة على رأس العمل، ولا توجد بعد خطوة تعيده من هذه الحالة إلى لم يباشر بعد أو تحت التجربة؛ إذ لا يُوصل إلى هاتين الحالتين حالياً إلا بإعادة توظيف من غادر. ويمكنك مع ذلك تسجيل عقده مع أشهر التجربة، لكنه لن يظهر في قائمة على وشك الانتهاء عند انتهاء التجربة، فاحتفظ بتذكير خاص بك في الوقت الحالي.",
+        en: "Record their first contract with its probation months. Everybody who joins the studio starts as Active, and a first contract whose probation has not yet run out moves them On probation by itself, so they appear in Running out as it ends. For somebody whose first contract was recorded before that, choose Place on probation on their record; it is offered only while the first contract's probation is still running and nobody has confirmed them. An amended contract never restarts a probation.",
+        ar: "سجّل عقده الأول مع أشهر التجربة. يبدأ كل من ينضم إلى الاستوديو على رأس العمل، والعقد الأول الذي لم تنته فترة تجربته بعد ينقله تحت التجربة تلقائياً، فيظهر في قائمة على وشك الانتهاء عند اقتراب نهايتها. ولمن سُجل عقده الأول قبل ذلك، اختر وضع تحت التجربة في سجله؛ ولا تُعرض إلا ما دامت فترة التجربة في العقد الأول جارية ولم يثبّته أحد. ولا يعيد تعديل العقد فترة التجربة من جديد.",
       },
       keywords: ["new joiner probation", "start probation", "onboarding", "new hire", "تجربة موظف جديد", "بدء التجربة", "تعيين", "موظف جديد"],
       related: ["hr-lifecycle.states", "hr-lifecycle.confirm"],
@@ -965,8 +966,8 @@ export const hr: HelpModule = {
       id: "hr-lifecycle.transfer", topic: "dept.hr-lifecycle", kind: "troubleshoot", open: "hr-lifecycle",
       q: { en: "How do I record a transfer or promotion?", ar: "كيف أسجل نقلاً أو ترقية؟" },
       a: {
-        en: "The Lifecycle screen has no transfer or promotion button yet. Record a promotion by amending the contract with the new job title and a note, and a move by changing the person's department on the Employees screen. A new role, and so new access, is given on the Access screen, and a new salary on the pay record in Payroll.",
-        ar: "لا يوجد في شاشة دورة الخدمة زر للنقل أو الترقية بعد. سجّل الترقية بتعديل العقد بالمسمى الوظيفي الجديد مع ملاحظة، والنقل بتغيير قسم الشخص في شاشة الموظفين. ويُمنح الدور الجديد، ومعه الصلاحيات الجديدة، من شاشة الصلاحيات، والراتب الجديد من سجل الراتب في الرواتب.",
+        en: "Open the person in Lifecycle & contracts and choose Transfer or Promotion; both need the right to edit Lifecycle. A transfer asks for the date and the new department, moves the person there and records the move in their history, so a department-limited manager's view of them moves with them. A promotion records the date and a note in the history; put the new job title on an amended contract, a new role, and so new access, on the Access screen, and a new salary on the pay record in Payroll.",
+        ar: "افتح الشخص في دورة الخدمة والعقود واختر نقل أو ترقية؛ وكلاهما يحتاج صلاحية التعديل في دورة الخدمة. يطلب النقل التاريخ والقسم الجديد، فينقل الشخص إليه ويسجل النقل في سجله، فينتقل معه نطاق اطلاع المدير المحدود بقسمه. وتسجل الترقية التاريخ وملاحظة في السجل؛ أما المسمى الوظيفي الجديد فيوضع في عقد معدل، والدور الجديد ومعه الصلاحيات الجديدة من شاشة الصلاحيات، والراتب الجديد في سجل الراتب في الرواتب.",
       },
       keywords: ["transfer", "promotion", "promote", "move department", "نقل", "ترقية", "ترقية موظف", "نقل إلى قسم"],
       related: ["hr-lifecycle.amend", "hr-employees.place"],
@@ -1179,7 +1180,7 @@ export const hr: HelpModule = {
       q: { en: "What leave types are there?", ar: "ما أنواع الإجازات المتاحة؟" },
       a: {
         en: "Every studio has Annual, Sick, Unpaid, Parental and Compassionate leave, and can add its own, such as study leave, in Master data under Categories; the five that come with the product cannot be removed. A type keeps a balance only if Employment rules give it days a year; without a rule it can still be requested, but nothing is counted against an allowance. Only the type called Unpaid reduces pay.",
-        ar: "لدى كل استوديو إجازة سنوية ومرضية وغير مدفوعة ووالدية ووفاة، ويمكنه إضافة أنواعه الخاصة، كإجازة الدراسة، من البيانات الرئيسية ضمن الفئات؛ ولا يمكن حذف الأنواع الخمسة المرفقة بالنظام. ولا يحتفظ النوع برصيد إلا إذا منحته قواعد التوظيف أياماً في السنة؛ وبدون قاعدة يمكن طلبه لكن لا يُحتسب من أي رصيد. ولا يخفض الراتب إلا النوع المسمى إجازة غير مدفوعة.",
+        ar: "لدى كل استوديو إجازة سنوية ومرضية وغير مدفوعة ووالدية ووفاة، ويمكنه إضافة أنواعه الخاصة، كإجازة الدراسة، من البيانات الأساسية ضمن الفئات؛ ولا يمكن حذف الأنواع الخمسة المرفقة بالنظام. ولا يحتفظ النوع برصيد إلا إذا منحته قواعد التوظيف أياماً في السنة؛ وبدون قاعدة يمكن طلبه لكن لا يُحتسب من أي رصيد. ولا يخفض الراتب إلا النوع المسمى إجازة غير مدفوعة.",
       },
       keywords: ["leave types", "sick leave", "unpaid leave", "parental leave", "compassionate", "أنواع الإجازات", "إجازة مرضية", "إجازة غير مدفوعة", "إجازة والدية", "إجازة وفاة"],
       related: ["hr-leave.add-type", "hr-leave.rules"],
@@ -1251,8 +1252,8 @@ export const hr: HelpModule = {
       id: "hr-leave.request", topic: "dept.hr-leave", kind: "howto", common: true, open: "hr-leave",
       q: { en: "How do I request leave?", ar: "كيف أطلب إجازة؟" },
       a: {
-        en: "The form shows how many days you are asking for and what your balance would be after the request, in amber if it would go over. Submitting files a leave request on the Approvals page, the people who can answer it are told, and you are notified of the outcome. You can cancel your own request while it waits.",
-        ar: "يعرض النموذج عدد الأيام التي تطلبها ورصيدك بعد الطلب، باللون الكهرماني إن كان سيتجاوزه. وعند الإرسال يُقدَّم طلب إجازة في صفحة الموافقات ويُبلَّغ من يستطيعون الرد عليه، وتُبلَّغ أنت بالنتيجة. ويمكنك إلغاء طلبك ما دام بانتظار الرد.",
+        en: "Request leave is shown to people whose role lets them create leave requests. The form shows how many days you are asking for and what your balance would be after the request, in amber if it would go over. Submitting files a leave request on the Approvals page, the people who can answer it are told, and you are notified of the outcome. You can cancel your own request while it waits.",
+        ar: "يظهر زر طلب إجازة لمن يسمح له دوره بإنشاء طلبات الإجازة. يعرض النموذج عدد الأيام التي تطلبها ورصيدك بعد الطلب، باللون الكهرماني إن كان سيتجاوزه. وعند الإرسال يُقدَّم طلب إجازة في صفحة الموافقات ويُبلَّغ من يستطيعون الرد عليه، وتُبلَّغ أنت بالنتيجة. ويمكنك إلغاء طلبك ما دام بانتظار الرد.",
       },
       steps: {
         en: ["Open Leave and choose Request leave", "Choose the leave type", "Enter the from and to dates", "Add a reason", "Choose Submit, then follow it on the Approvals page"],
@@ -1322,11 +1323,11 @@ export const hr: HelpModule = {
       q: { en: "How do I add a leave type, such as study leave?", ar: "كيف أضيف نوع إجازة، مثل إجازة الدراسة؟" },
       a: {
         en: "Leave types are one of the studio's category lists in Master data. A type you add is offered on leave requests straight away; give it days a year in Employment rules if it should keep a balance. A type you added can be removed later and simply stops being offered; requests that name it keep it.",
-        ar: "أنواع الإجازات إحدى قوائم الفئات في البيانات الرئيسية. والنوع الذي تضيفه يُعرض في طلبات الإجازة فوراً؛ وامنحه أياماً في السنة في قواعد التوظيف إن كان يجب أن يحتفظ برصيد. ويمكن حذف النوع الذي أضفته لاحقاً فيتوقف عرضه فقط؛ وتحتفظ الطلبات التي تحمله به.",
+        ar: "أنواع الإجازات إحدى قوائم الفئات في البيانات الأساسية. والنوع الذي تضيفه يُعرض في طلبات الإجازة فوراً؛ وامنحه أياماً في السنة في قواعد التوظيف إن كان يجب أن يحتفظ برصيد. ويمكن حذف النوع الذي أضفته لاحقاً فيتوقف عرضه فقط؛ وتحتفظ الطلبات التي تحمله به.",
       },
       steps: {
         en: ["Open Master data under Settings", "Go to Categories", "Under Leave types, add the new type", "If it should keep a balance, give it days a year in Studio settings under Employment rules"],
-        ar: ["افتح البيانات الرئيسية ضمن الإعدادات", "انتقل إلى الفئات", "تحت أنواع الإجازات أضف النوع الجديد", "إن كان يجب أن يحتفظ برصيد فامنحه أياماً في السنة في إعدادات الاستوديو ضمن قواعد التوظيف"],
+        ar: ["افتح البيانات الأساسية ضمن الإعدادات", "انتقل إلى الفئات", "تحت أنواع الإجازات أضف النوع الجديد", "إن كان يجب أن يحتفظ برصيد فامنحه أياماً في السنة في إعدادات الاستوديو ضمن قواعد التوظيف"],
       },
       keywords: ["add leave type", "study leave", "new leave type", "leave categories", "إضافة نوع إجازة", "إجازة دراسية", "نوع إجازة جديد", "فئات الإجازات"],
       related: ["hr-leave.types", "hr-leave.rules-fields"],
@@ -1477,8 +1478,8 @@ export const hr: HelpModule = {
       id: "hr-payroll.screen", topic: "dept.hr-payroll", kind: "about", open: "hr-payroll",
       q: { en: "What is on the Payroll screen?", ar: "ماذا تعرض شاشة الرواتب؟" },
       a: {
-        en: "At the top, people who may run payroll pick a Month and choose Prepare run. Four tiles follow: the last run's net pay and state, how many people are on payroll and how many have no pay set, the monthly basic of everybody with pay, and how many runs await approval. Then two views: Payroll runs, one row per month with its people, gross, deductions, net and who prepared it, where Payslips opens the run's lines; and Pay records, one row per person with their basic, allowances, deductions, bank account and, where the studio has an end-of-service rule, what they would be owed leaving today.",
-        ar: "في الأعلى يختار من يستطيع تشغيل الرواتب الشهر ثم تجهيز دورة. تليها أربع بطاقات: صافي آخر دورة وحالتها، وعدد من هم على الرواتب وعدد من لم يُحدد لهم راتب، والأساسي الشهري لكل من له راتب، وعدد الدورات بانتظار الاعتماد. ثم عرضان: دورات الرواتب، بصف لكل شهر فيه عدد الأشخاص والإجمالي والاستقطاعات والصافي ومن جهزها، ويفتح زر قسائم الرواتب أسطر الدورة؛ وسجلات الرواتب، بصف لكل شخص فيه أساسيه وبدلاته واستقطاعاته وحسابه البنكي، ومكافأة نهاية خدمته لو غادر اليوم حيث يكون للاستوديو قاعدة لها.",
+        en: "At the top, people who may create payroll runs pick a Month and choose Prepare run. Four tiles follow: the last run's net pay and state, how many people are on payroll and how many have no pay set, the monthly basic of everybody with pay, and how many runs await approval. Then two views: Payroll runs, one row per month with its people, gross, deductions, net and who prepared it, where Payslips opens the run's lines; and Pay records, one row per person with their basic, allowances, deductions, bank account and, where the studio has an end-of-service rule, what they would be owed leaving today.",
+        ar: "في الأعلى يختار من يملك صلاحية إنشاء دورات الرواتب الشهر ثم تجهيز دورة. تليها أربع بطاقات: صافي آخر دورة وحالتها، وعدد من هم على الرواتب وعدد من لم يُحدد لهم راتب، والأساسي الشهري لكل من له راتب، وعدد الدورات بانتظار الاعتماد. ثم عرضان: دورات الرواتب، بصف لكل شهر فيه عدد الأشخاص والإجمالي والاستقطاعات والصافي ومن جهزها، ويفتح زر قسائم الرواتب أسطر الدورة؛ وسجلات الرواتب، بصف لكل شخص فيه أساسيه وبدلاته واستقطاعاته وحسابه البنكي، ومكافأة نهاية خدمته لو غادر اليوم حيث يكون للاستوديو قاعدة لها.",
       },
       keywords: ["payroll screen", "pay records", "payroll runs", "summary", "شاشة الرواتب", "سجلات الرواتب", "دورات الرواتب", "ملخص"],
       related: ["hr-payroll.about"],
@@ -1558,8 +1559,8 @@ export const hr: HelpModule = {
       id: "hr-payroll.run-fields", topic: "dept.hr-payroll", kind: "fields", open: "hr-payroll",
       q: { en: "What do I need before preparing a payroll run?", ar: "ما الذي أحتاجه قبل تجهيز دورة رواتب؟" },
       a: {
-        en: "The form asks only for the month, but a run cannot be prepared twice for the same month or changed once prepared, so everything it copies must be right first. Check the list below before choosing Prepare run.",
-        ar: "لا يطلب النموذج سوى الشهر، لكن لا يمكن تجهيز دورتين للشهر نفسه ولا تغيير الدورة بعد تجهيزها، لذا يجب أن يكون كل ما تنسخه صحيحاً مسبقاً. راجع القائمة أدناه قبل اختيار تجهيز دورة.",
+        en: "The form asks only for the month, but a run is frozen once prepared and there is one run per month, so everything it copies should be right first. A wrong draft can be deleted and the month prepared again; once approved it cannot. Check the list below before choosing Prepare run.",
+        ar: "لا يطلب النموذج سوى الشهر، لكن الدورة تُجمَّد بعد تجهيزها ولكل شهر دورة واحدة، لذا يجب أن يكون كل ما تنسخه صحيحاً مسبقاً. ويمكن حذف المسودة الخاطئة وتجهيز الشهر من جديد؛ أما بعد الاعتماد فلا. راجع القائمة أدناه قبل اختيار تجهيز دورة.",
       },
       fields: {
         en: [
@@ -1647,8 +1648,8 @@ export const hr: HelpModule = {
       id: "hr-payroll.run", topic: "dept.hr-payroll", kind: "howto", common: true, open: "hr-payroll",
       q: { en: "How do I run payroll for the month?", ar: "كيف أشغّل رواتب الشهر؟" },
       a: {
-        en: "There is one run per month. Anyone who has a pay record but was not employed in the month is listed on the run under Not in this run, with the reason. A draft run has no bank file because it is not yet approved. Paid is set by you; nothing checks it against the bank.",
-        ar: "توجد دورة واحدة لكل شهر. ومن لديه سجل راتب ولم يكن على رأس العمل خلال الشهر يُدرج في الدورة تحت خارج هذا الكشف مع السبب. ولا يتوفر ملف بنك للدورة في حالة المسودة لأنها لم تُعتمد بعد. وتعليمها كمدفوعة يتم يدوياً؛ ولا يطابقه شيء مع البنك.",
+        en: "There is one run per month. Anyone who has a pay record but was not employed in the month is listed on the run under Not in this run, with the reason. A draft run has no bank file because it is not yet approved. Approving posts the wage bill to the General Ledger. Paid is set by you; nothing checks it against the bank.",
+        ar: "توجد دورة واحدة لكل شهر. ومن لديه سجل راتب ولم يكن على رأس العمل خلال الشهر يُدرج في الدورة تحت خارج هذا الكشف مع السبب. ولا يتوفر ملف بنك للدورة في حالة المسودة لأنها لم تُعتمد بعد. ويرحّل الاعتماد تكلفة الرواتب إلى دفتر الأستاذ العام. وتعليمها كمدفوعة يتم يدوياً؛ ولا يطابقه شيء مع البنك.",
       },
       steps: {
         en: ["Open Payroll, pick the Month and choose Prepare run", "Choose Payslips on the new run and review the lines and anyone Not in this run", "Choose Request approval; it is answered on the Approvals page", "Once approved, download the Bank file, and in the UAE the WPS file", "Pay through your bank, then choose Mark paid"],
@@ -1689,8 +1690,8 @@ export const hr: HelpModule = {
       id: "hr-payroll.mark-paid", topic: "dept.hr-payroll", kind: "howto", open: "hr-payroll",
       q: { en: "How do I mark a payroll run as paid?", ar: "كيف أعلّم دورة الرواتب كمدفوعة؟" },
       a: {
-        en: "After the bank has paid everybody, choose Mark paid on the approved run. Paid is a state you set; nothing checks it against a bank statement, and it cannot be undone. Marking paid does not record the payment in Finance, so record the salary payment there too.",
-        ar: "بعد أن يصرف البنك للجميع اختر تعليم كمدفوع على الدورة المعتمدة. والحالة مدفوعة تحددها أنت؛ ولا يطابقها شيء مع كشف البنك، ولا يمكن التراجع عنها. ولا يسجل التعليم كمدفوع الدفعة في المالية، لذا سجّل دفعة الرواتب هناك أيضاً.",
+        en: "After the bank has paid everybody, choose Mark paid on the approved run. Paid is a state you set; nothing checks it against a bank statement, and it cannot be undone. The wage bill reached the ledger when the run was approved, and if that posting was refused, marking paid tries it again. Marking paid does not record the bank payment itself, which clears Payroll Payable, so record the salary payment in Finance too.",
+        ar: "بعد أن يصرف البنك للجميع اختر تعليم كمدفوع على الدورة المعتمدة. والحالة مدفوعة تحددها أنت؛ ولا يطابقها شيء مع كشف البنك، ولا يمكن التراجع عنها. وقد وصلت تكلفة الرواتب إلى دفتر الأستاذ عند اعتماد الدورة، وإن رُفض ذلك الترحيل فالتعليم كمدفوع يحاوله مرة أخرى. ولا يسجل التعليم كمدفوع دفعة البنك نفسها التي تسدد الرواتب المستحقة، لذا سجّل دفعة الرواتب في المالية أيضاً.",
       },
       steps: {
         en: ["Open Payroll on Payroll runs", "Find the approved run", "Choose Mark paid"],
@@ -1839,8 +1840,8 @@ export const hr: HelpModule = {
       id: "hr-payroll.duplicate", topic: "dept.hr-payroll", kind: "troubleshoot", open: "hr-payroll",
       q: { en: "I changed someone's pay after preparing the run. How do I update it?", ar: "غيّرت راتب موظف بعد تجهيز الدورة. كيف أحدّثها؟" },
       a: {
-        en: "You cannot: a run freezes what it copied, and there is no way yet to delete a run or prepare the same month again, which is refused with There is already a run for that month. That is why pay records, joining and leaving dates and unpaid leave should be checked before choosing Prepare run. A difference found afterwards has to be settled in the next month's pay, for example as a one-off allowance or deduction you remove again afterwards.",
-        ar: "لا يمكنك ذلك: فالدورة تجمد ما نسخته، ولا توجد بعد طريقة لحذف دورة أو تجهيز الشهر نفسه مرة أخرى، ويُرفض ذلك برسالة تفيد بوجود دورة لذلك الشهر. ولهذا يجب مراجعة سجلات الرواتب وتواريخ الالتحاق والمغادرة والإجازات غير المدفوعة قبل اختيار تجهيز دورة. وأي فرق يُكتشف لاحقاً يُسوّى في راتب الشهر التالي، كبدل أو استقطاع لمرة واحدة تزيله بعد ذلك.",
+        en: "A run freezes what it copied, so it is not updated in place. While it is still a draft, choose Delete on the run, fix the pay record, and prepare the month again; deleting needs the right to create payroll runs. A draft waiting for approval cannot be deleted until the approval is answered, and a draft that was turned down can. An approved or paid run is never deleted, and preparing its month again is refused with There is already a run for that month, so a difference found then has to be settled in the next month's pay, for example as a one-off allowance or deduction you remove again afterwards.",
+        ar: "الدورة تجمد ما نسخته، فلا تُحدَّث في مكانها. وما دامت مسودة، اختر حذف على الدورة وصحّح سجل الراتب ثم جهّز الشهر من جديد؛ ويحتاج الحذف صلاحية إنشاء دورات الرواتب. ولا تُحذف المسودة التي بانتظار الاعتماد حتى يُرد على الطلب، أما المسودة المرفوضة فتُحذف. ولا تُحذف الدورة المعتمدة أو المدفوعة أبداً، ويُرفض تجهيز شهرها مرة أخرى برسالة تفيد بوجود دورة لذلك الشهر، فأي فرق يُكتشف حينها يُسوّى في راتب الشهر التالي، كبدل أو استقطاع لمرة واحدة تزيله بعد ذلك.",
       },
       keywords: ["update run", "re-run payroll", "already a run", "wrong payroll", "delete run", "تحديث الدورة", "إعادة تشغيل الرواتب", "دورة موجودة", "حذف الدورة"],
       related: ["hr-payroll.run-fields"],
@@ -1889,8 +1890,8 @@ export const hr: HelpModule = {
       id: "hr-payroll.ledger", topic: "dept.hr-payroll", kind: "troubleshoot", open: "finance-ledger",
       q: { en: "Does payroll reach the accounts in Finance?", ar: "هل تصل الرواتب إلى الحسابات في المالية؟" },
       a: {
-        en: "Not by itself yet. Neither approving a run nor marking it paid writes anything to the General Ledger, and no screen posts a run there. Until it does, record the wage bill and the salary payment in Finance yourself, for example as a manual journal entry once the run is approved.",
-        ar: "ليس تلقائياً بعد. فلا اعتماد الدورة ولا تعليمها كمدفوعة يكتب شيئاً في دفتر الأستاذ العام، ولا توجد شاشة ترحّل الدورة إليه. وإلى أن يتحقق ذلك سجّل تكلفة الرواتب ودفعتها في المالية بنفسك، كقيد يومية يدوي بعد اعتماد الدورة.",
+        en: "Yes. When a run is approved, its wage bill is posted to the General Ledger: Salaries is debited with the gross plus the employer's social security, and Payroll Payable is credited, dated the month's last day. It posts once, however many times it is retried. If the ledger refuses it, for example because that month is closed in Finance or the chart has no Salaries or Payroll Payable account, the run stays approved and its row says Not in the ledger with the reason; fix the cause and choose Post again, or Mark paid, which tries again too. The bank payment that clears Payroll Payable is recorded in Finance.",
+        ar: "نعم. عند اعتماد الدورة تُرحَّل تكلفة الرواتب إلى دفتر الأستاذ العام: يُقيَّد حساب الرواتب مديناً بالإجمالي مع حصة صاحب العمل من الضمان الاجتماعي، ويُقيَّد حساب الرواتب المستحقة دائناً، بتاريخ آخر يوم في الشهر. وتُرحَّل مرة واحدة مهما تكررت المحاولة. وإن رفضها دفتر الأستاذ، كأن يكون الشهر مغلقاً في المالية أو يخلو دليل الحسابات من حساب الرواتب أو الرواتب المستحقة، تبقى الدورة معتمدة ويذكر سطرها أنها غير مرحلة مع السبب؛ عالج السبب ثم اختر ترحيل مرة أخرى، أو تعليم كمدفوع الذي يحاول مرة أخرى كذلك. أما دفعة البنك التي تسدد الرواتب المستحقة فتُسجَّل في المالية.",
       },
       keywords: ["payroll ledger", "journal", "accounting", "wage bill posting", "الرواتب في الدفاتر", "قيد", "المحاسبة", "ترحيل الرواتب"],
       related: ["hr-payroll.mark-paid", "finance-ledger.manual-entry"],

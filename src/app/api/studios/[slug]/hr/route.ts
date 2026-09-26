@@ -50,6 +50,10 @@ export const GET = route(
     // Whether this viewer may see, and so change, the picture of somebody's
     // identity document. The picture is withheld from everybody else.
     canSeeDocumentImages: can(g.access, "hr.employees.salary"),
+    // Whether this viewer may ask for leave at all — the right `requestVacation`
+    // checks first. The button was shown to everybody who could open Leave and
+    // refused on save for anybody without it.
+    canRequestLeave: can(g.access, "hr.vacations.create"),
     nav: g.nav,
     // Manage per section key, so each screen can ask about itself rather
     // than being handed the parent section's answer.

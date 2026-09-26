@@ -15,7 +15,7 @@ const {
   EMPLOYMENT_STATUSES, EMPLOYED, AT_WORK, MOVES, MOVE_KEYS, DEFAULT_STATUS,
   statusOf, movesFrom, moveProblem, reasonKind, EXIT_REASONS,
   contractProblems, cleanContract, contractAt, contractsOf,
-  addMonths, addDays, daysBetween, probationEndsOn, noticeEndsOn, noticeDaysFor,
+  addMonths, addDays, daysBetween, probationEndsOn, probationProblem, noticeEndsOn, noticeDaysFor,
   attentionList, settlement, DAYS_IN_MONTH, employedBetween, employedOn,
 } = await import("@/modules/hr/lifecycle");
 const {
@@ -71,6 +71,33 @@ ok("the only way out of Exited is a rehire",
   movesFrom("Exited").join("|") === "hire");
 ok("notice cannot be given twice", moveProblem("Notice", "giveNotice") === "illegal-move");
 ok("notice can be withdrawn", moveProblem("Notice", "withdrawNotice") === null);
+
+// A NEW JOINER COULD NEVER BE ON PROBATION (27/09/2026): everybody is born
+// Active and the only road into Probation ran through Onboarding, which only a
+// rehire reaches — so the probation reminder fired for nobody hired the
+// ordinary way. Active → Probation exists now, behind `probationProblem`.
+{
+  const first = { id: "c1", collaboratorId: "p1", startDate: "2026-09-01", probationMonths: 3, createdAt: "2026-09-01T00:00:00Z" };
+  ok("a new joiner who is Active may be placed on probation", moveProblem("Active", "probation") === null
+    && movesFrom("Active").includes("probation"));
+  ok("and it lands on Probation", MOVES.probation.to === "Probation");
+  ok("a first contract with a running probation allows it",
+    probationProblem([first], [], "p1", "2026-09-27") === null);
+  ok("no contract refuses it", probationProblem([], [], "p1", "2026-09-27") === "no-contract");
+  ok("a contract with no probation refuses it",
+    probationProblem([{ ...first, probationMonths: 0 }], [], "p1", "2026-09-27") === "no-probation");
+  ok("a probation that has run out refuses it",
+    probationProblem([first], [], "p1", "2026-12-01") === "probation-over");
+  ok("somebody already confirmed is not put back on trial",
+    probationProblem([first], [{ collaboratorId: "p1", type: "confirm", effectiveDate: "2026-09-10" }], "p1", "2026-09-27") === "confirmed");
+  // AN AMENDMENT RESTARTS NOTHING: the FIRST contract of the employment is the
+  // one asked, so a twenty-year employee whose hours changed last week is not
+  // back on probation because the amendment repeated the default term.
+  const old = { ...first, id: "c0", startDate: "2006-01-01", createdAt: "2006-01-01T00:00:00Z" };
+  const amended = { ...first, id: "c2", startDate: "2026-09-20", supersedesId: "c0" };
+  ok("an amendment does not re-open a probation long over",
+    probationProblem([old, amended], [], "p1", "2026-09-27") === "probation-over");
+}
 
 // ---- why somebody left decides money -----------------------------------------
 

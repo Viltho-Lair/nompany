@@ -59,6 +59,18 @@ so the screen can say "they are already on notice" rather than "that did not wor
 **Every move carries its own effective date.** A confirmation happens on the probation end
 and an exit on the last working day, and both are routinely recorded days later.
 
+**A new joiner reaches Probation** (27/09/2026). Everybody is born Active, and the only road
+into Probation ran through Onboarding, which only a rehire reaches — so nobody hired the ordinary
+way was ever on probation and the Running out reminder never fired for them. Two halves, one
+guard (`probationProblem`, pure): **signing a person's FIRST contract** puts an Active person on
+Probation by itself when that contract's probation has not run out today, and a **`probation`
+move** (Active → Probation, *Place on probation*, `edit`) does the same by hand for somebody whose
+first contract was recorded before. The guard asks the FIRST contract of this employment (since
+the last rehire), never the current version — an amendment restarts nothing — and refuses where
+there is no contract, no probation in it, a probation already over, or a confirmation already
+recorded. The automatic half goes through `commitMove`, the same single writer of
+`employmentStatus` the moves use, and records a `probation` event dated the contract's start.
+
 ## The contract
 
 **An amendment is a new row**, naming the one it supersedes. `contractAt(contracts, id, day)`
@@ -166,7 +178,7 @@ everything under it (`subtreeIds`) and no further.
 
 | | |
 |---|---|
-| `view` / `create` / `edit` | Read the employment, sign a contract, amend it, record a transfer or a promotion |
+| `view` / `create` / `edit` | Read the employment, sign a contract, amend it, record a transfer or a promotion (the **Transfer** and **Promotion** buttons on a person, since 27/09/2026 — before that only the API could) |
 | `offboard` | Give notice, and end an employment |
 | *no `delete`* | A contract is amended by superseding; an event is append-only. Deleting either destroys the history the versioning exists for |
 
@@ -233,6 +245,9 @@ under the sections they were written to (`hr-employees` and the HR root) — see
   working days will want a different divisor, and no leave type is flagged encashable.
 - **The settlement is not PAID by anything.** It is computed and snapshotted on the exit; no
   bill, no payroll run and no journal comes out of it, so somebody raises the payment by hand.
+- **A promotion is a line in the history.** It changes no job title, role or pay — those are
+  an amended contract, the Access screen and the pay record, each by hand — and a transfer
+  moves the department and nothing else.
 - **No suspension effect.** `Suspended` records the fact and stops nothing — not pay, not
   leave accrual, not attendance.
 - **Three countries.** Everywhere else gets the fallback pack, and there is no loader, no

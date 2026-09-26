@@ -206,8 +206,10 @@ lesson `plant-sections.mjs` paid for.
 ## Not built yet
 
 - **Approval routing by department.** The manager is stored and nothing reads
-  it: leave still answers to `hr.vacations.approve`, and the bill chain still
-  routes by amount and permission rather than up the org chart. That was the
+  it: leave, like a bill, is answered on the Approvals page by the people
+  Approvals settings name (there has been no `hr.vacations.approve` since
+  19/09/2026 — this line named it until 27/09/2026), routed by amount rather
+  than up the org chart. That was the
   second slice of the agreed design and is not in this one.
 - **No roles per department.** The industry role research
   (`docs/research/industry-roles.md`) lists what each trade's departments are

@@ -19,6 +19,13 @@ type Strings = {
   approvalRejected: (reason: string) => string;
   openApprovals: string;
   markPaid: string;
+  /** Discarding a wrong draft, and the confirmation that asks first. */
+  deleteRun: string;
+  confirmDeleteRun: (month: string) => string;
+  /** Whether the approved wage bill reached the ledger, as it last answered. */
+  ledgerPosted: string;
+  ledgerNotPosted: (reason: string) => string;
+  postAgain: string;
   bankFile: string;
   close: string;
   person: string;
@@ -122,6 +129,17 @@ const en: Strings = {
   approvalRejected: (reason) => `Turned down${reason ? `: “${reason}”` : ""}`,
   openApprovals: "Open in Approvals",
   markPaid: "Mark paid",
+  deleteRun: "Delete",
+  confirmDeleteRun: (month) => `Delete the ${month} draft? Its payslips go with it, and the month can be prepared again.`,
+  ledgerPosted: "In the ledger",
+  // THE REASON IN WORDS where it is one the studio can act on; otherwise the
+  // ledger's own code, which Finance can read.
+  ledgerNotPosted: (reason) => `Not in the ledger — ${
+    reason === "period-closed" ? "that month is closed in Finance"
+      : reason === "chart" ? "the chart of accounts is missing Salaries or Payroll Payable"
+        : reason === "no-section" || reason === "section-off" ? "this studio has no Finance"
+          : reason || "the ledger refused it"}`,
+  postAgain: "Post again",
   bankFile: "Bank file",
   close: "Close",
   person: "Person",
@@ -190,7 +208,8 @@ const en: Strings = {
     code === "not-configured" ? "Nobody has been named to approve payroll. The owner or an Admin names them in Approvals settings."
       : code === "no-approver" ? "You are the only person who approves payroll, so you cannot ask for it yourself. Ask the owner to name somebody else in Approvals settings."
       : code === "already-pending" ? "This run is already waiting for approval."
-      : code === "duplicate" ? "There is already a run for that month."
+      : code === "duplicate" ? "There is already a run for that month. If it is a wrong draft, delete it and prepare the month again."
+      : code === "approved" ? "Only a draft can be deleted. An approved or paid run stays."
         : code === "nobody" ? "Nobody has a pay record yet."
           : code === "period" ? "Pick a month."
             : code === "transition" ? "A run cannot go back."
@@ -243,6 +262,15 @@ const ar: Strings = {
   approvalRejected: (reason) => `رفض${reason ? `: «${reason}»` : ""}`,
   openApprovals: "فتح في الموافقات",
   markPaid: "تعليم كمدفوع",
+  deleteRun: "حذف",
+  confirmDeleteRun: (month) => `حذف مسودة ${month}؟ تحذف معها قسائم الرواتب، ويمكن إعداد الشهر من جديد.`,
+  ledgerPosted: "مرحلة الى دفتر الأستاذ",
+  ledgerNotPosted: (reason) => `غير مرحلة الى دفتر الأستاذ — ${
+    reason === "period-closed" ? "هذا الشهر مغلق في المالية"
+      : reason === "chart" ? "دليل الحسابات ينقصه حساب الرواتب أو الرواتب المستحقة"
+        : reason === "no-section" || reason === "section-off" ? "لا توجد مالية في هذه المنشأة"
+          : reason || "رفضها دفتر الأستاذ"}`,
+  postAgain: "ترحيل مرة أخرى",
   bankFile: "ملف البنك",
   close: "اغلاق",
   person: "الموظف",
@@ -305,7 +333,8 @@ const ar: Strings = {
     code === "not-configured" ? "لم يحدد أحد لاعتماد الرواتب. يحددهم المالك أو المشرف في إعدادات الموافقات."
       : code === "no-approver" ? "أنتم الوحيدون الذين يعتمدون الرواتب، فلا يمكنكم طلب الاعتماد بأنفسكم. اطلبوا من المالك تحديد شخص آخر في إعدادات الموافقات."
       : code === "already-pending" ? "هذه الدورة بانتظار الاعتماد بالفعل."
-      : code === "duplicate" ? "توجد دورة لهذا الشهر بالفعل."
+      : code === "duplicate" ? "توجد دورة لهذا الشهر بالفعل. إن كانت مسودة خاطئة فاحذفوها وأعدوا الشهر من جديد."
+      : code === "approved" ? "تحذف المسودة فقط. الدورة المعتمدة أو المدفوعة تبقى."
         : code === "nobody" ? "لا يوجد أحد لديه سجل راتب بعد."
           : code === "period" ? "اختاروا شهرا."
             : code === "transition" ? "الدورة لا تعود الى الوراء."

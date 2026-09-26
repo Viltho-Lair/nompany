@@ -174,7 +174,7 @@ export default function StudioHr({ slug, view = "hr", initial }) {
       <div className="space-y-6">
         {banner}
         <Leave slug={slug} rows={vacations} employees={employees} types={vocabulary.leaveTypes} leave={data.leave}
-          canManage={canManage} meId={me.collaboratorId} busy={busy} send={send} />
+          canManage={canManage} canRequest={data.canRequestLeave !== false} meId={me.collaboratorId} busy={busy} send={send} />
       </div>
     );
   }
@@ -976,16 +976,20 @@ function Certifications({ rows, employees, canManage, busy, send }) {
 }
 
 // ---- leave -----------------------------------------------------------------
-function Leave({ slug, rows, employees, types, leave, canManage, meId, busy, send }) {
+function Leave({ slug, rows, employees, types, leave, canManage, canRequest, meId, busy, send }) {
   const tr = hrDict(useStudioLocale());
   const [asking, setAsking] = useState(false);
   const closeAsk = useCallback(() => setAsking(false), []);
 
   return (
     <>
-      <div className="flex justify-end">
-        <button className={btn} onClick={() => setAsking(true)}>{tr.requestLeave}</button>
-      </div>
+      {/* ONLY TO WHOEVER MAY ASK (`hr.vacations.create`), the right the server
+          checks — offered to everybody, it was refused on save. */}
+      {canRequest && (
+        <div className="flex justify-end">
+          <button className={btn} onClick={() => setAsking(true)}>{tr.requestLeave}</button>
+        </div>
+      )}
 
       {asking && (
         <Dialog title={tr.requestLeave} description={canManage ? tr.bookYourselfSomebodyManage : tr.goesWhoeverManagesHr}

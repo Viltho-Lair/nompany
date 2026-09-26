@@ -213,6 +213,15 @@ export const MOVES = Object.freeze({
   giveNotice: { to: "Notice", from: ["Active", "Probation", "Suspended"], label: "Notice given" },
   withdrawNotice: { to: "Active", from: ["Notice"], label: "Notice withdrawn" },
   exit: { to: "Exited", from: ["Onboarding", "Probation", "Active", "Suspended", "Notice"], label: "Exited" },
+  // A NEW JOINER COULD NEVER BE ON PROBATION (27/09/2026). Everybody is born
+  // Active (`DEFAULT_STATUS`, for the live rows that predate the lifecycle) and
+  // the only road into Probation ran through Onboarding, which only a REHIRE
+  // reaches — so the probation reminder fired for nobody hired the ordinary way.
+  // Active → Probation is the missing edge, and it is legal only where
+  // `probationProblem` says so: this employment's first contract carries a
+  // probation that has not run out and nobody has confirmed them. Without that
+  // guard the edge would let a twenty-year employee be put back on trial.
+  probation: { to: "Probation", from: ["Active"], label: "Placed on probation" },
 } as const satisfies Record<string, { to: EmploymentStatus; from: readonly EmploymentStatus[]; label: string }>);
 
 export type Move = keyof typeof MOVES;
@@ -466,6 +475,39 @@ export function daysBetween(from: string, to: string): number {
 export function probationEndsOn(contract: EmploymentContract | null): string {
   if (!contract || !contract.startDate || !(contract.probationMonths > 0)) return "";
   return addMonths(contract.startDate, contract.probationMonths);
+}
+
+/**
+ * WHY AN ACTIVE EMPLOYEE CANNOT BE PUT ON PROBATION, or null when they can —
+ * the guard on the `probation` move.
+ *
+ * THE FIRST CONTRACT OF THIS EMPLOYMENT DECIDES, not the current one. An
+ * amendment restarts nothing: `probationEndsOn` counts from a contract's own
+ * start, so asking the current version would put somebody back on trial every
+ * time their hours changed. "This employment" begins at the last rehire, or at
+ * the beginning where there has been none.
+ *
+ * FOUR REFUSALS, each a different sentence on the screen: no contract (nothing
+ * says there is a probation), none written into it, one that has already run
+ * out on `on`, and a confirmation already recorded — somebody decided.
+ */
+export function probationProblem(
+  contracts: readonly EmploymentContract[],
+  events: readonly Pick<LifecycleEvent, "collaboratorId" | "type" | "effectiveDate">[],
+  collaboratorId: string,
+  on: string,
+): "no-contract" | "no-probation" | "probation-over" | "confirmed" | null {
+  const mine = events.filter((e) => e.collaboratorId === collaboratorId);
+  const since = mine.filter((e) => e.type === "hire").map((e) => e.effectiveDate).sort().pop() || "";
+  const first = contracts
+    .filter((c) => c.collaboratorId === collaboratorId && c.startDate && c.startDate >= since)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate) || String(a.createdAt).localeCompare(String(b.createdAt)))[0];
+  if (!first) return "no-contract";
+  const ends = probationEndsOn(first);
+  if (!ends) return "no-probation";
+  if (ends <= on) return "probation-over";
+  if (mine.some((e) => e.type === "confirm" && e.effectiveDate >= since)) return "confirmed";
+  return null;
 }
 
 /**

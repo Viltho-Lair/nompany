@@ -224,7 +224,7 @@ export default function PayrollPanel({ slug, locale = "en" }) {
 
   if (!data) return <ScreenSkeleton />;
 
-  const { people = [], runs = [], canManage, ssEnabled, eosEnabled, wpsEnabled, sifReady } = data;
+  const { people = [], runs = [], canManage, canPrepare, ssEnabled, eosEnabled, wpsEnabled, sifReady } = data;
   const withPay = people.filter((p) => p.basic !== null);
   const missing = people.length - withPay.length;
   const latest = runs[0];
@@ -251,7 +251,9 @@ export default function PayrollPanel({ slug, locale = "en" }) {
           <h2 className="font-display text-lg font-800 text-[var(--geex-ink)]">{tr.tab}</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.lead}</p>
         </div>
-        {canManage && (
+        {/* PREPARING ASKS FOR `create`, the right the server checks — this asked
+            for `edit` and offered editors a button that was always refused. */}
+        {canPrepare && (
           <div className="flex flex-wrap items-end gap-2">
             <Field label={tr.period} type="month" className="w-44" value={period} onChange={(v) => setPeriod(v)} />
             <button className={btn} disabled={busy || !period}
@@ -335,6 +337,36 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                                 {" · "}
                                 <a href={`/${slug}/approvals`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.openApprovals}</a>
                               </span>
+                            )}
+                            {/* A WRONG DRAFT IS THROWN AWAY and the month prepared
+                                again — never an approved or paid run, and never one
+                                an approver is still looking at. */}
+                            {r.canDelete && (
+                              <button type="button" className={btnRow} disabled={busy}
+                                onClick={() => { if (window.confirm(tr.confirmDeleteRun(monthLabel(r.period, locale)))) send({ action: "delete", id: r.id }); }}>
+                                {tr.deleteRun}
+                              </button>
+                            )}
+                            {/* WHETHER THE WAGE BILL REACHED THE BOOKS. Approving
+                                posts it; a refusal (a closed month, a short chart)
+                                never undoes the approval, so it is said here. */}
+                            {r.status !== "Draft" && r.ledger && (
+                              r.ledger.posted
+                                ? <span className="text-xs text-emerald-700 dark:text-emerald-300">{tr.ledgerPosted}</span>
+                                : (
+                                  <span className="text-xs text-rose-600 dark:text-rose-300">
+                                    {tr.ledgerNotPosted(r.ledger.reason)}
+                                    {canManage && (
+                                      <>
+                                        {" · "}
+                                        <button type="button" className="font-600 hover:underline" disabled={busy}
+                                          onClick={() => send({ action: "post-again", id: r.id })}>
+                                          {tr.postAgain}
+                                        </button>
+                                      </>
+                                    )}
+                                  </span>
+                                )
                             )}
                             {r.canRequestApproval && (
                               <button type="button" className={btnRowPrimary} disabled={busy}

@@ -1,7 +1,7 @@
 # Payroll
 
 What people are paid, the runs that pay them, the bank file, and what it does to the
-ledger. A tab on Employees (`/<slug>/hr-employees`), two collections — `payRecords` and
+ledger. HR's Payroll sub-section (`/<slug>/hr-payroll`, its own screen since 17/09/2026), two collections — `payRecords` and
 `payrollRuns` — and one new permission area, `hr.payroll`.
 
 ## What it is
@@ -39,6 +39,21 @@ routed: a record of what was decided must not move when the inputs do.
 
 **One record per person** — two pay records is two salaries, and the run would pay whichever
 it found first. **One run per period** — a second September is two wage bills for one month.
+
+**A wrong DRAFT is deleted, and the month prepared again** (27/09/2026). A run's lines are
+frozen, so before this a run prepared on a wrong pay record was permanent: it could not be
+corrected, deleted, or prepared again. `deleteRun` (the `delete` action on the payroll route)
+removes a run that is still **Draft** — including one whose approval was turned down — under
+`hr.payroll.create`, the right that prepared it; no `delete` verb was minted. **An Approved or
+Paid run is never deleted**, nor a draft whose approval is still **Pending** (`already-pending`),
+because an approver would be asked to authorise a run that no longer exists. The draft is first
+MARKED (`discardingAt`, a function patch that only marks a Draft) and then removed, and approving
+refuses a marked run, so an approval landing mid-delete cannot leave an approved run deleted. A
+run carries no reference number, so nothing moves backward (invariant 10); its approval rows stay
+on the Approvals page as history.
+
+**Preparing asks for `hr.payroll.create`, and so does the button** — the screen asked for `edit`
+until 27/09/2026 and offered editors a button that was always refused.
 
 **Somebody with no pay record is not on a run.** They are not paid nothing; nothing has
 been decided about their pay, and a nought line would produce a payslip saying they earned
@@ -111,6 +126,27 @@ sheet.
 is September's cost.
 
 **Idempotent by source**, like every other posting.
+
+**Approving a run POSTS it** (27/09/2026). Until then nothing called `postPayroll` — the
+only way in was somebody in Finance posting each run by hand through the ledger route's generic
+"post a document" call, while this file said an approved run posts the wage bill. The last yes on
+the Approvals page (`payrollApproval.approved`), and an approval nobody needed to give
+(`requestRunApproval` under every limit), both call `postRunToLedger` in `payrollService.ts`,
+which goes through Finance's own `autoPost(…, "payroll", runId)` with the studio's authority —
+the same door a claim, an invoice and a closed till shift use — never a second posting path in
+HR. **Once only**: the journal refuses a second entry for the run (`already-posted`), which HR
+reads as "it is there".
+
+**A refused posting never fails the approval**, the posture bills, claims and a till shift
+take. A **closed period** (`period-closed` — the run is dated its month's last day, and
+`postEntry` refuses a date in a month Finance has closed), a chart missing Salaries or `2200`,
+or a studio without Finance stops the ENTRY, not the approval. The ledger's answer is **stored on
+the run** (`ledger: { at, posted, entryId, reason }`) and shown on its row — *In the ledger*, or
+*Not in the ledger* with the reason and a **Post again** button (`post-again`, `hr.payroll.edit`).
+**Marking the run Paid offers it again too.** There is no separate paid posting: the ledger has
+no payroll-payment entry, so Paid posts nothing new. The stored answer is a report, not the
+truth — the journal is — so a run Finance posted by hand still reads as not posted until
+somebody presses Post again, which answers `already-posted` and corrects it.
 
 ## Statutory pay (tier 6, 11/09/2026)
 
@@ -234,5 +270,9 @@ says so across the page.
 - **One currency.** Everybody is paid in the studio's own; there is no per-employee
   currency and no FX.
 - **`Paid` is a state somebody sets by hand.** Nothing reconciles it against a bank
-  statement, and nothing posts the payment itself — the run posts the accrual only, so
-  `2200` is never cleared.
+  statement, and nothing posts the payment itself — the run posts the accrual on approval
+  only, so `2200` is cleared by whatever Finance records for the bank transfer.
+- **Runs approved before 27/09/2026 were not posted retroactively** and carry no ledger
+  answer; each is posted by choosing Post again on it (or through Finance's ledger route).
+- **A posted run cannot be reversed from HR.** Deleting is for drafts only, and a draft never
+  reaches the ledger; an approved run posted wrongly is reversed in Finance.
