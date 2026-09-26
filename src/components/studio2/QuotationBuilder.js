@@ -7,7 +7,8 @@ import { statusLabel } from "@/shared/studio/statuses";
 import { documentsDict } from "@/shared/studio/documents";
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
-import { btn, btnGhost, input, money, Dialog } from "@/components/studio2/ui";
+import { btn, btnGhost, input, money, fmtDateTime, Dialog } from "@/components/studio2/ui";
+import { Field } from "@/components/fields/Field";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
 import TaxTag from "@/components/studio2/TaxTag";
@@ -47,14 +48,37 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 // through typing "1.5".
 const cell = "w-full rounded-geex border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-export default function QuotationBuilder({ slug, quote, previous = null, catalogue = [], currency: studioCurrency = "", vatOn = false, canManage, onSave, onClose }) {
+export default function QuotationBuilder({ slug, quote, previous = null, catalogue = [], currency: studioCurrency = "", vatOn = false, canManage, nameOf = (v) => v || "", onSave, onClose }) {
   const locale = useStudioLocale();
   const tr = technicalDict(locale);
   const dt = documentsDict(locale);
   // THE QUOTATION'S OWN MONEY FIRST — frozen when it was raised — and the
   // studio's only for a quotation raised before currency was stored on it.
   const currency = quote.currency || studioCurrency;
-  const locked = Boolean(quote.locked) || !canManage;
+  // WAITING FOR APPROVAL IS VIEW-ONLY TOO (27/09/2026). The server refuses an
+  // edit while the approval is pending — the approvers sign the document as it
+  // was asked about — so offering Save here would be offering a refusal.
+  const awaiting = quote.approvalState === "pending";
+  const locked = Boolean(quote.locked) || !canManage || awaiting;
+  // A COMMENT IS NOT AN EDIT, so it is still offered while the approval is
+  // pending — that is when explaining the document is most wanted. Not on a
+  // locked or closed one: the server takes nothing but Unlock there.
+  const canComment = canManage && !quote.locked && quote.status !== "Closed";
+  const [comment, setComment] = useState("");
+  const [posting, setPosting] = useState(false);
+  // Newest first, the order the register's Latest comment column reads.
+  const comments = useMemo(() => [...(Array.isArray(quote.comments) ? quote.comments : [])]
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))), [quote.comments]);
+  // ONLY THE COMMENT IS SENT, never the tables beside it: posting a remark must
+  // not also save half-typed lines somebody has not chosen to save yet.
+  async function postComment() {
+    const text = comment.trim();
+    if (!text || posting) return;
+    setPosting(true);
+    const ok = await onSave({ newComment: text });
+    setPosting(false);
+    if (ok !== false) setComment("");
+  }
   // How long the client may accept it. Proposed by the sequence at issue,
   // changed here per quotation, and blank for no expiry.
   const [validUntil, setValidUntil] = useState(quote.validUntil || "");
@@ -208,7 +232,7 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
           )}
           {locked ? (
             <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-700 text-slate-500 dark:bg-white/5 dark:text-slate-300">
-              {quote.locked ? tr.lockedViewOnly : tr.viewOnly}
+              {quote.locked ? tr.lockedViewOnly : awaiting ? tr.approvalWaiting(quote.approvalGranted || 0, quote.approvalRequired || 0) : tr.viewOnly}
             </span>
           ) : (
             <>
@@ -232,6 +256,12 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
               part of any revision yet. */}
           <QuotationCompare quote={quote} previous={previous} currency={currency} />
         </Dialog>
+      )}
+
+      {awaiting && !quote.locked && (
+        <p className="border-b border-amber-500/20 bg-amber-500/10 px-5 py-2 text-xs text-amber-700 dark:text-amber-300">
+          {tr.awaitingApprovalReadOnly}
+        </p>
       )}
 
       {!locked && !catalogue.length && (
@@ -419,6 +449,37 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
               {tr.addTable}
             </button>
           )}
+
+          {/* COMMENTS (27/09/2026). updateQuotation has always appended a
+              `newComment` and the register has a Latest comment column, but no
+              screen could write one — so the column stayed empty and a revision
+              had nowhere to say why it was made. Same shape as a ticket's. */}
+          <section className="rounded-geex border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+            <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.quotationComments}</h3>
+            {comments.length === 0 ? (
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.noQuotationComments}</p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {comments.map((c) => (
+                  <li key={c.id} className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/5">
+                    <p className="whitespace-pre-line text-sm text-slate-700 dark:text-slate-200">{c.text}</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {nameOf(c.byCollaboratorId) || tr.commentBySomeone} · {fmtDateTime(c.createdAt)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {canComment && (
+              <div className="mt-3 flex items-end gap-3">
+                <Field label={tr.addQuotationComment} value={comment} onChange={(v) => setComment(v)} className="flex-1"
+                  inputProps={{ onKeyDown: (e) => { if (e.key === "Enter") postComment(); } }} />
+                <button className={btn} onClick={postComment} disabled={posting || !comment.trim()}>
+                  {posting ? tr.saving : tr.postComment}
+                </button>
+              </div>
+            )}
+          </section>
         </div>
       </div>
 

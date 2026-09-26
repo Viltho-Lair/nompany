@@ -19,6 +19,7 @@ import { isUnfinished } from "@/modules/technical/quotations";
 import { sectionName } from "@/shared/studio/sections";
 import QuotationBuilder from "@/components/studio2/QuotationBuilder";
 import { previousRevision } from "@/modules/technical/quotationDiff";
+import { latestTicketQuotation } from "@/modules/technical/rfqs";
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import Combo from "@/components/studio2/Combo";
 import StudioDate from "@/components/fields/StudioDate";
@@ -251,6 +252,7 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
         : out.error === "same" ? tr.errSameHandler
         : out.error === "reason-required" ? tr.closeNeedsReason
         : out.error === "quotation-closed" ? tr.quotationIsClosed
+        : out.error === "approval-pending" ? tr.approvalPendingEdit
         : tr.didnSave
       );
       return false;
@@ -326,7 +328,14 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
         )}
         {converting && (
           <Dialog title={tr.quoteRef(converting.reference)} description={`${converting.title} · ${converting.clientName || "—"}`} onClose={closeConvert}>
-            <ConvertRfq rfq={converting} nextNumber={sequences.find((s) => s.id === defaultSequenceId)?.nextNumber} people={people} canAssign={canAssign}
+            <ConvertRfq rfq={converting} people={people} canAssign={canAssign}
+              // THE NUMBER CONVERTING WILL REALLY USE (27/09/2026). A second RFQ
+              // on a ticket is a REVISION and keeps the number of the ticket's
+              // latest quotation — the same latestTicketQuotation convertRfq
+              // asks — so the default sequence's next number, shown for every
+              // conversion, was a number the revision would never carry.
+              prior={converting.ticketId ? latestTicketQuotation(converting.ticketId, quotations) : null}
+              nextNumber={sequences.find((s) => s.id === defaultSequenceId)?.nextNumber}
               onCancel={closeConvert} onSave={(p) => send("quotations", "POST", { ...p, rfqId: converting.id })} />
           </Dialog>
         )}
@@ -370,6 +379,7 @@ export default function StudioTechnical({ slug, view = "quotations", sectionName
               : (data.catalogue || [])}
             currency={data.currency || ""}
             vatOn={!!data.vatEnabled}
+            nameOf={handlerName}
             onClose={closeEdit}
             onSave={(p) => send("quotations", "PUT", { ...p, id: editingQuote.id }, true)} />
         )}
@@ -863,7 +873,8 @@ function Quotations({ quotations, canManage, canCreate, canLock, canClose, onClo
           )}
           <button type="button" className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300"
             onClick={(e) => { e.stopPropagation(); onOpen(row); }}>
-            {row.locked || !canManage ? tr.view : tr.open}
+            {/* Waiting on approval opens view-only (updateQuotation refuses edits then), so it says View. */}
+            {row.locked || !canManage || row.approvalState === "pending" ? tr.view : tr.open}
           </button>
         </span>
       ),
@@ -1022,7 +1033,7 @@ function RaiseRfq({ tickets, onSave, onCancel }) {
   );
 }
 
-function ConvertRfq({ rfq, nextNumber, people, canAssign, onSave, onCancel }) {
+function ConvertRfq({ rfq, prior, nextNumber, people, canAssign, onSave, onCancel }) {
   const locale = useStudioLocale();
   const tr = technicalDict(locale);
   // No items and no VAT. Converting says a quotation exists, who owns it and
@@ -1041,7 +1052,12 @@ function ConvertRfq({ rfq, nextNumber, people, canAssign, onSave, onCancel }) {
           <label className={label}>{tr.quotationNumber}</label>
           {/* Issued by the studio's numbering, not typed: a number somebody
               chose by hand is a number somebody can choose twice. */}
-          <input className={inputRO} value={nextNumber || tr.assignedOnSave} readOnly />
+          <input className={inputRO} value={(prior ? prior.number : nextNumber) || tr.assignedOnSave} readOnly />
+          {prior && (
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {tr.revisionKeepsNumber((Number(prior.revision) || 1) + 1)}
+            </p>
+          )}
         </div>
         <div><label className={label}>{tr.client}</label><input className={inputRO} value={rfq.clientName || "—"} readOnly /></div>
         <div><label className={label}>{tr.title}</label><input className={inputRO} value={rfq.title || "—"} readOnly /></div>

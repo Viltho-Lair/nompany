@@ -784,6 +784,11 @@ export async function assignQuotation(ctx: TechnicalContext, id: string, body: R
     listCollaborators(studio.id),
   ]);
   if (!current) return { error: "notfound" };
+  // A CLOSED QUOTATION IS FINAL, here as at every other door (27/09/2026). The
+  // register hid Assign on a closed row and nothing else said no, so a direct
+  // request re-pointed who "follows up" a quotation nobody can follow up — and
+  // wrote its RFQ too.
+  if (current.status === "Closed") return { error: "quotation-closed" };
   if (!people.some((c) => c.id === to)) return { error: "assignee" };
   const rfq = current.rfqId && ctx.rfqSection
     ? await Rfqs.byId({ studio, section: ctx.rfqSection }, String(current.rfqId)) : null;
@@ -964,9 +969,13 @@ export async function convertRfq(ctx: TechnicalContext, body: Record<string, unk
   // keeps the number the client already holds, steps the revision, and opens
   // on a COPY of what was quoted last time — Technical edits the previous
   // version rather than retyping it. Only the final one is ever considered.
-  const prior = quotations
-    .filter((q) => rfq.ticketId && q.ticketId === rfq.ticketId)
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] || null;
+  //
+  // latestTicketQuotation, not a filter of its own, because the Convert dialog
+  // asks the same question to SHOW the number (27/09/2026): it printed the
+  // default sequence's next number for a revision that keeps the old one, and
+  // one rule in two places is what lets them disagree. Guarded on ticketId —
+  // an empty id would match every internal quotation.
+  const prior = rfq.ticketId ? latestTicketQuotation(rfq.ticketId, quotations) : null;
 
   // Same rule as everywhere else: derived from the highest already issued, not
   // from how many exist, and stepped past anything that collides. A quotation
@@ -1102,6 +1111,23 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
     return { quotation: reopened };
   }
 
+  // WHAT IS BEING APPROVED CANNOT MOVE UNDER THE APPROVERS (27/09/2026) — the
+  // rule bills already keep (finance/payables.ts). The approvers sign the
+  // document as it was when approval was asked for; editing it while they are
+  // still deciding had them sign one quotation and the client receive another.
+  // Turned down, it edits again and is sent afresh.
+  //
+  // A COMMENT IS NOT AN EDIT, so it is let through: explaining the document to
+  // the people deciding on it is exactly when a remark is wanted, and it
+  // changes nothing they are signing. `opened` only ever moves a New quotation,
+  // which cannot be awaiting approval.
+  const edits = Object.keys(body || {}).filter((k) => k !== "id" && k !== "newComment" && k !== "opened");
+  let approvals: Awaited<ReturnType<typeof approvalRows>> | null = null;
+  if (edits.length) {
+    approvals = await approvalRows(studio, ctx.approvalsSection);
+    if (approvalSummary(approvals, QUOTATION_APPROVAL, id)?.status === "Pending") return { error: "approval-pending" };
+  }
+
   // LOCKING is separately granted. It makes a quotation permanently
   // unchangeable, which is a different act from editing one, and the catalogue
   // declared it separately so it could be withheld from people who may edit.
@@ -1187,15 +1213,14 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
     Object.assign(patch, { items, vatRate }, computeTotals(items, vatRate, current.currency || studio.currency, current.taxMethod));
   }
   // Comments are APPENDED, never replaced: the client sends the one line it
-  // wants added, so two people commenting at once cannot overwrite each other,
-  // and the author and time are taken from the session rather than the payload.
+  // wants added, and the author and time are taken from the session rather than
+  // the payload. The append happens INSIDE the write, on the row as it stands
+  // then (a function patch, invariant 8) — built from `current`, read before,
+  // two people commenting at once each wrote their list over the other's.
   const comment = str(body?.newComment, 4000);
-  if (comment) {
-    patch.comments = [
-      ...(Array.isArray(current.comments) ? current.comments : []),
-      { id: `c${Date.now().toString(36)}`, text: comment, byCollaboratorId: collaborator.id, createdAt: new Date().toISOString() },
-    ];
-  }
+  const added = comment
+    ? { id: `c${Date.now().toString(36)}`, text: comment, byCollaboratorId: collaborator.id, createdAt: new Date().toISOString() }
+    : null;
   // Locking is only from Approved. It is NOT one-way any more — this said
   // "there is no unlock" after Unlock shipped as its own right (see the locked
   // branch at the top of this function).
@@ -1207,12 +1232,14 @@ export async function updateQuotation(ctx: TechnicalContext, id: string, body: R
   // quotation can be locked". The Lock button was even offered, because the
   // list it is drawn from already carried the right answer.
   if (body?.locked === true) {
-    const approvedNow = quotationApproved(current, await approvalRows(studio, ctx.approvalsSection));
+    const approvedNow = quotationApproved(current, approvals ?? await approvalRows(studio, ctx.approvalsSection));
     if (!approvedNow) return { error: "not-approved" };
     patch.locked = true;
   }
 
-  const quotation = await Quotations.update({ studio, section: quotationsSection }, id, patch);
+  const quotation = await Quotations.update({ studio, section: quotationsSection }, id, added
+    ? (row) => ({ ...patch, comments: [...(Array.isArray(row.comments) ? row.comments : []), added] })
+    : patch);
   return { quotation };
 }
 

@@ -95,6 +95,31 @@ and the Raise dialog's tickets only to whoever may raise.
 - **Numbering Start survives a save.** Settings filled Start from `nextNumber` ("Q-0005"), which
   saved back as 1; the route now sends each sequence's `start`.
 
+## Defects found writing the help, 27/09/2026
+
+- **The Convert dialog shows the number converting will use.** It showed the default sequence's
+  next number even for a REVISION, which keeps the number of the ticket's latest quotation. The
+  dialog and `convertRfq` both ask `latestTicketQuotation` (`rfqs.ts`) now, and the dialog says
+  which revision it becomes.
+- **Comments can be written.** `updateQuotation` has appended `newComment` all along and no screen
+  sent it, so Latest comment stayed empty. The builder has a Comments block (newest first, author
+  and time) under the tables; posting sends the comment alone, under `crmSales.quotations.edit`,
+  is allowed while an approval is pending, and is not offered on a locked or closed quotation.
+  The append is a FUNCTION patch now (invariant 8) — it was built from the row read before the
+  write, so two comments at once overwrote each other.
+- **What is being approved cannot move under the approvers.** `updateQuotation` refuses any edit
+  while the quotation's approval is Pending (`approval-pending`), exactly as a bill does; a comment
+  is not an edit and passes. The builder opens view only while it waits and says to ask the
+  approver to turn it down first.
+- **Assigning a closed quotation is refused at the server** (`quotation-closed`), not only by the
+  hidden button.
+- **Total quotation value counts each quotation once** (`latestRevisions` in
+  `technicalAnalytics.ts`): its latest revision under its number, and closed ones not at all —
+  closing is final, so a closed quotation is no longer something the studio can win. The Approved
+  share reads the same figure. `tests/quotation-diff-model.mjs` names the defect.
+- The Raise-an-RFQ dialog's empty message now names both reasons a ticket is left out (a request
+  waiting, or an approved quotation).
+
 ## Nothing moved, and nobody's access changed
 
 - **The records stay where they were filed.** RFQs under `engineering-docs-rfq`; quotations,
@@ -173,5 +198,8 @@ sections renamed or added, a VAT rate that moved, and the two totals.
   comparison of two quotations that are not versions of one number.
 - **Nothing is printed or exported from a comparison**, and nothing is sent to the client:
   what a client receives is the revision itself.
-- **A revision records no reason.** What changed is derivable; WHY it changed is not, unless
-  somebody wrote it in the document's comments.
+- **A revision records no reason of its own.** What changed is derivable; WHY it changed is only
+  what somebody writes as a comment on the revision — nothing asks for one when it is converted.
+- **Comments are append-only**: none is edited or deleted, and nobody is notified of one.
+- **Quotation value by month still sums every row**, revisions and closed quotations included —
+  only the Total quotation value figure and the Approved share count each quotation once.

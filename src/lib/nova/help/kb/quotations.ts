@@ -152,8 +152,8 @@ export const quotations: HelpModule = {
       id: "quotations.dashboard", topic: "dept.quotations", kind: "about", open: "quotations",
       q: { en: "What does the Quotations dashboard show?", ar: "ماذا تعرض لوحة معلومات عروض الأسعار؟" },
       a: {
-        en: "Four figures sit at the top. Open RFQs counts requests not yet converted or turned down, and turns amber when there are any; Quotations out counts quotations sent or approved. Average turnaround is the average number of days from a quotation being created to being approved, counting approved quotations only. Total quotation value adds up every quotation, every revision included and whatever its status. The dashboard changes nothing, and it is a right of its own.",
-        ar: "في أعلاها أربعة أرقام. تعدّ «طلبات عروض أسعار مفتوحة» الطلبات التي لم تُحوَّل ولم تُرفض، وتصير كهرمانية حين يوجد منها شيء؛ وتعدّ «عروض أسعار صادرة» العروض المرسلة أو المعتمدة. و«متوسط مدة الإنجاز» متوسط الأيام من إنشاء العرض حتى اعتماده، ولا يحسب إلا العروض المعتمدة. و«إجمالي قيمة عروض الأسعار» يجمع كل العروض، ومعها كل المراجعات، أيًّا كانت حالتها. ولا تغيّر اللوحة شيئًا، وهي صلاحية مستقلة.",
+        en: "Four figures sit at the top. Open RFQs counts requests not yet converted or turned down, and turns amber when there are any; Quotations out counts quotations sent or approved. Average turnaround is the average number of days from a quotation being created to being approved, counting approved quotations only. Total quotation value counts each quotation once, at its latest revision, and leaves closed quotations out, because a closed one can no longer be won; the Approved share chart below reads the same figure. The dashboard changes nothing, and it is a right of its own.",
+        ar: "في أعلاها أربعة أرقام. تعدّ «طلبات عروض أسعار مفتوحة» الطلبات التي لم تُحوَّل ولم تُرفض، وتصير كهرمانية حين يوجد منها شيء؛ وتعدّ «عروض أسعار صادرة» العروض المرسلة أو المعتمدة. و«متوسط مدة الإنجاز» متوسط الأيام من إنشاء العرض حتى اعتماده، ولا يحسب إلا العروض المعتمدة. و«إجمالي قيمة عروض الأسعار» يحسب كل عرض مرة واحدة بأحدث مراجعاته، ويستبعد العروض المغلقة لأن المغلق لم يعد يمكن كسبه؛ ويقرأ رسم حصة المعتمد أدناه الرقم نفسه. ولا تغيّر اللوحة شيئًا، وهي صلاحية مستقلة.",
       },
       keywords: ["dashboard", "turnaround", "open rfqs", "quotation value", "quotations out", "لوحة المعلومات", "مدة الإنجاز", "قيمة العروض", "طلبات مفتوحة"],
       related: ["quotations.dashboard-widgets", "quotations.dashboard-missing"],
@@ -252,8 +252,8 @@ export const quotations: HelpModule = {
       id: "quotations.not-yet", topic: "dept.quotations", kind: "troubleshoot", open: "quotations",
       q: { en: "What can Quotations not do yet?", ar: "ما الذي لا يستطيع قسم عروض الأسعار فعله بعد؟" },
       a: {
-        en: "RFQs are not shared out by rules and there is no workload view: whoever picks a request up handles it. No engineering review is recorded before approval, so the approval steps are the only sign-off. A revision records no reason for the change, there is no studio-wide template of sections, and nothing warns when a quotation goes out below cost. Comparing revisions works only in the builder, only against the revision immediately before, and cannot be printed. Each part of this chapter says what is missing in its own area.",
-        ar: "لا تُوزَّع الطلبات بقواعد ولا توجد شاشة لحجم العمل: فمن يلتقط الطلب يتولاه. ولا تُسجَّل مراجعة هندسية قبل الاعتماد، فخطوات الاعتماد هي التوقيع الوحيد. ولا تسجل المراجعة سبب التغيير، ولا يوجد قالب أقسام على مستوى الاستوديو، ولا شيء ينبّه حين يصدر عرض بأقل من التكلفة. وتعمل مقارنة المراجعات في أداة البناء فقط، ومع المراجعة السابقة مباشرة فقط، ولا يمكن طباعتها. ويذكر كل جزء من هذا الفصل ما ينقص في مجاله.",
+        en: "RFQs are not shared out by rules and there is no workload view: whoever picks a request up handles it. No engineering review is recorded before approval, so the approval steps are the only sign-off. A revision records no reason of its own beyond a comment somebody writes, there is no studio-wide template of sections, and nothing warns when a quotation goes out below cost. Comparing revisions works only in the builder, only against the revision immediately before, and cannot be printed. Each part of this chapter says what is missing in its own area.",
+        ar: "لا تُوزَّع الطلبات بقواعد ولا توجد شاشة لحجم العمل: فمن يلتقط الطلب يتولاه. ولا تُسجَّل مراجعة هندسية قبل الاعتماد، فخطوات الاعتماد هي التوقيع الوحيد. ولا تسجل المراجعة سببها بنفسها إلا تعليقًا يكتبه أحد، ولا يوجد قالب أقسام على مستوى الاستوديو، ولا شيء ينبّه حين يصدر عرض بأقل من التكلفة. وتعمل مقارنة المراجعات في أداة البناء فقط، ومع المراجعة السابقة مباشرة فقط، ولا يمكن طباعتها. ويذكر كل جزء من هذا الفصل ما ينقص في مجاله.",
       },
       keywords: ["not available", "limitations", "missing features", "roadmap", "غير متوفر", "القيود", "ميزات ناقصة", "ما لا يمكن"],
       related: ["quotations-rfq.no-rules", "quotations-register.compare-limits", "quotations-register.at-cost"],
@@ -363,13 +363,13 @@ export const quotations: HelpModule = {
       },
       fields: {
         en: [
-          "Quotation number: issued by the studio's numbering when you convert, never typed",
+          "Quotation number: the number converting will use, never typed. A first quotation takes the default sequence's next number; a revision keeps the number of the ticket's latest quotation, and the dialog says which revision it becomes",
           "Client and Title: from the Sales ticket",
           "Urgency and Industry: set by Sales",
           "Handled by (required when shown): who will price it, offered only if you may assign quotations",
         ],
         ar: [
-          "رقم عرض السعر: يصدره ترقيم الاستوديو عند التحويل، ولا يُكتب يدويًّا",
+          "رقم عرض السعر: الرقم الذي سيستخدمه التحويل، ولا يُكتب يدويًّا. يأخذ العرض الأول الرقم التالي في التسلسل الافتراضي؛ أما المراجعة فتحتفظ برقم أحدث عروض التذكرة، وتقول النافذة أي مراجعة ستصير",
           "العميل والعنوان: من تذكرة المبيعات",
           "الاستعجال والنشاط: تحددهما المبيعات",
           "يتولاه (مطلوب حين يظهر): من سيسعّره، ولا يُعرض إلا إن كنت تملك إسناد العروض",
@@ -468,8 +468,8 @@ export const quotations: HelpModule = {
       id: "quotations-rfq.cannot-raise", topic: "dept.quotations-rfq", kind: "troubleshoot", open: "quotations-rfq",
       q: { en: "Why is a ticket not offered when I raise an RFQ?", ar: "لماذا لا تظهر تذكرة عند رفع طلب عرض سعر؟" },
       a: {
-        en: "Only open deals are offered: a ticket already won, lost, cancelled or dropped has nobody waiting on a price, and a closed deal is refused. A ticket with a request already waiting is left out, because there is one request at a time per ticket. So is a ticket whose latest quotation is approved, because a change after approval is a new ticket. When no ticket qualifies, the dialog says there is nothing to raise.",
-        ar: "تُعرض الصفقات المفتوحة فقط: فالتذكرة الرابحة أو الخاسرة أو الملغاة أو المتروكة لا ينتظر أحد سعرًا لها، وتُرفض الصفقة المغلقة. وتُستبعد التذكرة التي عليها طلب معلّق، لأنه لا يُسمح إلا بطلب واحد في كل مرة لكل تذكرة. وكذلك التذكرة التي اعتُمد أحدث عروضها، لأن التغيير بعد الاعتماد يكون بتذكرة جديدة. وحين لا تنطبق الشروط على أي تذكرة، تقول النافذة إنه لا يوجد ما يُرفع.",
+        en: "Only open deals are offered: a ticket already won, lost, cancelled or dropped has nobody waiting on a price, and a closed deal is refused. A ticket with a request already waiting is left out, because there is one request at a time per ticket. So is a ticket whose latest quotation is approved, because a change after approval is a new ticket. When no ticket qualifies, the dialog says so: each open ticket is either waiting on a request or already has an approved quotation.",
+        ar: "تُعرض الصفقات المفتوحة فقط: فالتذكرة الرابحة أو الخاسرة أو الملغاة أو المتروكة لا ينتظر أحد سعرًا لها، وتُرفض الصفقة المغلقة. وتُستبعد التذكرة التي عليها طلب معلّق، لأنه لا يُسمح إلا بطلب واحد في كل مرة لكل تذكرة. وكذلك التذكرة التي اعتُمد أحدث عروضها، لأن التغيير بعد الاعتماد يكون بتذكرة جديدة. وحين لا تنطبق الشروط على أي تذكرة، تقول النافذة ذلك: فكل تذكرة مفتوحة إما بانتظار طلب قائم أو لديها عرض معتمد.",
       },
       keywords: ["ticket missing", "cannot raise", "closed deal", "already requested", "تذكرة غير ظاهرة", "لا يمكن الرفع", "صفقة مغلقة", "طلب معلق"],
       related: ["quotations-rfq.raise", "crm-sales-tickets.request-rfq"],
@@ -600,8 +600,8 @@ export const quotations: HelpModule = {
       id: "quotations-register.approval-status", topic: "dept.quotations-register", kind: "about", open: "quotations-register",
       q: { en: "How do I tell where a quotation's approval stands?", ar: "كيف أعرف أين وصل اعتماد العرض؟" },
       a: {
-        en: "Under the status on its row. While an approval is waiting the row reads Awaiting approval with the steps signed so far, such as 1/2. A turned-down approval reads Approval turned down, with the approver's reason when you hover over it, and the button offers Request approval again. Once granted, the status reads Approved everywhere, the quotation can be locked, and a project can be opened from it.",
-        ar: "تحت الحالة في صفه. فما دام الاعتماد منتظرًا يقول الصف «بانتظار الاعتماد» مع الخطوات الموقّعة حتى الآن، مثل 1/2. والاعتماد المرفوض يظهر «رفض الاعتماد» مع سبب المعتمد عند المرور عليه، ويعرض الزر «اطلب الاعتماد مجددًا». ومتى مُنح الاعتماد تصير الحالة «معتمد» في كل مكان، ويمكن قفل العرض وفتح مشروع منه.",
+        en: "Under the status on its row. While an approval is waiting the row reads Awaiting approval with the steps signed so far, such as 1/2, and the quotation opens view only: it cannot change under its approvers, though comments can still be added. A turned-down approval reads Approval turned down, with the approver's reason when you hover over it, and the button offers Request approval again. Once granted, the status reads Approved everywhere, the quotation can be locked, and a project can be opened from it.",
+        ar: "تحت الحالة في صفه. فما دام الاعتماد منتظرًا يقول الصف «بانتظار الاعتماد» مع الخطوات الموقّعة حتى الآن، مثل 1/2، ويُفتح العرض للعرض فقط: فلا يتغير تحت أيدي معتمديه، وإن بقيت إضافة التعليقات ممكنة. والاعتماد المرفوض يظهر «رفض الاعتماد» مع سبب المعتمد عند المرور عليه، ويعرض الزر «اطلب الاعتماد مجددًا». ومتى مُنح الاعتماد تصير الحالة «معتمد» في كل مكان، ويمكن قفل العرض وفتح مشروع منه.",
       },
       keywords: ["approval status", "awaiting approval", "turned down", "approved", "حالة الاعتماد", "بانتظار الاعتماد", "رفض الاعتماد", "معتمد"],
       related: ["quotations-register.approval", "quotations-register.approval-refused"],
@@ -910,8 +910,8 @@ export const quotations: HelpModule = {
       id: "quotations-register.locked", topic: "dept.quotations-register", kind: "troubleshoot", open: "quotations-register",
       q: { en: "Why can't I edit or delete a quotation?", ar: "لماذا لا أستطيع تعديل عرض سعر أو حذفه؟" },
       a: {
-        en: "A quotation is never deleted; it is closed. A locked quotation, shown with a padlock, opens view only: it was locked by hand after approval, or by itself because a new request was raised on its ticket, and somebody with the unlock right can reopen it. A closed quotation is final. If neither applies, the builder reads View only because you do not hold the right to edit quotations.",
-        ar: "لا يُحذف عرض السعر أبدًا؛ بل يُغلق. والعرض المقفل، المعلَّم بقفل، يُفتح للعرض فقط: فقد أُقفل يدويًّا بعد الاعتماد، أو تلقائيًّا لأن طلبًا جديدًا رُفع على تذكرته، ويستطيع من يملك صلاحية فك القفل إعادة فتحه. والعرض المغلق نهائي. وإن لم ينطبق أي من ذلك، فأداة البناء تقول «للعرض فقط» لأنك لا تملك صلاحية تعديل العروض.",
+        en: "A quotation is never deleted; it is closed. A locked quotation, shown with a padlock, opens view only: it was locked by hand after approval, or by itself because a new request was raised on its ticket, and somebody with the unlock right can reopen it. A closed quotation is final. A quotation waiting for approval opens view only until it is decided: ask the approver to turn it down, then edit it and request approval again. If none of these applies, the builder reads View only because you do not hold the right to edit quotations.",
+        ar: "لا يُحذف عرض السعر أبدًا؛ بل يُغلق. والعرض المقفل، المعلَّم بقفل، يُفتح للعرض فقط: فقد أُقفل يدويًّا بعد الاعتماد، أو تلقائيًّا لأن طلبًا جديدًا رُفع على تذكرته، ويستطيع من يملك صلاحية فك القفل إعادة فتحه. والعرض المغلق نهائي. والعرض المنتظر للاعتماد يُفتح للعرض فقط حتى يُحسم: فاطلب من المعتمد رفضه، ثم عدّله واطلب الاعتماد مجددًا. وإن لم ينطبق أي من ذلك، فأداة البناء تقول «للعرض فقط» لأنك لا تملك صلاحية تعديل العروض.",
       },
       keywords: ["delete quotation", "locked", "padlock", "view only", "unlock", "حذف العرض", "مقفل", "للعرض فقط", "فك القفل"],
       related: ["quotations-register.closed-vs-locked", "quotations-register.lock"],
@@ -1010,8 +1010,8 @@ export const quotations: HelpModule = {
       id: "quotations-register.assign-refused", topic: "dept.quotations-register", kind: "troubleshoot", open: "quotations-register",
       q: { en: "Why can't I assign a quotation?", ar: "لماذا لا أستطيع إسناد العرض؟" },
       a: {
-        en: "Assign appears only with the right to assign quotations, and not on a closed quotation. It is refused when the person is already handling it, or is no longer a member of the studio. Without the right, whoever converts or raises a quotation handles it themselves.",
-        ar: "لا يظهر «إسناد» إلا مع صلاحية إسناد العروض، ولا يظهر على العرض المغلق. ويُرفض حين يكون الشخص متوليًا له بالفعل، أو لم يعد عضوًا في الاستوديو. ومن دون الصلاحية، يتولى العرضَ من يحوّله أو يرفعه بنفسه.",
+        en: "Assign appears only with the right to assign quotations, and not on a closed quotation. It is refused when the person is already handling it, when they are no longer a member of the studio, or when the quotation was closed while your screen was open, and the message says which. Without the right, whoever converts or raises a quotation handles it themselves.",
+        ar: "لا يظهر «إسناد» إلا مع صلاحية إسناد العروض، ولا يظهر على العرض المغلق. ويُرفض حين يكون الشخص متوليًا له بالفعل، أو لم يعد عضوًا في الاستوديو، أو إن أُغلق العرض والشاشة مفتوحة، وتقول الرسالة أيها. ومن دون الصلاحية، يتولى العرضَ من يحوّله أو يرفعه بنفسه.",
       },
       keywords: ["cannot assign", "assign refused", "already theirs", "لا يمكن الإسناد", "رفض الإسناد", "يتولاه بالفعل"],
       related: ["quotations-register.assign", "quotations.handler"],
@@ -1060,8 +1060,8 @@ export const quotations: HelpModule = {
       id: "quotations-register.comments", topic: "dept.quotations-register", kind: "troubleshoot", open: "quotations-register",
       q: { en: "Can I note why a revision was made, or comment on a quotation?", ar: "هل يمكنني تدوين سبب المراجعة، أو التعليق على العرض؟" },
       a: {
-        en: "Not yet. A revision records no reason for the change, and no screen in Quotations lets you add a comment to a quotation. The Latest comment column shows remarks already on a quotation, so on most quotations it is empty. Until this is built, write what changed and why in the request's description on the RFQs desk before converting it.",
-        ar: "ليس بعد. لا تسجل المراجعة سبب التغيير، ولا توجد شاشة في عروض الأسعار تتيح إضافة تعليق على العرض. ويعرض عمود «آخر تعليق» الملاحظات الموجودة أصلًا على العرض، فهو فارغ في معظم العروض. وإلى أن يُبنى ذلك، اكتب ما تغيّر ولماذا في وصف الطلب في مكتب الطلبات قبل تحويله.",
+        en: "Yes. Open the quotation: under its tables is Comments, newest first, with who wrote each and when. Type in Add a comment and press Post, or Enter. Posting sends only the comment, so unsaved changes to the lines are not saved with it. It needs the right to edit quotations, works while an approval is waiting, and is not offered on a locked or closed quotation. The newest comment shows in the list's Latest comment column. A revision records no reason of its own, so write what changed and why as a comment on the new revision.",
+        ar: "نعم. افتح العرض: تحت جداوله قسم «التعليقات»، الأحدث أولًا، مع كاتب كل تعليق ووقته. اكتب في «أضف تعليقا» واضغط «نشر» أو Enter. ولا يُرسل النشر إلا التعليق، فالتغييرات غير المحفوظة على البنود لا تُحفظ معه. ويحتاج إلى صلاحية تعديل العروض، ويعمل والاعتماد منتظر، ولا يُعرض على العرض المقفل أو المغلق. ويظهر أحدث تعليق في عمود «آخر تعليق» في القائمة. ولا تسجل المراجعة سببها بنفسها، فاكتب ما تغيّر ولماذا تعليقًا على المراجعة الجديدة.",
       },
       keywords: ["comment", "revision reason", "note", "latest comment", "تعليق", "سبب المراجعة", "ملاحظة", "آخر تعليق"],
       related: ["quotations-register.revisions", "quotations-rfq.review-fields"],

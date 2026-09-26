@@ -103,10 +103,39 @@ export function averageTurnaround(quotations: Quotation[]) {
   return Math.round(done.reduce((a, q) => a + daysBetween(q.createdAt, q.completedAt), 0) / done.length);
 }
 
+// EACH QUOTATION ONCE: its LATEST REVISION. A revision keeps the number the
+// client holds and replaces the document before it, so the register carries
+// Rev 1, Rev 2 and Rev 3 of one offer as three rows — and summing rows counted
+// a quotation revised twice three times over (27/09/2026). The number is what
+// ties revisions together (convertRfq copies it); the highest revision under it
+// is the one standing, with the newest createdAt breaking a tie. A row with no
+// number stands alone rather than being merged with every other blank one.
+export function latestRevisions(quotations: Quotation[]) {
+  const byNumber = new Map<string, Quotation>();
+  for (const q of quotations) {
+    const key = q.number ? `n:${q.number}` : `id:${q.id}`;
+    const held = byNumber.get(key);
+    const newer = !held
+      || num(q.revision) > num(held.revision)
+      || (num(q.revision) === num(held.revision) && String(q.createdAt || "") > String(held.createdAt || ""));
+    if (newer) byNumber.set(key, q);
+  }
+  return [...byNumber.values()];
+}
+
 // What the whole pipeline is worth, and how much of it has been approved.
+//
+// CLOSED QUOTATIONS ARE NOT COUNTED. Closing takes a quotation out of the live
+// work for good (closeQuotation: final, nothing reopens it) — the job went
+// away, or the client said no — so its value is not something the studio can
+// still win, and a "pipeline" that kept it would only ever grow. The latest
+// revision is chosen FIRST and closed ones dropped after, so a quotation whose
+// standing revision is closed is gone entirely rather than falling back to the
+// revision it replaced.
 export function quotationValue(quotations: Quotation[]) {
-  const all = quotations.reduce((a, q) => a + num(q.total), 0);
-  const approved = quotations.filter((q) => q.status === "Approved").reduce((a, q) => a + num(q.total), 0);
+  const standing = latestRevisions(quotations).filter((q) => q.status !== "Closed");
+  const all = standing.reduce((a, q) => a + num(q.total), 0);
+  const approved = standing.filter((q) => q.status === "Approved").reduce((a, q) => a + num(q.total), 0);
   return { all, approved };
 }
 

@@ -5,6 +5,9 @@
 // line is the SAME line — read as "one line removed, one added", the client is
 // told their quotation was rebuilt when a word changed, and the one line whose
 // price actually moved is lost among them.
+//
+// The last block guards a second defect of the same family — revisions read as
+// separate quotations — in the dashboard's value tile.
 
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -132,6 +135,34 @@ ok("the revisions are named", (() => {
 // A comparison asked for with nothing to compare against must not throw.
 ok("a missing predecessor compares as everything added",
   Q.compareQuotations(null, rev1).added === 2);
+
+// THE DASHBOARD'S "TOTAL QUOTATION VALUE" (modules/technical/technicalAnalytics).
+//
+// THE DEFECT: it summed every ROW, and a revision is a row — so an offer revised
+// twice was counted three times, and a closed quotation (out of the live work
+// for good) stayed in the pipeline for ever. Each quotation counts once, at its
+// latest revision, and a closed one not at all.
+console.log("\n== the dashboard counts each quotation once");
+
+const TA = await import("@/modules/technical/technicalAnalytics");
+const v = (over) => ({ number: "QT-0001", revision: 1, status: "Completed", total: 100, createdAt: "2026-09-01T00:00:00Z", ...over });
+const revised = [
+  v({ id: "a1", revision: 1, total: 100 }),
+  v({ id: "a2", revision: 2, total: 150, createdAt: "2026-09-02T00:00:00Z" }),
+  v({ id: "a3", revision: 3, total: 200, createdAt: "2026-09-03T00:00:00Z" }),
+];
+ok("a quotation revised twice counts once, at its latest revision", TA.quotationValue(revised).all === 200,
+  `got ${TA.quotationValue(revised).all}`);
+ok("...and another number is another quotation",
+  TA.quotationValue([...revised, v({ id: "b1", number: "QT-0002", total: 50 })]).all === 250);
+ok("a closed quotation is not in the pipeline",
+  TA.quotationValue([...revised, v({ id: "c1", number: "QT-0003", status: "Closed", total: 999 })]).all === 200);
+ok("a closed LATEST revision takes the whole quotation out, not back to the one before",
+  TA.quotationValue([revised[0], v({ id: "a2", revision: 2, status: "Closed", total: 150 })]).all === 0);
+ok("approved value is the standing revision's, once",
+  TA.quotationValue([v({ id: "d1", status: "Approved", total: 80 }), v({ id: "d2", revision: 2, status: "Approved", total: 90 })]).approved === 90);
+ok("rows with no number are not merged into one",
+  TA.latestRevisions([v({ id: "x", number: "" }), v({ id: "y", number: "" })]).length === 2);
 
 console.log(fails ? `\n${fails} FAILED` : "\nquotation diff: all passed");
 process.exit(fails ? 1 : 0);

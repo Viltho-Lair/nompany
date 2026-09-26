@@ -305,6 +305,16 @@ type Strings = CommonStrings & {
   dashDaysUnit: (n: number) => string;
   dashWeekdayHeat: string;
   dashWeekdayHeatHint: string;
+  // 27/09/2026: a revision's real number, comments on a quotation, and an edit
+  // refused while its approval is pending.
+  revisionKeepsNumber: (revision: number) => string;
+  quotationComments: string;
+  noQuotationComments: string;
+  addQuotationComment: string;
+  postComment: string;
+  commentBySomeone: string;
+  approvalPendingEdit: string;
+  awaitingApprovalReadOnly: string;
 };
 
 const en: Strings = {
@@ -404,7 +414,7 @@ const en: Strings = {
   disc: "Disc %",
   discount: "Discount",
   discountLabel: "Discount",
-  everyOpenTicketAlready: "Every open ticket already has an RFQ against it, so there is nothing to raise.",
+  everyOpenTicketAlready: "No open ticket can take an RFQ: each one is already waiting on an RFQ or already has an approved quotation.",
   existingClient: "Existing client.",
   from: "From",
   giveDeadline: "Give it a deadline.",
@@ -616,6 +626,14 @@ const en: Strings = {
   dashDaysUnit: (n) => `${n} d`,
   dashWeekdayHeat: "When quotations are raised",
   dashWeekdayHeatHint: "By weekday, last 8 weeks",
+  revisionKeepsNumber: (revision) => `Revision ${revision} keeps the number the client already holds.`,
+  quotationComments: "Comments",
+  noQuotationComments: "No comments yet.",
+  addQuotationComment: "Add a comment",
+  postComment: "Post",
+  commentBySomeone: "Someone",
+  approvalPendingEdit: "This quotation is waiting for approval, so it cannot change. Ask the approver to turn it down, then edit it and send it again.",
+  awaitingApprovalReadOnly: "Waiting for approval — view only. To change it, ask the approver to turn it down first. Comments can still be added.",
 };
 
 const ar: Strings = {
@@ -715,7 +733,7 @@ const ar: Strings = {
   disc: "الخصم ٪",
   discount: "الخصم",
   discountLabel: "الخصم",
-  everyOpenTicketAlready: "كل تذكرة مفتوحة لديها طلب عرض سعر بالفعل، فلا شيء لرفعه.",
+  everyOpenTicketAlready: "لا تذكرة مفتوحة يمكن رفع طلب عرض سعر عليها: فكل واحدة إما بانتظار طلب قائم أو لديها عرض سعر معتمد.",
   existingClient: "عميل قائم.",
   from: "من",
   giveDeadline: "أعطه موعدا نهائيا.",
@@ -932,6 +950,14 @@ const ar: Strings = {
   dashDaysUnit: (n) => `${n} ي`,
   dashWeekdayHeat: "متى تُنشأ العروض",
   dashWeekdayHeatHint: "حسب يوم الأسبوع خلال آخر 8 أسابيع",
+  revisionKeepsNumber: (revision) => `تحتفظ المراجعة ${revision} بالرقم الذي لدى العميل.`,
+  quotationComments: "التعليقات",
+  noQuotationComments: "لا تعليقات بعد.",
+  addQuotationComment: "أضف تعليقا",
+  postComment: "نشر",
+  commentBySomeone: "شخص ما",
+  approvalPendingEdit: "هذا العرض بانتظار الاعتماد، فلا يمكن تغييره. اطلب من المعتمد رفضه، ثم عدّله وأرسله من جديد.",
+  awaitingApprovalReadOnly: "بانتظار الاعتماد — للعرض فقط. لتغييره اطلب من المعتمد رفضه أولا. ويمكن إضافة التعليقات.",
 };
 
 const technical = { en, ar };
