@@ -1,10 +1,11 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react";
 import Link from "next/link";
 import { heroCopy } from "@/shared/marketing/hero";
 import { SPRING_SOFT } from "@/components/landing/lib/motion";
-import { DashboardAssembly } from "@/components/landing/hero/DashboardAssembly";
+import { ScreenShot } from "@/components/landing/showcase/ScreenShot";
+import { tourCopy } from "@/shared/marketing/tour";
 
 /* ==================================================================
    V1 — THE STUDIO ASSEMBLING ITSELF.
@@ -19,14 +20,30 @@ import { DashboardAssembly } from "@/components/landing/hero/DashboardAssembly";
    Perplexity's crawlers do not. The motion lives on the visual column,
    which is decorative, and the words are settled from the first byte.
 
-   SETTLES INTO A SYNTHETIC SCREEN FOR NOW. The spec calls for a real
-   captured one; the screenshot pipeline is sequencing step 8, and this
-   import is the single line that changes when it lands.
+   A REAL SCREEN, NOT A DRAWING (26/09/2026). This settled into
+   DashboardAssembly, a synthetic dashboard with figures that were "part of
+   the drawing"; the owner asked for the real product. It is the sales
+   pipeline now, captured from the sample company by scripts/screenshots.mjs
+   in the visitor's language and theme, and captioned as sample data.
 ================================================================== */
 
 export function HeroV1Assembly({ locale }: { locale: string }) {
   const tr = heroCopy(locale);
+  const tour = tourCopy(locale);
   const reduceMotion = useReducedMotion();
+  // A GENTLE TILT TOWARDS THE CURSOR, sprung so it never snaps. Pointer
+  // position is a fraction of the frame, -0.5..0.5 on each axis.
+  const px = useMotionValue(0);
+  const py = useMotionValue(0);
+  const rotateY = useSpring(useTransform(px, [-0.5, 0.5], [-3, 3]), { stiffness: 120, damping: 18 });
+  const rotateX = useSpring(useTransform(py, [-0.5, 0.5], [2.5, -2.5]), { stiffness: 120, damping: 18 });
+  const tilt = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (reduceMotion || e.pointerType !== "mouse") return;
+    const r = e.currentTarget.getBoundingClientRect();
+    px.set((e.clientX - r.left) / r.width - 0.5);
+    py.set((e.clientY - r.top) / r.height - 0.5);
+  };
+  const untilt = () => { px.set(0); py.set(0); };
 
   // max-w-6xl, THE SAME COLUMN AS EVERY SECTION BELOW IT. This was 7xl, so the
   // headline began 57px to the left of the copy under it at 1265px and further
@@ -40,8 +57,12 @@ export function HeroV1Assembly({ locale }: { locale: string }) {
   // root element, which does not parse — a `return (` takes ONE expression, and
   // a comment before it is a second. Same mistake this repo has made before.
   return (
-    <section className="relative mx-auto grid max-w-6xl items-center gap-14 px-6 pt-20 pb-16 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:pt-28 lg:pb-24">
-      <div className="relative z-10 max-w-xl">
+    /* THE WORDS, THEN THE PRODUCT AT FULL WIDTH (26/09/2026). Side by side, the
+       screen got half a column beside a three-line headline and could not be
+       read; stacked, it is the width of the page and every figure on it is
+       legible — which is the whole reason for showing a real one. */
+    <section className="relative mx-auto max-w-6xl px-6 pt-20 pb-16 lg:pt-28 lg:pb-24">
+      <div className="relative z-10 mx-auto max-w-3xl text-center">
         <span className="surface inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs text-fg-muted">
           <span className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-mint opacity-75" />
@@ -55,20 +76,19 @@ export function HeroV1Assembly({ locale }: { locale: string }) {
           {tr.h1}
         </h1>
 
-        <p className="mt-6 text-lg text-fg-muted">{tr.lead}</p>
+        <p className="mx-auto mt-6 max-w-2xl text-lg text-fg-muted">{tr.lead}</p>
 
-        <div className="mt-8 flex flex-wrap items-center gap-3">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
             href={`/api/intent?locale=${locale}`}
             className="inline-flex items-center rounded-full bg-gradient-to-br from-iris to-violet px-6 py-3 text-sm font-medium text-white shadow-lg shadow-iris/25 transition-transform hover:scale-[1.02]"
           >
             {tr.ctaPrimary}
           </Link>
-          {/* NOT A DEAD LINK. It points at /platform once that page exists
-              (sequencing step 3); until then it scrolls to the department
-              marquee on this same page, which is the thing it promises. */}
+          {/* "See how it works" scrolls to the tour of real screens, which is
+              exactly what it promises. */}
           <a
-            href="#departments"
+            href="#tour"
             className="surface inline-flex items-center rounded-full px-6 py-3 text-sm text-fg-muted transition-colors hover:text-fg"
           >
             {tr.ctaSecondary}
@@ -78,37 +98,36 @@ export function HeroV1Assembly({ locale }: { locale: string }) {
         <p className="mt-5 text-xs text-fg-dim">{tr.footnote}</p>
       </div>
 
-      {/* THE VISUAL COLUMN IS DECORATIVE and may animate freely. It is not
-          hidden on narrow viewports — it collapses: DashboardAssembly's own
-          grid drops to a single column below `md`, so a phone gets one card
-          rather than a scaled-down dashboard nobody can read.
+      {/* THE VISUAL COLUMN IS A REAL SCREEN, so it is no longer aria-hidden: its
+          alt text says what the pipeline shows, which a screen-reader user is
+          owed as much as anybody. On a phone it is the same image, full width —
+          readable because it is a 2x capture, not a scaled-down drawing.
 
           THE ENTRANCE IS SCALE, NEVER OPACITY, so the frame is present in the
           server-rendered HTML at full opacity and merely arrives at its final
           size — and it is dropped entirely under reduced motion rather than
           shortened, because a settle-in is exactly the kind of movement the
-          setting is asking not to see. DashboardAssembly reads the same
-          preference itself for its own tilt and float loops. */}
-      <div className="relative z-0 lg:pl-6">
+          setting is asking not to see. The tilt follows a mouse only, and is
+          off under reduced motion too. */}
+      <div className="relative z-0 mt-14 lg:mt-16">
         <motion.div
           initial={reduceMotion ? false : { scale: 0.97 }}
           animate={{ scale: 1 }}
           transition={reduceMotion ? { duration: 0 } : SPRING_SOFT}
-          aria-hidden="true"
         >
-          <DashboardAssembly />
+          <div onPointerMove={tilt} onPointerLeave={untilt} style={{ perspective: 1200 }}>
+            <motion.div style={reduceMotion ? undefined : { rotateX, rotateY, transformStyle: "preserve-3d" }}>
+              {/* A glow behind the frame, in the brand's two colours. */}
+              <div className="pointer-events-none absolute -inset-6 -z-10 rounded-[2rem] bg-gradient-to-br from-iris/30 via-violet/20 to-transparent blur-2xl" />
+              <ScreenShot name="pipeline" locale={locale} path="/crm-sales-pipeline" alt={tour.heroAlt} priority sizes="(min-width: 1200px) 1100px, 100vw" />
+            </motion.div>
+          </div>
         </motion.div>
-        {/* SAID IN WORDS, not left to be inferred from the absence of a
-            currency symbol. The panel is a drawing of the product; it carried a
-            revenue figure, an order count, a margin and a forecast accuracy,
-            and a visitor had no way to know those were not nompany's own
-            numbers.
-
-            OUTSIDE the aria-hidden wrapper, deliberately. The panel is
-            decoration a screen reader can skip; the disclaimer about it is not,
-            and a caption only sighted readers get is the wrong half to hide. */}
-        <p className="mt-4 text-center text-[11px] text-fg-dim lg:text-start">
-          {tr.illustrationNote}
+        {/* SAID IN WORDS: the screen is real, the company in it is not. A
+            visitor has no other way to know the figures are sample data rather
+            than nompany's own, or a customer's. */}
+        <p className="mt-4 text-center text-[11px] text-fg-dim">
+          {tour.sampleNote}
         </p>
       </div>
     </section>

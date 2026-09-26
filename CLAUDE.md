@@ -1823,9 +1823,11 @@ platform figures. Five rules, each of which cost something to learn:
   clock and not a hand-kept date. Run it in the commit that changes a page; the suite
   fails when it is stale.
 
-**Not built:** real product screenshots (the pipeline is `scripts/screenshots.mjs`, and
-Playwright is deliberately not a dependency), and the per-company sentence on
-`/customers` (no field for it).
+**Real product screenshots ARE built (26/09/2026)**: `scripts/screenshots.mjs` seeds an invented
+demo company in the SANDBOX through the real services (`scripts/lib/demo-seed.mjs`) and photographs
+it with the Edge already on the machine (`scripts/lib/edge-capture.mjs` — Playwright stays out) into
+`public/screens/<name>-<locale>-<theme>.webp`; the home page's showcase draws on them. Every image
+is captioned as sample data. **Not built:** the per-company sentence on `/customers` (no field for it).
 
 **THE COMPANY DESCRIPTION IS NO LONGER A DRAFT — revised 10/09/2026 on the owner's
 instruction.** This line said it was "still marked a DRAFT awaiting the owner's revision"

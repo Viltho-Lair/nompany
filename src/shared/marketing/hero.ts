@@ -24,7 +24,6 @@ type HeroStrings = {
   footnote: string;
   marqueeLabel: string;
   /** Under the hero's product panel, which is a drawing rather than a report. */
-  illustrationNote: string;
 };
 
 const en: HeroStrings = {
@@ -37,7 +36,6 @@ const en: HeroStrings = {
   ctaSecondary: "See how it works",
   footnote: claimText("paid-plans", "en"),
   marqueeLabel: "The departments, today",
-  illustrationNote: "An illustration of the product, not a report — the figures in it are part of the drawing.",
 };
 
 // HAND-WRITTEN, NEVER MACHINE-TRANSLATED (SEO-PLAN §2.9). Arabic-speaking buyers
@@ -52,7 +50,6 @@ const ar: HeroStrings = {
   ctaSecondary: "شاهد كيف يعمل",
   footnote: claimText("paid-plans", "ar"),
   marqueeLabel: "الأقسام، اليوم",
-  illustrationNote: "رسم توضيحي للمنتج لا تقرير — والارقام فيه جزء من الرسم.",
   // NOT "نظام واحد لـ". The tatweel form (لـ) cites the proclitic لـ IN
   // ISOLATION, the way English writes "pre-" — correct in a dictionary entry,
   // wrong on a page, because HeroV3Continuity renders the prefix in its own
