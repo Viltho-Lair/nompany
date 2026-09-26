@@ -46,6 +46,9 @@ type Strings = {
   noAdvances: string;
   mine: string;
   problem: (code: string) => string;
+  /** An agreed claim whose ledger entry was refused, and the reason. */
+  notInLedger: (reason: string) => string;
+  postAgain: string;
 };
 
 const EN_STATUS: Record<string, string> = { Draft: "Draft", Submitted: "Submitted", Approved: "Approved", Rejected: "Rejected", Paid: "Paid" };
@@ -59,6 +62,7 @@ const EN_PROBLEM: Record<string, string> = {
   status: "The claim has moved on since you opened it.",
   amount: "Enter an amount above nought.",
   project: "That project no longer exists. Choose another, or none.",
+  "period-closed": "the month it falls in is closed",
   person: "Choose who receives it.",
   "more-than-held": "That is more than the person still holds of this advance.",
   "bank-account": "That is not a money account.",
@@ -66,6 +70,7 @@ const EN_PROBLEM: Record<string, string> = {
 };
 const AR_PROBLEM: Record<string, string> = {
   project: "هذا المشروع لم يعد موجودا. اختاروا مشروعا آخر، أو لا شيء.",
+  "period-closed": "الشهر الذي تقع فيه مقفل",
   "not-configured": "لم يحدد أحد لاعتماد مطالبات المصروفات. يحددهم المالك أو المشرف في إعدادات الموافقات.",
   "no-approver": "أنتم الوحيدون الذين يعتمدون مطالبات المصروفات، فلا يمكنكم تقديم مطالبة بأنفسكم. اطلبوا من المالك تحديد شخص آخر في إعدادات الموافقات.",
   "own-advance": "لا يمكنكم صرف سلفة لأنفسكم.",
@@ -119,6 +124,8 @@ const en: Strings = {
   noAdvances: "No advances.",
   mine: "Mine",
   problem: (c) => EN_PROBLEM[c] || c || "",
+  notInLedger: (reason) => `Not in the ledger yet${reason ? ` — ${reason}` : ""}. Fix the cause, then post it again.`,
+  postAgain: "Post again",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -163,6 +170,8 @@ const ar: Strings = {
   noAdvances: "لا توجد سلف.",
   mine: "مطالباتي",
   problem: (c) => AR_PROBLEM[c] || c || "",
+  notInLedger: (reason) => `لم تسجل في دفتر الاستاذ بعد${reason ? ` — ${reason}` : ""}. عالجوا السبب ثم رحلوها مرة اخرى.`,
+  postAgain: "رحلها مرة اخرى",
 };
 
 const dict = { en, ar };

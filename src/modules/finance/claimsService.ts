@@ -38,6 +38,14 @@ export const CLAIM_APPROVAL = "claim";
 type ClaimRecord = Claim & {
   reference: string; note?: string; projectId?: string; createdAt: string;
   submittedOn?: string; approvedOn?: string; rejectedReason?: string; accountId?: string;
+  /**
+   * WHAT THE LEDGER SAID when the claim was agreed — a report, not the truth
+   * (the journal is). It exists because a claim approved on the Approvals page
+   * used to drop the answer entirely, so a refused posting (a closed month, a
+   * chart short an account) left an approved claim missing from the books with
+   * nothing on any screen saying so. Found 27/09/2026, the payroll run's twin.
+   */
+  ledger?: { at: string; posted: boolean; entryId?: string; reason?: string };
 };
 type AdvanceRecord = Advance & {
   reference: string; paidOn: string; accountId?: string; note?: string; paidByCollaboratorId: string; createdAt: string;
@@ -226,7 +234,40 @@ async function agree(ctx: FinanceContext, id: string, by: string) {
   const updated = await Claims.update(scope(ctx), id, (row) => ((row as ClaimRecord).status === "Submitted" ? patch : {}));
   if (!updated || (updated as ClaimRecord).status !== patch.status) return { error: "already-decided" };
   const posting = await autoPost(ctx, "claim", id);
-  return { claim: updated, posting };
+  const recorded = await recordLedger(ctx, id, posting);
+  return { claim: recorded || updated, posting };
+}
+
+/**
+ * RECORD THE LEDGER'S ANSWER ON THE CLAIM, so the list can say "not in the
+ * ledger, and why" whichever door agreed it. `already-posted` is the entry
+ * existing, which is the question answered yes. A failure to record loses the
+ * report, never the entry or the approval.
+ */
+async function recordLedger(ctx: FinanceContext, id: string, posting: Awaited<ReturnType<typeof autoPost>>) {
+  const ledger = posting.posted || posting.reason === "already-posted"
+    ? { at: new Date().toISOString(), posted: true, entryId: posting.posted ? posting.entryId : "" }
+    : { at: new Date().toISOString(), posted: false, reason: posting.reason };
+  return Claims.update(scope(ctx), id, () => ({ ledger })).catch(() => null);
+}
+
+/**
+ * OFFER AN AGREED CLAIM TO THE LEDGER AGAIN — the repair for an agreement
+ * whose posting was refused, once somebody has reopened the month or completed
+ * the chart. The payroll run's `postRunAgain`, for the same reason: without it
+ * the only way to put such a claim in the books was a hand-typed journal.
+ * Under `finance.payables.pay`, the right that pays a claim — whoever keeps its books.
+ * Idempotent: the journal refuses a second entry for the same claim.
+ */
+export async function postClaimAgain(ctx: FinanceContext, id: string) {
+  const denied = requirePermission(ctx.access, "finance.payables.pay");
+  if (denied) return denied;
+  const current = await claimById(ctx, id);
+  if (!current) return { error: "notfound" };
+  if (current.status !== "Approved" && current.status !== "Paid") return { error: "status" };
+  const posting = await autoPost(ctx, "claim", id);
+  const recorded = await recordLedger(ctx, id, posting);
+  return { claim: recorded || current, posting };
 }
 
 /** The claim an approval names, in a context carrying the studio's authority. */

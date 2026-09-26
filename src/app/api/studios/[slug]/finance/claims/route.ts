@@ -1,7 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { financeContext } from "@/modules/finance/finance";
 import {
-  claimsView, saveClaim, removeClaim, moveExpenseClaim, payClaim, giveAdvance, returnAdvance,
+  claimsView, saveClaim, removeClaim, moveExpenseClaim, payClaim, giveAdvance, returnAdvance, postClaimAgain,
 } from "@/modules/finance/claimsService";
 import type { FinanceContext } from "@/modules/finance/types";
 import { referencePickers } from "@/modules/procurement/pickers";
@@ -39,6 +39,7 @@ export const POST = route(spec, async (c) => {
         : action === "pay" ? await payClaim(ctx, id, b)
           : action === "advance" ? await giveAdvance(ctx, b)
             : action === "advance-return" ? await returnAdvance(ctx, id, b)
+              : action === "post-again" ? await postClaimAgain(ctx, id)
               : { error: "action" };
   return refused(result) ? result : { ok: true, ...result };
 });

@@ -124,6 +124,16 @@ function Claims({ slug, tr, data, busy, post }) {
                     <td className="py-2 pe-3">
                       {tr.status(c.status)}
                       {c.status === "Rejected" && c.rejectedReason && <p className="text-xs text-slate-500">{c.rejectedReason}</p>}
+                      {/* An agreed claim the ledger refused says so — see `ledger` on the claim record. */}
+                      {c.ledger && !c.ledger.posted && (
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                          {tr.notInLedger(tr.problem(String(c.ledger.reason || "")))}
+                          {canPay && (
+                            <button type="button" onClick={() => post({ action: "post-again", id: c.id })}
+                              className="ms-2 font-600 underline">{tr.postAgain}</button>
+                          )}
+                        </p>
+                      )}
                       {c.paidOn && <p className="text-xs text-slate-500">{fmtDate(c.paidOn)}</p>}
                       {/* HOW FAR ITS APPROVAL HAS GOT, while it waits — answered on
                           the Approvals page since 19/09/2026. */}

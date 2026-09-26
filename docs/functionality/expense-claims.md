@@ -71,6 +71,10 @@ Model test green; in the sandbox a claim was raised, submitted, refused self-app
 and the screen drawn. **Approval, payment and advances were not exercised in the sandbox**: it has
 one member, and approval needs a second person.
 
+## When the ledger refuses an agreed claim
+
+Agreeing a claim posts it, whether that happens on the Approvals page or because no approval was needed. If the ledger refuses the entry (a closed month, or a chart missing an account), the claim still stands. The ledger's answer is stored on the claim as `ledger`, and the claims list shows *Not in the ledger yet* with the reason. Anyone who may pay claims gets **Post again**, which offers it to the journal once more. The journal refuses a second entry for the same claim, so this never posts twice. Before 2026-09-27, an agreement made on the Approvals page dropped the answer, and a refused claim was simply missing from the books.
+
 ## Not built yet
 
 - **Receipts**: no attachment on a claim line yet (media upload exists and is not wired here).
