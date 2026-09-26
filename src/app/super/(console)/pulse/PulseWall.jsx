@@ -218,14 +218,15 @@ export default function PulseWall({ initial, initialLive }) {
   const sessions = (data?.points || []).map((p) => p.sessions);
 
   return (
-    <div
-      className="grid h-full w-full gap-3 overflow-hidden p-3"
-      style={{
-        gridTemplateColumns: "minmax(230px,1fr) minmax(0,3.2fr) minmax(260px,1.15fr)",
-        gridTemplateRows: "auto 1fr 1fr 0.85fr",
-        gridTemplateAreas: `"top top top" "legend map live" "cont map right" "sign sign sign"`,
-      }}
-    >
+    // THE MAP HAS A ROW OF ITS OWN — the owner, 26/09/2026: "the map should be
+    // in a separate container and the containers underneath it". It sat in a
+    // middle column between Legend/Continent and Right now/Studios, which beside
+    // the console's sidebar left it a narrow strip. Now it spans the wall and
+    // the four panels sit in one row beneath it. The template lives in
+    // super.css (`.pulse-wall`) because it changes with the width, which an
+    // inline style cannot; and the wall SCROLLS when the window is too short
+    // for every row's minimum, rather than clipping the bottom panels.
+    <div className="pulse-wall h-full w-full overflow-y-auto p-3">
       {/* ---- header ---------------------------------------------------- */}
       <header style={{ gridArea: "top" }} className="flex flex-wrap items-center gap-x-5 gap-y-2">
         {/* A PULSE, NOT THE COMPANY LOGO — the owner's instruction, 10/09/2026.

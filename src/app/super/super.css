@@ -690,6 +690,35 @@
   }
 }
 
+/* THE PULSE WALL'S GRID — the map full width, the four panels beneath it.
+   One column on a phone, two on a tablet, four from `lg`. The row minimums
+   keep a short window from squashing the map; the wall scrolls instead. */
+.admindek .pulse-wall {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "top" "map" "live" "legend" "cont" "right" "sign";
+  grid-auto-rows: auto;
+}
+.admindek .pulse-wall > [class*="grid-area:map"] { min-height: 360px; }
+.admindek .pulse-wall > [class*="grid-area:legend"],
+.admindek .pulse-wall > [class*="grid-area:cont"],
+.admindek .pulse-wall > [class*="grid-area:live"],
+.admindek .pulse-wall > [class*="grid-area:right"] { min-height: 220px; }
+@media (min-width: 768px) {
+  .admindek .pulse-wall {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "top top" "map map" "legend live" "cont right" "sign sign";
+  }
+}
+@media (min-width: 1024px) {
+  .admindek .pulse-wall {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: auto minmax(360px, 2.6fr) minmax(210px, 1fr) minmax(130px, 0.6fr);
+    grid-template-areas: "top top top top" "map map map map" "legend cont live right" "sign sign sign sign";
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .admindek *,
   .admindek *::before,
