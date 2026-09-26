@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLandingLocale } from "@/components/landing/locale";
 import { getDict } from "@/shared/i18n";
 import { companyCopy } from "@/shared/marketing/company";
+import { ANALYTICS_HOSTS, consentCopy } from "@/shared/marketing/consent";
+import { reopenAnalyticsConsent } from "./AnalyticsConsent";
 import { heroCopy } from "@/shared/marketing/hero";
 import { LogoMark, Wordmark } from "../Logo";
 
@@ -43,6 +46,12 @@ export function SiteFooter({ locale: localeProp }) {
   const locale = localeProp || ctx;
   const nav = getDict(locale).nav;
   const hero = heroCopy(locale);
+  // Only where the banner can open — anywhere else the link would do nothing,
+  // and this footer carries no entry that does nothing.
+  const [analyticsHost, setAnalyticsHost] = useState(false);
+  useEffect(() => {
+    if (ANALYTICS_HOSTS.includes(location.hostname)) queueMicrotask(() => setAnalyticsHost(true));
+  }, []);
 
   const groups = [
     {
@@ -122,7 +131,14 @@ export function SiteFooter({ locale: localeProp }) {
               on every page of the site. The contact form asks what the message
               is about and routes it, which is the same question answered by the
               side that knows the answer. */}
-          <p>© {new Date().getFullYear()} nompany</p>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p>© {new Date().getFullYear()} nompany</p>
+            {analyticsHost && (
+              <button type="button" onClick={reopenAnalyticsConsent} className="transition-colors hover:text-fg">
+                {consentCopy(locale).settings}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </footer>

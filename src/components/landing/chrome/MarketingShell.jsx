@@ -7,6 +7,7 @@ import { AmbientBackground } from "@/components/landing/AmbientBackground";
 import { TopNav } from "@/components/landing/nav/TopNav";
 import { PointerProvider } from "@/components/landing/providers/PointerProvider";
 import { SiteFooter } from "./SiteFooter";
+import { AnalyticsConsent } from "./AnalyticsConsent";
 
 /* ==================================================================
    ONE CHROME FOR EVERY PUBLIC PAGE.
@@ -58,6 +59,9 @@ export function MarketingShell({ locale = "en", children }) {
               page in the one main landmark a document may have. */}
           <div className={isHome ? undefined : "pt-28 lg:pt-32"}>{children}</div>
           <SiteFooter locale={locale} />
+          {/* The ONLY place Google Analytics can load — marketing pages, after
+              a yes. See shared/marketing/consent.ts. */}
+          <AnalyticsConsent locale={locale} />
         </PointerProvider>
       </LandingLocaleProvider>
     </div>

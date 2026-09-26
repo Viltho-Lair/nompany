@@ -103,6 +103,7 @@ nompany does not sell personal data, does not rent or trade it, and does not dis
 
 - **Sub-processors** that host and operate the Service — the hosting and database provider, the file-storage provider, the transactional-email provider, and the Payment Processor — each acting solely on nompany's instructions under written terms no less protective than the Data Processing Agreement. Section 9 of the Terms governs how they are engaged and how you are notified of a change.
 - **Other members of a studio you belong to**, to the extent the Service is designed to show them — your name and role, and, only if you have opted that studio in to calendar sharing, when you are busy (see Section 4).
+- **Google**, as the provider of Google Analytics — only for visits to the public marketing pages by somebody who accepted analytics there (Section 9). Never data from inside the Service.
 - **A competent authority**, where disclosure is required by law. Where it is lawful to do so, we will notify you first.
 - **An acquirer**, in a merger, acquisition or sale of assets, subject to this Policy continuing to apply.
 
@@ -138,7 +139,7 @@ Subject to the conditions in applicable data protection law, you have the right 
 
 ## 9. Cookies and similar technologies
 
-nompany sets only the cookies the product needs to work. There are no advertising cookies, no analytics or product-telemetry cookies, and no third-party cross-site tracking — which is why you are not asked to consent to any.
+Inside the product — the sign-in pages, your account and every studio — nompany sets only the cookies the product needs to work: no advertising, analytics or product-telemetry cookies, and no third-party cross-site tracking. On the public marketing pages alone (the home, platform, pricing, security, about, contact, customers and careers pages), and only if you choose Accept in the banner shown there, we use Google Analytics to count visits and see which pages are read. Nothing is loaded and no request is made to Google before you accept or if you decline; Google's advertising features and signals are switched off; and you can withdraw at any time from the Cookie settings link in the footer, which also deletes the Google Analytics cookies.
 
 | Cookie | What it does | Lifetime |
 |--------|--------------|----------|
@@ -148,6 +149,8 @@ nompany sets only the cookies the product needs to work. There are no advertisin
 | `nc_dev` | Recognises a device you have already verified, so you are not asked for a code every time | Until the device record expires or you sign out of it |
 | `nc_oauth` | Protects sign-in and calendar-authorisation redirects against cross-site request forgery | The length of one redirect |
 | `lang` | Remembers whether you chose English or Arabic | Until you change it |
+| `analytics_consent` | Remembers whether you accepted or declined analytics on the public pages | One year, or until you change it |
+| `_ga`, `_ga_<id>` | Google Analytics: distinguishes visits to the public pages. Set only after you accept | Up to two years, or until you withdraw |
 
 ---
 

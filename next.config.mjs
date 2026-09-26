@@ -9,13 +9,34 @@ import os from "node:os";
 // banner on every response. For a product holding invoices, salaries and
 // controlled documents that is the cheapest gap in the whole audit to close.
 //
-// Everything below is ENFORCED except the Content-Security-Policy, which ships
-// Report-Only first — see the note on it. Report-Only is not a hedge: turning a
+// Everything below is ENFORCED, the Content-Security-Policy included since
+// 26/09/2026. It shipped Report-Only first, and that was not a hedge: turning a
 // CSP straight on in a codebase with an inline bootstrap script, MUI's runtime
 // style injection and a dynamically injected Maps loader breaks the product in
-// ways that only show up on the pages nobody clicked during review.
+// ways that only show up on the pages nobody clicked during review. It was
+// enforced because an outside scan reads a report-only policy as NO policy —
+// "neither default-src nor script-src", "missing object-src" — which was true
+// of what a browser actually refused.
 
 const isProd = process.env.NODE_ENV === "production";
+
+// GOOGLE MAPS IS WIDER THAN ITS SCRIPT HOST. The loader (lib/googleMaps.ts)
+// names maps.googleapis.com alone, but the API it pulls in fetches tiles,
+// markers and imagery from gstatic, ggpht and googleusercontent hosts and
+// builds workers from blob: URLs. While the policy was report-only a missing
+// host only logged; enforced, it is a blank map. This is Google's own published
+// list for the Maps JS API, not a guess. Its Roboto request
+// (fonts.googleapis.com) is deliberately NOT allowed — the map falls back to
+// the page's font, and a browser contacting Google for a font stays a
+// violation worth hearing about.
+const MAPS = "https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.ggpht.com https://*.googleusercontent.com";
+
+// GOOGLE ANALYTICS, Google's published GA4 list. The policy is one header for
+// every path, so the studio ALLOWS these hosts too — what keeps the tag off it
+// is that only MarketingShell can load it, and only after consent
+// (shared/marketing/consent.ts).
+const GA_SCRIPT = "https://www.googletagmanager.com";
+const GA_BEACON = "https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com";
 
 // Where the app legitimately talks to. Derived from what the code actually
 // references, not from a template — anything not on this list is a finding, not
@@ -25,12 +46,11 @@ const CSP = [
   // 'unsafe-inline' is required by the theme bootstrap in app/layout.js, which
   // must run before paint to avoid a flash and therefore cannot be deferred to
   // a file. The way OFF it is a per-request nonce set in the proxy; that is a
-  // real change and belongs in its own commit, which is the main thing this
-  // Report-Only pass exists to size.
+  // real change and belongs in its own commit.
   // 'unsafe-eval' is dev-only (React Refresh); production does not get it.
   // fpnpmcdn.net is Fingerprint's agent, loaded by the sign-in and sign-up
   // pages only (components/public/deviceIntel.js).
-  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://maps.googleapis.com https://fpnpmcdn.net`,
+  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} ${MAPS} https://fpnpmcdn.net ${GA_SCRIPT}`,
   // MUI/emotion injects styles at runtime, so this one cannot be tightened
   // without replacing the styling engine. No Google Fonts host: the marketing
   // site's fonts are self-hosted at build time and the document editor's come
@@ -40,30 +60,27 @@ const CSP = [
   "font-src 'self' data:",
   // data: and blob: cover uploaded previews and generated documents; the Google
   // hosts are map tiles; img.youtube.com is video thumbnails.
-  "img-src 'self' data: blob: https://maps.gstatic.com https://maps.googleapis.com https://img.youtube.com",
+  `img-src 'self' data: blob: ${MAPS} https://img.youtube.com ${GA_BEACON}`,
   // Same-origin API plus the Maps JS API. The SSE stream is same-origin.
   // Fingerprint: the agent's script host and its EU identification API.
-  "connect-src 'self' https://maps.googleapis.com https://fpnpmcdn.net https://*.fpjs.io",
+  `connect-src 'self' ${MAPS} https://fpnpmcdn.net https://*.fpjs.io ${GA_BEACON}`,
   // Fingerprint's agent runs its collection in a worker it builds from a
-  // blob: URL. Without this the worker falls back to script-src, which does
-  // not list blob:, and would be refused the day this policy is enforced.
+  // blob: URL, and so does the Maps API. Without this the worker falls back to
+  // script-src, which does not list blob:, and is refused.
   "worker-src 'self' blob:",
-  // YouTube embeds are the only third-party frame the product renders.
-  "frame-src 'self' https://www.youtube.com",
+  // YouTube embeds are the only third-party content frame; Maps uses a
+  // google.com frame for its own bookkeeping.
+  "frame-src 'self' https://www.youtube.com https://*.google.com",
   // Nothing may frame US — the modern equivalent of X-Frame-Options, kept
   // alongside it because both are still read by different agents.
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
+  // Rewrites http:// subresource requests to https://. It was a header of its
+  // own while the rest was report-only, because a report-only policy ignores it.
+  "upgrade-insecure-requests",
 ].join("; ");
-
-// `upgrade-insecure-requests` is IGNORED inside a report-only policy — the
-// browser says so in the console — so it ships as its own enforced header
-// instead. On its own it blocks nothing: it rewrites http:// subresource
-// requests to https://, which is the behaviour we want immediately and which
-// does not need a reporting period to be safe.
-const CSP_ENFORCED = "upgrade-insecure-requests";
 
 const securityHeaders = [
   // Two years, subdomains included. `preload` is deliberately NOT set: it is a
@@ -89,13 +106,9 @@ const securityHeaders = [
   // person every time) and still refuses any embedded third-party frame.
   { key: "Permissions-Policy", value: "geolocation=(self), camera=(), microphone=(), payment=(), usb=()" },
   { key: "X-DNS-Prefetch-Control", value: "on" },
-  // REPORT-ONLY, on purpose. It logs violations to the browser console without
-  // blocking anything, so the real source list can be finished from evidence
-  // rather than from reading imports. Flip the key to
-  // "Content-Security-Policy" once a full pass over the studio, the console and
-  // the public pages reports clean.
-  { key: "Content-Security-Policy-Report-Only", value: CSP },
-  { key: "Content-Security-Policy", value: CSP_ENFORCED },
+  // ENFORCED. A host missing from the list above is now a refused request and
+  // a console error on the page that needed it — add it here with its reason.
+  { key: "Content-Security-Policy", value: CSP },
 ];
 
 const nextConfig = {
@@ -146,8 +159,7 @@ const nextConfig = {
       // may be framed by anyone. Later entries win for the same key, and an
       // enforced `frame-ancestors` makes browsers ignore X-Frame-Options.
       { source: "/f/:path*", headers: [
-        { key: "Content-Security-Policy", value: `${CSP_ENFORCED}; frame-ancestors *` },
-        { key: "Content-Security-Policy-Report-Only", value: CSP.replace("frame-ancestors 'none'", "frame-ancestors *") },
+        { key: "Content-Security-Policy", value: CSP.replace("frame-ancestors 'none'", "frame-ancestors *") },
       ] },
     ];
   },

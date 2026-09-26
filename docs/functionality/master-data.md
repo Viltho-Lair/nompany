@@ -224,8 +224,6 @@ leaf re-files nothing: the items keep the id and stop resolving it.
   everybody wearing one means opening the clients list, and there is no filter for it.
 - **A tag cannot be merged into another.** Two tags that turn out to mean the same thing are
   deleted one at a time, which leaves the clients carrying the dead id.
-- **The report-only CSP lists two Google hosts.** Maps also loads from other `*.gstatic.com`
-  and `*.googleapis.com` hosts; they need adding before the policy is enforced.
 - **Tracking's own map copy** ("just now", "min ago", "last seen") is still hard-coded English.
 - **Currencies.** The studio has `currency` and `favoriteCurrencies` and both are edited in
   Studio settings; they are not surfaced here, and moving a working screen is a visibility

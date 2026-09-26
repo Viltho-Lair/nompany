@@ -150,8 +150,8 @@ const en: SecurityStrings = {
         },
         {
           title: "Third parties, named",
-          body: "The public pages load no tag manager, no chat widget and no analytics script. Two outside scripts exist and both are named here: the sign-in and sign-up pages load Fingerprint's agent, used only to spot automated attacks and to bind trusted devices; and ERP screens that show a map load Google Maps. Our fonts are self-hosted. Server errors go to Sentry with headers, cookies, request bodies, IP addresses and query strings stripped before they leave.",
-          source: "next.config.mjs — CSP script-src; platform/http/sentry.ts — scrub",
+          body: "Three outside scripts exist and all three are named here. The public marketing pages load Google Analytics, and only after you accept it in the banner — decline and nothing is requested from Google; it never runs on the sign-in pages or inside the ERP. The sign-in and sign-up pages load Fingerprint's agent, used only to spot automated attacks and to bind trusted devices. And ERP screens that show a map load Google Maps. No chat widget, no advertising pixels. Our fonts are self-hosted. Server errors go to Sentry with headers, cookies, request bodies, IP addresses and query strings stripped before they leave.",
+          source: "next.config.mjs — CSP script-src; shared/marketing/consent.ts — analytics; platform/http/sentry.ts — scrub",
         },
       ],
     },
@@ -272,7 +272,7 @@ const ar: SecurityStrings = {
         },
         {
           title: "الأطراف الثالثة، بأسمائها",
-          body: "الصفحات العامة لا تحمل مدير وسوم ولا نافذة محادثة ولا سكربت تحليلات. يوجد سكربتان خارجيان وكلاهما مذكور هنا: صفحتا الدخول والتسجيل تحملان أداة Fingerprint، وتستخدم فقط لكشف الهجمات الآلية وربط الأجهزة الموثوقة؛ وشاشات النظام التي تعرض خريطة تحمل خرائط Google. خطوطنا مستضافة لدينا. وأخطاء الخادم ترسل إلى Sentry بعد حذف الترويسات وملفات تعريف الارتباط ومحتوى الطلب وعناوين IP ومعاملات الرابط.",
+          body: "توجد ثلاثة سكربتات خارجية وكلها مذكورة هنا. الصفحات التسويقية العامة تحمل Google Analytics، ولا تحمله إلا بعد موافقتك عليه في الشريط — إن رفضت فلا يطلب أي شيء من Google؛ ولا يعمل أبدا في صفحات الدخول أو داخل النظام. صفحتا الدخول والتسجيل تحملان أداة Fingerprint، وتستخدم فقط لكشف الهجمات الآلية وربط الأجهزة الموثوقة. وشاشات النظام التي تعرض خريطة تحمل خرائط Google. لا نافذة محادثة ولا وحدات بكسل إعلانية. خطوطنا مستضافة لدينا. وأخطاء الخادم ترسل إلى Sentry بعد حذف الترويسات وملفات تعريف الارتباط ومحتوى الطلب وعناوين IP ومعاملات الرابط.",
           source: "next.config.mjs, platform/http/sentry.ts",
         },
       ],

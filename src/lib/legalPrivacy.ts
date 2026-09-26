@@ -24,11 +24,12 @@ import { GOOGLE_DATA_BLOCKS } from "./legalGoogleData";
 // text is authoritative). The page chrome is localized via the i18n dictionary.
 // Mirror any change here into legal/privacy-policy.md.
 export const PRIVACY_META: LegalMeta = {
-  version: "1.2",
+  version: "1.3",
   effective: "04/09/2026",
+  // 1.3 (26/09/2026): §9 — Google Analytics on the public marketing pages, after consent.
   // 1.2 (24/09/2026): the summary names the unpaid-account deletion (Terms 1.4).
   // 1.1 (24/09/2026): the summary of Terms §10 follows its new deletion rule.
-  updated: "24/09/2026",
+  updated: "26/09/2026",
 };
 
 export const PRIVACY_SECTIONS: LegalSection[] = [
@@ -85,6 +86,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       { type: "ul", items: [
         "Sub-processors that host and operate the Service — the hosting and database provider, the file-storage provider, the transactional-email provider, and the Payment Processor — each acting solely on nompany's instructions under written terms no less protective than the Data Processing Agreement. Section 9 of the Terms governs how they are engaged and how you are notified of a change.",
         "Other members of a studio you belong to, to the extent the Service is designed to show them — your name and role, and, only if you have opted that studio in to calendar sharing, when you are busy (see Section 4).",
+        "Google, as the provider of Google Analytics — only for visits to the public marketing pages by somebody who accepted analytics there (Section 9). Never data from inside the Service.",
         "A competent authority, where disclosure is required by law. Where it is lawful to do so, we will notify you first.",
         "An acquirer, in a merger, acquisition or sale of assets, subject to this Policy continuing to apply.",
       ] },
@@ -120,7 +122,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: "cookies",
     title: "9. Cookies and similar technologies",
     blocks: [
-      { type: "p", text: "nompany sets only the cookies the product needs to work. There are no advertising cookies, no analytics or product-telemetry cookies, and no third-party cross-site tracking — which is why you are not asked to consent to any." },
+      { type: "p", text: "Inside the product — the sign-in pages, your account and every studio — nompany sets only the cookies the product needs to work: no advertising, analytics or product-telemetry cookies, and no third-party cross-site tracking. On the public marketing pages alone (the home, platform, pricing, security, about, contact, customers and careers pages), and only if you choose Accept in the banner shown there, we use Google Analytics to count visits and see which pages are read. Nothing is loaded and no request is made to Google before you accept or if you decline; Google's advertising features and signals are switched off; and you can withdraw at any time from the Cookie settings link in the footer, which also deletes the Google Analytics cookies." },
       { type: "table", head: ["Cookie", "What it does", "Lifetime"], rows: [
         ["nc_sid", "Keeps you signed in. Holds a session reference, never your password", "The session"],
         ["nc_super", "The same, for the nompany operations console", "The session"],
@@ -132,6 +134,8 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         ["nc_dev", "Recognises a device you asked us to remember, so you are not asked for a code on it. Only set if you tick the box at the code step", "30 days, or until you revoke the device, change your password, or sign out everywhere"],
         ["nc_oauth", "Protects sign-in and calendar-authorisation redirects against cross-site request forgery", "The length of one redirect"],
         ["lang", "Remembers whether you chose English or Arabic", "Until you change it"],
+        ["analytics_consent", "Remembers whether you accepted or declined analytics on the public pages", "One year, or until you change it"],
+        ["_ga, _ga_<id>", "Google Analytics: distinguishes visits to the public pages. Set only after you accept", "Up to two years, or until you withdraw"],
       ] },
     ],
   },
