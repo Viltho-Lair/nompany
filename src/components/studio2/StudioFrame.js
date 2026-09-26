@@ -1037,8 +1037,8 @@ export default function StudioFrame({
           </div>
 
           {/* THE BROADCAST BAND NEVER MOVES THE TITLE OR THE CONTROLS. Below `lg`
-              it hangs under this sticky header (a sticky element is a containing
-              block); from `lg` up it fills only the gap between the two with a
+              it is this header's own last row, so it pushes the page down rather
+              than covering it; from `lg` up it fills only the gap between the two with a
               zero flex basis, so it cannot push them — and, unlike the centred
               float it replaced, cannot cover the buttons either. See
               DailyGreeting for where it sits at each width. */}

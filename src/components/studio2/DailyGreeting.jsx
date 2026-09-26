@@ -12,9 +12,14 @@ import { daypartFor } from "@/shared/greeting";
    IT FLOATS; IT DOES NOT TAKE A PLACE IN THE ROW — the owner's instruction,
    10/09/2026. It was a flex item in the header, so a message arriving pushed
    the title and the controls sideways (and below `lg` wrapped the header onto
-   a second line), and closing it moved them back. Below `lg` it is absolutely
-   positioned against the sticky header, hanging just BELOW it, where the
-   middle of the header is the title.
+   a second line), and closing it moved them back.
+
+   BELOW `lg` IT IS THE HEADER'S LAST ROW — 26/09/2026. It used to hang
+   absolutely just below the sticky header, which put it on top of the page:
+   on a phone it covered the "welcome back" line and the first card. A full-
+   width row of its own (`basis-full`, `order-last` in a wrapping header)
+   moves the page down by its height instead, and the title and controls on
+   the row above still do not move. Covering content is worse than moving it.
 
    FROM `lg` UP IT FILLS THE GAP, NOT THE MIDDLE — 26/09/2026. It was centred
    over the whole header at 46% of its width, and the controls on the end side
@@ -161,7 +166,7 @@ export default function DailyGreeting({ slug }) {
 
   return (
     <div
-      className="greeting-band absolute start-1/2 top-full z-30 mt-1 flex w-[calc(100%-2.5rem)] max-w-2xl -translate-x-1/2 items-center gap-2.5 px-3.5 py-1.5 rtl:translate-x-1/2 lg:static lg:mx-auto lg:mt-0 lg:w-auto lg:min-w-0 lg:max-w-[40rem] lg:flex-1 lg:basis-0 lg:translate-x-0 lg:rtl:translate-x-0"
+      className="greeting-band order-last flex w-full min-w-0 basis-full items-center gap-2.5 px-3.5 py-1.5 lg:order-none lg:mx-auto lg:w-auto lg:max-w-[40rem] lg:flex-1 lg:basis-0"
       style={style}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
