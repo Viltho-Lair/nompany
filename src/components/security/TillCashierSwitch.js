@@ -8,10 +8,10 @@ import { securityDict } from "@/shared/security";
 // itself. Reads the till from the device's own cookie
 // (`/api/identity/till`), so it draws nothing at all anywhere else.
 //
-// AND IT CAN UNPAIR THE DEVICE (26/09/2026): "Unpair this browser" swaps the
-// cashiers for the studio's Point of Sale managers, and a manager's PIN
-// makes this browser stop being a till. A computer paired once — often
-// somebody's own — otherwise opened on this screen for a year.
+// AND IT CAN UNPAIR THE DEVICE (26/09/2026): "Unpair this browser" asks once
+// and makes this browser stop being a till. No PIN — the route says why. A
+// computer paired once, often somebody's own, otherwise opened on this screen
+// for a year.
 export default function TillCashierSwitch({ locale = "en", onDone, onCancel, cancelLabel, onTill, onUnpaired }) {
   const t = securityDict(locale);
   const [till, setTill] = useState(undefined);
@@ -35,19 +35,14 @@ export default function TillCashierSwitch({ locale = "en", onDone, onCancel, can
     if (!who || !pin) return;
     setBusy(true); setError("");
     const res = await fetch("/api/identity/till", {
-      method: unpairing ? "DELETE" : "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ collaboratorId: who, pin }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     setPin("");
-    if (res.ok && data?.ok) {
-      if (!unpairing) { onDone?.(data.slug); return; }
-      if (onUnpaired) onUnpaired(); else window.location.reload();
-      return;
-    }
+    if (res.ok && data?.ok) { onDone?.(data.slug); return; }
     setError(
-      data?.error === "forbidden" && unpairing ? t.notAManager :
       data?.error === "pin-invalid" ? t.pinWrong(Number(data.attemptsLeft) || 1)
         : data?.error === "pin-locked" ? t.pinLockedFor
           : data?.error === "pin-not-set" ? t.pinNotSetTill
@@ -55,24 +50,49 @@ export default function TillCashierSwitch({ locale = "en", onDone, onCancel, can
     );
   }
 
+  async function unpair() {
+    setBusy(true); setError("");
+    const res = await fetch("/api/identity/till", { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok || !data?.ok) { setError(t.somethingWrong); return; }
+    if (onUnpaired) onUnpaired(); else window.location.reload();
+  }
+
   if (!till) return null;
   const tillName = [till.terminal.code, till.terminal.name].filter(Boolean).join(" · ");
-  const people = (unpairing ? till.managers : till.cashiers) || [];
-  const switchMode = (next) => { setUnpairing(next); setWho(""); setPin(""); setError(""); };
+  const link = "text-sm font-600 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white";
+
+  if (unpairing) {
+    return (
+      <div className="w-full space-y-4 text-start">
+        <div>
+          <h2 className="font-display text-lg font-700 text-slate-900 dark:text-white">{t.unpairTitle(till.studio.name)}</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.unpairBody}</p>
+        </div>
+        {error && <p role="alert" className="text-sm text-rose-600 dark:text-rose-300">{error}</p>}
+        <div className="flex items-center justify-between gap-3">
+          <button type="button" onClick={unpair} disabled={busy}
+            className="rounded-full bg-rose-600 px-5 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-rose-700 disabled:opacity-60">
+            {t.unpair}
+          </button>
+          <button type="button" onClick={() => { setUnpairing(false); setError(""); }} className={link}>{t.cancel}</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={submit} className="w-full space-y-4 text-start">
       <div>
-        <h2 className="font-display text-lg font-700 text-slate-900 dark:text-white">
-          {unpairing ? t.unpairTitle(till.studio.name) : t.tillSignInTitle(tillName)}
-        </h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{unpairing ? t.unpairBody : till.studio.name}</p>
+        <h2 className="font-display text-lg font-700 text-slate-900 dark:text-white">{t.tillSignInTitle(tillName)}</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{till.studio.name}</p>
       </div>
-      {people.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">{unpairing ? t.noManagers : t.noCashiers}</p>
+      {till.cashiers.length === 0 ? (
+        <p className="text-sm text-slate-500 dark:text-slate-400">{t.noCashiers}</p>
       ) : (
-        <div role="radiogroup" aria-label={unpairing ? t.whoManages : t.whoIsSelling} className="grid grid-cols-2 gap-2">
-          {people.map((c) => (
+        <div role="radiogroup" aria-label={t.whoIsSelling} className="grid grid-cols-2 gap-2">
+          {till.cashiers.map((c) => (
             <button key={c.id} type="button" role="radio" aria-checked={who === c.id} onClick={() => setWho(c.id)}
               className={`truncate rounded-xl border px-3 py-2.5 text-sm font-600 transition-colors ${
                 who === c.id
@@ -96,23 +116,16 @@ export default function TillCashierSwitch({ locale = "en", onDone, onCancel, can
       <div className="flex items-center justify-between gap-3">
         <button type="submit" disabled={busy || !who || pin.length < 4}
           className="rounded-full bg-brand-700 px-5 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60">
-          {busy ? t.unlocking : unpairing ? t.unpair : t.takeOver}
+          {busy ? t.unlocking : t.takeOver}
         </button>
-        {unpairing ? (
-          <button type="button" onClick={() => switchMode(false)} className="text-sm font-600 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white">
-            {t.cancel}
-          </button>
-        ) : onCancel && (
-          <button type="button" onClick={onCancel} className="text-sm font-600 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white">
-            {cancelLabel || t.cancel}
-          </button>
+        {onCancel && (
+          <button type="button" onClick={onCancel} className={link}>{cancelLabel || t.cancel}</button>
         )}
       </div>
-      {!unpairing && (
-        <button type="button" onClick={() => switchMode(true)} className="text-xs font-600 text-slate-400 hover:text-rose-600 dark:hover:text-rose-300">
-          {t.unpairBrowser}
-        </button>
-      )}
+      <button type="button" onClick={() => { setUnpairing(true); setError(""); }}
+        className="text-xs font-600 text-slate-400 hover:text-rose-600 dark:hover:text-rose-300">
+        {t.unpairBrowser}
+      </button>
     </form>
   );
 }

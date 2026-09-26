@@ -1,6 +1,6 @@
 import { route, refused } from "@/platform/http/route";
 import {
-  pairedTill, tillCashiers, tillCashier, tillManagers, tillManager, unpairPairedTill, clearedTillCookie,
+  pairedTill, tillCashiers, tillCashier, unpairPairedTill, clearedTillCookie,
 } from "@/modules/sales/tillPairing";
 import { checkPinForAct } from "@/platform/auth/lock";
 import { getUserById, mintSession, revokeSession, touchLastLogin, findUserBySession } from "@/platform/auth/users";
@@ -31,7 +31,6 @@ export const GET = route(spec, async () => {
       studio: { name: String(till.studio.name || ""), slug: String(till.studio.slug || "") },
       terminal: { name: till.terminal.name, code: till.terminal.code || "" },
       cashiers: await tillCashiers(String(till.studio.id)),
-      managers: await tillManagers(String(till.studio.id)),
     },
   };
 });
@@ -66,24 +65,22 @@ export const POST = route({ ...spec, body: true }, async ({ request, body }) => 
   return res;
 });
 
-// UNPAIR THIS DEVICE FROM ITS TILL (26/09/2026), from the device itself. A
-// manager — somebody holding the right that unpairs a till from Settings —
-// picks their name and types their PIN, the cashier switch's own proof. The
-// till row forgets the pairing, this browser forgets the secret, and a till
-// session on this browser ends with it, because a till session on a device
-// that is no longer a till is good for nothing.
-export const DELETE = route({ ...spec, body: true }, async ({ body }) => {
+// THE DEVICE GIVES UP ITS OWN PAIRING (26/09/2026). The till row forgets the
+// pairing, this browser forgets the secret, and a till session on this browser
+// ends with it — a till session on a device that is no longer a till is good
+// for nothing.
+//
+// NO PIN AND NO RIGHT, and that is deliberate rather than an omission. The
+// first version asked a Point of Sale manager's PIN, and it guarded nothing:
+// whoever holds this browser can unpair it already by clearing its cookies.
+// What it did stop was the person it was built for — somebody whose own
+// computer was paired once, standing in front of it, whose studio's manager
+// had never set a PIN. The cookie IS the proof: only the paired device holds
+// the secret, so only the paired device can ask, and all it can undo is itself.
+// A manager re-pairs from Settings in a click.
+export const DELETE = route(spec, async () => {
   const till = await pairedTill();
   if (!till) return { error: "not-a-till" };
-  const manager = await tillManager(String(till.studio.id), String(body.collaboratorId || ""));
-  if (!manager?.userId) return { error: "forbidden" };
-  const user = await getUserById(String(manager.userId));
-  if (!user) return { error: "notfound" };
-  if (user.status === "suspended") return { error: "suspended" };
-
-  const checked = await checkPinForAct(user.id, body.pin);
-  if (refused(checked)) return checked;
-
   await unpairPairedTill(till);
   const res = Response.json({ ok: true });
   res.headers.append("Set-Cookie", clearedTillCookie());

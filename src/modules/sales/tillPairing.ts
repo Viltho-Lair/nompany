@@ -97,16 +97,12 @@ export async function pairedTill() {
   return terminal ? { studio, terminal, section: posSection } : null;
 }
 
-// WHO SELLS AT A TILL AND WHO RUNS IT are the same question asked of two
-// rights, so they share one answer: `crmSales.pos.create` for the cashier
-// switch, `pos.settings.edit` — the right that pairs and unpairs a till in
-// Point of Sale → Settings — for unpairing it from the device itself.
-const SELLS = "crmSales.pos.create";
-const RUNS = "pos.settings.edit";
-
-/** Everybody in the studio holding `permission`, by name. Names only — this is shown on a device standing at a counter. */
-async function namedHolders(studioId: string, permission: string) {
-  const people = await collaboratorsHolding(studioId, permission);
+/**
+ * WHO MAY TAKE OVER THIS TILL: everybody in the studio who may sell at it.
+ * Names only — this is shown on a device standing at a counter.
+ */
+export async function tillCashiers(studioId: string) {
+  const people = await collaboratorsHolding(studioId, "crmSales.pos.create");
   const profiles = await getProfilesByIds(people.map((p) => String(p.userId || "")));
   return people
     .map((p, i) => ({ id: String(p.id), name: String(p.alias || profiles[i]?.fullName || "").trim() }))
@@ -114,31 +110,22 @@ async function namedHolders(studioId: string, permission: string) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** The collaborator somebody picked, if they still hold `permission`. */
-async function holderPicked(studioId: string, collaboratorId: string, permission: string) {
+/** The collaborator a cashier picked, if they are still one who may sell. */
+export async function tillCashier(studioId: string, collaboratorId: string) {
   const [holders, all] = await Promise.all([
-    collaboratorsHolding(studioId, permission),
+    collaboratorsHolding(studioId, "crmSales.pos.create"),
     listCollaborators(studioId),
   ]);
   if (!holders.some((c) => String(c.id) === collaboratorId)) return null;
   return all.find((c) => String(c.id) === collaboratorId) || null;
 }
 
-/** WHO MAY TAKE OVER THIS TILL: everybody in the studio who may sell at it. */
-export const tillCashiers = (studioId: string) => namedHolders(studioId, SELLS);
-/** The collaborator a cashier picked, if they are still one who may sell. */
-export const tillCashier = (studioId: string, collaboratorId: string) => holderPicked(studioId, collaboratorId, SELLS);
-/** WHO MAY UNPAIR THIS DEVICE FROM IT: the people who could unpair it from Settings. */
-export const tillManagers = (studioId: string) => namedHolders(studioId, RUNS);
-/** The collaborator a manager picked, if they still run the studio's Point of Sale. */
-export const tillManager = (studioId: string, collaboratorId: string) => holderPicked(studioId, collaboratorId, RUNS);
-
 /**
  * UNPAIR THE TILL THIS DEVICE IS PAIRED TO (26/09/2026) — the same write as
  * Settings' unpair (`unpairTerminal`), reached from the device because a
  * browser that was once paired, often somebody's own computer, otherwise
  * opens on that till's cashier screen for a year with nobody standing at it
- * able to undo it. The caller has already checked the manager's PIN.
+ * able to undo it. The paired cookie is the proof (see the route).
  */
 export async function unpairPairedTill(till: NonNullable<Awaited<ReturnType<typeof pairedTill>>>) {
   const scope = { studio: { id: String(till.studio.id) }, section: { id: String(till.section.id) } };

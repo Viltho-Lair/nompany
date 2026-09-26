@@ -85,11 +85,8 @@ const en = {
   useAsTill: (studio: string) => `Use this browser as ${studio}'s till`,
   unpairBrowser: "Unpair this browser",
   unpairTitle: (studio: string) => `Stop using this browser as ${studio}'s till`,
-  unpairBody: "Someone who manages this studio's Point of Sale confirms with their PIN. The till itself stays and can be paired to another computer.",
-  whoManages: "Manager",
+  unpairBody: "This browser stops opening on the till's cashier screen. The till itself stays — a manager can pair it to this or another computer from Point of Sale settings.",
   unpair: "Unpair",
-  noManagers: "Nobody in this studio manages its Point of Sale.",
-  notAManager: "Only someone who manages this studio's Point of Sale can unpair it.",
 
   // ---- the PIN on a signature -------------------------------------------------
   signTitle: "Sign with your PIN",
@@ -207,11 +204,8 @@ const ar: typeof en = {
   useAsTill: (studio: string) => `استخدم هذا المتصفح كصندوق ${studio}`,
   unpairBrowser: "إلغاء ربط هذا المتصفح",
   unpairTitle: (studio: string) => `إيقاف استخدام هذا المتصفح كصندوق ${studio}`,
-  unpairBody: "يؤكد ذلك أحد مديري نقطة البيع في هذا الاستوديو برمزه السري. يبقى الصندوق نفسه ويمكن ربطه بجهاز آخر.",
-  whoManages: "المدير",
+  unpairBody: "لن يفتح هذا المتصفح بعد الآن على شاشة الكاشير. يبقى الصندوق نفسه، ويمكن للمدير ربطه بهذا الجهاز أو بجهاز آخر من إعدادات نقطة البيع.",
   unpair: "إلغاء الربط",
-  noManagers: "لا يوجد أحد في هذا الاستوديو يدير نقطة البيع.",
-  notAManager: "لا يمكن إلغاء الربط إلا لمن يدير نقطة البيع في هذا الاستوديو.",
 
   signTitle: "وقّع برمزك الشخصي",
   signBody: "يؤكد رمزك الشخصي أنك أنت من يوقّع هذه الموافقة.",

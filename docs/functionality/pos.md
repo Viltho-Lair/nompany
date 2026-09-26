@@ -174,11 +174,14 @@ a browser paired once — somebody's own computer, used to set a till up — ope
 selling?" for a year; its owner typed the name and PIN they think of as signing in, took over the
 till, and was sent back to it from every studio. A real counter pays one click.
 
-**A device can be unpaired from itself.** The cashier screen (on the sign-in page and behind
-Switch cashier) has **Unpair this browser**: it lists the studio's Point of Sale managers
-(`pos.settings.edit`, the right that unpairs from Settings), and one of them types their PIN
-(`DELETE /api/identity/till`). The till forgets the pairing, the browser forgets its secret, and
-a till session on that browser ends. The till itself stays, ready to pair to another computer.
+**A device can unpair itself.** The cashier screen (on the sign-in page and behind Switch
+cashier) has **Unpair this browser**, one confirmation and no PIN (`DELETE /api/identity/till`).
+The till forgets the pairing, the browser forgets its secret, and a till session on that browser
+ends. The till itself stays, ready to pair to this or another computer. **No PIN on purpose**: the
+first version asked a Point of Sale manager's PIN, which guarded nothing — anyone holding the
+browser can unpair it by clearing its cookies — and it stranded the owner of a once-paired computer
+whose studio manager had never set a PIN. The paired cookie is the proof; the device can undo only
+itself.
 
 ## Returns (18/09/2026)
 
