@@ -1,7 +1,7 @@
 // WHERE THE CONSOLE LIVES, AND WHAT IS IN IT.
 //
-// ONE LIST, TWO READERS. The bottom bar and the ⌘K palette both draw from here:
-// the bar in `(console)/ConsoleChrome`, the palette in `ConsoleActions`. It was
+// ONE LIST, TWO READERS. The sidebar and the ⌘K palette both draw from here:
+// the sidebar in `(console)/ConsoleChrome`, the palette in `ConsoleActions`. It was
 // briefly a local constant inside the chrome, which was fine while the chrome
 // was its only reader; restoring the palette made it two, and two copies of
 // "what screens are there" disagree the first time somebody adds one.
@@ -28,23 +28,63 @@
 
 export const BASE = "/super";
 
-/* THE BAR. Pulse first, because it is where sign-in lands. */
-export const CONSOLE_BAR = [
-  { href: `${BASE}/pulse`, label: "Pulse", icon: "activity" },
-  { href: `${BASE}/dashboard`, label: "Dashboard", icon: "dashboard" },
-  { href: `${BASE}/studios`, label: "Studios", icon: "briefcase" },
-  { href: `${BASE}/users`, label: "Users", icon: "users" },
-  { href: `${BASE}/chat`, label: "Chat", icon: "chat" },
-  { href: `${BASE}/packages`, label: "Packages", icon: "package" },
-  { href: `${BASE}/tiers`, label: "Tiers", icon: "layers" },
-  { href: `${BASE}/regions`, label: "Regional pricing", icon: "globe" },
-  { href: `${BASE}/payments`, label: "Payments", icon: "wallet" },
-  { href: `${BASE}/erp-settings`, label: "ERP settings", icon: "settings" },
-  { href: `${BASE}/nova`, label: "Nova", icon: "star" },
-  { href: `${BASE}/calendar`, label: "Calendar", icon: "calendar" },
-  { href: `${BASE}/broadcast`, label: "Broadcast", icon: "live" },
-  { href: `${BASE}/questionnaires`, label: "Questionnaires", icon: "form" },
+/* THE SIDEBAR, IN GROUPS — the owner, 26/09/2026: "/super is not organized and
+   is not tidy, everything is stacked on each other". Fourteen screens sat as
+   one row of pills in a bottom bar, wrapping onto a second row on a laptop, in
+   the order they happened to ship: Chat between Users and Packages, Calendar
+   between Nova and Broadcast. A group says what a screen is FOR, so "who are
+   our customers" and "what do we sell" each have one place to look, and a new
+   screen has an obvious home.
+
+   THE GROUPS ARE LABELS ONLY — no screen moved and no address changed. Pulse
+   is still first, because it is where sign-in lands. */
+export const CONSOLE_GROUPS = [
+  {
+    label: "Overview",
+    items: [
+      { href: `${BASE}/pulse`, label: "Pulse", icon: "activity" },
+      { href: `${BASE}/dashboard`, label: "Dashboard", icon: "dashboard" },
+    ],
+  },
+  {
+    label: "Customers",
+    items: [
+      { href: `${BASE}/studios`, label: "Studios", icon: "briefcase" },
+      { href: `${BASE}/users`, label: "Users", icon: "users" },
+      { href: `${BASE}/chat`, label: "Chat", icon: "chat" },
+    ],
+  },
+  {
+    label: "Selling",
+    items: [
+      { href: `${BASE}/packages`, label: "Packages", icon: "package" },
+      { href: `${BASE}/tiers`, label: "Tiers", icon: "layers" },
+      { href: `${BASE}/regions`, label: "Regional pricing", icon: "globe" },
+      { href: `${BASE}/payments`, label: "Payments", icon: "wallet" },
+    ],
+  },
+  {
+    label: "Product",
+    items: [
+      { href: `${BASE}/erp-settings`, label: "ERP settings", icon: "gears" },
+      { href: `${BASE}/nova`, label: "Nova", icon: "star" },
+    ],
+  },
+  {
+    label: "Outreach",
+    items: [
+      { href: `${BASE}/calendar`, label: "Calendar", icon: "calendar" },
+      { href: `${BASE}/broadcast`, label: "Broadcast", icon: "live" },
+      { href: `${BASE}/questionnaires`, label: "Questionnaires", icon: "form" },
+    ],
+  },
 ];
+
+/* EVERY SCREEN, FLAT, each carrying its group's name — what the palette
+   searches and what the chrome matches the address against. Derived rather
+   than listed, so the sidebar and the palette cannot offer different screens. */
+export const CONSOLE_BAR = CONSOLE_GROUPS.flatMap((g) =>
+  g.items.map((item) => ({ ...item, group: g.label })));
 
 /* NO "MORE" MENU ANY MORE — the owner's instruction, 10/09/2026. It held
    Questionnaires, Settings and the database migration. Questionnaires moved

@@ -348,6 +348,7 @@
   }
   .ad-card-head {
     display: flex;
+    flex-wrap: wrap;
     padding-block: 1.5rem 1rem;
     padding-inline: 1.5rem;
     flex-direction: row;

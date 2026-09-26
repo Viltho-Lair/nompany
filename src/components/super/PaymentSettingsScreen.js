@@ -72,21 +72,36 @@ export default function PaymentSettingsScreen() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHead title="Payment methods" sub="What a customer can pay with. Each method is set up here, now and later." />
-        <CardBody>
-          <ul className="space-y-2 text-sm">
-            {methods.map((m) => (
-              <li key={m.key} className="flex items-center gap-3">
-                <span className="font-500">{METHOD_LABEL[m.key] || m.key}</span>
-                {m.key === "bankTransfer"
-                  ? <Badge tone={bt.enabled ? "success" : "muted"}>{bt.enabled ? "On" : "Off"}</Badge>
-                  : <Badge tone="muted">{m.available ? "Off" : "Coming later"}</Badge>}
-              </li>
-            ))}
-          </ul>
-        </CardBody>
-      </Card>
+      {/* THE TWO SHORT CARDS SIDE BY SIDE, the two long ones full width under
+          them — four cards in a column put Save a long scroll from the top. */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="h-full">
+          <CardHead title="Payment methods" sub="What a customer can pay with. Each method is set up here, now and later." />
+          <CardBody>
+            <ul className="space-y-2 text-sm">
+              {methods.map((m) => (
+                <li key={m.key} className="flex items-center gap-3">
+                  <span className="font-500">{METHOD_LABEL[m.key] || m.key}</span>
+                  {m.key === "bankTransfer"
+                    ? <Badge tone={bt.enabled ? "success" : "muted"}>{bt.enabled ? "On" : "Off"}</Badge>
+                    : <Badge tone="muted">{m.available ? "Off" : "Coming later"}</Badge>}
+                </li>
+              ))}
+            </ul>
+          </CardBody>
+        </Card>
+
+        <Card className="h-full">
+          <CardHead title="When a customer says they paid" sub="The bell always rings. An email goes too when an address is set." />
+          <CardBody className="grid gap-3 sm:grid-cols-2">
+            <Field label="Email nompany at" hint="Payment claims and refund requests are emailed here."><input className="ad-input" type="email" value={s.notifyEmail} onChange={(e) => { setS((x) => ({ ...x, notifyEmail: e.target.value })); setMsg(""); }} /></Field>
+            <Field label="Hold the unpaid ladder for (hours)" hint="While a claim is waiting, the studio keeps working for this long from when the owner told us, even if it would close or shut down. 0 holds nothing; at most 168.">
+              <input className="ad-input" type="number" min="0" max="168" value={s.claimHoldHours} onChange={(e) => { setS((x) => ({ ...x, claimHoldHours: e.target.value })); setMsg(""); }} />
+            </Field>
+          </CardBody>
+        </Card>
+
+      </div>
 
       <Card>
         <CardHead
@@ -126,16 +141,6 @@ export default function PaymentSettingsScreen() {
       </Card>
 
       <Card>
-        <CardHead title="When a customer says they paid" sub="The bell always rings. An email goes too when an address is set." />
-        <CardBody className="grid gap-3 sm:grid-cols-2">
-          <Field label="Email nompany at" hint="Payment claims and refund requests are emailed here."><input className="ad-input" type="email" value={s.notifyEmail} onChange={(e) => { setS((x) => ({ ...x, notifyEmail: e.target.value })); setMsg(""); }} /></Field>
-          <Field label="Hold the unpaid ladder for (hours)" hint="While a claim is waiting, the studio keeps working for this long from when the owner told us, even if it would close or shut down. 0 holds nothing; at most 168.">
-            <input className="ad-input" type="number" min="0" max="168" value={s.claimHoldHours} onChange={(e) => { setS((x) => ({ ...x, claimHoldHours: e.target.value })); setMsg(""); }} />
-          </Field>
-        </CardBody>
-      </Card>
-
-      <Card>
         <CardHead title="nompany on its invoices" sub="Printed on every invoice and credit note issued from now on; each one keeps the details it was issued with." action={sellerIncomplete ? <Badge tone="warning">Name, address and tax number are needed to issue invoices</Badge> : null} />
         <CardBody className="grid gap-3 sm:grid-cols-2">
           <Field label="Legal name"><input className="ad-input" value={s.seller.name} onChange={(e) => seller({ name: e.target.value })} /></Field>
@@ -149,7 +154,12 @@ export default function PaymentSettingsScreen() {
         </CardBody>
       </Card>
 
-      <div className="flex items-center gap-3">
+      {/* THE SAVE ROW STAYS IN VIEW. One Save covers all four cards, so it sits
+          on the bottom edge of the screen while any of them is being edited. */}
+      <div
+        className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 border-t py-3"
+        style={{ borderColor: "var(--ad-border)", background: "var(--ad-background)" }}
+      >
         <Button disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</Button>
         {msg && <span className="text-sm text-[var(--ad-muted-foreground)]">{msg}</span>}
         {s.updatedAt && <span className="text-xs text-[var(--ad-muted-foreground)]">Last saved {new Date(s.updatedAt).toLocaleString("en-GB")}</span>}

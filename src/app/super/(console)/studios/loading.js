@@ -49,14 +49,15 @@ export default function LoadingStudios() {
     <div aria-busy="true">
       <PageHeader
         title="Studios"
+        description="Every studio on the platform — its owner, package and subscription."
       />
 
       <Row className="mb-6">
         <Col span={6}>
-          <SummaryCardSkeleton title="Compact Table" sub="Studios by package" />
+          <SummaryCardSkeleton title="By package" sub="How many studios are on each package, and their members" />
         </Col>
         <Col span={6}>
-          <SummaryCardSkeleton title="Table with Footer Totals" sub="Studios by status" />
+          <SummaryCardSkeleton title="By subscription" sub="Where each studio stands on paying, with totals" />
         </Col>
       </Row>
 

@@ -9,6 +9,7 @@ export default function TiersPage() {
     <>
       <PageHeader
         title="Tiers"
+        description="The ERP services, and the tiers they are bundled into."
       />
       <TiersScreen />
     </>

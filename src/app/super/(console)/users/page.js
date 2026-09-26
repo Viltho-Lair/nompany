@@ -79,6 +79,7 @@ async function renderUsers() {
     <>
       <PageHeader
         title="Users"
+        description="Every account on the platform, and when each was last active."
       />
 
       <Row className="mb-6">

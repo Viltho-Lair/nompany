@@ -60,10 +60,13 @@ export default async function SettingsPage({ searchParams }) {
     // `overflow-hidden`; with the chrome scrolling, keeping it would nest a
     // second scroll container inside the first.
     <div>
-      <PageHeader title="Settings" />
+      <PageHeader title="Settings"
+        description="Your profile, sign-in security and notifications." />
 
+      {/* AN UNDERLINED STRIP, the shape a row of tabs is read as. They were
+          filled pills the size of a badge, which read as status chips. */}
       <div
-        className="mb-6 flex flex-wrap gap-1 border-b pb-3"
+        className="mb-6 flex flex-wrap gap-6 border-b"
         style={{ borderColor: "var(--ad-border)" }}
       >
         {TABS.map((t) => {
@@ -73,10 +76,10 @@ export default async function SettingsPage({ searchParams }) {
               key={t.key}
               href={`${BASE}/settings?tab=${t.key}`}
               aria-current={on ? "page" : undefined}
-              className={`rounded-md px-3 py-1.5 text-xs font-500 transition-colors ${
+              className={`-mb-px border-b-2 pb-2.5 text-sm font-600 transition-colors ${
                 on
-                  ? "bg-[var(--ad-primary)] text-[var(--ad-primary-foreground)]"
-                  : "text-[var(--ad-muted-foreground)] hover:bg-[var(--ad-accent)]"
+                  ? "border-[var(--ad-primary)] text-[var(--ad-foreground)]"
+                  : "border-transparent text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)]"
               }`}
             >
               {t.label}

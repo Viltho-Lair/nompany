@@ -150,12 +150,13 @@ async function renderStudios() {
     <>
       <PageHeader
         title="Studios"
+        description="Every studio on the platform — its owner, package and subscription."
       />
 
       <Row className="mb-6">
         <Col span={6}>
           <Card className="h-full">
-            <CardHead title="Compact Table" sub="Studios by package" />
+            <CardHead title="By package" sub="How many studios are on each package, and their members" />
             <Table head={["Package", "Studios", { label: "Members", align: "end" }]}>
               {byPackage.length === 0 ? (
                 <tr><td colSpan={3} className="text-[var(--ad-muted-foreground)]">No studios yet.</td></tr>
@@ -172,7 +173,7 @@ async function renderStudios() {
 
         <Col span={6}>
           <Card className="h-full">
-            <CardHead title="Table with Footer Totals" sub="Studios by subscription" />
+            <CardHead title="By subscription" sub="Where each studio stands on paying, with totals" />
             <div className="w-full overflow-x-auto">
               <table className="ad-table">
                 <thead>

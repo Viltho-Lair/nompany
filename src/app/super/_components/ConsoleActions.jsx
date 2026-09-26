@@ -43,7 +43,7 @@ import useSuperNotifications from "@/components/super/useSuperNotifications";
 /* ---- command palette ----------------------------------------------------- */
 
 const PAGES = [
-  ...CONSOLE_BAR.map((p) => ({ ...p, group: "Screens" })),
+  ...CONSOLE_BAR,
   ...CONSOLE_ACCOUNT.map((p) => ({ ...p, group: "Account" })),
 ];
 

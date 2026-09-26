@@ -34,7 +34,8 @@ export default function LoadingAnalytics() {
   return (
     <div aria-busy="true">
       <PageHeader
-        title="Analytics"
+        title="Dashboard"
+        description="The platform at a glance: users, visitors, satisfaction and today's exchange rates."
       />
 
       <Row className="mb-6" role="status" aria-label="Loading analytics">

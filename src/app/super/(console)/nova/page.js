@@ -15,6 +15,7 @@ export default function NovaPage() {
     <>
       <PageHeader
         title="Nova"
+        description="What the Nova assistant is allowed to do, and the key it runs on."
       />
       <NovaSwitchboard />
     </>

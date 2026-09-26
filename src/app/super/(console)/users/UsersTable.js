@@ -366,7 +366,7 @@ export default function UsersTable({ rows }) {
           ? `Every identity that can sign in to nompany · ${flaggedCount} flagged for sharing`
           : "Every identity that can sign in to nompany"}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
               {/* `start-3` — one utility, mirrored by the browser. It used to be
                   an `ltr:left-3 rtl:right-3` pair. */}

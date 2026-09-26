@@ -112,15 +112,15 @@ export default function NotificationsPanel() {
       <Row className="mb-6">
         {loaded ? (
           <>
-            <Col span={4}><StatCard label="Unread" value={String(unread)} icon="bell" tone="primary" /></Col>
-            <Col span={4}><StatCard label="This week" value={String(thisWeek)} icon="activity" tone="info" /></Col>
-            <Col span={4}><StatCard label="Total kept" value={String(notifications.length)} icon="clock" tone="success" /></Col>
+            <Col span={4} sm={4}><StatCard label="Unread" value={String(unread)} icon="bell" tone="primary" /></Col>
+            <Col span={4} sm={4}><StatCard label="This week" value={String(thisWeek)} icon="activity" tone="info" /></Col>
+            <Col span={4} sm={4}><StatCard label="Total kept" value={String(notifications.length)} icon="clock" tone="success" /></Col>
           </>
         ) : (
           <>
-            <Col span={4}><StatCardSkeleton /></Col>
-            <Col span={4}><StatCardSkeleton /></Col>
-            <Col span={4}><StatCardSkeleton /></Col>
+            <Col span={4} sm={4}><StatCardSkeleton /></Col>
+            <Col span={4} sm={4}><StatCardSkeleton /></Col>
+            <Col span={4} sm={4}><StatCardSkeleton /></Col>
           </>
         )}
       </Row>

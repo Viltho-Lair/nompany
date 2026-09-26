@@ -28,7 +28,7 @@ import { recordActiveUsers, readActiveUsers, isoDay } from "@/lib/data/siteStats
 import { withRequest } from "@/platform/http/observability";
 import { KpiTileSkeleton } from "./loading";
 
-export const metadata = { title: "Analytics" };
+export const metadata = { title: "Dashboard" };
 
 // ACTIVE USERS, counted exactly the way /application/users counts it —
 // statusOf() over the same records — so the tile and the console cannot
@@ -178,7 +178,8 @@ export default function AnalyticsPage() {
   return (
     <>
       <PageHeader
-        title="Analytics"
+        title="Dashboard"
+        description="The platform at a glance: users, visitors, satisfaction and today's exchange rates."
       />
 
       {/* ---- KPI tiles ---------------------------------------------------- */}

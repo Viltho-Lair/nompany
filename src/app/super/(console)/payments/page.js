@@ -10,7 +10,8 @@ export const metadata = { title: "Payments" };
 export default function PaymentsPage() {
   return (
     <>
-      <PageHeader title="Payments" />
+      <PageHeader title="Payments"
+        description="How customers pay nompany, and what goes on nompany's invoices." />
       <PaymentSettingsScreen />
     </>
   );

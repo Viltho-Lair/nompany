@@ -18,7 +18,7 @@ It is platform-wide. Every studio reads the same words on the same day — this 
 from the product, not a per-tenant setting — so nothing here touches `collection_rows` and
 the answer is identical for every caller.
 
-**It is edited at `/super/broadcast`**, from the console's bottom bar. It
+**It is edited at `/super/broadcast`**, from the console's sidebar, under Outreach. It
 began as `/super/application/greeting`, one row down a menu of eleven; then it became a pane
 that slid in beside the Pulse wall; since 10/09/2026 it is an ordinary route in the console's
 shared layout, beside every other console screen. The slide went when the whole console joined the
@@ -33,7 +33,7 @@ where anybody reads it and `greeting` where only the code does.
 
 ## The console
 
-`/super/broadcast`, from the bottom bar. A register: the message list on the left, one
+`/super/broadcast`, from the sidebar. A register: the message list on the left, one
 message open on the right, and the page itself never scrolls — the console chrome is exactly one
 screen tall with the header and bar fixed, so the list scrolls inside its own column.
 
@@ -57,7 +57,7 @@ that one of the three is missing when you can only ever see your own hour.
 | `src/app/api/studios/[slug]/greeting/route.ts` | What a studio reads (GET, studio auth) |
 | `src/app/api/super/greeting/route.ts` | The console: GET, PUT to save, POST to regenerate today |
 | `src/app/super/(console)/broadcast/page.js` | The route — renders the editor inside the console chrome |
-| `src/app/super/(console)/ConsoleChrome.jsx` | The header and the bottom bar every console screen shares |
+| `src/app/super/(console)/ConsoleChrome.jsx` | The grouped sidebar and the header every console screen shares |
 | `src/components/super/NovaCredentials.jsx` | The AI key form — shared with the Nova switchboard, not copied |
 | `src/components/studio2/DailyGreeting.jsx` | The band — rotation, dots, dismissal |
 | `src/components/super/GreetingEditor.jsx` | The register: a row per message, opening into its editor |

@@ -17,9 +17,12 @@ import Icon from "./Icon";
 
 /* ---- layout -------------------------------------------------------------- */
 
-export function PageHeader({ title, breadcrumb = [], actions }) {
+// `description` IS ONE LINE saying what the screen is for, under the title. The
+// sidebar groups screens by purpose now; this says the same thing where the
+// screen starts, so nobody has to open one to learn what it holds.
+export function PageHeader({ title, description, breadcrumb = [], actions }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4 pt-1">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
         {/* Title first, trail underneath — the Studio's header order. The
             template put a small bold label above a breadcrumb of the same
@@ -27,6 +30,9 @@ export function PageHeader({ title, breadcrumb = [], actions }) {
         <h1 className="truncate font-display text-2xl font-800 tracking-tight text-[var(--ad-foreground)]">
           {title}
         </h1>
+        {description ? (
+          <p className="mt-1 max-w-2xl text-sm text-[var(--ad-muted-foreground)]">{description}</p>
+        ) : null}
         {breadcrumb.length ? (
           <nav aria-label="Breadcrumb">
             <ol className="mt-1.5 flex flex-wrap items-center gap-1 text-xs text-[var(--ad-muted-foreground)]">
@@ -65,12 +71,16 @@ export function Card({ className = "", children, ...rest }) {
 
 export function CardHead({ title, sub, action, className = "" }) {
   return (
+    // THE TITLE KEEPS ITS WIDTH AND THE CONTROLS WRAP UNDER IT. Beside a row of
+    // filters that would not shrink, the title's block was squeezed to one word
+    // a line — the Users card's subtitle read as a column of single words once
+    // the sidebar took its share of the width.
     <div className={`ad-card-head ${className}`}>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1 basis-48">
         <h2 className="ad-card-title truncate">{title}</h2>
         {sub ? <p className="ad-card-sub">{sub}</p> : null}
       </div>
-      {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
+      {action ? <div className="flex max-w-full flex-wrap items-center gap-2">{action}</div> : null}
     </div>
   );
 }
@@ -79,27 +89,32 @@ export function CardBody({ className = "", full = false, children }) {
   return <div className={`${full ? "ad-card-body-full" : "ad-card-body"} ${className}`}>{children}</div>;
 }
 
-/* Twelve-column grid, matching the reference's `md:grid-cols-12` rows. */
+/* TWELVE COLUMNS FROM `lg`, NOT FROM `md` — the owner, 26/09/2026: "everything
+   is stacked on each other". The grid switched to twelve columns at 768px, which
+   was fine while the console had no sidebar; beside one, a 768px window left
+   four KPI tiles a hundred-odd pixels each, every figure squeezed onto a second
+   line. Now a quarter-width column is HALF width from `sm`, a pair of halves
+   sits side by side from `sm`, and everything wider waits for `lg` — so a
+   row folds 1 → 2 → 4 across rather than cramming all four at once.
+
+   `sm` overrides the in-between width where a caller knows better: three stat
+   cards in thirds read fine at 640px, which `<Col span={4} sm={4}>` says. */
 export function Row({ className = "", children }) {
-  return <div className={`grid grid-cols-1 gap-6 md:grid-cols-12 ${className}`}>{children}</div>;
+  return <div className={`grid grid-cols-1 gap-5 sm:grid-cols-12 lg:gap-6 ${className}`}>{children}</div>;
 }
 
-export function Col({ span = 12, className = "", children }) {
-  const map = {
-    1: "md:col-span-1",
-    2: "md:col-span-2",
-    3: "md:col-span-3",
-    4: "md:col-span-4",
-    5: "md:col-span-5",
-    6: "md:col-span-6",
-    7: "md:col-span-7",
-    8: "md:col-span-8",
-    9: "md:col-span-9",
-    10: "md:col-span-10",
-    11: "md:col-span-11",
-    12: "md:col-span-12",
-  };
-  return <div className={`${map[span]} ${className}`}>{children}</div>;
+// Spelled out, not built from a template: Tailwind finds classes by reading
+// source text, so `lg:col-span-${n}` would never be generated.
+const LG_SPAN = {
+  1: "lg:col-span-1", 2: "lg:col-span-2", 3: "lg:col-span-3", 4: "lg:col-span-4",
+  5: "lg:col-span-5", 6: "lg:col-span-6", 7: "lg:col-span-7", 8: "lg:col-span-8",
+  9: "lg:col-span-9", 10: "lg:col-span-10", 11: "lg:col-span-11", 12: "lg:col-span-12",
+};
+const SM_SPAN = { 3: "sm:col-span-3", 4: "sm:col-span-4", 6: "sm:col-span-6", 12: "sm:col-span-12" };
+
+export function Col({ span = 12, sm, className = "", children }) {
+  const between = sm ?? (span <= 3 || span === 6 ? 6 : 12);
+  return <div className={`${SM_SPAN[between] || SM_SPAN[12]} ${LG_SPAN[span]} ${className}`}>{children}</div>;
 }
 
 /* ---- numbers ------------------------------------------------------------- */

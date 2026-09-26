@@ -112,6 +112,7 @@ export default async function PackagesPage() {
     <>
       <PageHeader
         title="Packages"
+        description="The packages on the pricing page — what each costs and what it includes."
       />
       <CatalogEditor
         kind="packages" title="Packages" fields={fieldsFor(baseCurrency)}

@@ -34,6 +34,7 @@ export default async function CalendarPage() {
     <>
       <PageHeader
         title="Calendar"
+        description="nompany's own calendar, read from the connected Google account."
         actions={
           connection?.calendarId ? (
             // "New event" became this. calendar.readonly cannot write, and a

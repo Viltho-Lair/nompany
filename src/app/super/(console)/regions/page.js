@@ -10,7 +10,8 @@ export const metadata = { title: "Regional pricing" };
 export default function RegionsPage() {
   return (
     <>
-      <PageHeader title="Regional pricing" />
+      <PageHeader title="Regional pricing"
+        description="What each package and tier costs in each region, in that region's currency." />
       <PriceRegionsScreen />
     </>
   );

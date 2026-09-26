@@ -16,7 +16,8 @@ export const metadata = { title: "ERP settings" };
 export default function ErpSettingsPage() {
   return (
     <>
-      <PageHeader title="ERP settings" />
+      <PageHeader title="ERP settings"
+        description="The trades a deal flow starts from, and the KPIs its work is judged by." />
       <ErpIndustries />
       <div className="mt-6"><ErpKpis /></div>
     </>
