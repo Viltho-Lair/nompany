@@ -83,7 +83,7 @@ const VIEW_KEYS = ["overview", "studios", "billing", "collabs", "personal", "cal
 
 const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
-export default function AccountHome({ locale, chrome, setup, intent = null, openCreate = false }) {
+export default function AccountHome({ locale, chrome, setup, intent = null, openCreate = false, till = null }) {
   const tr = accountDict(useAccountLocale());
   const [identity, setIdentity] = useState(null);
   const [studios, setStudios] = useState({ owned: [], collaborations: [] });
@@ -213,6 +213,16 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
           </div>
         </div>
       </header>
+
+      {till && (
+        <div role="status" className="mx-5 mb-4 flex flex-wrap items-center gap-3 rounded-geex border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 sm:mx-8 dark:text-amber-200">
+          <p className="min-w-0 flex-1">{tr.tillSessionNotice(till.name)}</p>
+          <a href={`/${till.slug}/pos-till`} className="font-600 underline-offset-2 hover:underline">{tr.tillSessionBack}</a>
+          <button type="button" onClick={signOut} className="rounded-full bg-amber-600 px-3 py-1.5 text-xs font-600 text-white hover:bg-amber-700">
+            {tr.tillSessionSignIn}
+          </button>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-6 px-5 sm:px-8 lg:flex-row lg:gap-10">
         {/* fixed rail */}

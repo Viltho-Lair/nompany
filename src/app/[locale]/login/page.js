@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getDict } from "@/shared/i18n";
-import { currentUser } from "@/platform/auth/identity";
+import { currentUser, currentSession } from "@/platform/auth/identity";
 import { enabledProviders } from "@/platform/auth/oauth";
 import LoginForm from "@/components/public/LoginForm";
 import AuthShell from "@/components/landing/AuthShell";
@@ -21,7 +21,16 @@ export async function generateMetadata({ params }) {
 export default async function LoginPage({ params }) {
   const { locale } = await params;
   // Already signed in → the account hub, not the sign-in screen.
-  if (await currentUser()) redirect(`/${locale}/account`);
+  //
+  // A TILL'S SESSION IS NOT "ALREADY SIGNED IN" (26/09/2026). It is good for one
+  // till and nothing else, and the studio shell sends it back there from any
+  // other address — so skipping the form for it left a person who had sold at a
+  // collaborator's till with no way to reach their own studio: every sign-in
+  // bounced to the account hub, every studio link bounced to that till. The form
+  // shows instead (the cashier switch first on a paired device, email a click
+  // away), and signing in ends the till session (`openSession`).
+  const [user, { state }] = await Promise.all([currentUser(), currentSession()]);
+  if (user && state?.scope !== "till") redirect(`/${locale}/account`);
   const dict = getDict(locale);
   const t = dict.auth;
 

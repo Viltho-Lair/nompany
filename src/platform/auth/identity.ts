@@ -591,6 +591,7 @@ export async function openSession(
   { userId: string; ttl: number; deviceId?: string; device?: DeviceFacts; desktop?: boolean },
 ): Promise<OpenOutcome> {
   const facts = device || {};
+  await endTillSessionHere();
   const token = await mintSession(userId, ttl, {
     deviceId: deviceId || "",
     deviceType: normalizeDeviceType(facts.deviceType) || "Computer",
@@ -600,6 +601,20 @@ export async function openSession(
   });
   await touchLastLogin(userId);
   return { token, ttl };
+}
+
+// A SIGN-IN ON A TILL'S BROWSER ENDS THE TILL SESSION IT WAS CARRYING
+// (26/09/2026). The new cookie replaces the old one either way, so what this
+// changes is the session ROW: left alone, a till session nobody can reach any
+// more sat live for its eight hours among the cashier's sessions. The till route does the same for a cashier switch —
+// one till, one session. Only a till's: any other session on this browser is
+// the person's own, and signing in again is not a request to end it elsewhere.
+// Never fails a sign-in — the person has already proved who they are.
+async function endTillSessionHere() {
+  try {
+    const { user, state } = await currentSession();
+    if (user && state?.scope === "till") await revokeSession(user.id, await requestSessionToken());
+  } catch { /* no request in scope, or the store hiccuped: the sign-in stands */ }
 }
 
 /** A paused sign-in, as its screen needs it: which step it is waiting on. */

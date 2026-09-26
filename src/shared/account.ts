@@ -243,6 +243,9 @@ type Strings = {
   sign: string;
   signAttemptExpiredStart: string;
   signOut: string;
+  tillSessionNotice: (studio: string) => string;
+  tillSessionBack: string;
+  tillSessionSignIn: string;
   signUp: string;
   signedOutEverywhereSafety: string;
   somethingWentWrongTry: string;
@@ -536,6 +539,9 @@ const en: Strings = {
   sign: "Sign in",
   signAttemptExpiredStart: "This sign-in attempt expired. Start again.",
   signOut: "Sign out",
+  tillSessionNotice: (studio: string) => `This browser is signed in to a till at ${studio}. Until you sign in as yourself, every studio opens that till.`,
+  tillSessionBack: "Back to the till",
+  tillSessionSignIn: "Sign in as yourself",
   signUp: "Sign up",
   signedOutEverywhereSafety: "You've been signed out everywhere for safety. Sign in with your new password.",
   somethingWentWrongTry: "Something went wrong. Try again.",
@@ -816,6 +822,9 @@ const ar: Strings = {
   sign: "تسجيل الدخول",
   signAttemptExpiredStart: "انتهت صلاحية محاولة الدخول هذه. ابدأ من جديد.",
   signOut: "تسجيل الخروج",
+  tillSessionNotice: (studio: string) => `هذا المتصفح مسجّل الدخول إلى نقطة بيع في ${studio}. إلى أن تسجّل الدخول بحسابك، سيفتح كل استوديو نقطة البيع تلك.`,
+  tillSessionBack: "العودة إلى نقطة البيع",
+  tillSessionSignIn: "سجّل الدخول بحسابك",
   signUp: "إنشاء حساب",
   signedOutEverywhereSafety: "سجل خروجك من كل مكان للأمان. سجل الدخول بكلمة المرور الجديدة.",
   somethingWentWrongTry: "حدث خطأ ما. حاول مرة أخرى.",

@@ -153,6 +153,14 @@ A till is paired to one device, opens only there, and cashiers take it over with
 elsewhere by the route wrapper (`till-only`, 403) and redirected back by the studio shell, has
 no idle timeout, and is left out of the person's session count in the console.
 
+**A till's session does not count as signed in anywhere but its till** (2026-09-26). The
+sign-in page shows its form to one rather than skipping to the account hub, and any sign-in
+on that browser — password, code, passkey, Google — ends the till session before minting the
+person's own (`openSession`). The account hub, reached by a till session, says which till the
+browser is on and offers "Back to the till" and "Sign in as yourself". Before this, someone who
+had taken over a collaborator's till could not reach their own studio at all: the sign-in page
+sent them straight to the hub, and every studio link sent them back to that till.
+
 ## The PIN on a signature
 
 The same PIN is asked before an approval is signed — `docs/functionality/approvals.md`, "The

@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getDict } from "@/shared/i18n";
-import { currentUser, needsQuestionnaire } from "@/platform/auth/identity";
+import { currentUser, currentSession, needsQuestionnaire } from "@/platform/auth/identity";
 import AccountHome from "@/components/public/AccountHome";
-import { studioSetupScreen } from "@/modules/main/studios";
+import { studioSetupScreen, getStudioById } from "@/modules/main/studios";
 import { listCatalog } from "@/lib/data/catalog";
 import { INTENT_COOKIE, openIntent, intentOnSale } from "@/platform/auth/purchaseIntent";
 
@@ -55,5 +55,15 @@ export default async function AccountPage({ params, searchParams }) {
   } catch { intent = null; }
   const sp = await searchParams;
   const openCreate = sp?.create === "1";
-  return <AccountHome locale={locale} chrome={chrome} setup={setup} intent={intent} openCreate={openCreate} />;
+  // A TILL'S SESSION SAYS SO (26/09/2026). Its account routes work, so the hub
+  // renders — but every studio on it would send this browser back to the till,
+  // which read as the product redirecting at random. The banner names the till
+  // and offers both ways out: back to it, or sign in as yourself.
+  const { state } = await currentSession();
+  let till = null;
+  if (state?.scope === "till") {
+    const studio = await getStudioById(String(state.studioId || ""));
+    if (studio) till = { name: String(studio.name || ""), slug: String(studio.slug || "") };
+  }
+  return <AccountHome locale={locale} chrome={chrome} setup={setup} intent={intent} openCreate={openCreate} till={till} />;
 }
