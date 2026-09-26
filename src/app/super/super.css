@@ -691,8 +691,15 @@
 }
 
 /* THE PULSE WALL'S GRID — the map full width, the four panels beneath it.
-   One column on a phone, two on a tablet, four from `lg`. The row minimums
-   keep a short window from squashing the map; the wall scrolls instead. */
+   One column on a phone, two on a tablet, four from `lg`.
+
+   THE PANELS AND THE SIGN-UP STRIP ARE AS TALL AS WHAT THEY HOLD, and the map
+   takes whatever is left. The first cut gave every row a share of the height
+   (2.6fr / 1fr / 0.6fr), and on a shorter screen that clipped the panels —
+   Right now lost its arrivals, the legend its footnote — while the sign-up
+   strip kept empty room it did not need (the owner, 26/09/2026: "the spacing
+   in pulse is not acceptable"). The map has a floor; below it the wall
+   scrolls rather than cut anything off. */
 .admindek .pulse-wall {
   display: grid;
   gap: 0.75rem;
@@ -700,11 +707,7 @@
   grid-template-areas: "top" "map" "live" "legend" "cont" "right" "sign";
   grid-auto-rows: auto;
 }
-.admindek .pulse-wall > [class*="grid-area:map"] { min-height: 360px; }
-.admindek .pulse-wall > [class*="grid-area:legend"],
-.admindek .pulse-wall > [class*="grid-area:cont"],
-.admindek .pulse-wall > [class*="grid-area:live"],
-.admindek .pulse-wall > [class*="grid-area:right"] { min-height: 220px; }
+.admindek .pulse-wall > [class*="grid-area:map"] { min-height: 320px; }
 @media (min-width: 768px) {
   .admindek .pulse-wall {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -714,7 +717,7 @@
 @media (min-width: 1024px) {
   .admindek .pulse-wall {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: auto minmax(360px, 2.6fr) minmax(210px, 1fr) minmax(130px, 0.6fr);
+    grid-template-rows: auto minmax(320px, 1fr) max-content max-content;
     grid-template-areas: "top top top top" "map map map map" "legend cont live right" "sign sign sign sign";
   }
 }

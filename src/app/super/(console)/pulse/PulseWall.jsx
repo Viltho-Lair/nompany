@@ -389,11 +389,15 @@ export default function PulseWall({ initial, initialLive }) {
 
         <Sparkline points={sessions} />
 
-        <div className="min-h-0 flex-1 overflow-hidden">
+        <div className="min-h-0 flex-1">
           <p className="mb-1 text-[10px] uppercase tracking-wider" style={{ color: "var(--ad-muted-foreground)" }}>
             Arrivals
           </p>
-          <ul className="space-y-1">
+          {/* ABOUT FOUR ROWS TALL, AND IT SCROLLS. The row under the map is as
+              tall as its tallest panel, so nine arrivals stretched Legend and
+              Studios by country into gaps; clipping them instead cut the last
+              one in half. A short list that scrolls keeps all nine. */}
+          <ul className="max-h-[5.25rem] space-y-1 overflow-y-auto pe-1">
             {(live?.arrivals || []).slice(0, 9).map((a) => (
               <li key={`${a.kind}:${a.at}`} className="flex items-center gap-2 text-[11px]">
                 <span

@@ -421,10 +421,10 @@ const iconClass = (key, parentKey) => `h-[18px] w-[18px] ${accentOf(key, parentK
 // The plan chips. Every colour the tag needs is handed to CSS as a variable
 // rather than set inline, because which text colour is readable depends on the
 // theme and inline styles cannot answer that — the stylesheet picks (.plan-tag).
-function PlanTag({ color, label, children }) {
+function PlanTag({ color, label, className = "", children }) {
   return (
     <span
-      className="plan-tag inline-flex rounded-full px-2 py-0.5 text-[10px] font-700"
+      className={`plan-tag inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-700 ${className}`}
       style={planTagStyle(color)}
       title={label}
     >
@@ -754,9 +754,14 @@ export default function StudioFrame({
           {/* What this studio is on. Free and Standard until the console says
               otherwise, so the tags are never absent — a studio always has a
               plan, and showing it here is how anyone inside knows which. */}
-          <span className="mt-1.5 flex flex-wrap items-center gap-1">
-            <PlanTag color={studio.packageColor} label={`${tr.packageLabel}: ${studio.packageName}`}>{studio.packageName}</PlanTag>
-            <PlanTag color={studio.tierColor} label={`${tr.tierLabel}: ${studio.tierName}`}>{studio.tierName}</PlanTag>
+          {/* ONE LINE, ALWAYS — the owner, 26/09/2026: the package and the tier
+              "should always be beside each other". Wrapping put the tier on a
+              line of its own whenever the Upgrade button narrowed this column.
+              So the row never wraps: the tier keeps its width, and a long
+              package name truncates instead (the full name is its title). */}
+          <span className="mt-1.5 flex min-w-0 items-center gap-1">
+            <PlanTag className="min-w-0 truncate" color={studio.packageColor} label={`${tr.packageLabel}: ${studio.packageName}`}>{studio.packageName}</PlanTag>
+            <PlanTag className="shrink-0" color={studio.tierColor} label={`${tr.tierLabel}: ${studio.tierName}`}>{studio.tierName}</PlanTag>
           </span>
         </span>
       </Link>
