@@ -170,6 +170,15 @@ export const REG = {
   // edited in /super → Application → Nova; qualifies every studio's Nova the way
   // catalogSettings qualifies every package. Platform-level, no cascade.
   novaConfig: `${P}g:novaConfig`,
+  // QUESTIONS NOVA'S HELP DESK COULD NOT ANSWER, sent on to support by the
+  // person who asked (26/09/2026). Platform-level: it is nompany's support queue,
+  // not any studio's data, and it outlives the studio that asked. Capped by the
+  // writer, newest first. Read in /super → Nova → Questions.
+  novaHelpQuestions: `${P}g:novaHelpQuestions`,
+  // PHRASINGS SUPPORT TAUGHT NOVA: "this wording means that answer", linked from
+  // an answered question in /super. Merged into the help search index, so the
+  // next person asking it that way is answered without a ticket.
+  novaHelpAliases: `${P}g:novaHelpAliases`,
   // THE DAILY GREETING shown across the top of every studio. Platform-level and
   // outside every cascade, the same lifecycle as novaConfig beside it: one small
   // document the console edits, read by every studio, owned by no tenant.
@@ -470,6 +479,12 @@ export const RL = {
   // per answer, and the person filling one in is not sending forty in ten
   // minutes.
   formUploadIp: (ip: string) => `${P}rl:formup:i:${String(ip || "unknown")}`,
+
+  // A QUESTION SENT TO SUPPORT FROM NOVA, per user (26/09/2026). Every one is an
+  // email into support's inbox, so it is counted like the contact form is —
+  // but per PERSON, because the asker is signed in and an office behind one IP
+  // is many people asking honestly.
+  novaHelpAsk: (userId: string) => `${P}rl:novahelp:u:${String(userId || "unknown")}`,
 
   // FAILED CREDENTIAL ATTEMPTS — password sign-in and password reset.
   //

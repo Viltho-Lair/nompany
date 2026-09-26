@@ -389,7 +389,10 @@ export async function testNoRetiredPermissionKeySurvivesInSource(t) {
       if (e.status === 1) files = [];
       else throw e;
     }
-    const matches = (token) => new RegExp(`^${key}`).test(token);
+    // THE DOT IS ESCAPED. A key is `studio.settings`, and as a bare pattern its
+    // dot matched any character — so the English phrase "studio settings" in
+    // Nova's help text read as the retired key (26/09/2026).
+    const matches = (token) => new RegExp(`^${key.replace(/\./g, "\\.")}`).test(token);
     const bad = [];
     for (const file of files) {
       const survivors = survivingTokens(execFileSync, file, `"${key}`, matches);
@@ -492,6 +495,13 @@ export async function testNoRetiredSectionKeySurvivesInSource(t) {
   // spell a key the restructure retired. The COMPOUND keys (`sales-tickets`,
   // `sales-clients`) are unambiguous and stay checked everywhere, here included.
   //
+  // NOVA'S HELP TEXT IS EXCLUDED for the same reason (26/09/2026). Its search
+  // keywords are the words people type — "sales", "operations", "quality" — and
+  // no keyword is ever looked up as a section. The two fields that ARE section
+  // keys, `open` and `sectionKey`, are held to the real list by
+  // tests/help-model.mjs, which is the stricter check: it refuses any key that
+  // is not a section at all, retired or merely misspelt.
+  //
   // execFileSync, not execSync + a shell string: execSync's default shell on
   // Windows is cmd.exe, which does not treat single quotes as quoting at all —
   // the quoted pattern and the `:!…` exclusion pathspec both arrived at git
@@ -507,7 +517,8 @@ export async function testNoRetiredSectionKeySurvivesInSource(t) {
         "git",
         ["grep", "-l", "--", `"${key}"`, "src",
           ":!src/platform/db/restructure.ts",
-          ":!src/shared/marketing", ":!src/components/landing", ":!src/app/api/contact"],
+          ":!src/shared/marketing", ":!src/components/landing", ":!src/app/api/contact",
+          ":!src/lib/nova/help/kb"],
         { encoding: "utf8" },
       ).trim().split("\n").filter(Boolean);
     } catch (e) {

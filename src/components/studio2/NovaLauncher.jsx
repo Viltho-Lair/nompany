@@ -5,6 +5,9 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { miscDict } from "@/shared/studio/misc";
 import NovaHead from "@/components/studio2/NovaHead";
 import NovaBubble from "@/components/studio2/NovaBubble";
+import { novaHelpDict } from "@/shared/studio/novaHelp";
+import { useNovaHelp } from "@/components/studio2/nova/useNovaHelp";
+import { useHelpFlow, HelpCard, HelpStart } from "@/components/studio2/nova/NovaHelpCards";
 
 // NOVA, in the studio. A floating launcher and a slide-over chat, shown only
 // when the studio's package includes the assistant. Memory is session-only: the
@@ -27,7 +30,9 @@ const examplesFor = (tr) => [
 // OPEN IS THE SHELL'S — see the note in StudioChat. The two chats share one
 // corner and one slot, so StudioFrame decides which is showing.
 export default function NovaLauncher({ slug, enabled = false, besideChat = false, open = false, onOpenChange, view = "" }) {
-  const tr = miscDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = miscDict(locale);
+  const htr = novaHelpDict(locale);
   // A plain boolean in, no functional form: the current value is already a
   // PROP here, so `setOpen(!open)` says it directly and nothing has to read
   // state through a ref during render to find out.
@@ -44,6 +49,15 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
   const panelRef = useRef(null);
   const launcherRef = useRef(null);
   const titleId = useId();
+
+  // THE HELP DESK (26/09/2026). A typed question is tried against the help
+  // knowledge base FIRST, and only goes to the model when help cannot take it
+  // at all — "how do I…" is the product's documentation, which is instant,
+  // free and the same for everybody, while the model is for questions about
+  // THIS studio's data. The help cards live in the same transcript as the chat.
+  // Loaded on mount rather than on open, so the first click is already instant.
+  const help = useNovaHelp(slug, locale, enabled);
+  const flow = useHelpFlow({ help, setMessages, view, askModel: (q) => send(q, { echo: false }) });
 
   // FEEDBACK BY DEFAULT. Even with the chat shut, Nova wears a badge for what is
   // waiting on this person — their unread notifications, the same ones the bell
@@ -107,11 +121,22 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
     });
   }
 
-  async function send(text) {
+  // A TYPED question: help first, the model only when help could not take it.
+  async function ask() {
+    const q = input.trim();
+    if (!q || busy) return;
+    setInput(""); setBusy(true); setNote(""); setPending(null);
+    const handled = await flow.ask(q).catch(() => false);
+    setBusy(false);
+    if (!handled) send(q);
+  }
+
+  async function send(text, { echo = true } = {}) {
     const q = (text ?? input).trim();
     if (!q || busy) return;
-    const prior = messages;
-    setMessages([...prior, { role: "user", content: q }]);
+    // Help cards are not conversation: the model is sent the chat turns alone.
+    const prior = messages.filter((m) => !m.kind);
+    if (echo) setMessages((m) => [...m, { role: "user", content: q }]);
     setInput(""); setBusy(true); setNote(""); setPending(null);
     try {
       const res = await fetch(`/api/studios/${slug}/nova`, {
@@ -124,7 +149,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
         // The provider and its docs URL arrive as DATA; the sentence is built
         // here, in the reader's language. `novaNotSetUp` is the fallback for a
         // 503 that names no provider.
-        setNote(d?.provider && d?.docs ? tr.novaNeedsKey(d.provider, d.docs) : tr.novaNotSetUp);
+        setNote(d?.provider ? tr.novaNeedsKey(d.provider) : tr.novaNotSetUp);
         setBusy(false); return;
       }
       if (res.status === 403) { setNote(tr.novaNotInPlan); setBusy(false); return; }
@@ -257,6 +282,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
                       {tr.nNotificationsWaiting(attention)}
                     </button>
                   )}
+                  <HelpStart help={help} h={flow.handlers} tr={htr} view={view} />
                   <p className="text-sm text-slate-500 dark:text-slate-400">{tr.novaScope}</p>
                   <div className="flex flex-wrap gap-2">
                     {examplesFor(tr).map((e) => (
@@ -268,7 +294,11 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
                   </div>
                 </div>
               )}
-              {messages.map((m, i) => (
+              {messages.map((m, i) => (m.kind ? (
+                <div key={m.id || i} className="flex justify-start">
+                  <HelpCard m={m} kb={help.kb} h={flow.handlers} tr={htr} slug={slug} view={view} />
+                </div>
+              ) : (
                 <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
                   <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm ${
                     m.role === "user"
@@ -277,7 +307,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
                     {m.content}
                   </div>
                 </div>
-              ))}
+              )))}
               {pending && !busy && (
                 <div className="rounded-2xl border border-brand-200 bg-brand-50 p-3 dark:border-brand-500/30 dark:bg-brand-500/10">
                   <p className="text-xs font-600 uppercase tracking-wide text-brand-600 dark:text-brand-300">{tr.confirm}</p>
@@ -296,14 +326,14 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
 
             <form
               className="flex items-end gap-2 border-t border-slate-200 p-3 dark:border-white/10"
-              onSubmit={(e) => { e.preventDefault(); send(); }}
+              onSubmit={(e) => { e.preventDefault(); ask(); }}
             >
               <textarea
                 ref={inputRef}
                 rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); } }}
                 placeholder={tr.askNova2}
                 className="max-h-32 flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/15 dark:bg-white/5 dark:text-white"
               />

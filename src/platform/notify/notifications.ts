@@ -81,6 +81,9 @@ export const NOTIFY = {
   // Somebody's own employment moved — confirmed, suspended, on notice, exited
   // (modules/hr/lifecycleService). Addressed to the person it happened TO.
   employmentChanged: "employment.changed",
+  // Support answered a question this person sent from Nova's help desk
+  // (/super → Nova → Questions, 26/09/2026). Addressed to the asker alone.
+  novaAnswered: "nova.answered",
 };
 
 /** One stored notification, as this module writes it. */

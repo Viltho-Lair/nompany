@@ -77,7 +77,7 @@ type Strings = CommonStrings & {
   message: string;
   minimiseChat: string;
   nNotificationsWaiting: (n: number) => string;
-  novaNeedsKey: (provider: string, docs: string) => string;
+  novaNeedsKey: (provider: string) => string;
   nStars: (n: number) => string;
   nTickets: (n: number) => string;
   refreshesEvery: (seconds: number) => string;
@@ -264,7 +264,10 @@ const en: Strings = {
   nova: "Nova",
   novaNotInPlan: "Nova isn't part of this studio's plan.",
   novaNotSetUp: "Nova isn't set up yet.",
-  novaNeedsKey: (provider: string, docs: string) => `Nova uses your own ${provider} key. Create one at ${docs}, then paste it into your account settings under “Nova / AI key”.`,
+  // The key is the PLATFORM's, set in /super — there is nothing for a member to
+  // paste (AccountHome.js says why the account field went). The provider is
+  // still named so support knows which service is not connected.
+  novaNeedsKey: (provider: string) => `Nova's answers about your data aren't available yet: the ${provider} service behind them hasn't been connected by nompany. Help topics still work, and you can send your question to support.`,
   novaScope: "Ask about your studio's data. Nova only sees what you can.",
   novaThinking: "Nova is thinking…",
   number: "Number",
@@ -428,7 +431,7 @@ const ar: Strings = {
   nova: "نوفا",
   novaNotInPlan: "نوفا ليست ضمن باقة هذا الاستوديو.",
   novaNotSetUp: "لم تهيأ نوفا بعد.",
-  novaNeedsKey: (provider: string, docs: string) => `تستخدم نوفا مفتاح ${provider} الخاص بك. أنشئ واحدا من ${docs}، ثم الصقه في إعدادات حسابك تحت “نوفا / مفتاح الذكاء الاصطناعي”.`,
+  novaNeedsKey: (provider: string) => `إجابات نوفا عن بياناتك غير متاحة بعد: لم تربط nompany خدمة ${provider} التي تعمل عليها. ما زالت مواضيع المساعدة تعمل، ويمكنك إرسال سؤالك إلى الدعم.`,
   novaScope: "اسأل عن بيانات استوديوك. لا ترى نوفا إلا ما يمكنك رؤيته.",
   novaThinking: "نوفا تفكر…",
   number: "الرقم",

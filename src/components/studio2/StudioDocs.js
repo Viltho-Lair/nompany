@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { miscDict } from "@/shared/studio/misc";
 import { manualDict } from "@/shared/studio/manual";
+import { helpManualArticles } from "@/lib/nova/help/knowledge";
 import { Icon } from "@/components/studio2/icons";
 
 // The studio manual, full-screen: rendered OUTSIDE StudioFrame, so there is no
@@ -16,7 +17,13 @@ import { Icon } from "@/components/studio2/icons";
 // page.js rather than through the client hook every other screen uses.
 export default function StudioDocs({ studio, locale = "en" }) {
   const tr = miscDict(locale);
-  const { contents, departments, articles } = manualDict(locale);
+  const { contents, departments, articles: written } = manualDict(locale);
+  // ONE SOURCE PER SECTION: a department in MANUAL_FROM_HELP (lib/nova/help/
+  // manual) is not written in shared/studio/manual at all — its chapter is
+  // composed here, on the server, from the same entries Nova answers with.
+  // A SERVER COMPONENT, which is why it may read the knowledge base: that is
+  // hundreds of kilobytes a client import would put on every studio page.
+  const articles = [...written, ...helpManualArticles(locale === "ar" ? "ar" : "en")];
 
   return (
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
@@ -97,6 +104,15 @@ export default function StudioDocs({ studio, locale = "en" }) {
                     <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{section.heading}</h3>
                     <div className="mt-4 space-y-4">
                       {section.blocks.map((block, i) => {
+                        if (block.kind === "h") {
+                          // A question, from Nova's help entries. Its id IS the
+                          // entry's, so "Read in documentation" lands here.
+                          return (
+                            <h4 key={i} id={block.id} className="scroll-mt-24 pt-2 font-display text-base font-700 text-slate-900 dark:text-white">
+                              {block.text}
+                            </h4>
+                          );
+                        }
                         if (block.kind === "p") {
                           return (
                             <p key={i} className="max-w-2xl text-[15px] leading-relaxed">

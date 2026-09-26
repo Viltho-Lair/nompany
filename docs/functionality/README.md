@@ -63,6 +63,7 @@ Three rules that keep this folder worth reading:
 | [error-tracking.md](error-tracking.md) | Server errors and cron check-ins sent to Sentry: off until `SENTRY_DSN` is set, what is scrubbed before sending, and why nothing runs in the browser |
 | [media.md](media.md) | Uploaded files: Blob for the binary, Redis for the record, the membership check on private reads |
 | [nova-insights.md](nova-insights.md) | Nova's speech bubble: what it may say, where it reads from, and what it never volunteers |
+| [nova-help.md](nova-help.md) | Nova's help desk: the topic tree, how a typed question is matched and when Nova answers or asks, sending to support by email and to /super, replying and teaching Nova from the console |
 | [walkthrough.md](walkthrough.md) | Nova's walkthrough of the account and a studio: once per sign-in until "don't show this again", where that is stored, how it is turned back on, and why the last step points at Nova |
 | [official-values.md](official-values.md) | A country's registration, tax and address details: one definition file per country, the Owner-only country choice, validation and checksums, the resolver that prints a value only when selected, filled and applicable, the change history, and how to add a country |
 | [pg-gateway.md](pg-gateway.md) | Reaching Cloud SQL from Vercel: the Cloud Run service, one call one transaction, and the guards re-run server-side |

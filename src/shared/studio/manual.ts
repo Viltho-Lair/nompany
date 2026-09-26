@@ -18,10 +18,23 @@ import { quotationsEn, quotationsAr } from "./manualQuotations";
 // than no manual, because somebody acts on it.
 //
 // One module per surface and nothing may enumerate them — see ./shell's header.
+//
+// AND SOME CHAPTERS ARE NOT WRITTEN HERE AT ALL (27/09/2026). A department in
+// `MANUAL_FROM_HELP` (lib/nova/help/manual) is written ONCE, as Nova's help
+// entries, and its chapter is composed from them on the server — Finance first.
+// Do not add a hand-written article for such a department: tests/help-model.mjs
+// refuses it, because the two would be two copies free to disagree. Moving a
+// department over means deleting its article here in the same commit.
 
 /** A paragraph, a plain list, or a numbered sequence somebody follows in order. */
+//
+// `h` is a sub-heading with an anchor of its own. It exists for the chapters
+// COMPOSED FROM NOVA'S HELP ENTRIES (lib/nova/help/manual), where each question
+// is one — and its id is the entry's id, so Nova's "Read in documentation"
+// lands on the paragraph its answer came from.
 export type ManualBlock =
   | { kind: "p"; text: string }
+  | { kind: "h"; id: string; text: string }
   | { kind: "list"; items: readonly string[] }
   | { kind: "steps"; items: readonly string[] };
 

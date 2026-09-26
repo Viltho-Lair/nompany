@@ -52,6 +52,9 @@ export const CONSOLE_GROUPS = [
       { href: `${BASE}/studios`, label: "Studios", icon: "briefcase" },
       { href: `${BASE}/users`, label: "Users", icon: "users" },
       { href: `${BASE}/chat`, label: "Chat", icon: "chat" },
+      // What Nova's help desk could not answer, sent on to support (26/09/2026).
+      // A support queue, so it sits with the customers rather than under Product.
+      { href: `${BASE}/nova/questions`, label: "Nova questions", icon: "help" },
     ],
   },
   {
