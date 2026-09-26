@@ -16,12 +16,13 @@ import { general } from "./kb/general";
 import { sales } from "./kb/sales";
 import { crmSales } from "./kb/crmSales";
 import { quotations } from "./kb/quotations";
+import { maintenance } from "./kb/maintenance";
 import { projectsSide } from "./kb/projectsSide";
 import { operations } from "./kb/operations";
 import { hr } from "./kb/hr";
 import { finance } from "./kb/finance";
 
-export const HELP_MODULES: HelpModule[] = [root, general, crmSales, quotations, sales, projectsSide, operations, hr, finance];
+export const HELP_MODULES: HelpModule[] = [root, general, crmSales, quotations, sales, projectsSide, operations, maintenance, hr, finance];
 
 export const HELP_TOPICS: HelpTopic[] = HELP_MODULES.flatMap((m) => m.topics);
 export const HELP_ENTRIES: HelpEntry[] = HELP_MODULES.flatMap((m) => m.entries);
