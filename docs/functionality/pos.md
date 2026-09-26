@@ -168,6 +168,18 @@ Whoever was on the till before is signed out of it. Five wrong PINs stop that pe
 working at tills and on signatures for fifteen minutes (`checkPinForAct`). A cashier with no PIN
 is told to set one on their account's Security page.
 
+**On a paired device the sign-in page leads with email** (2026-09-26); the till is a button
+beneath it, "Use this browser as <studio>'s till". It led with the cashier screen until then, and
+a browser paired once — somebody's own computer, used to set a till up — opened on "who is
+selling?" for a year; its owner typed the name and PIN they think of as signing in, took over the
+till, and was sent back to it from every studio. A real counter pays one click.
+
+**A device can be unpaired from itself.** The cashier screen (on the sign-in page and behind
+Switch cashier) has **Unpair this browser**: it lists the studio's Point of Sale managers
+(`pos.settings.edit`, the right that unpairs from Settings), and one of them types their PIN
+(`DELETE /api/identity/till`). The till forgets the pairing, the browser forgets its secret, and
+a till session on that browser ends. The till itself stays, ready to pair to another computer.
+
 ## Returns (18/09/2026)
 
 **Where:** Point of Sale → Returns (`pos-returns`), `modules/sales/posReturns.ts` (service),

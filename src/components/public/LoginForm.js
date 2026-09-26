@@ -87,13 +87,19 @@ export default function LoginForm({ locale, dict, providers = [] }) {
   const [form, setForm] = useState({ email: "", password: "", remember: true });
   const sec = securityDict(useAccountLocale());
   const [stage, setStage] = useState("credentials"); // credentials | otp | totp | locked
-  // A PAIRED TILL (18/09/2026): this device is a till, so the cashier's name
-  // and PIN come first and the email sign-in is one click away.
+  // A PAIRED TILL: the email sign-in comes FIRST and the till is a button under
+  // it (26/09/2026). It was the other way round from 18/09/2026, and a browser
+  // paired once — somebody's own computer, used to set a till up — then opened
+  // on "who is selling?" for a year. That screen asks for the same name and PIN
+  // a person thinks of as signing in, so they typed them, took over a
+  // collaborator's till, and every studio they opened sent them back to it. A
+  // real counter pays one click for it.
   const [tillMode, setTillMode] = useState(false);
+  const [pairedStudio, setPairedStudio] = useState("");
   useEffect(() => {
     let alive = true;
     fetch("/api/identity/till", { cache: "no-store" })
-      .then((r) => r.json()).then((d) => { if (alive && d?.till) setTillMode(true); })
+      .then((r) => r.json()).then((d) => { if (alive && d?.till) setPairedStudio(String(d.till.studio?.name || "")); })
       .catch(() => {});
     return () => { alive = false; };
   }, []);
@@ -241,7 +247,8 @@ export default function LoginForm({ locale, dict, providers = [] }) {
       <div key="till" className="auth-panel space-y-5">
         <TillCashierSwitch locale={locale}
           onDone={(slug) => window.location.assign(slug ? `/${slug}/pos-till` : `/${locale}/account`)}
-          onCancel={() => setTillMode(false)} cancelLabel={sec.signInWithEmail} />
+          onCancel={() => setTillMode(false)} cancelLabel={sec.signInWithEmail}
+          onUnpaired={() => { setTillMode(false); setPairedStudio(""); }} />
       </div>
     );
   }
@@ -299,6 +306,12 @@ export default function LoginForm({ locale, dict, providers = [] }) {
           </Link>
         </p>
       </form>
+      {pairedStudio && (
+        <button type="button" onClick={() => setTillMode(true)}
+          className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-sm font-600 text-slate-700 transition-colors hover:border-slate-400 dark:border-white/15 dark:text-slate-200">
+          {sec.useAsTill(pairedStudio)}
+        </button>
+      )}
     </div>
   );
 }
