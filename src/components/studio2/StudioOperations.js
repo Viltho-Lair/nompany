@@ -446,9 +446,11 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
     <section className={panel}>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
-          <button type="button" className={btnGhost} onClick={() => onWeek(weekOffset - 1)}>←</button>
+          {/* The arrows point the way the week moves on the page, which is
+              mirrored in Arabic: "earlier" sits on the right and points right. */}
+          <button type="button" className={btnGhost} onClick={() => onWeek(weekOffset - 1)}><span aria-hidden="true" className="inline-block rtl:-scale-x-100">←</span></button>
           <button type="button" className={btnGhost} onClick={() => onWeek(0)}>{tr.week}</button>
-          <button type="button" className={btnGhost} onClick={() => onWeek(weekOffset + 1)}>→</button>
+          <button type="button" className={btnGhost} onClick={() => onWeek(weekOffset + 1)}><span aria-hidden="true" className="inline-block rtl:-scale-x-100">→</span></button>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           {fmt(dayKey(weekStart))} – {fmt(dayKey(addCalendarDays(weekStart, 6)))}
@@ -466,7 +468,13 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
       {/* TRANSPOSED: days down the side, hours across the top. A week reads as
           seven rows the way a rota is written, and the hour axis gets the wide
           dimension — which is the one that needs the room, since a shift is a
-          span of hours rather than a span of days. */}
+          span of hours rather than a span of days.
+
+          EVERYTHING ON THE HOUR AXIS IS PLACED BY `insetInlineStart`, never
+          `left`: the day column is logical and sits on the right in Arabic, so
+          a physical `left` ran the hours away from their day labels, and the
+          first hour label's half-width overhang poked out of the scroller's
+          left edge — which in RTL is scrollable, so the grid scrolled. */}
       <div className="overflow-x-auto">
         <div className="min-w-[780px]">
           {/* Hour ruler. The first column matches the day labels beneath it so
@@ -477,8 +485,8 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
               {hours.map((h, i) => (
                 <span
                   key={h}
-                  className="absolute -translate-x-1/2 whitespace-nowrap text-[10px] text-slate-400"
-                  style={{ left: `${(i / hours.length) * 100}%` }}
+                  className="absolute -translate-x-1/2 whitespace-nowrap text-[10px] text-slate-400 rtl:translate-x-1/2"
+                  style={{ insetInlineStart: `${(i / hours.length) * 100}%` }}
                 >
                   {String(h).padStart(2, "0")}:00
                 </span>
@@ -505,7 +513,7 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
                 {/* One divider per hour, so the bars can be read against the ruler. */}
                 {hours.map((h, i) => (
                   <div key={h} className="absolute inset-y-0 border-s border-slate-100 dark:border-white/5"
-                    style={{ left: `${(i / hours.length) * 100}%` }} />
+                    style={{ insetInlineStart: `${(i / hours.length) * 100}%` }} />
                 ))}
                 {c.shifts.map((s) => {
                   const geo = barGeometry(s.startTime, s.endTime, [windowFrom, windowTo]);
@@ -515,7 +523,7 @@ function WorkCalendar({ shifts, settings, weekOffset, onWeek }) {
                   return (
                     <div key={s.id} title={`${s.startTime}–${s.endTime} · ${s.alias}${s.locationName ? ` · ${s.locationName}` : ""}`}
                       className="absolute inset-y-1 overflow-hidden rounded-md px-1.5 py-0.5 text-[10px] leading-tight text-slate-800"
-                      style={{ left: `${geo.top}%`, width: `${geo.height}%`, backgroundColor: colourOf(s) }}>
+                      style={{ insetInlineStart: `${geo.top}%`, width: `${geo.height}%`, backgroundColor: colourOf(s) }}>
                       <span className="block truncate font-700">{s.alias}</span>
                       <span className="block truncate">{s.startTime}–{s.endTime}</span>
                     </div>
