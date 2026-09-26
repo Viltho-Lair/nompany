@@ -2,6 +2,13 @@ import Link from "next/link";
 import { miscDict } from "@/shared/studio/misc";
 import { manualDict } from "@/shared/studio/manual";
 import { helpManualArticles } from "@/lib/nova/help/knowledge";
+import { SECTION_DEFS } from "@/platform/db/keys";
+
+// THE SIDEBAR'S ORDER, so the chapters read in the order the departments are
+// listed — not in the order they happened to move to being composed, which
+// would drop CRM & Sales from first to last the day it moved.
+const DEPARTMENT_ORDER = new Map(SECTION_DEFS.map((d, i) => [d.key, i]));
+const byDepartment = (a, b) => (DEPARTMENT_ORDER.get(a.key) ?? 999) - (DEPARTMENT_ORDER.get(b.key) ?? 999);
 import { Icon } from "@/components/studio2/icons";
 
 // The studio manual, full-screen: rendered OUTSIDE StudioFrame, so there is no
@@ -23,7 +30,7 @@ export default function StudioDocs({ studio, locale = "en" }) {
   // composed here, on the server, from the same entries Nova answers with.
   // A SERVER COMPONENT, which is why it may read the knowledge base: that is
   // hundreds of kilobytes a client import would put on every studio page.
-  const articles = [...written, ...helpManualArticles(locale === "ar" ? "ar" : "en")];
+  const articles = [...written, ...helpManualArticles(locale === "ar" ? "ar" : "en")].sort(byDepartment);
 
   return (
     <div className="min-h-screen bg-[var(--geex-page)] text-slate-700 dark:text-slate-300">
