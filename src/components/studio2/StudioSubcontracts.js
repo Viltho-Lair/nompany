@@ -17,9 +17,10 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict, procurementRefusal } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, money, fmtDate, tileRow } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, fmtDate, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { supplierOptions, projectOptions, costCodeOptions, supplierName } from "@/components/studio2/pickerOptions";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 function refusal(tr, token) {
   switch (token) {
@@ -42,6 +43,7 @@ const emptyCharge = () => ({ description: "", amount: "" });
 // `initial` is this screen's own GET body, answered by the studio page in its
 // render, so the screen paints with its rows; absent, it fetches on mount as before.
 export default function StudioSubcontracts({ slug, initial }) {
+  const money = useMoney();
   const tr = procurementDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
@@ -287,8 +289,8 @@ export default function StudioSubcontracts({ slug, initial }) {
               <Field label={tr.subcontractor} as="select" required value={form.vendorId || ""}
                 onChange={(v) => setForm((f) => ({ ...f, vendorId: v }))}
                 options={supplierOptions(pickers)} />
-              <Field label={tr.packageValue} type="number" value={form.value ?? ""}
-                onChange={(v) => setForm((f) => ({ ...f, value: v }))} inputProps={{ step: "0.01" }} />
+              <Field currency label={tr.packageValue} type="number" value={form.value ?? ""}
+                onChange={(v) => setForm((f) => ({ ...f, value: v }))} inputProps={{ step: "any" }} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={tr.project} as="select" value={form.projectId || ""}
@@ -346,9 +348,9 @@ export default function StudioSubcontracts({ slug, initial }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={tr.periodEnd} type="date" value={valuing.periodEnd}
                 onChange={(v) => setValuing((f) => ({ ...f, periodEnd: v }))} />
-              <Field label={tr.cumulativeValue} type="number" value={valuing.cumulativeValue}
+              <Field currency label={tr.cumulativeValue} type="number" value={valuing.cumulativeValue}
                 onChange={(v) => setValuing((f) => ({ ...f, cumulativeValue: v }))}
-                inputProps={{ step: "0.01" }} />
+                inputProps={{ step: "any" }} />
             </div>
             {/* THE HINT IS LOAD-BEARING. A field labelled "value" invites the
                 amount for this period, which is exactly the number that must
@@ -367,7 +369,7 @@ export default function StudioSubcontracts({ slug, initial }) {
                       if (i === rows.length - 1 && e.target.value.trim()) rows.push(emptyCharge());
                       return { ...f, backCharges: rows };
                     })} />
-                  <input type="number" step="0.01"
+                  <input type="number" step="any"
                     className="num w-full rounded-lg border border-slate-200 px-2 py-1 text-end text-sm dark:border-white/10 dark:bg-transparent"
                     aria-label={tr.backChargeAmount} value={b.amount}
                     onChange={(e) => setValuing((f) => ({

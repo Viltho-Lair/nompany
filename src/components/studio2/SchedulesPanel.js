@@ -5,8 +5,8 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { moneyText } from "@/shared/money";
 import { schedulesDict } from "@/shared/studio/schedules";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // LEDGER → SCHEDULES (modules/finance/schedules). Revenue over time and
 // prepayments: a schedule moves its amount out of the P&L on its day, and a
@@ -17,6 +17,7 @@ const primary = "rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white d
 const blank = { kind: "revenue", accountId: "", amount: "", from: "", months: "12", deferredOn: "", description: "", reference: "" };
 
 export default function SchedulesPanel({ slug, locale }) {
+  const money = useMoney();
   const tr = schedulesDict(locale);
   const [data, setData] = useState(null);
   const [problem, setProblem] = useState("");
@@ -66,10 +67,10 @@ export default function SchedulesPanel({ slug, locale }) {
                 <span className="font-600 text-slate-900 dark:text-white">{s.description || s.reference || tr.kinds[s.kind]}</span>
                 {s.reference && <span className="font-mono text-xs text-slate-400">{s.reference}</span>}
                 <span className="text-xs text-slate-500 dark:text-slate-400">{tr.kinds[s.kind]} · {accountName(s.accountId)} · {tr.window(s.from, s.to)}</span>
-                <span className="num ms-auto">{moneyText(s.amount)}</span>
+                <span className="num ms-auto">{money(s.amount)}</span>
               </div>
               <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                {s.status === "cancelled" ? tr.cancelled : tr.progress(s.monthsDone, s.months, moneyText(s.recognised), moneyText(s.remaining))}
+                {s.status === "cancelled" ? tr.cancelled : tr.progress(s.monthsDone, s.months, money(s.recognised), money(s.remaining))}
                 {s.status === "active" && !s.deferred && <span className="ms-2 text-amber-700 dark:text-amber-300">{tr.notDeferred}</span>}
               </p>
               {canPost && s.status === "active" && s.monthsDone === 0 && (
@@ -90,7 +91,7 @@ export default function SchedulesPanel({ slug, locale }) {
           <Field label={tr.account} as="select" className="w-64" value={draft.accountId}
             options={kindAccounts(draft.kind).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))}
             onChange={(v) => setDraft({ ...draft, accountId: v })} />
-          <Field label={tr.amount} type="number" className="w-36" value={draft.amount} onChange={(v) => setDraft({ ...draft, amount: v })} />
+          <Field currency label={tr.amount} type="number" className="w-36" value={draft.amount} onChange={(v) => setDraft({ ...draft, amount: v })} />
           <Field label={tr.from} type="month" className="w-44" value={draft.from} onChange={(v) => setDraft({ ...draft, from: v })} />
           <Field label={tr.months} type="number" className="w-28" value={draft.months} onChange={(v) => setDraft({ ...draft, months: v })} />
           <Field label={tr.deferredOn} type="date" className="w-44" value={draft.deferredOn} onChange={(v) => setDraft({ ...draft, deferredOn: v })} />
@@ -123,7 +124,7 @@ export default function SchedulesPanel({ slug, locale }) {
               <li key={`${r.scheduleId}:${r.period}`} className="flex flex-wrap gap-2 text-slate-700 dark:text-slate-200">
                 <span className="font-mono text-xs text-slate-400">{r.period}</span>
                 <span>{r.description}</span>
-                <span className="num ms-auto">{moneyText(r.share)}</span>
+                <span className="num ms-auto">{money(r.share)}</span>
                 <span className={`text-xs ${r.state === "posted" ? "text-emerald-600 dark:text-emerald-300" : r.state === "due" ? "text-slate-500" : "text-amber-700 dark:text-amber-300"}`}>{tr.state(r.state)}</span>
               </li>
             ))}

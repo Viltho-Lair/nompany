@@ -18,8 +18,9 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, Empty, Dialog, microLabel, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, Empty, Dialog, microLabel, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 function refusal(tr, token) {
   switch (token) {
@@ -52,6 +53,7 @@ const SERIOUS = new Set(["over-billed", "billed-not-received", "over-received"])
 
 /** NULL IS NOT NOUGHT. A withheld or absent figure is a dash, never a zero. */
 function Figure({ value, fallback }) {
+  const money = useMoney();
   if (value === null || value === undefined) {
     return <span className="text-slate-400">{fallback || "—"}</span>;
   }
@@ -61,6 +63,7 @@ function Figure({ value, fallback }) {
 // `initial` is this screen's own GET body, answered by the studio page in its
 // render, so the screen paints with its rows; absent, it fetches on mount as before.
 export default function StudioReceiving({ slug, initial }) {
+  const money = useMoney();
   const tr = procurementDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");

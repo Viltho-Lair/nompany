@@ -9,10 +9,10 @@ import { schedulesDict } from "@/shared/studio/schedules";
 import { allocationsDict } from "@/shared/studio/allocations";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { moneyText } from "@/shared/money";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import FinanceSetupNotice from "@/components/studio2/FinanceSetupNotice";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 const btn = "rounded-full bg-brand-600 px-4 py-2 text-sm font-600 text-white hover:bg-brand-700 disabled:opacity-50";
 const btnGhost = "rounded-full border border-slate-200 px-4 py-2 text-sm font-600 text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/5";
@@ -55,12 +55,12 @@ const AllocationsPanel = nextDynamic(() => import("@/components/studio2/Allocati
 
 // Through shared/money, which shows a currency's own decimals: this was fixed
 // at two places and hid the third decimal of every dinar amount.
-const money = (n) => moneyText(n);
 
 // `initial` is the /finance/ledger body the studio page answered in its own
 // render (handed down through StudioFinance), so the trial balance paints at
 // once; absent, it fetches on mount exactly as before.
 export default function StudioLedger({ slug, initial }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = ledgerDict(locale);
   const [data, setData] = useState(initial ?? null);
@@ -201,6 +201,7 @@ export default function StudioLedger({ slug, initial }) {
 // chip says so before anybody presses Post, in whole minor units so a float
 // crumb never reads as "out by 0.00". Retired accounts are not offered.
 function EntryForm({ slug, accounts, tr, onPosted }) {
+  const money = useMoney();
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [memo, setMemo] = useState("");
@@ -230,8 +231,8 @@ function EntryForm({ slug, accounts, tr, onPosted }) {
           <div key={i} className="grid gap-2 sm:grid-cols-[1fr_9rem_9rem_auto]">
             <Field label={tr.account} as="select" value={l.accountId} onChange={(v) => set(i, "accountId", v)}
               options={[{ value: "", label: tr.chooseAccount }, ...live.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))]} />
-            <Field label={tr.debit} type="number" value={l.debit} onChange={(v) => set(i, "debit", v)} />
-            <Field label={tr.credit} type="number" value={l.credit} onChange={(v) => set(i, "credit", v)} />
+            <Field currency label={tr.debit} type="number" value={l.debit} onChange={(v) => set(i, "debit", v)} />
+            <Field currency label={tr.credit} type="number" value={l.credit} onChange={(v) => set(i, "credit", v)} />
             <button className={`${btnGhost} self-end`} disabled={lines.length <= 2}
               onClick={() => setLines((ls) => ls.filter((_, j) => j !== i))} aria-label="remove">×</button>
           </div>
@@ -287,6 +288,7 @@ function ReverseButton({ slug, entry, tr, onDone }) {
 // THE CHART, WITH ITS BALANCES. A retired account stays listed — its postings
 // are history — and says so. Every refusal comes back in words.
 function AccountsPanel({ slug, accounts, rows, canEdit, tr, onSaved }) {
+  const money = useMoney();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState("");

@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { executiveDict } from "@/shared/studio/executive";
 import { Field } from "@/components/fields/Field";
 import { fmtDate } from "@/lib/format";
+import { moneyText } from "@/shared/money";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useReload } from "@/components/studio2/useReload";
 import { useWidgetGate } from "@/components/studio2/analyticsLevel";
@@ -120,9 +121,12 @@ export default function ExecutiveBoard({ slug, locale = "en" }) {
                 <p className="num mt-1 text-2xl font-800 text-slate-900 dark:text-white">
                   {t.unit === "count"
                     ? t.value
-                    : t.value.toLocaleString(locale === "ar" ? "ar" : "en-GB",
-                      // Up to three places: a dinar amount keeps its third decimal.
-                      { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
+                    // Money in its currency's own decimals — 1.200 JOD, 1,200 JPY.
+                    // This was a fixed two-to-three places whatever the currency.
+                    : t.unit === "money"
+                      ? moneyText(t.value, currency, locale === "ar" ? "ar" : "en-GB")
+                      : t.value.toLocaleString(locale === "ar" ? "ar" : "en-GB",
+                        { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
                   {unitOf(t) && (
                     <span className="ms-1 text-xs font-600 text-slate-400 dark:text-slate-500">
                       {unitOf(t)}

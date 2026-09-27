@@ -4,11 +4,12 @@ import { useCallback, useState } from "react";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { Icon } from "@/components/studio2/icons";
-import { panel, h2, sub, microLabel, money, fmtDate, StatTile, tileRow } from "@/components/studio2/ui";
+import { panel, h2, sub, microLabel, fmtDate, StatTile, tileRow } from "@/components/studio2/ui";
 import { mainDict } from "@/shared/studio/main";
 import { useStudioLocale as useLocale } from "@/components/studio2/locale";
 import { useReload } from "@/components/studio2/useReload";
 import nextDynamic from "next/dynamic";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -31,6 +32,7 @@ const FEED_ICON = { ticket: "ticket", quotation: "report", project: "blueprint",
 // render, so the front door paints with its figures rather than a second
 // skeleton. Absent — refused, or over the payload ceiling — it fetches as before.
 export default function StudioMain({ slug, initial }) {
+  const money = useMoney();
   const locale = useLocale();
   const tr = mainDict(locale);
   // The feed names the KIND of record that moved. A fixed four, defined by the

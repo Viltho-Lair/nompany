@@ -5,8 +5,9 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { useReload } from "@/components/studio2/useReload";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // PROGRESS CLAIMS ON THE BILLING TAB — tier 6. Apply for the quantity of every
 // bill line done to date, record what the client certifies, then raise the
@@ -19,6 +20,7 @@ import { Field } from "@/components/fields/Field";
 const td = "px-3 py-2";
 
 export default function ProgressClaimsPanel({ slug, projectId }) {
+  const money = useMoney();
   const tr = projectsDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");

@@ -5,8 +5,8 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { periodsDict } from "@/shared/studio/periods";
 import { useReload } from "@/components/studio2/useReload";
-import { moneyText } from "@/shared/money";
 
+import { useMoney } from "@/components/studio2/studioCurrency";
 // A MONTH THAT IS FINISHED WITH.
 //
 // Every entry in this ledger has always been postable into any month, so a
@@ -209,10 +209,10 @@ export default function PeriodsPanel({ slug, locale = "en" }) {
 // Retained Earnings on that day and the twelve months lock behind it. The
 // preview says what would move before anybody presses anything.
 function YearEnd({ slug, tr, years, canClose, busy, send }) {
+  const money = useMoney();
   const [endMonth, setEndMonth] = useState(years.suggest || "");
   const [preview, setPreview] = useState(years.preview);
   const [reopening, setReopening] = useState(null);
-  const money = (n) => moneyText(n);
   // A YEAR ALREADY CLOSED offers no close and no preview: the preview was read
   // before the close and would otherwise stand under it, describing the past.
   const closedNow = (years.closed || []).some((y) => y.endMonth === endMonth);

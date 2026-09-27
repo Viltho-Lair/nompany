@@ -13,7 +13,7 @@
 // (which names what it would show) instead of the number. The KPI row is the free
 // floor everyone gets; the gated widgets carry their registry keys.
 
-import { money, StatTile } from "@/components/studio2/ui";
+import { StatTile } from "@/components/studio2/ui";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { technicalDict } from "@/shared/studio/technical";
 import { Widget, StatRow, DashGrid, DonutLegend } from "@/components/dashboard";
@@ -21,27 +21,21 @@ import { AreaChart, BarList, ComboChart, Donut, HeatGrid, Radial, Scatter, Spark
 import {
   monthsBack, monthLabel, sumByMonth, countByMonth, weeksBack, weekdayHeat, weekdayLabels, shortDay,
 } from "@/components/dashboard/series";
-import { CurrencySymbol } from "@/components/Currency";
 import {
   quotationStats, rfqFunnel, urgencyBreakdown, handlerLeaderboard,
   quotationTimeline, completionScatter, averageTurnaround, quotationValue,
 } from "@/modules/technical/technicalAnalytics";
 import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 const NoData = ({ text }) => (
   <p className="py-8 text-center text-sm text-slate-400">{text}</p>
 );
 
-// The currency glyph before an amount, when the studio has one configured.
 // "technical.rfq-funnel" below (lib/dashboardWidgets.ts) is a FROZEN widget
 // key that happens to start with the exact substring of the P0 restructure's
 // retired RFQ permission key — a widget key is not a permission key.
 // tests/restructure.mjs's KNOWN_COLLISIONS allowlist knows about this one.
-
-function CurrencyGlyph({ currency }) {
-  if (!currency) return null;
-  return <span className="me-0.5 text-slate-400"><CurrencySymbol code={currency} /></span>;
-}
 
 export default function TechnicalDashboard({
   rfqs = [],
@@ -52,6 +46,7 @@ export default function TechnicalDashboard({
   handlerName = (v) => v || "—",
   currency = "",
 }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = technicalDict(locale);
   // Tier AND the studio's switches: a card whose section is off is not drawn.
@@ -76,7 +71,9 @@ export default function TechnicalDashboard({
   const urgencyTotal = urgency.reduce((a, u) => a + u.value, 0);
   const approvedPct = value.all > 0 ? Math.round((value.approved / value.all) * 100) : 0;
 
-  const amt = (n) => <span className="num"><CurrencyGlyph currency={currency} />{money(n)}</span>;
+  // The code follows the amount now (useMoney) — the glyph in front of it went
+  // when every figure in the studio started carrying its currency.
+  const amt = (n) => <span className="num">{money(n, currency)}</span>;
 
   // ---- the richer half (10/09/2026) ---------------------------------------
   const rtl = locale === "ar";

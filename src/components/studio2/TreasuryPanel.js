@@ -5,6 +5,7 @@ import { Field } from "@/components/fields/Field";
 import { treasuryDict } from "@/shared/studio/treasury";
 import { useReload } from "@/components/studio2/useReload";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // CASH THAT HAS NOT MOVED YET.
 //
@@ -21,6 +22,7 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 // render, handed down by Cash & Bank to the tab it opens on and only on its
 // first mount; absent, the panel fetches on mount exactly as before.
 export default function TreasuryPanel({ slug, locale = "en", initial }) {
+  const money = useMoney();
   const tr = treasuryDict(locale);
   const [data, setData] = useState(initial ?? null);
   const [problem, setProblem] = useState("");
@@ -62,7 +64,9 @@ export default function TreasuryPanel({ slug, locale = "en", initial }) {
   const settleOptions = (direction) => (direction === "in" ? settleable.invoices : settleable.bills)
     .map((d) => ({ value: d.id, label: `${d.reference} — ${d.party} (${n(d.outstanding)})` }));
   const refOf = (c) => c.documentRef || "";
-  const n = (v) => new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(Number(v) || 0);
+  // THE STUDIO'S CURRENCY, WITH ITS DECIMALS. This was its own formatter at
+  // nought places, which cut the fils off every balance and named no currency.
+  const n = (v) => money(Number(v) || 0);
 
   return (
     <div className="space-y-6">
@@ -108,7 +112,7 @@ export default function TreasuryPanel({ slug, locale = "en", initial }) {
               <Field label={tr.transferTo} as="select" value={transfer.toAccountId}
                 onChange={(v) => setTransfer((t) => ({ ...t, toAccountId: v }))}
                 options={accounts.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))} />
-              <Field label={tr.amount} type="number" value={transfer.amount} onChange={(v) => setTransfer((t) => ({ ...t, amount: v }))} />
+              <Field currency label={tr.amount} type="number" value={transfer.amount} onChange={(v) => setTransfer((t) => ({ ...t, amount: v }))} />
               <Field label={tr.date} type="date" value={transfer.date} onChange={(v) => setTransfer((t) => ({ ...t, date: v }))} />
               <Field label={tr.memo} value={transfer.memo} onChange={(v) => setTransfer((t) => ({ ...t, memo: v }))} />
               <div className="flex gap-2 sm:col-span-2 lg:col-span-3">
@@ -198,7 +202,7 @@ export default function TreasuryPanel({ slug, locale = "en", initial }) {
               value={cheque.party} onChange={(v) => setCheque({ ...cheque, party: v })} />
             <Field label={tr.number} required className="w-full sm:w-32"
               value={cheque.number} onChange={(v) => setCheque({ ...cheque, number: v })} />
-            <Field label={tr.amount} type="number" className="w-full sm:w-32"
+            <Field currency label={tr.amount} type="number" className="w-full sm:w-32"
               value={cheque.amount} onChange={(v) => setCheque({ ...cheque, amount: v })} />
             <Field label={tr.dueOn} type="date" className="w-full sm:w-40"
               value={cheque.dueOn} onChange={(v) => setCheque({ ...cheque, dueOn: v })} />
@@ -316,9 +320,9 @@ export default function TreasuryPanel({ slug, locale = "en", initial }) {
               value={guarantee.reference} onChange={(v) => setGuarantee({ ...guarantee, reference: v })} />
             <Field label={tr.beneficiary} required className="w-full sm:w-52"
               value={guarantee.beneficiary} onChange={(v) => setGuarantee({ ...guarantee, beneficiary: v })} />
-            <Field label={tr.amount} type="number" className="w-full sm:w-32"
+            <Field currency label={tr.amount} type="number" className="w-full sm:w-32"
               value={guarantee.amount} onChange={(v) => setGuarantee({ ...guarantee, amount: v })} />
-            <Field label={tr.margin} type="number" className="w-full sm:w-32"
+            <Field currency label={tr.margin} type="number" className="w-full sm:w-32"
               value={guarantee.margin} onChange={(v) => setGuarantee({ ...guarantee, margin: v })} />
             <Field label={tr.expiresOn} type="date" required className="w-full sm:w-40"
               value={guarantee.expiresOn} onChange={(v) => setGuarantee({ ...guarantee, expiresOn: v })} />

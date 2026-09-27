@@ -6,7 +6,8 @@ import { Field } from "@/components/fields/Field";
 import { lifecycleDict } from "@/shared/studio/lifecycle";
 import { useReload } from "@/components/studio2/useReload";
 import { StatusPill } from "@/components/studio2/StatusPill";
-import { panel, btn, btnGhost, th, Dialog, Empty, StatTile, microLabel, fmtDate, money } from "@/components/studio2/ui";
+import { panel, btn, btnGhost, th, Dialog, Empty, StatTile, microLabel, fmtDate } from "@/components/studio2/ui";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // LIFECYCLE & CONTRACTS — the employment, as against the person.
 //
@@ -203,6 +204,7 @@ function Attention({ rows, tr, onOpen }) {
 
 // ---- one person's employment -------------------------------------------------------
 function PersonPanel({ person, contracts, events, tr, data, pack, onClose, onAct }) {
+  const money = useMoney();
   const mine = useMemo(
     () => contracts.filter((c) => c.collaboratorId === person.collaboratorId)
       .sort((a, b) => b.startDate.localeCompare(a.startDate)),
@@ -433,7 +435,7 @@ function MoveDialog({ tr, move, person, vocabulary, slug, busy, canSeePay, onClo
         )}
         {move === "exit" && (
           <>
-            <Field label={tr.deductions} type="number" min={0} value={form.deductions}
+            <Field currency label={tr.deductions} type="number" min={0} value={form.deductions}
               onChange={(v) => set("deductions", v)} disabled={!canSeePay} />
             {canSeePay
               ? <SettlementPreview slug={slug} tr={tr}
@@ -493,6 +495,7 @@ function RecordDialog({ tr, type, person, departments, busy, onClose, onSave }) 
 // usually negotiating that date. The server writes nothing; the stored copy is
 // the snapshot the exit itself takes.
 function SettlementPreview({ slug, tr, collaboratorId, lastWorkingDay, reason, deductions }) {
+  const money = useMoney();
   const [state, setState] = useState(null);
   const [failed, setFailed] = useState("");
 

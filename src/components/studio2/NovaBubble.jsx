@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { bubbleDict, insightCopy, rankForView } from "@/shared/studio/insights";
-import { fmtMoney } from "@/lib/format";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // NOVA SPEAKS FIRST — a speech bubble beside the launcher, every two minutes.
 //
@@ -48,6 +48,8 @@ const toneClass = {
 };
 
 export default function NovaBubble({ slug, view = "", besideChat = false, suspended = false, onAsk }) {
+  // The studio's currency: `fmtMoney` read a config nothing ever set.
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = bubbleDict(locale);
   const [insights, setInsights] = useState(() => (cache && cache.slug === slug ? cache.insights : []));
@@ -84,8 +86,8 @@ export default function NovaBubble({ slug, view = "", besideChat = false, suspen
   // another read. A kind this build cannot render is dropped here rather than at
   // draw time, so it never costs a turn of the rotation.
   const queue = useMemo(
-    () => rankForView(insights, view).filter((i) => insightCopy(i.kind, i.vars, locale, fmtMoney)),
-    [insights, view, locale],
+    () => rankForView(insights, view).filter((i) => insightCopy(i.kind, i.vars, locale, money)),
+    [insights, view, locale, money],
   );
 
   // A new ranking is a new rotation: whatever the screen is about should be the
@@ -135,7 +137,7 @@ export default function NovaBubble({ slug, view = "", besideChat = false, suspen
   // runs after this render, so for one frame `shown` still holds a sentence the
   // panel is now sitting on top of.
   if (suspended || !shown) return null;
-  const copy = insightCopy(shown.kind, shown.vars, locale, fmtMoney);
+  const copy = insightCopy(shown.kind, shown.vars, locale, money);
   if (!copy) return null;
 
   const dismiss = () => { setShown(null); setSnoozedUntil(Date.now() + SNOOZE_MS); };

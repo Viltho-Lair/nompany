@@ -1,7 +1,8 @@
 "use client";
 
-import { money, fmtDate, btn, btnGhost } from "@/components/studio2/ui";
+import { fmtDate, btn, btnGhost } from "@/components/studio2/ui";
 import { useStudioLocale } from "@/components/studio2/locale";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // ONE PERSON'S PAYSLIP, as a sheet to print — from the line the payroll run
 // FROZE (modules/hr/payrollService `payslipDocument`), so a reprint in a year
@@ -36,6 +37,7 @@ function Row({ label, value, strong = false, negative = false }) {
 }
 
 export default function PayslipSheet({ slip, tr, onClose }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const { line, employer } = slip;
   const cur = slip.currency;

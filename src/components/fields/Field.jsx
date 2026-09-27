@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 
 import SelectMenu from "@/components/fields/SelectMenu";
+import { useStudioCurrency } from "@/components/studio2/studioCurrency";
 
 // THE ONE FIELD for every studio form (UI/UX overhaul §2.2 / §3.2).
 //
@@ -87,7 +88,12 @@ export function Field({
   disabled = false,
   readOnly = false,   // a stamped, non-editable value shown in the field's box
   prefix,             // e.g. a currency glyph, rendered at the inline-start
-  suffix,             // the same at the inline-END — clear of the floating label
+  suffix: suffixProp, // the same at the inline-END — clear of the floating label
+  // AN AMOUNT SAYS WHAT IT IS IN. `currency` alone is the studio's (from the
+  // studio layout's context); a code — `currency={bill.currency}` — is that
+  // record's own. Shown as the suffix unless one is given. Outside a studio
+  // there is no studio currency and a bare `currency` shows nothing.
+  currency,
   spinner = true,     // false hides a number input's up/down arrows
   filled: filledProp, // for wrapped children (Combo/date): does it have a value?
   children,           // a control to wrap (Combo, StudioDate); label floats over it
@@ -98,6 +104,9 @@ export function Field({
   inputProps = {},
 }) {
   const id = useId();
+  const studioCurrency = useStudioCurrency();
+  const code = currency === true ? studioCurrency : String(currency || "").trim().toUpperCase();
+  const suffix = suffixProp ?? (code || null);
   const [focused, setFocused] = useState(false);
 
   const wrapping = children != null;

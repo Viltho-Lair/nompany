@@ -5,8 +5,8 @@ import { Field } from "@/components/fields/Field";
 import { useReload } from "@/components/studio2/useReload";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { moneyText } from "@/shared/money";
 import { budgetsDict } from "@/shared/studio/budgets";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // FINANCE → BUDGETS (modules/finance/budgets). Every budget with its variance,
 // computed on the server by the same P&L the Reports screen draws. A line with
@@ -23,6 +23,7 @@ const lastMonth = (from) => {
 // render (handed down through StudioFinance), so the budgets paint at once;
 // absent, the panel fetches on mount exactly as before.
 export default function BudgetsPanel({ slug, locale, initial }) {
+  const money = useMoney();
   const tr = budgetsDict(locale);
   const [data, setData] = useState(initial ?? null);
   const [problem, setProblem] = useState("");
@@ -86,7 +87,7 @@ export default function BudgetsPanel({ slug, locale, initial }) {
               <Field label={tr.account} as="select" className="w-72" value={l.accountId}
                 options={accounts.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))}
                 onChange={(v) => setEditing({ ...editing, lines: editing.lines.map((x, n) => (n === i ? { ...x, accountId: v } : x)) })} />
-              <Field label={tr.annual} type="number" className="w-40" value={l.annual}
+              <Field currency label={tr.annual} type="number" className="w-40" value={l.annual}
                 onChange={(v) => setEditing({ ...editing, lines: editing.lines.map((x, n) => (n === i ? { ...x, annual: v } : x)) })} />
               {editing.lines.length > 1 && (
                 <button className={ghost} onClick={() => setEditing({ ...editing, lines: editing.lines.filter((_, n) => n !== i) })}>×</button>
@@ -135,20 +136,20 @@ export default function BudgetsPanel({ slug, locale, initial }) {
                         <span className="font-mono text-xs text-slate-400">{row.code}</span> {row.name}
                         {row.unbudgeted && <span className="ms-2 text-xs text-amber-700 dark:text-amber-300">{tr.unbudgeted}</span>}
                       </td>
-                      <td className="num py-1.5 pe-3">{moneyText(row.year)}</td>
-                      <td className="num py-1.5 pe-3">{moneyText(row.budget)}</td>
-                      <td className="num py-1.5 pe-3">{moneyText(row.actual)}</td>
+                      <td className="num py-1.5 pe-3">{money(row.year)}</td>
+                      <td className="num py-1.5 pe-3">{money(row.budget)}</td>
+                      <td className="num py-1.5 pe-3">{money(row.actual)}</td>
                       <td className={`num py-1.5 pe-3 ${row.adverse ? "font-600 text-rose-600 dark:text-rose-300" : "text-emerald-700 dark:text-emerald-300"}`}
                         title={row.adverse ? tr.adverse : ""}>
-                        {moneyText(row.variance)}
+                        {money(row.variance)}
                       </td>
                     </tr>
                   ))}
                   {[[tr.income, r.totals.incomeBudget, r.totals.incomeActual], [tr.expense, r.totals.expenseBudget, r.totals.expenseActual],
                     [tr.result, r.totals.resultBudget, r.totals.resultActual]].map(([label, bud, act]) => (
                     <tr key={label} className="border-t border-slate-200 font-600 text-slate-900 dark:border-white/15 dark:text-white">
-                      <td className="py-1.5 pe-3">{label}</td><td /><td className="num py-1.5 pe-3">{moneyText(bud)}</td>
-                      <td className="num py-1.5 pe-3">{moneyText(act)}</td><td className="num py-1.5 pe-3">{moneyText(act - bud)}</td>
+                      <td className="py-1.5 pe-3">{label}</td><td /><td className="num py-1.5 pe-3">{money(bud)}</td>
+                      <td className="num py-1.5 pe-3">{money(act)}</td><td className="num py-1.5 pe-3">{money(act - bud)}</td>
                     </tr>
                   ))}
                 </tbody>

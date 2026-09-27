@@ -20,9 +20,10 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict } from "@/shared/studio/sales";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money, fmtDate, tileRow } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, fmtDate, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // A heading and its rows, or a sentence saying there are none. Written once
 // because this page is six of them and the alternative is six near-copies that
@@ -68,6 +69,7 @@ function Row({ href, code, title, pill, right, sub: subline }) {
 // paints at once. It seeds the FIRST customer only: clicking through to another
 // changes the reader, and that one is fetched exactly as before.
 export default function StudioCustomer({ slug, clientId, initial }) {
+  const money = useMoney();
   const tr = salesDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
@@ -309,7 +311,7 @@ export default function StudioCustomer({ slug, clientId, initial }) {
           {quotations.map((q) => (
             <Row key={q.id} code={q.number || q.id} title={q.title}
               pill={<StatusPill kind="quotation" status={q.status} />}
-              right={q.total ? `${money(q.total)} ${q.currency}` : ""} />
+              right={q.total ? money(q.total, q.currency) : ""} />
           ))}
         </Block>
       )}
@@ -327,8 +329,8 @@ export default function StudioCustomer({ slug, clientId, initial }) {
               // what a project manager needs. The delta is drawn only when
               // there is one: "+ 0" is noise on the majority of contracts.
               right={c.delta
-                ? `${money(c.current)} ${c.currency} (${c.delta > 0 ? "+" : "−"}${money(Math.abs(c.delta))})`
-                : `${money(c.current)} ${c.currency}`} />
+                ? `${money(c.current, c.currency)} (${c.delta > 0 ? "+" : "−"}${money(Math.abs(c.delta), c.currency)})`
+                : money(c.current, c.currency)} />
           ))}
         </Block>
       )}
@@ -351,9 +353,9 @@ export default function StudioCustomer({ slug, clientId, initial }) {
                 <Field label={tr.rateItem} as="select" value={r.itemId}
                   onChange={(v) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, itemId: v } : x)))}
                   options={(data.catalogue || []).map((c) => ({ value: c.id, label: c.name }))} />
-                <Field label={tr.ratePrice} type="number" value={r.unitPrice}
+                <Field currency label={tr.ratePrice} type="number" value={r.unitPrice}
                   onChange={(v) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, unitPrice: v } : x)))}
-                  inputProps={{ step: "0.01", min: "0" }} />
+                  inputProps={{ step: "any", min: "0" }} />
                 <Field label={tr.rateNote} value={r.note || ""}
                   onChange={(v) => setDraft((d) => d.map((x, j) => (j === i ? { ...x, note: v } : x)))}
                   inputProps={{ maxLength: 200 }} />

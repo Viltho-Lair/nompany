@@ -15,7 +15,7 @@ import { useMemo, useState } from "react";
 import nextDynamic from "next/dynamic";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate, fmtDateTime, money } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate, fmtDateTime } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import {
   PRIORITIES, ORDER_TYPES, ORDER_MOVES, HOLD_REASONS, LABOUR_KINDS,
@@ -26,6 +26,7 @@ import {
   useMaintenance, Chip, priorityTone, Links, PhotoStrip, PhotoField, PeoplePicker, pickOptions,
   toLocalInput, fromLocalInput,
 } from "@/components/studio2/maintenanceParts";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // BEHIND A REAL LAZY BOUNDARY — `import()` from a client module, so nobody pays
 // for the map until they switch to it.
@@ -84,6 +85,7 @@ const pill = (on) => `rounded-full px-3 py-1 text-sm font-600 transition-colors 
 
 // `initial` is this screen's own GET body from the studio page (useMaintenance).
 export default function StudioWorkOrders({ slug, initial }) {
+  const money = useMoney();
   const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/orders", initial);
   // The orders and their time entries are this section's rows; the request
   // each order answers is shown by reference, and requests are written under
@@ -122,7 +124,7 @@ export default function StudioWorkOrders({ slug, initial }) {
     orders = [], pickers = {}, me, asOf, failureCodes = {}, canCreate, canEdit, canDelete,
     canIssue, stockItems = [], currency = "",
   } = data;
-  const amount = (n) => `${money(n || 0)}${currency ? ` ${currency}` : ""}`;
+  const amount = (n) => money(n || 0, currency);
   const codeOptions = (list = [], none = "") => [{ value: "", label: none }, ...list.map((v) => ({ value: v, label: v }))];
   const open = orders.filter(orderOpen);
   const mine = open.filter((o) => (o.assignedToCollaboratorIds || []).includes(me));

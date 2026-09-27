@@ -5,9 +5,9 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { moneyText } from "@/shared/money";
 import { fmtDate } from "@/lib/format";
 import { paymentRunDict } from "@/shared/studio/paymentRun";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // PAYABLES → PAYMENT RUN (modules/finance/paymentRun). The approved bills due
 // by a date; the chosen ones paid together, each through the bill's own pay
@@ -15,6 +15,7 @@ import { paymentRunDict } from "@/shared/studio/paymentRun";
 const th = "py-2 text-start text-[12px] font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500";
 
 export default function PaymentRunPanel({ slug, locale }) {
+  const money = useMoney();
   const tr = paymentRunDict(locale);
   const [dueBy, setDueBy] = useState("");
   const [payOn, setPayOn] = useState("");
@@ -84,7 +85,7 @@ export default function PaymentRunPanel({ slug, locale }) {
                     {c.held && <span className="ms-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-600 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">{tr.held}</span>}
                   </td>
                   <td className="py-2 pe-3">{c.dueDate ? fmtDate(c.dueDate) : tr.undated}</td>
-                  <td className="num py-2 pe-3">{moneyText(c.outstanding, c.currency)}</td>
+                  <td className="num py-2 pe-3">{money(c.outstanding, c.currency)}</td>
                 </tr>
               ))}
             </tbody>
@@ -97,7 +98,7 @@ export default function PaymentRunPanel({ slug, locale }) {
           <Field label={tr.from} as="select" required className="w-56" value={accountId}
             options={[{ value: "", label: tr.defaultBank }, ...moneyAccounts.filter((a) => a.code !== "1010").map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))]} onChange={setAccountId} />
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            {tr.total}: {Object.entries(totals).map(([cur, n]) => moneyText(n, cur)).join(" + ") || moneyText(0)}
+            {tr.total}: {Object.entries(totals).map(([cur, n]) => money(n, cur)).join(" + ") || money(0)}
           </p>
           <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white disabled:opacity-50"
             disabled={busy || chosen.length === 0} onClick={pay}>{tr.pay(chosen.length)}</button>
@@ -114,7 +115,7 @@ export default function PaymentRunPanel({ slug, locale }) {
                   <p>{tr.runOn(fmtDate(r.date), paid, r.lines.length - paid)}</p>
                   <ul className="ms-4 text-xs text-slate-500 dark:text-slate-400">
                     {r.lines.map((l) => (
-                      <li key={l.billId}>{l.reference} {l.vendorName} · {moneyText(l.amount, l.currency)} · {tr.outcome(l.outcome)}</li>
+                      <li key={l.billId}>{l.reference} {l.vendorName} · {money(l.amount, l.currency)} · {tr.outcome(l.outcome)}</li>
                     ))}
                   </ul>
                 </li>

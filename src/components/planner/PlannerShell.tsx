@@ -27,7 +27,8 @@ import { TaskTable, TaskTableHeader } from './TaskTable';
 import { TemplateDialog } from './TemplateDialog';
 import { Toolbar } from './Toolbar';
 import { PlannerReadOnlyContext } from './ReadOnlyContext';
-import { cn, formatCurrency, formatMediumDate, PROJECT_STATUS_META } from '@/components/planner/lib/utils';
+import { cn, formatMediumDate, PROJECT_STATUS_META } from '@/components/planner/lib/utils';
+import { useMoney } from '@/components/studio2/studioCurrency';
 
 type ViewMode = 'split' | 'grid' | 'timeline';
 
@@ -571,6 +572,7 @@ function StatusBar({
 }: {
   schedule: ReturnType<typeof computeSchedule>;
 }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = plannerDict(locale);
   const { stats, projectStart, projectEnd, issues } = schedule;
@@ -595,7 +597,7 @@ function StatusBar({
       </span>
       <Dot />
       <span>{stats.effortHours}h effort</span>
-      <span>{formatCurrency(stats.cost)}</span>
+      <span>{money(stats.cost)}</span>
 
       <div className="flex-1" />
 

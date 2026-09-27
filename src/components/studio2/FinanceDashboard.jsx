@@ -17,16 +17,16 @@
 import { useEffect, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { financeDict } from "@/shared/studio/finance";
-import { money, StatTile } from "@/components/studio2/ui";
+import { StatTile } from "@/components/studio2/ui";
 import { Widget, StatRow, DashGrid, DashEmpty, DonutLegend } from "@/components/dashboard";
 import { BarChart, BarList, ComboChart, Donut, Radial, ChartFrame, PALETTE } from "@/components/charts";
 import { monthLabel, stackByMonth } from "@/components/dashboard/series";
-import { CurrencySymbol } from "@/components/Currency";
 import {
   arAging, topDebtors, collectionRate, dso, incomeVsExpense, expenseMix,
   apAging, topVendors, assetRegister,
 } from "@/modules/finance/analytics";
 import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 const monthKey = (d) => String(d).slice(0, 7);
 
@@ -49,6 +49,7 @@ function invoiceStateOf(i) {
 }
 
 export default function FinanceDashboard({ invoices = [], expenses = [], currency = "", slug = "" }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = financeDict(locale);
   // AP + FA land from their own routes. A route that is missing or forbidden
@@ -127,7 +128,9 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
   const expenseStack = stackByMonth(expenses, (e) => e.date || e.createdAt, (e) => e.category || tr.dashOther,
     (e) => Number(e.amount) || 0, expenseMonths, 4, tr.dashOther);
 
-  const amt = (n) => <span className="num"><CurrencyGlyph currency={currency} />{money(n)}</span>;
+  // The code follows the amount now (useMoney) — the glyph in front of it went
+  // when every figure in the studio started carrying its currency.
+  const amt = (n) => <span className="num">{money(n, currency)}</span>;
   // Tier AND the studio's switches: a card whose section is off is not drawn.
   const gate = useWidgetGate();
 
@@ -273,6 +276,7 @@ export default function FinanceDashboard({ invoices = [], expenses = [], currenc
 // the two read identically and cannot drift (§2.4). Current is calm, the 90+ tail
 // is the warning colour, the middle bands the accent.
 function AgingBars({ aging }) {
+  const money = useMoney();
   return (
     <div className="space-y-2.5">
       {aging.buckets.map((b) => {
@@ -301,8 +305,3 @@ function RegLine({ label, value, tone, strong }) {
   );
 }
 
-// The currency glyph before an amount, when the studio has one configured.
-function CurrencyGlyph({ currency }) {
-  if (!currency) return null;
-  return <span className="me-0.5 text-slate-400"><CurrencySymbol code={currency} /></span>;
-}

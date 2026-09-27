@@ -7,10 +7,10 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { assetsDict } from "@/shared/studio/assets";
 import { fmtDate } from "@/lib/format";
-import { moneyText } from "@/shared/money";
 import { engineWords } from "@/shared/studio/engineTypes";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // WHICH MACHINE IS ON WHICH JOB — the screen `assets.utilisation` never had.
 //
@@ -39,6 +39,7 @@ import StudioDate from "@/components/fields/StudioDate";
 // render, so the board paints at once; absent, it fetches on mount as before.
 // The job picker is NOT part of it — it stays the optional second read below.
 export default function StudioPlantAllocation({ slug, initial }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = assetsDict(locale);
   const [data, setData] = useState(initial ?? null);
@@ -92,7 +93,6 @@ export default function StudioPlantAllocation({ slug, initial }) {
   // MONEY THROUGH THE SHARED HELPER, to the studio currency's decimals — a
   // bare `toLocaleString()` cut a dinar's third decimal and grouped digits by
   // the browser's locale rather than the reader's.
-  const money = (n) => moneyText(n, currency, locale);
   // THE REGISTER'S STATUS WORD, translated as the Equipment register shows it.
   const statusWord = engineWords({ key: "equipment", origin: "builtin" }, locale).word;
   const nameOf = (id) => assets.find((a) => a.id === id)?.name || id;
@@ -238,7 +238,7 @@ export default function StudioPlantAllocation({ slug, initial }) {
             <Field label={tr.to} hint={tr.stillOut} filled={!!draft.to}>
               <StudioDate value={draft.to} onChange={(v) => setDraft({ ...draft, to: v })} />
             </Field>
-            <Field label={tr.dailyRate} type="number" value={draft.dailyRate} hint={tr.dailyRateHint}
+            <Field currency label={tr.dailyRate} type="number" value={draft.dailyRate} hint={tr.dailyRateHint}
               onChange={(v) => setDraft({ ...draft, dailyRate: v })} />
 
             <div className="flex items-end gap-2 sm:col-span-5">

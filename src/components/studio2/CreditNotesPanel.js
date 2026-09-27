@@ -12,9 +12,11 @@
 import { useCallback, useState } from "react";
 import { creditNotesDict } from "@/shared/studio/creditNotes";
 import { useReload } from "@/components/studio2/useReload";
-import { btn, btnGhost, money, fmtDate } from "@/components/studio2/ui";
+import { btn, btnGhost, fmtDate } from "@/components/studio2/ui";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 export default function CreditNotesPanel({ slug, locale = "en", canManage = false }) {
+  const money = useMoney();
   const tr = creditNotesDict(locale);
   const [rows, setRows] = useState(null);
   const [problem, setProblem] = useState("");

@@ -9,9 +9,10 @@ import { useReload } from "@/components/studio2/useReload";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { Icon } from "@/components/studio2/icons";
 import {
-  panel, h2, sub, input, label, btn, btnGhost, btnRow, btnRowPrimary, btnRowDanger, Empty, fmtDateTime, money,
+  panel, h2, sub, input, label, btn, btnGhost, btnRow, btnRowPrimary, btnRowDanger, Empty, fmtDateTime,
 } from "@/components/studio2/ui";
 import { approvalsDict } from "@/shared/studio/approvals";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 const alert = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
 
@@ -127,6 +128,7 @@ function Segregated({ rows, tr, lead, children }) {
 }
 
 function ApprovalCard({ slug, approval: a, tr, onAnswer }) {
+  const money = useMoney();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -165,7 +167,7 @@ function ApprovalCard({ slug, approval: a, tr, onAnswer }) {
       {a.amount && (
         <p className="mt-3 text-sm">
           <span className={label}>{tr.amount}</span>
-          <span className="num font-600 text-[var(--geex-ink)]">{money(a.amount.value, a.amount.currency)} {a.amount.currency}</span>
+          <span className="num font-600 text-[var(--geex-ink)]">{money(a.amount.value, a.amount.currency)}</span>
         </p>
       )}
       {a.finish?.error && (
@@ -242,6 +244,7 @@ function ApprovalCard({ slug, approval: a, tr, onAnswer }) {
 // APPROVAL SETTINGS — who answers each type, step by step. The owner and Admins,
 // and whoever they give `approvals.settings` to in Access.
 function ApprovalSettings({ slug, initial }) {
+  const money = useMoney();
   const tr = approvalsDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");

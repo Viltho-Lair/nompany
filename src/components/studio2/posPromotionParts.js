@@ -195,11 +195,11 @@ export function OfferEditor({ tr, locale, data, promotion, busy, onSave, onCance
                       onChange={(v) => setBenefit(ti, bi, { value: { ...b.value, percent: num(v) } })} />
                   )}
                   {b.type === "fixed_amount_off" && (
-                    <Field label={tr.amount} type="number" min="0" value={String(b.value?.amount ?? "")}
+                    <Field currency label={tr.amount} type="number" min="0" value={String(b.value?.amount ?? "")}
                       onChange={(v) => setBenefit(ti, bi, { value: { ...b.value, amount: num(v) } })} />
                   )}
                   {(b.type === "fixed_price" || b.type === "bundle_price") && (
-                    <Field label={tr.price} type="number" min="0" value={String(b.value?.price ?? "")}
+                    <Field currency label={tr.price} type="number" min="0" value={String(b.value?.price ?? "")}
                       onChange={(v) => setBenefit(ti, bi, { value: { ...b.value, price: num(v) } })} />
                   )}
                   {b.type === "buy_x_get_y" && (
@@ -287,7 +287,7 @@ export function OfferEditor({ tr, locale, data, promotion, busy, onSave, onCance
                 </div>
               )}
               {c.type === "min_amount" && (
-                <Field label={tr.amount} type="number" min="0" value={String(c.value?.amount ?? "")}
+                <Field currency label={tr.amount} type="number" min="0" value={String(c.value?.amount ?? "")}
                   onChange={(v) => setValue({ amount: num(v) })} />
               )}
               {c.type === "customer_tag" && (
@@ -500,7 +500,7 @@ export function OfferPreview({ tr, data, promotion }) {
           </div>
           <Field label={tr.qty} type="number" min="1" value={String(l.count)}
             onChange={(v) => setLines((rows) => rows.map((r, j) => (j === i ? { ...r, count: num(v) } : r)))} />
-          <Field label={tr.price} type="number" min="0" value={String(l.price)}
+          <Field currency label={tr.price} type="number" min="0" value={String(l.price)}
             onChange={(v) => setLines((rows) => rows.map((r, j) => (j === i ? { ...r, price: num(v) } : r)))} />
           <button type="button" className={btnRowDanger}
             onClick={() => setLines((rows) => rows.filter((_, j) => j !== i))}>{tr.remove}</button>

@@ -12,7 +12,7 @@
 // key, and a widget it does not sees the locked teaser instead of the number. The
 // free floor gets the KPI row; each gated widget carries its registry key.
 
-import { money, StatTile, microLabel, fmtDate } from "@/components/studio2/ui";
+import { StatTile, microLabel, fmtDate } from "@/components/studio2/ui";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { inventoryDict } from "@/shared/studio/inventory";
 import { Widget, StatRow, DashGrid, DashEmpty, DonutLegend } from "@/components/dashboard";
@@ -21,12 +21,12 @@ import {
   monthLabel, monthsBack, sumByMonth, countByMonth, weeksBack, sumByWeek,
   rankTotals, shortDay, peak, share,
 } from "@/components/dashboard/series";
-import { CurrencySymbol } from "@/components/Currency";
 import { Icon } from "@/components/studio2/icons";
 import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import ReorderList from "@/components/studio2/ReorderList";
 import { reorderList } from "@/modules/inventory/stockLevels";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // Quantities are counts, not money — three decimals at most, no forced pair.
 const qty = (n) => new Intl.NumberFormat("en", { maximumFractionDigits: 3 }).format(Number(n) || 0);
@@ -115,6 +115,7 @@ export default function InventoryDashboard({
   slug, summary, items = [], orders = [], movements = [], nav,
   currency = "", stockAlerts = false, asOf: studioAsOf = "",
 }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = inventoryDict(locale);
   const d = derive({ items, orders }, tr);
@@ -122,7 +123,9 @@ export default function InventoryDashboard({
   const gate = useWidgetGate();
   const sectionOn = useSectionOn();
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
-  const amt = (n) => <span className="num"><CurrencyGlyph currency={currency} />{money(n)}</span>;
+  // The code follows the amount now (useMoney) — the glyph in front of it went
+  // when every figure in the studio started carrying its currency.
+  const amt = (n) => <span className="num">{money(n, currency)}</span>;
 
   const recent = [...movements].slice(0, 7);
   const openPos = (summary?.awaiting ?? 0);
@@ -353,8 +356,3 @@ export default function InventoryDashboard({
   );
 }
 
-// The currency glyph before an amount, when the studio has one configured.
-function CurrencyGlyph({ currency }) {
-  if (!currency) return null;
-  return <span className="me-0.5 text-slate-400"><CurrencySymbol code={currency} /></span>;
-}

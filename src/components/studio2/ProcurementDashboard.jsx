@@ -16,10 +16,11 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { h2, sub, Empty, StatTile, money } from "@/components/studio2/ui";
+import { h2, sub, Empty, StatTile } from "@/components/studio2/ui";
 import { StatRow, DashGrid, Widget, DashEmpty, DonutLegend } from "@/components/dashboard";
 import { BarList } from "@/components/charts";
 import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // NAMED `*Dashboard.jsx` DELIBERATELY, and not only for tidiness: Gate A scans
 // exactly that filename pattern for the widget-gate calls below, to prove every
@@ -34,6 +35,7 @@ import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel
 // `initial` is this screen's own GET body, answered by the studio page in its
 // render, so the screen paints with its rows; absent, it fetches on mount as before.
 export default function ProcurementDashboard({ slug, initial }) {
+  const money = useMoney();
   const tr = procurementDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");

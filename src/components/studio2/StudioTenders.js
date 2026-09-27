@@ -21,7 +21,7 @@ import { tenderingDict } from "@/shared/studio/tendering";
 import { statusLabel } from "@/shared/studio/statuses";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money, fmtDate, tileRow } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, fmtDate, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
@@ -31,6 +31,7 @@ import {
   daysToDeadline, isAtRisk,
 } from "@/modules/tendering/stages";
 import { refusal } from "@/components/studio2/tenderRefusals";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // A tender closing within this many days is worth pulling to the top of the
 // eye's attention. Named because it is a judgement about bidding, not a
@@ -93,6 +94,7 @@ function Deadline({ tr, tender, nowMs }) {
 // this behaves exactly as it did before any of this existed. Every other studio
 // screen is still on that path, so it is the well-trodden one.
 export default function StudioTenders({ slug, view = "", initial, initialError = "" }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = tenderingDict(locale);
   const fromClient = useSearchParams().get("client") || "";
@@ -279,7 +281,7 @@ export default function StudioTenders({ slug, view = "", initial, initialError =
         </div>
         <div className="text-end">
           {t.estimatedValue > 0 && (
-            <p className="num font-600 text-slate-900 dark:text-white">{money(t.estimatedValue)} {t.currency}</p>
+            <p className="num font-600 text-slate-900 dark:text-white">{money(t.estimatedValue, t.currency)}</p>
           )}
           <Deadline tr={tr} tender={t} nowMs={nowMs} />
         </div>
@@ -396,8 +398,8 @@ export default function StudioTenders({ slug, view = "", initial, initialError =
               <Field label={tr.issueDate} filled={!!form.issueDate}>
                 <StudioDate value={form.issueDate || ""} onChange={(iso) => setForm((f) => ({ ...f, issueDate: iso }))} />
               </Field>
-              <Field label={tr.estimatedValue} type="number" value={form.estimatedValue ?? ""}
-                onChange={(v) => setForm((f) => ({ ...f, estimatedValue: v }))} inputProps={{ min: "0", step: "0.01" }} />
+              <Field currency={form.currency || true} label={tr.estimatedValue} type="number" value={form.estimatedValue ?? ""}
+                onChange={(v) => setForm((f) => ({ ...f, estimatedValue: v }))} inputProps={{ min: "0", step: "any" }} />
               <Field label={tr.source} as="select" value={form.source || ""} hint={tr.sourceHint}
                 onChange={(v) => setForm((f) => ({ ...f, source: v }))} options={sourceOptions} />
               <Field label={tr.assignedTo} as="select" value={form.assignedToCollaboratorId || ""} hint={tr.ownerHint}

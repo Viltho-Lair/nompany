@@ -188,11 +188,11 @@ export default function StudioMarketingPlans({ slug }) {
               onChange={(v) => setForm((f) => ({ ...f, ownerCollaboratorId: v }))}
               options={[{ value: "", label: tr.nobody },
                 ...people.map((p) => ({ value: p.id, label: p.alias || p.id }))]} />
-            <Field label={tr.budget} type="number" value={form.budget}
+            <Field currency label={tr.budget} type="number" value={form.budget}
               onChange={(v) => setForm((f) => ({ ...f, budget: v }))} />
             <Field label={tr.expectedLeads} type="number" value={form.expectedLeads}
               onChange={(v) => setForm((f) => ({ ...f, expectedLeads: v }))} />
-            <Field label={tr.expectedRevenue} type="number" value={form.expectedRevenue}
+            <Field currency label={tr.expectedRevenue} type="number" value={form.expectedRevenue}
               onChange={(v) => setForm((f) => ({ ...f, expectedRevenue: v }))} />
           </div>
           <div className="mt-5 flex justify-end gap-2">

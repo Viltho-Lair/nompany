@@ -29,12 +29,12 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
 import { treasuryDict } from "@/shared/studio/treasury";
 import { creditNotesDict } from "@/shared/studio/creditNotes";
-import { moneyText } from "@/shared/money";
 import { taxDict, taxCategoryOptions } from "@/shared/studio/tax";
 import { documentTotals } from "@/shared/documentTotals";
 import TaxTag from "@/components/studio2/TaxTag";
 import FinanceSetupNotice from "@/components/studio2/FinanceSetupNotice";
 import { ledgerDict } from "@/shared/studio/ledger";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -80,7 +80,6 @@ const td = "py-3 pe-3 align-middle";
 const fmt = fmtDate;
 // Through shared/money, which shows a currency's own decimals: this was fixed
 // at two places and hid the third decimal of every dinar amount.
-const money = (n) => moneyText(n);
 
 // The dense-table grid, loaded in its own async chunk (never folded into this
 // department's initial bundle) — see StudioDataGrid's header. The skeleton
@@ -224,6 +223,7 @@ function datedQuery(range) {
 // statements come from `/finance/reports` on `finance.reports.view`; the
 // project margins from the same read the dashboard uses.
 function FinanceReports({ slug, initial }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = financeDict(locale);
   const lt = ledgerDict(locale);
@@ -320,6 +320,7 @@ function Receivables({ slug, initial }) {
 // person owns, read as one. The owner forms the group here; anybody who may
 // read every member's reports sees the consolidation, over the same window.
 function GroupBooks({ slug, range }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const g = groupDict(locale);
   const lt = ledgerDict(locale);
@@ -489,6 +490,7 @@ function FinanceSettings({ slug, initial }) {
 // Receivables, one when Expenses or the project margins are embedded in
 // another screen, which also drops the summary and the setup notice there.
 function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes"], embedded = false, initial }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = financeDict(locale);
   const [data, setData] = useState(initial ?? null);
@@ -526,12 +528,12 @@ function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes
       [res, out] = await ask({ ...payload, overrideCredit: true });
     }
     setBusy(false);
-    if (!res.ok) { setError(message(out, tr)); return false; }
+    if (!res.ok) { setError(message(out, tr, money)); return false; }
     await load();
     const warning = postingWarning(out, tr);
     if (warning) setError(warning);
     return true;
-  }, [slug, load]);
+  }, [slug, load, money]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingFinance} />;
@@ -613,7 +615,9 @@ function postingWarning(out, tr) {
   return refused ? tr.notPosted(String(refused.reason || "")) : "";
 }
 
-function message(out, tr) {
+// `money` is the calling screen's (useMoney), so an amount in a refusal is in
+// the studio's currency like every other figure on the screen.
+function message(out, tr, money) {
   if (out.error === "read-only") return tr.mReadOnly;
   if (out.error === "issued") return tr.mIssued;
   if (out.error === "has-payments") return tr.mHasPayments;
@@ -655,6 +659,7 @@ function message(out, tr) {
 
 // ---- summary ---------------------------------------------------------------
 function Summary({ summary }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const cells = [
     [tr.sumInvoiced, money(summary.invoiced), ""],
@@ -680,6 +685,7 @@ function Summary({ summary }) {
 
 // ---- invoices --------------------------------------------------------------
 function Invoices({ rows, projects, milestones = [], items = [], vocab, slug, nav, canManage, busy, send }) {
+  const money = useMoney();
   const dt = documentsDict(useStudioLocale());
   const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
@@ -748,12 +754,12 @@ function Invoices({ rows, projects, milestones = [], items = [], vocab, slug, na
               {
                 field: "total", headerName: tr.total, type: "number", minWidth: 120, flex: 0.7,
                 align: "right", headerAlign: "right",
-                renderCell: ({ row }) => <span className="num font-600 text-slate-900 dark:text-white">{money(row.total)}</span>,
+                renderCell: ({ row }) => <span className="num font-600 text-slate-900 dark:text-white">{money(row.total, row.currency)}</span>,
               },
               {
                 field: "paid", headerName: tr.paid, type: "number", minWidth: 110, flex: 0.7,
                 align: "right", headerAlign: "right",
-                renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.paid)}</span>,
+                renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.paid, row.currency)}</span>,
               },
               {
                 field: "status", headerName: tr.status, minWidth: 110, flex: 0.6,
@@ -796,7 +802,7 @@ function Invoices({ rows, projects, milestones = [], items = [], vocab, slug, na
                   {inv.lines.map((l, i) => (
                     <li key={i} className="flex justify-between gap-4">
                       <span>{l.description} × {l.qty}<TaxTag category={l.taxCategory} /></span>
-                      <span className="num">{money(l.qty * l.unitPrice)}</span>
+                      <span className="num">{money(l.qty * l.unitPrice, inv.currency)}</span>
                     </li>
                   ))}
                 </ul>
@@ -808,7 +814,7 @@ function Invoices({ rows, projects, milestones = [], items = [], vocab, slug, na
                       {inv.payments.map((p) => (
                         <li key={p.id} className="flex justify-between gap-4">
                           <span>{fmt(p.date)} · {p.method}{p.reference ? ` · ${p.reference}` : ""}</span>
-                          <span className="num">{money(p.amount)}</span>
+                          <span className="num">{money(p.amount, inv.currency)}</span>
                         </li>
                       ))}
                     </ul>
@@ -828,6 +834,7 @@ function Invoices({ rows, projects, milestones = [], items = [], vocab, slug, na
 // is listed under the subtotal: a VAT figure that is not the subtotal times the
 // rate needs its working shown.
 function DocumentTotals({ doc }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = financeDict(locale);
   const tax = taxDict(locale);
@@ -835,16 +842,16 @@ function DocumentTotals({ doc }) {
   const row = "flex justify-between gap-4 text-slate-500 dark:text-slate-400";
   return (
     <div className="mt-3 space-y-0.5 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
-      <p className={row}><span>{tr.subtotal}</span><span className="num">{money(doc.subtotal)}</span></p>
+      <p className={row}><span>{tr.subtotal}</span><span className="num">{money(doc.subtotal, doc.currency)}</span></p>
       {mixed && doc.breakdown.map((b) => (
         <p key={b.category + ":" + b.rate} className={row + " ps-3 text-xs"}>
-          <span>{tax.breakdownRow(b.category, b.rate)}</span><span className="num">{money(b.taxable)}</span>
+          <span>{tax.breakdownRow(b.category, b.rate)}</span><span className="num">{money(b.taxable, doc.currency)}</span>
         </p>
       ))}
-      <p className={row}><span>VAT {doc.vatRate}%</span><span className="num">{money(doc.vat)}</span></p>
-      <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>{tr.total}</span><span className="num">{money(doc.total)}</span></p>
+      <p className={row}><span>VAT {doc.vatRate}%</span><span className="num">{money(doc.vat, doc.currency)}</span></p>
+      <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>{tr.total}</span><span className="num">{money(doc.total, doc.currency)}</span></p>
       {doc.outstanding > 0 && doc.status !== "Draft" && (
-        <p className={row}><span>{tr.outstanding}</span><span className="num">{money(doc.outstanding)}</span></p>
+        <p className={row}><span>{tr.outstanding}</span><span className="num">{money(doc.outstanding, doc.currency)}</span></p>
       )}
     </div>
   );
@@ -896,7 +903,7 @@ function LineItemsEditor({ lines, setLines, vatOn = false, items = [] }) {
             <Field label={tr.qty} type="number" value={l.qty} onChange={(v) => setLine(i, "qty", v)} />
           </div>
           <div className="w-32">
-            <Field label={tr.unitPrice} type="number" value={l.unitPrice} onChange={(v) => setLine(i, "unitPrice", v)} />
+            <Field currency label={tr.unitPrice} type="number" value={l.unitPrice} onChange={(v) => setLine(i, "unitPrice", v)} />
           </div>
           {vatOn && (
             <div className="w-36">
@@ -926,6 +933,7 @@ function WithholdingField({ rules = [], value, onChange }) {
 }
 
 function InvoiceForm({ projects, milestones = [], items = [], rules = [], defaultVat, vatOn, busy, onCancel, onSave }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const [head, setHead] = useState({ projectId: "", milestoneId: "", clientName: "", vatRate: String(defaultVat), issueDate: "", dueDate: "", withholdingLabel: "" });
   // THE PROJECT'S OWN MILESTONES. An invoice naming one is what marks that
@@ -998,16 +1006,17 @@ function MoneyAccountField({ accounts = [], value, onChange }) {
 }
 
 function PaymentForm({ invoice, methods, accounts = [], busy, onCancel, onSave }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const [form, setForm] = useState({ amount: String(invoice.outstanding), date: "", method: methods[0], reference: "", accountId: defaultMoneyAccount(accounts) });
 
   return (
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Record payment — {invoice.reference}</h3>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(invoice.outstanding)} outstanding of {money(invoice.total)}.</p>
-      {invoice.withheld?.applies && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.withheldNote(money(invoice.withheld.amount), invoice.withheld.label)}</p>}
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(invoice.outstanding, invoice.currency)} outstanding of {money(invoice.total, invoice.currency)}.</p>
+      {invoice.withheld?.applies && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.withheldNote(money(invoice.withheld.amount, invoice.currency), invoice.withheld.label)}</p>}
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label={tr.amount} type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
+        <Field currency={invoice.currency || true} label={tr.amount} type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
         <Field label={tr.date} filled={!!form.date}>
           <StudioDate value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
         </Field>
@@ -1027,6 +1036,7 @@ function PaymentForm({ invoice, methods, accounts = [], busy, onCancel, onSave }
 
 // ---- expenses --------------------------------------------------------------
 function Expenses({ rows, projects, campaigns = [], categories, accounts = [], slug, nav, canManage, busy, send }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -1104,6 +1114,7 @@ function Expenses({ rows, projects, campaigns = [], categories, accounts = [], s
 
 // ---- profitability ---------------------------------------------------------
 function Profitability({ rows, slug, nav }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   if (rows.length === 0) return <Empty title={tr.noProjectsMeasureYet} body={tr.onceQuotationBecomesProject} />;
   return (
@@ -1203,6 +1214,7 @@ function Empty({ title, body }) {
 // `initial` is that route's body when the studio page answered it in its own
 // render; the hook then starts from it and skips the first fetch.
 function useFinanceResource(slug, kind, initial) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
@@ -1225,14 +1237,14 @@ function useFinanceResource(slug, kind, initial) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(message(out, tr)); return false; }
+    if (!res.ok) { setError(message(out, tr, money)); return false; }
     // AFTER THE RELOAD, because `load` clears the error on success and would
     // wipe the warning the moment it was shown.
     await load();
     const warning = postingWarning(out, tr);
     if (warning) setError(warning);
     return true;
-  }, [slug, kind, load]);
+  }, [slug, kind, load, money]);
 
   return { data, error, busy, send, load };
 }
@@ -1295,6 +1307,7 @@ function Payables({ slug, onDenied, initial }) {
 }
 
 function PayablesSummary({ bills }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const live = bills.filter((b) => b.status !== "Cancelled" && b.status !== "Draft");
   const billed = live.reduce((s, b) => s + (b.total || 0), 0);
@@ -1322,6 +1335,7 @@ function PayablesSummary({ bills }) {
 }
 
 function Bills({ slug, rows, vocab, canManage, busy, send, pickers = {} }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const [drafting, setDrafting] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -1400,8 +1414,8 @@ function Bills({ slug, rows, vocab, canManage, busy, send, pickers = {} }) {
                         <td className={`${td} ${b.overdue ? "font-600 text-rose-600 dark:text-rose-400" : "text-slate-600 dark:text-slate-300"}`}>
                           {b.dueDate ? fmt(b.dueDate) : "—"}{b.overdue && " · overdue"}
                         </td>
-                        <td className={`${td} text-end font-600 tabular-nums text-slate-900 dark:text-white`}>{money(b.total)}</td>
-                        <td className={`${td} text-end tabular-nums text-slate-600 dark:text-slate-300`}>{money(b.outstanding)}</td>
+                        <td className={`${td} text-end font-600 tabular-nums text-slate-900 dark:text-white`}>{money(b.total, b.currency)}</td>
+                        <td className={`${td} text-end tabular-nums text-slate-600 dark:text-slate-300`}>{money(b.outstanding, b.currency)}</td>
                         <td className={td}>
                           <StatusPill kind="bill" status={b.status} />
                           <HoldPill hold={b.hold} tr={tr} />
@@ -1447,7 +1461,7 @@ function Bills({ slug, rows, vocab, canManage, busy, send, pickers = {} }) {
                                 {(b.lines || []).map((l, i) => (
                                   <li key={i} className="flex justify-between gap-4">
                                     <span>{l.description} × {l.qty}<TaxTag category={l.taxCategory} /></span>
-                                    <span className="num">{money(l.qty * l.unitPrice)}</span>
+                                    <span className="num">{money(l.qty * l.unitPrice, b.currency)}</span>
                                   </li>
                                 ))}
                               </ul>
@@ -1464,7 +1478,7 @@ function Bills({ slug, rows, vocab, canManage, busy, send, pickers = {} }) {
                                     {b.payments.map((p, i) => (
                                       <li key={p.id || i} className="flex justify-between gap-4">
                                         <span>{fmt(p.date)} · {p.method}{p.note ? ` · ${p.note}` : ""}</span>
-                                        <span className="num">{money(p.amount)}</span>
+                                        <span className="num">{money(p.amount, b.currency)}</span>
                                       </li>
                                     ))}
                                   </ul>
@@ -1487,6 +1501,7 @@ function Bills({ slug, rows, vocab, canManage, busy, send, pickers = {} }) {
 }
 
 function BillForm({ bill, terms, rules = [], defaultVat, vatOn, busy, pickers = {}, onCancel, onSave }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const editing = !!bill;
   const [head, setHead] = useState({
@@ -1642,13 +1657,14 @@ function ReleaseHoldForm({ bill, busy, onCancel, onSave }) {
 }
 
 function BillPaymentForm({ bill, hold, methods, accounts = [], busy, onCancel, onSave }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const [form, setForm] = useState({ amount: String(bill.outstanding), date: "", method: methods[0], note: "", accountId: defaultMoneyAccount(accounts) });
   return (
     <section className={`${panel} border-brand-500/40`}>
       <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Record payment — {bill.reference}</h3>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(bill.outstanding)} outstanding of {money(bill.total)} to {bill.vendorName}.</p>
-      {bill.withheld?.applies && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.withheldNote(money(bill.withheld.amount), bill.withheld.label)}</p>}
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(bill.outstanding, bill.currency)} outstanding of {money(bill.total, bill.currency)} to {bill.vendorName}.</p>
+      {bill.withheld?.applies && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.withheldNote(money(bill.withheld.amount, bill.currency), bill.withheld.label)}</p>}
       {/* WARN MODE SAYS SO HERE, where the money is about to move: the row's pill
           is easy to scroll past, and this is the last place the reason can land. */}
       {hold && !hold.held && !hold.released && hold.reasons?.length > 0 && (
@@ -1657,7 +1673,7 @@ function BillPaymentForm({ bill, hold, methods, accounts = [], busy, onCancel, o
         </p>
       )}
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label={tr.amount} type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
+        <Field currency={bill.currency || true} label={tr.amount} type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
         <Field label={tr.date} filled={!!form.date}>
           <StudioDate value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
         </Field>
@@ -1728,6 +1744,7 @@ function AssetRegisterScreen({ slug, initial }) {
 // one entry per asset, so the list is shown first and posting is its own act.
 // Last month by default — the one a studio is closing.
 function DepreciationRun({ slug, canManage, onPosted }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const [period, setPeriod] = useState(() => {
     const d = new Date();
@@ -1746,7 +1763,7 @@ function DepreciationRun({ slug, canManage, onPosted }) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(message(out, tr)); return; }
+    if (!res.ok) { setError(message(out, tr, money)); return; }
     setRun(out.run);
     if (post) await onPosted?.();
   };
@@ -1789,6 +1806,7 @@ function DepreciationRun({ slug, canManage, onPosted }) {
 }
 
 function AssetsSummary({ assets }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const reg = assetRegister(assets);
   const cells = [
@@ -1813,6 +1831,7 @@ function AssetsSummary({ assets }) {
 }
 
 function AssetRegister({ rows, vocab, canManage, busy, send }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -2012,8 +2031,8 @@ function AssetForm({ asset, methods, vocab = {}, busy, onCancel, onSave }) {
         <Field label={tr.category} value={f.category} onChange={(v) => set("category", v)} />
         <Field label={tr.method} as="select" value={f.method} onChange={(v) => set("method", v)}
           options={methods.map((m) => ({ value: m, label: assetMethodLabel(tr)[m] || m }))} />
-        <Field label={tr.cost} required type="number" value={f.cost} onChange={(v) => set("cost", v)} />
-        <Field label={tr.salvageValue} type="number" value={f.salvageValue} hint={tr.whatWorthEndLife} onChange={(v) => set("salvageValue", v)} />
+        <Field currency label={tr.cost} required type="number" value={f.cost} onChange={(v) => set("cost", v)} />
+        <Field currency label={tr.salvageValue} type="number" value={f.salvageValue} hint={tr.whatWorthEndLife} onChange={(v) => set("salvageValue", v)} />
         <Field label={tr.usefulLifeMonths} required type="number" value={f.usefulLifeMonths} onChange={(v) => set("usefulLifeMonths", v)} />
         <Field label={tr.acquired2} filled={!!f.acquiredOn}>
           <StudioDate value={f.acquiredOn} onChange={(iso) => set("acquiredOn", iso)} />
@@ -2039,6 +2058,7 @@ function AssetForm({ asset, methods, vocab = {}, busy, onCancel, onSave }) {
 }
 
 function DisposeForm({ asset, busy, onCancel, onSave }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const [f, setF] = useState({ disposedOn: "", disposalProceeds: "" });
   const proceeds = Number(f.disposalProceeds) || 0;
@@ -2056,7 +2076,7 @@ function DisposeForm({ asset, busy, onCancel, onSave }) {
         <Field label={tr.disposalDate} filled={!!f.disposedOn}>
           <StudioDate value={f.disposedOn} onChange={(iso) => setF((p) => ({ ...p, disposedOn: iso }))} />
         </Field>
-        <Field label={tr.proceeds} type="number" value={f.disposalProceeds} onChange={(v) => setF((p) => ({ ...p, disposalProceeds: v }))} />
+        <Field currency label={tr.proceeds} type="number" value={f.disposalProceeds} onChange={(v) => setF((p) => ({ ...p, disposalProceeds: v }))} />
       </div>
       <p className={`mt-4 text-sm font-600 ${estimate >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
         Estimated {estimate >= 0 ? "gain" : "loss"} <span className="num">{money(Math.abs(estimate))}</span>
@@ -2105,6 +2125,7 @@ const withLabels = (tr) => FINANCE_COLUMNS.map((c) => ({ ...c, label: tr[c.label
 const DEFAULT_FINANCE_COLUMNS = FINANCE_COLUMNS.filter((c) => c.core).map((c) => c.key);
 
 function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const [query, setQuery] = useState("");
   const [poFilter, setPoFilter] = useState("all");
@@ -2227,6 +2248,7 @@ function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }) {
 // Projects and is shown here read-only, so this dialog cannot become a back door
 // into editing somebody else's record.
 function Commercials({ row, busy, canManage, onSave, onCancel }) {
+  const money = useMoney();
   const tr = financeDict(useStudioLocale());
   const [poNumber, setPoNumber] = useState(row.poNumber || "");
   const [projectNumber, setProjectNumber] = useState(row.projectNumber || "");
@@ -2268,6 +2290,7 @@ function Commercials({ row, busy, canManage, onSave, onCancel }) {
 // accounts with a total each — is identical, and two copies would be two places
 // a rounding choice could drift.
 function Statement({ groups, total, totalLabel, note, tr }) {
+  const money = useMoney();
   return (
     <section className="space-y-4">
       {groups.map(([name, rows, groupTotal]) => (

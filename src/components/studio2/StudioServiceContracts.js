@@ -14,13 +14,14 @@
 import { useState } from "react";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate, money } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { PRIORITIES } from "@/modules/maintenance/model";
 import { contractProblem, plannedVisits } from "@/modules/maintenance/contracts";
 import {
   useMaintenance, Chip, Links, PeoplePicker, pickOptions, linkText,
 } from "@/components/studio2/maintenanceParts";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 const STATE_TONE = {
   active: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300",
@@ -51,6 +52,7 @@ const payload = (f) => ({
 
 // `initial` is this screen's own GET body from the studio page (useMaintenance).
 export default function StudioServiceContracts({ slug, initial }) {
+  const money = useMoney();
   const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/contracts", initial);
   // THE CONTRACTS ARE WRITTEN UNDER `projects-sla` — a filed-only section
   // (keys.ts), so that is the key a write there rings — and what each visit
@@ -68,7 +70,7 @@ export default function StudioServiceContracts({ slug, initial }) {
     contracts = [], pickers = {}, projects = [], covers = [], currency = "", asOf, filed,
     canCreate, canEdit, canDelete, canCallOut,
   } = data;
-  const amount = (n) => `${money(n || 0)}${currency ? ` ${currency}` : ""}`;
+  const amount = (n) => money(n || 0, currency);
   const units = (pickers.installed || []).map((u) => ({ id: u.id, alias: u.name }));
   const priorities = PRIORITIES.map((p) => ({ value: p, label: tr.priorityName(p) }));
   const shown = contracts.find((c) => c.id === visitsOf) || null;

@@ -14,13 +14,14 @@
 // KPI row is the free floor everyone gets; the breakdowns and the timeline carry
 // their registry keys.
 
-import { money, StatTile } from "@/components/studio2/ui";
+import { StatTile } from "@/components/studio2/ui";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
 import { Widget, StatRow, DashGrid, DashEmpty } from "@/components/dashboard";
 import { BarChart, BarList, Donut, Radial, ChartFrame, Scatter, ShareBar } from "@/components/charts";
 import { monthLabel, monthsBack, sumByMonth, rankTotals, peak, share } from "@/components/dashboard/series";
 import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 const STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 // State colour is separate from brand accent: each stage takes a fixed slot on
@@ -45,6 +46,7 @@ function monthKey(d) {
 export default function ProjectsDashboard({
   projects = [], overtimes = [], people = [], slug = "", nav = {},
 }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = projectsDict(locale);
   // Tier AND the studio's switches: a card whose section is off is not drawn.

@@ -204,7 +204,7 @@ export default function FinanceSettingsPanel({ categories = [], rules = [], hold
             onChange={(v) => { setHoldDraft((h) => ({ ...h, mode: v })); touched(); }} />
           <Field label={tr.holdTolerancePct} type="number" readOnly={!canManage} value={String(holdDraft.tolerancePct)}
             onChange={(v) => { setHoldDraft((h) => ({ ...h, tolerancePct: v })); touched(); }} />
-          <Field label={tr.holdToleranceAmount} type="number" readOnly={!canManage} value={String(holdDraft.toleranceAmount)}
+          <Field currency label={tr.holdToleranceAmount} type="number" readOnly={!canManage} value={String(holdDraft.toleranceAmount)}
             onChange={(v) => { setHoldDraft((h) => ({ ...h, toleranceAmount: v })); touched(); }} />
         </div>
         <p className="text-[12px] text-slate-400 dark:text-slate-500">{tr.holdToleranceHint}</p>

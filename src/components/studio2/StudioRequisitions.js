@@ -18,10 +18,11 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict, procurementRefusal } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { supplierOptions, projectOptions, costCodeOptions } from "@/components/studio2/pickerOptions";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 function refusal(tr, token) {
   switch (token) {
@@ -51,6 +52,7 @@ const emptyLine = () => ({ description: "", unit: "", qty: "", estUnitCost: "", 
 // `initial` is this screen's own GET body, answered by the studio page in its
 // render, so the screen paints with its rows; absent, it fetches on mount as before.
 export default function StudioRequisitions({ slug, initial }) {
+  const money = useMoney();
   const tr = procurementDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
@@ -341,7 +343,7 @@ export default function StudioRequisitions({ slug, initial }) {
                             onChange={(e) => setLine(i, { qty: e.target.value })} />
                         </td>
                         <td className="px-2 py-2 text-end">
-                          <input type="number" step="0.01" className="num w-28 rounded-lg border border-slate-200 px-2 py-1 text-end text-sm dark:border-white/10 dark:bg-transparent"
+                          <input type="number" step="any" className="num w-28 rounded-lg border border-slate-200 px-2 py-1 text-end text-sm dark:border-white/10 dark:bg-transparent"
                             value={l.estUnitCost} aria-label={tr.lineEstCost}
                             onChange={(e) => setLine(i, { estUnitCost: e.target.value })} />
                         </td>

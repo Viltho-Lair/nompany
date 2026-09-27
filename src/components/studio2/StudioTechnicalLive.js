@@ -8,9 +8,9 @@ import { technicalDict, liveColumnLabel, leadDisplay } from "@/shared/studio/tec
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { money } from "@/components/studio2/ui";
 import { fmtTime } from "@/lib/format";
 import { useReload } from "@/components/studio2/useReload";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // How often the table pulls a fresh copy while someone is watching it. This
 // screen is the one people leave up on a wall, so unlike the rest of the studio
@@ -22,6 +22,7 @@ const REFRESH_MS = 5000;
 // the columns chosen in Technical -> Settings — so there is no second data source
 // and nothing to keep in sync.
 export default function StudioTechnicalLive({ studio }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = technicalDict(locale);
   const [data, setData] = useState(null);

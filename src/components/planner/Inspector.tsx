@@ -21,11 +21,11 @@ import {
 import {
   STATUS_META,
   cn,
-  formatCurrency,
   formatMediumDate,
   formatTime,
 } from '@/components/planner/lib/utils';
 import { Avatar } from './Avatar';
+import { useMoney } from '@/components/studio2/studioCurrency';
 import { AssigneeCell, DateCell, PriorityCell, StatusCell } from './cells';
 
 const LINK_TYPES: { value: DependencyType; label: string }[] = [
@@ -42,6 +42,7 @@ export function Inspector({
   schedule: ScheduleResult;
   resources: Resource[];
 }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = plannerDict(locale);
   const {
@@ -214,7 +215,7 @@ export function Inspector({
 
           <Field label={tr.effortCost}>
             <span className="px-1.5 text-[13px] text-slate-500">
-              {task.rolledEffortHours}h · {formatCurrency(task.rolledCost)}
+              {task.rolledEffortHours}h · {money(task.rolledCost)}
             </span>
           </Field>
         </dl>
@@ -366,7 +367,7 @@ export function Inspector({
                         {r.name}
                       </div>
                       <div className="truncate text-[11px] text-slate-400">
-                        {r.role} · {formatCurrency(r.rate)}/h · {r.capacity}%
+                        {r.role} · {money(r.rate)}/h · {r.capacity}%
                       </div>
                     </div>
                   </div>

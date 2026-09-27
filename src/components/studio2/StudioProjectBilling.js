@@ -18,9 +18,10 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { projectsDict } from "@/shared/studio/projects";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import ProgressClaimsPanel from "@/components/studio2/ProgressClaimsPanel";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 function refusal(tr, token) {
   switch (token) {
@@ -32,6 +33,7 @@ function refusal(tr, token) {
 }
 
 export default function StudioProjectBilling({ slug, projectId }) {
+  const money = useMoney();
   const tr = projectsDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -303,8 +305,8 @@ export default function StudioProjectBilling({ slug, projectId }) {
             <Field label={tr.milestoneName} required value={form.name || ""}
               onChange={(v) => setForm((f) => ({ ...f, name: v }))} inputProps={{ maxLength: 200 }} />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={tr.milestoneAmount} type="number" value={form.amount ?? ""}
-                onChange={(v) => setForm((f) => ({ ...f, amount: v }))} inputProps={{ step: "0.01" }} />
+              <Field currency label={tr.milestoneAmount} type="number" value={form.amount ?? ""}
+                onChange={(v) => setForm((f) => ({ ...f, amount: v }))} inputProps={{ step: "any" }} />
               <div>
                 {/* AN ENTRY CONVENIENCE, NOT A STORED FIELD. A percentage kept
                     on the record would silently re-price every line the moment

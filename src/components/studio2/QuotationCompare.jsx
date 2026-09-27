@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { technicalDict } from "@/shared/studio/technical";
-import { money } from "@/components/studio2/ui";
 import { compareQuotations } from "@/modules/technical/quotationDiff";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // WHAT CHANGED BETWEEN THIS REVISION AND THE ONE BEFORE IT.
 //
@@ -16,6 +16,7 @@ import { compareQuotations } from "@/modules/technical/quotationDiff";
 // THE PRICES ARE THE DOCUMENT'S OWN CURRENCY, frozen when it was raised, which
 // is why the currency comes in as a prop rather than being read from the studio.
 export default function QuotationCompare({ quote, previous, currency }) {
+  const money = useMoney();
   const tr = technicalDict(useStudioLocale());
   const diff = useMemo(() => compareQuotations(previous, quote), [previous, quote]);
 

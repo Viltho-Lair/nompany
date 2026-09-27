@@ -5,13 +5,12 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { moneyText } from "@/shared/money";
 import { fmtDate } from "@/lib/format";
 import { creditDict } from "@/shared/studio/credit";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // RECEIVABLES → CREDIT and → REMINDERS (modules/finance/credit). One read serves
 // both tabs; `tab` picks which half is drawn.
-const money = (n, c) => moneyText(n, c);
 
 export default function CreditPanel({ slug, locale, tab }) {
   const tr = creditDict(locale);
@@ -57,6 +56,7 @@ const th = "py-2 text-start text-[12px] font-600 uppercase tracking-wide text-sl
 const ghost = "rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 dark:border-white/15 dark:text-slate-300";
 
 function Credit({ tr, data, busy, post }) {
+  const money = useMoney();
   const [editing, setEditing] = useState(null);
   const { customers = [], canManage } = data;
   const open = (c) => setEditing({
@@ -105,7 +105,7 @@ function Credit({ tr, data, busy, post }) {
         <div className="flex flex-wrap items-end gap-2 rounded-geex border border-slate-200 p-3 dark:border-white/10">
           <Field label={tr.customer} className="w-64" value={editing.clientName} disabled={editing.fixed}
             onChange={(v) => setEditing({ ...editing, clientName: v })} />
-          <Field label={tr.limit} type="number" className="w-40" value={String(editing.limit)}
+          <Field currency label={tr.limit} type="number" className="w-40" value={String(editing.limit)}
             onChange={(v) => setEditing({ ...editing, limit: v })} />
           <Field label={tr.note} className="w-64" value={editing.note} onChange={(v) => setEditing({ ...editing, note: v })} />
           <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
@@ -126,6 +126,7 @@ function Credit({ tr, data, busy, post }) {
 }
 
 function Dunning({ tr, data, busy, post }) {
+  const money = useMoney();
   const { overdue = [], dunningDays = [], canManage } = data;
   const [picked, setPicked] = useState(() => new Set());
   const [shown, setShown] = useState("");

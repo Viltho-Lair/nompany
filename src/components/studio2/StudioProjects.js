@@ -15,7 +15,7 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 import SelectMenu from "@/components/fields/SelectMenu";
 import {
   panel, h2, sub, input, inputRO, microLabel, label, btn, btnGhost, th,
-  money, fmtDate, useTablePrefs,
+  fmtDate, useTablePrefs,
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
 import { linkToTicket, linkToRfq, linkToQuotation, linkIf } from "@/modules/main/studioLinks";
@@ -37,6 +37,7 @@ import { todayISO } from "@/shared/dates";
 import { statusLabel } from "@/shared/studio/statuses";
 import { hoursBetween } from "@/modules/projects/projectSchedule";
 import { useReload } from "@/components/studio2/useReload";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -275,6 +276,7 @@ export default function StudioProjects({ slug, view = "projects", initial }) {
 
 function ProjectList({ projects, approvedQuotations, people, clients = [], industries = [],
   studioDefaults = {}, stages, canManage, slug, nav, focus, onOpen, onSave, onDelete }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = projectsDict(locale);
   const PROJECT_COLUMNS = useMemo(() => projectColumns(tr), [tr]);
@@ -428,9 +430,9 @@ function ProjectList({ projects, approvedQuotations, people, clients = [], indus
           <div>
             <label className={microLabel}>{tr.value}</label>
             <div className="flex items-center gap-2">
-              <Field label={tr.min} type="number" min="0" value={filters.valueMin} onChange={(v) => setFilter({ valueMin: v })} className="flex-1" />
+              <Field currency label={tr.min} type="number" min="0" value={filters.valueMin} onChange={(v) => setFilter({ valueMin: v })} className="flex-1" />
               <span className="text-slate-400">–</span>
-              <Field label={tr.max} type="number" min="0" value={filters.valueMax} onChange={(v) => setFilter({ valueMax: v })} className="flex-1" />
+              <Field currency label={tr.max} type="number" min="0" value={filters.valueMax} onChange={(v) => setFilter({ valueMax: v })} className="flex-1" />
             </div>
           </div>
           <div>
@@ -589,6 +591,7 @@ function NewProject({ quotations, people, clients, industries, studioDefaults, o
 // quotations waiting" body is now a line inside the mode rather than the whole
 // dialog, because the other mode is always available.
 function FromQuotation({ quotations, people, busy, setBusy, onSave, onCancel }) {
+  const money = useMoney();
   const tr = projectsDict(useStudioLocale());
   const [quotationId, setQuotationId] = useState(quotations[0]?.id || "");
   const [managerCollaboratorId, setManager] = useState("");
@@ -706,7 +709,7 @@ function DirectProject({ people, clients, industries, studioDefaults, busy, setB
           options={[{ value: "", label: tr.unassigned }, ...people.map((p) => ({ value: p.id, label: p.alias }))]} />
 
         {/* TYPED, because there is no quotation total to read it from. */}
-        <Field label={tr.projectValue} type="number" min="0" value={f.value}
+        <Field currency label={tr.projectValue} type="number" min="0" value={f.value}
           onChange={(v) => set({ value: v })} />
 
         <Field label={tr.start} filled={!!f.startDate}>
@@ -728,6 +731,7 @@ function DirectProject({ people, clients, industries, studioDefaults, busy, setB
 }
 
 function ProjectDetail({ project: p, people, stages, canManage, slug, nav, onSave, onDelete, onClose }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = projectsDict(locale);
   const support = supportOf(p);

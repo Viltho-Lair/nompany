@@ -21,13 +21,14 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 // `money` and `fmtDate` come from ui.js rather than being written here: Gate A
 // refuses a raw toLocaleString in a studio screen, and a per-screen formatter is
 // how two screens end up disagreeing about what a number looks like.
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, th, fmtDate, money } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, th, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { movesFrom, orderDeletable, orderLinesEditable } from "@/modules/sales/orderStatus";
 import { taxDict, taxCategoryOptions } from "@/shared/studio/tax";
 import { documentTotals } from "@/shared/documentTotals";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 const BLANK_LINE = { description: "", qty: 1, unitPrice: 0, taxCategory: "standard" };
 
@@ -54,6 +55,7 @@ function refusal(tr, token) {
 // Every piece of state below starts from it through the same reading `apply`
 // gives a fetched body. Absent — refused, or over the ceiling — it fetches.
 export default function StudioOrders({ slug, initial }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = salesOrdersDict(locale);
   const tax = taxDict(locale);

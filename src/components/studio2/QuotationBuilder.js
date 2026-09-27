@@ -7,7 +7,7 @@ import { statusLabel } from "@/shared/studio/statuses";
 import { documentsDict } from "@/shared/studio/documents";
 import Link from "next/link";
 import nextDynamic from "next/dynamic";
-import { btn, btnGhost, input, money, fmtDateTime, Dialog } from "@/components/studio2/ui";
+import { btn, btnGhost, input, fmtDateTime, Dialog } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { Icon } from "@/components/studio2/icons";
 import Combo from "@/components/studio2/Combo";
@@ -15,6 +15,8 @@ import TaxTag from "@/components/studio2/TaxTag";
 import { MAX_TABLES, MAX_TABLE_ROWS, netUnitPrice } from "@/modules/technical/quotations";
 import { fmtRate } from "@/shared/currencies";
 import { documentTotals } from "@/shared/documentTotals";
+import { moneyText } from "@/shared/money";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // WHAT CHANGED SINCE THE PREVIOUS REVISION — its own chunk, fetched when
 // somebody asks for it. Most quotations are Rev 1 and never offer the button.
@@ -49,6 +51,7 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const cell = "w-full rounded-geex border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 export default function QuotationBuilder({ slug, quote, previous = null, catalogue = [], currency: studioCurrency = "", vatOn = false, canManage, nameOf = (v) => v || "", onSave, onClose }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = technicalDict(locale);
   const dt = documentsDict(locale);
@@ -391,7 +394,7 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
                               from this screen for the rest of the item's life. */}
                           <td className="py-1.5 pe-3 text-end font-mono text-xs text-slate-600 dark:text-slate-300">
                             {row.itemId || num(row.unitPrice)
-                              ? <>{money(num(row.unitPrice))} <span className="text-slate-400">{currency}</span></>
+                              ? <>{moneyText(num(row.unitPrice), currency)} <span className="text-slate-400">{currency}</span></>
                               : <span className="font-sans text-slate-400">—</span>}
                             <TaxTag category={row.taxCategory} />
                             <Conversion src={itemById[row.itemId]} tr={tr} />
@@ -504,7 +507,7 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
             <div className="flex items-baseline gap-3">
               <dt className="text-slate-500 dark:text-slate-400">{tr.subtotal}</dt>
               <dd className="ms-auto font-mono tabular-nums text-slate-700 dark:text-slate-200">
-                {money(totals.subtotal)} <span className="text-slate-400">{currency}</span>
+                {moneyText(totals.subtotal, currency)} <span className="text-slate-400">{currency}</span>
               </dd>
             </div>
             {/* NO VAT ROW FOR A STUDIO WITH NO RATE — it carries no tax (shared/vat). */}
@@ -521,14 +524,14 @@ export default function QuotationBuilder({ slug, quote, previous = null, catalog
                     }} />
                 </dt>
                 <dd className="ms-auto font-mono tabular-nums text-slate-700 dark:text-slate-200">
-                  {money(totals.vat)} <span className="text-slate-400">{currency}</span>
+                  {moneyText(totals.vat, currency)} <span className="text-slate-400">{currency}</span>
                 </dd>
               </div>
             )}
             <div className="flex items-baseline gap-3 border-t border-slate-200 pt-1 dark:border-white/10">
               <dt className="sr-only">{tr.total}</dt>
               <dd className="ms-auto font-display text-base font-700 tabular-nums text-slate-900 dark:text-white">
-                {money(totals.total)} <span className="text-sm font-600 text-slate-400">{currency}</span>
+                {moneyText(totals.total, currency)} <span className="text-sm font-600 text-slate-400">{currency}</span>
               </dd>
             </div>
           </dl>
@@ -573,6 +576,7 @@ function PriceBasis({ src, tr }) {
 }
 
 function Conversion({ src, tr }) {
+  const money = useMoney();
   if (!src?.converted) return null;
 
   if (!src.priced) {
@@ -591,13 +595,13 @@ function Conversion({ src, tr }) {
     cost: money(src.cost),
     shipping: src.shippingCharges ? money(src.shippingCharges) : "",
     customs: src.customsCharges ? money(src.customsCharges) : "",
-    landed: money(src.landedCost), currency: src.currency, rate: fmtRate(src.rate),
+    landed: moneyText(src.landedCost, src.currency), currency: src.currency, rate: fmtRate(src.rate),
   });
 
   return (
     <p className="mt-0.5 font-sans text-[11px] text-slate-400"
       title={working}>
-      {money(src.landedCost)} {src.currency} × {fmtRate(src.rate)}
+      {moneyText(src.landedCost, src.currency)} {src.currency} × {fmtRate(src.rate)}
     </p>
   );
 }

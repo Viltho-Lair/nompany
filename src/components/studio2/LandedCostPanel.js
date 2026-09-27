@@ -4,7 +4,8 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { logisticsDict } from "@/shared/studio/logistics";
 import { useReload } from "@/components/studio2/useReload";
-import { panel, h2, sub, btn, btnGhost, btnRow, money, fmtDate, Empty } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, fmtDate, Empty } from "@/components/studio2/ui";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // WHAT A SHIPMENT COST TO LAND — freight, duty, insurance, handling, spread
 // across the order's lines.
@@ -35,6 +36,7 @@ function refusal(body, tr) {
 }
 
 export default function LandedCostPanel({ slug, locale = "en", currency = "", initial }) {
+  const money = useMoney();
   const tr = logisticsDict(locale);
   const [data, setData] = useState(initial ?? null);
   const [problem, setProblem] = useState("");
@@ -90,7 +92,7 @@ export default function LandedCostPanel({ slug, locale = "en", currency = "", in
   if (!data) return <div className="mt-5 h-24 rounded-xl skel" aria-busy="true" />;
 
   const { orders = [], canManage, canDelete } = data;
-  const amount = (n) => `${money(n)}${currency ? ` ${currency}` : ""}`;
+  const amount = (n) => money(n, currency);
 
   return (
     <div className="mt-8 space-y-4">
@@ -207,7 +209,7 @@ function OrderCharges({ state, tr, amount, busy, canManage, canDelete, onChange,
           <div key={c.id || i} className="flex flex-wrap items-end gap-2">
             <Field label={tr.kind} className="w-full sm:w-64" value={c.kind}
               onChange={(v) => setCharge(i, { kind: v })} inputProps={{ maxLength: 60 }} />
-            <Field label={tr.amount} type="number" className="w-full sm:w-40" value={c.amount}
+            <Field currency label={tr.amount} type="number" className="w-full sm:w-40" value={c.amount}
               onChange={(v) => setCharge(i, { amount: v })} inputProps={{ min: 0, step: "any" }} />
             {canManage && (
               <button type="button" className="pb-2.5 text-xs text-rose-600 hover:underline dark:text-rose-300"

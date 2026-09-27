@@ -28,8 +28,11 @@ export const GET = route(
       ticket: result.ticket,
       isLatest: result.isLatest,
       // The money the document is written in, so the viewer shows every figure
-      // beside what it is in rather than leaving it to be guessed.
-      currency: sales.studio.currency || "",
+      // beside what it is in rather than leaving it to be guessed. THE
+      // QUOTATION'S OWN, frozen on it when it was raised — this sent the
+      // studio's, so a quotation in euros was labelled in dinars (27/09/2026).
+      // The studio's only for a quotation raised before it carried one.
+      currency: result.quotation?.currency || sales.studio.currency || "",
     };
   },
 );

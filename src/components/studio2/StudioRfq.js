@@ -17,9 +17,10 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict, procurementRefusal } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { supplierOptions, supplierName } from "@/components/studio2/pickerOptions";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 function refusal(tr, token) {
   switch (token) {
@@ -40,6 +41,7 @@ const emptyLine = () => ({ description: "", unit: "", qty: "", itemId: "" });
 // `initial` is this screen's own GET body, answered by the studio page in its
 // render, so the screen paints with its rows; absent, it fetches on mount as before.
 export default function StudioRfq({ slug, initial }) {
+  const money = useMoney();
   const tr = procurementDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
@@ -465,7 +467,7 @@ export default function StudioRfq({ slug, initial }) {
                         {/* LEFT BLANK WHERE THEY DID NOT PRICE IT. A blank is a
                             silence and nought is a price, and the comparison
                             ranks on exactly that distinction. */}
-                        <input type="number" step="0.01"
+                        <input type="number" step="any"
                           className="num w-28 rounded-lg border border-slate-200 px-2 py-1 text-end text-sm dark:border-white/10 dark:bg-transparent"
                           aria-label={`${tr.lineEstCost} — ${l.description}`}
                           value={l.unitPrice}

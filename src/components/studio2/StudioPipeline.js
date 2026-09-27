@@ -18,9 +18,10 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { salesDict } from "@/shared/studio/sales";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, microLabel, Empty, StatTile, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, microLabel, Empty, StatTile, fmtDate } from "@/components/studio2/ui";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // A deal that has sat in one stage this long is the thing the board exists to
 // surface. Named rather than inlined because it is a judgement about sales, not
@@ -31,6 +32,7 @@ const STALE_DAYS = 30;
 // `initial` is the /sales/pipeline body the studio page answered in its own
 // render, so the board paints at once; absent, it fetches on mount as before.
 export default function StudioPipeline({ slug, initial }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = salesDict(locale);
   const [data, setData] = useState(initial ?? null);

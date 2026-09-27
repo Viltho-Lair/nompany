@@ -18,8 +18,9 @@ import { projectsDict } from "@/shared/studio/projects";
 import { costCodesDict } from "@/shared/studio/costCodes";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, microLabel, Empty, Dialog, StatTile, money } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, microLabel, Empty, Dialog, StatTile } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 function refusal(tr, token) {
   switch (token) {
@@ -32,6 +33,7 @@ function refusal(tr, token) {
 }
 
 export default function StudioProjectCosts({ slug, projectId }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = projectsDict(locale);
   const lib = costCodesDict(locale);
@@ -367,8 +369,8 @@ export default function StudioProjectCosts({ slug, projectId }) {
               <Field label={tr.costName} required value={form.name || ""}
                 onChange={(v) => setForm((f) => ({ ...f, name: v }))} inputProps={{ maxLength: 200 }} />
             </div>
-            <Field label={tr.costBudget} type="number" value={form.budget ?? ""}
-              onChange={(v) => setForm((f) => ({ ...f, budget: v }))} inputProps={{ min: "0", step: "0.01" }} />
+            <Field currency label={tr.costBudget} type="number" value={form.budget ?? ""}
+              onChange={(v) => setForm((f) => ({ ...f, budget: v }))} inputProps={{ min: "0", step: "any" }} />
             <Field label={tr.notes} as="textarea" value={form.notes || ""}
               onChange={(v) => setForm((f) => ({ ...f, notes: v }))} inputProps={{ maxLength: 1000 }} />
             <div className="flex justify-end gap-2">

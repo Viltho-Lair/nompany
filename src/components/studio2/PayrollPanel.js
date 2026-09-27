@@ -6,7 +6,8 @@ import { Field } from "@/components/fields/Field";
 import { payrollDict } from "@/shared/studio/payroll";
 import PayslipSheet from "@/components/studio2/PayslipSheet";
 import { useReload } from "@/components/studio2/useReload";
-import { panel, btn, btnGhost, btnRow, btnRowPrimary, th, money, Dialog, StatTile, Empty, tileRow } from "@/components/studio2/ui";
+import { panel, btn, btnGhost, btnRow, btnRowPrimary, th, Dialog, StatTile, Empty, tileRow } from "@/components/studio2/ui";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // PAYROLL — what people are paid, and the runs that pay them.
 //
@@ -58,6 +59,7 @@ function RunPill({ status, tr }) {
 // ONE RUN'S PAYSLIPS, opened under the run itself: its four totals first, then
 // the lines, then the totals again as a footer so a column can be checked.
 function Payslips({ run, tr, onSlip }) {
+  const money = useMoney();
   const t = run.totals || {};
   const cells = [[tr.basic, t.basic], [tr.allowances, t.allowances], [tr.deductions, t.deductions], [tr.net, t.net]];
   return (
@@ -161,6 +163,7 @@ function Payslips({ run, tr, onSlip }) {
 }
 
 export default function PayrollPanel({ slug, locale = "en" }) {
+  const money = useMoney();
   const tr = payrollDict(locale);
   const [data, setData] = useState(null);
   const [problem, setProblem] = useState("");
@@ -508,7 +511,7 @@ export default function PayrollPanel({ slug, locale = "en" }) {
               <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{problem}</p>
             )}
             <div className="grid gap-4 sm:grid-cols-3">
-              <Field label={tr.basic} type="number" value={editing.basic}
+              <Field currency label={tr.basic} type="number" value={editing.basic}
                 onChange={(v) => setEditing({ ...editing, basic: v })} />
               <Field label={tr.bank} value={editing.bankName}
                 onChange={(v) => setEditing({ ...editing, bankName: v })} />

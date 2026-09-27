@@ -19,10 +19,11 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { maintenanceDict } from "@/shared/studio/maintenance";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { h2, sub, StatTile, money, fmtDate } from "@/components/studio2/ui";
+import { h2, sub, StatTile, fmtDate } from "@/components/studio2/ui";
 import { StatRow, DashGrid, Widget, DashEmpty } from "@/components/dashboard";
 import { BarList, Radial } from "@/components/charts";
 import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // NAMED `*Dashboard.jsx` DELIBERATELY: the widget-gate scan reads exactly that
 // filename pattern to prove every registry key is drawn by something, so a
@@ -30,6 +31,7 @@ import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel
 // `initial` is this screen's own GET body, answered by the studio page in its
 // render, so the screen paints with its rows; absent, it fetches on mount as before.
 export default function MaintenanceDashboard({ slug, initial }) {
+  const money = useMoney();
   const tr = maintenanceDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
@@ -78,7 +80,7 @@ export default function MaintenanceDashboard({ slug, initial }) {
     may = {}, asOf, currency = "",
     backlog = {}, planned = {}, cost = {}, machines = [], requests = {}, contracts = {},
   } = data;
-  const amount = (n) => `${money(n || 0)}${currency ? ` ${currency}` : ""}`;
+  const amount = (n) => money(n || 0, currency);
   const num = (n) => <span className="num">{n}</span>;
   const worst = machines.filter((m) => m.failures > 0);
   const busiest = Math.max(1, ...worst.map((m) => m.failures));

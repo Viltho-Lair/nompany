@@ -5,10 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { moneyText } from "@/shared/money";
 import { fmtDate } from "@/lib/format";
 import { claimsDict } from "@/shared/studio/claims";
 import { projectOptions } from "@/components/studio2/pickerOptions";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // PAYABLES → CLAIMS (modules/finance/claims): expense claims and staff
 // advances. What each person may do is decided by the server and handed back
@@ -76,7 +76,7 @@ function ClaimForm({ tr, categories, pickers, initial, busy, onSave, onCancel })
           <Field label={tr.category} as="select" className="w-44" value={l.category} options={categories}
             onChange={(v) => patch(i, { category: v })} />
           <Field label={tr.description} className="w-64" value={l.description} onChange={(v) => patch(i, { description: v })} />
-          <Field label={tr.amount} type="number" className="w-32" value={l.amount} onChange={(v) => patch(i, { amount: v })} />
+          <Field currency label={tr.amount} type="number" className="w-32" value={l.amount} onChange={(v) => patch(i, { amount: v })} />
           {lines.length > 1 && <button className={ghost} onClick={() => setLines(lines.filter((_, n) => n !== i))}>×</button>}
         </div>
       ))}
@@ -94,6 +94,7 @@ function ClaimForm({ tr, categories, pickers, initial, busy, onSave, onCancel })
 }
 
 function Claims({ slug, tr, data, busy, post }) {
+  const money = useMoney();
   const { claims = [], me, canCreate, canPay, categories = [], moneyAccounts = [], pickers = {} } = data;
   const [editing, setEditing] = useState(null);
   const [paying, setPaying] = useState(null);
@@ -118,9 +119,9 @@ function Claims({ slug, tr, data, busy, post }) {
                   <tr key={c.id} className="border-t border-slate-100 align-top text-slate-700 dark:border-white/10 dark:text-slate-200">
                     <td className="py-2 pe-3 font-mono text-xs">{c.reference}</td>
                     <td className="py-2 pe-3">{own ? tr.mine : c.claimantAlias}</td>
-                    <td className="num py-2 pe-3">{moneyText(c.total)}</td>
-                    <td className="num py-2 pe-3">{c.fromAdvance ? moneyText(c.fromAdvance) : "—"}</td>
-                    <td className="num py-2 pe-3">{c.status === "Approved" || c.status === "Paid" ? moneyText(c.payable) : "—"}</td>
+                    <td className="num py-2 pe-3">{money(c.total)}</td>
+                    <td className="num py-2 pe-3">{c.fromAdvance ? money(c.fromAdvance) : "—"}</td>
+                    <td className="num py-2 pe-3">{c.status === "Approved" || c.status === "Paid" ? money(c.payable) : "—"}</td>
                     <td className="py-2 pe-3">
                       {tr.status(c.status)}
                       {c.status === "Rejected" && c.rejectedReason && <p className="text-xs text-slate-500">{c.rejectedReason}</p>}
@@ -186,6 +187,7 @@ function Claims({ slug, tr, data, busy, post }) {
 }
 
 function Advances({ tr, data, busy, post }) {
+  const money = useMoney();
   const { advances = [], open = {}, people = [], canPay, moneyAccounts = [] } = data;
   const [giving, setGiving] = useState(null);
   const [taking, setTaking] = useState(null);
@@ -212,10 +214,10 @@ function Advances({ tr, data, busy, post }) {
                 <tr key={a.id} className="border-t border-slate-100 text-slate-700 dark:border-white/10 dark:text-slate-200">
                   <td className="py-2 pe-3 font-mono text-xs">{a.reference}</td>
                   <td className="py-2 pe-3">{a.holderAlias}</td>
-                  <td className="num py-2 pe-3">{moneyText(a.amount)}</td>
-                  <td className="num py-2 pe-3">{moneyText(a.returned || 0)}</td>
+                  <td className="num py-2 pe-3">{money(a.amount)}</td>
+                  <td className="num py-2 pe-3">{money(a.returned || 0)}</td>
                   {/* WHAT THE PERSON HOLDS is across all their advances and claims. */}
-                  <td className="num py-2 pe-3">{moneyText(open[a.collaboratorId] || 0)}</td>
+                  <td className="num py-2 pe-3">{money(open[a.collaboratorId] || 0)}</td>
                   <td className="py-2 text-end">
                     {canPay && (open[a.collaboratorId] || 0) > 0 && (
                       <button className={ghost} onClick={() => setTaking({ id: a.id, amount: "", date: "", accountId: "" })}>{tr.takeBack}</button>
@@ -229,7 +231,7 @@ function Advances({ tr, data, busy, post }) {
       )}
       {taking && (
         <div className="flex flex-wrap items-end gap-2">
-          <Field label={tr.amount} type="number" className="w-32" value={taking.amount} onChange={(v) => setTaking({ ...taking, amount: v })} />
+          <Field currency label={tr.amount} type="number" className="w-32" value={taking.amount} onChange={(v) => setTaking({ ...taking, amount: v })} />
           <Field label={tr.date} type="date" className="w-40" value={taking.date} onChange={(v) => setTaking({ ...taking, date: v })} />
           {accountPicker(taking.accountId, (v) => setTaking({ ...taking, accountId: v }))}
           <button className={primary} disabled={busy}
@@ -243,7 +245,7 @@ function Advances({ tr, data, busy, post }) {
           <Field label={tr.person} as="select" className="w-56" value={giving.collaboratorId}
             options={people.map((p) => ({ value: p.id, label: p.alias }))}
             onChange={(v) => setGiving({ ...giving, collaboratorId: v })} />
-          <Field label={tr.amount} type="number" className="w-32" value={giving.amount} onChange={(v) => setGiving({ ...giving, amount: v })} />
+          <Field currency label={tr.amount} type="number" className="w-32" value={giving.amount} onChange={(v) => setGiving({ ...giving, amount: v })} />
           <Field label={tr.date} type="date" className="w-40" value={giving.date} onChange={(v) => setGiving({ ...giving, date: v })} />
           {accountPicker(giving.accountId, (v) => setGiving({ ...giving, accountId: v }))}
           <Field label={tr.note} className="w-56" value={giving.note} onChange={(v) => setGiving({ ...giving, note: v })} />

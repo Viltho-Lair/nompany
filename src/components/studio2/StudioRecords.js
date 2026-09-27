@@ -38,7 +38,8 @@ import { restDict } from "@/shared/studio/rest";
 import { engineWords } from "@/shared/studio/engineTypes";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, th, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate, money } from "@/components/studio2/ui";
+import { panel, h2, th, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate } from "@/components/studio2/ui";
+import { useMoney } from "@/components/studio2/studioCurrency";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
@@ -157,7 +158,7 @@ function controlFor(tr, w, field, value, onChange, refOptions) {
     );
   }
   if (field.kind === "number" || field.kind === "money") {
-    return <Field key={field.key} {...common} type="number" value={value ?? ""} onChange={onChange} />;
+    return <Field currency={field.kind === "money"} key={field.key} {...common} type="number" value={value ?? ""} onChange={onChange} />;
   }
   if (field.kind === "reference") {
     // THE TARGET REGISTER, AS A PICKER — and it degrades to a text box rather
@@ -190,7 +191,8 @@ function controlFor(tr, w, field, value, onChange, refOptions) {
  * `coerceValue` hands back null for exactly that case, so the dash is the
  * store's own answer rather than this screen's guess.
  */
-function cell(tr, w, field, value, references) {
+// `money` is the screen's (useMoney): a money field shows the studio's currency.
+function cell(tr, w, field, value, references, money) {
   if (field.kind === "boolean") return value ? tr.yes : tr.no;
   if (value === null || value === undefined || value === "") return "—";
   if (field.kind === "date") return fmtDate(value);
@@ -248,6 +250,7 @@ function SortHead({ label, col, sort, onSort }) {
 // `initial` is the records/<typeKey> body the studio page answered in its own
 // render, so the register paints at once; absent, it fetches on mount as before.
 export default function StudioRecords({ slug, typeKey, initial }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = restDict(locale);
   const [data, setData] = useState(initial ?? null);
@@ -459,7 +462,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
       const v = r.values?.[key];
       if (field.kind !== "boolean" && (v === null || v === undefined || v === "")) return "";
       if (field.kind === "number" || field.kind === "money") return v;
-      return cell(tr, w, field, v, data.references);
+      return cell(tr, w, field, v, data.references, money);
     };
     const body = shown.map((r) => cols.map((c) =>
       esc(c === "reference" ? r.reference : c === "status" ? w.word(r.status) : fieldCell(r, c))).join(","));
@@ -557,7 +560,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
                   <tr key={r.id}>
                     <td className="py-3 pe-4 font-mono text-xs text-slate-500 dark:text-slate-400">{r.reference}</td>
                     {columns.map((f) => (
-                      <td key={f.key} className="py-3 pe-4 text-[var(--geex-ink)]">{cell(tr, w, f, r.values?.[f.key], data.references)}</td>
+                      <td key={f.key} className="py-3 pe-4 text-[var(--geex-ink)]">{cell(tr, w, f, r.values?.[f.key], data.references, money)}</td>
                     ))}
                     <td className="py-3 pe-4">
                       {/* THE STATUS WORD IS THE TYPE'S OWN, so the pill is

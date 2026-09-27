@@ -10,7 +10,7 @@
 // key. The StatRow is the free floor everyone gets; the DashGrid widgets are each
 // gated by their registry key (see lib/dashboardWidgets).
 
-import { money, StatTile, URGENCY_DOT, FunnelChart } from "@/components/studio2/ui";
+import { StatTile, URGENCY_DOT, FunnelChart } from "@/components/studio2/ui";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { salesExtraDict } from "@/shared/studio/salesExtra";
 import { Widget, StatRow, DashGrid, DashEmpty } from "@/components/dashboard";
@@ -27,6 +27,7 @@ import { BOARD_COLUMNS, CLOSED_STAGES, WON_STAGE } from "@/modules/sales/pipelin
 import { statusLabel } from "@/shared/studio/statuses";
 import { daysUntil } from "@/modules/projects/sla";
 import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // The stages a ticket can sit in, in the order the mix reads. Everything a
 // ticket can BE is here, so the donut never drops a status onto no slice.
@@ -53,6 +54,7 @@ const URGENCIES = [
 ];
 
 export default function SalesDashboard({ tickets = [], slug = "", nav = null }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = salesExtraDict(locale);
   // Tier AND the studio's switches: a card whose section is off is not drawn.

@@ -11,8 +11,8 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
 import { fmtDate, fmtTime } from "@/lib/format";
 import { useReload } from "@/components/studio2/useReload";
-import { moneyText } from "@/shared/money";
 
+import { useMoney } from "@/components/studio2/studioCurrency";
 // How often the table pulls a fresh copy while someone is watching it. This
 // screen is the one people leave up on a wall, so unlike the rest of the studio
 // it does not wait for the event cursor — it re-reads on a short timer.
@@ -20,13 +20,13 @@ const REFRESH_MS = 5000;
 
 // Through shared/money, which shows a currency's own decimals: this was fixed
 // at two places and hid the third decimal of every dinar amount.
-const money = (n) => moneyText(n);
 
 // Sales Live view: full-screen, rendered OUTSIDE StudioFrame so the table gets
 // the whole viewport. It is a PROJECTION of the tickets list — same rows, only
 // the columns chosen in Sales -> Settings — so there is no second data source
 // and nothing to keep in sync.
 export default function StudioSalesLive({ studio }) {
+  const money = useMoney();
   const tr = miscDict(useStudioLocale());
   // The column names are Sales' words, not the shell's.
   const sales = salesDict(useStudioLocale());

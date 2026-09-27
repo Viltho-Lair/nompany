@@ -7,7 +7,8 @@ import { orderMoveProblem } from "@/modules/procurement/orderModel";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { useReload } from "@/components/studio2/useReload";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
-import { panel, h2, sub, btnRow, btnRowPrimary, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btnRow, btnRowPrimary, fmtDate } from "@/components/studio2/ui";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // THE PURCHASE ORDER REGISTER — Procurement → Purchase orders (tier 5).
 //
@@ -38,6 +39,7 @@ const FILTERS = ["", "Draft", "Ordered", "Partly received", "Received", "Cancell
 // `initial` is the orders GET body, answered by the studio page in its render,
 // so the register paints with its rows; absent, it fetches on mount as before.
 export default function StudioPurchaseOrders({ slug, initial }) {
+  const money = useMoney();
   const tr = procurementDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");

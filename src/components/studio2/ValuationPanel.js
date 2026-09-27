@@ -4,7 +4,8 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { valuationDict } from "@/shared/studio/valuation";
 import { useReload } from "@/components/studio2/useReload";
-import { panel, sub, money, Empty } from "@/components/studio2/ui";
+import { panel, sub, Empty } from "@/components/studio2/ui";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // WHAT THE STOCK ON HAND IS WORTH.
 //
@@ -23,6 +24,7 @@ import { panel, sub, money, Empty } from "@/components/studio2/ui";
 // SO — a number that silently is not the policy is how the wrong one ends up on
 // a return.
 export default function ValuationPanel({ slug, locale = "en", currency = "" }) {
+  const money = useMoney();
   const tr = valuationDict(locale);
   const [data, setData] = useState(null);
   const [problem, setProblem] = useState("");
@@ -63,7 +65,7 @@ export default function ValuationPanel({ slug, locale = "en", currency = "" }) {
     setMethod("");
     await load();
   }
-  const amount = (n) => `${money(n)}${currency ? ` ${currency}` : ""}`;
+  const amount = (n) => money(n, currency);
 
   return (
     <div className="space-y-5">

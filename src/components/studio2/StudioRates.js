@@ -14,13 +14,15 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { tenderingDict } from "@/shared/studio/tendering";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, money } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { refusal } from "@/components/studio2/tenderRefusals";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // `initial` is the /tendering/rates body the studio page answered in its own
 // render, so the library paints at once; absent, it fetches on mount as before.
 export default function StudioRates({ slug, initial }) {
+  const money = useMoney();
   const tr = tenderingDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
@@ -165,8 +167,8 @@ export default function StudioRates({ slug, initial }) {
                 onChange={(v) => setForm((f) => ({ ...f, description: v }))} inputProps={{ maxLength: 500 }} />
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
-              <Field label={tr.rateAmount} type="number" value={form.rate ?? ""}
-                onChange={(v) => setForm((f) => ({ ...f, rate: v }))} inputProps={{ min: "0", step: "0.01" }} />
+              <Field currency label={tr.rateAmount} type="number" value={form.rate ?? ""}
+                onChange={(v) => setForm((f) => ({ ...f, rate: v }))} inputProps={{ min: "0", step: "any" }} />
               <Field label={tr.colUnit} value={form.unit || ""}
                 onChange={(v) => setForm((f) => ({ ...f, unit: v }))} inputProps={{ maxLength: 24 }} />
               <Field label={tr.rateCategory} value={form.category || ""}

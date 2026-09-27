@@ -8,9 +8,10 @@ import { documentsDict } from "@/shared/studio/documents";
 import Link from "next/link";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Icon } from "@/components/studio2/icons";
-import { panel, h2, sub, btnGhost, money, fmtDate } from "@/components/studio2/ui";
+import { panel, h2, sub, btnGhost, fmtDate } from "@/components/studio2/ui";
 import { netUnitPrice } from "@/modules/technical/quotations";
 import { useReload } from "@/components/studio2/useReload";
+import { moneyText } from "@/shared/money";
 
 // THE QUOTATION, AS SALES READS IT.
 //
@@ -183,9 +184,9 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId, init
                       <td className="px-3 py-2 font-600 text-slate-900 dark:text-white">{r.description}</td>
                       <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.unit || "—"}</td>
                       <td className="px-3 py-2 tabular-nums text-slate-600 dark:text-slate-300">{num(r.qty)}</td>
-                      <td className="px-3 py-2 text-end font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">{money(netUnitPrice(r))}</td>
+                      <td className="px-3 py-2 text-end font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">{moneyText(netUnitPrice(r), currency)}</td>
                       <td className="px-3 py-2 text-end font-mono text-xs font-600 tabular-nums text-slate-800 dark:text-slate-100">
-                        {money(num(r.qty) * netUnitPrice(r))}
+                        {moneyText(num(r.qty) * netUnitPrice(r), currency)}
                       </td>
                     </tr>
                   ))}
@@ -193,7 +194,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId, init
               </table>
             </div>
             <div className="border-t border-slate-100 px-5 py-2.5 text-end text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
-              {tr.tableTotal} <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{money(sum)}</span>
+              {tr.tableTotal} <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{moneyText(sum, currency)}</span>
               {currency && <span className="ms-1 text-slate-400">{currency}</span>}
             </div>
           </section>
@@ -207,7 +208,7 @@ export default function SalesQuotationViewer({ slug, ticketId, quotationId, init
           <div className="flex items-baseline gap-3 border-t border-slate-200 pt-1 dark:border-white/10">
             <dt className="text-slate-500 dark:text-slate-400">{tr.total}</dt>
             <dd className="ms-auto font-display text-base font-700 tabular-nums text-slate-900 dark:text-white">
-              {money(q.total)} <span className="text-sm font-600 text-slate-400">{currency}</span>
+              {moneyText(q.total, currency)} <span className="text-sm font-600 text-slate-400">{currency}</span>
             </dd>
           </div>
         </dl>
@@ -223,7 +224,7 @@ function Total({ label, value, currency }) {
     <div className="flex items-baseline gap-3">
       <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
       <dd className="ms-auto font-mono tabular-nums text-slate-700 dark:text-slate-200">
-        {money(value)} <span className="text-slate-400">{currency}</span>
+        {moneyText(value, currency)} <span className="text-slate-400">{currency}</span>
       </dd>
     </div>
   );

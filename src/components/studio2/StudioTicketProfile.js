@@ -7,7 +7,7 @@ import { miscDict } from "@/shared/studio/misc";
 import Link from "next/link";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, money, fmtDate, fmtDateTime, Dialog } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, fmtDate, fmtDateTime, Dialog } from "@/components/studio2/ui";
 import { TicketForm, ticketRefusal } from "@/components/studio2/StudioSales";
 import { AssignControl, LeadStateChip, assignLead } from "@/components/studio2/LeadParts";
 import { leadsDict } from "@/shared/studio/leads";
@@ -18,6 +18,7 @@ import { canRequestRfqStatus } from "@/modules/sales/tickets";
 import { CHAIN_LOST_REASON } from "@/modules/sales/pipeline";
 import { rfqInfo } from "@/modules/sales/salesAnalytics";
 import { useReload } from "@/components/studio2/useReload";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // ONE TICKET, on its own page — the layout in the brief: the ticket's own
 // information on the left with the client and the timeline down the right, and
@@ -62,6 +63,7 @@ const btnApproved = `${btnAction} bg-emerald-500/15 text-emerald-700 dark:bg-eme
 // the same body the Sales board is handed, since this page reads its ticket out
 // of that list — so the record paints at once; absent, it fetches as before.
 export default function StudioTicketProfile({ slug, ticketId, initial }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = miscDict(locale);
   // The ticket form's refusals are Sales' words; the page itself speaks misc.

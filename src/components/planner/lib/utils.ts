@@ -171,14 +171,6 @@ export function formatDuration(value: number, unit: 'days' | 'hours'): string {
   return `${rounded}${unit === 'hours' ? 'h' : 'd'}`;
 }
 
-export function formatCurrency(n: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
 export function initialsOf(name: string): string {
   return name
     .split(/\s+/)

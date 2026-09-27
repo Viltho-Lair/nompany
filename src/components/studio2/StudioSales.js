@@ -15,7 +15,7 @@ import ClientBlock from "@/components/studio2/ClientBlock";
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
   panel, h2, sub, input, microLabel, label, btn, btnGhost, th,
-  URGENCY_BADGE, URGENCY_TONE, money, fmtDate, useTablePrefs,
+  URGENCY_BADGE, URGENCY_TONE, fmtDate, useTablePrefs,
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty,
 } from "@/components/studio2/ui";
 import { linkToClient } from "@/modules/main/studioLinks";
@@ -31,6 +31,7 @@ import { useReload } from "@/components/studio2/useReload";
 import { stageDef, stageProblem } from "@/modules/sales/pipeline";
 import { LeadQueue, assignLead } from "@/components/studio2/LeadParts";
 import { leadsDict } from "@/shared/studio/leads";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // EVERY REFUSAL THE SALES ROUTES RETURN, said in the reader's language. Exported
 // because the ticket's own page saves through the same form and showed only
@@ -362,6 +363,7 @@ function SalesOverview({ slug, tickets, nav, level }) {
 // in the order they happen, rather than one of them being smuggled into a
 // column of a table whose rows are links.
 function Tickets({ tickets, people, canManage, slug, hasTechnical, statuses, urgencies, onAdd }) {
+  const money = useMoney();
   const tr = salesDict(useStudioLocale());
   const TICKET_COLUMNS = useMemo(() => ticketColumns(tr), [tr]);
   const aliasOf = useMemo(() => Object.fromEntries(people.map((p) => [p.id, p.alias])), [people]);
@@ -525,9 +527,9 @@ function Tickets({ tickets, people, canManage, slug, hasTechnical, statuses, urg
           <div>
             <label className={microLabel}>{tr.colValueQuoted}</label>
             <div className="flex items-center gap-2">
-              <Field label={tr.min} type="number" min="0" value={filters.valueMin} onChange={(v) => setFilter({ valueMin: v })} className="flex-1" />
+              <Field currency label={tr.min} type="number" min="0" value={filters.valueMin} onChange={(v) => setFilter({ valueMin: v })} className="flex-1" />
               <span className="text-slate-400">–</span>
-              <Field label={tr.max} type="number" min="0" value={filters.valueMax} onChange={(v) => setFilter({ valueMax: v })} className="flex-1" />
+              <Field currency label={tr.max} type="number" min="0" value={filters.valueMax} onChange={(v) => setFilter({ valueMax: v })} className="flex-1" />
             </div>
           </div>
           <div>

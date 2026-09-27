@@ -385,7 +385,7 @@ export default function StudioCampaigns({ slug, initial }) {
               <div className="mt-2 grid gap-4 sm:grid-cols-3">
                 <Field label={tr.expectedLeads} type="number" value={form.expectedLeads} onChange={set("expectedLeads")} inputProps={{ min: 0, step: 1 }} />
                 <Field label={tr.expectedCustomers} type="number" value={form.expectedCustomers} onChange={set("expectedCustomers")} inputProps={{ min: 0, step: 1 }} />
-                <Field label={tr.expectedRevenue} type="number" value={form.expectedRevenue} onChange={set("expectedRevenue")} inputProps={{ min: 0, step: "any" }} />
+                <Field currency label={tr.expectedRevenue} type="number" value={form.expectedRevenue} onChange={set("expectedRevenue")} inputProps={{ min: 0, step: "any" }} />
               </div>
             </div>
 

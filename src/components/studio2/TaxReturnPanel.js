@@ -9,6 +9,7 @@ import { useReload } from "@/components/studio2/useReload";
 import { moneyText } from "@/shared/money";
 import { taxDict } from "@/shared/studio/tax";
 import { financeDict } from "@/shared/studio/finance";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // THE TAX RETURN TAB (vat.md) — one period's VAT, read from the documents.
 //
@@ -18,9 +19,9 @@ import { financeDict } from "@/shared/studio/finance";
 
 // Through shared/money, which shows a currency's own decimals: this was fixed
 // at two places and hid the third decimal of every dinar amount.
-const money = (n) => moneyText(n);
 
 export default function TaxReturnPanel({ slug, locale }) {
+  const money = useMoney();
   const tr = ledgerDict(locale);
   const tax = taxDict(locale);
   const [asked, setAsked] = useState({ from: "", to: "" });
@@ -83,7 +84,7 @@ export default function TaxReturnPanel({ slug, locale }) {
           <div key={label} className={box}>
             <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
             <p className="num mt-1 font-display text-lg font-800 text-slate-900 dark:text-white">
-              {sign < 0 && b.vat ? "−" : ""}{money(b.vat)} <span className="text-xs text-slate-400">{data.currency}</span>
+              {sign < 0 && b.vat ? "−" : ""}{moneyText(b.vat, data.currency)} <span className="text-xs text-slate-400">{data.currency}</span>
             </p>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               {tr.taxable} <span className="num">{money(b.net)}</span> · {tr.count(b.count)}
@@ -105,7 +106,7 @@ export default function TaxReturnPanel({ slug, locale }) {
           {data.payable < 0 ? tr.reclaimable : tr.payable}
         </p>
         <p className="num font-display text-xl font-800 text-slate-900 dark:text-white">
-          {money(Math.abs(data.payable))} <span className="text-xs text-slate-400">{data.currency}</span>
+          {moneyText(Math.abs(data.payable), data.currency)} <span className="text-xs text-slate-400">{data.currency}</span>
         </p>
       </div>
 
@@ -140,6 +141,7 @@ async function post(slug, body) {
 // — the settlement moves what the LEDGER holds, and a difference means a
 // document the books never saw.
 function FileReturn({ data, from, to, slug, locale, onDone }) {
+  const money = useMoney();
   const tr = financeDict(locale);
   const [ref, setRef] = useState("");
   const [busy, setBusy] = useState(false);
@@ -176,6 +178,7 @@ function FileReturn({ data, from, to, slug, locale, onDone }) {
 }
 
 function FiledReturns({ data, slug, locale, onDone }) {
+  const money = useMoney();
   const tr = financeDict(locale);
   const rows = data.filed || [];
   const accounts = data.moneyAccounts || [];
@@ -222,6 +225,7 @@ function FiledReturns({ data, slug, locale, onDone }) {
 }
 
 function DocumentTable({ title, rows, tr, empty = "", showCurrency = false }) {
+  const money = useMoney();
   return (
     <section>
       <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{title}</h3>
@@ -245,7 +249,7 @@ function DocumentTable({ title, rows, tr, empty = "", showCurrency = false }) {
                   <td className="num py-2 pe-4">{r.date}</td>
                   <td className="py-2 pe-4 font-mono text-xs">{r.reference}</td>
                   <td className="py-2 pe-4 text-slate-500 dark:text-slate-400">{tr.kind[r.kind]}</td>
-                  <td className="num py-2 pe-4 text-end">{money(r.net)}{showCurrency ? ` ${r.currency}` : ""}</td>
+                  <td className="num py-2 pe-4 text-end">{showCurrency ? money(r.net, r.currency) : money(r.net)}</td>
                   <td className="num py-2 text-end">{r.kind === "sale" ? "" : "−"}{money(r.vat)}</td>
                 </tr>
               ))}
@@ -284,6 +288,7 @@ function ToClaim({ rows = [], locale, slug, canRecord, onDone, side = "claim" })
 }
 
 function CertificateRow({ row, tr, slug, kind, canRecord, onDone }) {
+  const money = useMoney();
   const [ref, setRef] = useState("");
   const [busy, setBusy] = useState(false);
   return (

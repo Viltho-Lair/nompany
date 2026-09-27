@@ -5,8 +5,8 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { moneyText } from "@/shared/money";
 import { leasesDict } from "@/shared/studio/leases";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // FIXED ASSETS → LEASES (IFRS 16, modules/finance/leases). The register, and
 // the month's run that depreciates, charges interest and records the payment —
@@ -16,6 +16,7 @@ const primary = "rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white d
 const blank = { name: "", lessor: "", start: "", termMonths: "36", payment: "", timing: "arrears", annualRate: "", accountId: "" };
 
 export default function LeasesPanel({ slug, locale }) {
+  const money = useMoney();
   const tr = leasesDict(locale);
   const [data, setData] = useState(null);
   const [problem, setProblem] = useState("");
@@ -62,11 +63,11 @@ export default function LeasesPanel({ slug, locale }) {
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="font-600 text-slate-900 dark:text-white">{l.name}</span>
                 {l.lessor && <span className="text-xs text-slate-500 dark:text-slate-400">{l.lessor}</span>}
-                <span className="text-xs text-slate-500 dark:text-slate-400">{tr.window(l.start.slice(0, 7), l.end)} · {moneyText(l.payment)} · {tr.timings[l.timing]} · {l.annualRate}%</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">{tr.window(l.start.slice(0, 7), l.end)} · {money(l.payment)} · {tr.timings[l.timing]} · {l.annualRate}%</span>
                 {l.due > 0 && <span className="ms-auto text-xs font-600 text-amber-700 dark:text-amber-300">{tr.dueNow(l.due)}</span>}
               </div>
               <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                {tr.summary(moneyText(l.initial), moneyText(l.liability), l.monthsDone, l.termMonths)}
+                {tr.summary(money(l.initial), money(l.liability), l.monthsDone, l.termMonths)}
                 {!l.recognised && <span className="ms-2 text-amber-700 dark:text-amber-300">{tr.notRecognised}</span>}
               </p>
               {canRun && l.monthsDone === 0 && (
@@ -85,7 +86,7 @@ export default function LeasesPanel({ slug, locale }) {
           <Field label={tr.lessor} className="w-48" value={draft.lessor} onChange={(v) => setDraft({ ...draft, lessor: v })} />
           <Field label={tr.start} type="date" className="w-44" value={draft.start} onChange={(v) => setDraft({ ...draft, start: v })} />
           <Field label={tr.term} type="number" className="w-28" value={draft.termMonths} onChange={(v) => setDraft({ ...draft, termMonths: v })} />
-          <Field label={tr.payment} type="number" className="w-36" value={draft.payment} onChange={(v) => setDraft({ ...draft, payment: v })} />
+          <Field currency label={tr.payment} type="number" className="w-36" value={draft.payment} onChange={(v) => setDraft({ ...draft, payment: v })} />
           <Field label={tr.timing} as="select" required className="w-56" value={draft.timing}
             options={Object.entries(tr.timings).map(([value, label]) => ({ value, label }))} onChange={(v) => setDraft({ ...draft, timing: v })} />
           <Field label={tr.rate} type="number" className="w-40" value={draft.annualRate} onChange={(v) => setDraft({ ...draft, annualRate: v })} />
@@ -121,7 +122,7 @@ export default function LeasesPanel({ slug, locale }) {
                 <li key={`${r.leaseId}:${r.period}`} className="flex flex-wrap gap-2 text-slate-700 dark:text-slate-200">
                   <span className="font-mono text-xs text-slate-400">{r.period}</span>
                   <span>{r.name}</span>
-                  <span className="text-xs text-slate-500">{tr.line(moneyText(r.payment), moneyText(r.interest), moneyText(r.depreciation))}</span>
+                  <span className="text-xs text-slate-500">{tr.line(money(r.payment), money(r.interest), money(r.depreciation))}</span>
                   <span className={`ms-auto text-xs ${r.state === "posted" ? "text-emerald-600 dark:text-emerald-300" : r.state === "due" ? "text-slate-500" : "text-amber-700 dark:text-amber-300"}`}>{tr.state(r.state)}</span>
                 </li>
               ))}

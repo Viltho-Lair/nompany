@@ -4,6 +4,7 @@ import { can } from "@/platform/access";
 import { dirFor } from "@/shared/i18n";
 import { shellDict } from "@/shared/studio/shell";
 import StudioFrame from "@/components/studio2/StudioFrame";
+import { StudioCurrencyProvider } from "@/components/studio2/studioCurrency";
 import StudioTracker from "@/components/StudioTracker";
 import { withRequest } from "@/platform/http/observability";
 import { studioShell } from "./_shell";
@@ -65,7 +66,11 @@ async function renderShell(children) {
   const isOn = switchboard(allSections || []);
   const switchedOff = (allSections || []).filter((s) => !isOn(s.key)).map((s) => s.key);
 
+  // THE STUDIO'S CURRENCY rides as context around everything the frame draws,
+  // so every screen's `useMoney()` prints it — the server's render included
+  // (studioCurrency.js says why that rules out a module variable).
   return (
+    <StudioCurrencyProvider currency={studio.currency}>
     <StudioFrame
       studio={{
         name: studio.name, slug: studio.slug, logo: studio.logo || "",
@@ -114,6 +119,7 @@ async function renderShell(children) {
       <BillingBanner billing={billing} locale={locale} slug={studio.slug} owner={collaborator.role === "owner"} />
       {children}
     </StudioFrame>
+    </StudioCurrencyProvider>
   );
 }
 

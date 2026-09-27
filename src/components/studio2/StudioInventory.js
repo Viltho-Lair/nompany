@@ -17,7 +17,7 @@ import { Icon } from "@/components/studio2/icons";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import {
   panel, h2, sub, inputRO, microLabel, label, btn, btnGhost, btnRow, btnRowDanger, th, stripeOn, stripeOff,
-  money, fmtDate, fmtDateTime, Dialog, Toolbar, Empty,
+  fmtDate, fmtDateTime, Dialog, Toolbar, Empty,
 } from "@/components/studio2/ui";
 import { linkToProject, linkIf } from "@/modules/main/studioLinks";
 import { parseAwb, formatAwb } from "@/modules/inventory/awb";
@@ -54,6 +54,7 @@ const ItemImport = nextDynamic(() => import("@/components/studio2/ItemImport"),
 import { binsDict } from "@/shared/studio/bins";
 import { batchesDict } from "@/shared/studio/batches";
 import { valuationDict } from "@/shared/studio/valuation";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // INVENTORY — what the studio buys, holds, and issues to its projects.
 // On-hand is summed from the movement ledger, so every number here can be traced
@@ -240,6 +241,7 @@ function message(out, tr, view = "") {
 
 // ---- registered items (the catalogue) --------------------------------------
 function Items({ slug, items, vendors, units, categories = [], serviceActions, studioCurrency, canManage, busy, send, reload }) {
+  const money = useMoney();
   const tr = inventoryDict(useStudioLocale());
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(null);
@@ -410,7 +412,7 @@ function Items({ slug, items, vendors, units, categories = [], serviceActions, s
                 {
                   field: "unitCost", headerName: tr.unitCost, type: "number", minWidth: 110, flex: 0.7,
                   align: "right", headerAlign: "right",
-                  renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{row.unitCost > 0 ? money(row.unitCost) : "—"}</span>,
+                  renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{row.unitCost > 0 ? money(row.unitCost, row.currency) : "—"}</span>,
                 },
                 {
                   // SELL PRICE AND THE MARGIN IT IMPLIES, beside the cost. The
@@ -599,7 +601,7 @@ function ItemForm({ row, vendors, units, categories = [], serviceActions = [], s
           options={[{ value: "", label: catTr.noCategory }, ...categoryOptions]}
           hint={categoryOptions.length === 0 ? catTr.empty : undefined} />
         <div className="grid grid-cols-[1fr,7.5rem] gap-3">
-          <Field label={tr.unitCost} type="number" min="0" value={f.unitCost} onChange={(v) => setF((s) => ({ ...s, unitCost: v }))} inputProps={{ step: "0.01" }} />
+          <Field label={tr.unitCost} type="number" min="0" value={f.unitCost} onChange={(v) => setF((s) => ({ ...s, unitCost: v }))} inputProps={{ step: "any" }} />
           {/* What that cost is IN. Blank means the studio's own currency, so an
               item priced in the studio's money needs nothing said about it. */}
           <Field label={tr.currency} as="select" required value={f.currency} onChange={(v) => setF((s) => ({ ...s, currency: v }))}
@@ -611,8 +613,8 @@ function ItemForm({ row, vendors, units, categories = [], serviceActions = [], s
             to be converted too and would be one more thing to keep true.
             Blank means unpriced: shared/pricing falls back to cost and says so,
             rather than quoting a nought somebody has to notice. */}
-        <Field label={tr.sellPrice} type="number" min="0" value={f.sellPrice}
-          onChange={(v) => setF((s) => ({ ...s, sellPrice: v }))} inputProps={{ step: "0.01" }}
+        <Field currency label={tr.sellPrice} type="number" min="0" value={f.sellPrice}
+          onChange={(v) => setF((s) => ({ ...s, sellPrice: v }))} inputProps={{ step: "any" }}
           hint={sellHint} />
         <Field label={tr.reorderLevel} type="number" min="0" value={f.reorderLevel} onChange={(v) => setF((s) => ({ ...s, reorderLevel: v }))} />
         {/* WHAT THE ITEM IS FOR TAX. Copied onto a quotation line with the
@@ -628,9 +630,9 @@ function ItemForm({ row, vendors, units, categories = [], serviceActions = [], s
         {foreign && (
           <>
             <Field label={<>{tr.shippingCharges} <span className="font-400 normal-case text-slate-400">({f.currency})</span></>}
-              required type="number" min="0" value={f.shippingCharges} onChange={(v) => setF((s) => ({ ...s, shippingCharges: v }))} inputProps={{ step: "0.01" }} />
+              required type="number" min="0" value={f.shippingCharges} onChange={(v) => setF((s) => ({ ...s, shippingCharges: v }))} inputProps={{ step: "any" }} />
             <Field label={<>{tr.customsCharges} <span className="font-400 normal-case text-slate-400">({f.currency})</span></>}
-              required type="number" min="0" value={f.customsCharges} onChange={(v) => setF((s) => ({ ...s, customsCharges: v }))} inputProps={{ step: "0.01" }} />
+              required type="number" min="0" value={f.customsCharges} onChange={(v) => setF((s) => ({ ...s, customsCharges: v }))} inputProps={{ step: "any" }} />
           </>
         )}
         <ItemImage value={f.image} onChange={(v) => setF((st) => ({ ...st, image: v }))} />

@@ -4,8 +4,8 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { reconciliationDict } from "@/shared/studio/reconciliation";
 import { useReload } from "@/components/studio2/useReload";
-import { moneyText } from "@/shared/money";
 
+import { useMoney } from "@/components/studio2/studioCurrency";
 // WHAT THE BANK SAYS, AGAINST WHAT THE BOOKS SAY.
 //
 // The ledger has always been able to report a bank balance and never to check
@@ -17,6 +17,7 @@ import { moneyText } from "@/shared/money";
 // reconcile the wrong two and leave two real discrepancies cancelling each
 // other out. The screen suggests; a person confirms.
 export default function ReconciliationPanel({ slug, locale = "en" }) {
+  const money = useMoney();
   const tr = reconciliationDict(locale);
   const [data, setData] = useState(null);
   const [problem, setProblem] = useState("");
@@ -68,7 +69,7 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
   const suggestionFor = (lineId) => suggestions.find((s) => s.lineId === lineId);
   const entryOf = (id) => book.find((b) => b.entryId === id);
   // A currency's own decimals (shared/money) — two places hid a dinar's third.
-  const n = (v) => moneyText(v);
+  const n = (v) => money(v);
 
   if (!hasBank) {
     return <p className="text-sm text-amber-700 dark:text-amber-300">{tr.noBankAccount}</p>;
@@ -266,7 +267,7 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
             value={draft.description} onChange={(v) => setDraft({ ...draft, description: v })} />
           {/* SIGNED: money out is negative, read the same way the ledger reads
               it, so nothing has to flip a sign at the point of matching. */}
-          <Field label={tr.amount} type="number" className="w-full sm:w-32"
+          <Field currency label={tr.amount} type="number" className="w-full sm:w-32"
             value={draft.amount} onChange={(v) => setDraft({ ...draft, amount: v })} />
           <button
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white disabled:opacity-50"

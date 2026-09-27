@@ -37,10 +37,11 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 // refuses a raw toLocaleString in a studio screen, and it caught exactly that
 // in the first draft of this file — a per-screen formatter is how two screens
 // end up disagreeing about what a number looks like.
-import { panel, h2, sub, btn, btnGhost, btnRow, Empty, Dialog, fmtDate, fmtDateTime, money } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, Empty, Dialog, fmtDate, fmtDateTime } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // `initial` IS BOTH OF THIS SCREEN'S ROUTE BODIES — `{ contracts, changeOrders }`,
 // each the GET the loader below would have fetched — answered inside the studio
@@ -48,6 +49,7 @@ import { useReload } from "@/components/studio2/useReload";
 // two reads; a refused variations read is `[]` here exactly as it is there.
 // Absent (the contracts read refused, or over the ceiling), it fetches as before.
 export default function StudioContracts({ slug, initial }) {
+  const money = useMoney();
   const tr = salesDict(useStudioLocale());
   const first = initial?.contracts ? initial : undefined;
   const [contracts, setContracts] = useState(first ? (first.contracts.contracts || []) : null);
@@ -164,7 +166,7 @@ export default function StudioContracts({ slug, initial }) {
                       )}
                     </div>
                     <div className="text-end">
-                      <p className="num font-700 text-slate-900 dark:text-white">{money(c.value + delta)} {c.currency}</p>
+                      <p className="num font-700 text-slate-900 dark:text-white">{money(c.value + delta, c.currency)}</p>
                       {delta !== 0 && (
                         <p className="num text-xs text-slate-500 dark:text-slate-400">
                           {money(c.value)} {delta > 0 ? "+" : "−"} {money(Math.abs(delta))}
@@ -293,7 +295,7 @@ export default function StudioContracts({ slug, initial }) {
                     figure the schema refuses to store. */}
                 <Field label={tr.variationValueDelta} type="number" value={variation.valueDelta ?? ""}
                   onChange={(v) => setVariation((f) => ({ ...f, valueDelta: v }))}
-                  inputProps={{ step: "0.01" }} />
+                  inputProps={{ step: "any" }} />
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.variationValueDeltaHint}</p>
               </div>
               <div>

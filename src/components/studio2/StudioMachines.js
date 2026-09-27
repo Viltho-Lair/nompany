@@ -15,15 +15,17 @@
 import { useState } from "react";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, btnRow, Empty, Dialog, fmtDate, fmtDateTime, money } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, btnRow, Empty, Dialog, fmtDate, fmtDateTime } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { useMaintenance, toLocalInput, fromLocalInput } from "@/components/studio2/maintenanceParts";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 const th = "px-3 py-2 text-start text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 const td = "px-3 py-2.5 align-top";
 
 // `initial` is this screen's own GET body from the studio page (useMaintenance).
 export default function StudioMachines({ slug, initial }) {
+  const money = useMoney();
   const { tr, data, error, busy, send, reload } = useMaintenance(slug, "maintenance/assets", initial);
   // Every figure here is derived from the work orders, which are written
   // under Work orders — so that is the section this screen listens to.
@@ -138,7 +140,7 @@ export default function StudioMachines({ slug, initial }) {
                     </td>
                     <td className={`${td} text-end tabular-nums`}>{m.openOrders || dash}</td>
                     <td className={`${td} text-end tabular-nums`}>
-                      {m.partsCost ? `${money(m.partsCost)}${currency ? ` ${currency}` : ""}` : dash}
+                      {m.partsCost ? money(m.partsCost, currency) : dash}
                     </td>
                     <td className={`${td} text-end tabular-nums`}>{m.labourHours || dash}</td>
                     <td className={`${td} text-slate-600 dark:text-slate-300`}>

@@ -11,7 +11,7 @@ import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skel
 import { useFocusedRecord } from "@/components/studio2/useFocusedRecord";
 import {
   panel, h2, sub, input, inputRO, label, btn, btnGhost, btnRow,
-  URGENCY_BADGE, money, fmtDate, fmtDateTime, useTablePrefs,
+  URGENCY_BADGE, fmtDate, fmtDateTime, useTablePrefs,
   Dialog, Toolbar, FilterButton, FilterPanel, ColumnPicker, Empty, FloatingAlert,
 } from "@/components/studio2/ui";
 import { statusLabel } from "@/shared/studio/statuses";
@@ -27,6 +27,7 @@ import ClientBlock, { EMPTY_CLIENT_BLOCK, clientBlockPayload } from "@/component
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -705,6 +706,7 @@ function OriginTag({ fromSales, sectionNames = {} }) {
 }
 
 function Quotations({ quotations, canManage, canCreate, canLock, canClose, onClose, canUnlock, canAssign, slug, sectionNames = {}, handlerName, people, statuses, urgencies, onAdd, onOpen, onLock, onUnlock, onRequestApproval, onAssign }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = technicalDict(locale);
   // THE KEYS ARE THE CONTRACT, THE LABELS ARE COPY — see quotationColumns.

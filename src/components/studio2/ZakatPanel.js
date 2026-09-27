@@ -4,17 +4,17 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { useReload } from "@/components/studio2/useReload";
-import { moneyText } from "@/shared/money";
 import { financeDict } from "@/shared/studio/finance";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // THE ZAKAT WORKSHEET (modules/finance/zakat) — drawn only when the studio's
 // country levies zakat; the route answers `enabled: false` everywhere else and
 // this renders nothing. The ledger supplies equity, net fixed assets and the
 // year's profit; everything else is the accountant's adjustment, named.
-const money = (n) => moneyText(n);
 const KINDS = ["add", "deduct", "profit"];
 
 export default function ZakatPanel({ slug, locale }) {
+  const money = useMoney();
   const tr = financeDict(locale);
   const [period, setPeriod] = useState({ from: "", to: "" });
   const [data, setData] = useState(null);
@@ -82,7 +82,7 @@ export default function ZakatPanel({ slug, locale }) {
             <Field label={tr.zakatAdjLabel} value={a.label} disabled={!editable} onChange={(v) => setAdj(i, "label", v)} />
             <Field label={tr.zakatAdjKind} as="select" value={a.kind} disabled={!editable} onChange={(v) => setAdj(i, "kind", v)}
               options={KINDS.map((k) => ({ value: k, label: tr.zakatKind(k) }))} />
-            <Field label={tr.zakatAdjAmount} type="number" value={String(a.amount ?? "")} disabled={!editable} onChange={(v) => setAdj(i, "amount", v)} />
+            <Field currency label={tr.zakatAdjAmount} type="number" value={String(a.amount ?? "")} disabled={!editable} onChange={(v) => setAdj(i, "amount", v)} />
             {editable && <button className="self-end rounded-full border border-slate-200 px-3 py-2 text-sm dark:border-white/10"
               onClick={() => setDraft((d) => ({ ...d, adjustments: d.adjustments.filter((_, j) => j !== i) }))}>×</button>}
           </div>

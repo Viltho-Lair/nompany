@@ -66,15 +66,42 @@ one, two places, or three when there is a third — never a fils cut off, never 
 invented. The bill of quantities grid is told its tender's currency by the route and rounds
 its own recomputation exactly as the server does.
 
+**Every studio screen shows the studio's currency (2026-09-27).** An audit of every money figure
+found almost none in it: `money(n)` was called without a currency on ~370 lines, so a figure
+showed two decimals and no code. The studio layout now provides the studio's currency as React
+context (`components/studio2/studioCurrency.js`), and a screen formats through `useMoney()`:
+`money(n, currency?)` uses the RECORD's currency when given (a bill in euros shows in euros) and
+the studio's otherwise, and always appends the code — `1,200.000 JOD`. Context rather than a
+module variable because the screens server-render: a module variable on the server is shared by
+every request in flight, so one studio's render could print another's currency. A few screens
+that style the code themselves (the quotation builder and viewer, the tax return, Point of Sale)
+keep `moneyText(n, currency)` and their own code span. `Field`'s `currency` prop puts the code
+in an amount field — alone the studio's, `currency={bill.currency}` a record's — and amount
+fields take `step="any"`, since `0.01` refused a dinar's third decimal in the browser.
+
+Fixed on the way: the quotation viewer labelled every quotation in the studio's currency (it
+now sends the quotation's own); invoices, bills and item costs ignored their own currency on
+screen; Treasury formatted at nought places; the Executive board at a fixed two; the planner
+in US dollars (`formatCurrency`, deleted); Nova's insights through `fmtMoney`, whose config
+nothing set.
+
 `tests/money-model.mjs` covers the rule, the minor units, the sum, the display and the shared
 total; the model tests of each module that changed still pass.
 
 ## Not built yet
 
-- **Most screens do not know the studio's currency**, so they show two places or three
-  depending on the value rather than the currency's fixed decimals — a JOD amount of 1.200
-  shows as 1.20. `configureFormat` (`lib/format.ts`) exists to hand the studio's currency to
-  the client and **nothing calls it**; wiring it in the studio shell is the fix.
+- **`configureFormat`/`fmtMoney` (`lib/format.ts`) stay unwired, deliberately** — a module
+  variable is the unsafe shape described above. No studio screen calls `fmtMoney` now.
+- **Customer 360 adds contract values in different currencies** without converting
+  (`modules/sales/customer.ts`).
+- **A project keeps no currency**: its value is copied from a tender or quotation and the
+  currency is dropped, so it shows in the studio's.
+- **Payroll runs and settlement snapshots store no currency**, so changing the studio's
+  currency relabels old payslips.
+- **CSV exports carry bare numbers with no currency column** (reports, the bank file, registers).
+- **Some amount fields still name no currency**: pay components (amount or percentage),
+  promotion thresholds, contract variations, and the requisition, RFQ and subcontract line
+  inputs that are not `Field`s.
 - **A few browser-side calculations pass no currency** and still round at two places: the
   dashboards' client-side aggregates only sum stored amounts (unaffected), but any screen that
   multiplies a price by a quantity without the currency shows a figure that can differ by a

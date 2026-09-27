@@ -21,13 +21,14 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { tenderingDict } from "@/shared/studio/tendering";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money } from "@/components/studio2/ui";
+import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { boqGroups, boqTotals, extension, isPriced } from "@/modules/tendering/boq";
 import { refusal } from "@/components/studio2/tenderRefusals";
 import StudioTenderDocs from "@/components/studio2/StudioTenderDocs";
 import BoqImport from "@/components/studio2/BoqImport";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 const cell = "w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 outline-none focus:border-brand-500 dark:border-white/15 dark:bg-white/5 dark:text-slate-100";
 
@@ -35,6 +36,7 @@ const cell = "w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-
 // own render for THIS tender, so the bill paints at once; absent, it fetches on
 // mount as before.
 export default function StudioBoq({ slug, tenderId, initial }) {
+  const money = useMoney();
   const locale = useStudioLocale();
   const tr = tenderingDict(locale);
   const [data, setData] = useState(initial ?? null);
@@ -444,8 +446,8 @@ export default function StudioBoq({ slug, tenderId, initial }) {
                 onChange={(v) => setAdding((a) => ({ ...a, unit: v }))} inputProps={{ maxLength: 24 }} />
               <Field label={tr.colQty} type="number" value={adding.qty}
                 onChange={(v) => setAdding((a) => ({ ...a, qty: v }))} inputProps={{ min: "0", step: "0.01" }} />
-              <Field label={tr.colRate} type="number" value={adding.rate}
-                onChange={(v) => setAdding((a) => ({ ...a, rate: v }))} inputProps={{ min: "0", step: "0.01" }} />
+              <Field currency={currency} label={tr.colRate} type="number" value={adding.rate}
+                onChange={(v) => setAdding((a) => ({ ...a, rate: v }))} inputProps={{ min: "0", step: "any" }} />
             </div>
             <div className="flex justify-end gap-2">
               <button type="button" className={btnGhost} onClick={() => setAdding(null)}>{tr.cancel}</button>

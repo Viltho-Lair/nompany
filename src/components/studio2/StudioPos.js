@@ -506,7 +506,7 @@ export default function StudioPos({ slug }) {
                           onClick={() => setPayments((ps) => ps.filter((_, j) => j !== i))}>{tr.remove}</button>
                       )}
                     </div>
-                    <Field label={tr.tendered} type="number" min="0" inputProps={{ step: "0.001" }}
+                    <Field currency label={tr.tendered} type="number" min="0" inputProps={{ step: "0.001" }}
                       value={p.amount === "" && i === 0 && payments.length === 1 ? String(num(totals?.total)) : p.amount}
                       onChange={(v) => setPayments((ps) => ps.map((x, j) => (j === i ? { ...x, amount: v } : x)))} />
                     {p.method !== "cash" && (
@@ -676,7 +676,7 @@ function OpenShift({ tr, canSell, busy, onOpen }) {
       <h2 className="font-display text-lg font-800 text-[var(--geex-ink)]">{tr.noShift}</h2>
       {canSell ? (
         <div className="mt-4 flex items-end gap-2">
-          <div className="flex-1"><Field label={tr.openingFloat} type="number" min="0" value={float} onChange={setFloat} inputProps={{ step: "0.001" }} /></div>
+          <div className="flex-1"><Field currency label={tr.openingFloat} type="number" min="0" value={float} onChange={setFloat} inputProps={{ step: "0.001" }} /></div>
           <button type="button" className={btn} disabled={busy || float === ""} onClick={() => onOpen(Number(float))}>{tr.openShift}</button>
         </div>
       ) : <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{tr.noSell}</p>}

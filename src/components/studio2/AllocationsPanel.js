@@ -5,8 +5,8 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
-import { moneyText } from "@/shared/money";
 import { allocationsDict } from "@/shared/studio/allocations";
+import { useMoney } from "@/components/studio2/studioCurrency";
 
 // LEDGER → ALLOCATIONS (modules/finance/allocations). The rules, and a month's
 // run previewed before it posts.
@@ -15,6 +15,7 @@ const primary = "rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white d
 const blank = () => ({ name: "", accountId: "", dimension: "projectId", basis: "fixed", shares: [{ value: "", percent: "" }, { value: "", percent: "" }] });
 
 export default function AllocationsPanel({ slug, locale }) {
+  const money = useMoney();
   const tr = allocationsDict(locale);
   const [data, setData] = useState(null);
   const [problem, setProblem] = useState("");
@@ -133,11 +134,11 @@ export default function AllocationsPanel({ slug, locale }) {
                   <li key={r.ruleId} className="text-slate-700 dark:text-slate-200">
                     <p className="flex flex-wrap gap-2">
                       <span className="font-600">{r.name}</span>
-                      {r.pool > 0 && <span className="text-xs text-slate-500">{tr.pool(moneyText(r.pool))}</span>}
+                      {r.pool > 0 && <span className="text-xs text-slate-500">{tr.pool(money(r.pool))}</span>}
                       <span className={`ms-auto text-xs ${r.state === "posted" ? "text-emerald-600 dark:text-emerald-300" : r.state === "due" ? "text-slate-500" : "text-amber-700 dark:text-amber-300"}`}>{tr.state(r.state)}</span>
                     </p>
                     {r.split.length > 0 && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{r.split.map((s) => `${labelOf(rule?.dimension, s.value)} ${moneyText(s.amount)}`).join(" · ")}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{r.split.map((s) => `${labelOf(rule?.dimension, s.value)} ${money(s.amount)}`).join(" · ")}</p>
                     )}
                   </li>
                 );
