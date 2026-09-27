@@ -68,8 +68,9 @@ The blog is its own file: `blog.md`; careers openings and applications: `careers
   `analytics_consent` (`granted`/`denied`), so earlier answers carry over; refusing deletes
   Google's cookies. Cookie settings in the footer reopens the panel.
 - **Google Analytics** loads only after a yes, only on the live host, and only COUNTS the pages
-  §9 of the privacy policy names (`ANALYTICS_PATHS` in `shared/marketing/consent.ts`): on the
-  blog, terms, privacy and cookie pages Google's own per-page switch turns it off. Widening the
+  §9 of the privacy policy names (`ANALYTICS_PATHS` in `shared/marketing/consent.ts`; the blog
+  since policy 1.4): on the terms, privacy and cookie pages Google's own per-page switch turns it
+  off. The policy's cookie table and the cookie page name the same cookies, checked by the suite. Widening the
   list means widening that sentence of the policy; the suite holds the two together.
 - **`/cookies`** lists every cookie the code sets, with purpose, lifetime and kind, in both
   languages (`shared/marketing/cookies.ts`); the suite checks the table against the cookie
@@ -80,9 +81,6 @@ The blog is its own file: `blog.md`; careers openings and applications: `careers
 
 ## Not built yet
 
-- The privacy policy's cookie table (§9) is missing `nc_pend`, `nc_intent` and `theme`, which
-  the cookie page lists; and if analytics should also count the blog, §9's page list needs
-  widening first. Both are the owner's legal text.
 - The share image is English in both languages (the image renderer has no Arabic font loaded).
 - Some sign-in strings are still English on `/ar`: the `/forgot` subtitle and metadata title,
   the code step's "We sent a 6-digit code…", "Resend in Ns", "6-digit code", and the social

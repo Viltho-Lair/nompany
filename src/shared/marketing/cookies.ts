@@ -51,7 +51,7 @@ const en: CookieStrings = {
     "They keep you signed in, protect sign-in against forgery, and remember your language, your theme inside the product and your cookie choice. The site cannot work without them, so they are always on and need no consent. None of them is used for advertising or shared with anyone.",
   analyticsTitle: "Analytics, only if you accept",
   analyticsBody:
-    "On the home, platform, pricing, security, about, contact, customers and careers pages, and only after you choose Accept, we use Google Analytics to count visits and see which pages are read. Before you accept, or if you decline, nothing is loaded and no request is made to Google. Google's advertising features and signals are switched off. Analytics never runs inside the product: not on the sign-in pages, your account or any studio.",
+    "On the home, platform, pricing, security, about, contact, customers, careers and blog pages, and only after you choose Accept, we use Google Analytics to count visits and see which pages are read. Before you accept, or if you decline, nothing is loaded and no request is made to Google. Google's advertising features and signals are switched off. Analytics never runs inside the product: not on the sign-in pages, your account or any studio.",
   tableTitle: "Every cookie, one by one",
   head: { name: "Cookie", purpose: "What it does", lifetime: "How long it lasts", category: "Kind" },
   categoryName: { necessary: "Necessary", analytics: "Analytics" },
@@ -92,7 +92,7 @@ const ar: CookieStrings = {
     "تبقيك مسجلا الدخول، وتحمي تسجيل الدخول من التزوير، وتتذكر لغتك والمظهر داخل المنتج واختيارك بشأن ملفات تعريف الارتباط. لا يعمل الموقع دونها، لذلك هي مفعلة دائما ولا تحتاج إلى موافقة. لا يستخدم أي منها للإعلانات ولا يشارك مع أحد.",
   analyticsTitle: "التحليلات، فقط إن وافقت",
   analyticsBody:
-    "على صفحات الرئيسية والمنصة والأسعار والأمان وعن نومباني والتواصل والعملاء والوظائف، وفقط بعد أن تختار القبول، نستخدم Google Analytics لإحصاء الزيارات ومعرفة الصفحات الأكثر قراءة. قبل أن توافق، أو إن رفضت، لا يحمل شيء ولا يرسل أي طلب إلى Google. ميزات Google الإعلانية وإشاراتها معطلة. لا تعمل التحليلات أبدا داخل المنتج: لا في صفحات تسجيل الدخول ولا في حسابك ولا في أي استوديو.",
+    "على صفحات الرئيسية والمنصة والأسعار والأمان وعن نومباني والتواصل والعملاء والوظائف والمدونة، وفقط بعد أن تختار القبول، نستخدم Google Analytics لإحصاء الزيارات ومعرفة الصفحات الأكثر قراءة. قبل أن توافق، أو إن رفضت، لا يحمل شيء ولا يرسل أي طلب إلى Google. ميزات Google الإعلانية وإشاراتها معطلة. لا تعمل التحليلات أبدا داخل المنتج: لا في صفحات تسجيل الدخول ولا في حسابك ولا في أي استوديو.",
   tableTitle: "كل ملف، واحدا واحدا",
   head: { name: "الملف", purpose: "ما يفعله", lifetime: "مدته", category: "النوع" },
   categoryName: { necessary: "ضروري", analytics: "تحليلات" },

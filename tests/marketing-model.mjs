@@ -863,16 +863,24 @@ console.log("\n== the cookie policy and the analytics scope say what the code do
     ok(`${locale} cookie policy lists Google's own`, names.some((n) => n.startsWith("_ga")));
   }
   // ANALYTICS RUNS ONLY WHERE THE PRIVACY POLICY SAYS. §9 names the pages in
-  // words; each page in ANALYTICS_PATHS must be one of them, and the blog,
-  // terms, privacy and cookie pages — inside the site shell but outside that
-  // sentence — must not be counted.
+  // words; each page in ANALYTICS_PATHS must be one of them, and the terms,
+  // privacy and cookie pages — inside the site shell but outside that
+  // sentence — must not be counted. (The blog joined with policy 1.4.)
   const PRIV = await import("@/lib/legalPrivacy");
   const text = JSON.stringify(PRIV);
-  const WORD = { "": "home", "/platform": "platform", "/pricing": "pricing", "/security": "security", "/about": "about", "/contact": "contact", "/customers": "customers", "/careers": "careers" };
+  const WORD = { "": "home", "/platform": "platform", "/pricing": "pricing", "/security": "security", "/about": "about", "/contact": "contact", "/customers": "customers", "/careers": "careers", "/blog": "blog" };
   for (const p of CS.ANALYTICS_PATHS) ok(`analytics on "${p || "/"}" is named in the privacy policy`, Boolean(WORD[p]) && text.includes(WORD[p]));
-  ok("...and not on the blog, terms, privacy or cookie pages",
-    !["/en/blog", "/en/blog/x", "/en/terms", "/ar/privacy", "/en/cookies"].some((p) => CS.analyticsRunsOn(p)));
-  ok("...while a job posting counts as careers", CS.analyticsRunsOn("/ar/careers/job_1") && CS.analyticsRunsOn("/en"));
+  ok("...and not on the terms, privacy or cookie pages",
+    !["/en/terms", "/ar/privacy", "/en/cookies"].some((p) => CS.analyticsRunsOn(p)));
+  ok("...while a job posting counts as careers, and a post as the blog",
+    CS.analyticsRunsOn("/ar/careers/job_1") && CS.analyticsRunsOn("/en/blog") && CS.analyticsRunsOn("/ar/blog/x") && CS.analyticsRunsOn("/en"));
+  // THE POLICY'S TABLE NAMES WHAT THE COOKIE PAGE NAMES. Its rows are English
+  // on both locales; every cookie on the cookie page must be a row there too.
+  {
+    const COOKIE_NAMES = (await import("@/shared/marketing/cookies")).cookiesCopy("en").rows.map((r) => r.name);
+    const missingFromPolicy = COOKIE_NAMES.filter((n) => !text.includes(n));
+    ok("the privacy policy's cookie table names every cookie on the cookie page", missingFromPolicy.length === 0, missingFromPolicy.join(", "));
+  }
 }
 
 console.log("\n== an enquiry reaches the right mailbox");

@@ -15,9 +15,10 @@ import { defaultLocale, type Locale } from "@/shared/locale";
 //      until the site was rebuilt, 27/09/2026); the sign-in pages, the account
 //      hub, the studio and the console never do, so a tenant's slug, record ids
 //      and screens never reach Google. AND ONLY THE PAGES THE PRIVACY POLICY
-//      NAMES (`ANALYTICS_PATHS`): the rebuilt shell also wraps the blog, terms,
+//      NAMES (`ANALYTICS_PATHS`): the rebuilt shell also wraps the terms,
 //      privacy and cookie pages, which that sentence does not list, so the tag
 //      is switched off there rather than the policy quietly becoming untrue.
+//      (The blog joined the list with policy 1.4, 27/09/2026.)
 //   2. Nothing loads before "Accept". Decline, or no answer, means no request
 //      to Google at all — not a cookieless ping, nothing.
 //   3. The live host only. A sandbox, a preview deployment or localhost would
@@ -33,16 +34,17 @@ export const ANALYTICS_HOSTS = ["nompany.com", "www.nompany.com"] as const;
 /**
  * Locale-relative pages Google Analytics may run on — EXACTLY the pages §9 of
  * the privacy policy names ("the home, platform, pricing, security, about,
- * contact, customers and careers pages"). Widening this list without widening
+ * contact, customers, careers and blog pages" — the blog since policy 1.4,
+ * 27/09/2026). Widening this list without widening
  * that sentence makes the policy false; tests/marketing-model.mjs holds the two
  * together.
  */
-export const ANALYTICS_PATHS = ["", "/platform", "/pricing", "/security", "/about", "/contact", "/customers", "/careers"] as const;
+export const ANALYTICS_PATHS = ["", "/platform", "/pricing", "/security", "/about", "/contact", "/customers", "/careers", "/blog"] as const;
 
-/** Whether the tag may count this page. A job posting is part of careers. */
+/** Whether the tag may count this page. A job posting is part of careers, a post part of the blog. */
 export function analyticsRunsOn(pathname: string): boolean {
   const rel = pathname.replace(/^\/(en|ar)(?=\/|$)/, "").replace(/\/$/, "");
-  return (ANALYTICS_PATHS as readonly string[]).includes(rel) || rel.startsWith("/careers/");
+  return (ANALYTICS_PATHS as readonly string[]).includes(rel) || rel.startsWith("/careers/") || rel.startsWith("/blog/");
 }
 
 /** `granted` or `denied`; absent means the visitor has not been asked yet. */

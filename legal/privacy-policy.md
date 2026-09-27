@@ -1,8 +1,8 @@
 # nompany — Privacy Policy
 
-**Version:** 1.0
+**Version:** 1.4
 **Effective date:** 04/09/2026
-**Last updated:** 04/09/2026
+**Last updated:** 27/09/2026
 
 > **Internal note (remove before printing/exporting for signature).** This document is the source of truth for the public `/privacy` page (`src/lib/legalPrivacy.ts`), and is the URL submitted for Google's OAuth verification. Section 4 is shared verbatim with Annex B of the Terms and is authored once, in `src/lib/legalGoogleData.ts` — change it there and mirror into **both** markdown files. This Policy deliberately **cross-references** the Terms for retention periods, security measures, sub-processors and international transfers rather than restating them: two copies of a retention period are two periods free to disagree. Not legal advice; review by qualified counsel before signature.
 
@@ -139,16 +139,19 @@ Subject to the conditions in applicable data protection law, you have the right 
 
 ## 9. Cookies and similar technologies
 
-Inside the product — the sign-in pages, your account and every studio — nompany sets only the cookies the product needs to work: no advertising, analytics or product-telemetry cookies, and no third-party cross-site tracking. On the public marketing pages alone (the home, platform, pricing, security, about, contact, customers and careers pages), and only if you choose Accept in the banner shown there, we use Google Analytics to count visits and see which pages are read. Nothing is loaded and no request is made to Google before you accept or if you decline; Google's advertising features and signals are switched off; and you can withdraw at any time from the Cookie settings link in the footer, which also deletes the Google Analytics cookies.
+Inside the product — the sign-in pages, your account and every studio — nompany sets only the cookies the product needs to work: no advertising, analytics or product-telemetry cookies, and no third-party cross-site tracking. On the public marketing pages alone (the home, platform, pricing, security, about, contact, customers, careers and blog pages), and only if you choose Accept in the banner shown there, we use Google Analytics to count visits and see which pages are read. Nothing is loaded and no request is made to Google before you accept or if you decline; Google's advertising features and signals are switched off; and you can withdraw at any time from the Cookie settings link in the footer, which also deletes the Google Analytics cookies.
 
 | Cookie | What it does | Lifetime |
 |--------|--------------|----------|
 | `nc_sid` | Keeps you signed in. Holds a session reference, never your password | The session |
 | `nc_super` | The same, for the nompany operations console | The session |
 | `nc_otp` | Carries a sign-in through the one-time-code step | Minutes |
+| `nc_pend` | Holds a sign-in between your password and your second step (a code or an authenticator) | Minutes |
 | `nc_dev` | Recognises a device you have already verified, so you are not asked for a code every time | Until the device record expires or you sign out of it |
 | `nc_oauth` | Protects sign-in and calendar-authorisation redirects against cross-site request forgery | The length of one redirect |
+| `nc_intent` | Remembers the plan you chose with Start free while you create your account | Seven days |
 | `lang` | Remembers whether you chose English or Arabic | Until you change it |
+| `theme` | Remembers whether you chose light or dark inside your account and studio | One year, or until you change it |
 | `analytics_consent` | Remembers whether you accepted or declined analytics on the public pages | One year, or until you change it |
 | `_ga`, `_ga_<id>` | Google Analytics: distinguishes visits to the public pages. Set only after you accept | Up to two years, or until you withdraw |
 
