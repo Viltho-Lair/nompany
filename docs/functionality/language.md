@@ -80,6 +80,17 @@ a valid class; it was found by measuring the element in a browser.
 (`rememberLocale` in `src/lib/langCookie.js`), so picking Arabic on the marketing site is
 still Arabic on the far side of the login, where the URL can no longer say so.
 
+**And so is the page you are reading.** `AccountLocaleProvider`, which wraps every page under
+`/[locale]`, writes the cookie from the URL's locale when the two differ. Before, only a
+`LangMenu` press wrote it, so arriving on `/ar` any other way — a link, a typed address, the
+mobile menu's plain links, a sign-in redirect — left the cookie on English and the studio
+opened in a different language from the account hub that linked to it. The consequence is
+deliberate: opening an `/en` link switches the studio to English too, because the last
+language the person read the site in is the one they chose. The Google/Microsoft sign-in
+callback reads the same cookie instead of sending everybody to `/en/login` and
+`/en/questionnaire`, and so does connecting a calendar: where the flow has no usable return
+path it lands on `/<lang>/account` (`calendarReturnPathFor`), not `/en/account`.
+
 **What is translated: every screen a person touches.** The marketing site, the account and
 auth pages, all twelve departments and their dialogs, empty states, error messages and
 chart labels, the planner, the Approvals page, the quality document editor and the access

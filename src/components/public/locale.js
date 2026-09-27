@@ -1,6 +1,7 @@
 "use client";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect } from "react";
 import { defaultLocale } from "@/shared/locale";
+import { readLocale, rememberLocale } from "@/lib/langCookie";
 
 // THE ACCOUNT PAGES' LOCALE, for the same reason the studio and the marketing
 // site each have their own: these components are nested five deep in places
@@ -14,6 +15,16 @@ import { defaultLocale } from "@/shared/locale";
 const AccountLocale = createContext(defaultLocale);
 
 export function AccountLocaleProvider({ locale, children }) {
+  // THE LANGUAGE A PERSON IS READING THE SITE IN IS THE ONE THE STUDIO OPENS IN.
+  // The studio has no locale in its URL and reads only the `lang` cookie, and the
+  // cookie used to be written only when somebody pressed a LangMenu — so arriving
+  // on /ar by a link, a typed address, the mobile menu's plain <a> or the sign-in
+  // redirect left it saying "en" (or nothing), and the studio and the account hub
+  // disagreed about a language the person had plainly chosen. Every page under
+  // /[locale] renders this provider, so syncing here covers them all at once.
+  useEffect(() => {
+    if (locale && readLocale("") !== locale) rememberLocale(locale);
+  }, [locale]);
   return <AccountLocale.Provider value={locale || defaultLocale}>{children}</AccountLocale.Provider>;
 }
 

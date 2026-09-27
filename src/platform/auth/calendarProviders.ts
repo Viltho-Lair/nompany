@@ -15,6 +15,7 @@
 // token quietly stops refreshing once it expires, hours or days after the
 // mistake was made.
 import { origin } from "./oauth";
+import { preferredLocale } from "@/shared/locale";
 
 export type CalendarProvider = "google" | "microsoft";
 
@@ -115,8 +116,14 @@ export function isCalendarProvider(v: unknown): v is CalendarProvider {
   return v === "google" || v === "microsoft";
 }
 
-// Where the connect flow lands somebody when it wasn't told anywhere better.
-export const DEFAULT_CALENDAR_RETURN_PATH = "/en/account";
+// Where the connect flow lands somebody when it wasn't told anywhere better —
+// their account page, IN THEIR LANGUAGE. This was a flat "/en/account", so an
+// Arabic reader who connected a calendar from anywhere that did not pass `next`
+// (or whose flow failed before `next` could be trusted) came back in English.
+// The routes hand in the `lang` cookie, the same one the studio reads; the
+// constant is what that answers with no preference at all.
+export const calendarReturnPathFor = (preference: unknown): string => `/${preferredLocale(preference)}/account`;
+export const DEFAULT_CALENDAR_RETURN_PATH = calendarReturnPathFor(undefined);
 
 // `next` travels inside SIGNED state (oauth.ts's makeState/readState), so it
 // cannot be forged in transit — but the value that gets signed in the first

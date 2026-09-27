@@ -2,8 +2,9 @@ import { cookies } from "next/headers";
 import { route } from "@/platform/http/route";
 import { readState, clearedStateCookie, OAUTH_STATE_COOKIE, origin } from "@/platform/auth/oauth";
 import {
-  isCalendarProvider, providerConfigured, safeReturnPath, DEFAULT_CALENDAR_RETURN_PATH,
+  isCalendarProvider, providerConfigured, safeReturnPath, calendarReturnPathFor,
 } from "@/platform/auth/calendarProviders";
+import { UI_LANG_COOKIE } from "@/shared/locale";
 import { exchangeCode, fetchAccountEmail } from "@/platform/auth/calendarOAuth";
 import { saveConnection } from "@/platform/auth/calendarConnections";
 import { log } from "@/platform/http/observability";
@@ -39,6 +40,9 @@ export const GET = route(
   async ({ request, params, user }) => {
     const url = new URL(request.url);
     const { provider } = params;
+    // Where every exit lands when `next` cannot be used: the account page in
+    // the reader's own language (calendarReturnPathFor says why).
+    const home = calendarReturnPathFor((await cookies()).get(UI_LANG_COOKIE)?.value);
     if (!isCalendarProvider(provider) || !providerConfigured(provider)) {
       // LOGGED, LIKE EVERY OTHER EXIT FROM THIS ROUTE. What the browser gets
       // back is one flag — deliberately, because a redirect URL the person
@@ -53,7 +57,7 @@ export const GET = route(
         provider: String(provider),
         reason: "unknown-or-unconfigured-provider",
       });
-      return landOn(request, DEFAULT_CALENDAR_RETURN_PATH, "error");
+      return landOn(request, home, "error");
     }
 
     // CSRF, CHECKED BEFORE ANYTHING ELSE THAT TOUCHES THE CODE: the state must
@@ -79,14 +83,14 @@ export const GET = route(
           : stateParam !== cookieState ? "state-cookie-mismatch"
           : "state-unverifiable",
       });
-      return landOn(request, DEFAULT_CALENDAR_RETURN_PATH, "error");
+      return landOn(request, home, "error");
     }
 
     // Re-validated, not just trusted because it came out of signed state: the
     // signature proves WE minted it, not that the path inside it was ever
     // checked — safeReturnPath is what actually rules out an off-site
     // redirect, and running it twice costs nothing (see its own comment).
-    const next = safeReturnPath(parsedState.next, origin(request));
+    const next = safeReturnPath(parsedState.next, origin(request), home);
 
     const code = url.searchParams.get("code");
     if (url.searchParams.get("error") || !code) return landOn(request, next, "cancelled");

@@ -1,9 +1,11 @@
+import { cookies } from "next/headers";
 import { route } from "@/platform/http/route";
 import { requestIsHttps } from "@/platform/auth/identity";
 import { makeState, stateCookie, origin } from "@/platform/auth/oauth";
 import {
-  isCalendarProvider, providerConfigured, calendarAuthorizeUrl, safeReturnPath,
+  isCalendarProvider, providerConfigured, calendarAuthorizeUrl, safeReturnPath, calendarReturnPathFor,
 } from "@/platform/auth/calendarProviders";
+import { UI_LANG_COOKIE } from "@/shared/locale";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +30,8 @@ export const GET = route(
     // calendarRedirectUri/calendarAuthorizeUrl use, which honours
     // x-forwarded-proto/-host behind Vercel. The two disagreeing would mean
     // this validates `next` against an internal host the browser never sees.
-    const next = safeReturnPath(new URL(request.url).searchParams.get("next"), origin(request));
+    const home = calendarReturnPathFor((await cookies()).get(UI_LANG_COOKIE)?.value);
+    const next = safeReturnPath(new URL(request.url).searchParams.get("next"), origin(request), home);
     const state = makeState(next);
     const res = Response.redirect(calendarAuthorizeUrl({ provider, request, state }), 302);
     const out = new Response(res.body, res);

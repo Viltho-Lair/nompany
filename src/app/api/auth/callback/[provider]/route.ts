@@ -9,34 +9,41 @@ import {
   deviceFingerprint, deviceCookie, DEVICE_COOKIE, pendingCookie,
 } from "@/platform/auth/identity";
 import { readDeviceIntel, intelFacts } from "@/platform/auth/deviceIntel";
+import { preferredLocale, UI_LANG_COOKIE } from "@/shared/locale";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const back = (request: Request, reason: string) =>
-  new URL(`/en/login?oauth=${encodeURIComponent(reason)}`, new URL(request.url).origin);
+// THE LANGUAGE COMES BACK ON THE COOKIE. A redirect from Google or Microsoft
+// carries no locale segment, and every destination here was pinned to /en, so
+// an Arabic reader who signed in with a provider landed in English. `lang` is
+// samesite=lax precisely so it survives this round trip (lib/langCookie).
+const uiLocale = async () => preferredLocale((await cookies()).get(UI_LANG_COOKIE)?.value);
+
+const back = async (request: Request, reason: string) =>
+  new URL(`/${await uiLocale()}/login?oauth=${encodeURIComponent(reason)}`, new URL(request.url).origin);
 
 // Complete Google / Microsoft sign-in: verify state, exchange the code for the
 // verified email, then sign in (or create) the User and land on their account.
 export async function GET(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const { provider } = await ctx.params;
   if (!isProvider(provider) || !providerConfigured(provider)) {
-    return Response.redirect(back(request, "unavailable"), 302);
+    return Response.redirect(await back(request, "unavailable"), 302);
   }
 
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  if (url.searchParams.get("error") || !code) return Response.redirect(back(request, "cancelled"), 302);
+  if (url.searchParams.get("error") || !code) return Response.redirect(await back(request, "cancelled"), 302);
 
   // CSRF: the state must be ours AND match the cookie we set when starting.
   const cookieState = (await cookies()).get(OAUTH_STATE_COOKIE)?.value || "";
   if (!state || state !== cookieState || !readState(state)) {
-    return Response.redirect(back(request, "state"), 302);
+    return Response.redirect(await back(request, "state"), 302);
   }
 
   const profile = await exchangeCode({ provider, code, request });
-  if (profile.error) return Response.redirect(back(request, profile.error), 302);
+  if (profile.error) return Response.redirect(await back(request, profile.error), 302);
 
   // The same device details the password path collects — see deviceFingerprint.
   // The cookie carries the id of a browser this account has used before, so a
@@ -50,13 +57,13 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
     // to the browser Fingerprint saw (otp.ts, recordDevice).
     device: { ...deviceFingerprint(request), ...intelFacts(await readDeviceIntel(request)) },
   });
-  if (refused(result)) return Response.redirect(back(request, result.error), 302);
+  if (refused(result)) return Response.redirect(await back(request, result.error), 302);
 
   // AN AUTHENTICATOR CODE IS OWED (twoFactor.ts): the sign-in page asks for it
   // — a redirect cannot carry the question, so the page reads it back from the
   // paused sign-in the cookie names.
   const paused = result.totpRequired ? result.ticketId : "";
-  const res = Response.redirect(new URL(paused ? "/en/login?continue=1" : "/en/questionnaire", url.origin), 302);
+  const res = Response.redirect(new URL(paused ? `/${await uiLocale()}/login?continue=1` : `/${await uiLocale()}/questionnaire`, url.origin), 302);
   const out = new Response(res.body, res);
   if (paused) out.headers.append("Set-Cookie", pendingCookie(paused, requestIsHttps(request)));
   else if (result.token) out.headers.append("Set-Cookie", sessionCookie(result.token, result.ttl, requestIsHttps(request)));
