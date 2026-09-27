@@ -17,12 +17,20 @@ import { sales } from "./kb/sales";
 import { crmSales } from "./kb/crmSales";
 import { quotations } from "./kb/quotations";
 import { maintenance } from "./kb/maintenance";
-import { projectsSide } from "./kb/projectsSide";
-import { operations } from "./kb/operations";
+import { tendering } from "./kb/tendering";
+import { projects } from "./kb/projects";
+import { engineering } from "./kb/engineering";
+import { procurement } from "./kb/procurement";
+import { inventory } from "./kb/inventory";
+import { manufacturing } from "./kb/manufacturing";
+import { fieldService } from "./kb/fieldService";
+import { logistics } from "./kb/logistics";
+import { assets } from "./kb/assets";
+import { quality } from "./kb/quality";
 import { hr } from "./kb/hr";
 import { finance } from "./kb/finance";
 
-export const HELP_MODULES: HelpModule[] = [root, general, crmSales, quotations, sales, projectsSide, operations, maintenance, hr, finance];
+export const HELP_MODULES: HelpModule[] = [root, general, crmSales, quotations, sales, tendering, projects, engineering, procurement, inventory, manufacturing, fieldService, logistics, assets, quality, maintenance, hr, finance];
 
 export const HELP_TOPICS: HelpTopic[] = HELP_MODULES.flatMap((m) => m.topics);
 export const HELP_ENTRIES: HelpEntry[] = HELP_MODULES.flatMap((m) => m.entries);

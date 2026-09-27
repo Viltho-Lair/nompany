@@ -194,7 +194,7 @@ export const general: HelpModule = {
         en: ["Open the language menu in the header.", "Choose English or العربية.", "The page redraws in that language and direction."],
         ar: ["افتح قائمة اللغة في الشريط العلوي.", "اختر English أو العربية.", "تُعاد الصفحة باللغة والاتجاه المختارين."],
       },
-      keywords: ["language", "Arabic", "English", "translate", "RTL", "اللغة", "عربي", "إنجليزي", "ترجمة"],
+      keywords: ["language", "Arabic", "English", "translate", "RTL", "اللغة", "تغيير اللغة", "عربي", "إنجليزي", "ترجمة"],
       related: ["admin.settings.language-default", "start.theme"],
     },
     {

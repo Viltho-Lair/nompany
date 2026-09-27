@@ -128,7 +128,7 @@ const SYNONYM_GROUPS: string[][] = [
   // The Arabic VERB forms beside the nouns: a person types "أنشئ" (I create),
   // the entries say "إنشاء" (creating), and the stems differ.
   ["create", "add", "new", "raise", "issue", "انشاء", "انشئ", "اضافه", "اضيف", "جديد", "اصدار", "اصدر"],
-  ["edit", "change", "update", "modify", "set", "تعديل", "اعدل", "تغيير", "اغير", "ضبط", "اضبط"],
+  ["edit", "change", "update", "modify", "set", "switch", "تعديل", "اعدل", "تغيير", "اغير", "ضبط", "اضبط", "تبديل", "ابدل"],
   ["approve", "sign", "authorise", "authorize", "اعتماد", "موافقه"],
   ["deal", "opportunity", "lead", "صفقه", "فرصه"],
   ["quote", "quotation", "offer", "عرض", "عروض", "تسعير"],

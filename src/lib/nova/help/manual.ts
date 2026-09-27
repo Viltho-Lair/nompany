@@ -27,7 +27,11 @@ import type { ManualArticle, ManualBlock, ManualSection } from "@/shared/studio/
 import type { HelpEntry, HelpTopic } from "./types";
 
 /** Departments whose manual chapter is composed from their help entries. */
-export const MANUAL_FROM_HELP = ["crm-sales", "quotations", "maintenance", "finance", "hr"] as const;
+export const MANUAL_FROM_HELP = [
+  "crm-sales", "quotations", "tendering", "projects", "engineering-docs", "procurement",
+  "inventory", "manufacturing", "field-service", "logistics", "assets", "maintenance",
+  "quality-hse", "hr", "finance",
+] as const;
 
 type Locale = "en" | "ar";
 
@@ -55,9 +59,17 @@ function topicsInOrder(rootKey: string, topics: HelpTopic[]): HelpTopic[] {
   return out;
 }
 
-/** A topic's section anchor: its section key, or the overview anchor for the root. */
+/**
+ * A topic's section anchor: the overview anchor for the root; its section key
+ * when it is THAT key's own topic (`dept.<key>`); otherwise its own id. Two
+ * topics may name one section — a tab on a screen, like Engineering's document
+ * layouts beside the register — and anchoring both on the key put two sections
+ * behind one link (27/09/2026).
+ */
 const sectionAnchor = (t: HelpTopic, rootKey: string) =>
-  (t.id === `dept.${rootKey}` ? overviewAnchor(rootKey) : t.sectionKey || t.id.replace(/\./g, "-"));
+  (t.id === `dept.${rootKey}` ? overviewAnchor(rootKey)
+    : t.sectionKey && t.id === `dept.${t.sectionKey}` ? t.sectionKey
+      : t.id.replace(/\./g, "-"));
 
 /** Is this entry the section's introduction — the first, and an `about`? */
 const isIntro = (e: HelpEntry, inTopic: HelpEntry[]) => inTopic[0] === e && e.kind === "about";
