@@ -210,7 +210,6 @@ export default function PulseWall({ initial, initialLive }) {
     [gridRows],
   );
 
-  const cityCount = (data?.cities || []).length;
   const devices = data?.devices || [];
   const deviceColors = ["var(--ad-primary)", "var(--ad-warning)", "var(--ad-success)"];
   const countries = data?.studios?.countries || [];
@@ -222,7 +221,8 @@ export default function PulseWall({ initial, initialLive }) {
     // in a separate container and the containers underneath it". It sat in a
     // middle column between Legend/Continent and Right now/Studios, which beside
     // the console's sidebar left it a narrow strip. Now it spans the wall and
-    // the four panels sit in one row beneath it. The template lives in
+    // the panels sit in one row beneath it; the legend is on the map itself
+    // (28/09/2026) rather than a panel of its own. The template lives in
     // super.css (`.pulse-wall`) because it changes with the width, which an
     // inline style cannot; and the wall SCROLLS when the window is too short
     // for every row's minimum, rather than clipping the bottom panels.
@@ -269,53 +269,6 @@ export default function PulseWall({ initial, initialLive }) {
           </div>
         </div>
       </header>
-
-      {/* ---- legend ------------------------------------------------------ */}
-      <Panel className="[grid-area:legend]" title="Legend" sub={`${SOURCE.www} · ${MODES.find((m) => m.key === mode)?.label}`}>
-        <div className="flex h-full flex-col justify-between gap-3">
-          <div className="space-y-1.5 text-[11px]">
-            <LegendRow swatch="var(--ad-border)" label="Land — no traffic recorded" />
-            <LegendRow swatch="var(--ad-primary)" label="Visitors, by continent" value={fmt(continents.reduce((s, c) => s + c.visits, 0))} />
-            <LegendRow swatch="var(--ad-success)" label="Studio signed up" value={fmt(data?.studios?.thisWeek ?? 0)} />
-            <LegendRow swatch="var(--ad-warning)" label="HQ — Amman" />
-          </div>
-
-          <div>
-            <div className="flex h-2.5 overflow-hidden rounded-full">
-              {[0.22, 0.38, 0.56, 0.78, 1].map((a) => (
-                <span key={a} className="flex-1" style={{ background: `rgb(var(--ad-warning-rgb) / ${a})` }} />
-              ))}
-            </div>
-            <div className="mt-1 flex justify-between text-[10px]" style={{ color: "var(--ad-muted-foreground)" }}>
-              <span>1 visit</span>
-              <span>peak <b className="num">{fmt(peak)}</b></span>
-            </div>
-          </div>
-
-          {/* THE HONEST SENTENCE, and it has to keep matching what is stored.
-              It said "continent and day — no city" until the city counters
-              landed; leaving that would have been a wall disclaiming precision
-              it now has. The two figures below are DIFFERENT POPULATIONS — a
-              visit the edge could not place, and every visit recorded before
-              08/09/2026, is in the continent total and in no point — so the
-              shortfall is stated rather than left to be inferred. */}
-          <p className="text-[10px] leading-relaxed" style={{ color: "var(--ad-muted-foreground)" }}>
-            {cityCount > 0 ? (
-              <>
-                {/* The explicit space is load-bearing: JSX drops whitespace at a
-                    line boundary, so `</b> cities` on two lines renders as
-                    "14cities". */}
-                <b className="num">{fmt(cityCount)}</b>{" "}
-                cities located from the edge&apos;s own headers — city centroid
-                rounded to ~1 km. No IP, and no visitor is tied to a place.
-              </>
-            ) : (
-              <>Traffic is recorded by <b>continent and day</b>. City points begin
-                from 08/09/2026; earlier days have none.</>
-            )}
-          </p>
-        </div>
-      </Panel>
 
       {/* ---- map --------------------------------------------------------- */}
       <Panel
@@ -367,6 +320,14 @@ export default function PulseWall({ initial, initialLive }) {
             rangeLabel={rangeLabel}
           />
         </div>
+        <MapLegend
+          mode={mode}
+          peak={peak}
+          total={continents.reduce((s, c) => s + c.visits, 0)}
+          cities={data?.cities || []}
+          signedUp={data?.studios?.thisWeek ?? 0}
+          reduced={reduced}
+        />
       </Panel>
 
       {/* ---- live -------------------------------------------------------- */}
@@ -470,6 +431,119 @@ export default function PulseWall({ initial, initialLive }) {
           288px for a sidebar that is not there sits visibly off-centre.
           One item: this screen has a single panel, and the bar is here so the
           wall matches the rest of the product rather than to switch anything. */}
+    </div>
+  );
+}
+
+// THE LEGEND SITS ON THE MAP AND DESCRIBES THE MODE ON SCREEN — the owner,
+// 28/09/2026. It was a panel of its own that showed the heatmap's amber ramp
+// whichever mode was picked, so in Live dots it keyed a colour the map was not
+// drawing. Every row here mirrors a branch of WorldMap's base layer for the
+// same mode; a mode that changes what it draws changes this in the same commit.
+const RAMP = [0.22, 0.38, 0.56, 0.78, 1];   // WorldMap's RAMP_ALPHA
+
+function MapLegend({ mode, peak, total, cities, signedUp, reduced }) {
+  const cityPeak = cities.reduce((m, c) => Math.max(m, c.visits), 0);
+  const hasCities = cities.length > 0;
+  const muted = { color: "var(--ad-muted-foreground)" };
+  const tint = (rgbVar) => (
+    <div>
+      <div className="flex h-2 overflow-hidden rounded-full">
+        {RAMP.map((a) => (
+          <span key={a} className="flex-1" style={{ background: `rgb(var(${rgbVar}) / ${a})` }} />
+        ))}
+      </div>
+      <div className="mt-0.5 flex justify-between text-[10px]" style={muted}>
+        <span>1 visit</span>
+        <span>peak <b className="num" style={{ color: "var(--ad-foreground)" }}>{fmt(peak)}</b></span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      className="pointer-events-none absolute bottom-3 start-3 z-10 w-[min(15rem,calc(100%-1.5rem))] space-y-2 rounded-lg border p-2.5 text-[11px] shadow-lg backdrop-blur-sm"
+      style={{ background: "rgb(var(--ad-card-rgb) / 0.88)", borderColor: "var(--ad-border)" }}
+    >
+      <p className="text-[10px] font-700 uppercase tracking-wider" style={muted}>
+        {MODES.find((m) => m.key === mode)?.label}
+      </p>
+
+      <div className="space-y-1">
+        <LegendRow swatch="var(--ad-border)" label={mode === "dots" || mode === "heat" ? "Land — no traffic recorded" : "Land"} />
+        <LegendRow swatch="var(--ad-primary)" label="Visits, all continents" value={fmt(total)} />
+      </div>
+
+      {mode === "dots" ? (
+        <>
+          <p style={muted}>Continents tinted by visits</p>
+          {tint("--ad-primary-rgb")}
+          {hasCities ? <LegendRow swatch="var(--ad-primary)" label="City — dot grows with visits" value={`${fmt(cities.length)} · top ${fmt(cityPeak)}`} /> : null}
+        </>
+      ) : null}
+
+      {mode === "heat" ? (
+        <>
+          <p style={muted}>Continents tinted by visits</p>
+          {tint("--ad-warning-rgb")}
+          {hasCities ? (
+            <LegendRow
+              swatch="radial-gradient(circle, rgb(var(--ad-warning-rgb) / 0.8), rgb(var(--ad-warning-rgb) / 0))"
+              label="City glow — overlaps add up"
+              value={fmt(cities.length)}
+            />
+          ) : null}
+        </>
+      ) : null}
+
+      {mode === "bubbles" ? (
+        <div className="flex items-end gap-3">
+          {/* Two reference circles at WorldMap's own radii for the smallest and
+              the largest, so the key is to scale with what is drawn. */}
+          {[0.05, 1].map((share) => {
+            const r = hasCities ? 3 + 20 * Math.sqrt(share) : 6 + 34 * Math.sqrt(share);
+            const d = Math.min(r * 2, 44);
+            return (
+              <span
+                key={share}
+                className="shrink-0 rounded-full border"
+                style={{ width: d, height: d, background: "rgb(var(--ad-primary-rgb) / 0.28)", borderColor: "rgb(var(--ad-primary-rgb) / 0.9)" }}
+              />
+            );
+          })}
+          <span style={muted}>
+            {hasCities ? "One bubble per city" : "One bubble per continent"}; area is visits — largest{" "}
+            <b className="num" style={{ color: "var(--ad-foreground)" }}>{fmt(hasCities ? cityPeak : peak)}</b>
+          </span>
+        </div>
+      ) : null}
+
+      {mode === "arcs" ? (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <svg width="22" height="10" aria-hidden="true" className="shrink-0">
+              <path d="M1 9 Q11 -3 21 9" fill="none" stroke="rgb(var(--ad-primary-rgb) / 0.8)" strokeWidth="1.8" />
+            </svg>
+            <span style={muted}>Continent → HQ; thicker is more visits</span>
+          </div>
+          <LegendRow swatch="var(--ad-warning)" label="HQ — Amman" />
+          <p className="text-[10px]" style={muted}>peak continent <b className="num" style={{ color: "var(--ad-foreground)" }}>{fmt(peak)}</b></p>
+        </div>
+      ) : null}
+
+      {reduced ? null : (
+        <LegendRow swatch="var(--ad-success)" label="Ring — a studio signed up" value={`${fmt(signedUp)} this week`} />
+      )}
+
+      {/* THE HONEST SENTENCE, and it has to keep matching what is stored. The
+          continent total and the city points are DIFFERENT POPULATIONS — a
+          visit the edge could not place, and every visit before 08/09/2026, is
+          in the continent total and in no point — so it is said, not inferred. */}
+      <p className="text-[10px] leading-snug" style={muted}>
+        {hasCities
+          ? "Cities from the edge's own headers, rounded to ~1 km. No IP; no visitor is tied to a place."
+          : "Recorded by continent and day. City points begin 08/09/2026."}
+      </p>
     </div>
   );
 }

@@ -714,21 +714,27 @@
   display: grid;
   gap: 0.75rem;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "top" "map" "live" "legend" "cont" "right" "sign";
+  grid-template-areas: "top" "map" "live" "cont" "right" "sign";
   grid-auto-rows: auto;
 }
-.admindek .pulse-wall > [class*="grid-area:map"] { min-height: 320px; }
+/* THE MAP IS SIZED TO BE READ, not to fill what is left — the owner,
+   28/09/2026: it was not big enough to show its statistics. It took the
+   leftover `1fr` over a 320px floor, which beside four panels left a strip
+   too short for the legend it now carries in its corner. The floor follows
+   the viewport, so a wall display gets a wall-sized map and the rows
+   beneath it scroll. The legend is no longer a panel of its own. */
+.admindek .pulse-wall > [class*="grid-area:map"] { min-height: clamp(360px, 58vh, 820px); }
 @media (min-width: 768px) {
   .admindek .pulse-wall {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas: "top top" "map map" "legend live" "cont right" "sign sign";
+    grid-template-areas: "top top" "map map" "cont live" "right right" "sign sign";
   }
 }
 @media (min-width: 1024px) {
   .admindek .pulse-wall {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: auto minmax(320px, 1fr) max-content max-content;
-    grid-template-areas: "top top top top" "map map map map" "legend cont live right" "sign sign sign sign";
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto minmax(clamp(420px, 66vh, 900px), 1fr) max-content max-content;
+    grid-template-areas: "top top top" "map map map" "cont live right" "sign sign sign";
   }
 }
 
