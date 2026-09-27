@@ -1,4 +1,5 @@
 import { defaultLocale, type Locale } from "@/shared/locale";
+import { claimText } from "@/shared/marketing/claims";
 
 // THE HOME PAGE'S COPY.
 //
@@ -36,6 +37,17 @@ type HomeStrings = {
   pricingCta: string;
   closingTitle: string;
   closingLead: string;
+  /** The value-proposition grid (27/09/2026). The row-permission cell's title
+   *  is the registered claim itself, composed, so the two cannot drift. */
+  bentoTitle: string;
+  modelTitle: string;
+  modelBody: string;
+  languageTitle: string;
+  languageBody: string;
+  rowsTitle: string;
+  rowsBody: string;
+  installTitle: string;
+  installBody: string;
 };
 
 const en: HomeStrings = {
@@ -65,6 +77,15 @@ const en: HomeStrings = {
   closingTitle: "Run your whole company from one place",
   closingLead:
     "Open a studio, choose the departments you run and invite your team, each person in their own language. There is nothing to install, and the first 3 months are free.",
+  bentoTitle: "What changes when it is one system",
+  modelTitle: "One data model under every department",
+  modelBody: "Sales, projects, procurement and finance work on the same records, so nothing is copied from one system into another.",
+  languageTitle: "Arabic and English",
+  languageBody: "Right to left on every screen, not a translation laid over an English page.",
+  rowsTitle: claimText("permissioned-to-the-row", "en"),
+  rowsBody: "Each person sees what their role opens, and nothing else.",
+  installTitle: "Nothing to install",
+  installBody: "Open a studio, choose the departments you run and invite your team, each person in their own language.",
 };
 
 // HAND-WRITTEN, NEVER MACHINE-TRANSLATED — Arabic-speaking buyers detect
@@ -88,6 +109,15 @@ const ar: HomeStrings = {
   closingTitle: "أدر شركتك كلها من مكان واحد",
   closingLead:
     "افتح مساحة عمل، واختر الأقسام التي تعمل بها، وادع فريقك، كل شخص بلغته. لا شيء لتثبيته، وأول 3 أشهر مجانا.",
+  bentoTitle: "ما الذي يتغير حين يكون النظام واحدا",
+  modelTitle: "نموذج بيانات واحد تحت كل الأقسام",
+  modelBody: "المبيعات والمشاريع والمشتريات والمالية تعمل على السجلات نفسها، فلا ينسخ شيء من نظام إلى آخر.",
+  languageTitle: "العربية والإنجليزية",
+  languageBody: "من اليمين إلى اليسار في كل شاشة، لا ترجمة موضوعة فوق صفحة إنجليزية.",
+  rowsTitle: claimText("permissioned-to-the-row", "ar"),
+  rowsBody: "كل شخص يرى ما يفتحه له دوره، ولا شيء غيره.",
+  installTitle: "لا شيء لتثبيته",
+  installBody: "افتح مساحة عمل، واختر الأقسام التي تعمل بها، وادع فريقك، كل شخص بلغته.",
 };
 
 const home = { en, ar };

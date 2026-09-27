@@ -6,8 +6,8 @@ import { chromeCopy } from "@/shared/marketing/chrome";
 import { useEffect, useState } from "react";
 import { initialsOf } from "@/lib/initials";
 import Skeleton from "@/components/Skeleton";
-import ThemeToggle from "@/components/ThemeToggle";
 import LangMenu from "@/components/LangMenu";
+import { useAccount } from "./useAccount";
 import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import { LogoMark, Wordmark } from "../Logo";
 import { getDict } from "@/shared/i18n";
@@ -71,7 +71,7 @@ export function TopNav({ locale = "en" }) {
     // Three states, never two — `undefined` means "still asking", so the header
     // shows a skeleton instead of flashing "Log in" at someone who is already
     // signed in and then swapping it for their avatar.
-    const [account, setAccount] = useState(undefined);
+    const account = useAccount();
     const [menuOpen, setMenuOpen] = useState(false);
     // THE WHOLE NAV COLLAPSES ON A PHONE. Six controls — two page links, two
     // view pills, a theme switch and a language picker — plus a logo and a
@@ -101,19 +101,6 @@ export function TopNav({ locale = "en" }) {
     // seeing a click inside it. Closed at the click rather than by an effect on
     // the pathname, which would be a setState-in-effect for the same result.
     const closeMenus = () => { setNavOpen(false); setMenuOpen(false); };
-    useEffect(() => {
-        let alive = true;
-        fetch("/api/identity/me", { cache: "no-store" })
-            .then((r) => (r.ok ? r.json() : null))
-            .then((d) => {
-            if (!alive) return;
-            setAccount(d?.user
-                ? { name: d.profile?.fullName || "", email: d.user.email, photo: d.profile?.photo || "" }
-                : null);
-        })
-            .catch(() => { if (alive) setAccount(null); }); // resolve to guest so the skeleton never hangs
-        return () => { alive = false; };
-    }, []);
     // Single boolean flip, not a per-pixel state update.
     useMotionValueEvent(scrollY, "change", (v) => {
         const next = v > 24;
@@ -201,9 +188,6 @@ export function TopNav({ locale = "en" }) {
                   </a>
                 ))}
               </div>
-              <div className="mt-1 flex items-center border-t border-line px-4 pt-3 text-fg-muted">
-                <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
-              </div>
             </div>
           )}
         </div>
@@ -227,12 +211,10 @@ export function TopNav({ locale = "en" }) {
 
         <span aria-hidden="true" className="mx-1 hidden h-5 w-px bg-line lg:block"/>
 
-        {/* Light / dark / system. Writes the same `theme` cookie the account
-            hub and studio read, so the choice follows the visitor across every
-            surface. Both of these move into the collapsed menu below `lg`. */}
-        <div className="hidden shrink-0 text-fg-muted lg:block">
-          <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
-        </div>
+        {/* NO THEME SWITCH: the public site is dark only, on the owner's
+            instruction (27/09/2026). The account hub and the studio keep their
+            own switch and the `theme` cookie it writes; the root layout does not
+            read that cookie for a marketing path. */}
 
         <div className="hidden shrink-0 text-fg-muted lg:block">
           <LangMenu current={locale} options={langOptions} label={tr.language} align="end" />

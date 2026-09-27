@@ -27,9 +27,11 @@
 
 export const SITEMAP_SOURCES: Record<string, string[]> = {
   "": [
-    "src/app/[locale]/(marketing)/page.js",
+    "src/app/[locale]/(site)/page.js",
+    "src/components/landing/site/HomePage.jsx",
     "src/shared/marketing/hero.ts",
     "src/shared/marketing/home.ts",
+    "src/shared/marketing/tour.ts",
     "src/shared/marketing/departments.ts",
     "src/shared/marketing/claims.ts",
   ],

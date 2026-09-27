@@ -12,7 +12,7 @@
 //
 // GRADIENT IDS COME FROM `useId`, WHICH IS THE SAME ON BOTH SIDES. They came
 // from a module counter, on the argument that nothing here hydrates — and the
-// home page's live charts (landing/showcase/LiveCharts) render this kit inside
+// home page's live charts (landing/site/Charts) render this kit inside
 // a client component, so the server and the browser counted to different
 // numbers (adc3 against adc13) and React reported a hydration mismatch on
 // every visit (27/09/2026). `useId` is stable across the server render and

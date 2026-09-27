@@ -107,7 +107,11 @@ export default async function RootLayout({ children }) {
   // above describes, in the file that describes it. `/careers` was one commit
   // from the same. One list, asserted against the pages that render the shell.
   const isMarketing = isMarketingPath(pathname);
-  const theme = themeChoice || (isMarketing ? "dark" : "light");
+  // THE PUBLIC SITE IS DARK ONLY — the owner, 27/09/2026. A saved `theme`
+  // cookie is the account hub's and the studio's choice now, and it no longer
+  // reaches a marketing path: the site offers no switch, so a cookie set in the
+  // studio would otherwise repaint the site with no way back from inside it.
+  const theme = isMarketing ? "dark" : themeChoice || "light";
   // `light` ships too, not just `dark`: MUI scopes its light variables to
   // `.light`, so without it MUI components render unstyled until its provider
   // hydrates. "system" is the one case the server cannot decide, so it emits
@@ -140,7 +144,11 @@ export default async function RootLayout({ children }) {
               // OS and so cannot be known server-side. It also refreshes the
               // cookie's year-long expiry on every visit, so a preference kept
               // in continuous use never quietly lapses back to the default.
-              "(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]+)/);var t=m?decodeURIComponent(m[1]):'';if(t){document.cookie='theme='+t+'; path=/; max-age=31536000; samesite=lax'+(location.protocol==='https:'?'; secure':'');}if(t==='system'){var sys=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',sys);document.documentElement.classList.toggle('light',!sys);}}catch(e){}})();",
+              // A marketing path is dark whatever the cookie says, so the
+              // "system" branch must not run there (the flag is the server's).
+              "(function(){try{var m=document.cookie.match(/(?:^|; )theme=([^;]+)/);var t=m?decodeURIComponent(m[1]):'';if(t){document.cookie='theme='+t+'; path=/; max-age=31536000; samesite=lax'+(location.protocol==='https:'?'; secure':'');}if(t==='system'&&!" +
+              JSON.stringify(isMarketing) +
+              "){var sys=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',sys);document.documentElement.classList.toggle('light',!sys);}}catch(e){}})();",
           }}
         />
         <JsonLd data={[organizationLd(settings, locale), websiteLd(settings, locale)]} />

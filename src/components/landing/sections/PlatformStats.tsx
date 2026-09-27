@@ -37,7 +37,9 @@ import { statsCopy, withFigure } from "@/shared/marketing/stats";
    (lib/data/publicLanding): the figures change once a night.
 ================================================================== */
 
-export async function PlatformStats({ locale }: { locale: string }) {
+/** The three lines, decided once, for every page that states where the product
+ *  stands — so two pages can never pick different slots for the same night. */
+export async function platformStatLines(locale: string) {
   const tr = statsCopy(locale);
   const stats = await cachedPlatformStats();
 
@@ -58,6 +60,13 @@ export async function PlatformStats({ locale }: { locale: string }) {
 
   const anyFigure =
     showsFigure(stats, "studios") || showsFigure(stats, "people") || showsFigure(stats, "records");
+  return { heading: tr.heading, note: anyFigure ? tr.note : "", slots };
+}
+
+export async function PlatformStats({ locale }: { locale: string }) {
+  const { heading, note, slots } = await platformStatLines(locale);
+  const anyFigure = Boolean(note);
+  const tr = { heading, note };
 
   return (
     /* NO CONTAINER OF ITS OWN, AND THAT IS DELIBERATE. Giving it one was tried
