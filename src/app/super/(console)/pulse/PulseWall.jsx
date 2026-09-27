@@ -5,6 +5,7 @@ import Link from "next/link";
 import WorldMap from "./WorldMap";
 import { Panel, Ticker, Sparkline, BarRow, Donut, HeatGrid, SignupChart, fmt } from "./parts";
 import { heatLevel } from "@/lib/data/pulse";
+import { continentOf } from "@/lib/continents";
 import { present } from "../../_components/Present";
 
 // THE PULSE WALL — a screen meant to be left on a screen.
@@ -56,9 +57,50 @@ const SOURCES = [
 ];
 
 const AGGREGATE_MS = 60_000;
+const FLIGHT_MS = 3200;   // WorldMap's flight: 2.2s out, 1s fade
 const LIVE_MS = 20_000;
 
 const chip = "rounded-md px-2 py-1 text-[11px] font-600 transition-colors";
+
+// ---- flights: an arc per NEW visit -----------------------------------------
+// THE ARCS FLY WHEN SOMEBODY ARRIVES, not on a loop — the owner, 28/09/2026.
+// They were drawn for every continent all the time with particles marching
+// along them, which is a wall looking busy while nothing happens. Traffic is
+// counters, not events, so a new visit is what the counters GAINED between two
+// polls of the same range and source: that gain, per continent, launches that
+// many flights. Where a city gained too, the flight leaves from the city (the
+// more precise answer, as on hover); the rest leave from the continent. A
+// change of range or source is a different total, not an arrival, so it resets
+// the baseline and launches nothing; so does a fall (a day leaving the range).
+function trafficBaseline(d) {
+  if (!d) return null;
+  return {
+    key: `${d.range}|${d.source}`,
+    cont: new Map((d.continents || []).map((c) => [c.name, c.visits || 0])),
+    city: new Map((d.cities || []).map((c) => [`${c.country}|${c.city}`, c])),
+  };
+}
+
+function newVisits(prev, next) {
+  if (!prev || !next || prev.key !== next.key) return [];
+  const launched = [];
+  for (const [name, visits] of next.cont) {
+    let gain = visits - (prev.cont.get(name) || 0);
+    if (gain <= 0) continue;
+    // A city new to the top list may be a rank change rather than a visit, so
+    // only a city present in BOTH polls can claim a gain.
+    for (const [k, c] of next.city) {
+      if (gain <= 0) break;
+      const before = prev.city.get(k);
+      if (!before || continentOf(c.country) !== name) continue;
+      const cityGain = Math.min(gain, c.visits - before.visits);
+      for (let i = 0; i < cityGain; i += 1) launched.push({ continent: name, city: c });
+      gain -= Math.max(0, cityGain);
+    }
+    for (let i = 0; i < gain; i += 1) launched.push({ continent: name, city: null });
+  }
+  return launched;
+}
 
 // THE WALL'S MARK: a heartbeat trace in the logo ramp. The gradient id is
 // fixed because the mark is drawn once per page; two on one page would share
@@ -87,6 +129,8 @@ export default function PulseWall({ initial, initialLive }) {
   const [mode, setMode] = useState("dots");
   const [ripples, setRipples] = useState([]);
   const [reduced, setReduced] = useState(false);
+  const [flights, setFlights] = useState([]);
+  const baseline = useRef(trafficBaseline(initial));
   const seen = useRef(new Set((initialLive?.arrivals || []).map((a) => `${a.kind}:${a.at}`)));
 
 
@@ -113,7 +157,24 @@ export default function PulseWall({ initial, initialLive }) {
     const pull = () => {
       fetch(`/api/super/pulse?range=${range}&source=${source}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((d) => { if (alive && d) setData(d); })
+        .then((d) => {
+          if (!alive || !d) return;
+          setData(d);
+          const next = trafficBaseline(d);
+          const launched = newVisits(baseline.current, next);
+          baseline.current = next;
+          if (launched.length) {
+            const now = performance.now();
+            // At most a dozen per poll, staggered across the poll's minute so
+            // a burst reads as arrivals over time rather than one volley.
+            const shown = launched.slice(0, 12);
+            const spread = Math.min(AGGREGATE_MS * 0.8, shown.length * 1800);
+            setFlights((fs) => [
+              ...fs.filter((f) => now - f.t < FLIGHT_MS),
+              ...shown.map((f, i) => ({ ...f, t: now + (shown.length > 1 ? (i / (shown.length - 1)) * spread : 0) })),
+            ]);
+          }
+        })
         .catch(() => { /* a wall keeps showing the last good answer */ });
     };
     if (painted.current !== `${range}|${source}`) pull();
@@ -226,7 +287,7 @@ export default function PulseWall({ initial, initialLive }) {
     // super.css (`.pulse-wall`) because it changes with the width, which an
     // inline style cannot; and the wall SCROLLS when the window is too short
     // for every row's minimum, rather than clipping the bottom panels.
-    <div className="pulse-wall h-full w-full overflow-y-auto p-3">
+    <div className="pulse-wall h-full w-full overflow-y-auto p-3 md:overflow-hidden">
       {/* ---- header ---------------------------------------------------- */}
       <header style={{ gridArea: "top" }} className="flex flex-wrap items-center gap-x-5 gap-y-2">
         {/* A PULSE, NOT THE COMPANY LOGO — the owner's instruction, 10/09/2026.
@@ -316,6 +377,7 @@ export default function PulseWall({ initial, initialLive }) {
             continents={continents}
             cities={data?.cities || []}
             ripples={ripples}
+            flights={flights}
             reducedMotion={reduced}
             rangeLabel={rangeLabel}
           />
@@ -332,14 +394,17 @@ export default function PulseWall({ initial, initialLive }) {
 
       {/* ---- live -------------------------------------------------------- */}
       <Panel className="[grid-area:live]" title="Right now" sub={`${SOURCE.erp} · every ${LIVE_MS / 1000}s`} bodyClass="flex flex-col gap-2">
-        <div className="flex items-end justify-between">
-          <div>
-            <Ticker value={live?.activeNow ?? 0} className="text-[40px] font-800 leading-none" />
+        {/* THE COUNT AND ITS TREND SHARE A LINE, so the arrivals below keep
+            room in a panel row of fixed height. */}
+        <div className="flex items-end gap-3">
+          <div className="shrink-0">
+            <Ticker value={live?.activeNow ?? 0} className="text-[34px] font-800 leading-none" />
             <p className="mt-0.5 text-[11px]" style={{ color: "var(--ad-muted-foreground)" }}>
               people active in the product
             </p>
           </div>
-          <span className="flex items-center gap-1.5 text-[10px]" style={{ color: "var(--ad-muted-foreground)" }}>
+          <div className="min-w-0 flex-1"><Sparkline points={sessions} height={34} /></div>
+          <span className="flex shrink-0 items-center gap-1.5 text-[10px]" style={{ color: "var(--ad-muted-foreground)" }}>
             <span
               className={`inline-block h-2 w-2 rounded-full ${reduced ? "" : "animate-pulse"}`}
               style={{ background: "var(--ad-success)" }}
@@ -348,17 +413,15 @@ export default function PulseWall({ initial, initialLive }) {
           </span>
         </div>
 
-        <Sparkline points={sessions} />
-
-        <div className="min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col">
           <p className="mb-1 text-[10px] uppercase tracking-wider" style={{ color: "var(--ad-muted-foreground)" }}>
             Arrivals
           </p>
-          {/* ABOUT FOUR ROWS TALL, AND IT SCROLLS. The row under the map is as
-              tall as its tallest panel, so nine arrivals stretched Legend and
-              Studios by country into gaps; clipping them instead cut the last
-              one in half. A short list that scrolls keeps all nine. */}
-          <ul className="max-h-[5.25rem] space-y-1 overflow-y-auto pe-1">
+          {/* IT SCROLLS, AND NEVER STRETCHES THE ROW. Nine arrivals once
+              stretched the panels beside it into gaps; clipping them instead
+              cut the last one in half. On a phone it is about four rows tall;
+              from a tablet up it fills whatever the fixed panel row leaves. */}
+          <ul className="max-h-[5.25rem] min-h-0 space-y-1 overflow-y-auto pe-1 md:max-h-none md:flex-1">
             {(live?.arrivals || []).slice(0, 9).map((a) => (
               <li key={`${a.kind}:${a.at}`} className="flex items-center gap-2 text-[11px]">
                 <span
@@ -389,8 +452,8 @@ export default function PulseWall({ initial, initialLive }) {
       </Panel>
 
       {/* ---- countries + devices ----------------------------------------- */}
-      <Panel className="[grid-area:right]" title="Studios by country" sub={`${SOURCE.erp}${data?.studios?.unplaced ? ` · ${data.studios.unplaced} unplaced` : ""}`}>
-        <div className="flex h-full flex-col justify-between gap-2">
+      <Panel className="[grid-area:right]" title="Studios by country" sub={`${SOURCE.erp}${data?.studios?.unplaced ? ` · ${data.studios.unplaced} unplaced` : ""}`} bodyClass="overflow-y-auto">
+        <div className="flex min-h-full flex-col justify-between gap-2">
           <div>
             {countries.length === 0 ? (
               <p className="text-[11px]" style={{ color: "var(--ad-muted-foreground)" }}>
@@ -403,7 +466,7 @@ export default function PulseWall({ initial, initialLive }) {
             )}
           </div>
           <div className="flex items-center gap-3">
-            <Donut slices={devices.map((d, i) => ({ label: d.label, value: d.value, color: deviceColors[i % 3] }))} size={92} />
+            <Donut slices={devices.map((d, i) => ({ label: d.label, value: d.value, color: deviceColors[i % 3] }))} size={72} />
             <ul className="space-y-1 text-[11px]">
               {devices.map((d, i) => (
                 <li key={d.label} className="flex items-center gap-1.5">
@@ -421,9 +484,11 @@ export default function PulseWall({ initial, initialLive }) {
       <Panel
         className="[grid-area:sign]"
         title="Studios signed"
-        sub={`${SOURCE.erp} · 90 days · bars are per day, the line is the running total`}
+        sub={`${SOURCE.erp} · 90 days`}
+        bodyClass="flex flex-col justify-end gap-1"
       >
         <SignupChart days={data?.signups || []} height={92} />
+        <p className="text-[10px]" style={{ color: "var(--ad-muted-foreground)" }}>Bars are per day; the line is the running total.</p>
       </Panel>
 
       {/* THE BOTTOM BAR, the same strip the project sheets and Operations use —
@@ -524,10 +589,16 @@ function MapLegend({ mode, peak, total, cities, signedUp, reduced }) {
             <svg width="22" height="10" aria-hidden="true" className="shrink-0">
               <path d="M1 9 Q11 -3 21 9" fill="none" stroke="rgb(var(--ad-primary-rgb) / 0.8)" strokeWidth="1.8" />
             </svg>
-            <span style={muted}>Continent → HQ; thicker is more visits</span>
+            <span style={muted}>
+              {reduced ? "Continent → HQ; thicker is more visits" : "One flight per new visit, from its city or continent"}
+            </span>
           </div>
           <LegendRow swatch="var(--ad-warning)" label="HQ — Amman" />
-          <p className="text-[10px]" style={muted}>peak continent <b className="num" style={{ color: "var(--ad-foreground)" }}>{fmt(peak)}</b></p>
+          <p className="text-[10px]" style={muted}>
+            {reduced
+              ? <>peak continent <b className="num" style={{ color: "var(--ad-foreground)" }}>{fmt(peak)}</b></>
+              : <>Checked every {AGGREGATE_MS / 1000}s; a quiet map means no new visits.</>}
+          </p>
         </div>
       ) : null}
 

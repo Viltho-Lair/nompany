@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 //
 // `base` holds the land and whatever the current mode draws over it, redrawn
 // only when the data, the mode, the theme or the size changes. `fx` holds the
-// ripples and the arc particles and runs a requestAnimationFrame loop. They are
+// ripples and the arc flights, and runs a requestAnimationFrame loop ONLY while
+// one of them is in the air. They are
 // separate because redrawing 3,518 dots sixty times a second to move four
 // particles is how a wall display heats a room.
 //
@@ -71,7 +72,19 @@ function cityPoint(city) {
   return { x: p.x + ((h % 7) - 3) * 0.45, y: p.y + (((h >> 3) % 7) - 3) * 0.45 };
 }
 
-export default function WorldMap({ mode, continents, cities, ripples, reducedMotion, rangeLabel }) {
+const FLIGHT_OUT = 2200;   // origin to HQ
+const FLIGHT_FADE = 1000;  // the trail fading once it has landed
+
+// A point on the quadratic from (px,py) to (hx,hy), lifted perpendicular to
+// the chord — the one curve both the still arcs and the flights follow.
+function arcPoint(px, py, hx, hy, u) {
+  const mx = (px + hx) / 2;
+  const my = (py + hy) / 2 - Math.hypot(hx - px, hy - py) * 0.28;
+  const v = 1 - u;
+  return [v * v * px + 2 * v * u * mx + u * u * hx, v * v * py + 2 * v * u * my + u * u * hy];
+}
+
+export default function WorldMap({ mode, continents, cities, ripples, flights = [], reducedMotion, rangeLabel }) {
   const wrapRef = useRef(null);
   const baseRef = useRef(null);
   const fxRef = useRef(null);
@@ -266,7 +279,11 @@ export default function WorldMap({ mode, continents, cities, ripples, reducedMot
     if (mode === "arcs") {
       const hq = project(HQ.lng, HQ.lat);
       const [hx, hy] = at(hq.x, hq.y);
-      for (const [name, c] of Object.entries(centroids)) {
+      // STILL ARCS ONLY UNDER REDUCED MOTION. Otherwise an arc is a FLIGHT,
+      // drawn on the effects layer when a visit arrives (the owner,
+      // 28/09/2026: not "continuously drawing arcs and movement"); a viewer
+      // who asked for no motion gets the same answer as a still picture.
+      for (const [name, c] of reducedMotion ? Object.entries(centroids) : []) {
         const row = byName.get(name);
         if (!row || !row.visits) continue;
         const [px, py] = at(c.x, c.y);
@@ -286,7 +303,7 @@ export default function WorldMap({ mode, continents, cities, ripples, reducedMot
       ctx.arc(hx, hy, 4.5, 0, Math.PI * 2);
       ctx.fill();
     }
-  }, [grid, fit, box, mode, byName, centroids, peak, theme, cities]);
+  }, [grid, fit, box, mode, byName, centroids, peak, theme, cities, reducedMotion]);
 
   // ---- the effects layer ---------------------------------------------------
   useEffect(() => {
@@ -314,6 +331,7 @@ export default function WorldMap({ mode, continents, cities, ripples, reducedMot
     const hq = project(HQ.lng, HQ.lat);
     const [hx, hy] = at(hq.x, hq.y);
     let raf = 0;
+    let wake = 0;
 
     const frame = (now) => {
       ctx.clearRect(0, 0, box.w, box.h);
@@ -340,24 +358,62 @@ export default function WorldMap({ mode, continents, cities, ripples, reducedMot
         }
       }
 
+      // FLIGHTS: one per new visit, from its city when that is known and its
+      // continent otherwise. The trail draws itself out to HQ, lands with a
+      // small ring, and fades — then nothing is left moving on the map.
+      let busy = ripples.some((rip) => now - rip.t < 2200);
+      let nextAt = Infinity;
       if (mode === "arcs") {
-        for (const [name, c] of Object.entries(centroids)) {
-          const row = byName.get(name);
-          if (!row || !row.visits) continue;
-          const [px, py] = at(c.x, c.y);
-          // Phase-offset per continent so the particles do not march in step,
-          // which reads as one animation rather than several journeys.
-          const phase = ((now / 2600) + name.length * 0.13) % 1;
-          const mx = (px + hx) / 2;
-          const my = (py + hy) / 2 - Math.hypot(hx - px, hy - py) * 0.28;
-          const u = 1 - phase;
-          const bx = u * u * px + 2 * u * phase * mx + phase * phase * hx;
-          const by = u * u * py + 2 * u * phase * my + phase * phase * hy;
-          ctx.fillStyle = rgba(t.warm, 0.9);
+        for (const f of flights) {
+          const age = now - f.t;
+          if (age > FLIGHT_OUT + FLIGHT_FADE) continue;
+          if (age < 0) { nextAt = Math.min(nextAt, f.t); continue; }
+          busy = true;
+          const from = f.city ? cityPoint(f.city) : centroids[f.continent];
+          if (!from) continue;
+          const [px, py] = at(from.x, from.y);
+          const u = Math.min(1, age / FLIGHT_OUT);
+          const eased = 1 - (1 - u) ** 3;
+          const fade = age > FLIGHT_OUT ? 1 - (age - FLIGHT_OUT) / FLIGHT_FADE : 1;
+          ctx.strokeStyle = rgba(t.hot, 0.75 * fade);
+          ctx.lineWidth = 1.6;
           ctx.beginPath();
-          ctx.arc(bx, by, 2.2, 0, Math.PI * 2);
+          ctx.moveTo(px, py);
+          for (let k = 1; k <= 24; k += 1) {
+            const [qx, qy] = arcPoint(px, py, hx, hy, (k / 24) * eased);
+            ctx.lineTo(qx, qy);
+          }
+          ctx.stroke();
+          const [bx, by] = arcPoint(px, py, hx, hy, eased);
+          ctx.fillStyle = rgba(t.warm, fade);
+          ctx.beginPath();
+          ctx.arc(bx, by, 2.6, 0, Math.PI * 2);
           ctx.fill();
+          if (age > FLIGHT_OUT) {
+            ctx.strokeStyle = rgba(t.warm, fade * 0.8);
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(hx, hy, 5 + (1 - fade) * 14, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          // The origin blinks once as the flight leaves, so the eye finds it.
+          if (age < 600) {
+            ctx.fillStyle = rgba(t.hot, 1 - age / 600);
+            ctx.beginPath();
+            ctx.arc(px, py, 3 + (age / 600) * 6, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
+      }
+      // THE LOOP STOPS WHEN NOTHING IS MOVING and starts again when a ripple
+      // or a flight arrives (both are props, so the effect re-runs). A wall is
+      // idle most of the time, and an idle wall should cost nothing.
+      if (!busy) {
+        raf = 0;
+        // A flight staggered later in the minute wakes the loop when it is
+        // due, rather than the loop spinning empty until then.
+        if (nextAt < Infinity) wake = setTimeout(() => { raf = requestAnimationFrame(frame); }, nextAt - now);
+        return;
       }
       raf = requestAnimationFrame(frame);
     };
@@ -368,11 +424,12 @@ export default function WorldMap({ mode, continents, cities, ripples, reducedMot
     // core warm for nobody.
     const onVis = () => {
       cancelAnimationFrame(raf);
-      if (!document.hidden) raf = requestAnimationFrame(frame);
+      clearTimeout(wake);
+      raf = document.hidden ? 0 : requestAnimationFrame(frame);
     };
     document.addEventListener("visibilitychange", onVis);
-    return () => { cancelAnimationFrame(raf); document.removeEventListener("visibilitychange", onVis); };
-  }, [fit, box, mode, ripples, centroids, byName, reducedMotion, theme]);
+    return () => { cancelAnimationFrame(raf); clearTimeout(wake); document.removeEventListener("visibilitychange", onVis); };
+  }, [fit, box, mode, ripples, flights, centroids, reducedMotion, theme]);
 
   // ---- hover ---------------------------------------------------------------
   // A CITY WINS OVER A CONTINENT, and inside a tighter radius. The point is the

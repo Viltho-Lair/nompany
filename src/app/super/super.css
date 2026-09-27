@@ -700,16 +700,21 @@
   }
 }
 
-/* THE PULSE WALL'S GRID — the map full width, the four panels beneath it.
+/* THE PULSE WALL'S GRID — the map full width, the panels beneath it.
    One column on a phone, two on a tablet, four from `lg`.
 
-   THE PANELS AND THE SIGN-UP STRIP ARE AS TALL AS WHAT THEY HOLD, and the map
-   takes whatever is left. The first cut gave every row a share of the height
-   (2.6fr / 1fr / 0.6fr), and on a shorter screen that clipped the panels —
-   Right now lost its arrivals, the legend its footnote — while the sign-up
-   strip kept empty room it did not need (the owner, 26/09/2026: "the spacing
-   in pulse is not acceptable"). The map has a floor; below it the wall
-   scrolls rather than cut anything off. */
+   ONE SCREEN, NO SCROLL, from tablet width up — the owner, 28/09/2026: "pulse
+   page should fit all components non scrollable in one page". The map takes
+   every pixel the panels do not, and the panels get ONE row (two on a tablet)
+   of a viewport-relative height. The legend lives on the map, so it costs no
+   row, and the sign-up strip joins the panel row instead of taking its own.
+
+   THE HISTORY THIS HAS TO RESPECT: a first cut gave every row an `fr` share,
+   and on a short screen that CLIPPED the panels — Right now lost its arrivals,
+   the legend its footnote (the owner, 26/09/2026: "the spacing in pulse is not
+   acceptable"). So a fixed row is only allowed because every panel body in it
+   scrolls INSIDE itself: a short screen shows less of a list, never half a
+   row. A phone still scrolls the page — six panels do not fit on one. */
 .admindek .pulse-wall {
   display: grid;
   gap: 0.75rem;
@@ -717,24 +722,21 @@
   grid-template-areas: "top" "map" "live" "cont" "right" "sign";
   grid-auto-rows: auto;
 }
-/* THE MAP IS SIZED TO BE READ, not to fill what is left — the owner,
-   28/09/2026: it was not big enough to show its statistics. It took the
-   leftover `1fr` over a 320px floor, which beside four panels left a strip
-   too short for the legend it now carries in its corner. The floor follows
-   the viewport, so a wall display gets a wall-sized map and the rows
-   beneath it scroll. The legend is no longer a panel of its own. */
-.admindek .pulse-wall > [class*="grid-area:map"] { min-height: clamp(360px, 58vh, 820px); }
+.admindek .pulse-wall > [class*="grid-area:map"] { min-height: 360px; }
 @media (min-width: 768px) {
   .admindek .pulse-wall {
+    overflow: hidden;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas: "top top" "map map" "cont live" "right right" "sign sign";
+    grid-template-rows: auto minmax(0, 1fr) clamp(150px, 21vh, 210px) clamp(150px, 21vh, 210px);
+    grid-template-areas: "top top" "map map" "cont live" "right sign";
   }
+  .admindek .pulse-wall > [class*="grid-area:map"] { min-height: 0; }
 }
 @media (min-width: 1024px) {
   .admindek .pulse-wall {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: auto minmax(clamp(420px, 66vh, 900px), 1fr) max-content max-content;
-    grid-template-areas: "top top top" "map map map" "cont live right" "sign sign sign";
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: auto minmax(0, 1fr) clamp(170px, 25vh, 250px);
+    grid-template-areas: "top top top top" "map map map map" "cont live right sign";
   }
 }
 
