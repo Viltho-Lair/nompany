@@ -13,6 +13,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
+import { stampCurrency } from "@/platform/db/stampCurrency";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import {
   payProblems, cleanPay, payslipFor, runTotals, runProblem,
@@ -47,6 +48,13 @@ type Run = {
    */
   excluded?: Excluded[];
   totals: ReturnType<typeof runTotals>;
+  /**
+   * THE CURRENCY IT WAS PAID IN, frozen with the lines (27/09/2026). A run
+   * stored none and read the studio's TODAY, so changing the studio's currency
+   * relabelled every payslip ever issued. Absent on a run prepared before then,
+   * which reads the studio's, as it always did.
+   */
+  currency?: string;
   preparedByCollaboratorId: string;
   preparedAt: string;
   approvedByCollaboratorId?: string;
@@ -119,12 +127,17 @@ export async function listPay(ctx: HrContext) {
   const denied = requirePermission(ctx.access, "hr.payroll.view");
   if (denied) return denied;
 
-  const [records, runs, people, approvals] = await Promise.all([
+  const [records, storedRuns, people, approvals] = await Promise.all([
     Pay.find(scope(ctx)),
     Runs.find(scope(ctx)),
     listCollaborators(ctx.studio.id),
     approvalRows(ctx.studio, ctx.approvalsSection),
   ]);
+  // A RUN PREPARED BEFORE RUNS KEPT A CURRENCY (27/09/2026) is stamped with the
+  // studio's, once (platform/db/stampCurrency). Nothing recorded what it was paid
+  // in, so this is what it already showed; the stamp stops it moving if the
+  // studio's currency ever changes.
+  const runs = await stampCurrency(Runs, scope(ctx), storedRuns, () => String(ctx.studio.currency || ""));
   const mayAsk = !requirePermission(ctx.access, "hr.payroll.edit");
   const mayPrepare = !requirePermission(ctx.access, "hr.payroll.create");
   const alias = Object.fromEntries(people.map((c) => [String(c.id), String(c.alias || "Unnamed")]));
@@ -319,6 +332,7 @@ export async function prepareRun(ctx: HrContext, body: Record<string, unknown>) 
     lines,
     excluded,
     totals: runTotals(lines),
+    currency: String(ctx.studio.currency || ""),
     preparedByCollaboratorId: ctx.collaborator.id,
     preparedAt: new Date().toISOString(),
   });
@@ -371,9 +385,9 @@ export async function payslipDocument(ctx: HrContext, runId: string, collaborato
       status: run.status,
       approvedAt: run.approvedAt || "",
       paidAt: run.paidAt || "",
-      // THE STUDIO'S CURRENCY TODAY. A run stores none, because the studio has
-      // one currency and payroll is paid in it.
-      currency: String(studio.currency || ""),
+      // THE RUN'S OWN, frozen when it was prepared; the studio's only for a run
+      // prepared before runs carried one.
+      currency: String(run.currency || studio.currency || ""),
       employer: {
         name: String(studio.name || ""),
         address: [studio.location, studio.city].map((v) => String(v || "").trim()).filter(Boolean).join(", "),
@@ -510,7 +524,7 @@ export async function requestRunApproval(ctx: HrContext, id: string) {
       sectionKey: "hr-payroll", recordId: run.id, ref: run.period,
       title: `Payroll ${run.period} · ${run.totals?.people ?? run.lines.length} people`, path: "hr-payroll",
     },
-    amount: { value: Number(run.totals?.net) || 0, currency: String(ctx.studio.currency || "") },
+    amount: { value: Number(run.totals?.net) || 0, currency: String(run.currency || ctx.studio.currency || "") },
   });
   if (asked.error) return { ...asked, error: asked.error };
   // UNDER EVERY LIMIT THE STUDIO SET, nothing is asked and it is approved as the
@@ -654,7 +668,13 @@ export async function bankFile(ctx: HrContext, id: string) {
   const records = await Pay.find(scope(ctx));
   const account = new Map(records.map((r) => [r.collaboratorId, { iban: r.iban || "", bank: r.bankName || "" }]));
 
-  return { period: run.period, ...bankRows(run.lines, (cid) => account.get(cid) || null) };
+  return {
+    period: run.period,
+    // The run's own currency (the studio's for a run prepared before runs
+    // carried one) — the file says what the amounts are in.
+    currency: String(run.currency || ctx.studio.currency || ""),
+    ...bankRows(run.lines, (cid) => account.get(cid) || null),
+  };
 }
 
 /**

@@ -42,6 +42,12 @@ export const ProjectSchema = z.looseObject({
   clientId: z.string(),
   clientName: z.string(),
   value: z.number(),
+  /**
+   * WHAT `value` IS IN, copied from the quotation or tender it was opened
+   * from (the studio's for a direct project). OPTIONAL: every project written
+   * before 27/09/2026 has none, and reads in the studio's currency.
+   */
+  currency: z.string().optional(),
   stage: z.string(),
   managerCollaboratorId: z.string().max(60),
   location: z.string().max(200),

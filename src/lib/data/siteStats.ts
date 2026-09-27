@@ -205,6 +205,48 @@ export async function readCities(days: string[], site: StatSite = "www") {
   return out.sort((a, b) => b.visits - a.visits || a.city.localeCompare(b.city));
 }
 
+export type CountryVisits = { code: string; visits: number };
+
+// VISITS PER COUNTRY across a span — the Pulse map's country view.
+//
+// A DAY FROM BEFORE THE COUNTRY COUNTER IS COUNTED FROM ITS CITIES, and said to
+// be. The counter began 28/09/2026 (STAT.countries); every day before it has
+// only the city fields, which carry a country code but miss every visit the
+// edge could not place. Summing those is a LOWER BOUND, so the day is counted
+// that way AND named in `partialDays` rather than blended in silently — a
+// country looking quieter in August than in October would otherwise be read as
+// a trend. A day is partial only when it HAD traffic (a continent count) and no
+// country hash; a silent day is not partial, it is silent.
+export async function readCountries(days: string[], site: StatSite = "www") {
+  const [counted, placed, whole] = await Promise.all([
+    readHashes(days.map((day) => STAT.countries(site, day))),
+    readHashes(days.map((day) => STAT.cities(site, day))),
+    dayHashes(days, site),
+  ]);
+  const totals = new Map<string, number>();
+  const add = (code: string, v: number) => { if (v > 0) totals.set(code, (totals.get(code) || 0) + v); };
+  const partialDays: string[] = [];
+  days.forEach((day, i) => {
+    const h = counted[i] || {};
+    const fields = Object.entries(h).filter(([f]) => /^[A-Z]{2}$/.test(f));
+    if (fields.length || h[STAT.OVERFLOW_COUNTRY]) {
+      for (const [code, v] of fields) add(code, n(v));
+      return;
+    }
+    const traffic = CONTINENTS.reduce((s, c) => s + n((whole[i] || {})[`geo:${CONTINENT_KEYS[c]}`]), 0);
+    if (!traffic) return;
+    partialDays.push(day);
+    for (const [field, v] of Object.entries(placed[i] || {})) {
+      const point = cityFromKey(field);
+      if (point) add(point.country, n(v));
+    }
+  });
+  const rows: CountryVisits[] = [...totals]
+    .map(([code, visits]) => ({ code, visits }))
+    .sort((a, b) => b.visits - a.visits || a.code.localeCompare(b.code));
+  return { rows, partialDays };
+}
+
 // HOW MANY USERS WERE ACTIVE ON A GIVEN DAY.
 //
 // This has to be RECORDED, not derived. A user carries one "last seen"

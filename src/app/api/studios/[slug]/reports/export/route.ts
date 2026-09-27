@@ -73,7 +73,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   // WRITTEN AS AN ESCAPE, not the character itself: a literal U+FEFF in source is
   // invisible, and the first editor or formatter that strips "stray whitespace"
   // would take it out with nothing to see in the diff.
-  const csv = `\uFEFF${toCsv(toRows(dataset, rows))}`;
+  const csv = `\uFEFF${toCsv(toRows(dataset, rows, String(context.studio.currency || "")))}`;
   const stamp = new Date().toISOString().slice(0, 10);
   return new Response(csv, {
     status: 200,

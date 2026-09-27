@@ -168,7 +168,7 @@ export default function StudioCustomer({ slug, clientId, initial }) {
   if (error) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingCustomer} />;
 
-  const { client, may, deals, quotations, contracts, projects, contractValue } = data;
+  const { client, may, deals, quotations, contracts, projects, contractValue, contractsUnconverted = 0 } = data;
 
   return (
     <div className="space-y-6">
@@ -207,7 +207,8 @@ export default function StudioCustomer({ slug, clientId, initial }) {
           </>
         )}
         {may.contracts && (
-          <StatTile label={tr.contractValue} value={money(contractValue)} accent="rgb(var(--chart-4))" />
+          <StatTile label={tr.contractValue} value={money(contractValue)} accent="rgb(var(--chart-4))"
+            sub={contractsUnconverted ? tr.contractsUnconverted(contractsUnconverted) : undefined} />
         )}
         {may.deals && (
           <StatTile label={tr.winRate}

@@ -293,7 +293,8 @@ export default function StudioContracts({ slug, initial }) {
                     honest way to record an omission, and a field that looked
                     like "the new value" would invite exactly the absolute
                     figure the schema refuses to store. */}
-                <Field label={tr.variationValueDelta} type="number" value={variation.valueDelta ?? ""}
+                <Field currency={contracts.find((k) => k.id === variation.contractId)?.currency || true}
+                  label={tr.variationValueDelta} type="number" value={variation.valueDelta ?? ""}
                   onChange={(v) => setVariation((f) => ({ ...f, valueDelta: v }))}
                   inputProps={{ step: "any" }} />
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.variationValueDeltaHint}</p>

@@ -52,10 +52,16 @@ const unresolved = new Set();
 const spread = new Map(CONTINENTS.map((c) => [c, 0]));
 let unattributed = 0;
 
-// Flat triples rather than nested arrays: 3,518 three-element arrays cost about
-// nine kilobytes of brackets for a shape the reader walks three at a time
-// anyway.
+// Flat QUADRUPLES — x, y, continent, country — rather than nested arrays:
+// 3,518 small arrays cost about nine kilobytes of brackets for a shape the
+// reader walks four at a time anyway.
+//
+// THE COUNTRY TRAVELS WITH THE DOT since 28/09/2026, when the map learned to
+// select and zoom to a country. The source always had it; this script used to
+// resolve it to a continent and drop it. Countries are an index into
+// `countries` (alpha-2, sorted) so the file carries each code once.
 const dots = [];
+const codeOf = [];
 for (const [x, y, id] of source) {
   let index = -1;
   if (id !== UNKNOWN_ID) {
@@ -67,7 +73,14 @@ for (const [x, y, id] of source) {
     }
   }
   if (index < 0) unattributed += 1;
+  const code = id === UNKNOWN_ID ? "" : alpha2Of(id);
   dots.push(x, y, index);
+  codeOf.push(code);
+}
+const countries = [...new Set(codeOf.filter(Boolean))].sort();
+const quads = [];
+for (let i = 0; i < codeOf.length; i += 1) {
+  quads.push(dots[i * 3], dots[i * 3 + 1], dots[i * 3 + 2], codeOf[i] ? countries.indexOf(codeOf[i]) : -1);
 }
 
 if (unresolved.size) {
@@ -87,6 +100,6 @@ if (REPORT) {
 // which is what keeps the file small; a reader that assumed the wrong divisor
 // would draw a world one tenth of its size in the corner, so the number is
 // stated rather than known.
-const payload = { scale: 10, width: 1000, height: 500, continents: CONTINENTS, dots };
+const payload = { scale: 10, width: 1000, height: 500, stride: 4, continents: CONTINENTS, countries, dots: quads };
 writeFileSync(OUT, JSON.stringify(payload));
 console.log(`wrote ${OUT} — ${source.length} dots, ${(JSON.stringify(payload).length / 1024).toFixed(1)} kB`);

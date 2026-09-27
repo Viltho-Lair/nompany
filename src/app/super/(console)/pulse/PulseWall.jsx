@@ -5,6 +5,8 @@ import Link from "next/link";
 import WorldMap from "./WorldMap";
 import { Panel, Ticker, Sparkline, BarRow, Donut, HeatGrid, SignupChart, fmt } from "./parts";
 import { heatLevel } from "@/lib/data/pulse";
+import { trafficBaseline, newVisits } from "@/lib/data/pulseMap";
+import { COUNTRIES, flagEmoji } from "@/shared/countries";
 import { continentOf } from "@/lib/continents";
 import { present } from "../../_components/Present";
 
@@ -62,45 +64,10 @@ const LIVE_MS = 20_000;
 
 const chip = "rounded-md px-2 py-1 text-[11px] font-600 transition-colors";
 
-// ---- flights: an arc per NEW visit -----------------------------------------
-// THE ARCS FLY WHEN SOMEBODY ARRIVES, not on a loop — the owner, 28/09/2026.
-// They were drawn for every continent all the time with particles marching
-// along them, which is a wall looking busy while nothing happens. Traffic is
-// counters, not events, so a new visit is what the counters GAINED between two
-// polls of the same range and source: that gain, per continent, launches that
-// many flights. Where a city gained too, the flight leaves from the city (the
-// more precise answer, as on hover); the rest leave from the continent. A
-// change of range or source is a different total, not an arrival, so it resets
-// the baseline and launches nothing; so does a fall (a day leaving the range).
-function trafficBaseline(d) {
-  if (!d) return null;
-  return {
-    key: `${d.range}|${d.source}`,
-    cont: new Map((d.continents || []).map((c) => [c.name, c.visits || 0])),
-    city: new Map((d.cities || []).map((c) => [`${c.country}|${c.city}`, c])),
-  };
-}
-
-function newVisits(prev, next) {
-  if (!prev || !next || prev.key !== next.key) return [];
-  const launched = [];
-  for (const [name, visits] of next.cont) {
-    let gain = visits - (prev.cont.get(name) || 0);
-    if (gain <= 0) continue;
-    // A city new to the top list may be a rank change rather than a visit, so
-    // only a city present in BOTH polls can claim a gain.
-    for (const [k, c] of next.city) {
-      if (gain <= 0) break;
-      const before = prev.city.get(k);
-      if (!before || continentOf(c.country) !== name) continue;
-      const cityGain = Math.min(gain, c.visits - before.visits);
-      for (let i = 0; i < cityGain; i += 1) launched.push({ continent: name, city: c });
-      gain -= Math.max(0, cityGain);
-    }
-    for (let i = 0; i < gain; i += 1) launched.push({ continent: name, city: null });
-  }
-  return launched;
-}
+// A code as the name people say. The traffic stores codes; a wall that reads
+// "JO" to a room is making the room translate.
+const COUNTRY_NAME = new Map(COUNTRIES.map((c) => [c.code, c.name]));
+const countryName = (code) => COUNTRY_NAME.get(code) || code;
 
 // THE WALL'S MARK: a heartbeat trace in the logo ramp. The gradient id is
 // fixed because the mark is drawn once per page; two on one page would share
@@ -130,6 +97,10 @@ export default function PulseWall({ initial, initialLive }) {
   const [ripples, setRipples] = useState([]);
   const [reduced, setReduced] = useState(false);
   const [flights, setFlights] = useState([]);
+  // THE SELECTED COUNTRY lives here, not in the map, because three things set
+  // it — a click on the map, a row in the legend, and Escape — and the card
+  // that describes it is the wall's, not the canvas's.
+  const [selected, setSelected] = useState(null);
   const baseline = useRef(trafficBaseline(initial));
   const seen = useRef(new Set((initialLive?.arrivals || []).map((a) => `${a.kind}:${a.at}`)));
 
@@ -235,6 +206,7 @@ export default function PulseWall({ initial, initialLive }) {
       if (el && (el.isContentEditable || /^(input|textarea|select)$/i.test(el.tagName || ""))) return;
       const k = e.key.toLowerCase();
       if (k === "f") { e.preventDefault(); present(); return; }
+      if (e.key === "Escape") { setSelected(null); return; }
       const n = Number(e.key);
       if (n >= 1 && n <= MODES.length) setMode(MODES[n - 1].key);
     };
@@ -247,6 +219,7 @@ export default function PulseWall({ initial, initialLive }) {
   // would recompute the grid and the peak on every render, live polls included.
   const continents = useMemo(() => data?.continents || [], [data]);
   const peak = useMemo(() => continents.reduce((m, c) => Math.max(m, c.visits), 0), [continents]);
+  const trafficCountries = useMemo(() => data?.trafficCountries?.rows || [], [data]);
   const rangeLabel = RANGES.find((r) => r.key === range)?.label || range;
 
   const gridDays = useMemo(() => (data?.grid || []).map((g) => g.day), [data]);
@@ -376,15 +349,34 @@ export default function PulseWall({ initial, initialLive }) {
             mode={mode}
             continents={continents}
             cities={data?.cities || []}
+            countries={trafficCountries}
+            countryName={countryName}
+            selected={selected}
+            onSelect={setSelected}
             ripples={ripples}
             flights={flights}
             reducedMotion={reduced}
             rangeLabel={rangeLabel}
           />
         </div>
+        {selected ? (
+          <CountryCard
+            code={selected}
+            rows={trafficCountries}
+            total={continents.reduce((s, c) => s + c.visits, 0)}
+            cities={data?.cities || []}
+            studios={data?.studios?.countries || []}
+            partialDays={data?.trafficCountries?.partialDays || 0}
+            rangeLabel={rangeLabel}
+            onClose={() => setSelected(null)}
+          />
+        ) : null}
         <MapLegend
           mode={mode}
           peak={peak}
+          countries={trafficCountries}
+          partialDays={data?.trafficCountries?.partialDays || 0}
+          onPick={setSelected}
           total={continents.reduce((s, c) => s + c.visits, 0)}
           cities={data?.cities || []}
           signedUp={data?.studios?.thisWeek ?? 0}
@@ -507,12 +499,18 @@ export default function PulseWall({ initial, initialLive }) {
 // same mode; a mode that changes what it draws changes this in the same commit.
 const RAMP = [0.22, 0.38, 0.56, 0.78, 1];   // WorldMap's RAMP_ALPHA
 
-function MapLegend({ mode, peak, total, cities, signedUp, reduced }) {
+function MapLegend({ mode, peak, total, cities, countries, partialDays, onPick, signedUp, reduced }) {
   const cityPeak = cities.reduce((m, c) => Math.max(m, c.visits), 0);
+  const countryPeak = countries.reduce((m, c) => Math.max(m, c.visits), 0);
   const hasCities = cities.length > 0;
+  // Country tint when any country is known; the continent tint otherwise —
+  // exactly the fallback WorldMap draws, so the key never names a tint the
+  // map is not using.
+  const byCountry = countries.length > 0;
   const muted = { color: "var(--ad-muted-foreground)" };
   const tint = (rgbVar) => (
     <div>
+      <p className="mb-1" style={muted}>{byCountry ? "Countries" : "Continents"} tinted by visits</p>
       <div className="flex h-2 overflow-hidden rounded-full">
         {RAMP.map((a) => (
           <span key={a} className="flex-1" style={{ background: `rgb(var(${rgbVar}) / ${a})` }} />
@@ -520,28 +518,23 @@ function MapLegend({ mode, peak, total, cities, signedUp, reduced }) {
       </div>
       <div className="mt-0.5 flex justify-between text-[10px]" style={muted}>
         <span>1 visit</span>
-        <span>peak <b className="num" style={{ color: "var(--ad-foreground)" }}>{fmt(peak)}</b></span>
+        <span>peak <b className="num" style={{ color: "var(--ad-foreground)" }}>{fmt(byCountry ? countryPeak : peak)}</b></span>
       </div>
     </div>
   );
 
   return (
     <div
-      className="pointer-events-none absolute bottom-3 start-3 z-10 w-[min(15rem,calc(100%-1.5rem))] space-y-2 rounded-lg border p-2.5 text-[11px] shadow-lg backdrop-blur-sm"
+      className="pointer-events-none absolute bottom-3 start-3 z-10 max-h-[calc(100%-4rem)] w-[min(15rem,calc(100%-7rem))] space-y-2 overflow-y-auto rounded-lg border p-2.5 text-[11px] shadow-lg backdrop-blur-sm"
       style={{ background: "rgb(var(--ad-card-rgb) / 0.88)", borderColor: "var(--ad-border)" }}
     >
-      <p className="text-[10px] font-700 uppercase tracking-wider" style={muted}>
-        {MODES.find((m) => m.key === mode)?.label}
+      <p className="flex items-baseline justify-between text-[10px] font-700 uppercase tracking-wider" style={muted}>
+        <span>{MODES.find((m) => m.key === mode)?.label}</span>
+        <span className="num normal-case tracking-normal" style={{ color: "var(--ad-foreground)" }}>{fmt(total)} visits</span>
       </p>
-
-      <div className="space-y-1">
-        <LegendRow swatch="var(--ad-border)" label={mode === "dots" || mode === "heat" ? "Land — no traffic recorded" : "Land"} />
-        <LegendRow swatch="var(--ad-primary)" label="Visits, all continents" value={fmt(total)} />
-      </div>
 
       {mode === "dots" ? (
         <>
-          <p style={muted}>Continents tinted by visits</p>
           {tint("--ad-primary-rgb")}
           {hasCities ? <LegendRow swatch="var(--ad-primary)" label="City — dot grows with visits" value={`${fmt(cities.length)} · top ${fmt(cityPeak)}`} /> : null}
         </>
@@ -549,7 +542,6 @@ function MapLegend({ mode, peak, total, cities, signedUp, reduced }) {
 
       {mode === "heat" ? (
         <>
-          <p style={muted}>Continents tinted by visits</p>
           {tint("--ad-warning-rgb")}
           {hasCities ? (
             <LegendRow
@@ -606,14 +598,120 @@ function MapLegend({ mode, peak, total, cities, signedUp, reduced }) {
         <LegendRow swatch="var(--ad-success)" label="Ring — a studio signed up" value={`${fmt(signedUp)} this week`} />
       )}
 
+      {/* THE BUSIEST COUNTRIES, AS BUTTONS. Clicking a country on the map is
+          the obvious door and the worst one for a small country — Jordan is
+          two dots, Lebanon none — and for a keyboard it is no door at all. These are the
+          same selection. */}
+      {byCountry ? (
+        <div className="pointer-events-auto">
+          <p className="mb-0.5 text-[10px] uppercase tracking-wider" style={muted}>Top countries · click for detail</p>
+          {countries.slice(0, 4).map((c) => (
+            <button
+              key={c.code}
+              type="button"
+              onClick={() => onPick(c.code)}
+              className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-start hover:bg-[rgb(var(--ad-primary-rgb)/0.12)]"
+            >
+              <span aria-hidden="true">{flagEmoji(c.code)}</span>
+              <span className="truncate" style={{ color: "var(--ad-foreground)" }}>{countryName(c.code)}</span>
+              <span className="num ms-auto" style={muted}>{fmt(c.visits)}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {/* THE HONEST SENTENCE, and it has to keep matching what is stored. The
-          continent total and the city points are DIFFERENT POPULATIONS — a
-          visit the edge could not place, and every visit before 08/09/2026, is
-          in the continent total and in no point — so it is said, not inferred. */}
+          totals and the points are DIFFERENT POPULATIONS — a visit the edge
+          could not place is in the country and continent totals and in no
+          point — and a day from before the country counter is counted from
+          its cities alone, a lower bound, so both are said, not inferred. */}
       <p className="text-[10px] leading-snug" style={muted}>
         {hasCities
           ? "Cities from the edge's own headers, rounded to ~1 km. No IP; no visitor is tied to a place."
           : "Recorded by continent and day. City points begin 08/09/2026."}
+        {partialDays > 0 ? ` ${partialDays} day${partialDays === 1 ? "" : "s"} in this range predate country counting and count only visits placed to a city.` : ""}
+      </p>
+    </div>
+  );
+}
+
+// THE COUNTRY CARD — what selecting a country is FOR. Zooming a 2.1-degree
+// dot grid shows no more data than the world view did; the numbers are here.
+// Every figure is a count the wall already holds, filtered to one country:
+// nothing on this card is estimated.
+function CountryCard({ code, rows, total, cities, studios, partialDays, rangeLabel, onClose }) {
+  const idx = rows.findIndex((r) => r.code === code);
+  const visits = idx >= 0 ? rows[idx].visits : 0;
+  const here = cities.filter((c) => c.country === code);
+  const placed = here.reduce((s, c) => s + c.visits, 0);
+  const studiosHere = studios.find((s) => s.code === code)?.n || 0;
+  const muted = { color: "var(--ad-muted-foreground)" };
+  const fg = { color: "var(--ad-foreground)" };
+  return (
+    <div
+      className="absolute end-3 top-12 z-10 max-h-[calc(100%-11rem)] w-[min(17rem,calc(100%-1.5rem))] space-y-2 overflow-y-auto rounded-lg border p-3 text-[11px] shadow-lg backdrop-blur-sm"
+      style={{ background: "rgb(var(--ad-card-rgb) / 0.94)", borderColor: "var(--ad-border)" }}
+      role="region"
+      aria-label={`${countryName(code)} traffic`}
+    >
+      <div className="flex items-start gap-2">
+        <span className="text-xl leading-none" aria-hidden="true">{flagEmoji(code)}</span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-700" style={fg}>{countryName(code)}</p>
+          <p className="text-[10px]" style={muted}>{continentOf(code)} · {rangeLabel}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="ms-auto rounded px-1.5 text-base leading-none"
+          style={muted}
+          aria-label="Close — back to the previous view (Esc)"
+          title="Close (Esc)"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <Stat label="Visits" value={fmt(visits)} />
+        <Stat label="Share" value={total > 0 ? `${((visits / total) * 100).toFixed(visits / total < 0.1 ? 1 : 0)}%` : "—"} />
+        <Stat label="Rank" value={idx >= 0 ? `#${idx + 1}` : "—"} sub={rows.length ? `of ${rows.length}` : ""} />
+      </div>
+
+      {here.length ? (
+        <div>
+          <p className="mb-1 text-[10px] uppercase tracking-wider" style={muted}>Cities</p>
+          {here.slice(0, 6).map((c) => (
+            <div key={c.city} className="flex items-center gap-2">
+              <span className="truncate" style={fg}>{c.city}</span>
+              <span className="mx-1 h-1 flex-1 overflow-hidden rounded-full" style={{ background: "var(--ad-border)" }}>
+                <span className="block h-full rounded-full" style={{ width: `${(c.visits / here[0].visits) * 100}%`, background: "var(--ad-primary)" }} />
+              </span>
+              <span className="num" style={muted}>{fmt(c.visits)}</span>
+            </div>
+          ))}
+          {here.length > 6 ? <p className="text-[10px]" style={muted}>+{here.length - 6} more</p> : null}
+        </div>
+      ) : (
+        <p style={muted}>No visit here was placed to a city.</p>
+      )}
+
+      {/* The two populations again: placed-to-a-city is a subset. */}
+      <p className="text-[10px] leading-snug" style={muted}>
+        <b className="num" style={fg}>{fmt(placed)}</b> of {fmt(visits)} visits placed to a city.
+        {" "}Studios based here: <b className="num" style={fg}>{fmt(studiosHere)}</b>.
+        {partialDays > 0 ? ` ${partialDays} day${partialDays === 1 ? "" : "s"} counted from cities only.` : ""}
+      </p>
+    </div>
+  );
+}
+
+function Stat({ label, value, sub }) {
+  return (
+    <div className="rounded-md border px-2 py-1.5" style={{ borderColor: "var(--ad-border)" }}>
+      <p className="text-[9px] uppercase tracking-wider" style={{ color: "var(--ad-muted-foreground)" }}>{label}</p>
+      <p className="num text-sm font-800 leading-tight" style={{ color: "var(--ad-foreground)" }}>
+        {value}{sub ? <span className="ms-1 text-[10px] font-500" style={{ color: "var(--ad-muted-foreground)" }}>{sub}</span> : null}
       </p>
     </div>
   );

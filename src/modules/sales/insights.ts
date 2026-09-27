@@ -28,9 +28,7 @@ import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { moduleContext } from "../context";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
-import { crossRate } from "@/shared/currencies";
-import { roundMoney } from "@/shared/money";
+import { converterToBase } from "@/lib/data/exchangeRates";
 import { invoiceTotals } from "@/modules/finance/finance";
 import { creditedSoFar } from "@/modules/finance/creditNotes";
 import { toCsv } from "@/modules/inventory/itemImport";
@@ -138,15 +136,12 @@ async function gather(ctx: InsightsContext) {
   ]);
   // THE RATE TABLE IS ASKED FOR ONLY WHEN SOMETHING IS FOREIGN — most studios
   // sell in one currency, and the table can mean a fetch.
-  const foreign = (c: unknown) => Boolean(base && c && String(c).toUpperCase() !== base);
-  const rates = [...invoices, ...receipts].some((d) => foreign(d.currency)) ? (await getExchangeSnapshot()).rates : null;
+  const toBase = await converterToBase(base, [...invoices, ...receipts].map((d) => d.currency));
   let unconverted = 0;
   const inBase = (amount: number, currency: unknown): number | null => {
-    const from = String(currency || "").toUpperCase();
-    if (!base || !from || from === base) return amount;
-    const rate = crossRate(rates, from, base);
-    if (rate == null) { unconverted += 1; return null; }
-    return roundMoney(amount * rate, base);
+    const v = toBase(amount, currency);
+    if (v == null) unconverted += 1;
+    return v;
   };
 
   const clientById = new Map(clients.map((c) => [c.id, c]));
@@ -278,10 +273,13 @@ export async function insightsCsv(ctx: InsightsContext, q: Record<string, unknow
   const tr = insightsDict(locale);
   const only = str(q.pattern, 20);
   const rows = result.customers.filter((c) => !only || c.pattern === only);
+  // WHAT THE MONEY IS IN, said in the header — the cells stay bare numbers so
+  // the columns still sum. Every value here is already the studio's currency.
+  const inCur = (label: string) => (result.currency ? `${label} (${result.currency})` : label);
   const head = [
     tr.colCustomer, tr.colPattern, tr.colSignature, tr.colWas,
-    ...result.periods.map((p) => tr.periodLabel(p)),
-    tr.colTotalValue, tr.colTotalCount, tr.colLastSale, tr.colContact, tr.colPhone, tr.colEmail,
+    ...result.periods.map((p) => (result.measure === "count" ? tr.periodLabel(p) : inCur(tr.periodLabel(p)))),
+    inCur(tr.colTotalValue), tr.colTotalCount, tr.colLastSale, tr.colContact, tr.colPhone, tr.colEmail,
   ];
   const series = (c: (typeof rows)[number]) => (result.measure === "count" ? c.count : c.value);
   return {

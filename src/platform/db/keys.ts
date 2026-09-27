@@ -429,6 +429,15 @@ export const STAT = {
   // cardinality we control.
   cities: (site: StatSite, isoDate: string) =>
     (site === "erp" ? `${P}stat:city:erp:${isoDate}` : `${P}stat:city:${isoDate}`),
+  // COUNTRIES TOO, and for the same reason: up to ~250 fields a day is exactly
+  // the cardinality that would push the pages into overflow. Added 28/09/2026
+  // for the Pulse map's country view. The code was already stored inside every
+  // city field, so a country alone is LESS identifying than what was kept — and
+  // unlike the city it is counted for every visit, headers or not, which is what
+  // makes a country total honest rather than a sum of the cities that happened
+  // to be placed.
+  countries: (site: StatSite, isoDate: string) =>
+    (site === "erp" ? `${P}stat:cc:erp:${isoDate}` : `${P}stat:cc:${isoDate}`),
   visitors: (isoDate: string) => `${P}stat:vis:${isoDate}`,
   // Everything past the per-day field ceiling lands here rather than minting a
   // new field. A page that shows up in this bucket is either a typo or an
@@ -440,6 +449,10 @@ export const STAT = {
   // field name comes from a header and is therefore chosen by the world.
   OVERFLOW_CITY: "__other",
   MAX_CITIES_PER_DAY: 500,
+  // Two-letter codes only, so the world cannot exceed the ~250 ISO assigns;
+  // the cap is there because the code still comes from a header.
+  OVERFLOW_COUNTRY: "__other",
+  MAX_COUNTRIES_PER_DAY: 260,
 };
 
 // ---- rate limiting (ephemeral counters, owned by nobody) -------------------

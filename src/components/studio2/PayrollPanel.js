@@ -59,7 +59,9 @@ function RunPill({ status, tr }) {
 // ONE RUN'S PAYSLIPS, opened under the run itself: its four totals first, then
 // the lines, then the totals again as a footer so a column can be checked.
 function Payslips({ run, tr, onSlip }) {
-  const money = useMoney();
+  // IN THE RUN'S OWN CURRENCY — the one it was paid in, not today's.
+  const inStudio = useMoney();
+  const money = (n) => inStudio(n, run.currency);
   const t = run.totals || {};
   const cells = [[tr.basic, t.basic], [tr.allowances, t.allowances], [tr.deductions, t.deductions], [tr.net, t.net]];
   return (
@@ -269,7 +271,7 @@ export default function PayrollPanel({ slug, locale = "en" }) {
 
       {/* ---- the summary ------------------------------------------------------ */}
       <div className={tileRow}>
-        <StatTile label={tr.lastRun} value={latest ? money(latest.totals?.net) : "—"}
+        <StatTile label={tr.lastRun} value={latest ? money(latest.totals?.net, latest.currency) : "—"}
           sub={latest ? `${monthLabel(latest.period, locale)} · ${tr.status(latest.status)}` : tr.noRunYet} />
         <StatTile label={tr.onPayroll} value={withPay.length}
           sub={missing > 0 ? tr.withoutPay(missing) : tr.allHavePay} />
@@ -321,9 +323,9 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                           )}
                         </td>
                         <td className="num py-3 pe-3 text-end text-slate-600 dark:text-slate-300">{r.totals?.people || 0}</td>
-                        <td className="num py-3 pe-3 text-end text-slate-600 dark:text-slate-300">{money(r.totals?.gross)}</td>
-                        <td className="num py-3 pe-3 text-end text-slate-600 dark:text-slate-300">{money(r.totals?.deductions)}</td>
-                        <td className="num py-3 pe-3 text-end font-700 text-slate-900 dark:text-white">{money(r.totals?.net)}</td>
+                        <td className="num py-3 pe-3 text-end text-slate-600 dark:text-slate-300">{money(r.totals?.gross, r.currency)}</td>
+                        <td className="num py-3 pe-3 text-end text-slate-600 dark:text-slate-300">{money(r.totals?.deductions, r.currency)}</td>
+                        <td className="num py-3 pe-3 text-end font-700 text-slate-900 dark:text-white">{money(r.totals?.net, r.currency)}</td>
                         <td className="py-3 pe-3 text-slate-500 dark:text-slate-400">{r.preparedByAlias || "—"}</td>
                         <td className="py-3 text-end">
                           <span className="inline-flex flex-wrap items-center justify-end gap-2">
@@ -558,7 +560,7 @@ export default function PayrollPanel({ slug, locale = "en" }) {
                   <Field label={tr.name} value={c.label} onChange={(v) => patchComponent(i, { label: v })} />
                   <Field label={tr.kind} as="select" value={c.kind} onChange={(v) => patchComponent(i, { kind: v })}
                     options={[{ value: "allowance", label: tr.allowance }, { value: "deduction", label: tr.deduction }]} />
-                  <Field label={tr.amount} type="number" value={c.amount} onChange={(v) => patchComponent(i, { amount: v })} />
+                  <Field currency label={tr.amount} type="number" value={c.amount} onChange={(v) => patchComponent(i, { amount: v })} />
                   {/* WHICH ALLOWANCES SOCIAL SECURITY IS CHARGED ON — housing,
                       under GOSI. Never a deduction: that is not wage. */}
                   {ssEnabled && c.kind === "allowance" && (

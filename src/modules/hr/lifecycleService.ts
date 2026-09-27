@@ -18,6 +18,7 @@
 
 import { requirePermission, scopeFor, can } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
+import { stampCurrency } from "@/platform/db/stampCurrency";
 import { listCollaborators, getCollaborator, updateCollaborator } from "@/platform/auth/collaborators";
 import { subtreeIds } from "@/shared/departments/tree";
 import { codeOfCountry } from "@/shared/countries";
@@ -92,11 +93,21 @@ export async function lifecycleView(ctx: HrContext) {
   if (denied) return denied;
 
   const asOf = today();
-  const [rawPeople, contracts, events] = await Promise.all([
+  const [rawPeople, contracts, storedEvents] = await Promise.all([
     listCollaborators(ctx.studio.id),
     Contracts.find(scope(ctx)),
     Events.find(scope(ctx)),
   ]);
+  // A SETTLEMENT SNAPSHOT TAKEN BEFORE SNAPSHOTS KEPT A CURRENCY (27/09/2026) is
+  // stamped with the studio's, once (platform/db/stampCurrency) — what it
+  // already showed, frozen so a later change of currency cannot relabel it.
+  const events = await stampCurrency(Events, scope(ctx), storedEvents, () => String(ctx.studio.currency || ""), {
+    get: (e) => {
+      const snap = e.payload?.settlement as { currency?: unknown } | undefined;
+      return snap ? snap.currency : null;
+    },
+    set: (e, code) => ({ payload: { ...e.payload, settlement: { ...(e.payload?.settlement as object), currency: code } } }),
+  });
   const people = rawPeople as unknown as PersonRow[];
   const seen = await visible(ctx, people);
   const mayManage = !requirePermission(ctx.access, "hr.lifecycle.edit");
@@ -341,7 +352,9 @@ export async function moveEmployment(ctx: HrContext, body: MoveBody) {
     const calculated = canSeePay(ctx)
       ? await settlementFor(ctx, { collaboratorId, lastWorkingDay: effectiveDate, reason, deductions: body?.deductions })
       : null;
-    if (calculated && !("error" in calculated)) payload.settlement = calculated.settlement;
+    // THE CURRENCY TRAVELS WITH THE SNAPSHOT, or a change of the studio's
+    // currency would relabel what somebody was paid on leaving.
+    if (calculated && !("error" in calculated)) payload.settlement = { ...calculated.settlement, currency: calculated.currency };
   }
 
   if (move === "hire") {

@@ -1,4 +1,4 @@
-import { readDays, readPages, readContinents, readDevices, readContinentDays, readCities, daysBack } from "@/lib/data/siteStats";
+import { readDays, readPages, readContinents, readDevices, readContinentDays, readCities, readCountries, daysBack } from "@/lib/data/siteStats";
 import type { StatSite } from "@/platform/db/keys";
 import { listStudios } from "@/modules/main/studios";
 import { listPresence } from "@/platform/auth/users";
@@ -91,15 +91,16 @@ export async function readPulse(asked: unknown, askedSource: unknown = "all") {
 
   const [perSite, studios] = await Promise.all([
     Promise.all(sites.map(async (site) => {
-      const [rows, pages, continents, devices, grid, cities] = await Promise.all([
+      const [rows, pages, continents, devices, grid, cities, countries] = await Promise.all([
         readDays(days, site),
         readPages(days, site),
         readContinents(days, site),
         readDevices(days, site),
         readContinentDays(gridDays, site),
         readCities(days, site),
+        readCountries(days, site),
       ]);
-      return { rows, pages, continents, devices, grid, cities };
+      return { rows, pages, continents, devices, grid, cities, countries };
     })),
     listStudios(),
   ]);
@@ -120,6 +121,11 @@ export async function readPulse(asked: unknown, askedSource: unknown = "all") {
   const cities = sumBy(perSite.map((p) => p.cities), (r) => `${r.country}|${r.city}`,
     (a, b) => ({ ...a, visits: a.visits + b.visits }))
     .sort((a, b) => b.visits - a.visits || a.city.localeCompare(b.city));
+  const trafficCountries = sumBy(perSite.map((p) => p.countries.rows), (r) => r.code,
+    (a, b) => ({ code: a.code, visits: a.visits + b.visits }))
+    .sort((a, b) => b.visits - a.visits || a.code.localeCompare(b.code));
+  // A day is partial if EITHER surface had to fall back to its cities on it.
+  const partialDays = [...new Set(perSite.flatMap((p) => p.countries.partialDays))].sort();
   const grid = gridDays.map((day, i) => ({
     day,
     byContinent: perSite.reduce((acc: Record<string, number>, p) => {
@@ -181,6 +187,12 @@ export async function readPulse(asked: unknown, askedSource: unknown = "all") {
     // two totals that do not match: visits recorded before the city counters
     // existed, and visits the edge could not place.
     citiesCover: cities.reduce((s, c) => s + c.visits, 0),
+    // VISITS PER COUNTRY (website/product traffic — not the studios below, which
+    // are a different population). `partialDays` names the days in the range
+    // counted from city fields alone, before the country counter existed; the
+    // map says how many there are rather than presenting a lower bound as a
+    // total. See readCountries.
+    trafficCountries: { rows: trafficCountries, partialDays: partialDays.length },
     // Continent x day, for the heat strip. Same counters as `continents` above,
     // kept per day instead of summed.
     grid,

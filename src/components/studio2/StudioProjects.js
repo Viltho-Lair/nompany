@@ -371,7 +371,7 @@ function ProjectList({ projects, approvedQuotations, people, clients = [], indus
       renderCell: ({ row }) => <span className="num text-xs text-slate-500 dark:text-slate-400">{row.quotationNumber || "—"}</span> },
     value: { field: "value", headerName: tr.value, type: "number", minWidth: 110, flex: 0.7,
       align: "right", headerAlign: "right",
-      renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.value)}</span> },
+      renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.value, row.currency)}</span> },
     progress: { field: "progress", headerName: tr.progress, type: "number", minWidth: 140, flex: 0.8,
       renderCell: ({ row }) => (
         <span className="flex items-center gap-2">
@@ -609,7 +609,7 @@ function FromQuotation({ quotations, people, busy, setBusy, onSave, onCancel }) 
         <Field className="sm:col-span-2" label={tr.approvedQuotation} as="select" required
           value={quotationId} onChange={(v) => setQuotationId(v)}
           options={quotations.map((q) => ({ value: q.id, label: `${q.number} — ${q.title}` }))}
-          hint={chosen ? `${chosen.clientName} · ${money(chosen.total)}` : undefined} />
+          hint={chosen ? `${chosen.clientName} · ${money(chosen.total, chosen.currency)}` : undefined} />
         <Field label={tr.projectManager} as="select" value={managerCollaboratorId}
           onChange={(v) => setManager(v)}
           options={[{ value: "", label: tr.unassigned }, ...people.map((p) => ({ value: p.id, label: p.alias }))]} />
@@ -785,7 +785,7 @@ function ProjectDetail({ project: p, people, stages, canManage, slug, nav, onSav
 
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <div><label className={label}>{tr.client}</label><input className={inputRO} value={p.clientName || "—"} readOnly /></div>
-        <div><label className={label}>{tr.value}</label><input className={inputRO} value={money(p.value)} readOnly /></div>
+        <div><label className={label}>{tr.value}</label><input className={inputRO} value={money(p.value, p.currency)} readOnly /></div>
         <div>
           <label className={label}>{tr.support}</label>
           <div className={`${inputRO} flex items-center`}><SupportTag project={p} /></div>

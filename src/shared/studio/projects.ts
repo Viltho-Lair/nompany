@@ -408,6 +408,7 @@ type Strings = CommonStrings & {
   total: string;
   totalRow: string;
   totalValue: string;
+  dashUnconverted: (n: number) => string;
   typeIndustry: string;
   unassigned: string;
   unassigned2: string;
@@ -880,6 +881,7 @@ const en: Strings = {
   total: "Total",
   totalRow: "Total",
   totalValue: "Total value",
+  dashUnconverted: (n) => `${n} left out: today's rates cannot convert ${n === 1 ? "its" : "their"} currency`,
   typeIndustry: "Type of industry",
   unassigned: "Unassigned",
   unassigned2: "Unassigned",
@@ -1364,6 +1366,7 @@ const ar: Strings = {
   total: "الإجمالي",
   totalRow: "الإجمالي",
   totalValue: "القيمة الإجمالية",
+  dashUnconverted: (n) => `تم استبعاد ${n}: لا يمكن تحويل العملة بأسعار اليوم`,
   typeIndustry: "نوع النشاط",
   unassigned: "غير مسند",
   unassigned2: "غير مسند",

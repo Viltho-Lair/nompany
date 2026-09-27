@@ -44,6 +44,8 @@ import type { Tender, BoqItem } from "@/modules/tendering/schema";
 import type { ProjectsContext, Project, Overtime } from "./types";
 import type { Section } from "@/platform/db/sections";
 import type { Row } from "@/platform/db/store";
+import { stampCurrency } from "@/platform/db/stampCurrency";
+import { converterToBase } from "@/lib/data/exchangeRates";
 
 export const PROJECT_STAGES = ["Received", "In Progress", "On Hold", "Completed"];
 export const DEFAULT_STAGE = "Received";
@@ -194,16 +196,49 @@ export function readProjectsSettings(
   };
 }
 
+/**
+ * A PROJECT OPENED BEFORE PROJECTS KEPT A CURRENCY (27/09/2026) GAINS ONE HERE,
+ * once — see platform/db/stampCurrency. The evidence, best first: the frozen
+ * currency of the quotation or tender it was opened from, else the studio's.
+ * The two sources are read only when some project actually lacks one, so a
+ * studio whose projects are all stamped pays nothing for this.
+ */
+async function withCurrency(ctx: ProjectsContext, rows: Project[]): Promise<Project[]> {
+  const { studio, listSection, quotationsSection, tenderRegisterSection } = ctx;
+  const missing = rows.filter((p) => !String(p.currency || "").trim());
+  if (!missing.length) return rows;
+  const [quotes, tenders] = await Promise.all([
+    quotationsSection && missing.some((p) => p.quotationId)
+      ? Quotations.find({ studio, section: quotationsSection }) : Promise.resolve([]),
+    tenderRegisterSection && missing.some((p) => p.tenderId)
+      ? Tenders.find({ studio, section: tenderRegisterSection }) : Promise.resolve([]),
+  ]);
+  const quoteCurrency = new Map(quotes.map((q) => [q.id, String((q as { currency?: unknown }).currency || "")]));
+  const tenderCurrency = new Map(tenders.map((t) => [t.id, String(t.currency || "")]));
+  return stampCurrency(Projects, { studio, section: listSection }, rows, (p) =>
+    (p.quotationId && quoteCurrency.get(p.quotationId))
+    || (p.tenderId && tenderCurrency.get(p.tenderId))
+    || String(studio.currency || ""));
+}
+
 export async function listProjects(ctx: ProjectsContext) {
   const { studio, listSection } = ctx;
   // Progress is the project PLAN's overall completion, read back through the
   // studio-level plans index (one key), never stored on the project — so it
   // can't drift from the schedule it summarises. A project with no plan reads 0.
-  const [rows, { factsFor }, progressFor] = await Promise.all([
+  const [stored, { factsFor }, progressFor] = await Promise.all([
     Projects.find({ studio, section: listSection }),
     ticketFacts(ctx),
     progressByProject(studio.id),
   ]);
+  const rows = await withCurrency(ctx, stored);
+  // EVERY PROJECT'S VALUE IN THE STUDIO'S CURRENCY, for the totals a dashboard
+  // draws. Projects are opened in the studio's currency, so this is `value`
+  // itself for every one of them — until a studio changes its currency, when
+  // the older ones are in the old one and a plain sum would add the two. Null
+  // where today's table cannot convert; the dashboard leaves those out and says
+  // how many. The table is not read at all while nothing is foreign.
+  const toBase = await converterToBase(studio.currency, rows.map((p) => p.currency));
   return [...rows]
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))
     .map((p) => {
@@ -211,7 +246,10 @@ export async function listProjects(ctx: ProjectsContext) {
       // carries — so the profile can name where the work came from without the
       // project holding a second copy of it.
       const t = factsFor(p.ticketId);
-      return { ...p, ticketRef: t.ticketRef, progress: progressFor.get(p.id) ?? 0 };
+      return {
+        ...p, ticketRef: t.ticketRef, progress: progressFor.get(p.id) ?? 0,
+        baseValue: toBase(Number(p.value) || 0, p.currency),
+      };
     });
 }
 
@@ -251,7 +289,7 @@ export async function approvedQuotations(ctx: ProjectsContext) {
         ? t.clientName
         : (clientId && clientsById.get(clientId)) || String(q.clientName || "") || "";
       return {
-        id: q.id, number: q.number, total: q.total,
+        id: q.id, number: q.number, total: q.total, currency: String(q.currency || ""),
         title: q.ticketId ? t.title : (q.title || ""),
         clientName,
       };
@@ -299,6 +337,10 @@ type ProjectSource = {
   clientId: string;
   clientName: string;
   value: number;
+  // WHAT `value` IS IN — the quotation's or the tender's own, the studio's for
+  // a direct project. It was dropped at the head, so a project opened from a
+  // quotation in euros showed its value in the studio's currency (27/09/2026).
+  currency: string;
   quotationId: string;
   quotationNumber: string;
   rfqId: string;
@@ -374,6 +416,7 @@ async function directSource(
     // legitimately start at zero — the figure is agreed later — so this is a
     // default, not a refusal.
     value: nonNeg(body?.value, 0),
+    currency: String(studio.currency || ""),
     quotationId: "", quotationNumber: "", rfqId: "", ticketId: "",
     tenderId: "", tenderRef: "",
     engId: "",
@@ -460,6 +503,7 @@ async function tenderSource(
     clientId: client.id,
     clientName: client.name || "",
     value: fromBoq === null ? nonNeg(tender.estimatedValue, 0) : fromBoq,
+    currency: String(tender.currency || studio.currency || ""),
     quotationId: "", quotationNumber: "", rfqId: "", ticketId: "",
     tenderId,
     tenderRef: str(tender.ref, 40),
@@ -585,6 +629,7 @@ async function quotationSource(
     title: str(body?.title, 200) || t.title || String(quote.title || ""),
     clientId: engClientId, clientName,
     value: Number(quote.total) || 0,
+    currency: String(quote.currency || studio.currency || ""),
     quotationId, quotationNumber: String(quote.number || ""),
     rfqId: String(quote.rfqId || ""), ticketId: String(quote.ticketId || ""),
     // Blank: this project's lineage runs through the quotation, not a bid.
@@ -694,6 +739,7 @@ async function createProjectRow(
     tenderId: source.tenderId, tenderRef: source.tenderRef,
     clientId: source.clientId, clientName: source.clientName,
     value: source.value,
+    currency: source.currency,
     stage: DEFAULT_STAGE,
     managerCollaboratorId: str(body?.managerCollaboratorId, 60),
     location: str(body?.location, 200),

@@ -645,6 +645,12 @@ export type SettlementInput = {
 };
 
 export type Settlement = {
+  /**
+   * WHAT IT WAS CALCULATED IN, stamped where the snapshot is taken
+   * (lifecycleService). Optional: the pure calculation knows no currency, and a
+   * snapshot taken before 27/09/2026 has none and reads the studio's.
+   */
+  currency?: string;
   years: number;
   dailyWage: number;
   /** NULL where the studio has no end-of-service rule at all — Jordan has none. */

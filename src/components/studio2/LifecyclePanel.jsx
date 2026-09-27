@@ -323,7 +323,7 @@ function PersonPanel({ person, contracts, events, tr, data, pack, onClose, onAct
                         history is for. */}
                     {e.payload?.settlement && (
                       <p className="num text-xs text-slate-600 dark:text-slate-300">
-                        {tr.total}: {money(e.payload.settlement.total, data.currency)}
+                        {tr.total}: {money(e.payload.settlement.total, e.payload.settlement.currency || data.currency)}
                       </p>
                     )}
                   </li>

@@ -25,6 +25,7 @@ type Strings = CommonStrings & {
   clientCode: string;
   wonValue: string;
   contractValue: string;
+  contractsUnconverted: (n: number) => string;
   openDeals: string;
   decidedDeals: string;
   noDealsForCustomer: string;
@@ -269,6 +270,7 @@ const en: Strings = {
   clientCode: "Code",
   wonValue: "Won",
   contractValue: "Under contract",
+  contractsUnconverted: (n) => `${n} left out: today's rates cannot convert ${n === 1 ? "its" : "their"} currency`,
   openDeals: "Open deals",
   decidedDeals: "Decided",
   noDealsForCustomer: "No deals have been raised for this customer.",
@@ -498,6 +500,7 @@ const ar: Strings = {
   clientCode: "الرمز",
   wonValue: "المربوح",
   contractValue: "قيمة العقود",
+  contractsUnconverted: (n) => `تم استبعاد ${n}: لا يمكن تحويل العملة بأسعار اليوم`,
   openDeals: "الصفقات المفتوحة",
   decidedDeals: "المحسومة",
   noDealsForCustomer: "لم ترفع أي صفقة لهذا العميل.",

@@ -63,7 +63,14 @@ export default function ProjectsDashboard({
   const stageOf = (p) => p.stage || "Received";
   const active = projects.filter((p) => stageOf(p) !== "Completed").length;
   const completed = projects.filter((p) => stageOf(p) === "Completed").length;
-  const totalValue = projects.reduce((s, p) => s + (Number(p.value) || 0), 0);
+  // IN THE STUDIO'S CURRENCY: `baseValue` is each project's value converted by
+  // the server (listProjects) — itself, for a project in the studio's currency.
+  // Null where today's rates cannot convert it; such a project is left out of
+  // every money total here and counted, never added at a rate of one.
+  const inBase = (p) => (p.baseValue === undefined ? Number(p.value) || 0 : p.baseValue);
+  const valueOf = (p) => Number(inBase(p)) || 0;
+  const unconverted = projects.filter((p) => inBase(p) === null).length;
+  const totalValue = projects.reduce((s, p) => s + valueOf(p), 0);
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const overdue = projects.filter((p) => {
     if (stageOf(p) === "Completed" || !p.endDate) return false;
@@ -75,7 +82,7 @@ export default function ProjectsDashboard({
   const byStage = STAGES.map((stage) => ({
     stage,
     count: projects.filter((p) => stageOf(p) === stage).length,
-    value: round2(projects.filter((p) => stageOf(p) === stage).reduce((s, p) => s + (Number(p.value) || 0), 0)),
+    value: round2(projects.filter((p) => stageOf(p) === stage).reduce((s, p) => s + valueOf(p), 0)),
   }));
   const donut = byStage.filter((s) => s.count > 0).map((s) => ({ label: s.stage, value: s.count, color: STAGE_COLOR[s.stage] }));
   const maxStageValue = Math.max(1, ...byStage.map((s) => s.value));
@@ -128,7 +135,7 @@ export default function ProjectsDashboard({
   // list sorted by either number alone can show it.
   const scatterPoints = openProjects.map((p) => ({
     x: Math.max(0, Math.min(100, Number(p.progress) || 0)),
-    y: Number(p.value) || 0,
+    y: valueOf(p),
     color: STAGE_COLOR[stageOf(p)],
     label: `${p.number || ""} ${p.title || ""}`.trim(),
   }));
@@ -152,7 +159,7 @@ export default function ProjectsDashboard({
   ];
   const otMonths = monthsBack(12, asOfDay);
   const otByMonth = sumByMonth(overtimes, (o) => o.date || o.createdAt, (o) => Number(o.hours) || 0, otMonths);
-  const byClient = rankTotals(projects, (p) => p.clientName || tr.dashNoClient, (p) => Number(p.value) || 0, 6, tr.dashOther);
+  const byClient = rankTotals(projects, (p) => p.clientName || tr.dashNoClient, valueOf, 6, tr.dashOther);
 
   if (projects.length === 0) {
     return (
@@ -173,7 +180,8 @@ export default function ProjectsDashboard({
           <StatTile label={tr.activeProjects} value={num(active)} href={listHref} />
         )}
         {sectionOn("projects-list") && (
-          <StatTile label={tr.totalValue} value={amt(totalValue)} href={listHref} />
+          <StatTile label={tr.totalValue} value={amt(totalValue)} href={listHref}
+            sub={unconverted ? tr.dashUnconverted(unconverted) : undefined} />
         )}
         {sectionOn("projects-list") && (
           <StatTile label={tr.completed} value={num(completed)} tone="text-emerald-600 dark:text-emerald-400" href={listHref} />

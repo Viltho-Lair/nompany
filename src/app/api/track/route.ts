@@ -70,6 +70,7 @@ const slug = (s: unknown, max = 40) => String(s || "").toLowerCase().replace(/[^
 const today = () => new Date().toISOString().slice(0, 10);
 const bounded = { max: STAT.MAX_FIELDS_PER_DAY, overflow: STAT.OVERFLOW_FIELD };
 const boundedCities = { max: STAT.MAX_CITIES_PER_DAY, overflow: STAT.OVERFLOW_CITY };
+const boundedCountries = { max: STAT.MAX_COUNTRIES_PER_DAY, overflow: STAT.OVERFLOW_COUNTRY };
 
 // "www" unless the caller says otherwise, and only ever one of two values.
 //
@@ -108,11 +109,19 @@ export async function POST(request: Request) {
       const page = slug(body.page || "home") || "home";
       await inc(`pv:${page}`);
       await inc("pv:__total");
-      // WHERE FROM, at continent granularity. The edge hands us a country code
-      // on the request; it is mapped to a continent here and thrown away, so
-      // what lands in Redis is coarser and less identifying than what arrived.
-      const continent = continentOf(request.headers.get("x-vercel-ip-country"));
+      // WHERE FROM: a continent in the day hash, and the COUNTRY on a key of
+      // its own. This said the country was "thrown away", which stopped being
+      // true on 08/09/2026 when every city field began carrying its code; since
+      // 28/09/2026 the country is counted for every visit, placed to a city or
+      // not, because the Pulse map selects countries and a country total built
+      // from city fields alone under-reports every visit the edge could not
+      // place. An unrecognised or missing code is counted nowhere here and
+      // still lands under "Others" by continent, which stays the denominator.
+      const countryHeader = request.headers.get("x-vercel-ip-country");
+      const continent = continentOf(countryHeader);
       await inc(`geo:${CONTINENT_KEYS[continent] || "other"}`);
+      const cc = String(countryHeader || "").trim().toUpperCase();
+      if (/^[A-Z]{2}$/.test(cc)) await hIncrBounded(STAT.countries(site, day), cc, boundedCountries);
       // WHAT KIND OF MACHINE, the same way: the user-agent is reduced to one of
       // three words and discarded. A full UA string is a fingerprint; "mobile"
       // is not, and is all the dashboard asks for.

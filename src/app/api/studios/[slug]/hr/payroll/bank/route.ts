@@ -62,7 +62,9 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   // that spread whatever the row held would send a bank a field it did not ask
   // for, and most WPS formats reject the whole file for one unknown column.
   const rows = [
-    ["Name", "IBAN", "Bank", "Amount"],
+    // THE CURRENCY IS IN THE HEADER, not a column of its own: a fifth column is
+    // the unknown field the note above warns a bank will reject the file for.
+    ["Name", "IBAN", "Bank", result.currency ? `Amount (${result.currency})` : "Amount"],
     ...result.rows.map((r) => [r.alias, r.iban, r.bank, String(r.net)]),
   ];
 

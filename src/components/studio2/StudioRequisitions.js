@@ -22,7 +22,7 @@ import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmt
 import { Field } from "@/components/fields/Field";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { supplierOptions, projectOptions, costCodeOptions } from "@/components/studio2/pickerOptions";
-import { useMoney } from "@/components/studio2/studioCurrency";
+import { useMoney, useStudioCurrency } from "@/components/studio2/studioCurrency";
 
 function refusal(tr, token) {
   switch (token) {
@@ -53,6 +53,7 @@ const emptyLine = () => ({ description: "", unit: "", qty: "", estUnitCost: "", 
 // render, so the screen paints with its rows; absent, it fetches on mount as before.
 export default function StudioRequisitions({ slug, initial }) {
   const money = useMoney();
+  const studioCurrency = useStudioCurrency();
   const tr = procurementDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
@@ -320,7 +321,7 @@ export default function StudioRequisitions({ slug, initial }) {
                       <th className="px-2 py-2 text-start text-xs font-700 uppercase tracking-wide text-slate-500">{tr.lineDescription}</th>
                       <th className="px-2 py-2 text-start text-xs font-700 uppercase tracking-wide text-slate-500">{tr.lineUnit}</th>
                       <th className="px-2 py-2 text-end text-xs font-700 uppercase tracking-wide text-slate-500">{tr.lineQty}</th>
-                      <th className="px-2 py-2 text-end text-xs font-700 uppercase tracking-wide text-slate-500">{tr.lineEstCost}</th>
+                      <th className="px-2 py-2 text-end text-xs font-700 uppercase tracking-wide text-slate-500">{tr.lineEstCost}{studioCurrency ? ` (${studioCurrency})` : ""}</th>
                       <th className="px-2 py-2 text-start text-xs font-700 uppercase tracking-wide text-slate-500">{tr.lineItem}</th>
                     </tr>
                   </thead>

@@ -169,7 +169,7 @@ export function OfferEditor({ tr, locale, data, promotion, busy, onSave, onCance
                   options={THRESHOLD_TYPES.map((x) => ({ value: x, label: tr.thresholdType(x) }))} />
               </div>
               {t.thresholdType !== "none" && (
-                <Field label={tr.thresholdValue} type="number" min="0" value={String(t.thresholdValue ?? "")}
+                <Field currency={t.thresholdType === "amount"} label={tr.thresholdValue} type="number" min="0" value={String(t.thresholdValue ?? "")}
                   onChange={(v) => setTier(ti, { thresholdValue: num(v) })} />
               )}
             </div>

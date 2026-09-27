@@ -20,7 +20,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, fmtDate, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { supplierOptions, projectOptions, costCodeOptions, supplierName } from "@/components/studio2/pickerOptions";
-import { useMoney } from "@/components/studio2/studioCurrency";
+import { useMoney, useStudioCurrency } from "@/components/studio2/studioCurrency";
 
 function refusal(tr, token) {
   switch (token) {
@@ -44,6 +44,7 @@ const emptyCharge = () => ({ description: "", amount: "" });
 // render, so the screen paints with its rows; absent, it fetches on mount as before.
 export default function StudioSubcontracts({ slug, initial }) {
   const money = useMoney();
+  const studioCurrency = useStudioCurrency();
   const tr = procurementDict(useStudioLocale());
   const [data, setData] = useState(initial ?? null);
   const [error, setError] = useState("");
@@ -371,7 +372,7 @@ export default function StudioSubcontracts({ slug, initial }) {
                     })} />
                   <input type="number" step="any"
                     className="num w-full rounded-lg border border-slate-200 px-2 py-1 text-end text-sm dark:border-white/10 dark:bg-transparent"
-                    aria-label={tr.backChargeAmount} value={b.amount}
+                    aria-label={tr.backChargeAmount} placeholder={studioCurrency} value={b.amount}
                     onChange={(e) => setValuing((f) => ({
                       ...f,
                       backCharges: f.backCharges.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)),

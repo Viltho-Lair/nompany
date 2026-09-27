@@ -22,7 +22,9 @@ register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const P = await import("@/lib/data/pulse");
 const ISO = await import("@/lib/isoNumeric");
-const { CONTINENTS } = await import("@/lib/continents");
+const { CONTINENTS, continentOf } = await import("@/lib/continents");
+const M = await import("@/lib/data/pulseMap");
+
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -146,14 +148,17 @@ console.log("\n== the dot grid resolves, country by country");
 // holding an id isoNumeric.ts cannot place, but the file it wrote is committed
 // and could go stale against a later edit to either side.
 const grid = JSON.parse(readFileSync(new URL("../public/pulse-dots.json", import.meta.url), "utf8"));
-ok("the grid is a flat triple", grid.dots.length % 3 === 0);
-ok("...of about three and a half thousand points", grid.dots.length / 3 > 3000);
+// FOUR PER DOT since the map learned countries (28/09/2026): x, y, continent,
+// country. A reader assuming three would read every country index as the next
+// dot's x and draw noise, so the stride travels with the data.
+ok("the grid is a flat quadruple, and says so", grid.stride === 4 && grid.dots.length % 4 === 0);
+ok("...of about three and a half thousand points", grid.dots.length / 4 > 3000);
 ok("the scale travels with the data", grid.scale === 10 && grid.width === 1000 && grid.height === 500);
 ok("the continents are the ones the counters use",
   JSON.stringify(grid.continents) === JSON.stringify(CONTINENTS));
 
 const indices = new Set();
-for (let i = 2; i < grid.dots.length; i += 3) indices.add(grid.dots[i]);
+for (let i = 2; i < grid.dots.length; i += 4) indices.add(grid.dots[i]);
 ok("every index is a real continent or the no-country marker",
   [...indices].every((i) => i === -1 || (i >= 0 && i < CONTINENTS.length)));
 ok("every inhabited continent is represented",
@@ -183,11 +188,79 @@ ok("Russia is wherever the traffic counters put it", ISO.continentOfNumeric(643)
 ok("an unknown id is placed nowhere", ISO.continentOfNumeric(0) === null);
 ok("...and so is nonsense", ISO.continentOfNumeric("Narnia") === null);
 
+console.log("\n== every dot knows its country");
+
+const codes = new Set();
+let misfiled = 0;
+for (let i = 0; i < grid.dots.length; i += 4) {
+  const k = grid.dots[i + 3];
+  if (k < 0) continue;
+  const code = grid.countries[k];
+  codes.add(code);
+  // The dot's continent must be the one continents.ts gives its country, or
+  // the country tint and the continent counters would disagree about a place.
+  if (grid.continents[grid.dots[i + 2]] !== continentOf(code)) misfiled += 1;
+}
+ok("every country index names a real alpha-2", [...codes].every((c) => /^[A-Z]{2}$/.test(c)));
+ok("about a hundred and fifty countries are drawn", codes.size > 140);
+ok("...each on the continent the counters use", misfiled === 0, `${misfiled} misfiled`);
+
+console.log("\n== the camera goes where it is asked, and nowhere by itself");
+
+const boxes = M.countryBoxes(grid);
+const jo = boxes.get("JO");
+const hq = M.project(35.93, 31.95);
+ok("Jordan has a box, and Amman is in its neighbourhood",
+  Boolean(jo) && Math.abs((jo.minX + jo.maxX) / 2 - hq.x) < 15 && Math.abs((jo.minY + jo.maxY) / 2 - hq.y) < 15);
+const W = 1200, H = 600, S = Math.min((W - 24) / 1000, (H - 24) / 500);
+const camJO = M.cameraFor(jo, W, H, S);
+// THE MINIMUM SPAN. Two dots framed tightly would be two discs on a wall.
+ok("a small country is framed with its neighbourhood, not filled", camJO.z > 1 && camJO.z < M.MAX_ZOOM);
+ok("a big country zooms less than a small one", M.cameraFor(boxes.get("US"), W, H, S).z < camJO.z);
+ok("the camera never zooms out past the world",
+  M.cameraFor({ minX: 0, minY: 0, maxX: 1000, maxY: 500 }, W, H, S).z === 1);
+const edge = M.clampCamera({ cx: 0, cy: 0, z: 4 }, W, H, S);
+ok("a pan cannot drag the world out of the frame", edge.cx > 0 && edge.cy > 0);
+ok("at z = 1 the world sits where the unzoomed map put it",
+  JSON.stringify(M.clampCamera({ cx: 900, cy: 50, z: 1 }, W, H, S)) === JSON.stringify(M.WORLD_CAMERA));
+const zin = M.zoomAt(M.WORLD_CAMERA, 2, W / 2, H / 2, W, H, S);
+ok("zooming at the centre keeps the centre", zin.z === 2 && zin.cx === 500 && zin.cy === 250);
+
+// A COUNTRY TOO SMALL FOR THE GRID is found by its cities; with neither, it
+// does not move the camera at all rather than inventing a place.
+const bh = M.boxOf("BH", boxes, [{ country: "BH", city: "Manama", lat: 26.23, lng: 50.59, visits: 3 }]);
+ok("a country with no dot is placed by its cities", !boxes.has("BH") && Boolean(bh));
+ok("...and with neither, it is placed nowhere", M.boxOf("BH", boxes, []) === null);
+
+// FIT TRAFFIC TRIMS THE TAIL. One visit from New Zealand must not drag the
+// frame across the Pacific — the outlier problem of fitting to every visit.
+const trafficRows = [{ code: "JO", visits: 60 }, { code: "SA", visits: 30 }, { code: "NZ", visits: 1 }];
+const fit = M.trafficBox(trafficRows, boxes, []);
+ok("fit traffic frames where most of the traffic is", Boolean(fit) && fit.maxX < boxes.get("NZ").minX);
+ok("...and nothing when there is no traffic", M.trafficBox([], boxes, []) === null);
+
+console.log("\n== an arc flies for a new visit, and only for one");
+
+const d0 = { range: "30d", source: "all", continents: [{ name: "Asia", visits: 10 }],
+  cities: [{ country: "JO", city: "Amman", lat: 31.95, lng: 35.93, visits: 4 }] };
+const d1 = { ...d0, continents: [{ name: "Asia", visits: 13 }],
+  cities: [{ country: "JO", city: "Amman", lat: 31.95, lng: 35.93, visits: 5 }] };
+const fl = M.newVisits(M.trafficBaseline(d0), M.trafficBaseline(d1));
+ok("three new visits, three flights", fl.length === 3);
+ok("...one from the city that gained, the rest from the continent",
+  fl.filter((f) => f.city).length === 1 && fl.filter((f) => !f.city).length === 2);
+ok("a change of range is not an arrival",
+  M.newVisits(M.trafficBaseline(d0), M.trafficBaseline({ ...d1, range: "7d" })).length === 0);
+ok("a fall launches nothing", M.newVisits(M.trafficBaseline(d1), M.trafficBaseline(d0)).length === 0);
+
 console.log("\n== the model reaches no database");
 
 const src = readFileSync(new URL("../src/lib/data/pulse.ts", import.meta.url), "utf8");
 ok("lib/data/pulse imports nothing that opens the store",
   [...src.matchAll(/from\s+"([^"]+)"/g)].every(([, s]) => !s.includes("platform/db")));
+const mapSrc = readFileSync(new URL("../src/lib/data/pulseMap.ts", import.meta.url), "utf8");
+ok("...nor does lib/data/pulseMap, which the browser imports",
+  [...mapSrc.matchAll(/from\s+"([^"]+)"/g)].every(([, s]) => !s.includes("platform/db")));
 
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 process.exit(fails ? 1 : 0);

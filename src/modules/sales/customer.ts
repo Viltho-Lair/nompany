@@ -23,6 +23,8 @@ import { isClosed, isWon, weightedValue, enteredStageAt, daysSince, stageDef } f
 import { clientContacts, clientLocations } from "./salesClients";
 import { approvedValueDelta } from "./changeOrders";
 import { quotedTotalFor, ticketValue } from "./sales";
+import { converterToBase } from "@/lib/data/exchangeRates";
+import { roundSum } from "@/shared/money";
 import type { SalesContext, Client } from "./types";
 import type { SalesTicket } from "./schema";
 import type { Contract } from "./contractSchema";
@@ -41,6 +43,20 @@ const Projects = repo<Project>("projects");
 const Items = repo<Item>("inventoryItems");
 
 const num = (v: unknown) => (Number(v) > 0 ? Number(v) : 0);
+
+/** The contracts' current value summed in the studio's currency, and how many
+ *  could not be converted. The rate table is read only when something is
+ *  foreign — most studios contract in one currency. */
+async function contractsInBase(rows: { current: number; currency: string }[], studioCurrency: unknown) {
+  const toBase = await converterToBase(studioCurrency, rows.map((r) => r.currency));
+  let total = 0;
+  let unconverted = 0;
+  for (const r of rows) {
+    const v = toBase(r.current, r.currency);
+    if (v == null) unconverted += 1; else total += v;
+  }
+  return { contractValue: roundSum(total), contractsUnconverted: unconverted, currency: String(studioCurrency || "").toUpperCase() };
+}
 
 export async function customerProfile(ctx: SalesContext, id: string) {
   const denied = requirePermission(ctx.access, "crmSales.clients.view");
@@ -231,7 +247,12 @@ export async function customerProfile(ctx: SalesContext, id: string) {
         .sort((a, b) => a.name.localeCompare(b.name))
       : [],
     contracts: contractRows,
-    contractValue: contractRows.reduce((s, c) => s + c.current, 0),
+    // IN THE STUDIO'S CURRENCY. This added every contract's own figure as it
+    // stood, so a contract in euros and one in dinars made one number in
+    // neither. Converted at today's table, the way Customer insights converts;
+    // one the table cannot convert is left out and COUNTED, never added at a
+    // rate of one (27/09/2026).
+    ...(await contractsInBase(contractRows, studio.currency)),
     projects: projects.map((p) => ({
       id: p.id, number: p.number || "", title: p.title || "",
       stage: p.stage || "", value: num(p.value),

@@ -85,6 +85,25 @@ screen; Treasury formatted at nought places; the Executive board at a fixed two;
 in US dollars (`formatCurrency`, deleted); Nova's insights through `fmtMoney`, whose config
 nothing set.
 
+**What a record is in is kept with it (2026-09-27).** A project copies the currency of the
+quotation or tender it was opened from (the studio's for a direct one); a payroll run freezes
+the currency it was paid in, and a settlement snapshot the one it was calculated in — so
+changing the studio's currency relabels nothing already issued. Customer 360's contract value
+is converted to the studio's currency, and so is every project value the Projects dashboard
+totals (`baseValue`, from the projects list).
+
+**Records written before they kept a currency gain one on read (2026-09-27)** — the owner's
+rule that an update reaches every studio by itself, so no script. `platform/db/stampCurrency`
+fills a missing currency once, with a function patch that writes only into a gap (invariant 8):
+a project from its quotation's or tender's frozen currency, else the studio's; a payroll run
+and a settlement snapshot with the studio's, since nothing recorded theirs. The next read
+finds nothing to do. Exports say what their money is in: the report
+exports and the report builder carry a Currency column (a record's own, else the studio's),
+the Customer insights and register CSVs name it in the money columns' headers, and the bank
+file in its Amount header. The last unlabelled amount fields (pay components, a promotion's
+amount threshold, a contract variation in its contract's currency, requisition and RFQ line
+costs, subcontract back-charges) now name theirs.
+
 `tests/money-model.mjs` covers the rule, the minor units, the sum, the display and the shared
 total; the model tests of each module that changed still pass.
 
@@ -92,16 +111,21 @@ total; the model tests of each module that changed still pass.
 
 - **`configureFormat`/`fmtMoney` (`lib/format.ts`) stay unwired, deliberately** — a module
   variable is the unsafe shape described above. No studio screen calls `fmtMoney` now.
-- **Customer 360 adds contract values in different currencies** without converting
-  (`modules/sales/customer.ts`).
-- **A project keeps no currency**: its value is copied from a tender or quotation and the
-  currency is dropped, so it shows in the studio's.
-- **Payroll runs and settlement snapshots store no currency**, so changing the studio's
-  currency relabels old payslips.
-- **CSV exports carry bare numbers with no currency column** (reports, the bank file, registers).
-- **Some amount fields still name no currency**: pay components (amount or percentage),
-  promotion thresholds, contract variations, and the requisition, RFQ and subcontract line
-  inputs that are not `Field`s.
+- **A total across records in different currencies converts at TODAY's table**, not the rate
+  of the day each was raised (`converterToBase`, lib/data/exchangeRates — Customer insights,
+  Customer 360's contract value, the Projects dashboard); a rate the table lacks leaves that
+  record out and says how many. Sales orders and other lists still sum their own figures
+  unconverted where they total at all.
+- **An older payroll run or settlement is stamped with the studio's currency TODAY**, because
+  nothing recorded what it was paid in. That is what it already showed; if a studio changed its
+  currency before 2026-09-27, its older runs are labelled in the new one. Projects have better
+  evidence (their quotation's or tender's frozen currency) and use it.
+- **A row is stamped when its LIST is read** (projects list, payroll screen, lifecycle view). A
+  project page, payslip or bank file reached before its list has been opened falls back to the
+  studio's currency — the same value the stamp would write, except for a project whose
+  quotation or tender was in another currency.
+- **The bank payment file names its currency in the Amount header**, not a column — its own
+  note says a bank rejects a file for an unknown column.
 - **A few browser-side calculations pass no currency** and still round at two places: the
   dashboards' client-side aggregates only sum stored amounts (unaffected), but any screen that
   multiplies a price by a quantity without the currency shows a figure that can differ by a

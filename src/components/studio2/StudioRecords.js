@@ -39,7 +39,7 @@ import { engineWords } from "@/shared/studio/engineTypes";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, th, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate } from "@/components/studio2/ui";
-import { useMoney } from "@/components/studio2/studioCurrency";
+import { useMoney, useStudioCurrency } from "@/components/studio2/studioCurrency";
 import { Field } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
@@ -251,6 +251,7 @@ function SortHead({ label, col, sort, onSort }) {
 // render, so the register paints at once; absent, it fetches on mount as before.
 export default function StudioRecords({ slug, typeKey, initial }) {
   const money = useMoney();
+  const studioCurrency = useStudioCurrency();
   const locale = useStudioLocale();
   const tr = restDict(locale);
   const [data, setData] = useState(initial ?? null);
@@ -445,7 +446,12 @@ export default function StudioRecords({ slug, typeKey, initial }) {
   // spreadsheet with 50 rows.
   const exportCsv = () => {
     const cols = ["reference", ...columns.map((f) => f.key), "status"];
-    const heads = [tr.reference, ...columns.map((f) => w.field(f.key, f.label)), tr.status];
+    // A money column says its currency in the header; its cells stay bare
+    // numbers (below) so the column still sums.
+    const heads = [tr.reference, ...columns.map((f) => {
+      const label = w.field(f.key, f.label);
+      return f.kind === "money" && studioCurrency ? `${label} (${studioCurrency})` : label;
+    }), tr.status];
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     // THE WORDS THE READER SAW, NOT THE STORED TOKENS. The export wrote
     // `r.status` and raw option values, so an Arabic studio's spreadsheet came

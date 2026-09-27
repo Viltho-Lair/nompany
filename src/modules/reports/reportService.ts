@@ -51,7 +51,11 @@ async function execute(ctx: ReportsContext, spec: ReportSpec) {
   if (!dataset) return { error: "dataset" as const };
   const read = await readDataset(ctx, dataset);
   if ("error" in read) return read;
-  return { result: runReport(spec, read.rows, (ctx.studio as { currency?: unknown }).currency), dataset };
+  const base = String((ctx.studio as { currency?: unknown }).currency || "");
+  // THE CURRENCY COLUMNS, filled the way the export fills them (datasets.toRows):
+  // a record's own, else the studio's — so the builder never shows a blank one.
+  const rows = read.rows.map((r) => ({ ...r, currency: String((r as { currency?: unknown }).currency || base), studioCurrency: base }));
+  return { result: runReport(spec, rows, base), dataset };
 }
 
 /** The saved list, the catalogue to build against, and every target's state. */

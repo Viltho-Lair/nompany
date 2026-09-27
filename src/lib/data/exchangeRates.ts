@@ -27,6 +27,8 @@
 import { FX } from "@/platform/db/keys";
 import { getJSON, setJSON, claim, release } from "@/platform/db/store";
 import { log } from "@/platform/http/observability";
+import { crossRate } from "@/shared/currencies";
+import { roundMoney } from "@/shared/money";
 
 const BASE = "USD";
 const ENDPOINT = (key: string) => `https://v6.exchangerate-api.com/v6/${key}/latest/${BASE}`;
@@ -133,3 +135,28 @@ export async function getExchangeSnapshot(): Promise<ExchangeSnapshot> {
 // (`quotedCodes`) and formatting a rate are pure arithmetic over the table, so
 // they live in src/lib/currencies.js — the browser needs them too, and must not
 // import this module to get them.
+
+/**
+ * A CONVERTER INTO THE STUDIO'S CURRENCY at today's table, for a screen that
+ * totals records which may be in different currencies (Customer insights,
+ * Customer 360's contract value, the Projects dashboard). One place, because
+ * three copies of "convert, and count what cannot be" were three answers free to
+ * disagree about what a total means.
+ *
+ * THE TABLE IS READ ONLY WHEN SOMETHING IS FOREIGN — most studios deal in one
+ * currency, and the table can mean a fetch. An amount in the studio's currency,
+ * or in none, comes back as it is. An amount the table cannot convert comes back
+ * NULL: the caller leaves it out and counts it, never adds it at a rate of one,
+ * which would put a dollar and a dirham on one line as equals.
+ */
+export async function converterToBase(studioCurrency: unknown, currencies: readonly unknown[]) {
+  const code = (c: unknown) => String(c || "").trim().toUpperCase();
+  const base = code(studioCurrency);
+  const foreign = (c: unknown) => Boolean(base && code(c) && code(c) !== base);
+  const rates = currencies.some(foreign) ? (await getExchangeSnapshot()).rates : null;
+  return (amount: number, currency: unknown): number | null => {
+    if (!foreign(currency)) return amount;
+    const rate = crossRate(rates, code(currency), base);
+    return rate == null ? null : roundMoney(amount * rate, base);
+  };
+}

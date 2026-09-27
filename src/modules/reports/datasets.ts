@@ -61,7 +61,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
     sectionKey: "finance-cash", parentSectionKey: "finance", collection: "invoices",
     columns: [
       col("reference", "Reference"), col("clientName", "Client"), col("status", "Status"),
-      col("issueDate", "Issued"), col("dueDate", "Due"), col("total", "Total"),
+      col("issueDate", "Issued"), col("dueDate", "Due"), col("total", "Total"), col("currency", "Currency"),
     ],
   },
   {
@@ -71,7 +71,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
     sectionKey: "finance-payables", parentSectionKey: "finance", collection: "bills",
     columns: [
       col("reference", "Reference"), col("vendorName", "Vendor"), col("status", "Status"),
-      col("billDate", "Date"), col("dueDate", "Due"), col("total", "Total"),
+      col("billDate", "Date"), col("dueDate", "Due"), col("total", "Total"), col("currency", "Currency"),
     ],
   },
   {
@@ -90,7 +90,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
     sectionKey: "projects-list", parentSectionKey: "projects", collection: "projects",
     columns: [
       col("number", "Number"), col("title", "Title"), col("clientName", "Client"),
-      col("status", "Status"), col("value", "Value"),
+      col("status", "Status"), col("value", "Value"), col("currency", "Currency"),
     ],
   },
   {
@@ -118,7 +118,9 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
     switch: "inventory-items",
     sectionKey: "inventory-items", parentSectionKey: "inventory", collection: "catalogueItems",
     columns: [
-      col("sku", "SKU"), col("name", "Name"), col("unit", "Unit"), col("sellPrice", "Sell price"),
+      // Sell price is the studio's money by definition (an item's own `currency`
+      // is its COST's), so the column names the studio's currency.
+      col("sku", "SKU"), col("name", "Name"), col("unit", "Unit"), col("sellPrice", "Sell price"), col("studioCurrency", "Currency"),
     ],
   },
   {
@@ -157,7 +159,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
     sectionKey: "crm-sales-quotations", parentSectionKey: "crm-sales", collection: "quotations",
     columns: [
       col("reference", "Reference"), col("clientName", "Client"), col("status", "Status"),
-      col("createdAt", "Raised"), col("total", "Total"),
+      col("createdAt", "Raised"), col("total", "Total"), col("currency", "Currency"),
     ],
   },
   {
@@ -167,7 +169,7 @@ export const DATASETS: readonly DataSet[] = Object.freeze([
     sectionKey: "inventory-sheets", parentSectionKey: "inventory", collection: "materialOrders",
     columns: [
       col("reference", "Reference"), col("vendorName", "Vendor"), col("status", "Status"),
-      col("createdAt", "Placed"), col("total", "Total"),
+      col("createdAt", "Placed"), col("total", "Total"), col("currency", "Currency"),
     ],
   },
   {
@@ -214,10 +216,18 @@ export function exportableFor(
  * localised dates. A CSV is read by a spreadsheet far more often than by a
  * person, and a date rendered dd/mm/yyyy is a date that spreadsheet will parse
  * wrongly or not at all.
+ *
+ * AN AMOUNT'S CURRENCY IS ITS OWN COLUMN (27/09/2026), beside it rather than
+ * inside it, for the same reason: "1200 JOD" is text to a spreadsheet and cannot
+ * be summed. A record with no currency of its own — written before it carried
+ * one, or a purchase order, which is always the studio's — takes
+ * `studioCurrency`, and so does the `studioCurrency` column itself.
  */
-export function toRows(dataset: DataSet, rows: readonly Record<string, unknown>[]): string[][] {
+export function toRows(dataset: DataSet, rows: readonly Record<string, unknown>[], studioCurrency = ""): string[][] {
   const head = dataset.columns.map((c) => c.label);
   const body = (rows || []).map((r) => dataset.columns.map((c) => {
+    if (c.key === "studioCurrency") return studioCurrency;
+    if (c.key === "currency") return String(r?.currency || studioCurrency);
     const v = r?.[c.key];
     if (v === null || v === undefined) return "";
     // An object in a cell is a bug in the column list rather than something to
