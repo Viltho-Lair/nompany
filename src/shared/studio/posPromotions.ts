@@ -164,6 +164,7 @@ type Strings = {
   prefix: string;
   customer: string;
   customerHint: string;
+  noClients: string;
   singleUse: string;
   maxRedemptions: string;
   perCustomerLimit: string;
@@ -381,6 +382,7 @@ const en: Strings = {
   prefix: "Prefix",
   customer: "Customer",
   customerHint: "A personal code names its holder, or it is not personal.",
+  noClients: "No customer is registered in CRM & Sales yet, so a personal code has nobody to name.",
   singleUse: "Once only",
   maxRedemptions: "Times in total",
   perCustomerLimit: "Times per customer",
@@ -412,6 +414,7 @@ const en: Strings = {
       case "notfound": return "That offer no longer exists.";
       case "active": return "A live offer is not edited. Pause it first.";
       case "archived": return "An archived offer cannot be changed.";
+      case "ended": return "An ended offer cannot be changed. Copy it to run it again.";
       case "transition": return `An offer cannot go from ${String(x.from || "")} to ${String(x.to || "")}.`;
       case "refused": return `Something is missing or wrong: ${String(x.detail || "")}.`;
       case "categories": return "Name at least one category.";
@@ -618,6 +621,7 @@ const ar: Strings = {
   prefix: "بادئة",
   customer: "العميل",
   customerHint: "الرمز الشخصي يسمي صاحبه وإلا فليس شخصيا.",
+  noClients: "لا يوجد عميل مسجل في المبيعات بعد، فلا يجد الرمز الشخصي من يسميه.",
   singleUse: "مرة واحدة فقط",
   maxRedemptions: "عدد المرات إجمالا",
   perCustomerLimit: "عدد المرات لكل عميل",
@@ -649,6 +653,7 @@ const ar: Strings = {
       case "notfound": return "هذا العرض لم يعد موجودا.";
       case "active": return "العرض المفعل لا يعدل. أوقفه مؤقتا أولا.";
       case "archived": return "العرض المؤرشف لا يغير.";
+      case "ended": return "العرض المنتهي لا يغير. انسخه لتشغيله مرة أخرى.";
       case "transition": return `لا ينتقل العرض من ${String(x.from || "")} إلى ${String(x.to || "")}.`;
       case "refused": return `هناك ما ينقص أو ما هو خطأ: ${String(x.detail || "")}.`;
       case "categories": return "حدد فئة واحدة على الأقل.";

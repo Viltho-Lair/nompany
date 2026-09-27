@@ -64,7 +64,10 @@ that waits for one would show nothing and read as broken. When the basket earns 
 says **why**, in the engine's own words.
 
 **An ACTIVE offer is not edited.** Pause it, change it, put it back — three deliberate acts,
-each writing a `posPromotionLog` row. A rate typed onto a live offer would change what the
+each writing a `posPromotionLog` row. **Nor is an ENDED or ARCHIVED one** (`ended` and
+`archived` refusals, 27/09/2026): an ended offer's only move is to the archive, so an edit could
+never run and would only rewrite the rules its receipts were priced under. The screen offers
+Edit on a draft or paused offer alone; to run an ended offer again, Copy it. A rate typed onto a live offer would change what the
 next customer through the door is charged with nobody having decided that it should, and
 "who made it 50%" has to be answerable from something other than the offer's current state.
 
@@ -122,7 +125,7 @@ measured against the same figure the server measures it against.
 
 A coupon is its own record, not a field on an offer: one offer can be unlocked by a code on a
 poster, by a code sent to one customer, and by ten thousand in a batch, and each has its own
-life. The alphabet excludes `0/O/1/I`.
+life. The alphabet (`COUPON_ALPHABET`) excludes `0/O/1/I/L`, the characters misread for each other.
 
 **Counted on the coupon's own row.** This store gives a module exactly one atomic primitive —
 compare-and-set on a single row — and no transaction, no row lock and no unique index. So the
@@ -137,6 +140,11 @@ twice.
 
 **Every coupon needs a customer, public ones included** — without one a per-customer limit is
 unenforceable and a personal code is unverifiable. The till says so before the cashier types.
+
+**A personal code names its customer from CRM's clients** — a picker of names, storing the
+client's id (27/09/2026; it was a box asking for the record id). The list reaches the screen only
+for somebody who may mint codes (`pos.promotions.create`) and only when CRM & Sales keeps
+clients.
 
 **A code is cancelled, never deleted:** a redemption names the coupon it spent.
 
@@ -187,6 +195,11 @@ they existed loses nothing.
 advanced parts keeps every offer it has and keeps charging them correctly; what it loses is
 the ability to write new ones. A gate that stopped an existing offer applying would change
 what somebody at a counter is charged because of a billing change.
+
+**Every write is gated alike — create, edit, mint and COPY.** A copy is a new offer, so it
+asks the same question of the package as a create does (27/09/2026; before that, Copy was the
+one write that did not, and an old tiered or scheduled offer could be copied into a package that
+no longer sells them).
 
 ## Not built yet
 

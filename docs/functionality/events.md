@@ -86,6 +86,15 @@ Whoever works the campaigns catches up to this right verb for verb (an event is 
 campaign's work made of a date and a room), and the winner-of-work shape holds it
 at full.
 
+## Who is told
+
+Whoever is named an event's **owner** is told, on the bell (`event.assigned`), when an
+event is created for them or handed to them — never the person who named them, who knows. The
+same courtesy a campaign's and a plan's owner get (27/09/2026).
+
+Events are drawn on the marketing calendar, on the same weeks as the campaign bars
+(`marketing-calendar.md`).
+
 ## Deleting
 
 An event that has **already run** is kept, and so is one anybody has been marked
@@ -99,8 +108,6 @@ place that number exists. An upcoming event nobody has marked deletes.
   no email (the owner, 2026-09-19).
 - **A waiting list**, and anything that happens when capacity is reached. The
   form keeps accepting replies.
-- **Events are not on the marketing calendar.** It draws campaigns only, which
-  its own file has always said.
 - **No check-in from a phone**, no QR on a registration, and no walk-in that is
   not already a form reply — somebody who turns up unregistered cannot be marked,
   because attendance is keyed to registrations.

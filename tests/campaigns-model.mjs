@@ -111,5 +111,14 @@ ok("a finished one has none", M.briefGaps(M.cleanBrief({ audience: "a", message:
 ok("nonsense is not a brief", M.briefWritten(M.cleanBrief("a brief")) === false);
 ok("a long answer is cut rather than refused", M.cleanBrief({ message: "x".repeat(5000) }).message.length === 2000);
 
+console.log("\n== which campaigns take a lead (27/09/2026)");
+// THE DEFECT THIS GUARDS: sendLead checked no status, so the server credited
+// leads to Cancelled and Completed campaigns — only the screen hid the button,
+// and only on Cancelled. The server and the screen now ask this one question.
+ok("a cancelled campaign takes no lead", M.campaignTakesLeads("Cancelled") === false);
+ok("...nor a completed one, whose results are its record", M.campaignTakesLeads("Completed") === false);
+ok("a running or paused one does", M.campaignTakesLeads("Active") && M.campaignTakesLeads("Paused"));
+ok("...and so does one still being prepared", M.campaignTakesLeads("Draft") && M.campaignTakesLeads("Planned"));
+
 console.log(`\n${fails ? `${fails} FAILED` : "all passed"}`);
 process.exit(fails ? 1 : 0);

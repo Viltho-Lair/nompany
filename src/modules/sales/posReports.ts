@@ -5,11 +5,16 @@
 // and totals with the same functions, so the two cannot disagree about what
 // "this week" held or what an item sold. tests/pos-model.mjs asserts them.
 //
-// A PERIOD IS WORKED OUT WHERE THE READER IS. "Today" is the reader's today —
-// a shop in Riyadh closes at midnight Riyadh time, not UTC — so `periodRange`
-// takes the reader's clock and the server is handed two instants, never a day.
+// A PERIOD IS WORKED OUT ON THE STUDIO'S CLOCK. "Today" is the shop's today —
+// a shop in Riyadh closes at midnight Riyadh time, not UTC and not whatever
+// zone the reader's laptop is in — so `periodRange` is handed the studio's
+// zone (shared/timezone, the one clock offers, per-day caps and shift days
+// already read) and the server is handed two instants, never a day. It once
+// took the reader's device clock, and a manager abroad read a "today" the
+// counter never had.
 
 import { roundSum } from "@/shared/money";
+import { dayIn, wallClock, zonedMidnight } from "@/shared/timezone";
 import { PAYMENT_METHODS, type PosPaymentMethod } from "./posModel";
 
 export const PERIODS = ["day", "week", "month", "quarter", "half", "year"] as const;
@@ -17,49 +22,86 @@ export type Period = (typeof PERIODS)[number];
 export const isPeriod = (v: unknown): v is Period => (PERIODS as readonly unknown[]).includes(v);
 
 /**
- * The period containing `at`, in the local time of whoever calls it:
+ * The period containing `at`, on `timezone`'s clock:
  * `[from, to)` — `to` is the start of the next period, so a sale at 23:59:59
  * is in and one at midnight is not. `offset` steps whole periods back (-1 is
  * the one before). Weeks start on `firstDayOfWeek` (0 Sunday).
+ *
+ * The screens always pass a zone — the studio's, or "UTC" when it has none,
+ * which is what its offers read too. With NO zone at all it reads the caller's
+ * own clock, which is only right for a caller already in the shop's zone;
+ * nothing on a screen may rely on that.
  */
-export function periodRange(period: Period, at: Date = new Date(), offset = 0, firstDayOfWeek = 0) {
-  const y = at.getFullYear();
-  const m = at.getMonth();
-  const d = at.getDate();
+export function periodRange(period: Period, at: Date = new Date(), offset = 0, firstDayOfWeek = 0, timezone?: string) {
+  const zoned = Boolean(String(timezone || "").trim());
+  const wall = zoned ? wallClock(at, timezone) : null;
+  const y = wall ? wall.y : at.getFullYear();
+  const m = wall ? wall.m : at.getMonth();
+  const d = wall ? wall.d : at.getDate();
+  const weekday = wall ? wall.weekday : at.getDay();
+  // Midnight of a calendar day, on the clock this period is read on.
+  const day = (yy: number, mm: number, dd: number) => (zoned ? zonedMidnight(yy, mm, dd, timezone) : new Date(yy, mm, dd));
   let from: Date;
   let to: Date;
   switch (period) {
     case "day":
-      from = new Date(y, m, d + offset);
-      to = new Date(y, m, d + offset + 1);
+      from = day(y, m, d + offset);
+      to = day(y, m, d + offset + 1);
       break;
     case "week": {
-      const back = (at.getDay() - firstDayOfWeek + 7) % 7;
-      from = new Date(y, m, d - back + 7 * offset);
-      to = new Date(y, m, d - back + 7 * (offset + 1));
+      const back = (weekday - firstDayOfWeek + 7) % 7;
+      from = day(y, m, d - back + 7 * offset);
+      to = day(y, m, d - back + 7 * (offset + 1));
       break;
     }
     case "month":
-      from = new Date(y, m + offset, 1);
-      to = new Date(y, m + offset + 1, 1);
+      from = day(y, m + offset, 1);
+      to = day(y, m + offset + 1, 1);
       break;
     case "quarter": {
       const q = Math.floor(m / 3) * 3;
-      from = new Date(y, q + 3 * offset, 1);
-      to = new Date(y, q + 3 * (offset + 1), 1);
+      from = day(y, q + 3 * offset, 1);
+      to = day(y, q + 3 * (offset + 1), 1);
       break;
     }
     case "half": {
       const h = m < 6 ? 0 : 6;
-      from = new Date(y, h + 6 * offset, 1);
-      to = new Date(y, h + 6 * (offset + 1), 1);
+      from = day(y, h + 6 * offset, 1);
+      to = day(y, h + 6 * (offset + 1), 1);
       break;
     }
     default:
-      from = new Date(y + offset, 0, 1);
-      to = new Date(y + offset + 1, 0, 1);
+      from = day(y + offset, 0, 1);
+      to = day(y + offset + 1, 0, 1);
   }
   return { from: from.toISOString(), to: to.toISOString() };
+}
+
+/**
+ * THE CALENDAR DAYS A PERIOD COVERS on the studio's clock, as "YYYY-MM-DD" —
+ * at most a year of them — with each sale's takings summed into its own day.
+ * The dashboard's bar chart; worked out here rather than on the screen so it
+ * reads the same clock the period was cut on.
+ */
+export function takingsByDay(
+  sales: readonly { at: string; total?: unknown }[],
+  range: { from: string; to: string },
+  timezone: string,
+): { days: string[]; values: number[] } {
+  const days: string[] = [];
+  const first = dayIn(range.from, timezone);
+  const last = dayIn(new Date(Date.parse(range.to) - 1), timezone);
+  for (let t = Date.parse(`${first}T00:00:00Z`); days.length < 366; t += 86400000) {
+    const key = new Date(t).toISOString().slice(0, 10);
+    if (key > last) break;
+    days.push(key);
+  }
+  const totals = new Map(days.map((k) => [k, 0]));
+  for (const sale of sales) {
+    const k = dayIn(sale.at, timezone);
+    if (totals.has(k)) totals.set(k, (totals.get(k) || 0) + Number(sale.total || 0));
+  }
+  return { days, values: days.map((k) => Math.round((totals.get(k) || 0) * 100) / 100) };
 }
 
 // ---- the receipts, filtered ------------------------------------------------------
@@ -233,20 +275,6 @@ export function soldLines(
 }
 
 // ---- CSV ------------------------------------------------------------------------
-
-/**
- * AN INSTANT AS THE READER'S CLOCK SHOWED IT — "2026-09-17 14:58" — for a file
- * opened in a spreadsheet, where a UTC timestamp reads as the wrong hour.
- * `offsetMinutes` is the browser's own `getTimezoneOffset()` (UTC minus local).
- */
-export function localStamp(iso: string, offsetMinutes = 0): string {
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return "";
-  const off = Number.isFinite(offsetMinutes) ? Math.max(-840, Math.min(840, offsetMinutes)) : 0;
-  const d = new Date(t - off * 60000);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
-}
 
 /**
  * RFC 4180, with the byte-order mark Excel needs to read Arabic — the one format

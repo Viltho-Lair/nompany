@@ -63,3 +63,69 @@ export function dayIn(at: string | Date, timezone?: string): string {
 /** The studio's zone, or "" — read through one function so nothing guesses the field name. */
 export const studioTimezone = (studio: { timezone?: unknown } | null | undefined): string =>
   String(studio?.timezone || "").trim();
+
+// ---- a zone's wall clock ------------------------------------------------------
+//
+// A PERIOD — "today", "this month" — IS THE STUDIO'S, NOT THE READER'S DEVICE'S.
+// Point of Sale's Sales list, shift history, dashboard and downloads once worked
+// their periods out on whatever clock the reader's laptop had, while the offers
+// on the same receipts ran by the studio's zone — so a manager travelling, or a
+// head office in another country, read a "today" the counter never had. These
+// three are what a period needs to be worked out in a zone instead.
+
+type Wall = { y: number; m: number; d: number; weekday: number; hour: number; minute: number };
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * What a zone's clock reads at an instant — month 0-based, weekday 0 Sunday,
+ * the same shape `Date`'s local getters give. An unknown or empty zone reads
+ * UTC, the same fallback `dayIn` takes, so the two cannot disagree about a day.
+ */
+export function wallClock(at: string | Date, timezone?: string): Wall {
+  const when = at instanceof Date ? at : new Date(at);
+  const utc = (): Wall => ({
+    y: when.getUTCFullYear(), m: when.getUTCMonth(), d: when.getUTCDate(),
+    weekday: when.getUTCDay(), hour: when.getUTCHours(), minute: when.getUTCMinutes(),
+  });
+  const zone = String(timezone || "").trim();
+  if (!zone) return utc();
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: zone, hourCycle: "h23", weekday: "short",
+      year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric",
+    }).formatToParts(when);
+    const get = (t: string) => parts.find((p) => p.type === t)?.value || "";
+    return {
+      y: Number(get("year")), m: Number(get("month")) - 1, d: Number(get("day")),
+      weekday: WEEKDAYS.indexOf(get("weekday")), hour: Number(get("hour")) % 24, minute: Number(get("minute")),
+    };
+  } catch {
+    return utc();
+  }
+}
+
+/**
+ * THE INSTANT A ZONE'S CLOCK READS MIDNIGHT at the start of a calendar day.
+ * Month 0-based, and day or month may overflow (day 0, month 12) exactly as
+ * `new Date(y, m, d)` allows, so period arithmetic reads the same either way.
+ * Asked twice because the zone's offset at the first guess may not be its
+ * offset at the answer — the day a clock changes.
+ */
+export function zonedMidnight(y: number, m: number, d: number, timezone?: string): Date {
+  const target = Date.UTC(y, m, d);
+  const offsetAt = (t: number) => {
+    const w = wallClock(new Date(t), timezone);
+    return Date.UTC(w.y, w.m, w.d, w.hour, w.minute) - Math.floor(t / 60000) * 60000;
+  };
+  const first = target - offsetAt(target);
+  return new Date(target - offsetAt(first));
+}
+
+/** An instant as a zone's clock showed it — "2026-09-17 14:58" — for a downloaded file. */
+export function stampIn(iso: string, timezone?: string): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const w = wallClock(new Date(t), timezone);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${w.y}-${pad(w.m + 1)}-${pad(w.d)} ${pad(w.hour)}:${pad(w.minute)}`;
+}

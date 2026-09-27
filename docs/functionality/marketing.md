@@ -80,7 +80,8 @@ button. `utm_campaign` left blank uses the campaign's name as a slug (the refere
 has no Latin letters).
 
 **The ladder**: Draft ⇄ Planned → Running (Active) ⇄ Paused → Completed, and Cancelled from any
-of the four. Running cannot go back to Planned. **Completed and Cancelled are final**: the campaign
+of the four; a Draft may also go straight to Running, and a Paused campaign straight to Completed
+(`CAMPAIGN_MOVES`). Running cannot go back to Planned. **Completed and Cancelled are final**: the campaign
 is no longer edited and does not move. *Run again* makes a Draft copy with no dates, no status
 history, no sub-campaigns and a blank `utm_campaign`, so two runs do not report as one.
 
@@ -90,7 +91,11 @@ One that ran is kept as the record of what ran.
 **Leads** (2026-09-19, `docs/functionality/leads.md`): each campaign sets a **lead deadline** in
 hours, and *Send a lead to Sales* raises a Sales ticket at Lead, assigned to nobody, naming the
 campaign as its source. The card shows what the campaign brought in: its leads, deals won and
-won value, read from the Sales tickets that name it.
+won value, read from the Sales tickets that name it. **A Completed or Cancelled campaign takes no
+new lead** — the server refuses (`campaign-closed`) and the card hides the button
+(`campaignTakesLeads`, 27/09/2026). Cancelled because it did not run; Completed because it is
+final and what it brought in is its record, which must not keep moving after it was closed. A
+late enquiry is raised in Sales directly.
 
 **The brief** (2026-09-22): four questions on the campaign — who is it for, what are we saying to
 them, what are we offering, and what would make it a success. Four questions rather than one box,

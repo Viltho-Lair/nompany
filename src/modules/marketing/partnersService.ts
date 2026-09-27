@@ -16,6 +16,8 @@
 import { requirePermission, type PermissionKey } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyCollaboratorIds } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
 import { isWon } from "@/modules/sales/pipeline";
 import { quotedTotalFor, ticketValue } from "@/modules/sales/sales";
 import type { SalesTicket } from "@/modules/sales/schema";
@@ -159,6 +161,23 @@ async function shapeProblem(ctx: MarketingContext, next: Partial<MarketingPartne
   return "";
 }
 
+/**
+ * Tell a newly named owner — never the person who named them, who knows. The
+ * same courtesy a campaign's and a plan's owner get: the person who looks after
+ * an arrangement should learn it is theirs from the product, not by chance.
+ */
+async function announceOwner(ctx: MarketingContext, p: MarketingPartner, before: string) {
+  if (!p.ownerCollaboratorId || p.ownerCollaboratorId === before) return;
+  await notifyCollaboratorIds(ctx.studio.id, [p.ownerCollaboratorId], {
+    type: NOTIFY.partnerAssigned,
+    title: "You own a partner",
+    body: p.name,
+    params: { name: p.name },
+    href: "marketing-partners",
+    tone: "primary",
+  }, [ctx.collaborator.id]);
+}
+
 export async function createPartner(ctx: MarketingContext, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "marketing.partners.create");
   if (denied) return denied;
@@ -182,6 +201,7 @@ export async function createPartner(ctx: MarketingContext, body: Record<string, 
     createdAt: at,
     updatedAt: at,
   });
+  await announceOwner(ctx, partner, ctx.collaborator.id);
   return { partner };
 }
 
@@ -194,7 +214,9 @@ export async function editPartner(ctx: MarketingContext, id: string, body: Recor
   const problem = await shapeProblem(ctx, { ...current, ...patch }, id);
   if (problem) return { error: problem };
   const partner = await Partners.update(scope(ctx), id, (row) => ({ ...row, ...patch, updatedAt: now() }));
-  return partner ? { partner } : { error: "notfound" };
+  if (!partner) return { error: "notfound" };
+  await announceOwner(ctx, partner, current.ownerCollaboratorId);
+  return { partner };
 }
 
 /**

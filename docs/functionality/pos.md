@@ -91,8 +91,12 @@ item's cost that day.
 that person carries today.
 
 **The period** is Day (the default: today), Week, Month, Quarter, Half-year or Year, stepped back
-with Previous. It is worked out in the READER's own time — "today" is the shop's today — and the
-server is handed two instants, `[from, to)`. Weeks start on Sunday.
+with Previous. It is worked out on **the studio's clock** (`shared/timezone`, Studio settings) —
+"today" is the shop's today, wherever the reader's device is — and the server is handed two
+instants, `[from, to)`. A studio with no zone set reads UTC, as its offers do. Weeks start on
+Sunday. (Until 27/09/2026 this was the reader's device clock, while the offers on the same
+receipts ran on the studio's zone — a manager abroad read a "today" the counter never had.) The
+dashboard's takings-by-day chart buckets on the same clock (`takingsByDay`).
 
 **Dashboard.** Takings, number of sales, the average sale, units sold, tax and the drawers open
 now — never gated — plus **offers running**, with how many end inside the studio's warning
@@ -119,7 +123,8 @@ exactly as the list is, or only the receipts ticked:
   tax, total, cash, card, transfer, change.
 - **Items sold (totals)** — one row per item: units, value, receipts; most units first.
 - **Items sold (every line)** — when, receipt, cashier, till, item, units, price, value.
-Times are written in the reader's clock (the screen sends its offset). A cell that looks like a
+Times are written on the studio's clock (UTC when it has no zone set), read on the server —
+not the reader's device offset. A cell that looks like a
 formula is prefixed with an apostrophe so a typed item name cannot run in the spreadsheet.
 
 **Shift history.** Every drawer opened in the period, newest first: number, till, opened (when,
@@ -195,7 +200,9 @@ itself.
   come back, and what is left.
 - **Ask**: how many of each line, **why** (required — a return with no reason is the one a fraud
   report cannot read), how the money goes back — **cash, card or transfer, the cashier's choice**
-  (the sale's own method is the default) — and which till's drawer pays a cash refund.
+  (the sale's own method is the default) — and **which till**: every money refund names one
+  (cash, card or transfer; only crediting an invoice's account touches no till), and a cash
+  refund comes out of that till's drawer.
   **Nothing moves when it is asked.** A waiting return **reserves** its units, so two cashiers
   cannot each take back the same last one; a turned-down return frees them.
 - **Every return waits for its approval, answered on the Approvals page** (the owner,

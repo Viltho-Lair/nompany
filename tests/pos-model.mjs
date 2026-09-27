@@ -89,6 +89,7 @@ ok("an open shift has no count and no difference", open.countedCash === null && 
 // never counted twice; a download and the list answer the same filter; and a
 // typed item name cannot run as a formula in the spreadsheet it lands in.
 const R = await import("@/modules/sales/posReports");
+const T = await import("@/shared/timezone");
 
 console.log("\n== periods, in the reader's own time");
 const at = new Date(2026, 8, 17, 14, 30); // Thu 17 Sep 2026, local
@@ -105,6 +106,28 @@ ok("the quarter before crosses nothing oddly", j(local(R.periodRange("quarter", 
 ok("a half-year", j(local(R.periodRange("half", at).from)) === j([2026, 7, 1, 0]) && j(local(R.periodRange("half", at).to)) === j([2027, 1, 1, 0]));
 ok("a year", j(local(R.periodRange("year", at).from)) === j([2026, 1, 1, 0]) && j(local(R.periodRange("year", at, -1).to)) === j([2026, 1, 1, 0]));
 ok("the six periods are the owner's six", j(R.PERIODS) === j(["day", "week", "month", "quarter", "half", "year"]));
+
+// THE DEFECT THIS GUARDS (27/09/2026): the Sales list, shift history, dashboard
+// and downloads cut their periods on the READER'S DEVICE clock while the offers
+// on the same receipts ran on the studio's zone — so a manager abroad read a
+// "today" the counter never had. A period is the studio's now, whatever clock
+// the machine running this test has.
+const riyadhAt = new Date("2026-09-17T22:30:00Z"); // 01:30 on the 18th in Riyadh (UTC+3)
+ok("today is the STUDIO's today, not the device's",
+  j(R.periodRange("day", riyadhAt, 0, 0, "Asia/Riyadh")) === j({ from: "2026-09-17T21:00:00.000Z", to: "2026-09-18T21:00:00.000Z" }));
+ok("...and a studio with no zone reads UTC, as its offers do",
+  j(R.periodRange("day", riyadhAt, 0, 0, "UTC")) === j({ from: "2026-09-17T00:00:00.000Z", to: "2026-09-18T00:00:00.000Z" }));
+ok("a studio week starts on the studio's Sunday",
+  R.periodRange("week", riyadhAt, 0, 0, "Asia/Riyadh").from === "2026-09-12T21:00:00.000Z");
+ok("a studio month crosses a clock change at the studio's midnight",
+  j(R.periodRange("month", new Date("2026-10-15T12:00:00Z"), 0, 0, "Europe/London"))
+    === j({ from: "2026-09-30T23:00:00.000Z", to: "2026-11-01T00:00:00.000Z" }));
+const byDay = R.takingsByDay(
+  [{ at: "2026-09-17T22:30:00Z", total: 10 }, { at: "2026-09-17T20:00:00Z", total: 4 }],
+  R.periodRange("week", riyadhAt, 0, 0, "Asia/Riyadh"), "Asia/Riyadh");
+ok("the dashboard's days are the studio's days",
+  byDay.days.length === 7 && byDay.days[0] === "2026-09-13"
+  && byDay.values[byDay.days.indexOf("2026-09-17")] === 4 && byDay.values[byDay.days.indexOf("2026-09-18")] === 10);
 
 console.log("\n== filtering");
 const sale = (id, atISO, extra = {}) => ({
@@ -155,9 +178,11 @@ ok("every line, with who sold it and where", lines.length === 3 && lines[0].cash
 
 console.log("\n== the download");
 const csv = R.toCsvFile(["Item", "Units"], [["=HYPERLINK(\"x\")", 2], ["Milk, fresh", -1], ["-5", 1]]);
-ok("a time is written as the reader's clock showed it",
-  R.localStamp("2026-09-17T11:58:48.629Z", -180) === "2026-09-17 14:58" && R.localStamp("2026-09-17T23:30:00Z", -180) === "2026-09-18 02:30");
-ok("...and an unreadable one is blank", R.localStamp("nope") === "");
+// A download's times are the studio's clock (27/09/2026) — they were the
+// reader's device offset, so one receipt read two different hours.
+ok("a time is written as the studio's clock showed it",
+  T.stampIn("2026-09-17T11:58:48.629Z", "Asia/Riyadh") === "2026-09-17 14:58" && T.stampIn("2026-09-17T23:30:00Z", "Asia/Riyadh") === "2026-09-18 02:30");
+ok("...and an unreadable one is blank", T.stampIn("nope", "UTC") === "");
 ok("it starts with the mark Excel needs for Arabic", csv.charCodeAt(0) === 0xfeff);
 ok("a formula-looking name is made text", csv.includes("'=HYPERLINK"));
 ok("a comma is quoted", csv.includes("\"Milk, fresh\""));

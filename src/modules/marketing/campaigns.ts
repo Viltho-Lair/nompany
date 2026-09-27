@@ -29,7 +29,7 @@ import { roundMoney } from "@/shared/money";
 import {
   CHANNELS, OBJECTIVES, campaignProblem, campaignEditable, campaignDeletable, moveProblem, utmSlug,
   landingUrlProblem, taggedLink, budgetSplit, attention, campaignFigures, isFinal, campaignResults,
-  cleanBrief, briefWritten, briefGaps,
+  cleanBrief, briefWritten, briefGaps, campaignTakesLeads,
 } from "./model";
 import { campaignAttainment } from "./attainment";
 import { leadHours } from "@/modules/sales/leads";
@@ -441,6 +441,9 @@ export async function sendLead(ctx: MarketingContext, id: string, body: Record<s
   if (!ctx.ticketsSection || !ctx.clientsSection || !ctx.on("crm-sales")) return { error: "no-sales" };
   const campaign = await Campaigns.byId(scope(ctx), id);
   if (!campaign) return { error: "notfound" };
+  // THE SERVER REFUSES, not only the screen: a hidden button is not a rule, and
+  // a stale tab or a direct call would otherwise credit a closed campaign.
+  if (!campaignTakesLeads(campaign.status)) return { error: "campaign-closed" };
   const clientName = str(body?.clientName, 160);
   const contactName = str(body?.contactName, 120);
   const contactPhone = str(body?.contactPhone, 60);

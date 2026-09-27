@@ -19,11 +19,11 @@ import { PRINT_CSS, ShiftReport, PeriodPicker, usePosPeriod, rangeQuery } from "
 
 const td = "py-2.5 pe-3 align-middle";
 
-export default function StudioPosShifts({ slug }) {
+export default function StudioPosShifts({ slug, timezone = "" }) {
   const locale = useStudioLocale();
   const tr = posDeptDict(locale);
   const till = posDict(locale);
-  const period = usePosPeriod("month");
+  const period = usePosPeriod("month", timezone);
   const [terminalIds, setTerminalIds] = useState("");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");

@@ -40,7 +40,7 @@ import {
 } from "./posModel";
 import type { TaxBreakdown } from "@/shared/documentTotals";
 import {
-  cleanSalesFilter, filterReceipts, itemsSold, localStamp, salesTotals, soldLines, toCsvFile,
+  cleanSalesFilter, filterReceipts, itemsSold, salesTotals, soldLines, toCsvFile,
   type SalesFilter,
 } from "./posReports";
 import type { PosContext } from "./types";
@@ -50,7 +50,7 @@ import {
   categoriesFor, categoryPathsFor,
 } from "./posPromotions";
 import { promotionValidAt, daysUntilEnd, type AppliedPromotion } from "./posPromotionsModel";
-import { studioTimezone } from "@/shared/timezone";
+import { studioTimezone, stampIn } from "@/shared/timezone";
 import { refundsByShift } from "./posReturns";
 import { normalizePhone, maskPhone } from "@/shared/phone";
 import { studioLocale } from "@/shared/locale";
@@ -1167,10 +1167,12 @@ export async function exportSales(ctx: PosContext, raw: URLSearchParams) {
   const [receipts, names] = await Promise.all([allReceipts(ctx), namesFor(ctx)]);
   const kept = filterReceipts(receipts, filter);
   const currency = String(ctx.studio.currency || "");
-  // THE READER'S CLOCK, sent by the screen, so a time in the file is the time
-  // the shop saw.
-  const offset = Number(raw.get("tz"));
-  const when = (iso: string) => localStamp(iso, Number.isFinite(offset) ? offset : 0);
+  // THE STUDIO'S CLOCK, so a time in the file is the time the shop saw. It was
+  // the reader's device offset, sent by the screen — the same receipt then read
+  // a different hour in a file downloaded abroad than on the counter's report.
+  // No zone set reads UTC, as the studio's offers do.
+  const zone = studioTimezone(ctx.studio as { timezone?: unknown }) || "UTC";
+  const when = (iso: string) => stampIn(iso, zone);
 
   if (kind === "items") {
     return {

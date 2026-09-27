@@ -52,6 +52,7 @@ const Promotions = repo<PosPromotion>("posPromotions");
 const Items = repo<Item>("inventoryItems");
 const Terminals = repo<PosTerminal>("posTerminals");
 const Vendors = repo<{ id: string; name: string }>("inventoryVendors");
+const Clients = repo<{ id: string; name?: string }>("salesClients");
 const scope = (ctx: PosContext) => ({ studio: ctx.studio, section: ctx.promotionsSection });
 
 /**
@@ -66,7 +67,11 @@ export async function promotionsView(ctx: PosContext) {
   const denied = requirePermission(ctx.access, "pos.promotions.view");
   if (denied) return denied;
 
-  const [rows, items, tills, vendors, tags, categories] = await Promise.all([
+  // A PERSONAL CODE NAMES A CRM CLIENT, and a box asking for its record id is
+  // a box nobody can fill. Read only for whoever may mint one — the names are
+  // not this register's to show a reader who cannot.
+  const pickClients = Boolean(ctx.clientsSection) && can(ctx.access, "pos.promotions.create");
+  const [rows, items, tills, vendors, tags, categories, clients] = await Promise.all([
     Promotions.find(scope(ctx)),
     ctx.itemsSection ? Items.find({ studio: ctx.studio, section: ctx.itemsSection }) : Promise.resolve([]),
     Terminals.find({ studio: ctx.studio, section: ctx.posSection }),
@@ -75,6 +80,7 @@ export async function promotionsView(ctx: PosContext) {
     // offering ids is a picker nobody can use.
     ctx.masterSection ? listClientTags({ studio: ctx.studio, section: ctx.masterSection }) : Promise.resolve([]),
     categoriesFor(ctx),
+    pickClients && ctx.clientsSection ? Clients.find({ studio: ctx.studio, section: ctx.clientsSection }) : Promise.resolve([]),
   ]);
   return {
     promotions: [...rows].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")),
@@ -96,6 +102,10 @@ export async function promotionsView(ctx: PosContext) {
       .filter((v) => items.some((i) => i.vendorId === v.id))
       .map((v) => ({ id: v.id, name: v.name })),
     tags: tags.map((t) => ({ id: t.id, name: t.name, nameAr: t.nameAr || "" })),
+    // Names only, sorted — the same shape every other client picker is handed.
+    clients: clients
+      .map((c) => ({ id: c.id, name: String(c.name || c.id) }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
     // IN TREE ORDER, with the depth the picker indents by — the same ordering
     // the register's own screen draws, so the two cannot disagree about shape.
     categories: orderedTree(categories).map((c) => ({
@@ -631,6 +641,11 @@ export async function editPromotion(ctx: PosContext, id: string, body: Record<st
   if (!before) return { error: "notfound" as const };
   if (before.status === "active") return { error: "active" as const };
   if (before.status === "archived") return { error: "archived" as const };
+  // AN ENDED OFFER IS NOT EDITED EITHER: its only move is to the archive
+  // (NEXT_STATUS), so a change to it could never run — and it would rewrite
+  // the rules its receipts were priced under, which is the record of what the
+  // shop actually charged.
+  if (before.status === "ended") return { error: "ended" as const };
 
   const cleaned = { ...cleanPromotion({ ...before, ...body }), status: before.status };
   const gated = await planProblem(ctx, cleaned);
@@ -721,6 +736,12 @@ export async function clonePromotion(ctx: PosContext, id: string) {
 
   const source = await Promotions.byId(scope(ctx), String(id || ""));
   if (!source) return { error: "notfound" as const };
+  // A COPY IS A NEW OFFER, SO IT PASSES THE SAME PACKAGE GATE A CREATE DOES.
+  // Without it, a studio whose package lacks Promotions — or tiers, schedules
+  // or coupons — could write a new offer using them by copying an old one,
+  // and the gate would bite at every write but this one.
+  const gated = await planProblem(ctx, source);
+  if (gated) return gated;
 
   const rows = await Promotions.find(scope(ctx));
   const code = await nextReference(ctx.studio.id, {

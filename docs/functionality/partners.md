@@ -71,6 +71,12 @@ is counts and money, the partner's own facts, the way an event's turnout is the
 event's. Whoever works the campaigns catches up verb for verb, and the
 winner-of-work shape holds it at full.
 
+## Who is told
+
+Whoever is named a partner's **owner** is told, on the bell (`partner.assigned`), when a
+partner is created for them or handed to them — never the person who named them, who knows. The
+same courtesy a campaign's and a plan's owner get (27/09/2026).
+
 ## Deleting
 
 **A partner that brought anybody is kept.** The arrivals carrying their tag are

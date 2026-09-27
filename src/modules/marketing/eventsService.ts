@@ -16,6 +16,8 @@
 import { requirePermission, type PermissionKey } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyCollaboratorIds } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
 import { cleanSettings, leadFromAnswers, type FormDefinition } from "./formsModel";
 import {
   EVENT_KINDS, eventProblem, eventState, seatsLeft, turnout, eventDeletable, attendedAmong,
@@ -234,6 +236,23 @@ async function shapeProblem(ctx: MarketingContext, next: Partial<MarketingEvent>
   return "";
 }
 
+/**
+ * Tell a newly named owner — never the person who named them, who knows. The
+ * same courtesy a campaign's and a plan's owner get: an event handed to
+ * somebody who is never told has an owner in name only.
+ */
+async function announceOwner(ctx: MarketingContext, e: MarketingEvent, before: string) {
+  if (!e.ownerCollaboratorId || e.ownerCollaboratorId === before) return;
+  await notifyCollaboratorIds(ctx.studio.id, [e.ownerCollaboratorId], {
+    type: NOTIFY.eventAssigned,
+    title: "You own an event",
+    body: e.name,
+    params: { name: e.name },
+    href: "marketing-events",
+    tone: "primary",
+  }, [ctx.collaborator.id]);
+}
+
 export async function createEvent(ctx: MarketingContext, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "marketing.events.create");
   if (denied) return denied;
@@ -256,6 +275,7 @@ export async function createEvent(ctx: MarketingContext, body: Record<string, un
     createdAt: at,
     updatedAt: at,
   });
+  await announceOwner(ctx, event, ctx.collaborator.id);
   return { event };
 }
 
@@ -268,7 +288,9 @@ export async function editEvent(ctx: MarketingContext, id: string, body: Record<
   const problem = await shapeProblem(ctx, { ...current, ...patch });
   if (problem) return { error: problem };
   const event = await Events.update(scope(ctx), id, (row) => ({ ...row, ...patch, updatedAt: now() }));
-  return event ? { event } : { error: "notfound" };
+  if (!event) return { error: "notfound" };
+  await announceOwner(ctx, event, current.ownerCollaboratorId);
+  return { event };
 }
 
 /**

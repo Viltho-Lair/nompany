@@ -69,6 +69,8 @@ export const NOTIFY = {
   workOrderAssigned: "workorder.assigned",
   campaignAssigned: "campaign.assigned",
   planAssigned: "plan.assigned",
+  eventAssigned: "event.assigned",
+  partnerAssigned: "partner.assigned",
   leadWaiting: "lead.waiting",
   // Several at once, from Customer insights (modules/sales/insights).
   leadsWaiting: "leads.waiting",

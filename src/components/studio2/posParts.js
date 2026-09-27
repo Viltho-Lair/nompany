@@ -9,6 +9,7 @@ import Barcode from "@/components/studio2/Barcode";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { money, fmtDate, fmtDateTime, btnRow } from "@/components/studio2/ui";
 import { PERIODS, periodRange } from "@/modules/sales/posReports";
+import { dayIn } from "@/shared/timezone";
 
 // PRINTING ONLY THE SLIP. Mounted only while a receipt or a report is on screen,
 // so no other page's printing is touched by an 80 mm page size.
@@ -155,27 +156,34 @@ export function ShiftReport({ tr, shift, report, studio, currency, tillName }) {
 
 // A PERIOD AND HOW FAR BACK: "this week" is { period: "week", offset: 0 },
 // last month { period: "month", offset: -1 }. Today by default — the owner's
-// choice (17/09/2026). The range is worked out HERE, in the reader's own time
-// (modules/sales/posReports), and the server is handed two instants.
-export function usePosPeriod(initial = "day") {
+// choice (17/09/2026). The range is worked out HERE, ON THE STUDIO'S CLOCK
+// (modules/sales/posReports, shared/timezone), and the server is handed two
+// instants. It was the reader's device clock, which put a manager abroad in a
+// different "today" from the counter and its offers. `timezone` is the
+// studio's, handed down by the page; none set reads UTC, as the offers do.
+export function usePosPeriod(initial = "day", timezone = "") {
+  const zone = timezone || "UTC";
   const [state, setState] = useState({ period: initial, offset: 0 });
-  const range = useMemo(() => periodRange(state.period, new Date(), state.offset), [state]);
+  const range = useMemo(() => periodRange(state.period, new Date(), state.offset, 0, zone), [state, zone]);
   return {
     ...state,
     range,
+    timezone: zone,
     setPeriod: (period) => setState({ period, offset: 0 }),
     step: (by) => setState((s) => ({ ...s, offset: Math.min(0, s.offset + by) })),
   };
 }
 
-// What the period reads as: one date for a day, first – last for the rest.
-function rangeText(range, period) {
-  const last = new Date(new Date(range.to).getTime() - 1);
-  return period === "day" ? fmtDate(range.from) : `${fmtDate(range.from)} – ${fmtDate(last)}`;
+// What the period reads as: one date for a day, first – last for the rest —
+// the studio's calendar dates, not the device's reading of the same instants.
+function rangeText(range, period, timezone) {
+  const first = fmtDate(dayIn(range.from, timezone));
+  const last = fmtDate(dayIn(new Date(new Date(range.to).getTime() - 1), timezone));
+  return period === "day" ? first : `${first} – ${last}`;
 }
 
 export function PeriodPicker({ tr, value }) {
-  const { period, offset, range, setPeriod, step } = value;
+  const { period, offset, range, setPeriod, step, timezone } = value;
   return (
     <div className="flex flex-wrap items-center gap-2">
       <div className="bar-scroll inline-flex max-w-full overflow-x-auto rounded-full border border-slate-200 p-0.5 dark:border-white/15">
@@ -189,12 +197,12 @@ export function PeriodPicker({ tr, value }) {
       <div className="flex items-center gap-1">
         <button type="button" className={btnRow} onClick={() => step(-1)} aria-label={tr.previous}>‹</button>
         <span className="min-w-[9rem] text-center text-sm font-600 text-[var(--geex-ink)]">
-          {offset === 0 ? tr.current[period] : rangeText(range, period)}
+          {offset === 0 ? tr.current[period] : rangeText(range, period, timezone)}
         </span>
         <button type="button" className={btnRow} onClick={() => step(1)} disabled={offset === 0} aria-label={tr.next}>›</button>
       </div>
       {offset === 0 && period !== "day" && (
-        <span className="text-xs text-slate-500 dark:text-slate-400">{rangeText(range, period)}</span>
+        <span className="text-xs text-slate-500 dark:text-slate-400">{rangeText(range, period, timezone)}</span>
       )}
     </div>
   );
@@ -202,8 +210,8 @@ export function PeriodPicker({ tr, value }) {
 
 /** The query string a list, a summary or a download is asked with. */
 export function rangeQuery(range, extra = {}) {
-  // `tz` is read by downloads only, so their times are the reader's.
-  const q = new URLSearchParams({ from: range.from, to: range.to, tz: String(new Date().getTimezoneOffset()) });
+  // NO `tz`: a download's times are the studio's clock, read on the server.
+  const q = new URLSearchParams({ from: range.from, to: range.to });
   for (const [k, v] of Object.entries(extra)) {
     const value = Array.isArray(v) ? v.join(",") : String(v ?? "");
     if (value) q.set(k, value);

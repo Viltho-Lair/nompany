@@ -21,14 +21,15 @@ import { StatRow, DashGrid, Widget, DashEmpty } from "@/components/dashboard";
 import { BarList, BarChart } from "@/components/charts";
 import { useWidgetGate } from "@/components/studio2/analyticsLevel";
 import { PeriodPicker, usePosPeriod, rangeQuery } from "@/components/studio2/posParts";
+import { takingsByDay } from "@/modules/sales/posReports";
 import ReorderList from "@/components/studio2/ReorderList";
 
 // NAMED `*Dashboard.jsx` DELIBERATELY: the widget-gate scan reads exactly that
 // filename pattern to prove every registry key is drawn by something.
-export default function PosDashboard({ slug }) {
+export default function PosDashboard({ slug, timezone = "" }) {
   const locale = useStudioLocale();
   const tr = posDeptDict(locale);
-  const period = usePosPeriod("day");
+  const period = usePosPeriod("day", timezone);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const gate = useWidgetGate();
@@ -50,24 +51,13 @@ export default function PosDashboard({ slug }) {
   // Every sale is filed under the till's row.
   useLiveUpdates(slug, "crm-sales-pos", load);
 
-  // THE READER'S DAYS across the period — at most a year of them.
+  // THE STUDIO'S DAYS across the period — at most a year of them — on the
+  // same clock the period was cut on, not the reader's device.
   const byDay = useMemo(() => {
     if (!data?.sales) return { labels: [], values: [] };
-    const from = new Date(period.range.from);
-    const to = new Date(period.range.to);
-    const days = [];
-    for (let d = new Date(from); d < to && days.length < 366; d.setDate(d.getDate() + 1)) days.push(new Date(d));
-    const key = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-    const totals = new Map(days.map((d) => [key(d), 0]));
-    for (const s of data.sales) {
-      const k = key(new Date(s.at));
-      if (totals.has(k)) totals.set(k, totals.get(k) + Number(s.total || 0));
-    }
-    return {
-      labels: days.map((d) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`),
-      values: days.map((d) => Math.round(totals.get(key(d)) * 100) / 100),
-    };
-  }, [data, period.range]);
+    const { days, values } = takingsByDay(data.sales, period.range, period.timezone);
+    return { labels: days.map((d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`), values };
+  }, [data, period.range, period.timezone]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error === "forbidden" ? tr.refused : error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;

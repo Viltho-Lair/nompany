@@ -211,7 +211,7 @@ export default function StudioPosPromotions({ slug, initial }) {
                           </td>
                           <td className={`${td} text-end`}>
                             <div className="flex flex-wrap justify-end gap-1">
-                              {data.can.edit && p.status !== "active" && p.status !== "archived" && (
+                              {data.can.edit && (p.status === "draft" || p.status === "paused") && (
                                 <button type="button" className={btnRow} onClick={() => setEditing(p)}>{tr.edit}</button>
                               )}
                               {data.can.create && (

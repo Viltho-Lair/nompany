@@ -16,6 +16,7 @@ import { sectionName } from "@/shared/studio/sections";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import { studioRequest } from "../_shell";
+import { studioTimezone } from "@/shared/timezone";
 // THE FIRST SCREEN THAT COMPOSES ITS OWN PAYLOAD HERE rather than letting the
 // browser fetch it. Server-only, all three: the module resolves a context and
 // reads rows, the ceiling is consulted before anything is handed down, and `log`
@@ -1050,7 +1051,7 @@ async function renderStudio(params) {
         // THE POINT OF SALE DEPARTMENT (17/09/2026). The till is full-screen and
         // returned above; its root is a summary, and three screens sit under it.
         : active?.key === "pos"
-          ? <PosDashboard slug={studio.slug} />
+          ? <PosDashboard slug={studio.slug} timezone={studioTimezone(studio)} />
         // THE MARKETING DEPARTMENT (19/09/2026): its dashboard at the root and
         // the campaign register beneath it — the one sub-section with a screen.
         : active?.key === "marketing"
@@ -1072,9 +1073,9 @@ async function renderStudio(params) {
         : active?.key === "marketing-forms"
           ? <StudioForms slug={studio.slug} initial={keyedInitial} />
         : active?.key === "pos-sales"
-          ? <StudioPosSales slug={studio.slug} />
+          ? <StudioPosSales slug={studio.slug} timezone={studioTimezone(studio)} />
         : active?.key === "pos-shifts"
-          ? <StudioPosShifts slug={studio.slug} />
+          ? <StudioPosShifts slug={studio.slug} timezone={studioTimezone(studio)} />
         : active?.key === "pos-settings"
           ? <StudioPosSettings slug={studio.slug} initial={keyedInitial} />
         : active?.key === "pos-returns"

@@ -34,6 +34,24 @@ export const CAMPAIGN_MOVES: Readonly<Record<CampaignStatus, readonly CampaignSt
   Cancelled: [],
 };
 
+/**
+ * WHETHER A CAMPAIGN MAY STILL BE CREDITED WITH A LEAD — asked by the server
+ * before it raises one and by the screen before it offers the button, so the
+ * two cannot disagree.
+ *
+ * - Cancelled: it did not run, so nothing it did can have brought anybody in.
+ * - COMPLETED IS REFUSED TOO, deliberately. Completed is final (above): what a
+ *   finished campaign brought in is the record of what it did, and the results
+ *   beside it must not keep moving after somebody closed it. A late response is
+ *   still a real lead — it is raised in Sales directly, where nothing is
+ *   pretending the campaign is still counting.
+ * - Draft, Planned, Active and Paused take leads: a paused campaign's adverts
+ *   are still out there, and one being prepared can be announced ahead of time.
+ */
+export function campaignTakesLeads(status: string): boolean {
+  return status !== "Completed" && status !== "Cancelled";
+}
+
 /** What the campaign is FOR — tokens, so a report can count them. */
 export const OBJECTIVES = ["awareness", "leads", "revenue", "launch", "retention", "event", "other"] as const;
 export type Objective = (typeof OBJECTIVES)[number];

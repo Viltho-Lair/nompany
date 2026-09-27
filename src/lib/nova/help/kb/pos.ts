@@ -14,15 +14,16 @@ import type { HelpModule } from "../types";
 // (crmSales.ts, inventory.ts) still link to them by id.
 //
 // DRAWN FROM THE CODE, not from the docs. Where docs/functionality/pos.md or
-// promotions.md and the screens disagree, the screens win. Four sentences were
+// promotions.md and the screens disagree, the screens win. Three sentences were
 // corrected against the code rather than copied: a return asks which till pays
 // for EVERY money refund, card and transfer included, not only cash
 // (StudioPosReturns.js, requestReturn in modules/sales/posReturns.ts); the till
-// ID is typed BEFORE the name on Settings (StudioPosSettings.js); the Sales,
-// Shift history and dashboard periods are the READER's own clock, while an
-// offer's schedule and its per-day cap read the STUDIO's time zone
-// (posParts.js / posReports.ts against shared/timezone); and a coupon's code
-// alphabet leaves out L as well as 0, O, 1 and I (COUPON_ALPHABET).
+// ID is typed BEFORE the name on Settings (StudioPosSettings.js); and a
+// coupon's code alphabet leaves out L as well as 0, O, 1 and I
+// (COUPON_ALPHABET). The Sales, Shift history and dashboard periods and the
+// download times read the STUDIO's time zone since 27/09/2026, the same clock
+// as an offer's schedule (posReports.ts, shared/timezone) — they were the
+// reader's device clock, and these answers said so while it was true.
 //
 // Every `fields` entry names, in a comment above it, the component and the type
 // or schema its list was checked against. Point of Sale has no Zod schema: its
@@ -131,8 +132,8 @@ export const pos: HelpModule = {
       related: ["pos.till-limit", "pos-promotions.package", "account.plan.packages"] },
     { id: "pos.timezone", topic: "dept.pos", kind: "settings", open: "administration-settings",
       q: { en: "Which clock does Point of Sale use for today?", ar: "بأي توقيت تحدد نقطة البيع اليوم الحالي؟" },
-      a: { en: "An offer's days and hours and its times-a-day cap read the studio's time zone, set in Studio settings beside the currency, because several departments must agree which day it is. A studio with no time zone set reads them in UTC, and the offer editor says so. The Sales, Shift history and dashboard periods, and the times in downloads, are worked out in your own device's clock.",
-           ar: "تقرأ أيام العرض وساعاته وحد استخدامه اليومي المنطقة الزمنية للاستوديو، وتضبط في إعدادات الاستوديو بجانب العملة، لأن عدة أقسام يجب أن تتفق على اليوم الحالي. والاستوديو الذي لم يضبط منطقته الزمنية تقرأ لديه بتوقيت UTC، ويذكر محرر العروض ذلك. أما فترات المبيعات وسجل الورديات واللوحة، وأوقات التنزيلات، فتحسب بتوقيت جهازك أنت." },
+      a: { en: "An offer's days and hours and its times-a-day cap read the studio's time zone, set in Studio settings beside the currency, because several departments must agree which day it is. A studio with no time zone set reads them in UTC, and the offer editor says so. The Sales, Shift history and dashboard periods, and the times in downloads, read the same studio clock, so today is the shop's today wherever you open them from.",
+           ar: "تقرأ أيام العرض وساعاته وحد استخدامه اليومي المنطقة الزمنية للاستوديو، وتضبط في إعدادات الاستوديو بجانب العملة، لأن عدة أقسام يجب أن تتفق على اليوم الحالي. والاستوديو الذي لم يضبط منطقته الزمنية تقرأ لديه بتوقيت UTC، ويذكر محرر العروض ذلك. وتقرأ فترات المبيعات وسجل الورديات واللوحة، وأوقات التنزيلات، توقيت الاستوديو نفسه، فاليوم هو يوم المتجر أينما فتحتها." },
       keywords: ["time zone", "timezone", "today", "utc", "clock", "المنطقة الزمنية", "التوقيت", "اليوم", "الساعة"],
       related: ["admin.settings.timezone", "pos-promotions.timezone-unset"] },
     { id: "pos.till-limit", topic: "dept.pos", kind: "troubleshoot", open: "pos-settings",
@@ -348,8 +349,8 @@ export const pos: HelpModule = {
       related: ["pos-settings.unpair", "pos-till.not-a-till"] },
     { id: "pos-till.refused", topic: "dept.pos-till", kind: "troubleshoot", common: true, open: "pos-till",
       q: { en: "Why was my sale refused?", ar: "لماذا رفضت عملية البيع؟" },
-      a: { en: "The till refuses a sale when no shift is open, when stock cannot cover the basket (it says how much is available and how much more is expired), or when the payments do not cover the total. A card or transfer for more than is due is refused, because only cash gives change. An item with no price is refused unless you may change prices. Stock is taken soonest-to-expire first and an expired lot is never sold.",
-           ar: "يرفض الصندوق البيع إذا لم تكن هناك وردية مفتوحة، أو إذا لم يغط المخزون السلة (ويذكر الكمية المتاحة والكمية المنتهية الصلاحية)، أو إذا لم تغط المدفوعات الإجمالي. وترفض دفعة البطاقة أو التحويل التي تزيد على المستحق، لأن النقد وحده يعطي باقيا. ويرفض الصنف الذي لا سعر له إلا إذا كنت تملك صلاحية تغيير الأسعار. ويؤخذ المخزون الأقرب انتهاء أولا ولا تباع دفعة منتهية الصلاحية أبدا." },
+      a: { en: "The till refuses a sale when no shift is open, when stock cannot cover the basket (it says how much is available and how much more is expired), or when the payments do not cover the total. It also refuses when an item in the basket was removed from Inventory meanwhile; take it out and sell again. A card or transfer for more than is due is refused, because only cash gives change. An item with no price is refused unless you may change prices. Stock is taken soonest-to-expire first and an expired lot is never sold.",
+           ar: "يرفض الصندوق البيع إذا لم تكن هناك وردية مفتوحة، أو إذا لم يغط المخزون السلة (ويذكر الكمية المتاحة والكمية المنتهية الصلاحية)، أو إذا لم تغط المدفوعات الإجمالي. ويرفض أيضا إذا حذف صنف في السلة من المخزون في الأثناء؛ فاحذفه من السلة وأعد البيع. وترفض دفعة البطاقة أو التحويل التي تزيد على المستحق، لأن النقد وحده يعطي باقيا. ويرفض الصنف الذي لا سعر له إلا إذا كنت تملك صلاحية تغيير الأسعار. ويؤخذ المخزون الأقرب انتهاء أولا ولا تباع دفعة منتهية الصلاحية أبدا." },
       keywords: ["sale refused", "out of stock", "not enough stock", "expired", "error", "رفض البيع", "نفاد المخزون", "منتهي الصلاحية", "خطأ"],
       related: ["pos-till.sell", "inventory-stock.insufficient"] },
     { id: "pos-till.discount", topic: "dept.pos-till", kind: "troubleshoot", open: "pos-till",
@@ -422,8 +423,8 @@ export const pos: HelpModule = {
       related: ["pos-sales.export", "pos-sales.reprint"] },
     { id: "pos-sales.period", topic: "dept.pos-sales", kind: "about", open: "pos-sales",
       q: { en: "How does the period picker work?", ar: "كيف يعمل اختيار الفترة؟" },
-      a: { en: "Choose Day, Week, Month, Quarter, Half-year or Year; Day is today by default, and Previous and Next step one period at a time. A week starts on Sunday. The period is worked out in your own device's clock, so today is your today. The dashboard, Sales and Shift history share the same picker.",
-           ar: "اختر يوما أو أسبوعا أو شهرا أو ربعا أو نصف سنة أو سنة؛ واليوم هو الافتراضي، ويتنقل زرا السابق والتالي فترة واحدة في كل مرة. ويبدأ الأسبوع يوم الأحد. وتحسب الفترة بتوقيت جهازك أنت، فاليوم هو يومك. وتتشارك اللوحة والمبيعات وسجل الورديات أداة الاختيار نفسها." },
+      a: { en: "Choose Day, Week, Month, Quarter, Half-year or Year; Day is today by default, and Previous and Next step one period at a time. A week starts on Sunday. The period is worked out in the studio's time zone, set in Studio settings (UTC when none is set), so today is the shop's today wherever you are. The dashboard, Sales and Shift history share the same picker.",
+           ar: "اختر يوما أو أسبوعا أو شهرا أو ربعا أو نصف سنة أو سنة؛ واليوم هو الافتراضي، ويتنقل زرا السابق والتالي فترة واحدة في كل مرة. ويبدأ الأسبوع يوم الأحد. وتحسب الفترة بالمنطقة الزمنية للاستوديو المضبوطة في إعدادات الاستوديو (وبتوقيت UTC إن لم تضبط)، فاليوم هو يوم المتجر أينما كنت. وتتشارك اللوحة والمبيعات وسجل الورديات أداة الاختيار نفسها." },
       keywords: ["period", "today", "this week", "date range", "الفترة", "اليوم", "هذا الأسبوع", "نطاق التاريخ"],
       related: ["pos.timezone"] },
     { id: "pos-sales.detail", topic: "dept.pos-sales", kind: "about", open: "pos-sales",
@@ -434,8 +435,8 @@ export const pos: HelpModule = {
       related: ["pos-sales.reprint"] },
     { id: "pos-sales.export", topic: "dept.pos-sales", kind: "howto", common: true, open: "pos-sales",
       q: { en: "How do I download my till sales to Excel?", ar: "كيف أنزل مبيعات الصندوق إلى Excel؟" },
-      a: { en: "Downloading is a right of its own. There are three CSV downloads, filtered exactly as the list is or limited to the receipts you tick: Sales (one row per receipt), Items sold totals (one row per item) and Items sold every line. Times are written in your own clock, and the files open correctly in Excel, Arabic included.",
-           ar: "التنزيل صلاحية مستقلة. توجد ثلاثة تنزيلات بصيغة CSV، مصفاة تماما كالقائمة أو مقتصرة على الإيصالات التي تحددها: المبيعات (صف لكل إيصال)، وإجماليات الأصناف المباعة (صف لكل صنف)، وكل بنود الأصناف المباعة. وتكتب الأوقات بتوقيتك، وتفتح الملفات بشكل صحيح في Excel بما فيها العربية." },
+      a: { en: "Downloading is a right of its own. There are three CSV downloads, filtered exactly as the list is or limited to the receipts you tick: Sales (one row per receipt), Items sold totals (one row per item) and Items sold every line. Times are written in the studio's time zone, and the files open correctly in Excel, Arabic included.",
+           ar: "التنزيل صلاحية مستقلة. توجد ثلاثة تنزيلات بصيغة CSV، مصفاة تماما كالقائمة أو مقتصرة على الإيصالات التي تحددها: المبيعات (صف لكل إيصال)، وإجماليات الأصناف المباعة (صف لكل صنف)، وكل بنود الأصناف المباعة. وتكتب الأوقات بالمنطقة الزمنية للاستوديو، وتفتح الملفات بشكل صحيح في Excel بما فيها العربية." },
       steps: { en: ["Open Sales and choose the period.", "Filter by till, cashier or payment method, or tick receipts.", "Choose the download: Sales, Items sold (totals) or Items sold (every line)."],
                ar: ["افتح المبيعات واختر الفترة.", "صف حسب الصندوق أو الكاشير أو طريقة الدفع، أو حدد إيصالات.", "اختر التنزيل: المبيعات، أو الأصناف المباعة (إجماليات)، أو الأصناف المباعة (كل البنود)."] },
       keywords: ["export", "csv", "excel", "download", "report", "تصدير", "تنزيل", "إكسل", "تقرير"],
@@ -719,8 +720,8 @@ export const pos: HelpModule = {
     // PosCoupon / createCoupons in src/modules/sales/posPromotions.ts.
     { id: "pos-promotions.coupon-fields", topic: "dept.pos-promotions", kind: "fields", open: "pos-promotions",
       q: { en: "What do I need to make coupon codes?", ar: "ما الذي أحتاجه لإنشاء رموز القسائم؟" },
-      a: { en: "Coupons are made for one offer at a time on the Coupons tab, and your package must include coupons. Leave the code empty and one is generated; a personal code must name its holder. The customer box takes the client's record ID rather than offering a picker.",
-           ar: "تنشأ القسائم لعرض واحد في كل مرة من تبويب القسائم، ويجب أن تشمل باقتك القسائم. اترك الرمز فارغا ليولد رمز تلقائيا، ويجب أن يسمي الرمز الشخصي صاحبه. وتقبل خانة العميل معرف سجل العميل بدلا من عرض قائمة للاختيار." },
+      a: { en: "Coupons are made for one offer at a time on the Coupons tab, and your package must include coupons. Leave the code empty and one is generated; a personal code must name its holder, chosen by name from the clients registered in CRM & Sales.",
+           ar: "تنشأ القسائم لعرض واحد في كل مرة من تبويب القسائم، ويجب أن تشمل باقتك القسائم. اترك الرمز فارغا ليولد رمز تلقائيا، ويجب أن يسمي الرمز الشخصي صاحبه، ويختار بالاسم من العملاء المسجلين في المبيعات." },
       fields: { en: ["Which offer", "Kind: one public code, one customer's, or a batch", "Code, for a public or personal code; empty generates one", "How many and a Prefix, for a batch", "Customer, for a personal code", "Times in total and Times per customer; blank is no limit", "Expires", "Once only"],
                 ar: ["أي عرض", "النوع: رمز عام واحد، أو لعميل واحد، أو دفعة", "الرمز، للرمز العام أو الشخصي؛ ويولد تلقائيا إن ترك فارغا", "العدد وبادئة، للدفعة", "العميل، للرمز الشخصي", "عدد المرات إجمالا وعدد المرات لكل عميل؛ والفراغ يعني بلا حد", "ينتهي", "مرة واحدة فقط"] },
       keywords: ["make codes", "coupon batch", "personal code", "prefix", "إنشاء رموز", "دفعة قسائم", "رمز شخصي", "بادئة"],
@@ -775,8 +776,8 @@ export const pos: HelpModule = {
       related: ["pos-promotions.activate", "pos-promotions.statuses"] },
     { id: "pos-promotions.copy", topic: "dept.pos-promotions", kind: "howto", open: "pos-promotions",
       q: { en: "How do I run last year's offer again?", ar: "كيف أعيد تشغيل عرض العام الماضي؟" },
-      a: { en: "Copy makes a new draft with the same rules and its own code, starting now and with no end date. It needs the right to create promotions. Set the new dates, check it and activate it.",
-           ar: "ينشئ زر النسخ مسودة جديدة بالقواعد نفسها ورمز خاص بها، تبدأ الآن وبلا تاريخ انتهاء. ويحتاج إلى صلاحية إنشاء العروض. حدد التواريخ الجديدة وتحقق منه ثم فعله." },
+      a: { en: "Copy makes a new draft with the same rules and its own code, starting now and with no end date. It needs the right to create promotions, and your package must still include what the offer uses (tiers, schedules or coupons), exactly as for a new offer. Set the new dates, check it and activate it.",
+           ar: "ينشئ زر النسخ مسودة جديدة بالقواعد نفسها ورمز خاص بها، تبدأ الآن وبلا تاريخ انتهاء. ويحتاج إلى صلاحية إنشاء العروض، ويجب أن تشمل باقتك ما يستخدمه العرض (الشرائح أو الجداول الزمنية أو القسائم) تماما كالعرض الجديد. حدد التواريخ الجديدة وتحقق منه ثم فعله." },
       steps: { en: ["Find the old offer on the Offers tab.", "Press Copy.", "Edit the copy's dates and save, then press Activate."],
                ar: ["ابحث عن العرض القديم في تبويب العروض.", "اضغط نسخ.", "عدل تواريخ النسخة واحفظ، ثم اضغط تفعيل."] },
       keywords: ["copy offer", "clone", "repeat promotion", "نسخ العرض", "استنساخ", "تكرار العرض"],
@@ -829,8 +830,8 @@ export const pos: HelpModule = {
       related: ["pos.package"] },
     { id: "pos-promotions.refused-save", topic: "dept.pos-promotions", kind: "troubleshoot", open: "pos-promotions",
       q: { en: "Why won't my offer save or activate?", ar: "لماذا لا يحفظ عرضي أو لا يفعل؟" },
-      a: { en: "The refusal lists what is missing or wrong: a name, a start, an end before the start, a condition with nothing chosen, a units or amount condition of nought, a benefit with no value, or a higher tier that asks for no more than the one below. A half-built draft can be saved but not activated. An archived offer cannot be changed at all.",
-           ar: "يسرد الرفض ما هو ناقص أو خاطئ: الاسم، أو البدء، أو انتهاء قبل البدء، أو شرط لم يختر فيه شيء، أو شرط وحدات أو مبلغ بقيمة صفر، أو فائدة بلا قيمة، أو شريحة أعلى لا تطلب أكثر من التي تحتها. ويمكن حفظ مسودة غير مكتملة لكن لا يمكن تفعيلها. ولا يمكن تغيير العرض المؤرشف إطلاقا." },
+      a: { en: "The refusal lists what is missing or wrong: a name, a start, an end before the start, a condition with nothing chosen, a units or amount condition of nought, a benefit with no value, or a higher tier that asks for no more than the one below. A half-built draft can be saved but not activated. Only a draft or paused offer is edited: an ended or archived offer cannot be changed at all, so copy an ended one to run it again.",
+           ar: "يسرد الرفض ما هو ناقص أو خاطئ: الاسم، أو البدء، أو انتهاء قبل البدء، أو شرط لم يختر فيه شيء، أو شرط وحدات أو مبلغ بقيمة صفر، أو فائدة بلا قيمة، أو شريحة أعلى لا تطلب أكثر من التي تحتها. ويمكن حفظ مسودة غير مكتملة لكن لا يمكن تفعيلها. ولا يعدل إلا العرض المسودة أو الموقوف مؤقتا: فلا يمكن تغيير العرض المنتهي أو المؤرشف إطلاقا، فانسخ العرض المنتهي لتشغيله مرة أخرى." },
       keywords: ["cannot save", "offer refused", "missing", "invalid", "لا يحفظ", "رفض العرض", "ناقص", "غير صالح"],
       related: ["pos-promotions.offer-fields"] },
     { id: "pos-promotions.no-delete", topic: "dept.pos-promotions", kind: "troubleshoot", open: "pos-promotions",

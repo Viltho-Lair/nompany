@@ -30,11 +30,11 @@ const startingShifts = () => {
   return (new URLSearchParams(window.location.search).get("shiftIds") || "").split(",").filter(Boolean);
 };
 
-export default function StudioPosSales({ slug }) {
+export default function StudioPosSales({ slug, timezone = "" }) {
   const locale = useStudioLocale();
   const tr = posDeptDict(locale);
   const till = posDict(locale);
-  const period = usePosPeriod("day");
+  const period = usePosPeriod("day", timezone);
   const [shiftIds, setShiftIds] = useState(startingShifts);
   const [filters, setFilters] = useState({ terminalIds: "", cashierIds: "", methods: "", q: "" });
   const [data, setData] = useState(null);
@@ -82,7 +82,6 @@ export default function StudioPosSales({ slug }) {
   const downloadHref = (kind) => {
     const q = new URLSearchParams(query);
     q.set("kind", kind);
-    q.set("tz", String(new Date().getTimezoneOffset()));
     if (selected.length) q.set("receiptIds", selected.map((r) => r.id).join(","));
     return `/api/studios/${slug}/pos/export?${q.toString()}`;
   };

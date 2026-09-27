@@ -289,6 +289,8 @@ const en: Strings = {
       case "warning-days": return "The warning window is a number of days between 0 and 365.";
       case "discount-cap": return x.name ? `${String(x.name)} is discounted by more than ${x.max}%, the most this till allows.` : "The largest discount must be between 0 and 100%.";
       case "closed": return "That shift is already closed.";
+      case "shift": return "There is no open shift to sell into. Open a shift on this till, then sell again.";
+      case "item": return "Something in the basket is no longer in Inventory. Remove it and sell again.";
       case "shift-open": return "This till already has an open shift.";
       case "inactive": return "That till is retired.";
       case "float": return "The opening cash must be a number, nought or more.";
@@ -459,6 +461,8 @@ const ar: Strings = {
       case "warning-days": return "مدة التنبيه عدد من الأيام بين 0 و365.";
       case "discount-cap": return x.name ? `خصم ${String(x.name)} أكبر من ${x.max}%، وهو أقصى ما يسمح به هذا الصندوق.` : "يجب أن يكون أكبر خصم بين 0 و100%.";
       case "closed": return "هذه الوردية مغلقة بالفعل.";
+      case "shift": return "لا توجد وردية مفتوحة للبيع فيها. افتح وردية على هذا الصندوق ثم أعد البيع.";
+      case "item": return "صنف في السلة لم يعد في المخزون. احذفه وأعد البيع.";
       case "shift-open": return "لهذا الصندوق وردية مفتوحة بالفعل.";
       case "inactive": return "هذا الصندوق موقوف.";
       case "float": return "يجب أن يكون النقد الافتتاحي رقما، صفرا أو أكثر.";

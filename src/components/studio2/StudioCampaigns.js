@@ -15,7 +15,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate, money } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { marketingDeptDict } from "@/shared/studio/marketingDept";
-import { CAMPAIGN_MOVES, CHANNELS, OBJECTIVES, isFinal, campaignDeletable } from "@/modules/marketing/model";
+import { CAMPAIGN_MOVES, CHANNELS, OBJECTIVES, isFinal, campaignDeletable, campaignTakesLeads } from "@/modules/marketing/model";
 
 const STATUS_TONE = {
   Draft: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
@@ -280,7 +280,7 @@ export default function StudioCampaigns({ slug, initial }) {
                       <button type="button" className={btnRow} disabled={busy}
                         onClick={() => send("PUT", { id: c.id, action: "clone" })}>{tr.clone}</button>
                     )}
-                    {canSendLeads && c.status !== "Cancelled" && (
+                    {canSendLeads && campaignTakesLeads(c.status) && (
                       <button type="button" className={btnRow} disabled={busy}
                         onClick={() => setLead({ campaignId: c.id, clientName: "", contactName: "", contactPhone: "", contactEmail: "", title: "", description: "" })}>
                         {tr.sendLead}

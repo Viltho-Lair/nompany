@@ -9,7 +9,8 @@ Built 2026-09-19, on the owner's decisions of the same day. The rules are
 
 1. **Marketing sends a lead from a campaign.** On a campaign card, *Send a lead to Sales* asks
    for the person or company, a contact name, a phone or an email (at least one), what they
-   want, and notes. Right: `marketing.campaigns.edit`. Sales must be switched on.
+   want, and notes. Right: `marketing.campaigns.edit`. Sales must be switched on, and the
+   campaign must not be Completed or Cancelled (`campaign-closed`, refused on the server).
 2. **It arrives in Sales as a ticket at Lead, assigned to nobody.** It is raised by the marketer,
    names the campaign as its source, and carries the campaign's deadline. Industry, deadline and
    services are left blank for the executive to fill in. Everybody holding

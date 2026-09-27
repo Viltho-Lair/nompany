@@ -159,6 +159,8 @@ const CONFLICT = [
   // CAMPAIGNS (19/09/2026): a finished campaign is not edited, one that ran is
   // not deleted, and a parent is not deleted before its sub-campaigns.
   "campaign-final", "campaign-ran", "has-sub-campaigns",
+  // …and a completed or cancelled campaign is credited with no new lead.
+  "campaign-closed",
   // A lead is given to the person it already has.
   "same",
   // THE RFQ DESK (24/09/2026): a request already decided — converted or turned

@@ -17,8 +17,8 @@ import type { HelpModule } from "../types";
 // code rather than copied: a Draft campaign may go straight to Running and a
 // Paused one straight to Completed (CAMPAIGN_MOVES in modules/marketing/
 // model.ts); an event needs a start as well as a name (eventsService.ts);
-// events ARE drawn on the calendar, although events.md still lists that as
-// not built (StudioMarketingCalendar.js, planning.ts); a form is opened and
+// events ARE drawn on the calendar, which events.md listed as not built until
+// 27/09/2026 (StudioMarketingCalendar.js, planning.ts); a form is opened and
 // closed with buttons, not a "who can answer" select, and its name, company,
 // phone and email mapping appears only once it has a rule (StudioFormEditor.js,
 // Settings); and the partner form asks the owner and whether the arrangement
@@ -102,8 +102,8 @@ export const marketing: HelpModule = {
       related: ["marketing.refused-right", "marketing.missing-section", "admin.access.grant"] },
     { id: "marketing.notifications", topic: "dept.marketing", kind: "about", open: "marketing",
       q: { en: "Who is told what in Marketing?", ar: "من يبلغ بماذا في التسويق؟" },
-      a: { en: "A person named as a campaign's owner, or a plan's owner, is told at once, unless they named themselves. A lead sent to Sales tells everybody who assigns leads that one is waiting, and a late lead is reminded in the daily notices. Nobody is told when a campaign goes over budget, when somebody withdraws consent, or when a form is answered without raising a lead.",
-           ar: "يبلغ الشخص الذي يسمى مسؤولا عن حملة أو خطة فورا، ما لم يسم نفسه. وإرسال عميل محتمل إلى المبيعات يبلغ كل من يسند العملاء المحتملين بأن أحدهم ينتظر، ويذكر العميل المتأخر في الإشعارات اليومية. ولا يبلغ أحد عندما تتجاوز الحملة ميزانيتها، أو عندما يسحب أحد موافقته، أو عندما يجاب نموذج دون أن ينشئ عميلا محتملا." },
+      a: { en: "A person named as the owner of a campaign, a plan, an event or a partner is told at once, unless they named themselves. A lead sent to Sales tells everybody who assigns leads that one is waiting, and a late lead is reminded in the daily notices. Nobody is told when a campaign goes over budget, when somebody withdraws consent, or when a form is answered without raising a lead.",
+           ar: "يبلغ الشخص الذي يسمى مسؤولا عن حملة أو خطة أو فعالية أو شريك فورا، ما لم يسم نفسه. وإرسال عميل محتمل إلى المبيعات يبلغ كل من يسند العملاء المحتملين بأن أحدهم ينتظر، ويذكر العميل المتأخر في الإشعارات اليومية. ولا يبلغ أحد عندما تتجاوز الحملة ميزانيتها، أو عندما يسحب أحد موافقته، أو عندما يجاب نموذج دون أن ينشئ عميلا محتملا." },
       keywords: ["notification", "told", "alert", "owner notified", "الإشعار", "التبليغ", "تنبيه", "إبلاغ المسؤول"],
       related: ["marketing-campaigns.assign-owner", "marketing-budget.alerts"] },
     { id: "marketing.setup", topic: "dept.marketing", kind: "howto", common: true, open: "marketing-campaigns",
@@ -228,8 +228,8 @@ export const marketing: HelpModule = {
       related: ["marketing-campaigns.fields"] },
     { id: "marketing-campaigns.send-lead", topic: "dept.marketing-campaigns", kind: "howto", common: true, open: "marketing-campaigns",
       q: { en: "How do I send a lead from a campaign to Sales?", ar: "كيف أرسل عميلا محتملا من حملة إلى المبيعات؟" },
-      a: { en: "You need the right to edit campaigns, and Sales must be switched on. The lead arrives in Sales as a ticket at Lead, assigned to nobody, naming the campaign as its source and carrying the campaign's lead deadline; everybody who assigns leads is told it is waiting. The button is not shown on a cancelled campaign.",
-           ar: "تحتاج إلى صلاحية تعديل الحملات، ويجب أن يكون قسم المبيعات مفعلا. ويصل العميل المحتمل إلى المبيعات كتذكرة في مرحلة عميل محتمل غير مسندة، تذكر الحملة مصدرا لها وتحمل مهلة العميل المحتمل الخاصة بالحملة، ويبلغ كل من يسند العملاء المحتملين بأنه ينتظر. ولا يظهر الزر على حملة ملغاة." },
+      a: { en: "You need the right to edit campaigns, and Sales must be switched on. The lead arrives in Sales as a ticket at Lead, assigned to nobody, naming the campaign as its source and carrying the campaign's lead deadline; everybody who assigns leads is told it is waiting. A Completed or Cancelled campaign takes no new lead: the button is not shown and the lead is refused, because a finished campaign's results are its record. Raise a late enquiry in Sales directly.",
+           ar: "تحتاج إلى صلاحية تعديل الحملات، ويجب أن يكون قسم المبيعات مفعلا. ويصل العميل المحتمل إلى المبيعات كتذكرة في مرحلة عميل محتمل غير مسندة، تذكر الحملة مصدرا لها وتحمل مهلة العميل المحتمل الخاصة بالحملة، ويبلغ كل من يسند العملاء المحتملين بأنه ينتظر. والحملة المكتملة أو الملغاة لا تستقبل عملاء محتملين جددا: فلا يظهر الزر ويرفض الإرسال، لأن نتائج الحملة المنتهية سجل لها. فسجل الاستفسار المتأخر في المبيعات مباشرة." },
       steps: { en: ["On the campaign card, press Send a lead to Sales.", "Enter the person or company and a contact name.", "Give a phone or an email (at least one).", "Say what they want and add notes.", "Press Send."],
                ar: ["في بطاقة الحملة اضغط إرسال عميل محتمل إلى المبيعات.", "أدخل الشخص أو الشركة واسم جهة الاتصال.", "أدخل هاتفا أو بريدا إلكترونيا (أحدهما على الأقل).", "اذكر ما يريدون وأضف ملاحظات.", "اضغط إرسال."] },
       keywords: ["send lead", "lead to sales", "handover", "إرسال عميل محتمل", "تسليم للمبيعات"],
@@ -785,8 +785,8 @@ export const marketing: HelpModule = {
       related: ["marketing-events.create", "marketing-forms.create"] },
     { id: "marketing-events.create", topic: "dept.marketing-events", kind: "howto", open: "marketing-events",
       q: { en: "How do I set up an event with registration?", ar: "كيف أعد فعالية مع التسجيل؟" },
-      a: { en: "Registration is done by a Marketing form, so build that first, usually from the Event registration template. Creating an event needs the right to create events. The form does not know about the event, so nobody is turned away when capacity is reached.",
-           ar: "يتم التسجيل عبر نموذج تسويق، فابنه أولا، غالبا من قالب التسجيل في فعالية. ويحتاج إنشاء الفعالية إلى صلاحية إنشاء الفعاليات. ولا يعرف النموذج شيئا عن الفعالية، فلا يرد أحد عند بلوغ السعة." },
+      a: { en: "Registration is done by a Marketing form, so build that first, usually from the Event registration template. Creating an event needs the right to create events, and the owner you name is told at once. The form does not know about the event, so nobody is turned away when capacity is reached.",
+           ar: "يتم التسجيل عبر نموذج تسويق، فابنه أولا، غالبا من قالب التسجيل في فعالية. ويحتاج إنشاء الفعالية إلى صلاحية إنشاء الفعاليات، ويبلغ المسؤول الذي تسميه فورا. ولا يعرف النموذج شيئا عن الفعالية، فلا يرد أحد عند بلوغ السعة." },
       steps: { en: ["In Forms, build and open a registration form.", "Open Events & webinars and press New event.", "Fill in the name, kind, start, place and capacity, and choose the registration form and campaign.", "Save, and share the form's link or QR code."],
                ar: ["في النماذج، ابن نموذج تسجيل وافتحه للجمهور.", "افتح الفعاليات والندوات واضغط فعالية جديدة.", "املأ الاسم والنوع ووقت البدء والمكان والسعة، واختر نموذج التسجيل والحملة.", "احفظ، وشارك رابط النموذج أو رمز QR."] },
       keywords: ["set up event", "registration", "webinar setup", "إعداد فعالية", "التسجيل", "إعداد ندوة"],
@@ -918,8 +918,8 @@ export const marketing: HelpModule = {
     // partnerProblem in partners.ts refuses.
     { id: "marketing-partners.add", topic: "dept.marketing-partners", kind: "fields", common: true, open: "marketing-partners",
       q: { en: "What do I need to add a partner?", ar: "ما الذي أحتاجه لإضافة شريك؟" },
-      a: { en: "Only the name and kind are required, because you often record who you are talking to long before there is a tag or a fee. Two partners may not hold the same tag, and tags match regardless of capitals. What was agreed is a note in words; what a partner actually costs is a Finance bill naming the campaign, and commission payouts are not available yet.",
-           ar: "الاسم والنوع وحدهما مطلوبان، لأنك كثيرا ما تسجل من تتحدث إليه قبل وجود وسم أو أتعاب بوقت طويل. ولا يجوز لشريكين حمل الوسم نفسه، وتطابق الوسوم دون اعتبار لحالة الأحرف. وما تم الاتفاق عليه ملاحظة نصية، أما التكلفة الفعلية للشريك ففاتورة في المالية تذكر الحملة، وصرف العمولات غير متاح بعد." },
+      a: { en: "Only the name and kind are required, because you often record who you are talking to long before there is a tag or a fee. The owner you name is told at once. Two partners may not hold the same tag, and tags match regardless of capitals. What was agreed is a note in words; what a partner actually costs is a Finance bill naming the campaign, and commission payouts are not available yet.",
+           ar: "الاسم والنوع وحدهما مطلوبان، لأنك كثيرا ما تسجل من تتحدث إليه قبل وجود وسم أو أتعاب بوقت طويل. ويبلغ المسؤول الذي تسميه فورا. ولا يجوز لشريكين حمل الوسم نفسه، وتطابق الوسوم دون اعتبار لحالة الأحرف. وما تم الاتفاق عليه ملاحظة نصية، أما التكلفة الفعلية للشريك ففاتورة في المالية تذكر الحملة، وصرف العمولات غير متاح بعد." },
       fields: { en: ["Name (required)", "Kind: partner, agency, influencer, affiliate or other (required)", "Their link tag (utm_source)", "Contact, email, phone and website", "Owner", "Working with them, or ended", "What was agreed, in words", "Notes"],
                 ar: ["الاسم (مطلوب)", "النوع: شريك أو وكالة أو مؤثر أو مسوق بالعمولة أو أخرى (مطلوب)", "وسم روابطهم (utm_source)", "جهة الاتصال والبريد والهاتف والموقع الإلكتروني", "المسؤول", "التعامل قائم، أو منته", "ما تم الاتفاق عليه كتابة", "ملاحظات"] },
       keywords: ["add partner", "new influencer", "agency", "commission", "إضافة شريك", "مؤثر جديد", "وكالة", "عمولة"],

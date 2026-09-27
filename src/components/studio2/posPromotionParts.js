@@ -590,7 +590,15 @@ export function CouponsTab({ tr, locale, data, detail, promotionId, onPick, busy
                 <Field label={tr.prefix} value={form.prefix} onChange={(v) => set({ prefix: v })} />
               )}
               {form.distribution === "personal" && (
-                <Field label={tr.customer} hint={tr.customerHint} value={form.customerId} onChange={(v) => set({ customerId: v })} />
+                // PICKED FROM CRM'S CLIENTS, the way every screen names a
+                // customer — the stored value is still the client's id, which is
+                // what the till matches a personal code against.
+                <Field label={tr.customer} as="select" value={form.customerId} onChange={(v) => set({ customerId: v })}
+                  hint={(data.clients || []).length ? tr.customerHint : tr.noClients}
+                  options={[
+                    { value: "", label: "—" },
+                    ...(data.clients || []).map((c) => ({ value: c.id, label: c.name })),
+                  ]} />
               )}
               <LimitField label={tr.maxRedemptions} hint={tr.noLimit} value={form.maxRedemptions}
                 onChange={(maxRedemptions) => set({ maxRedemptions })} />
