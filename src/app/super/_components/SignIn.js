@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AuthShell, Field, PasswordInput, inputClass } from "./auth";
+import { AuthShell, Field, PasswordInput, buttonClass, hintClass, inputClass } from "./auth";
 import { BASE } from "./nav";
 import Icon from "./Icon";
 
@@ -132,7 +132,7 @@ export default function SignIn() {
                 placeholder="123456 or a recovery code"
                 aria-describedby="code-hint"
               />
-              <p id="code-hint" className="text-xs text-fg-dim">
+              <p id="code-hint" className={`mt-2 ${hintClass}`}>
                 From your authenticator app. Lost your phone? Use one of your recovery codes.
               </p>
             </Field>
@@ -141,7 +141,7 @@ export default function SignIn() {
           <button
             type="submit"
             disabled={busy}
-            className="mt-1 inline-flex h-11 w-full items-center justify-center rounded-xl bg-iris text-sm font-600 text-white shadow-[0_10px_30px_-12px_rgb(var(--color-iris-rgb)/0.9)] transition-colors hover:bg-iris-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-iris-bright focus-visible:ring-offset-2 focus-visible:ring-offset-ink disabled:cursor-not-allowed disabled:opacity-60"
+            className={buttonClass}
           >
             {busy ? "Signing in…" : needsCode ? "Verify" : "Sign In"}
           </button>

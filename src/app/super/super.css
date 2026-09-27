@@ -170,7 +170,7 @@
      `lg:ps-72` — 18rem. Both numbers live here once, and the content offset is
      computed from them, so the rail and the margin beside it cannot disagree. */
   --ad-radius: 0.75rem;        /* fields, chips, small tiles — rounded-xl */
-  --ad-radius-card: 20px;      /* rounded-geex, the Studio's panel radius */
+  --ad-radius-card: 24px;      /* rounded-geex — the site's rounded-3xl, the Studio's panel radius */
   --ad-header-height: 4.5rem;
   --ad-rail-inset: 1rem;
   --ad-sidebar-width: 16rem;
@@ -208,11 +208,14 @@
 }
 
 .admindek {
-  /* Cabin, the Studio's face — and `--font-display` is re-pointed at it too, so
-     a `font-display` utility inside the console resolves to Cabin rather than
-     escaping to the public site's Saira. */
-  --font-display: "Cabin", system-ui, sans-serif;
-  font-family: "Cabin", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* THE SITE'S FACES, AS THE STUDIO'S (27/09/2026): Geist, with Readex Pro for
+     Arabic — and `--font-display` is re-pointed at them too, so a
+     `font-display` utility inside the console does not escape to Saira.
+     THIS NAMED "Cabin" AS A LITERAL, which matched nothing: next/font serves a
+     hashed family, so the console was being set in the system face. A face is
+     reached through its variable (app/fonts.ts) or not at all. */
+  --font-display: var(--f-geist), var(--f-readex), system-ui, sans-serif;
+  font-family: var(--f-geist), var(--f-readex), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 0.875rem;
   line-height: 1.5;
   background-color: var(--ad-background);
@@ -305,6 +308,11 @@
   --ad-input-rgb: 34 34 40;
   --ad-sidebar-rgb: 17 17 23;
   --ad-sidebar-border-rgb: 34 34 40;
+  /* On a ground this close to black a drop shadow shows nothing; a card is told
+     apart by the site's glass edge instead — one pixel of light along the top.
+     The same values as the studio's --geex-shadow in globals.css. */
+  --ad-shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 28px -16px rgba(0, 0, 0, 0.6);
+  --ad-shadow-lg: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 24px 48px -24px rgba(0, 0, 0, 0.7);
 }
 
 /* THE DATA GRID'S SURFACES. MUI declares its four `--DataGrid-t-*` backgrounds
@@ -644,6 +652,8 @@
 .admindek[dir="rtl"],
 [dir="rtl"] .admindek {
   --ad-flip: -1;
+  --font-display: var(--f-readex), system-ui, sans-serif;
+  font-family: var(--f-readex), system-ui, sans-serif;
 }
 
 /* THE RAIL'S WIDTH, AND THE MARGIN BESIDE IT — driven by `.ad-collapsed` on the
