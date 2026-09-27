@@ -231,6 +231,35 @@ const zrep = P.shiftReport([{ total: 9, vat: 0, subtotal: 9, discountTotal: 1, p
   { openingFloat: 0, currency: "SAR" });
 ok("the shift report says what was given away", zrep.discounts === 1, j(zrep));
 
+// THE TILL'S TEST PRINT AND A REAL SALE ARE LAID OUT BY ONE BUILDER (27/09/2026).
+// createSale stores `saleFigures` and the till prints it for a test slip; a test
+// slip built from a hand-copied shape would drift from the real one the first
+// time a field joined the receipt.
+console.log("\n== the figures a receipt stores");
+const figTerms = { currency: "SAR", vatRate: 15, taxMethod: "document", pricesIncludeTax: true };
+const figBasket = { kind: "percent", value: 10 };
+const figPriced = P.priceBasket([line(11.5, 2)], figBasket, "SAR");
+const figTotals = P.posTotals(figPriced.lines, figTerms);
+const figPays = P.cleanPayments([{ method: "cash", amount: 30 }, { method: "card", amount: 0 }], "SAR");
+const fig = P.saleFigures({
+  terms: figTerms, lines: figPriced.lines, payments: figPays,
+  settled: P.settle(figTotals.total, figPays, "SAR"), totals: figTotals,
+  priced: figPriced, basket: figBasket,
+  promotions: { applied: [{ promotionId: "p1", discount: 1 }], discountTotal: 1 },
+});
+ok("the figures carry the total the basket came to", fig.total === figTotals.total && fig.subtotal === figTotals.subtotal, j(fig));
+ok("...the change the cash gave", fig.change === 30 - figTotals.total && fig.paid === 30, j(fig));
+ok("...only the payments that paid something", fig.payments.length === 1, j(fig.payments));
+ok("...the basket discount as typed and as money", fig.discount?.value === 10 && fig.basketDiscount === figPriced.basketDiscount, j(fig));
+ok("...and the shop's offers apart from it", fig.promotionDiscount === 1 && fig.promotions.length === 1, j(fig));
+const bare = P.saleFigures({
+  terms: figTerms, lines: P.priceBasket([line(5)], null, "SAR").lines, payments: [],
+  settled: { paid: 0, change: 0 }, totals: P.posTotals([line(5)], figTerms),
+  priced: { basketDiscount: 0, discountTotal: 0 }, basket: null, promotions: null,
+});
+ok("a sale with no discount and no offer stores neither", !("discount" in bare) && !("discountTotal" in bare) && !("promotions" in bare), j(bare));
+ok("...and no number, shift or cashier — identity is the caller's", !("number" in fig) && !("shiftId" in fig) && !("cashierCollaboratorId" in fig));
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nall passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.
 process.exitCode = fails ? 1 : 0;

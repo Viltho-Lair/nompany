@@ -302,7 +302,28 @@ values its country prints on a receipt (`official-values.md` — a Saudi receipt
 number once the studio has a VAT rate), its legal rows less any repeating one of those, number, time, till, the lines, subtotal, tax by rate, total,
 payments, change and the footer. It prints what the server stored, so a reprint reads as the
 first. The print style is mounted only while a receipt is on screen, so no other page's printing
-is affected.
+is affected, and it turns transitions off while printing (a field label mid-way to hidden printed
+beside the slip).
+
+**Above "Complete the sale"** (the owner, 2026-09-27):
+- **The last five sales** of this till's open shift, newest first — number, time, total — each
+  with **Print**, which prints the stored receipt at once with no dialog. Read from the server
+  (`GET …/pos/receipts?shiftId=&limit=5`, the till's own view right), never remembered by the
+  screen, so a sale rung up before a cashier switch is listed too; re-read on every refresh,
+  a live update from the drawer included. The limit trims what is sent; the repository still
+  reads the shift in memory.
+- **Test print**, a tick box. Ticked, the button reads *Print a test receipt* and prints the
+  basket as a slip marked **TEST PRINT — NOT A SALE** at the head and foot, with no number and
+  no barcode — **nothing is sent to the server**: no receipt, no number drawn, no stock, no
+  coupon claimed. It needs only a basket, not a payment. **The box clears itself after one
+  print**, so it cannot be left ticked and swallow the next real sale. The slip is built by
+  `saleFigures` (`posModel`), the same builder `createSale` stores a sale with, so a test slip
+  and a real one cannot disagree about a field.
+- **Ctrl + Enter** (⌘ + Enter on a Mac) presses the button — a sale, or a test print when the
+  box is ticked. It clicks the button rather than calling the sale, so everything that disables
+  the button (empty basket, unpaid, over the discount cap, busy) stops the shortcut too; it is
+  ignored while a dialog is over the till, and caught before the scan box, so the Enter is not
+  also taken as a scan.
 
 **Closing a shift** takes the counted cash and stores the report: sales and takings, tax by rate,
 takings by method, change given, the opening float, **expected cash (float + cash taken − change)**,

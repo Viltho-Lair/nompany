@@ -16,7 +16,7 @@ import { btn, btnGhost, btnRow, btnRowDanger, Dialog, money, fmtDateTime } from 
 import TillCashierSwitch from "@/components/security/TillCashierSwitch";
 import { securityDict } from "@/shared/security";
 import { findByBarcode } from "@/modules/inventory/barcodes";
-import { posTotals, settle, priceBasket, discountPercentOf, cleanDiscount, PAYMENT_METHODS } from "@/modules/sales/posModel";
+import { posTotals, settle, priceBasket, discountPercentOf, cleanDiscount, cleanPayments, saleFigures, PAYMENT_METHODS } from "@/modules/sales/posModel";
 import { evaluate, offerProblem } from "@/modules/sales/posPromotionsModel";
 import { PRINT_CSS, Receipt, ShiftReport } from "@/components/studio2/posParts";
 
@@ -64,6 +64,19 @@ export default function StudioPos({ slug }) {
   const [receipt, setReceipt] = useState(null);
   const [closing, setClosing] = useState(false);
   const [report, setReport] = useState(null);
+  // THIS TILL'S LAST FIVE SALES in the open shift, each reprintable in one click
+  // (the owner, 27/09/2026). Read from the server, never kept from what this
+  // screen sold: a sale rung up by the cashier before a PIN switch is still
+  // this drawer's and still somebody's receipt.
+  const [recent, setRecent] = useState([]);
+  // A SLIP TO PRINT WITHOUT A DIALOG — a reprint from the list, or a test print.
+  // It is mounted hidden, printed, and cleared once the print dialog closes.
+  const [toPrint, setToPrint] = useState(null);
+  // TEST PRINT (27/09/2026): the next press of the button prints the basket as a
+  // test slip and records nothing. ONE PRESS: the box clears itself after it, so
+  // it can never be left ticked and swallow the next real sale.
+  const [testPrint, setTestPrint] = useState(false);
+  const completeRef = useRef(null);
 
   // THE TILL IS THE DEVICE'S (18/09/2026). It used to be a preference in this
   // browser's storage, so any browser could pick any till; the server now says
@@ -215,6 +228,47 @@ export default function StudioPos({ slug }) {
   const settled = totals ? settle(totals.total, paying, terms.currency) : null;
   const paidSoFar = paying.reduce((s, p) => s + p.amount, 0);
 
+  // RE-READ WHENEVER THE TILL IS: `data` is replaced on every reload, a live
+  // update from another cashier included, so the list follows the drawer.
+  const shiftId = shift?.id || "";
+  useEffect(() => {
+    if (!shiftId) { queueMicrotask(() => setRecent([])); return; }
+    let alive = true;
+    fetch(`/api/studios/${slug}/pos/receipts?shiftId=${encodeURIComponent(shiftId)}&limit=5`, { cache: "no-store" })
+      .then((res) => res.json().then((out) => ({ res, out })))
+      .then(({ res, out }) => { if (alive && res.ok && out?.ok) setRecent(out.receipts || []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [slug, shiftId, data]);
+
+  // PRINT, THEN LET GO. The slip is on the page by the time the effect runs;
+  // `afterprint` fires when the browser's dialog closes, printed or cancelled.
+  useEffect(() => {
+    if (!toPrint) return;
+    const done = () => setToPrint(null);
+    window.addEventListener("afterprint", done, { once: true });
+    const id = requestAnimationFrame(() => window.print());
+    return () => { cancelAnimationFrame(id); window.removeEventListener("afterprint", done); };
+  }, [toPrint]);
+
+  // CTRL+ENTER COMPLETES THE SALE (the owner, 27/09/2026) — Cmd+Enter on a Mac.
+  // It clicks the button rather than calling the sale, so every rule the button
+  // is disabled by (nothing in the basket, unpaid, over the discount cap, busy)
+  // stops the shortcut too. Not while a dialog is over the till.
+  const dialogOpen = Boolean(receipt || report || changed || offersOpen || closing || switching);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey) || e.repeat || dialogOpen) return;
+      if (!completeRef.current || completeRef.current.disabled) return;
+      e.preventDefault();
+      e.stopPropagation();
+      completeRef.current.click();
+    };
+    // CAPTURED, so the scan box never also takes the Enter as a scan to add.
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [dialogOpen]);
+
   if (notTill) return <NotATill tr={tr} slug={slug} canPair={notTill.canPair} />;
   if (!data) {
     return error
@@ -268,6 +322,24 @@ export default function StudioPos({ slug }) {
     return "";
   }
 
+  // THE BASKET AS A SLIP, recorded nowhere. Built by the same `saleFigures` the
+  // server stores a sale with, from the figures this screen already shows, so
+  // the test slip is laid out exactly as a real one would be.
+  function printTest() {
+    const lines = (priced?.lines || []).map((l, i) => {
+      const mine = (offers?.applied || []).filter((a) => a.lineKey === String(i));
+      return mine.length ? { ...l, promotions: mine } : l;
+    });
+    const figures = saleFigures({
+      terms, lines, payments: cleanPayments(paying, terms.currency),
+      settled: settled || { paid: 0, change: 0 }, totals,
+      priced: priced || { basketDiscount: 0, discountTotal: 0 },
+      basket: cleanDiscount(basketOff), promotions: offers,
+    });
+    setToPrint({ receipt: { ...figures, number: "", at: new Date().toISOString(), terminalId: terminal?.id || "" }, test: true });
+    setTestPrint(false);
+  }
+
   async function completeSale(agreed) {
     const out = await call("/receipts", "POST", {
       shiftId: shift.id,
@@ -309,7 +381,14 @@ export default function StudioPos({ slug }) {
     // with it, below the taskbar. Now the basket scrolls inside its card and the
     // payment card scrolls inside its own, with the button pinned to its foot.
     <div className="flex min-h-screen flex-col bg-[var(--geex-bg,transparent)] lg:h-dvh lg:min-h-0">
-      {(receipt || report) && <style>{PRINT_CSS}</style>}
+      {(receipt || report || toPrint) && <style>{PRINT_CSS}</style>}
+      {/* The slip printed without a dialog: hidden here, shown by PRINT_CSS. */}
+      {toPrint && (
+        <div className="pos-print-only hidden">
+          <Receipt tr={tr} receipt={toPrint.receipt} studio={data.studio} terms={terms} test={toPrint.test}
+            tillName={terminals.find((t) => t.id === toPrint.receipt.terminalId)?.name || ""} />
+        </div>
+      )}
 
       {/* THE BAR: which till, which shift, and the way out. */}
       <header className="flex flex-wrap items-center gap-3 border-b border-slate-200/70 px-4 py-3 dark:border-white/10">
@@ -449,10 +528,49 @@ export default function StudioPos({ slug }) {
                   </span>
                 </p>
               )}
-              <button type="button" className={`${btn} mt-auto py-3 text-base lg:sticky lg:bottom-0 lg:shadow-geex-sm`}
-                disabled={busy || !basket.length || !data.can.sell || !settled || Boolean(settled.problem) || Boolean(overCap)}
-                onClick={() => completeSale()}>
-                {busy ? tr.selling : tr.complete}
+              {/* THIS TILL'S LAST FIVE SALES, above the button (the owner,
+                  27/09/2026): the customer who comes back for a receipt is
+                  nearly always one of the last few. */}
+              {recent.length > 0 && (
+                <div className="mt-auto">
+                  <p className="mb-1 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.lastSales}</p>
+                  <ul className="divide-y divide-slate-200/70 rounded-lg border border-slate-200/70 dark:divide-white/10 dark:border-white/10">
+                    {recent.map((r) => (
+                      <li key={r.id} className="flex items-center gap-2 px-2.5 py-1.5 text-xs">
+                        <span className="num font-700 text-[var(--geex-ink)]" dir="ltr">{r.number}</span>
+                        <span className="text-slate-500 dark:text-slate-400">{fmtDateTime(r.at)}</span>
+                        <span className="num ms-auto font-700 text-[var(--geex-ink)]">{money(r.total, r.currency)}</span>
+                        <button type="button" className={btnRow} disabled={Boolean(toPrint)}
+                          aria-label={`${tr.printAgain} ${r.number}`}
+                          onClick={() => setToPrint({ receipt: r, test: false })}>
+                          {tr.printAgain}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {data.can.sell && (
+                <label className={`flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300 ${recent.length ? "" : "mt-auto"}`}>
+                  <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={testPrint}
+                    onChange={(e) => setTestPrint(e.target.checked)} />
+                  <span>
+                    <span className="font-700">{tr.testPrint}</span>
+                    <span className="block text-slate-500 dark:text-slate-400">{tr.testPrintHint}</span>
+                  </span>
+                </label>
+              )}
+              {/* A TEST PRINT NEEDS ONLY A BASKET: it takes no money, so an
+                  unpaid or over-cap basket may still be printed as a test. */}
+              <button ref={completeRef} type="button"
+                className={`${btn} py-3 text-base lg:sticky lg:bottom-0 lg:shadow-geex-sm ${recent.length || data.can.sell ? "" : "mt-auto"} ${testPrint ? "!bg-amber-600 hover:!bg-amber-700" : ""}`}
+                disabled={testPrint
+                  ? busy || !basket.length || Boolean(toPrint)
+                  : busy || !basket.length || !data.can.sell || !settled || Boolean(settled.problem) || Boolean(overCap)}
+                aria-keyshortcuts="Control+Enter Meta+Enter"
+                onClick={() => (testPrint ? printTest() : completeSale())}>
+                <span>{busy ? tr.selling : testPrint ? tr.testPrintButton : tr.complete}</span>
+                <kbd className="ms-2 rounded border border-white/30 px-1.5 py-0.5 font-mono text-[10px] font-500 opacity-80" dir="ltr">{tr.completeShortcut}</kbd>
               </button>
               {!data.can.sell && <p className="text-xs text-slate-500 dark:text-slate-400">{tr.noSell}</p>}
             </aside>

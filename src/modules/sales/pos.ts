@@ -35,7 +35,7 @@ import { documentTaxMethod, studioTaxProfile } from "@/shared/compliance/rules";
 import { roundMoney } from "@/shared/money";
 import {
   cleanPosLines, cleanPayments, posTotals, settle, shiftReport, unitsOf,
-  cleanDiscount, priceBasket, discountPercentOf,
+  cleanDiscount, priceBasket, discountPercentOf, saleFigures,
   type PosLine, type PosPayment, type PosDiscount, type ShiftReport,
 } from "./posModel";
 import type { TaxBreakdown } from "@/shared/documentTotals";
@@ -888,29 +888,12 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
       at,
       cashierCollaboratorId: ctx.collaborator.id,
       ...(clientId ? { clientId } : {}),
-      currency: terms.currency,
-      vatRate: terms.vatRate,
-      taxMethod: terms.taxMethod,
-      pricesIncludeTax: terms.pricesIncludeTax,
-      lines: stored,
-      payments,
-      paid: settled.paid,
-      change: settled.change,
-      subtotal: totals.subtotal,
-      vat: totals.vat,
-      total: totals.total,
-      breakdown: totals.breakdown,
-      ...(basketPriced.discountTotal > 0 ? {
-        ...(basket ? { discount: basket, basketDiscount: basketPriced.basketDiscount } : {}),
-        discountTotal: basketPriced.discountTotal,
-      } : {}),
-      // WHAT THE SHOP'S OWN OFFERS DID, frozen here and read by nothing else
-      // afterwards: a return refunds what this receipt says, and editing the
-      // offer tomorrow moves none of it.
-      ...(offers && offers.priced.discountTotal > 0 ? {
-        promotions: offers.priced.applied,
-        promotionDiscount: offers.priced.discountTotal,
-      } : {}),
+      // THE FIGURES come from the one builder the till's test print uses too
+      // (posModel), so a test slip and a real one cannot disagree about a field.
+      ...saleFigures({
+        terms, lines: stored, payments, settled, totals, priced: basketPriced, basket,
+        promotions: offers ? offers.priced : null,
+      }),
     });
   } catch (err) {
     if (spending.length) await releaseCoupons(ctx, { coupons: spending, customerId: clientId });
@@ -956,12 +939,25 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
 }
 
 /** A shift's receipts, newest first — the till's own history. */
-export async function listReceipts(ctx: PosContext, shiftId: string) {
+/**
+ * A SHIFT'S RECEIPTS AT THIS TILL, newest first. `limit` is the till's own
+ * "last sales" list (27/09/2026), which shows five: it trims what is SENT, and a
+ * busy shift is still read whole, because the repository filters in memory.
+ * Absent, every receipt of the shift.
+ */
+export async function listReceipts(ctx: PosContext, shiftId: string, limit?: number) {
   const denied = requirePermission(ctx.access, "crmSales.pos.view");
   if (denied) return denied;
   const till = await requireTill(ctx);
   if (isRefusal(till)) return till;
-  return { receipts: await Receipts.find(scope(ctx), { where: { shiftId: str(shiftId, 60), terminalId: till.id }, order: { field: "at", dir: "desc" } }) };
+  const cap = Number.isFinite(limit) && Number(limit) > 0 ? Math.min(100, Math.floor(Number(limit))) : undefined;
+  return {
+    receipts: await Receipts.find(scope(ctx), {
+      where: { shiftId: str(shiftId, 60), terminalId: till.id },
+      order: { field: "at", dir: "desc" },
+      ...(cap ? { limit: cap } : {}),
+    }),
+  };
 }
 
 // ---- the department's screens (17/09/2026) ------------------------------------

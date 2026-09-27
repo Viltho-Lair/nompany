@@ -13,7 +13,16 @@ import { dayIn } from "@/shared/timezone";
 
 // PRINTING ONLY THE SLIP. Mounted only while a receipt or a report is on screen,
 // so no other page's printing is touched by an 80 mm page size.
+// `.pos-print-only` holds a slip that is printed WITHOUT being shown — the
+// till's one-click reprint and its test print (27/09/2026). It is `hidden` on
+// screen and shown here, so the dialog-free print lays out exactly as the
+// dialog's does.
 export const PRINT_CSS = `@media print {
+  .pos-print-only { display: block !important; }
+  /* NO TRANSITIONS WHEN PRINTING: visibility is animatable, and a field label
+     with transition-all was still mid-way to hidden when the page was laid out
+     for print, so it printed beside the slip (measured 27/09/2026). */
+  *, *::before, *::after { transition: none !important; }
   body * { visibility: hidden !important; }
   .pos-print, .pos-print * { visibility: visible !important; }
   .pos-print { position: absolute; inset-inline-start: 0; top: 0; width: 72mm; }
@@ -24,7 +33,10 @@ const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 // THE SLIP, laid out for an 80 mm printer. It prints what the server stored —
 // never the basket — so a reprint reads exactly as the first.
-export function Receipt({ tr, receipt, studio, terms, tillName }) {
+// `test`: a slip the till printed WITHOUT a sale (27/09/2026). It says so at
+// the head and the foot, where it cannot be torn off, and carries no number and
+// no barcode — a scanned test slip must find nothing to return.
+export function Receipt({ tr, receipt, studio, terms, tillName, test = false }) {
   const locale = useStudioLocale();
   const cur = receipt.currency;
   const line = "flex justify-between gap-2";
@@ -37,7 +49,9 @@ export function Receipt({ tr, receipt, studio, terms, tillName }) {
             already cleared of any that repeat one. */}
         {(studio.official || []).map((p) => <p key={p.key}>{(locale === "ar" && p.label.ar) || p.label.en}: {p.value}</p>)}
         {(studio.legal || []).map((r) => <p key={r.key}>{r.key}: {r.value}</p>)}
-        <p className="mt-1">{tr.receipt} {receipt.number}</p>
+        {test
+          ? <p className="mt-1 border border-black py-1 font-bold">{tr.testPrintBanner}</p>
+          : <p className="mt-1">{tr.receipt} {receipt.number}</p>}
         <p>{fmtDateTime(receipt.at)}</p>
         {tillName && <p>{tr.till}: {tillName}</p>}
       </div>
@@ -101,7 +115,9 @@ export function Receipt({ tr, receipt, studio, terms, tillName }) {
       )}
       <p className="mt-3 text-center">{terms.footer || tr.thankYou}</p>
       {/* THE NUMBER AS A BARCODE, so a return finds this sale by scanning the slip. */}
-      <div className="mt-2 flex justify-center"><Barcode value={receipt.number} height={36} module={1.2} /></div>
+      {test
+        ? <p className="mt-2 border border-black py-1 text-center font-bold">{tr.testPrintBanner}</p>
+        : <div className="mt-2 flex justify-center"><Barcode value={receipt.number} height={36} module={1.2} /></div>}
     </div>
   );
 }

@@ -88,6 +88,14 @@ type Strings = {
   due: string;
   change: string;
   complete: string;
+  /** The keyboard shortcut for the button, as printed beside it. */
+  completeShortcut: string;
+  lastSales: string;
+  printAgain: string;
+  testPrint: string;
+  testPrintHint: string;
+  testPrintButton: string;
+  testPrintBanner: string;
   selling: string;
   newSale: string;
   printReceipt: string;
@@ -217,6 +225,13 @@ const en: Strings = {
   due: "Still due",
   change: "Change",
   complete: "Complete the sale",
+  completeShortcut: "Ctrl + Enter",
+  lastSales: "Last sales",
+  printAgain: "Print",
+  testPrint: "Test print",
+  testPrintHint: "Prints this basket as a test slip. No sale is recorded, and the box clears after one print.",
+  testPrintButton: "Print a test receipt",
+  testPrintBanner: "TEST PRINT — NOT A SALE",
   selling: "Completing…",
   newSale: "New sale",
   printReceipt: "Print the receipt",
@@ -389,6 +404,13 @@ const ar: Strings = {
   due: "المتبقي",
   change: "الباقي",
   complete: "إتمام البيع",
+  completeShortcut: "Ctrl + Enter",
+  lastSales: "آخر المبيعات",
+  printAgain: "طباعة",
+  testPrint: "طباعة تجريبية",
+  testPrintHint: "يطبع هذه السلة كإيصال تجريبي. لا تسجل عملية بيع، ويلغى التحديد بعد طباعة واحدة.",
+  testPrintButton: "طباعة إيصال تجريبي",
+  testPrintBanner: "طباعة تجريبية — ليست عملية بيع",
   selling: "جار الإتمام…",
   newSale: "بيع جديد",
   printReceipt: "طباعة الإيصال",

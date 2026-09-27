@@ -278,6 +278,58 @@ export function settle(
   return { problem: "", paid, change: roundMoney(paid - total, currency) };
 }
 
+/**
+ * THE FIGURES A RECEIPT STORES — everything on the slip that is arithmetic
+ * rather than identity: no number, no shift, no cashier, no stock taken.
+ *
+ * ONE BUILDER, TWO CALLERS (27/09/2026). `createSale` stores exactly this, and
+ * the till's TEST PRINT prints it without storing anything. A test slip laid out
+ * from a second, hand-copied shape would drift from the real one the first time
+ * a field joined the receipt, and a test print that does not look like the real
+ * slip tests nothing. The lines are the caller's: the server's carry their
+ * stock picks and the offers each earned, and so may the till's.
+ */
+export function saleFigures<
+  T extends { currency: string; vatRate: number; taxMethod: string; pricesIncludeTax: boolean },
+  L extends PosLine,
+  A,
+>(a: {
+  terms: T;
+  lines: L[];
+  payments: PosPayment[];
+  settled: { paid: number; change: number };
+  totals: PosTotals;
+  priced: { basketDiscount: number; discountTotal: number };
+  basket: PosDiscount | null | undefined;
+  promotions?: { applied: A[]; discountTotal: number } | null;
+}) {
+  return {
+    currency: a.terms.currency,
+    vatRate: a.terms.vatRate,
+    taxMethod: a.terms.taxMethod,
+    pricesIncludeTax: a.terms.pricesIncludeTax,
+    lines: a.lines,
+    payments: a.payments,
+    paid: a.settled.paid,
+    change: a.settled.change,
+    subtotal: a.totals.subtotal,
+    vat: a.totals.vat,
+    total: a.totals.total,
+    breakdown: a.totals.breakdown,
+    ...(a.priced.discountTotal > 0 ? {
+      ...(a.basket ? { discount: a.basket, basketDiscount: a.priced.basketDiscount } : {}),
+      discountTotal: a.priced.discountTotal,
+    } : {}),
+    // WHAT THE SHOP'S OWN OFFERS DID, frozen on the receipt and read by nothing
+    // else afterwards: a return refunds what the receipt says, and editing the
+    // offer tomorrow moves none of it.
+    ...(a.promotions && a.promotions.discountTotal > 0 ? {
+      promotions: a.promotions.applied,
+      promotionDiscount: a.promotions.discountTotal,
+    } : {}),
+  };
+}
+
 export type ShiftReceipt = {
   kind?: string;
   status?: string;

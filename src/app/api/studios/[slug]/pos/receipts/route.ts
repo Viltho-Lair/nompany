@@ -24,7 +24,9 @@ export const GET = route({ ...spec, body: false }, async (pos) => {
   }
   const shiftId = url.searchParams.get("shiftId") || "";
   if (!shiftId) return { error: "missing" };
-  const result = await listReceipts(pos, shiftId);
+  // `limit` — the till's own "last sales" list asks for five.
+  const limit = Number(url.searchParams.get("limit")) || undefined;
+  const result = await listReceipts(pos, shiftId, limit);
   if (refused(result)) return result;
   return { ok: true, receipts: result.receipts };
 });
