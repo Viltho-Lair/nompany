@@ -11,10 +11,18 @@
 // job and could not say whether the batch was any good — which is the one thing
 // traceability exists to let somebody act on.
 //
-// TWO RECORDS, ONE SCREEN, because they are one person's job: the operator who
-// ran the machine is the one who signs off what came out of it.
+// TWO RECORDS, ONE SCREEN, because they happen at the same place — the machine
+// and what came off it. They are NOT assumed to be one person's job: clocking
+// on answers to `engine.workorder.edit` and passing a batch to
+// `engine.batch.edit` (see `./shopfloorService`), so a studio decides whether
+// the operator also signs off, and the screen shows each half only to whoever
+// holds its right.
 //
-// PURE. No imports, no store, and every clock reading comes in as an argument.
+// PURE. No store, and every clock reading comes in as an argument; the one
+// import is `./mrp`'s rule for what an open work order is, so the terminal and
+// the planner cannot disagree about it.
+
+import { isOpen } from "./mrp";
 
 export type RunLog = {
   id: string;
@@ -62,16 +70,44 @@ export function runHours(log: Pick<RunLog, "startedAt" | "endedAt">): number | n
  * machine cannot also be at another, and allowing two open runs is how a day
  * ends up with sixteen hours logged against eight worked. It refuses by name so
  * the terminal can offer to close the other one.
+ *
+ * AND THE ORDER MUST EXIST AND BE OPEN. `order` is the work order as the
+ * register holds it now (null when there is none). A run was accepted against
+ * any id at all, and against Completed and Cancelled orders the terminal
+ * offered alongside the live ones — hours logged against a job that is shut,
+ * which is cost nobody can put anywhere.
  */
 export function startProblem(
   workOrderId: string,
   collaboratorId: string,
   open: RunLog[],
+  order: { status?: string } | null | undefined,
 ): string | null {
   if (!workOrderId) return "order";
+  if (!order) return "no-order";
+  if (!isOpen(order)) return "order-closed";
   const mine = open.find((l) => l.byCollaboratorId === collaboratorId && !l.endedAt);
   if (mine) return mine.workOrderId === workOrderId ? "already-running" : "other-run";
   return null;
+}
+
+/**
+ * WHICH OF A PERSON'S OPEN RUNS STANDS, when there is more than one.
+ *
+ * THE ONE-OPEN-RUN RULE IS A READ FOLLOWED BY A WRITE, and the store has no
+ * unique constraint to hang it on — a run is a row in a collection, not a key.
+ * So a double tap could pass `startProblem` twice and open two runs. The start
+ * therefore writes FIRST and reads AFTER: every request that finds more than
+ * one open run of the same person keeps the earliest (by `startedAt`, then by
+ * id, so every reader picks the same one) and removes its own if it is not
+ * that one. Deterministic, so two racing requests cannot both remove
+ * themselves and cannot both stay.
+ */
+export function keptRun(open: RunLog[], collaboratorId: string): RunLog | null {
+  const mine = open
+    .filter((l) => l.byCollaboratorId === collaboratorId && !l.endedAt)
+    .sort((a, b) => String(a.startedAt).localeCompare(String(b.startedAt)) || String(a.id).localeCompare(String(b.id)));
+  return mine[0] || null;
 }
 
 /**
@@ -95,14 +131,20 @@ export function orderEffort(logs: RunLog[], workOrderId: string): {
   };
 }
 
-/** What is wrong with this QC check, or an empty array. */
+/**
+ * What is wrong with this QC check, as TOKENS, or an empty array.
+ *
+ * TOKENS, NOT SENTENCES. These were English phrases joined into the refusal's
+ * `detail`, so an Arabic terminal printed "say why it failed" — the words are
+ * the screen's (`shopFloorDict().problem`), keyed by what this returns.
+ */
 export function qcProblems(input: { batchId?: unknown; result?: unknown; reason?: unknown }): string[] {
   const problems: string[] = [];
   const batchId = str(input.batchId, 60);
   const result = str(input.result, 20);
 
-  if (!batchId) problems.push("a check needs a batch");
-  if (!(QC_RESULTS as readonly string[]).includes(result)) problems.push("a check needs a result");
+  if (!batchId) problems.push("batch");
+  if (!(QC_RESULTS as readonly string[]).includes(result)) problems.push("result");
   // A FAIL WITHOUT A REASON IS NOT A RECORD. "This batch failed" that does not
   // say why cannot be acted on, cannot be argued with, and cannot be counted
   // into anything — the same rule a losing deal follows, where `lostReason` is
@@ -111,7 +153,7 @@ export function qcProblems(input: { batchId?: unknown; result?: unknown; reason?
   // A CONCESSION NEEDS ONE TOO, and more so: accepting material that did not
   // meet the spec is a decision somebody has to be able to defend later.
   if ((result === "fail" || result === "concession") && !str(input.reason, 1000)) {
-    problems.push(result === "fail" ? "say why it failed" : "say what was conceded");
+    problems.push(result === "fail" ? "fail-reason" : "concession-reason");
   }
   return problems;
 }

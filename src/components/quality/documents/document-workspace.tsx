@@ -281,7 +281,7 @@ export function DocumentWorkspace({
           </label>
           {layoutError && <span className="text-xs text-destructive">{tr.notSaved}</span>}
           <span className={`rounded-full px-2.5 py-1 text-xs font-600 ${STATUS_BADGE[state] || STATUS_BADGE.draft}`}>
-            {state}
+            {tr.docStates[state] ?? state}
           </span>
           {canEdit && (
             <PageSetupMenu

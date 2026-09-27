@@ -250,5 +250,45 @@ ok("...and a required number of nought is present, not missing",
   M.recordProblem(num, { count: 0 }) === null);
 ok("...while one nobody filled in is missing", M.recordProblem(num, { count: null }) === "missing");
 
+console.log("\n== a status move is decided against the row the write won ==\n");
+
+// THE DEFECT: `moveRecord` asked `transitionProblem` of a row read BEFORE the
+// write and then patched `status` unconditionally. Two moves out of Witnessed —
+// one to Accepted, one to Rejected — both passed the check, both wrote, and the
+// row ended at Rejected → Accepted, which no transition declares; the rules
+// fired twice and raised two NCRs. `applyMove` IS the patch now, so the
+// compare-and-set re-runs the guard against the row as it stands.
+const ladder = decl({
+  statuses: ["Open", "Witnessed", "Accepted", "Rejected"],
+  transitions: [
+    { from: "Open", to: "Witnessed" }, { from: "Witnessed", to: "Accepted" },
+    { from: "Witnessed", to: "Rejected" }, { from: "Rejected", to: "Open" },
+  ],
+});
+// A compare-and-set, reduced to what matters: every writer's patch is applied
+// to the row AS IT NOW IS, one after another — which is what a contended round
+// re-running the function amounts to.
+let row = { id: "r1", status: "Witnessed" };
+const first = M.applyMove(ladder, row, "Rejected", { updatedAt: "t1" });
+row = first.row;
+const second = M.applyMove(ladder, row, "Accepted", { updatedAt: "t2" });
+row = second.row;
+ok("the first move lands", first.moved === true && first.from === "Witnessed");
+ok("THE SECOND MOVE, RE-ASKED OF THE ROW THE FIRST LEFT, DOES NOT", second.moved === false);
+ok("...and says why, so the caller can answer 409", second.problem === "not-allowed");
+ok("...and the row stays where a declared transition put it", row.status === "Rejected" && row.updatedAt === "t1");
+// A DOUBLE SUBMIT: both callers ask for the same move. Only one changed the
+// status, so only one may fire the rules.
+let twice = { id: "r2", status: "Witnessed" };
+const a = M.applyMove(ladder, twice, "Rejected");
+twice = a.row;
+const b = M.applyMove(ladder, twice, "Rejected");
+ok("a repeated move is not a second arrival", a.moved === true && b.moved === false && b.problem === null);
+ok("...so only the first reports where it came from", a.from === "Witnessed" && b.from === "Rejected");
+ok("a move the chain never offered is refused on the first try too",
+  M.applyMove(ladder, { status: "Open" }, "Accepted").problem === "not-allowed");
+ok("...and a status the type does not have is `wrong-state`",
+  M.applyMove(ladder, { status: "Open" }, "Lost").problem === "wrong-state");
+
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);

@@ -207,6 +207,30 @@ type Strings = CommonStrings & {
   refuseNoTender: string;
   billFrozen: string;
   refuseHandedOver: string;
+  // A tender's bill locked because its bid has gone out (or been decided).
+  billLocked: string;
+  refuseBillLocked: string;
+  // Submitted → an open stage: the bid cannot be un-sent.
+  refuseCannotUnsubmit: string;
+  // Handing over needs CRM & Sales' customer list to put the project under.
+  refuseNoCustomers: string;
+  // The tokens every form and load can meet — each used to reach the screen raw.
+  refuseTitle: string;
+  refuseDeadline: string;
+  refuseDescription: string;
+  refuseQuestion: string;
+  refuseCode: string;
+  refuseNotFound: string;
+  refuseMissing: string;
+  refuseSelf: string;
+  refuseOtherTender: string;
+  refuseUnknownStage: string;
+  refuseForbidden: string;
+  refuseAlreadyPending: string;
+  refuseNoSection: string;
+  refuseSignedOut: string;
+  refuseNothing: string;
+  refuseFailed: string;
   // Importing a bill (tier 6).
   importLines: string;
   importLead: string;
@@ -423,6 +447,26 @@ const en: Strings = {
   refuseNoTender: "That tender no longer exists.",
   billFrozen: "This tender has been handed over, so its bill is the project’s baseline and no longer edits. The project’s sheets read these lines.",
   refuseHandedOver: "This tender has been handed over. Its bill is the project’s baseline now and cannot be changed.",
+  billLocked: "This bid has gone out, so its bill is the record of what was bid and no longer edits. A bill that moved afterwards would no longer be the figure that was signed and sent.",
+  refuseBillLocked: "The bid has gone out, so its bill can no longer change.",
+  refuseCannotUnsubmit: "The bid has already gone in, so it cannot go back to being prepared. Record the outcome, or withdraw it.",
+  refuseNoCustomers: "A project is opened for a customer, and this studio has no CRM & Sales customer list to put one in. An owner or admin switches that section on first.",
+  refuseTitle: "Give the tender a title.",
+  refuseDeadline: "Give the tender a submission deadline.",
+  refuseDescription: "Describe the line before saving it.",
+  refuseQuestion: "Write the question before saving it.",
+  refuseCode: "Give the rate a code.",
+  refuseNotFound: "That record no longer exists. Somebody may have deleted it — reload to see where things stand.",
+  refuseMissing: "Something this needs was not sent. Reload the page and try again.",
+  refuseSelf: "A document cannot replace itself. Pick the revision that replaces it.",
+  refuseOtherTender: "That document belongs to another tender. Pick a revision from this tender's own pack.",
+  refuseUnknownStage: "That is not a stage a tender can be in.",
+  refuseForbidden: "You do not have the right to do this here.",
+  refuseAlreadyPending: "Approval has already been asked for and is waiting on the Approvals page.",
+  refuseNoSection: "The part of the studio this needs has not been set up here yet. Reload the page; if it persists, an owner or admin checks the studio's sections.",
+  refuseSignedOut: "You are signed out. Sign in again and retry.",
+  refuseNothing: "There was nothing to import.",
+  refuseFailed: "That did not go through. Try again.",
   importLines: "Import lines",
   importLead: "Copy the bill’s rows out of Excel and paste them here, or attach a CSV. The columns are read from the header; check them below before importing. A row with a description and no quantity, unit or rate is a heading, and names the lines under it.",
   importPasteLabel: "Paste from Excel",
@@ -635,6 +679,26 @@ const ar: Strings = {
   refuseNoTender: "لم تعد هذه المناقصة موجودة.",
   billFrozen: "سلمت هذه المناقصة، فصار جدولها أساس المشروع ولم يعد يعدل. تقرأ جداول المشروع هذه البنود.",
   refuseHandedOver: "سلمت هذه المناقصة. صار جدولها أساس المشروع ولا يمكن تغييره.",
+  billLocked: "قدم هذا العرض، فصار جدوله سجلا لما قدم ولم يعد يعدل. الجدول الذي يتغير بعد ذلك لا يبقى الرقم الذي اعتمد وأرسل.",
+  refuseBillLocked: "قدم العرض، فلم يعد جدوله قابلا للتغيير.",
+  refuseCannotUnsubmit: "العرض قدم بالفعل، فلا يعود إلى مرحلة الإعداد. سجلوا النتيجة، أو اسحبوه.",
+  refuseNoCustomers: "المشروع يفتح لعميل، ولا توجد في هذه المنشأة قائمة عملاء في المبيعات وإدارة العملاء. يفعل المالك أو المسؤول ذلك القسم أولا.",
+  refuseTitle: "اكتبوا عنوانا للمناقصة.",
+  refuseDeadline: "حددوا الموعد النهائي للتقديم.",
+  refuseDescription: "اكتبوا وصف البند قبل حفظه.",
+  refuseQuestion: "اكتبوا السؤال قبل حفظه.",
+  refuseCode: "اكتبوا رمزا للسعر.",
+  refuseNotFound: "هذا السجل لم يعد موجودا، وربما حذفه أحد. أعيدوا تحميل الصفحة.",
+  refuseMissing: "لم يرسل شيء يحتاجه هذا الإجراء. أعيدوا تحميل الصفحة وحاولوا مجددا.",
+  refuseSelf: "لا يستبدل المستند نفسه. اختاروا المراجعة التي تحل محله.",
+  refuseOtherTender: "هذا المستند تابع لمناقصة أخرى. اختاروا مراجعة من مستندات هذه المناقصة.",
+  refuseUnknownStage: "هذه ليست مرحلة يمكن أن تكون فيها المناقصة.",
+  refuseForbidden: "لا تملكون صلاحية هذا الإجراء هنا.",
+  refuseAlreadyPending: "طلب الاعتماد مرسل بالفعل وينتظر في صفحة الموافقات.",
+  refuseNoSection: "الجزء الذي يحتاجه هذا الإجراء غير مهيأ في هذه المنشأة بعد. أعيدوا تحميل الصفحة، وإن تكرر ذلك يراجع المالك أو المسؤول أقسام المنشأة.",
+  refuseSignedOut: "انتهت جلستكم. سجلوا الدخول مجددا ثم أعيدوا المحاولة.",
+  refuseNothing: "لا يوجد ما يستورد.",
+  refuseFailed: "لم يتم ذلك. حاولوا مجددا.",
   importLines: "استيراد بنود",
   importLead: "انسخ صفوف الجدول من Excel والصقها هنا، او ارفق ملف CSV. تقرأ الاعمدة من صف العناوين؛ راجعها في الاسفل قبل الاستيراد. الصف الذي فيه وصف بلا كمية او وحدة او سعر عنوان، ويسمي البنود التي تحته.",
   importPasteLabel: "لصق من Excel",

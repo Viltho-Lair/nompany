@@ -138,6 +138,39 @@ export function transitionProblem(decl: TypeDecl, from: unknown, to: unknown): s
 }
 
 /**
+ * A STATUS MOVE, DECIDED AGAINST THE ROW THE WRITE ACTUALLY WON.
+ *
+ * THIS IS THE PATCH, not a check made before it. `moveRecord` used to ask
+ * `transitionProblem` of a row it had read BEFORE the write and then patch
+ * `status` unconditionally, so two moves out of Witnessed — one to Accepted,
+ * one to Rejected — both passed, both wrote, and the row ended wherever the
+ * second landed: Rejected → Accepted, a move no transition declares, and the
+ * rules fired twice, raising two NCRs against one test. Invariant 8 says the
+ * guard is re-asked INSIDE the function patch, because the patch is what the
+ * compare-and-set re-runs against the row as it now is.
+ *
+ * SO IT RETURNS THE ROW UNCHANGED WHEN THE MOVE NO LONGER HOLDS, and says so.
+ * A patch has nowhere to put a refusal; `moved` and `problem` are how the
+ * caller learns which attempt won and what it found. `from` is the status of
+ * THAT row — the one the move really left — so rules fire on the arrival that
+ * happened rather than the one the caller thought it was making.
+ *
+ * `from === to` is not a move and never a problem here: the caller decides
+ * whether "already there" is an error (a person asked for it) or not (the
+ * studio's own consequence arriving twice).
+ */
+export function applyMove<R extends { status?: unknown }>(
+  decl: TypeDecl, row: R, to: unknown, stamp: Record<string, unknown> = {},
+): { row: R; moved: boolean; problem: string | null; from: string } {
+  const from = text(row?.status);
+  const target = text(to);
+  if (from === target) return { row, moved: false, problem: null, from };
+  const problem = transitionProblem(decl, from, target);
+  if (problem) return { row, moved: false, problem, from };
+  return { row: { ...row, status: target.slice(0, 60), ...stamp }, moved: true, problem: null, from };
+}
+
+/**
  * HOW LONG A STORED VALUE MAY BE.
  *
  * IT USED TO BE UNBOUNDED, and that is a hole this engine opened rather than

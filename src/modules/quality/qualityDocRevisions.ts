@@ -28,8 +28,9 @@ import type { Refusal } from "@/modules/approvals/effects";
 import type { Approval } from "@/modules/approvals/schema";
 import type { StudioRef } from "@/modules/context";
 import { getCollaborator } from "@/platform/auth/collaborators";
-import { TRANSITIONS, REV_LABELS, isOpen, documentState } from "./qualityDocuments";
+import { TRANSITIONS, REV_LABELS, isOpen, documentState, isWithdrawn, workflowStage } from "./qualityDocuments";
 import { DOCS, REVISIONS } from "./qualityDocs";
+import { layoutSlotsFor } from "./layouts";
 import type { QualityContext, QualityDocument, QualityRevision } from "./types";
 import type { PermissionKey } from "@/platform/access";
 
@@ -123,13 +124,20 @@ export async function workflowFor(
   // NOTHING OPEN IS STILL A STATE somebody can act on. With no revision in
   // flight the only move is to start one, and `submit` is drawn from the
   // document's own state rather than a row that does not exist yet.
-  const state = open?.state || (effective ? "effective" : "draft");
+  //
+  // A WITHDRAWN DOCUMENT IS ITS OWN STAGE. Its issued revision is superseded
+  // and nothing is open, which read as `draft` here — so Send for review was
+  // offered on a document that had been withdrawn. No transition starts from
+  // `withdrawn`, so the table answers no moves at all.
+  const stage = workflowStage(document, revisions);
+  const withdrawn = stage === "withdrawn";
 
   // HOW FAR THE OPEN REVISION'S APPROVAL HAS GOT, read from the approval. A
   // revision sent for review before 19/09/2026 is given its approval here,
-  // carrying the review it already had.
+  // carrying the review it already had. Not on a withdrawn document: nothing
+  // it is asked could be issued, so filing its approval would ask for nothing.
   let approval: ReturnType<typeof approvalSummary> = null;
-  if (open && (open.state === "review" || open.state === "approval")) {
+  if (!withdrawn && open && (open.state === "review" || open.state === "approval")) {
     const rows = await approvalRows(ctx.studio, ctx.approvalsSection);
     if (!approvalSummary(rows, DOCUMENT_APPROVAL, open.id) && ctx.approvalsSection) {
       const reviewed = (open as { review?: { byCollaboratorId?: string; at?: string } }).review;
@@ -145,9 +153,12 @@ export async function workflowFor(
     approval,
     revision: open || effective,
     revisions: (mine as QualityRevision[]).sort((a, b) => (Number(b.rev) || 0) - (Number(a.rev) || 0)),
-    moves: availableMoves(TRANSITIONS, state as string, holds),
-    waitingOn: open ? waitingOn(document, open.state) : "",
-    label: open ? REV_LABELS[open.state] : effective ? REV_LABELS.effective : REV_LABELS.draft,
+    // THE TOKEN A SCREEN DRAWS ITS OWN WORDS FROM — `label` is the English
+    // fallback for anything reading the API without a dictionary.
+    stage,
+    moves: availableMoves(TRANSITIONS, stage, holds),
+    waitingOn: open && !withdrawn ? waitingOn(document, open.state) : "",
+    label: REV_LABELS[stage] || REV_LABELS.draft,
   };
 }
 
@@ -228,6 +239,23 @@ export async function moveRevision(
   ]);
   const document = docs.find((d) => d.id === documentId);
   if (!document) return { error: "notfound" };
+  // WITHDRAWAL IS FINAL, for every move. The ladder's own table cannot see it —
+  // a withdrawn document holds a superseded revision and nothing open, which
+  // is what a never-issued draft looks like — so a new revision could be
+  // submitted, approved and ISSUED over a document the company had withdrawn.
+  if (isWithdrawn(document)) return { error: "obsolete" };
+  // A CHOSEN LAYOUT CANNOT BE WITHDRAWN: every quotation or invoice the studio
+  // prints goes through it, and printing would silently have nothing. The
+  // studio chooses another layout first (Studio settings' right, not this one).
+  // Asked after the right, so somebody who may not withdraw is told that
+  // rather than being told which layouts the studio prints through.
+  if (action === "withdraw") {
+    const denied = requirePermission(ctx.access, TRANSITIONS.withdraw.permission as PermissionKey);
+    if (denied) return denied;
+    if (layoutSlotsFor((ctx.studio as { documentLayouts?: unknown }).documentLayouts, documentId).length) {
+      return { error: "in-use" };
+    }
+  }
 
   const mine = revisions.filter((r) => r.documentId === documentId);
   // Withdrawing acts on the ISSUED revision; everything else acts on the one
@@ -322,9 +350,11 @@ export async function moveRevision(
       }
 
       if (moved === "withdraw") {
-        await Docs.update(ctx, documentId, {
+        // A FUNCTION PATCH, so a second withdrawal racing this one keeps the
+        // first moment and the first person rather than overwriting both.
+        await Docs.update(ctx, documentId, (cur) => (isWithdrawn(cur) ? {} : {
           obsoletedAt: now, obsoletedByCollaboratorId: ctx.collaborator.id, updatedAt: now,
-        });
+        }));
       }
     },
 
@@ -413,6 +443,11 @@ export const documentApproval = {
   ready: async (studio: StudioRef, approval: Approval, by: string) => {
     const found = await revisionFor(studio, approval, by);
     if ("error" in found) return found;
+    // A REVISION OF A WITHDRAWN DOCUMENT IS NOT ANSWERED: a yes would approve
+    // something that can never be issued (moveRevision refuses every move on
+    // it), and would read on the Approvals page as if it could.
+    const document = await Docs.byId(found.ctx, String(found.revision.documentId));
+    if (isWithdrawn(document)) return { error: "obsolete" } as Refusal;
     return found.revision.state === "review" || found.revision.state === "approval"
       ? null : ({ error: "already-decided", status: found.revision.state } as Refusal);
   },

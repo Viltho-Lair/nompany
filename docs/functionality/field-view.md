@@ -13,7 +13,17 @@ anybody.
 
 **No permission key and no collection.** Reading asks `fieldService.schedule.view` and
 signing asks `.edit`, the right that already changes a job. `signoffs` is an array on the
-job itself.
+job itself. **The buttons follow the write**: `fieldView` returns `canEdit`, and Start work,
+Mark finished and Take signature are drawn only for `.edit` — they were drawn for every viewer,
+who was then refused on every tap (27/09/2026).
+
+**Refusals are words.** The screen says each refusal in the reader's language
+(`fieldDict().problem`, `shared/studio/field.ts`); it printed the token ("not-started",
+"forbidden") and, for a signature, English sentences joined into `detail`. `signoffProblems`
+now returns tokens (`signer-name`, `signer-mark`) and `signJob` answers with the first. Times
+and dates are drawn through `fmtDateTime`/`fmtDate`, never a slice of the stored string, and the
+screen reads its language from `useStudioLocale` rather than a `locale` prop defaulting to
+English. "Overdue" on a work order is judged on the studio's own day (`shared/timezone`).
 
 **The caller never names themselves.** `assignedToCollaboratorIds` holds CollaboratorIDs
 (invariant 6) and the route reads the caller's own, so "my round" needs no parameter —
@@ -30,7 +40,10 @@ or claim a signature that does not exist, and both are lies about the same after
 **Appended, never replaced.** A captured signature stands; re-signing would let somebody
 overwrite the evidence, which is the one thing evidence must not allow. A second visit is a
 second signature rather than a correction to the first, and the array is written under a
-FUNCTION patch (invariant 8) so two people signing two visits cannot drop one.
+FUNCTION patch (invariant 8) so two people signing two visits cannot drop one. **The patch asks
+again whether the job may be signed** — a job cancelled from the office while the customer was
+signing gains no signature — and `setJobStatus` re-checks its legal move the same way, so a
+Finish racing a Cancel cannot bring a cancelled job back completed.
 
 **Both halves are required and neither substitutes for the other.** A drawn squiggle nobody
 can read is not evidence of WHO signed; a typed name with no mark is exactly the

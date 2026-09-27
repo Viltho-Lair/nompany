@@ -88,6 +88,21 @@ ok("winning still requires having submitted",
   stages.tenderProblem({ from: "Preparing", to: "Won", approved: true }) === "not-submitted");
 
 
+console.log("\n== an approval covers one value in one currency");
+
+// THE DEFECT: `coversValue` compared the digits alone, so a tender re-denominated
+// after its yes (`editTender` accepts `currency` from any API caller) kept an
+// approval given for 100,000 dirhams as cover for 100,000 dollars.
+{
+  const v = { amount: 100000, basis: "boq", complete: true, lines: 3 };
+  const filed = { amount: { value: 100000, currency: "AED", inBase: 100000, rate: null } };
+  ok("the same value in the same currency is covered", B.coversValue(filed, v, "AED"));
+  ok("...spelt as the approval stores it", B.coversValue(filed, v, " aed "));
+  ok("the same digits in another currency are NOT", !B.coversValue(filed, v, "USD"));
+  ok("a repriced bill is not", !B.coversValue(filed, { ...v, amount: 100001 }, "AED"));
+  ok("no approval covers nothing", !B.coversValue(null, v, "AED"));
+}
+
 console.log("\n== the handover opens at the same number the signature was given for");
 
 // A SOURCE-LEVEL ASSERTION, and it guards one specific temptation.

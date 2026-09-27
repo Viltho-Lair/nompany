@@ -22,19 +22,21 @@ import type { HelpModule } from "../types";
 //     modules/quality/qualityDocs.ts defaults the prefix to DOC and the
 //     department to GEN); only a starter layout gets LAY-SAL or LAY-FIN. The old
 //     example QP-SAL-001 was the retired builder's.
-//   - Nothing sets a document's next review date. `nextReviewDate` is written
-//     only when the issue request carries one, and the only screen that sent it
-//     (`components/studio2/QualityWorkflow.js`) is imported by nothing; the
-//     workflow bar sends `{ action }` alone. So "reviews due" can only count
-//     documents written before that screen went.
-//   - Withdrawing has no confirmation step: the button moves the document at
-//     once (WorkflowBar.move), and asks no reason.
+//   - The next review date is asked when a revision is ISSUED (WorkflowBar's
+//     issue dialog sends `nextReviewDate` with `publish`; moveRevision stores
+//     it, and an empty answer keeps the one already set). It is set nowhere
+//     else. The retired QualityWorkflow.js that once sent it was deleted
+//     27/09/2026.
+//   - Withdrawing and deleting each ask for confirmation first (WorkflowBar.move,
+//     DocumentList.remove), and neither asks a reason.
 //   - A transmittal records a title, a recipient, an issue date and notes — it
 //     has no list of the documents it sent (BUILTIN_TYPES in
 //     platform/engine/builtins.ts).
-//   - The register's delete refuses only an EFFECTIVE document (removeDoc
-//     checks `documentState(...) === "effective"`), so a withdrawn document is
-//     not protected by it; the old answer said every issued document was.
+//   - The register's delete refuses every document that ever issued a version,
+//     withdrawn ones included (deleteProblem in qualityDocuments.ts), and the
+//     bin is drawn only on rows the server marks `deletable`. A withdrawn
+//     document refuses every move and edit (isWithdrawn, asked first). A chosen
+//     quotation or invoice layout refuses withdrawal and deletion (`in-use`).
 //
 // DRAWN FROM THE CODE, not from the docs. Where docs/functionality/ and the
 // screens disagree, the screens win. Every `fields` entry names, in a comment
@@ -320,8 +322,8 @@ export const engineering: HelpModule = {
       id: "engineering-docs.dashboard-empty", topic: "dept.engineering-docs", kind: "troubleshoot", open: "engineering-docs",
       q: { en: "Why do the document figures on the dashboard show nothing?", ar: "لماذا لا تعرض أرقام المستندات في لوحة المعلومات شيئا؟" },
       a: {
-        en: "Three things are not working as the tiles suggest, and it is better you know. The document tiles and charts read the register's earlier store, so documents written in the current register are not counted there yet. Waiting on you counts documents that name you as their reviewer or approver, and nothing sets those names today, so look at the Approvals page for what is waiting on you. Document reviews due needs a next review date, and no screen sets one today.",
-        ar: "ثلاثة أمور لا تعمل كما توحي البطاقات، ومن الأفضل أن تعرفها. فبطاقات المستندات ورسومها تقرأ المخزن السابق للسجل، فلا تحسب فيها بعد المستندات المكتوبة في السجل الحالي. وبانتظارك تعد المستندات التي تسميك مراجعا أو معتمدا، ولا شيء يضع هذه الأسماء اليوم، فراجع صفحة الموافقات لما ينتظرك. ومراجعات المستندات المستحقة تحتاج تاريخ مراجعة تالية، ولا توجد اليوم شاشة تضبطه.",
+        en: "Two tiles count less than they suggest, and it is better you know. Waiting on you counts documents that name you as their reviewer or approver, and nothing sets those names today, so look at the Approvals page for what is waiting on you. Document reviews due counts only effective documents given a next review date, which is asked when a version is issued; a document issued without one, or before it could be given, is not counted until its next version is issued with a date. The other document figures count every document in the register.",
+        ar: "بطاقتان تعدان أقل مما توحيان، ومن الأفضل أن تعرف ذلك. فبانتظارك تعد المستندات التي تسميك مراجعا أو معتمدا، ولا شيء يضع هذه الأسماء اليوم، فراجع صفحة الموافقات لما ينتظرك. ومراجعات المستندات المستحقة لا تعد إلا المستندات السارية التي أعطيت تاريخ مراجعة تالية، ويسأل عنه عند إصدار النسخة؛ فالمستند الذي صدر دونه، أو قبل أن يمكن إعطاؤه، لا يعد حتى تصدر نسخته التالية بتاريخ. أما بقية أرقام المستندات فتعد كل مستند في السجل.",
       },
       keywords: ["dashboard empty", "zero documents", "waiting on you", "لوحة فارغة", "صفر مستندات", "بانتظاري"],
       related: ["engineering-docs.dashboard", "engineering-docs-register.review-due", "admin.approvals.answer"],
@@ -360,8 +362,8 @@ export const engineering: HelpModule = {
       id: "engineering-docs.not-yet", topic: "dept.engineering-docs", kind: "troubleshoot", open: "engineering-docs",
       q: { en: "What can Engineering & Documents not do yet?", ar: "ما الذي لا يستطيع قسم الهندسة والمستندات فعله بعد؟" },
       a: {
-        en: "A document cannot be given a type, a department code, a named reviewer and approver or a next review date on screen, and an Arabic counterpart cannot be linked to its English original. The earlier versions of a document are kept but cannot be opened on screen, and nobody's reading of an issued document is recorded. Records carry no attachments, keep no history of their moves, and cannot point at each other; a transmittal does not list the documents it sent, and an RFI's response time is not measured. A printed document carries no Draft or Obsolete stamp.",
-        ar: "لا يمكن على الشاشة إعطاء المستند نوعا أو رمز قسم أو مراجعا ومعتمدا مسمين أو تاريخ مراجعة تالية، ولا ربط النسخة العربية بأصلها الإنجليزي. وتحفظ النسخ السابقة للمستند لكن لا يمكن فتحها على الشاشة، ولا يسجل من قرأ المستند الصادر. ولا تحمل السجلات مرفقات ولا تحفظ تاريخ نقلها ولا يشير بعضها إلى بعض؛ ولا تسرد المراسلة المستندات التي أرسلتها، ولا يقاس زمن الرد على طلب الاستيضاح. ولا يحمل المستند المطبوع ختم مسودة أو ملغى.",
+        en: "A document cannot be given a type, a department code or a named reviewer and approver on screen, its next review date can be set only when a version is issued, and an Arabic counterpart cannot be linked to its English original. The earlier versions of a document are kept but cannot be opened on screen, and nobody's reading of an issued document is recorded. Records carry no attachments, keep no history of their moves, and cannot point at each other; a transmittal does not list the documents it sent, and an RFI's response time is not measured. A printed document carries no Draft or Obsolete stamp.",
+        ar: "لا يمكن على الشاشة إعطاء المستند نوعا أو رمز قسم أو مراجعا ومعتمدا مسمين، ولا يضبط تاريخ مراجعته التالية إلا عند إصدار نسخة، ولا يمكن ربط النسخة العربية بأصلها الإنجليزي. وتحفظ النسخ السابقة للمستند لكن لا يمكن فتحها على الشاشة، ولا يسجل من قرأ المستند الصادر. ولا تحمل السجلات مرفقات ولا تحفظ تاريخ نقلها ولا يشير بعضها إلى بعض؛ ولا تسرد المراسلة المستندات التي أرسلتها، ولا يقاس زمن الرد على طلب الاستيضاح. ولا يحمل المستند المطبوع ختم مسودة أو ملغى.",
       },
       keywords: ["not available", "limitations", "missing features", "roadmap", "غير متوفر", "القيود", "ميزات ناقصة"],
       related: ["engineering-docs.attachments", "engineering-docs.own-types", "engineering-docs-register.print-stamp"],
@@ -382,8 +384,8 @@ export const engineering: HelpModule = {
       id: "engineering-docs-register.list", topic: "dept.engineering-docs-register", kind: "about", open: "engineering-docs-register",
       q: { en: "What is on the register's list?", ar: "ماذا تعرض قائمة السجل؟" },
       a: {
-        en: "Every document, most recently edited first, showing its code, its title, the day it was last edited and its state. Clicking a row opens the document full screen; the round arrow at the top returns to the studio. New document sits at the top for those who may create documents, and a bin on each row for those who may delete them.",
-        ar: "كل مستند، الأحدث تعديلا أولا، مع رمزه وعنوانه ويوم آخر تعديل وحالته. والنقر على الصف يفتح المستند بملء الشاشة، والسهم الدائري في الأعلى يعيدك إلى الاستوديو. ويظهر زر وثيقة جديدة في الأعلى لمن يستطيع إنشاء المستندات، وسلة في كل صف لمن يستطيع حذفها.",
+        en: "Every document, most recently edited first, showing its code, its title, the day it was last edited and its state. Clicking a row opens the document full screen; the round arrow at the top returns to the studio. New document sits at the top for those who may create documents. A bin appears, for those who may delete documents, only on a document that has never been issued and is not a chosen layout, and it asks before deleting.",
+        ar: "كل مستند، الأحدث تعديلا أولا، مع رمزه وعنوانه ويوم آخر تعديل وحالته. والنقر على الصف يفتح المستند بملء الشاشة، والسهم الدائري في الأعلى يعيدك إلى الاستوديو. ويظهر زر وثيقة جديدة في الأعلى لمن يستطيع إنشاء المستندات. أما السلة فتظهر لمن يستطيع حذف المستندات على المستند الذي لم يصدر قط وليس قالبا مختارا فقط، وتسأل قبل الحذف.",
       },
       keywords: ["document list", "register screen", "find document", "قائمة المستندات", "شاشة السجل", "إيجاد مستند"],
       related: ["engineering-docs-register.about", "engineering-docs-register.codes"],
@@ -412,8 +414,8 @@ export const engineering: HelpModule = {
       id: "engineering-docs-register.versions", topic: "dept.engineering-docs-register", kind: "about", open: "engineering-docs-register",
       q: { en: "What is a version, and what does the bar under the header say?", ar: "ما النسخة، وماذا يقول الشريط تحت الرأس؟" },
       a: {
-        en: "A version is a frozen copy of the document taken when somebody presses Send for review, numbered Rev 1, Rev 2 and so on; editing afterwards does not change what the reviewer sees. The bar under the header names the open version's stage: Draft, Waiting for review, Waiting for approval, Approved, not yet issued, Effective, or Sent back with the reason. While a version is with its approvers, the bar says how many approval steps are done and offers Open in Approvals. When a version is issued, the one before it is kept as superseded, never deleted.",
-        ar: "النسخة صورة مجمدة من المستند تؤخذ حين يضغط أحدهم زر الإرسال للمراجعة، وترقم Rev 1 ثم Rev 2 وهكذا؛ والتعديل بعدها لا يغير ما يراه المراجع. ويسمي الشريط تحت الرأس مرحلة النسخة المفتوحة: مسودة، أو بانتظار المراجعة، أو بانتظار الاعتماد، أو معتمدة ولم تصدر، أو سارية، أو أعيدت مع السبب. وأثناء وجود النسخة لدى المعتمدين يذكر الشريط عدد خطوات الاعتماد المنجزة ويعرض فتح في الموافقات. وحين تصدر نسخة تحفظ التي قبلها كنسخة مستبدلة ولا تحذف أبدا.",
+        en: "A version is a frozen copy of the document taken when somebody presses Send for review, numbered Rev 1, Rev 2 and so on; editing afterwards does not change what the reviewer sees. The bar under the header names the open version's stage: Draft, Waiting for review, Waiting for approval, Approved, not yet issued, Effective, Sent back with the reason, or Withdrawn, after which nothing more can be done to it. While a version is with its approvers, the bar says how many approval steps are done and offers Open in Approvals. When a version is issued, the one before it is kept as superseded, never deleted.",
+        ar: "النسخة صورة مجمدة من المستند تؤخذ حين يضغط أحدهم زر الإرسال للمراجعة، وترقم Rev 1 ثم Rev 2 وهكذا؛ والتعديل بعدها لا يغير ما يراه المراجع. ويسمي الشريط تحت الرأس مرحلة النسخة المفتوحة: مسودة، أو بانتظار المراجعة، أو بانتظار الاعتماد، أو معتمدة ولم تصدر، أو سارية، أو أعيدت مع السبب، أو مسحوبة ولا يمكن بعدها فعل شيء بها. وأثناء وجود النسخة لدى المعتمدين يذكر الشريط عدد خطوات الاعتماد المنجزة ويعرض فتح في الموافقات. وحين تصدر نسخة تحفظ التي قبلها كنسخة مستبدلة ولا تحذف أبدا.",
       },
       keywords: ["version", "revision", "Rev", "superseded", "sent back", "نسخة", "مراجعة", "مستبدلة", "أعيدت"],
       related: ["engineering-docs.statuses", "engineering-docs-register.revision"],
@@ -422,8 +424,8 @@ export const engineering: HelpModule = {
       id: "engineering-docs-register.review-due", topic: "dept.engineering-docs-register", kind: "about", open: "engineering-docs",
       q: { en: "How do I know which documents are due for review?", ar: "كيف أعرف المستندات المستحقة للمراجعة؟" },
       a: {
-        en: "The Engineering & Documents home page counts effective documents whose next review date falls in the next 30 days or has passed. No screen sets a next review date today, so only documents given one before the current register will appear there; keep your own review calendar until it can be set. Nothing is sent as a notification either way.",
-        ar: "تحسب الصفحة الرئيسية للهندسة والمستندات المستندات السارية التي يقع تاريخ مراجعتها التالية خلال 30 يوما أو فات. ولا توجد اليوم شاشة تضبط تاريخ المراجعة التالية، فلا يظهر هناك إلا ما أعطي تاريخا قبل السجل الحالي؛ فاحتفظ بجدول مراجعاتك الخاص حتى يصبح ضبطه ممكنا. ولا يرسل أي إشعار في الحالتين.",
+        en: "The Engineering & Documents home page counts effective documents whose next review date falls in the next 30 days or has passed. The date is asked when a version is issued: Issue this revision opens a short window with an optional Next review date. Left empty, the date already set is kept. It cannot be set or changed at any other time, so a document issued without one is not counted until its next version is issued with a date. Nothing is sent as a notification either way.",
+        ar: "تحسب الصفحة الرئيسية للهندسة والمستندات المستندات السارية التي يقع تاريخ مراجعتها التالية خلال 30 يوما أو فات. ويسأل عن التاريخ عند إصدار النسخة: فزر إصدار هذه النسخة يفتح نافذة قصيرة فيها تاريخ المراجعة التالية، وهو اختياري. وإن ترك فارغا يبقى التاريخ المضبوط سابقا. ولا يمكن ضبطه أو تغييره في وقت آخر، فالمستند الذي صدر دونه لا يعد حتى تصدر نسخته التالية بتاريخ. ولا يرسل أي إشعار في الحالتين.",
       },
       keywords: ["review due", "next review", "periodic review", "مراجعة مستحقة", "المراجعة التالية", "مراجعة دورية"],
       related: ["engineering-docs.dashboard-empty", "engineering-docs.dashboard"],
@@ -444,8 +446,9 @@ export const engineering: HelpModule = {
     // and page-setup-menu.tsx (Language, Page size, Margins, Header & footer,
     // Page numbers), in that on-screen order; the store is createDoc and
     // SETUP_FIELDS in src/modules/quality/qualityDocs.ts. QualityDocument in
-    // src/modules/quality/schema.ts declares typeId, reviewer/approver ids and
-    // nextReviewDate, which no screen writes.
+    // src/modules/quality/schema.ts declares typeId and reviewer/approver ids,
+    // which no screen writes, and nextReviewDate, which only the issue dialog
+    // (WorkflowBar) writes — not at creation.
     {
       id: "engineering-docs-register.new-document", topic: "dept.engineering-docs-register", kind: "fields", open: "engineering-docs-register",
       q: { en: "What do I need to create a new document?", ar: "ما الذي أحتاجه لإنشاء مستند جديد؟" },
@@ -587,12 +590,14 @@ export const engineering: HelpModule = {
           "Press Send for review in the bar under the header",
           "The reviewer, then a different approver, answer on the Approvals page",
           "Once the bar reads Approved, not yet issued, press Issue this revision",
+          "Give the next review date if the document has one, and press Issue",
         ],
         ar: [
           "افتح المستند وأكمل المسودة",
           "اضغط زر الإرسال للمراجعة (Send for review) في الشريط تحت الرأس",
           "يجيب المراجع ثم معتمد مختلف من صفحة الموافقات",
           "حين يقول الشريط إنها معتمدة ولم تصدر، اضغط زر إصدار هذه النسخة (Issue this revision)",
+          "أدخل تاريخ المراجعة التالية إن كان للمستند واحد، واضغط أصدر",
         ],
       },
       keywords: ["revision", "review", "approve document", "issue", "publish", "إصدار", "مراجعة", "اعتماد المستند", "نشر"],
@@ -648,12 +653,12 @@ export const engineering: HelpModule = {
       id: "engineering-docs-register.withdraw", topic: "dept.engineering-docs-register", kind: "howto", open: "engineering-docs-register",
       q: { en: "How do I withdraw a document that is no longer used?", ar: "كيف أسحب مستندا لم يعد مستخدما؟" },
       a: {
-        en: "Open the effective document and press Withdraw the document. It happens at once, with no confirmation and no reason asked, so be sure first. The document becomes Obsolete and stays in the register with every version it had, so what was in force can still be read. Withdrawing needs its own right, separate from editing, and a withdrawn document cannot be revised again.",
-        ar: "افتح المستند الساري واضغط زر سحب المستند (Withdraw the document). ويحدث ذلك فورا دون تأكيد ودون سؤال عن السبب، فتأكد قبل الضغط. فيصبح المستند ملغى ويبقى في السجل بكل نسخه، فيمكن قراءة ما كان ساريا. ويتطلب السحب صلاحية خاصة به منفصلة عن التعديل، ولا يمكن إصدار نسخة جديدة من مستند مسحوب.",
+        en: "Open the effective document and press Withdraw the document, then confirm. No reason is asked, and it cannot be undone. The document becomes Obsolete and stays in the register with every version it had, so what was in force can still be read; it can no longer be edited, sent for review, issued or deleted. Withdrawing needs its own right, separate from editing. A layout the studio has chosen for its quotations or invoices cannot be withdrawn: choose another layout first.",
+        ar: "افتح المستند الساري واضغط زر سحب المستند (Withdraw the document)، ثم أكد. ولا يسأل عن السبب، ولا يمكن التراجع عن ذلك. فيصبح المستند ملغى ويبقى في السجل بكل نسخه، فيمكن قراءة ما كان ساريا؛ ولا يمكن بعدها تعديله ولا إرساله للمراجعة ولا إصداره ولا حذفه. ويتطلب السحب صلاحية خاصة به منفصلة عن التعديل. ولا يمكن سحب قالب اختاره الاستوديو لعروض أسعاره أو فواتيره: اختر قالبا آخر أولا.",
       },
       steps: {
-        en: ["Open the effective document", "Check it is the right one", "Press Withdraw the document"],
-        ar: ["افتح المستند الساري", "تأكد أنه المستند الصحيح", "اضغط زر سحب المستند"],
+        en: ["Open the effective document", "Check it is the right one", "Press Withdraw the document", "Confirm"],
+        ar: ["افتح المستند الساري", "تأكد أنه المستند الصحيح", "اضغط زر سحب المستند", "أكد"],
       },
       keywords: ["withdraw", "obsolete", "retire document", "سحب المستند", "ملغى", "إلغاء مستند", "مستند متقادم"],
       related: ["engineering-docs-register.cannot-delete", "engineering-docs-register.withdrawn"],
@@ -662,12 +667,12 @@ export const engineering: HelpModule = {
       id: "engineering-docs-register.delete", topic: "dept.engineering-docs-register", kind: "howto", open: "engineering-docs-register",
       q: { en: "How do I delete a document?", ar: "كيف أحذف مستندا؟" },
       a: {
-        en: "Only somebody with the right to delete documents sees the bin on the register's list. Deleting removes the document and all its versions at once, with no confirmation, and cannot be undone; its code is never given out again. An effective document is refused, and should be withdrawn instead.",
-        ar: "لا يرى السلة في قائمة السجل إلا من يملك صلاحية حذف المستندات. ويزيل الحذف المستند وكل نسخه فورا، دون تأكيد، ولا يمكن التراجع عنه؛ ولا يعطى رمزه لغيره أبدا. ويرفض حذف المستند الساري، ويجب سحبه بدلا من ذلك.",
+        en: "Only a document that has never been issued can be deleted, and only somebody with the right to delete documents sees the bin, which appears on those rows alone. Deleting asks for confirmation, then removes the document and any unissued versions, and cannot be undone; its code is never given out again. A document that was ever issued, withdrawn or not, stays: withdraw it instead.",
+        ar: "لا يحذف إلا مستند لم يصدر قط، ولا يرى السلة إلا من يملك صلاحية حذف المستندات، وتظهر على تلك الصفوف وحدها. ويسأل الحذف عن التأكيد ثم يزيل المستند وأي نسخ لم تصدر، ولا يمكن التراجع عنه؛ ولا يعطى رمزه لغيره أبدا. أما المستند الذي صدر يوما، مسحوبا أو غير مسحوب، فيبقى: اسحبه بدلا من ذلك.",
       },
       steps: {
-        en: ["Open the Document register", "Find the document on the list", "Press the bin on its row"],
-        ar: ["افتح سجل المستندات", "جد المستند في القائمة", "اضغط السلة في صفه"],
+        en: ["Open the Document register", "Find the document on the list", "Press the bin on its row", "Confirm"],
+        ar: ["افتح سجل المستندات", "جد المستند في القائمة", "اضغط السلة في صفه", "أكد"],
       },
       keywords: ["delete document", "remove draft", "bin", "حذف مستند", "إزالة مسودة", "سلة"],
       related: ["engineering-docs-register.cannot-delete", "engineering-docs-register.withdraw"],
@@ -768,8 +773,8 @@ export const engineering: HelpModule = {
       id: "engineering-docs-register.withdrawn", topic: "dept.engineering-docs-register", kind: "troubleshoot", open: "engineering-docs-register",
       q: { en: "Why can't I draft a new version of a withdrawn document?", ar: "لماذا لا أستطيع كتابة نسخة جديدة من مستند مسحوب؟" },
       a: {
-        en: "Withdrawing is final: the document is Obsolete and is kept only as a record of what was once in force. If the subject is needed again, start a new document with New document; it gets a new code.",
-        ar: "السحب نهائي: فالمستند ملغى ويحفظ فقط كسجل لما كان ساريا يوما. وإن احتيج الموضوع مجددا، فابدأ مستندا جديدا بزر وثيقة جديدة، وسيأخذ رمزا جديدا.",
+        en: "Withdrawing is final: the document is Obsolete and is kept only as a record of what was once in force. Nothing on it can be edited, sent for review, issued or deleted, and a version left open on it cannot be answered on the Approvals page. If the subject is needed again, start a new document with New document; it gets a new code.",
+        ar: "السحب نهائي: فالمستند ملغى ويحفظ فقط كسجل لما كان ساريا يوما. فلا يمكن تعديل شيء فيه ولا إرساله للمراجعة ولا إصداره ولا حذفه، ولا يمكن الإجابة في صفحة الموافقات عن نسخة بقيت مفتوحة عليه. وإن احتيج الموضوع مجددا، فابدأ مستندا جديدا بزر وثيقة جديدة، وسيأخذ رمزا جديدا.",
       },
       keywords: ["withdrawn", "obsolete", "reinstate", "مسحوب", "ملغى", "إعادة تفعيل"],
       related: ["engineering-docs-register.withdraw"],
@@ -778,8 +783,8 @@ export const engineering: HelpModule = {
       id: "engineering-docs-register.cannot-delete", topic: "dept.engineering-docs-register", kind: "troubleshoot", open: "engineering-docs-register",
       q: { en: "Why can't I delete a document?", ar: "لماذا لا أستطيع حذف مستند؟" },
       a: {
-        en: "An issued document cannot be deleted: withdraw it instead, so the record of what was in force survives. This holds while a next version is being written over it too. Drafts, documents still in review and withdrawn documents are not protected this way, so anybody with the right to delete documents can remove them; give that right sparingly.",
-        ar: "لا يمكن حذف مستند صادر: اسحبه بدلا من ذلك، حتى يبقى سجل ما كان ساريا. ويبقى ذلك قائما أثناء كتابة نسخة تالية عليه أيضا. أما المسودات والمستندات قيد المراجعة والمستندات المسحوبة فلا تحمى بهذه الطريقة، فيستطيع كل من يملك صلاحية حذف المستندات إزالتها؛ فامنح هذه الصلاحية بحذر.",
+        en: "A document that was ever issued cannot be deleted, and that includes a withdrawn one: the versions people worked to are the record, so withdraw it instead. A layout the studio has chosen for its quotations or invoices cannot be deleted either; choose another layout first. Only a document that never issued a version, a draft or one still in review, can be deleted by somebody with the right to delete documents, so give that right sparingly.",
+        ar: "لا يمكن حذف مستند صدر يوما، ومنه المستند المسحوب: فالنسخ التي عمل الناس بموجبها هي السجل، فاسحبه بدلا من ذلك. ولا يمكن كذلك حذف قالب اختاره الاستوديو لعروض أسعاره أو فواتيره؛ فاختر قالبا آخر أولا. ولا يحذف إلا مستند لم تصدر منه نسخة قط، مسودة أو قيد المراجعة، ويحذفه من يملك صلاحية حذف المستندات، فامنح هذه الصلاحية بحذر.",
       },
       keywords: ["delete document", "cannot delete", "controlled", "حذف مستند", "لا أستطيع الحذف", "خاضع للرقابة"],
       related: ["engineering-docs-register.withdraw", "engineering-docs-register.delete"],
@@ -892,8 +897,8 @@ export const engineering: HelpModule = {
       id: "engineering-docs-register.layout-refused", topic: "dept.engineering-docs-layouts", kind: "troubleshoot", open: "engineering-docs-register",
       q: { en: "Why can't I choose this layout, or set Layout for?", ar: "لماذا لا أستطيع اختيار هذا القالب أو ضبط قالب لـ؟" },
       a: {
-        en: "A layout that has never been issued cannot be chosen, and the choice needs the right to edit Studio settings. Layout for is locked on an issued document until a next version is opened, and binding a layout to quotations or invoices needs the right to view them, because a layout must not become a way to read records you cannot open. A layout that was chosen and then withdrawn or deleted leaves nothing to print from until another is chosen.",
-        ar: "لا يمكن اختيار قالب لم يصدر قط، ويحتاج الاختيار صلاحية تعديل إعدادات الاستوديو. ويقفل خيار قالب لـ على المستند الصادر حتى تفتح نسخة تالية، ويحتاج ربط القالب بعروض الأسعار أو الفواتير صلاحية عرضها، لأن القالب يجب ألا يصبح وسيلة لقراءة سجلات لا تستطيع فتحها. والقالب المختار الذي سحب أو حذف بعد ذلك لا يترك شيئا للطباعة منه حتى يختار غيره.",
+        en: "A layout that has never been issued cannot be chosen, and the choice needs the right to edit Studio settings. Layout for is locked on an issued document until a next version is opened, and binding a layout to quotations or invoices needs the right to view them, because a layout must not become a way to read records you cannot open. A chosen layout cannot be withdrawn or deleted, because printing would have nothing to print from: choose another layout, or Stop using this one, first.",
+        ar: "لا يمكن اختيار قالب لم يصدر قط، ويحتاج الاختيار صلاحية تعديل إعدادات الاستوديو. ويقفل خيار قالب لـ على المستند الصادر حتى تفتح نسخة تالية، ويحتاج ربط القالب بعروض الأسعار أو الفواتير صلاحية عرضها، لأن القالب يجب ألا يصبح وسيلة لقراءة سجلات لا تستطيع فتحها. ولا يمكن سحب القالب المختار أو حذفه، لأن الطباعة لن تجد ما تطبع منه: فاختر قالبا آخر، أو أوقف استخدام هذا القالب، أولا.",
       },
       keywords: ["cannot choose layout", "layout locked", "no right", "لا أستطيع اختيار القالب", "القالب مقفل", "لا صلاحية"],
       related: ["engineering-docs-register.layout-choose", "engineering-docs-register.one-person"],

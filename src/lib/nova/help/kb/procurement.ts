@@ -16,14 +16,14 @@ import type { HelpModule } from "../types";
 // (moveRequisition); approving one is not a right at all any more — the people
 // in Approval settings answer it on the Approvals page, and the owner or an
 // Admin stays on their own steps (planFor in modules/approvals/model); a
-// requisition never reaches the status Ordered — it keeps reading Approved and
-// the row adds "Ordered as" (the status is declared and written by nothing);
-// no screen edits, prices or deletes a purchase order, so "correct the prices
-// on the draft order" was advice nobody could follow; Expediting is ONE list,
-// most late first, under four figures, not four groups; the supplier-quote
-// screen shows no cheapest-per-line and has no "from requisition" picker, and
-// its Edit button goes once a request is sent, so suppliers cannot be added
-// afterwards on screen (the API allows both); a goods receipt cannot be
+// requisition's "Ordered" is DERIVED from a live order and never stored (it
+// was declared and written by nothing until 27/09/2026, when it left the stored
+// ladder), so cancelling the order reads it Approved again; no screen edits,
+// prices or deletes a purchase order, so "correct the prices on the draft
+// order" was advice nobody could follow; Expediting is ONE list, most late
+// first, under four figures, not four groups; since 27/09/2026 the
+// supplier-quote screen shows the cheapest supplier per line, offers "From
+// requisition" on a new request and "Add suppliers" on a sent one; a goods receipt cannot be
 // CORRECTED from the Receiving screen (receiveOrder accepts `correctionOf`, the
 // Book in dialog never sends one); and supplier documents answer to the right
 // to approve a supplier for use, not to the edit right (saveSupplierDocuments).
@@ -206,7 +206,7 @@ export const procurement: HelpModule = {
       },
       steps: {
         en: [
-          "In Studio settings, set the studio's currency, because requisition approvals are judged in it",
+          "In Studio settings, set the studio's currency, the money estimates, orders and approval limits are written in; requisitions do not wait on it",
           "In Suppliers, add the companies you buy from, or import them from a CSV file, and assess the ones you have checked",
           "In Inventory, register the items you buy, with a supplier and a unit cost, because only lines naming a registered item can become a purchase order",
           "In Projects, give each project its cost codes, so requests, orders and subcontracts can be filed against a budget line",
@@ -215,7 +215,7 @@ export const procurement: HelpModule = {
           "Optionally, in Master data under Numbering, change the PR, SRQ, SC, PO and GRN prefixes",
         ],
         ar: [
-          "في إعدادات الاستوديو، حدد عملة الاستوديو، لأن اعتماد طلبات الشراء يُقاس بها",
+          "في إعدادات الاستوديو، حدد عملة الاستوديو، وهي المال الذي تُكتب به التقديرات والأوامر وحدود الاعتماد؛ ولا تنتظرها طلبات الشراء",
           "في الموردين، أضف الشركات التي تشتري منها أو استوردها من ملف CSV، وقيّم من تحققت منهم",
           "في المخزون، سجّل الأصناف التي تشتريها مع موردها وتكلفة وحدتها، لأن البنود التي تسمّي صنفًا مسجلًا هي وحدها التي تصير أمر شراء",
           "في المشاريع، أعطِ كل مشروع رموز تكلفته، لتُقيَّد الطلبات والأوامر وعقود الباطن على بند من الميزانية",
@@ -271,8 +271,8 @@ export const procurement: HelpModule = {
       id: "procurement.short-refusals", topic: "dept.procurement", kind: "troubleshoot", open: "procurement-requisitions",
       q: { en: "Why does a refusal show a single word such as vendor or in-use?", ar: "لماذا يظهر الرفض بكلمة واحدة مثل vendor أو in-use؟" },
       a: {
-        en: "A few refusals reach the screen as the word the system uses rather than a sentence. On Requisitions, vendor means the request names no expected supplier, so the order has nobody to go to; supplier-suspended, supplier-rejected and supplier-document-expired mean that supplier is blocked or has an expired document; and project means the project has been removed. On Suppliers, name means the name is empty, duplicate means that name is already on the list, and in-use means an item or an order still names that supplier. On Purchase orders, any refusal is shown the same way.",
-        ar: "تصل بعض حالات الرفض إلى الشاشة بالكلمة التي يستخدمها النظام بدل جملة. ففي طلبات الشراء تعني vendor أن الطلب لا يسمّي موردًا متوقعًا، فلا جهة يصدر إليها الأمر؛ وتعني supplier-suspended وsupplier-rejected وsupplier-document-expired أن ذلك المورد موقوف أو انتهت صلاحية أحد مستنداته؛ وتعني project أن المشروع حُذف. وفي الموردين تعني name أن الاسم فارغ، وduplicate أن الاسم موجود في القائمة، وin-use أن صنفًا أو أمرًا ما زال يسمّي ذلك المورد. وفي أوامر الشراء يظهر أي رفض بالطريقة نفسها.",
+        en: "Refusals on Requisitions, Purchase orders, Suppliers, Supplier quotes and Subcontracts are now written as sentences, in English and Arabic: for example that the request names no supplier, that the supplier is suspended or its paperwork has expired, that the project was removed, that a supplier with that name already exists, or that an item or order still names the supplier. If a single word such as vendor or in-use still appears, the screen has met a refusal it has no sentence for; tell whoever supports your studio which screen and which word.",
+        ar: "تُكتب حالات الرفض في طلبات الشراء وأوامر الشراء والموردين وعروض الموردين وعقود الباطن الآن جملًا بالعربية والإنجليزية: مثل أن الطلب لا يسمّي موردًا، أو أن المورد موقوف أو انتهت صلاحية أوراقه، أو أن المشروع حُذف، أو أن موردًا بهذا الاسم موجود، أو أن صنفًا أو أمرًا ما زال يسمّي المورد. وإن ظهرت كلمة واحدة مثل vendor أو in-use فقد صادفت الشاشة رفضًا لا جملة له؛ فأخبر من يدعم الاستوديو بالشاشة والكلمة.",
       },
       keywords: ["vendor", "in-use", "duplicate", "error word", "refusal code", "رسالة خطأ", "رمز الرفض", "كلمة واحدة"],
       related: ["procurement-requisitions.order-refused", "procurement-suppliers.cannot-remove"],
@@ -303,8 +303,8 @@ export const procurement: HelpModule = {
       id: "procurement-requisitions.statuses", topic: "dept.procurement-requisitions", kind: "about", open: "procurement-requisitions",
       q: { en: "What do a requisition's statuses mean?", ar: "ماذا تعني حالات طلب الشراء؟" },
       a: {
-        en: "Draft means it is still being written and nobody has been asked. Submitted means it is waiting on its approval, and the row shows how many steps have said yes, with Open in Approvals beside it. Approved means the last step said yes, Rejected means somebody said no, with their reason on the row, and Cancelled means somebody withdrew it. Once an order is made from an approved request, the row adds Ordered as and the order number, with not placed yet while that order is still a draft; the request itself keeps reading Approved.",
-        ar: "«مسودة» تعني أنه ما زال قيد الكتابة ولم يُسأل أحد. و«مرسل» يعني أنه ينتظر اعتماده، ويبين الصف عدد الخطوات التي وافقت، وبجانبه «فتح في الموافقات». و«معتمد» يعني أن الخطوة الأخيرة وافقت، و«مرفوض» يعني أن أحدهم رفضه مع ذكر سببه في الصف، و«ملغى» يعني أن أحدهم سحبه. وحين يُنشأ أمر من طلب معتمد، يضيف الصف «صدر به الأمر» ورقم الأمر، مع «لم يصدر بعد» ما دام ذلك الأمر مسودة؛ ويبقى الطلب نفسه «معتمدًا».",
+        en: "Draft means it is still being written and nobody has been asked. Submitted means it is waiting on its approval, and the row shows how many steps have said yes, with Open in Approvals beside it. Approved means the last step said yes, Rejected means somebody said no, with their reason on the row, and Cancelled means somebody withdrew it. Once a purchase order is made from an approved request the row reads Ordered and adds Ordered as and the order number, with not placed yet while that order is still a draft. Ordered is worked out from the order and is not stored: if that order is cancelled, the request reads Approved again and a new order can be made from it.",
+        ar: "«مسودة» تعني أنه ما زال قيد الكتابة ولم يُسأل أحد. و«مرسل» يعني أنه ينتظر اعتماده، ويبين الصف عدد الخطوات التي وافقت، وبجانبه «فتح في الموافقات». و«معتمد» يعني أن الخطوة الأخيرة وافقت، و«مرفوض» يعني أن أحدهم رفضه مع ذكر سببه في الصف، و«ملغى» يعني أن أحدهم سحبه. وحين يُنشأ أمر شراء من طلب معتمد يصبح الصف «صدر به أمر شراء» ويضيف رقم الأمر، مع «لم يصدر بعد» ما دام ذلك الأمر مسودة. وتُستنتج هذه الحالة من الأمر ولا تُخزَّن: فإن أُلغي ذلك الأمر عاد الطلب «معتمدًا» وأمكن إنشاء أمر جديد منه.",
       },
       keywords: ["requisition status", "draft", "submitted", "approved", "rejected", "حالة الطلب", "مسودة", "مرسل", "معتمد", "مرفوض"],
       related: ["procurement-requisitions.submit", "procurement-requisitions.to-order"],
@@ -410,8 +410,8 @@ export const procurement: HelpModule = {
       id: "procurement-requisitions.withdraw", topic: "dept.procurement-requisitions", kind: "howto", open: "procurement-requisitions",
       q: { en: "How do I withdraw, correct or delete a requisition?", ar: "كيف أسحب طلب شراء أو أصححه أو أحذفه؟" },
       a: {
-        en: "Only a draft can be corrected: press Edit, change it and save. Press Withdraw to cancel a request that is a draft, submitted or approved; it becomes Cancelled and cannot come back, so raise a new one if it is still needed. Delete is offered only on a draft and needs the right to delete requisitions, because anything submitted records a decision and is withdrawn instead. Editing and withdrawing need the right to edit requisitions.",
-        ar: "لا تُصحَّح إلا المسودة: اضغط «تعديل» وغيّرها واحفظ. واضغط «سحب الطلب» لإلغاء طلب في حالة مسودة أو مرسل أو معتمد؛ فيصبح «ملغى» ولا يعود، فارفع طلبًا جديدًا إن كان الشيء ما زال مطلوبًا. ولا يُعرض «حذف» إلا على المسودة ويحتاج إلى صلاحية حذف طلبات الشراء، لأن ما أُرسل يسجل قرارًا فيُسحب بدل أن يُحذف. ويحتاج التعديل والسحب إلى صلاحية تعديل طلبات الشراء.",
+        en: "Only a draft can be corrected: press Edit, change it and save. Press Withdraw to cancel a request that is a draft, submitted or approved; it becomes Cancelled and cannot come back, so raise a new one if it is still needed. Once a purchase order has been made from the request, Withdraw is no longer offered, because the order is what the request authorised; cancel the order on Purchase orders first. Delete is offered only on a draft and needs the right to delete requisitions. Editing and withdrawing need the right to edit requisitions.",
+        ar: "لا تُصحَّح إلا المسودة: اضغط «تعديل» وغيّرها واحفظ. واضغط «سحب الطلب» لإلغاء طلب في حالة مسودة أو مرسل أو معتمد؛ فيصبح «ملغى» ولا يعود، فارفع طلبًا جديدًا إن كان الشيء ما زال مطلوبًا. وبمجرد إنشاء أمر شراء من الطلب لا يعود «سحب الطلب» معروضًا، لأن الأمر هو ما أجازه الطلب؛ فألغ الأمر أولًا من أوامر الشراء. ولا يُعرض «حذف» إلا على المسودة ويحتاج إلى صلاحية حذف طلبات الشراء. ويحتاج التعديل والسحب إلى صلاحية تعديل طلبات الشراء.",
       },
       steps: {
         en: [
@@ -434,8 +434,8 @@ export const procurement: HelpModule = {
       id: "procurement-requisitions.to-order", topic: "dept.procurement-requisitions", kind: "howto", open: "procurement-requisitions", common: true,
       q: { en: "How do I turn an approved requisition into a purchase order?", ar: "كيف أحوّل طلب شراء معتمدًا إلى أمر شراء؟" },
       a: {
-        en: "On the approved request's row press Create purchase order, which needs Inventory's right to create stock. It writes a draft purchase order to the expected supplier, for the same project and cost code, carrying the lines that name a registered item, each priced at its estimate. Then press Place order on the same row, which needs Inventory's right to edit stock; only a placed order reaches Expediting and Receiving. A request becomes one order, once.",
-        ar: "في صف الطلب المعتمد اضغط «إنشاء أمر شراء»، ويحتاج ذلك إلى صلاحية الإنشاء في المخزون. فيُكتب أمر شراء مسودة للمورد المتوقع، للمشروع ورمز التكلفة نفسيهما، يحمل البنود التي تسمّي صنفًا مسجلًا، مسعّرًا كل منها بتقديره. ثم اضغط «إصدار الأمر» في الصف نفسه، ويحتاج ذلك إلى صلاحية التعديل في المخزون؛ ولا يصل إلى متابعة التوريد والاستلام إلا الأمر الصادر. ويتحول الطلب إلى أمر واحد، مرة واحدة.",
+        en: "On the approved request's row press Create purchase order, which needs Inventory's right to create stock. It writes a draft purchase order to the expected supplier, for the same project and cost code, carrying the lines that name a registered item, each priced at its estimate. Then press Place order on the same row, which needs Inventory's right to edit stock; only a placed order reaches Expediting and Receiving. A request has one live order at a time; cancelling that order frees the request for a new one.",
+        ar: "في صف الطلب المعتمد اضغط «إنشاء أمر شراء»، ويحتاج ذلك إلى صلاحية الإنشاء في المخزون. فيُكتب أمر شراء مسودة للمورد المتوقع، للمشروع ورمز التكلفة نفسيهما، يحمل البنود التي تسمّي صنفًا مسجلًا، مسعّرًا كل منها بتقديره. ثم اضغط «إصدار الأمر» في الصف نفسه، ويحتاج ذلك إلى صلاحية التعديل في المخزون؛ ولا يصل إلى متابعة التوريد والاستلام إلا الأمر الصادر. وللطلب أمر قائم واحد في كل مرة؛ وإلغاء ذلك الأمر يحرر الطلب لأمر جديد.",
       },
       steps: {
         en: [
@@ -492,8 +492,8 @@ export const procurement: HelpModule = {
       id: "procurement-requisitions.cannot-submit", topic: "dept.procurement-requisitions", kind: "troubleshoot", open: "procurement-requisitions",
       q: { en: "Why can't I submit or edit my requisition?", ar: "لماذا لا أستطيع إرسال طلب الشراء أو تعديله؟" },
       a: {
-        en: "Only a draft can be changed or submitted; withdraw a submitted one and raise a new one. Submitting is refused when nobody has been named to approve requisitions, or when you are the only person on a step, since nobody answers their own request; the owner or an Admin fixes both in Approval settings. A request with no lines is refused, and a fully estimated one needs the studio's currency set in Studio settings, because an amount cannot be judged against a limit without one.",
-        ar: "لا تُغيَّر ولا تُرسل إلا المسودة؛ اسحب الطلب المرسل وارفع طلبًا جديدًا. ويُرفض الإرسال إذا لم يُسمَّ أحد لاعتماد طلبات الشراء، أو إذا كنت الشخص الوحيد في إحدى الخطوات، إذ لا يجيب أحد عن طلبه؛ ويعالج المالك أو المسؤول الحالتين في إعدادات الموافقات. ويُرفض الطلب الذي لا بنود فيه، ويحتاج الطلب المقدَّر بالكامل إلى تحديد عملة الاستوديو في إعدادات الاستوديو، لأن المبلغ لا يُقاس على حد بغير عملة.",
+        en: "Only a draft can be changed or submitted; withdraw a submitted one and raise a new one. Submitting is refused when nobody has been named to approve requisitions, or when you are the only person on a step, since nobody answers their own request; the owner or an Admin fixes both in Approval settings. A request with no lines is refused. The studio's currency does not need to be set: a request's estimates are always in the studio's own money, so its amount is compared with the step limits as it stands.",
+        ar: "لا تُغيَّر ولا تُرسل إلا المسودة؛ اسحب الطلب المرسل وارفع طلبًا جديدًا. ويُرفض الإرسال إذا لم يُسمَّ أحد لاعتماد طلبات الشراء، أو إذا كنت الشخص الوحيد في إحدى الخطوات، إذ لا يجيب أحد عن طلبه؛ ويعالج المالك أو المسؤول الحالتين في إعدادات الموافقات. ويُرفض الطلب الذي لا بنود فيه. ولا يلزم تحديد عملة الاستوديو: فتقديرات الطلب دائمًا بمال الاستوديو نفسه، فيُقارن مبلغه بحدود الخطوات كما هو.",
       },
       keywords: ["cannot submit", "no approver", "not configured", "only a draft", "لا يمكن الإرسال", "لا يوجد معتمد", "مسودة فقط", "عملة الاستوديو"],
       related: ["procurement-requisitions.who-approves", "admin.approvals.not-configured", "admin.settings.currency"],
@@ -502,8 +502,8 @@ export const procurement: HelpModule = {
       id: "procurement-requisitions.not-an-order", topic: "dept.procurement-requisitions", kind: "troubleshoot", open: "procurement-requisitions",
       q: { en: "Why can't this requisition become an order?", ar: "لماذا لا يمكن تحويل طلب الشراء هذا إلى أمر شراء؟" },
       a: {
-        en: "Only an approved request becomes an order, and only once; one already converted shows Ordered as with its order number, and even cancelling that order does not free the request. A purchase order moves stock, so only lines naming a registered item are carried over, and a request made only of free-text lines is refused rather than producing an empty order. Buying services or unregistered items has no path to a purchase order yet; register the item in Inventory and raise a new request that names it.",
-        ar: "لا يتحول إلى أمر إلا الطلب المعتمد، ومرة واحدة فقط؛ والطلب الذي تحول يظهر عليه «صدر به الأمر» مع رقم الأمر، وحتى إلغاء ذلك الأمر لا يحرر الطلب. ولأن أمر الشراء يحرّك المخزون فلا تنتقل إليه إلا البنود التي تسمّي صنفًا مسجلًا، ويُرفض الطلب المكون من بنود نصية حرة فقط بدل أن ينتج أمرًا فارغًا. ولا يوجد حتى الآن طريق لشراء الخدمات أو الأصناف غير المسجلة عبر أمر شراء؛ سجّل الصنف في المخزون وارفع طلبًا جديدًا يسمّيه.",
+        en: "Only an approved request becomes an order, and only one live order at a time; one already converted reads Ordered with its order number. If that order is cancelled, the request is freed and reads Approved again, so a corrected order can be made from it. A purchase order moves stock, so only lines naming a registered item are carried over, and a request made only of free-text lines is refused rather than producing an empty order. Buying services or unregistered items has no path to a purchase order yet; register the item in Inventory and raise a new request that names it.",
+        ar: "لا يتحول إلى أمر إلا الطلب المعتمد، ولا يكون له إلا أمر قائم واحد في كل مرة؛ والطلب الذي تحول يظهر «صدر به أمر شراء» مع رقم الأمر. وإن أُلغي ذلك الأمر تحرر الطلب وعاد «معتمدًا»، فيمكن إنشاء أمر مصحح منه. ولأن أمر الشراء يحرّك المخزون فلا تنتقل إليه إلا البنود التي تسمّي صنفًا مسجلًا، ويُرفض الطلب المكون من بنود نصية حرة فقط بدل أن ينتج أمرًا فارغًا. ولا يوجد حتى الآن طريق لشراء الخدمات أو الأصناف غير المسجلة عبر أمر شراء؛ سجّل الصنف في المخزون وارفع طلبًا جديدًا يسمّيه.",
       },
       keywords: ["cannot convert", "free text", "services", "registered item", "already ordered", "لا يمكن التحويل", "نص حر", "خدمات", "صنف مسجل"],
       related: ["procurement-requisitions.to-order", "procurement-requisitions.order-refused"],
@@ -512,8 +512,8 @@ export const procurement: HelpModule = {
       id: "procurement-requisitions.order-refused", topic: "dept.procurement-requisitions", kind: "troubleshoot", open: "procurement-requisitions",
       q: { en: "Why does Create purchase order refuse my approved request?", ar: "لماذا يرفض زر «إنشاء أمر شراء» طلبي المعتمد؟" },
       a: {
-        en: "The order is made out to the request's expected supplier, so a request that names none is refused with the word vendor; raise a new request naming the supplier. It is also refused when that supplier has since been suspended or rejected, or has a document that has expired, which shows as supplier followed by the reason; sort it out in Suppliers and press again. A project removed since the request was raised is refused with the word project.",
-        ar: "يصدر الأمر للمورد المتوقع في الطلب، فالطلب الذي لا يسمّي موردًا يُرفض بكلمة vendor؛ فارفع طلبًا جديدًا يسمّي المورد. ويُرفض كذلك إذا أُوقف ذلك المورد أو رُفض منذ ذلك الحين، أو انتهت صلاحية أحد مستنداته، ويظهر ذلك بكلمة supplier يليها السبب؛ فعالج الأمر في الموردين ثم اضغط من جديد. أما المشروع الذي حُذف بعد رفع الطلب فيُرفض بكلمة project.",
+        en: "The order is made out to the request's expected supplier, so a request that names none is refused and the screen says to pick a supplier from the register; raise a new request naming the supplier. It is also refused when that supplier has since been suspended or rejected, or has a document that has expired, and the screen says which; sort it out in Suppliers and press again. A project removed since the request was raised is refused too, and so is a request that already has a live order.",
+        ar: "يصدر الأمر للمورد المتوقع في الطلب، فالطلب الذي لا يسمّي موردًا يُرفض وتطلب الشاشة اختيار مورد من السجل؛ فارفع طلبًا جديدًا يسمّي المورد. ويُرفض كذلك إذا أُوقف ذلك المورد أو رُفض منذ ذلك الحين، أو انتهت صلاحية أحد مستنداته، وتذكر الشاشة أي ذلك؛ فعالج الأمر في الموردين ثم اضغط من جديد. ويُرفض أيضًا إن حُذف المشروع بعد رفع الطلب، أو إن كان للطلب أمر قائم بالفعل.",
       },
       keywords: ["create purchase order refused", "vendor", "no supplier", "supplier blocked", "رفض إنشاء الأمر", "بلا مورد", "مورد موقوف", "vendor"],
       related: ["procurement.short-refusals", "procurement-orders.blocked-supplier"],
@@ -554,8 +554,8 @@ export const procurement: HelpModule = {
       id: "procurement-orders.statuses", topic: "dept.procurement-orders", kind: "about", open: "procurement-orders",
       q: { en: "What do a purchase order's statuses mean?", ar: "ماذا تعني حالات أمر الشراء؟" },
       a: {
-        en: "Draft means the order has been created from a requisition but not placed with anybody; Expediting and Receiving do not show it and nothing can be booked in against it. Ordered means it has been placed. Partly received and Received follow by themselves as goods are booked in, and are never set by hand. Cancelled means somebody withdrew it.",
-        ar: "«مسودة» تعني أن الأمر أُنشئ من طلب شراء لكنه لم يصدر لأحد؛ فلا تعرضه متابعة التوريد ولا الاستلام ولا يمكن تقييد استلام عليه. و«صادر» يعني أنه صدر. و«مستلم جزئيًّا» و«مستلم» تأتيان من تلقاء نفسيهما كلما قُيِّد استلام، ولا تُضبطان يدويًّا أبدًا. و«ملغى» يعني أن أحدهم سحبه.",
+        en: "Draft means the order has been created from a requisition but not placed with anybody; Expediting and Receiving do not show it and nothing can be booked in against it. Ordered means it has been placed, and it cannot go back to Draft. Partly received and Received follow by themselves as goods are booked in, and are never set by hand. Cancelled means somebody withdrew it, and a cancelled order cannot be reopened; a new need is a new order.",
+        ar: "«مسودة» تعني أن الأمر أُنشئ من طلب شراء لكنه لم يصدر لأحد؛ فلا تعرضه متابعة التوريد ولا الاستلام ولا يمكن تقييد استلام عليه. و«صادر» يعني أنه صدر، ولا يعود مسودة. و«مستلم جزئيًّا» و«مستلم» تأتيان من تلقاء نفسيهما كلما قُيِّد استلام، ولا تُضبطان يدويًّا أبدًا. و«ملغى» يعني أن أحدهم سحبه، ولا يُعاد فتح الأمر الملغى؛ فالحاجة الجديدة أمر جديد.",
       },
       keywords: ["order status", "draft", "ordered", "partly received", "received", "حالة الأمر", "مسودة", "صادر", "مستلم جزئيا", "مستلم"],
       related: ["procurement-orders.place", "procurement-orders.not-on-expediting"],
@@ -564,8 +564,8 @@ export const procurement: HelpModule = {
       id: "procurement-orders.place", topic: "dept.procurement-orders", kind: "howto", open: "procurement-orders", common: true,
       q: { en: "How do I place or cancel a purchase order?", ar: "كيف أصدر أمر شراء أو ألغيه؟" },
       a: {
-        en: "Find the order and press Place order on a draft, which moves it to Ordered so Expediting and Receiving expect it; the same button is on the requisition's row. Press Cancel to withdraw a draft or placed order; once anything has been booked in against it, Cancel is no longer offered. Neither asks for a reason, and both need Inventory's right to edit stock.",
-        ar: "ابحث عن الأمر واضغط «إصدار الأمر» على المسودة، فينتقل إلى «صادر» وتنتظره متابعة التوريد والاستلام؛ والزر نفسه موجود في صف طلب الشراء. واضغط «إلغاء» لسحب أمر مسودة أو صادر؛ وبمجرد تقييد أي استلام عليه لا يعود «إلغاء» معروضًا. ولا يطلب أي منهما سببًا، ويحتاج كلاهما إلى صلاحية التعديل في المخزون.",
+        en: "Find the order and press Place order on a draft, which moves it to Ordered so Expediting and Receiving expect it; the same button is on the requisition's row. Placing checks the supplier again, so a supplier suspended, rejected or with expired paperwork since the draft was written is refused. Press Cancel to withdraw a draft or placed order; once anything has been booked in against it, Cancel is no longer offered and the order is refused if asked. A cancelled order frees its requisition for a new order. Neither asks for a reason, and both need Inventory's right to edit stock.",
+        ar: "ابحث عن الأمر واضغط «إصدار الأمر» على المسودة، فينتقل إلى «صادر» وتنتظره متابعة التوريد والاستلام؛ والزر نفسه موجود في صف طلب الشراء. ويعيد الإصدار فحص المورد، فيُرفض إن أُوقف المورد أو رُفض أو انتهت أوراقه منذ كتابة المسودة. واضغط «إلغاء» لسحب أمر مسودة أو صادر؛ وبمجرد تقييد أي استلام عليه لا يعود «إلغاء» معروضًا ويُرفض الطلب إن أُرسل. والأمر الملغى يحرر طلب الشراء لأمر جديد. ولا يطلب أي منهما سببًا، ويحتاج كلاهما إلى صلاحية التعديل في المخزون.",
       },
       steps: {
         en: [
@@ -596,8 +596,8 @@ export const procurement: HelpModule = {
       id: "procurement-orders.blocked-supplier", topic: "dept.procurement-orders", kind: "troubleshoot", open: "procurement-suppliers",
       q: { en: "Why was my purchase order refused for this supplier?", ar: "لماذا رُفض أمر الشراء لهذا المورد؟" },
       a: {
-        en: "An order is refused when it is created for a supplier who has been suspended or rejected, or whose paperwork has lapsed because a document has expired. Open the supplier in Suppliers to see why, then renew the document or have them assessed again. Suppliers nobody has assessed can still be ordered from. The check is made when the order is created, so an order already in draft is not stopped from being placed.",
-        ar: "يُرفض الأمر حين يُنشأ لمورد أُوقف أو رُفض، أو انتهت أوراقه لأن أحد مستنداته انتهت صلاحيته. افتح المورد في الموردين لمعرفة السبب، ثم جدد المستند أو اطلب إعادة تقييمه. أما الموردون الذين لم يقيّمهم أحد فيمكن الطلب منهم. ويجري الفحص عند إنشاء الأمر، فالأمر الموجود مسودةً لا يُمنع من الإصدار.",
+        en: "An order is refused when it is created, or when a draft is placed, for a supplier who has been suspended or rejected, or whose paperwork has lapsed because a document has expired. Open the supplier in Suppliers to see why, then renew the document or have them assessed again, and press again. Suppliers nobody has assessed can still be ordered from.",
+        ar: "يُرفض الأمر حين يُنشأ، أو حين تُصدر مسودته، لمورد أُوقف أو رُفض، أو انتهت أوراقه لأن أحد مستنداته انتهت صلاحيته. افتح المورد في الموردين لمعرفة السبب، ثم جدد المستند أو اطلب إعادة تقييمه، واضغط من جديد. أما الموردون الذين لم يقيّمهم أحد فيمكن الطلب منهم.",
       },
       keywords: ["supplier blocked", "lapsed", "order refused", "suspended", "مورد موقوف", "مستندات منتهية", "رفض الأمر", "موقوف"],
       related: ["procurement-suppliers.qualification", "procurement-requisitions.order-refused"],
@@ -616,8 +616,8 @@ export const procurement: HelpModule = {
       id: "procurement-orders.change-order", topic: "dept.procurement-orders", kind: "troubleshoot", open: "procurement-orders",
       q: { en: "How do I change a price, quantity or date on a purchase order?", ar: "كيف أغيّر سعرًا أو كمية أو تاريخًا في أمر شراء؟" },
       a: {
-        en: "You cannot yet from any screen. An order made from a requisition takes the request's estimates as its prices, and no screen edits an order's lines, promised date or cost code afterwards, or deletes it. If a draft order is wrong, cancel it; the requisition is not freed for a second order, so raise a new request with the right estimate. A new date the supplier promises can be recorded as a chase on Expediting.",
-        ar: "لا يمكنك ذلك بعد من أي شاشة. فالأمر المنشأ من طلب شراء يأخذ تقديرات الطلب أسعارًا له، ولا توجد شاشة تعدّل بنود الأمر أو تاريخه الموعود أو رمز تكلفته بعد ذلك، أو تحذفه. وإن كان أمر المسودة خاطئًا فألغه؛ ولا يتحرر الطلب لأمر ثانٍ، فارفع طلبًا جديدًا بالتقدير الصحيح. ويمكن تسجيل التاريخ الجديد الذي يعد به المورد كمتابعة في متابعة التوريد.",
+        en: "You cannot yet from any screen. An order made from a requisition takes the request's estimates as its prices, and no screen edits an order's lines, promised date or cost code afterwards, or deletes it. If an order is wrong and nothing has been received against it, cancel it: the requisition is freed and reads Approved again, so press Create purchase order on it for a fresh draft. A new date the supplier promises can be recorded as a chase on Expediting.",
+        ar: "لا يمكنك ذلك بعد من أي شاشة. فالأمر المنشأ من طلب شراء يأخذ تقديرات الطلب أسعارًا له، ولا توجد شاشة تعدّل بنود الأمر أو تاريخه الموعود أو رمز تكلفته بعد ذلك، أو تحذفه. وإن كان الأمر خاطئًا ولم يُستلم عليه شيء فألغه: فيتحرر طلب الشراء ويعود «معتمدًا»، فاضغط عليه «إنشاء أمر شراء» لمسودة جديدة. ويمكن تسجيل التاريخ الجديد الذي يعد به المورد كمتابعة في متابعة التوريد.",
       },
       keywords: ["edit purchase order", "change price", "change quantity", "delete order", "تعديل أمر الشراء", "تغيير السعر", "تغيير الكمية", "حذف الأمر"],
       related: ["procurement-orders.place", "procurement-expediting.chase"],
@@ -648,8 +648,8 @@ export const procurement: HelpModule = {
       id: "procurement-rfq.compare", topic: "dept.procurement-rfq", kind: "about", open: "procurement-rfq",
       q: { en: "How does the quote comparison rank suppliers?", ar: "كيف ترتب مقارنة العروض الموردين؟" },
       a: {
-        en: "Once a request has been sent, its row shows the comparison: each quote's supplier, total, lead time and the date its price is held until. Only complete, unexpired quotes are ranked, and the cheapest and fastest are marked separately; a supplier who gave no lead time is never the fastest. A quote that leaves lines unpriced shows how many lines it priced and is not ranked, and one whose date has passed says Price no longer held. When nothing can be ranked, the panel says why.",
-        ar: "بعد إرسال الطلب يعرض صفه المقارنة: مورد كل عرض وإجماليه ومدة توريده والتاريخ الذي يبقى سعره قائمًا حتى. ولا يُرتَّب إلا العرض المكتمل غير المنتهي، ويُعلَّم الأرخص والأسرع كل على حدة؛ والمورد الذي لم يذكر مدة التوريد لا يكون الأسرع أبدًا. والعرض الذي يترك بنودًا بلا سعر يبين عدد البنود التي سعّرها ولا يُرتَّب، والعرض الذي مضى تاريخه يقول «السعر لم يعد محفوظًا». وحين لا يمكن ترتيب شيء تذكر اللوحة السبب.",
+        en: "Once a request has been sent, its row shows the comparison: each quote's supplier, total, lead time and the date its price is held until. Only complete, unexpired quotes are ranked, and the cheapest and fastest are marked separately; a supplier who gave no lead time is never the fastest. A quote that leaves lines unpriced shows how many lines it priced and is not ranked, and one whose date has passed says Price no longer held. Beneath it, Cheapest on each line names the supplier with the lowest live price for every line, counting part-priced quotes too. When nothing can be ranked, the panel says why.",
+        ar: "بعد إرسال الطلب يعرض صفه المقارنة: مورد كل عرض وإجماليه ومدة توريده والتاريخ الذي يبقى فيه سعره ساريًا. ولا يُرتَّب إلا العروض المكتملة غير المنتهية، ويُعلَّم الأرخص والأسرع كل على حدة؛ والمورد الذي لم يذكر مدة توريد لا يكون الأسرع أبدًا. والعرض الذي يترك بنودًا بلا سعر يبين عدد البنود التي سعّرها ولا يُرتَّب، والعرض الذي مضى تاريخه يقول إن السعر لم يعد ساريًا. وتحتها يسمّي «الأرخص في كل بند» المورد صاحب أقل سعر ساري لكل بند، مع احتساب العروض الجزئية أيضًا. وحين لا يمكن ترتيب شيء تذكر اللوحة السبب.",
       },
       keywords: ["compare quotes", "cheapest", "fastest", "bid comparison", "مقارنة العروض", "الأرخص", "الأسرع", "جدول المقارنة"],
       related: ["procurement-rfq.award"],
@@ -666,8 +666,8 @@ export const procurement: HelpModule = {
       id: "procurement-rfq.ask-fields", topic: "dept.procurement-rfq", kind: "fields", open: "procurement-rfq",
       q: { en: "What do I need to ask suppliers for quotes?", ar: "ما الذي أحتاجه لطلب عروض من الموردين؟" },
       a: {
-        en: "Press Ask for quotes; only what is being quoted is required, and Save stays greyed out until it is filled in. Suppliers are ticked from the register, and the form says so when the register is empty. A line with no description is dropped when you save. You need the right to create supplier quote requests.",
-        ar: "اضغط «طلب عروض»؛ ولا يُطلب إلا بيان ما المطلوب تسعيره، ويبقى زر الحفظ معطلًا حتى يُملأ. ويُحدَّد الموردون بعلامة من السجل، ويقول النموذج ذلك حين يكون السجل فارغًا. والبند الذي لا وصف له يُحذف عند الحفظ. وتحتاج إلى صلاحية إنشاء طلبات عروض الموردين.",
+        en: "Press Ask for quotes; only what is being quoted is required, and Save stays greyed out until it is filled in. Suppliers are ticked from the register, and the form says so when the register is empty. If you may open requisitions, From requisition lists the submitted and approved ones: pick one and, if you type no lines, its lines are copied in and it is named on the request. A line with no description is dropped when you save. You need the right to create supplier quote requests.",
+        ar: "اضغط «طلب عروض»؛ ولا يُطلب إلا بيان ما يُطلب تسعيره، ويبقى زر الحفظ معطلًا حتى يُملأ. ويُختار الموردون بعلامة من السجل، ويذكر النموذج ذلك إن كان السجل فارغًا. وإن كان يحق لك فتح طلبات الشراء فإن «من طلب شراء» يعرض الطلبات المرسلة والمعتمدة: اختر أحدها، وإن لم تكتب بنودًا نُسخت بنوده وسُمّي على الطلب. والبند الذي لا وصف له يُحذف عند الحفظ. وتحتاج إلى صلاحية إنشاء طلبات عروض الموردين.",
       },
       fields: {
         en: [
@@ -827,8 +827,8 @@ export const procurement: HelpModule = {
       id: "procurement-rfq.from-requisition", topic: "dept.procurement-rfq", kind: "troubleshoot", open: "procurement-rfq",
       q: { en: "Can I start a request for quotes from a requisition, or add a supplier after sending?", ar: "هل يمكنني بدء طلب عروض من طلب شراء، أو إضافة مورد بعد الإرسال؟" },
       a: {
-        en: "Not from the screen yet. The Ask for quotes form has no requisition to pick, so the lines are typed in, and once a request is sent its Edit button goes, so suppliers cannot be added to it afterwards. Record a quote still accepts any supplier in the register, so a price from a supplier you did not tick can be recorded and compared.",
-        ar: "ليس من الشاشة بعد. فنموذج «طلب عروض» لا يتيح اختيار طلب شراء، فتُكتب البنود يدويًّا، وبعد إرسال الطلب يختفي زر «تعديل»، فلا يمكن إضافة موردين إليه. ومع ذلك يقبل «تسجيل عرض» أي مورد في السجل، فيمكن تسجيل سعر من مورد لم تعلّمه ومقارنته.",
+        en: "Yes to both. Ask for quotes offers From requisition, listing the submitted and approved requests you may open; picking one copies its lines when you type none, and the row then names that request. After a request is sent its lines are frozen, but Add suppliers on its row lets you tick more suppliers from the register, which changes nothing anybody has already quoted. Record a quote still accepts any supplier in the register, so an unasked price can be recorded and compared.",
+        ar: "نعم للأمرين. فطلب العروض يعرض «من طلب شراء» بالطلبات المرسلة والمعتمدة التي يحق لك فتحها؛ واختيار أحدها ينسخ بنوده إن لم تكتب بنودًا، ثم يسمّي الصف ذلك الطلب. وبعد إرسال الطلب تُجمَّد بنوده، لكن «إضافة موردين» في صفه تتيح اختيار موردين آخرين من السجل، ولا يغيّر ذلك شيئًا مما سُعّر بالفعل. ويبقى «تسجيل عرض» يقبل أي مورد في السجل، فيمكن تسجيل سعر لم يُطلب ومقارنته.",
       },
       keywords: ["from requisition", "add supplier after sending", "copy lines", "من طلب شراء", "إضافة مورد بعد الإرسال", "نسخ البنود"],
       related: ["procurement-rfq.ask", "procurement-rfq.record-quote"],
@@ -837,8 +837,8 @@ export const procurement: HelpModule = {
       id: "procurement-rfq.not-yet", topic: "dept.procurement-rfq", kind: "troubleshoot", open: "procurement-rfq",
       q: { en: "Can I split an award or create the order straight from it?", ar: "هل يمكنني تقسيم الإرساء أو إنشاء الأمر منه مباشرة؟" },
       a: {
-        en: "Not yet. An award is whole-quote only, so two suppliers for one request cannot be recorded, and the cheapest price on each line is not shown. The award does not create a purchase order, requests are not emailed to suppliers, quotes are assumed to be in the studio's own currency, and a supplier who is blocked can still be asked and awarded.",
-        ar: "ليس بعد. فالإرساء على العرض كاملًا فقط، فلا يمكن تسجيل موردين لطلب واحد، ولا يُعرض الأرخص في كل بند. ولا ينشئ الإرساء أمر شراء، ولا تُرسل الطلبات إلى الموردين بالبريد، ويُفترض أن العروض بعملة الاستوديو، ويمكن دعوة مورد موقوف والإرساء عليه.",
+        en: "Not yet. An award is whole-quote only, so two suppliers for one request cannot be recorded, although the cheapest supplier on each line is shown to help decide. The award does not create a purchase order, requests are not emailed to suppliers, quotes are assumed to be in the studio's own currency, and a supplier who is blocked can still be asked and awarded.",
+        ar: "ليس بعد. فالترسية على العرض كاملًا فقط، فلا يمكن تسجيل موردين لطلب واحد، وإن كان الأرخص في كل بند معروضًا للمساعدة في القرار. ولا تنشئ الترسية أمر شراء، ولا تُرسل الطلبات إلى الموردين بالبريد، وتُعد العروض بعملة الاستوديو نفسها، ويمكن طلب عرض من مورد موقوف والترسية عليه.",
       },
       keywords: ["split award", "auto PO", "email suppliers", "currency", "تقسيم الإرساء", "أمر تلقائي", "مراسلة الموردين", "العملة"],
       related: ["procurement-rfq.award", "procurement.not-yet"],
@@ -938,8 +938,8 @@ export const procurement: HelpModule = {
       id: "procurement-expediting.due-soon", topic: "dept.procurement-expediting", kind: "troubleshoot", open: "procurement-expediting",
       q: { en: "Why do the Due soon figures on Expediting and the dashboard differ?", ar: "لماذا يختلف رقم «يستحق قريبًا» بين متابعة التوريد ولوحة المشتريات؟" },
       a: {
-        en: "The Procurement dashboard counts an order as due soon when it is due within the next seven days. The Expediting screen, as it stands, counts only orders due today or tomorrow, so its Due soon figure can be lower and the rest of the week reads as on track. Neither window can be changed from the screen.",
-        ar: "تعدّ لوحة المشتريات الأمر قريب الاستحقاق حين يستحق خلال الأيام السبعة القادمة. أما شاشة متابعة التوريد، بوضعها الحالي، فلا تعدّ إلا الأوامر المستحقة اليوم أو غدًا، فقد يكون رقمها أقل وتظهر بقية الأسبوع في موعدها. ولا يمكن تغيير أي من النافذتين من الشاشة.",
+        en: "They should agree: both the Procurement dashboard and the Expediting screen count an order as due soon when it is due within the next seven days. Until 27/09/2026 the Expediting screen counted only orders due today or tomorrow, so its figure could be lower than the dashboard's. If they still differ, refresh the screen; the two are worked out a moment apart, so an order falling due in between can move one before the other.",
+        ar: "يفترض أن يتفقا: فلوحة المشتريات وشاشة متابعة التوريد كلتاهما تعدّان الأمر قريب الاستحقاق حين يستحق خلال الأيام السبعة القادمة. وحتى 27/09/2026 كانت شاشة متابعة التوريد لا تعدّ إلا الأوامر المستحقة اليوم أو غدًا، فكان رقمها قد يقل عن رقم اللوحة. وإن اختلفا بعد ذلك فحدّث الشاشة؛ إذ يُحسب كل منهما في لحظة مختلفة، فقد يحرّك أمر حان موعده بينهما أحدهما قبل الآخر.",
       },
       keywords: ["due soon", "seven days", "window", "figures differ", "يستحق قريبا", "سبعة أيام", "الأرقام مختلفة"],
       related: ["procurement-expediting.about", "procurement.dashboard"],
@@ -1058,8 +1058,8 @@ export const procurement: HelpModule = {
       id: "procurement-subcontracts.certificate", topic: "dept.procurement-subcontracts", kind: "howto", open: "procurement-subcontracts", common: true,
       q: { en: "How do I value work with a payment certificate?", ar: "كيف أقيّم الأعمال بشهادة دفع؟" },
       a: {
-        en: "Certificates are cumulative: each values the whole package to date, and this period is the difference from the last certified one, so a mistake in one period is put right by the next. Net payable is this period less retention and back-charges, and it can be negative when back-charges exceed the work done. Writing a certificate needs the right to edit subcontracts; certifying it needs the separate right to certify a payment, usually held by whoever runs the job.",
-        ar: "الشهادات تراكمية: كل شهادة تقيّم الحزمة كلها حتى تاريخه، وقيمة الفترة هي الفرق عن آخر شهادة معتمدة، فيصحح الخطأ في فترة بما بعدها. و«الصافي المستحق» هو قيمة الفترة ناقص الاحتجاز والمستقطعات، وقد يكون سالبًا حين تتجاوز المستقطعات الأعمال المنجزة. ويحتاج كتابة الشهادة إلى صلاحية تعديل عقود الباطن؛ أما اعتمادها فيحتاج إلى صلاحية مستقلة هي اعتماد الدفعة، ويحملها عادة من يدير العمل.",
+        en: "Certificates are cumulative: each values the whole package to date, and this period is the difference from the last certified one, so a mistake in one period is put right by the next. Net payable is this period less retention and back-charges, and it can be negative when back-charges exceed the work done. Writing a certificate needs the right to edit subcontracts; certifying it needs the separate right to certify a payment, usually held by whoever runs the job, and somebody other than the person who wrote the valuation must certify it, owner and Admins included.",
+        ar: "الشهادات تراكمية: كل منها تقيّم الحزمة كلها حتى تاريخه، وقيمة هذه الفترة هي الفرق عن آخر شهادة معتمدة، فيُصحَّح خطأ فترة بالفترة التالية. وصافي المستحق هو قيمة هذه الفترة ناقص الاحتجاز والخصومات، وقد يكون سالبًا إذا زادت الخصومات على العمل المنجز. وكتابة الشهادة تحتاج إلى صلاحية تعديل عقود الباطن؛ أما اعتمادها فيحتاج إلى صلاحية مستقلة لاعتماد الدفع، يحملها عادة من يدير العمل، ويجب أن يعتمدها شخص غير من كتب التقييم، بمن في ذلك المالك والمسؤولون.",
       },
       steps: {
         en: [
@@ -1104,8 +1104,8 @@ export const procurement: HelpModule = {
       id: "procurement-subcontracts.refusals", topic: "dept.procurement-subcontracts", kind: "troubleshoot", open: "procurement-subcontracts",
       q: { en: "Why is my certificate refused?", ar: "لماذا رُفضت شهادتي؟" },
       a: {
-        en: "A draft subcontract has nothing signed to value against, so mark it live first, and a terminated one cannot be valued. A valuation cannot be lower than the last certified one; deduct with a back-charge instead, which says why. A certified certificate cannot be changed, so correct it in the next one, and valuing above the agreed value is allowed but flagged.",
-        ar: "عقد الباطن المسودة لم يوقَّع بعد فلا شيء يُقيَّم مقابله، ففعّله أولًا، والعقد المنهى لا يُقيَّم. ولا يجوز أن يقل التقييم عن آخر تقييم معتمد؛ فاخصم بمستقطع بدلًا من ذلك لأنه يذكر السبب. ولا تُغيَّر الشهادة المعتمدة، فصححها في التالية، والتقييم فوق القيمة المتفق عليها مسموح لكنه يُنبَّه عليه.",
+        en: "A draft subcontract has nothing signed to value against, so mark it live first, and a terminated one cannot be valued. A valuation cannot be lower than the last certified one; deduct with a back-charge instead, which says why. A certified certificate cannot be changed, so correct it in the next one, and valuing above the agreed value is allowed but flagged. Certifying is refused to whoever wrote the valuation, and the row says Written by you in place of the button; somebody else holding the right to certify must do it.",
+        ar: "عقد الباطن المسودة ليس فيه ما هو موقّع ليُقيَّم عليه، ففعّله أولًا، والعقد المنتهي لا يُقيَّم. ولا يكون التقييم أقل من آخر تقييم معتمد؛ اخصم بخصم مسبب بدلًا من ذلك. ولا تُغيَّر الشهادة المعتمدة، فصحّحها في التالية، والتقييم فوق القيمة المتفق عليها مسموح لكنه يُنبَّه عليه. ويُرفض الاعتماد لمن كتب التقييم، ويظهر في الصف «كتبته أنت» بدل الزر؛ فيعتمده شخص آخر يحمل صلاحية الاعتماد.",
       },
       keywords: ["certificate refused", "below previous", "already certified", "draft subcontract", "رفض الشهادة", "أقل من السابق", "شهادة معتمدة", "مسودة"],
       related: ["procurement-subcontracts.certificate"],

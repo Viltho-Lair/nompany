@@ -14,7 +14,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { procurementDict } from "@/shared/studio/procurement";
+import { procurementDict, procurementRefusal } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, money, fmtDate, tileRow } from "@/components/studio2/ui";
@@ -31,7 +31,9 @@ function refusal(tr, token) {
     case "retention-locked": return tr.refuseRetentionLocked;
     case "has-certificates": return tr.refuseHasCertificates;
     case "not-certifiable": return tr.refuseNotCertifiable;
-    default: return token;
+    // INVARIANT 7 ON A VALUATION: its writer does not certify it.
+    case "same-signer": return tr.refuseCertifySameSigner;
+    default: return procurementRefusal(tr, token) || token;
   }
 }
 
@@ -93,7 +95,7 @@ export default function StudioSubcontracts({ slug, initial }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingSubcontracts} />;
 
-  const { subcontracts, canCreate, canEdit, canDelete, canCertify, pickers = {} } = data;
+  const { subcontracts, canCreate, canEdit, canDelete, canCertify, me = "", pickers = {} } = data;
 
   const openForm = (row) => setForm(row ? { ...row } : {
     title: "", scope: "", vendorId: "", projectId: "", costCodeId: "", value: "",
@@ -245,12 +247,17 @@ export default function StudioSubcontracts({ slug, initial }) {
                                   )}
                                 </td>
                                 <td className="px-4 py-3 text-end">
-                                  {canCertify && c.status === "Draft" && (
+                                  {/* NOT TO THE VALUATION'S OWN WRITER — the server
+                                      refuses them (invariant 7), so the row says
+                                      who has to instead of offering a refusal. */}
+                                  {canCertify && c.status === "Draft" && (me && stored.createdByCollaboratorId === me ? (
+                                    <span className="text-xs text-slate-400 dark:text-slate-500">{tr.certifyNotYours}</span>
+                                  ) : (
                                     <button type="button" className={btn} disabled={busy}
                                       onClick={() => send("PUT", { id: c.id, action: "certify" })}>
                                       {tr.certify}
                                     </button>
-                                  )}
+                                  ))}
                                 </td>
                               </tr>
                             );

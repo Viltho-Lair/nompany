@@ -156,8 +156,8 @@ them, so their label, field labels, statuses and select options are code rather 
 They translate ON DISPLAY through `engineWords` (`shared/studio/engineTypes.ts`), keyed by
 the stored token, and only when `origin` is `"builtin"`. Their sidebar rows
 (`engine-<type>`) take the same words through `sectionName`. Nothing stored changes: a
-status is still `"In progress"` in the row, the API, a rule's trigger, a move and the CSV
-values. Until 26/09/2026 the screen rendered every one of these words verbatim, so an Arabic
+status is still `"In progress"` in the row, the API, a rule's trigger and a move (the CSV export
+carries the translated words since 27/09/2026, like the screen). Until 26/09/2026 the screen rendered every one of these words verbatim, so an Arabic
 studio read "Work orders", "Planned" and "Released" in its sidebar and on every row.
 `testEveryBuiltinRegisterSpeaksArabic` fails on a declared word with no Arabic.
 
@@ -179,6 +179,21 @@ not declare at all — the declaration the caller worked from named it and the c
 does not, so re-reading the type is the entire repair. `not-allowed` (400) is both
 statuses declared and the move between them not: no refresh makes an undeclared move
 legal, so the caller has to ask for something else.
+
+**The transition is asked again INSIDE the write** (`applyMove`, invariant 8). Until
+27/09/2026 `moveRecord` checked a row read before the write and then set `status`
+unconditionally, so two moves out of Witnessed — to Accepted and to Rejected — both passed,
+and the row could end at a status no transition reaches, with the test's rule raising two
+NCRs. Now a move that no longer holds against the row the compare-and-set won changes
+nothing and answers `wrong-state` (409, "refresh and try again"); a move somebody else
+already made answers with the record and raises nothing; and **rules fire only for the write
+that actually changed the status**, from the status it really left. `moveRecordAsStudio`
+(Maintenance moving a machine) takes the same guard.
+
+**A rule's "already raised" check is re-asked after the create.** The read-then-create
+cannot be made atomic in `collection_rows`, so a writer that finds an earlier record linked
+to the same source withdraws its own (`raisedEarlierByAnother`, ordered by `createdAt` then
+id so two writers never both withdraw). The withdrawn record's reference is not reissued.
 
 **`notfound` is answered before `forbidden`**, and not for the reason the code first gave.
 It does not conceal which type keys a studio has — it makes them enumerable by probing, in
@@ -253,24 +268,46 @@ could only fake it by writing a type row behind the API's back.
 empty field is not, and a list column showing `0` for both is a bug this product has fixed
 a dozen times elsewhere.
 
-## Rollout — existing studios need the script
+## Rollout — built-in registers catch up by themselves (27/09/2026)
 
-`seedBuiltinTypes` runs inside `createStudio` and **nowhere else**, which is the one way
-it differs from the two seeds beside it. Sections catch up on read and the departments
-register seeds on read, so a studio predating either repairs itself the next time somebody
-opens it. **A studio created before this shipped gets nothing.**
+**The owner's rule: "IT IS A SYSTEM, IT MUST TAKE UPDATES."** `seedBuiltinTypes` used to
+run inside `createStudio` and nowhere else, so a register shipped after a studio was
+created never reached it, and a bumped declaration (`version`) reached nobody until somebody
+ran `scripts/migrate/seed-builtin-types.mjs`. This file said a read-path catch-up could not
+help because every engine read is gated on `engine.<typeKey>.view` — **that was wrong**: the
+engine's context guards membership only, and the per-type right is asked afterwards.
 
-**And a read-path catch-up could not rescue it.** Every engine read is gated on
-`engine.<typeKey>.view`, a key no existing studio's roles carry, so the request that would
-trigger the catch-up is the request that is refused first — the seed would be waiting on a
-door only the seed can open.
+**Now the same `seedBuiltinTypes` runs on read** — from `engineContext` (every engine route:
+a register, a section dashboard's summary), from the Access screen's grant reader, and from
+the department/HR role seeding that expands archetypes against the studio's types — as well
+as at creation. It **seeds what is missing and reconciles what is stale by version**.
 
-`scripts/migrate/seed-builtin-types.mjs` is the way in: dry-run by default, additive,
-idempotent, refusing the live namespace without `--allow-live`, and **calling
-`seedBuiltinTypes` rather than reimplementing it** — a second copy of the seed is free to
-disagree with the first. **Run `plant-sections.mjs` first on an old studio**: a studio
-missing `engineering-docs` or `administration-settings` is reported and skipped whole
-rather than seeded into nothing.
+**Free when nothing is behind.** Each built-in's own section `engine-<key>` carries
+`settings.builtinVersion`, stamped after its row is written, so `builtinTypesBehind` answers
+from the section rows the request already holds — no type row is read. A studio that predates
+the stamp is behind on everything exactly once: that catch-up finds its rows current, rewrites
+nothing, and stamps them.
+
+**Safe under contention.** A missing type is created only by the writer whose `editArr` on the
+sections document claimed it (`plantTypeSection` stamps `typeSeedClaimedAt`, a one-minute lease
+so a crashed claimer repairs itself); a writer that claimed an existing section reads the types
+again before creating. A stale type is rewritten by a function patch that re-asks the version
+inside it (invariant 8).
+
+**It never strands a record.** The reconcile rewrites only the declaration-owned half —
+`sectionId`, `sectionKey`, `origin` and `createdAt` stay the studio's — only on
+`origin: "builtin"` rows, and **refuses a declaration that drops a status** the stored type has
+(`reconcileProblem`, `drops-status`): that type stays at its old version until a migration moves
+its records first. `reconcileBuiltinTypes` reports such a type as `blocked`.
+
+**It grants nothing.** A seeded register answers to `engine.<key>.*`; the owner and the Admin
+wildcard see it at once, and nobody else until a person grants it on the Access screen. No entry
+in `modules/people/catchUps.ts` keys off a new register.
+
+`scripts/migrate/seed-builtin-types.mjs` still works — dry-run by default, and calling
+`seedBuiltinTypes` rather than reimplementing it — but it is no longer the way in; it completes
+every studio without waiting for each to be opened. **Its header still says the seed runs at
+creation alone**; that comment is stale and belongs to whoever next touches the script.
 
 **No starter role holds an engine right, AND NO SCREEN CAN GRANT ONE.** The first half is
 the defect three sections shipped with — contracts, tendering and procurement each shipped
@@ -307,7 +344,7 @@ afterwards is a separate, twice-confirmed step.
 
 **The PM plan type is v2**: it gained `contract` and `installed` references (added fields only),
 so the jobs the daily run raises from a plan name the contract and the unit. An existing studio
-picks the fields up when `scripts/migrate/seed-builtin-types.mjs` reconciles it.
+picks the fields up by itself on its next engine read (see Rollout).
 
 **Three more left on 11/09/2026: Assets' `maintenance`, and Field Service's `contract` and
 `planned`.** Maintenance is one section now (`maintenance.md`): its work orders, preventive plans
@@ -321,6 +358,21 @@ orders, plans and contracts name its units.
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
+
+**The built-in catch-up runs on ENGINE requests, not on every page.** A register shipped
+today appears in an existing studio's sidebar once somebody there opens any register, a
+section dashboard that summarises registers, the Access screen, or seeds a department's roles
+— not on a bare page load. Running it on every request needs one line in `studioContext`
+(`src/lib/studios.ts`), which is where `listSections` already plants sections; the check
+there would be free for the same reason it is free here.
+
+**One duplicate NCR remains possible.** If two genuinely different arrivals raise the same
+consequence at the same instant and the earlier writer's insert has not committed when the
+later one re-reads, both keep theirs. Closing it needs a uniqueness the store enforces.
+
+**The register's export is the words on screen** — statuses, options, yes/no, dates and link
+titles as the reader saw them (27/09/2026). Numbers and money stay bare so a column can be
+summed. There is no "export stored values" option for somebody who wants the raw tokens.
 
 **Tenant self-service is phase 3, and it is the whole point of the engine.** There is no
 type editor: `origin: "builtin"` is what stops a studio editing a seeded type, and no

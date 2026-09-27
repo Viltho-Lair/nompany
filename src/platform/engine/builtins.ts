@@ -1,4 +1,4 @@
-// THE TYPES EVERY STUDIO GETS, seeded at creation.
+// THE TYPES EVERY STUDIO GETS — seeded at creation, and caught up on read.
 //
 // PHASE 1 SHIPPED ONE, deliberately — the engine's value proven by a type that
 // is real rather than by a demonstration. PHASE 2 IS THESE TWO, and they are
@@ -16,9 +16,10 @@
 // `origin: "builtin"` is what stops a studio editing them. Tenant-declared types
 // come in phase 3 and are not this.
 import { repo } from "@/platform/db/repo";
-import { getSectionByKey } from "@/platform/db/sections";
+import { getSectionByKey, sectionsAsStored } from "@/platform/db/sections";
+import type { Section } from "@/platform/db/sections";
 import { engineSectionKey } from "@/platform/access";
-import { plantTypeSection } from "./sections";
+import { plantTypeSection, stampTypeSections } from "./sections";
 import type { RecordType } from "./schema";
 
 // ------------------------------------------------------------------------
@@ -32,9 +33,13 @@ import type { RecordType } from "./schema";
 // of it: the seeder skips by key, so a stored `testreport` is never looked at
 // again.
 //
-// BUMP THIS WHEN YOU CHANGE A DECLARATION. `reconcileBuiltinTypes` compares the
-// stored version against this one and rewrites the declaration-owned half of the
-// row; a studio whose stored version already matches is not touched.
+// BUMP THIS WHEN YOU CHANGE A DECLARATION. `seedBuiltinTypes` compares it with
+// the stamp on the type's own section (a set/version test over rows every
+// request already holds) and, on the first read after the deploy, rewrites the
+// declaration-owned half of every stored row that is behind — in EVERY studio,
+// with no script. A studio whose stored version already matches is not touched.
+// Because it now happens by itself, the status rule below is ENFORCED rather
+// than trusted: `reconcileProblem` refuses a declaration that drops a status.
 //
 // WHAT IS SAFE TO CHANGE THIS WAY, and what is not:
 //
@@ -889,72 +894,212 @@ export const BUILTIN_TYPES = [
 
 const Types = repo<RecordType>("recordTypes");
 
-/**
- * SEEDED, AND NEVER OVERWRITING. A studio that already has a type keeps it —
- * the same courtesy `nextPool` extends to service actions and the departments
- * register extends to a trade's chart.
- *
- * THE SECTION IS PLANTED FIRST and the type row written second. A type whose
- * section does not exist would serve records into a sub-section that falls back
- * to its root, where nothing reads them.
- *
- * A TYPE WHOSE PARENT SECTION IS ABSENT IS SKIPPED WHOLE, not planted at the
- * root: `plantTypeSection` answers null for exactly that case, and writing the
- * type row anyway would leave a type serving records into a section that does
- * not exist — the tender register's mistake, one layer up.
- *
- * The declaration is spread into fresh arrays because `BUILTIN_TYPES` is `as
- * const`: what is stored is a mutable copy of the seed, so a studio's row is
- * its own from the moment it is written rather than a view onto a frozen
- * literal shared by every tenant in the process.
- */
-export async function seedBuiltinTypes(studioId: string): Promise<void> {
-  const settings = await getSectionByKey(studioId, "administration-settings");
-  if (!settings) return;
-  const scope = { studio: { id: studioId }, section: settings };
-  const existing = await Types.find(scope);
+type BuiltinDecl = (typeof BUILTIN_TYPES)[number];
 
-  for (const decl of BUILTIN_TYPES) {
-    if (existing.some((t) => t.key === decl.key)) continue;
-    const section = await plantTypeSection(studioId, decl);
-    if (!section) continue;
-    const at = new Date().toISOString();
-    await Types.create(scope, {
-      ...decl,
-      fields: decl.fields.map((f) => ({ ...f })),
-      columns: [...decl.columns],
-      statuses: [...decl.statuses],
-      transitions: decl.transitions.map((t) => ({ ...t })),
-      // COPIED LIKE EVERY OTHER ARRAY, and absent when the declaration has none
-      // rather than stored as an empty list: a type with `rules: []` and a type
-      // that predates rules should read back the same, or the difference is a
-      // distinction the product has to explain.
-      ...("rules" in decl ? { rules: (decl as { rules: readonly object[] }).rules.map((r) => ({ ...r })) } : {}),
-      sectionKey: engineSectionKey(decl.key),
-      origin: "builtin",
-      createdAt: at,
-      updatedAt: at,
-    });
-  }
+/**
+ * THE DECLARATION-OWNED HALF OF A TYPE ROW, freshly copied.
+ *
+ * ONE FUNCTION FOR THE SEED AND THE RECONCILE, because they are the same
+ * question — "what does this repository say this register is" — and two copies
+ * would be free to disagree about it, which is exactly the drift `version`
+ * exists to repair.
+ *
+ * Spread into fresh arrays because `BUILTIN_TYPES` is `as const`: what is
+ * stored is a mutable copy of the seed, so a studio's row is its own from the
+ * moment it is written rather than a view onto a frozen literal shared by every
+ * tenant in the process.
+ *
+ * `rules` IS ABSENT ON A SEED WITH NONE and CLEARED ON A RECONCILE WITH NONE.
+ * A new row with `rules: []` and a type that predates rules should read back
+ * the same; but a declaration that DROPPED its rules must clear them, or a
+ * register goes on doing something the product no longer says it does.
+ */
+function declarationHalf(decl: BuiltinDecl, { clearRules }: { clearRules: boolean }) {
+  return {
+    label: decl.label,
+    fields: decl.fields.map((f) => ({ ...f })),
+    columns: [...decl.columns],
+    statuses: [...decl.statuses],
+    transitions: decl.transitions.map((t) => ({ ...t })),
+    ...("rules" in decl
+      ? { rules: (decl as { rules: readonly object[] }).rules.map((r) => ({ ...r })) }
+      : clearRules ? { rules: [] } : {}),
+    version: decl.version,
+  };
 }
 
 /**
- * WHAT A STUDIO'S BUILT-IN TYPES ARE MISSING BECAUSE THEIR DECLARATION MOVED.
+ * WHY A STORED TYPE MAY NOT BE BROUGHT UP TO ITS DECLARATION, or "".
  *
- * `seedBuiltinTypes` above seeds what a studio does not HAVE. This is the other
- * half: what it has, but stale. The two are separate functions because they are
- * separate decisions — seeding gives a studio a register it never had, and
- * reconciling changes one it is already using, which deserves to be asked for
- * rather than to happen as a side effect of asking for something else.
+ * `drops-status`: the stored type declares a status the new declaration does
+ * not. REMOVING A STATUS STRANDS EVERY RECORD SITTING AT IT — no transition
+ * leads out of a status the type no longer declares (the header above) — and
+ * the catch-up now runs by itself on a read, where nobody is watching. So it
+ * refuses rather than trusting every future edit to this file to have read the
+ * warning: the type stays at its old version, whole and working, until a
+ * migration moves the records first. Pure, so the tests can hold it.
+ */
+export function reconcileProblem(
+  stored: { statuses?: unknown },
+  decl: { statuses: readonly string[] },
+): string {
+  const next = new Set(decl.statuses.map(String));
+  const had = (Array.isArray(stored?.statuses) ? stored.statuses : []).map(String);
+  return had.some((s) => !next.has(s)) ? "drops-status" : "";
+}
+
+/**
+ * WHICH BUILT-IN TYPES THIS STUDIO IS BEHIND ON, answered from its SECTION ROWS
+ * alone — the rows every request has already read. No I/O.
  *
- * ONLY `origin: "builtin"` ROWS. A studio's own type is its own; the whole
- * meaning of the origin flag is that this repository declares the built-ins and
- * a tenant may not edit them, which is also why overwriting them loses nothing.
+ * A type is up to date when its own `engine-<key>` section exists and carries
+ * `builtinVersion` at the declaration's version (`stampTypeSections` writes it
+ * after the row). Missing section, missing stamp, or an older stamp is behind.
+ * A studio that predates the stamp is therefore behind on everything ONCE: the
+ * first catch-up finds its rows current, rewrites nothing, and stamps them.
  *
- * ONLY THE DECLARATION-OWNED HALF. `id`, `studioId`, `sectionId`, `sectionKey`,
- * `origin` and `createdAt` are the STUDIO's — a section id rewritten here would
- * point a register at storage that is not its own, which is the stranding this
- * codebase keeps paying for.
+ * TWO THINGS ARE NEVER BEHIND, because the catch-up could do nothing about
+ * them and would otherwise pay its slow path on every request for ever:
+ *   - a type whose PARENT section the studio does not hold — `plantTypeSection`
+ *     refuses to plant at the root, for the tender register's reason;
+ *   - every type, in a studio with no `administration-settings` — there is
+ *     nowhere to put a type row at all.
+ */
+export function builtinTypesBehind(
+  sections: readonly { key: string; settings?: Record<string, unknown> | null }[],
+): BuiltinDecl[] {
+  const byKey = new Map(sections.map((s) => [s.key, s]));
+  if (!byKey.has("administration-settings")) return [];
+  return BUILTIN_TYPES.filter((decl) => {
+    if (!byKey.has(decl.parentSectionKey)) return false;
+    const own = byKey.get(engineSectionKey(decl.key));
+    return !own || (Number(own.settings?.builtinVersion) || 0) < decl.version;
+  });
+}
+
+/**
+ * BRING A STUDIO'S BUILT-IN TYPES UP TO THIS REPOSITORY'S DECLARATIONS — seed
+ * what is MISSING, reconcile what is STALE — and hand back its sections.
+ *
+ * THE OWNER'S RULE, 11/09/2026: "IT IS A SYSTEM, IT MUST TAKE UPDATES." Until
+ * this ran on a read, a new register reached new studios only and a version
+ * bump reached nobody until somebody ran `seed-builtin-types.mjs` — the way
+ * Maintenance once shipped invisible to every existing studio. `createStudio`
+ * calls this, and so does every engine read (`engineContext`, and the two grant
+ * readers in ./records) — the same function, so a new studio and a caught-up
+ * one cannot differ.
+ *
+ * FREE WHEN NOTHING IS BEHIND. `builtinTypesBehind` asks the section rows the
+ * caller already holds; only a studio that is actually behind pays for a read
+ * of its type rows, and it pays once, because the stamps make the next read
+ * fast again. The shape `listSections` uses for `plantMissingSections`.
+ *
+ * SAFE UNDER CONTENTION, which a read path must be:
+ *   - a MISSING type is created only by the writer that won the claim on its
+ *     section (`plantTypeSection`, inside `editArr`), and one that claimed an
+ *     already-existing section looks again before creating;
+ *   - a STALE type is rewritten by a FUNCTION patch that re-asks the version
+ *     inside it (invariant 8), so two catch-ups rewrite it once.
+ *
+ * ONLY THE DECLARATION-OWNED HALF IS EVER WRITTEN on a stored row. `id`,
+ * `studioId`, `sectionId`, `sectionKey`, `origin` and `createdAt` are the
+ * STUDIO's — a section id rewritten here would point a register at storage that
+ * is not its own. ONLY `origin: "builtin"` rows: a studio's own type is its own.
+ * And A DECLARATION THAT DROPS A STATUS IS NOT APPLIED (`reconcileProblem`).
+ *
+ * THE SECTION IS PLANTED FIRST and the type row written second. A type whose
+ * section does not exist would serve records into a sub-section that falls back
+ * to its root, where nothing reads them. A type whose PARENT section is absent
+ * is skipped whole, not planted at the root — the tender register's mistake,
+ * one layer up.
+ *
+ * IT GRANTS NOTHING. A seeded register answers to `engine.<key>.*`, which no
+ * existing role holds unless a person grants it (an archetype's
+ * `engineSections` is expanded only when a role is FIRST created, and
+ * `modules/people/catchUps.ts` has no entry that keys off a new register). The
+ * owner and the Admin wildcard see it at once; everybody else when granted.
+ */
+export async function seedBuiltinTypes(
+  studioId: string,
+  known?: readonly Section[],
+): Promise<Section[]> {
+  const sections = known ? [...known] : await sectionsAsStored(studioId);
+  const behind = builtinTypesBehind(sections);
+  if (!behind.length) return sections;
+
+  const settings = sections.find((s) => s.key === "administration-settings");
+  if (!settings) return sections;
+  const scope = { studio: { id: studioId }, section: settings };
+  let existing = await Types.find(scope);
+
+  // Read ONCE, outside every patch: an `editArr` or update function may run
+  // more than once, and a claim stamped with two different instants is two
+  // claims.
+  const at = new Date().toISOString();
+  const stamps: { key: string; version: number }[] = [];
+
+  for (const decl of behind) {
+    const stored = existing.find((t) => t.key === decl.key);
+    if (!stored) {
+      const planted = await plantTypeSection(studioId, decl, at);
+      // Parent absent, or another writer holds the claim: THIS writer stamps
+      // nothing, so the studio stays behind and a later read finishes it.
+      if (!planted) continue;
+      if (!planted.fresh) {
+        existing = await Types.find(scope);
+        if (existing.some((t) => t.key === decl.key)) {
+          stamps.push({ key: decl.key, version: decl.version });
+          continue;
+        }
+      }
+      await Types.create(scope, {
+        key: decl.key,
+        parentSectionKey: decl.parentSectionKey,
+        ...declarationHalf(decl, { clearRules: false }),
+        sectionKey: engineSectionKey(decl.key),
+        origin: "builtin",
+        createdAt: at,
+        updatedAt: at,
+      });
+      stamps.push({ key: decl.key, version: decl.version });
+      continue;
+    }
+
+    // A studio's own type under a built-in key, or one already current, is
+    // simply recorded as considered.
+    if (String(stored.origin) === "builtin" && (Number(stored.version) || 0) < decl.version
+      && !reconcileProblem(stored, decl)) {
+      await Types.update(scope, String(stored.id), (row) => {
+        // RE-ASKED OF THE ROW THE WRITE WON — another catch-up may have got
+        // here first.
+        if (String(row.origin) !== "builtin" || (Number(row.version) || 0) >= decl.version
+          || reconcileProblem(row, decl)) return row;
+        return { ...row, ...declarationHalf(decl, { clearRules: true }), updatedAt: at };
+      });
+    }
+    // STAMPED EVEN WHEN REFUSED FOR `drops-status`: the refusal is a decision,
+    // not a failure, and leaving it "behind" would re-read the type rows on
+    // every request to reach the same answer. `reconcileBuiltinTypes` still
+    // reports it, as `blocked`.
+    stamps.push({ key: decl.key, version: decl.version });
+  }
+
+  await stampTypeSections(studioId, stamps);
+  // READ BACK, because the caller's copy predates the sections just planted
+  // and a register whose section the context does not hold answers
+  // `no-section` on the very request that seeded it.
+  return sectionsAsStored(studioId);
+}
+
+/**
+ * WHAT A STUDIO'S BUILT-IN TYPES ARE MISSING BECAUSE THEIR DECLARATION MOVED —
+ * for `scripts/migrate/seed-builtin-types.mjs`, whose dry run must report it.
+ *
+ * `seedBuiltinTypes` above reconciles by itself now, on a read; this is kept as
+ * the REPORT, and as the way a script applies it without waiting for one. Same
+ * rules, because the rewrite is the same `declarationHalf` behind the same
+ * `reconcileProblem` refusal. A type the refusal holds back is listed with
+ * `blocked`, so a person can see it and write the migration it needs.
  *
  * RETURNS WHAT IT WOULD DO WHEN `apply` IS FALSE, because the script that calls
  * it is dry-run by default and a migration whose dry run cannot be trusted is a
@@ -963,40 +1108,31 @@ export async function seedBuiltinTypes(studioId: string): Promise<void> {
 export async function reconcileBuiltinTypes(
   studioId: string,
   { apply = false }: { apply?: boolean } = {},
-): Promise<{ key: string; from: number; to: number }[]> {
+): Promise<{ key: string; from: number; to: number; blocked?: string }[]> {
   const settings = await getSectionByKey(studioId, "administration-settings");
   if (!settings) return [];
   const scope = { studio: { id: studioId }, section: settings };
   const existing = await Types.find(scope);
 
-  const behind: { key: string; from: number; to: number }[] = [];
+  const behind: { key: string; from: number; to: number; blocked?: string }[] = [];
+  const at = new Date().toISOString();
   for (const decl of BUILTIN_TYPES) {
     const stored = existing.find((t) => t.key === decl.key);
     if (!stored) continue;                       // seedBuiltinTypes' job, not this one
     if (String(stored.origin) !== "builtin") continue;
     const from = Number(stored.version) || 0;
     if (from >= decl.version) continue;
-    behind.push({ key: decl.key, from, to: decl.version });
+    const blocked = reconcileProblem(stored, decl);
+    behind.push({ key: decl.key, from, to: decl.version, ...(blocked ? { blocked } : {}) });
 
-    if (!apply) continue;
-    await Types.update(scope, String(stored.id), (row) => ({
-      ...row,
+    if (!apply || blocked) continue;
+    await Types.update(scope, String(stored.id), (row) => {
+      if ((Number(row.version) || 0) >= decl.version || reconcileProblem(row, decl)) return row;
       // The declaration's half, replaced whole rather than merged: a merge would
       // keep a field the declaration has deliberately dropped, and then the two
       // would disagree about what the register is for ever after.
-      label: decl.label,
-      fields: decl.fields.map((f) => ({ ...f })),
-      columns: [...decl.columns],
-      statuses: [...decl.statuses],
-      transitions: decl.transitions.map((t) => ({ ...t })),
-      ...("rules" in decl
-        ? { rules: (decl as { rules: readonly object[] }).rules.map((r) => ({ ...r })) }
-        // A declaration that DROPPED its rules must clear them, or a register
-        // goes on doing something the product no longer says it does.
-        : { rules: [] }),
-      version: decl.version,
-      updatedAt: new Date().toISOString(),
-    }));
+      return { ...row, ...declarationHalf(decl, { clearRules: true }), updatedAt: at };
+    });
   }
   return behind;
 }

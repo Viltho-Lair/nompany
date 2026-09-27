@@ -154,12 +154,40 @@ export async function supersedeTenderDocument(
   const problem = supersedeProblem(all, id, replacementId);
   if (problem) return { error: problem };
 
-  const document = await Docs.update({ studio, section: registerSection }, id, {
-    supersededById: replacementId,
-    supersededAt: now(),
-    updatedAt: now(),
+  // JUDGED AGAIN INSIDE THE WRITE (invariant 8). The rules above were asked of
+  // a read, and the mark used to be a plain patch — so two people linking one
+  // document to two different revisions both passed, and the second silently
+  // replaced the first: "nothing is replaced twice", broken by timing. Inside a
+  // function patch the row being written is the row as it now is, so its half
+  // of the rules is re-asked of fresh data; the other rows are still the read's.
+  const scope = { studio, section: registerSection };
+  const at = now();
+  let refused = "";
+  const document = await Docs.update(scope, id, (row: TenderDocument) => {
+    refused = supersedeProblem(all.map((d) => (d.id === row.id ? row : d)), id, replacementId) || "";
+    return refused ? {} : { supersededById: replacementId, supersededAt: at, updatedAt: at };
   });
-  return document ? { document } : { error: "notfound" };
+  if (refused) return { error: refused };
+  if (!document) return { error: "notfound" };
+
+  // THE REPLACEMENT'S HALF CANNOT BE ASKED IN THE SAME WRITE — it is another
+  // row, and a row patch sees only its own. So it is asked straight AFTER: if
+  // the replacement was itself replaced or deleted meanwhile (A→B racing B→A
+  // is the cycle `superseded-replacement` exists to make unwritable), this mark
+  // is taken back. Taken back only if it is still OURS — same target, same
+  // stamp — so a later, legitimate link is never undone by this one. Both sides
+  // of a symmetric race may retract; that leaves two current documents and two
+  // refusals, which is a retry, never a cycle.
+  const replacement = await Docs.byId(scope, replacementId);
+  if (!replacement || replacement.supersededById) {
+    await Docs.update(scope, id, (row: TenderDocument) => (
+      row.supersededById === replacementId && row.supersededAt === at
+        ? { supersededById: "", supersededAt: "", updatedAt: now() }
+        : {}
+    ));
+    return { error: replacement ? "superseded-replacement" : "missing" };
+  }
+  return { document };
 }
 
 export async function removeTenderDocument(ctx: TenderingContext, id: string) {

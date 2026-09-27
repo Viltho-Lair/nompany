@@ -86,6 +86,18 @@ bill records which one it used; two rows for one code make both ambiguous.
 **A line must belong to a tender that exists**, or a crafted request mints orphans no screen
 shows and no cascade reaps.
 
+**The bill locks the moment the bid goes out** (27/09/2026). From Submitted on — Won, Lost,
+Withdrawn and No Bid included — adding, importing, editing and removing a line are all refused
+with `bill-locked`, and the grid goes read-only and says why. It used to lock only at the
+handover, which left the stretch between submission and handover open: a line edited then moved
+the total the handover copies into the project, so the project opened at the bill as it
+happened to be that day rather than at the figure that was signed and sent. **Derived from the
+tender's stage** (`billFreeze`, `modules/tendering/stages`, pure), never a stored flag. Once a
+project has been opened from the tender the refusal is `handed-over` instead, because that one
+says more — the project's sheets read these lines. The lock is checked on a read of the tender
+before each line write; a line saved in the same instant the tender is submitted is not caught
+by it (the two are different rows and a row patch sees only its own).
+
 **The grid is bespoke, deliberately.** The program design puts the BOQ grid on the short list
 of screens the P4b engine is never to be stretched to cover — it is a spreadsheet somebody
 works down for a day, not a record with a form.
@@ -111,7 +123,8 @@ clipboard carries) or a CSV file (comma or semicolon), with no spreadsheet libra
   lines as they will land, before anything is sent. `POST /tendering/boq` with
   `action: "import"` (`importBoqLines`, `tendering.tenders.edit`) re-cleans every row through
   the rules a single line obeys, appends after the bill's last line in the paste's order,
-  takes at most 2,000 lines, and is refused once the tender has been handed over.
+  takes at most 2,000 lines, and is refused once the bid has gone out (`bill-locked`) or the
+  tender has been handed over (`handed-over`).
 
 ## Not built yet
 
@@ -137,7 +150,7 @@ Stated in words, because a silent gap reads as a finished feature.
 - **No units vocabulary.** Units are free text, so `m3`, `M3` and `cu.m` are three units.
 - **No revisions.** A bill is edited in place: there is no record of what a line was priced at
   before, and no comparison between one revision and the next. It stops editing altogether once
-  its tender is handed over — see `handover.md` — which makes the LAST state the record, not
+  its bid goes out (above), which makes the state at submission the record, not
   every state before it.
 - **Nothing carries the bill onward.** A won tender's bill does not become a quotation, a
   project budget or a `sheet` — that is the handover slice, and it is not built.

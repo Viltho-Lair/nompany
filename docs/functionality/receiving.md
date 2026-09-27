@@ -53,6 +53,11 @@ which is the only thing that makes such a check mean anything.
 
 ## Corrections
 
+**THE SERVER ACCEPTS A CORRECTION AND NO SCREEN SENDS ONE.** `receiveOrder` takes `correctionOf`
+and the Receiving screen shows a correction receipt with its badge, but the Book in dialog never
+sends `correctionOf` and nothing else does — so what follows is the rule the API enforces, not
+something a studio can do on screen today (see "Not built yet").
+
 A correction is another receipt with negative quantities, and **it must name the receipt it
 corrects**. A bare negative line is indistinguishable from a typo, and the register has to stay
 readable as a history of what turned up.
@@ -135,6 +140,9 @@ Stated in words, because a silent gap reads as a finished feature.
   it, so a bill can still be approved and paid straight through the mismatch.
 - **No photographs and no attachments.** A rejected pallet cannot be evidenced beyond a note,
   though the private-media route the tender pack uses would serve.
+- **A correction cannot be booked from any screen.** `receiveOrder` accepts `correctionOf`
+  and the rules above hold at the API, but the Book in dialog never sends one, so a mistyped
+  receipt can only be walked back by a caller writing the request by hand.
 - **A correction has no reason field.** It names the receipt it corrects and not why, which is
   the same objection this codebase makes about back-charges without descriptions.
 - **No put-away location.** A receipt says what arrived, not where it went.

@@ -95,7 +95,10 @@ server against what is stored by then. **Nothing is coerced:**
 - **A foreign-currency item must carry its shipping and customs charges**, as the form
   insists. The studio's own currency is stored blank, as the form stores it.
 - **SKUs**: a SKU already registered is skipped and said so, unless **Update** is on. A SKU
-  named twice in the file is created once. A blank SKU gets the next free ITM number.
+  named twice in the file is created once. A blank SKU gets the next free ITM number
+  **off the studio's forward-only tally** (`bumpCounter`, seeded from the highest ITM-number held;
+  `inventory/sku.ts`, 27/09/2026), reserved as one block for the whole import. It was counted from
+  how many items existed, so deleting an item let its SKU be handed out again.
   **A row with no SKU is recognised by its name and supplier together**: re-importing a
   file must not register the same material again under a fresh number. The same name
   from another supplier is a different item.

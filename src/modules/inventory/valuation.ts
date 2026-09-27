@@ -42,6 +42,12 @@ export type CostedMovement = {
   unitCost?: number;
   /** ISO instant. Ordering is by this, and ties break on the order supplied. */
   at?: string;
+  /**
+   * HALF OF A MOVE BETWEEN BINS OR BATCHES — stock that changed shelf or label
+   * and never entered or left the company. See `valueItem` for why these are
+   * netted rather than valued.
+   */
+  transfer?: boolean;
 };
 
 export type ItemValue = {
@@ -82,10 +88,38 @@ export function valueItem(
 ): ItemValue {
   const worth = (n: number) => roundMoney(n, currency);
   const itemId = String(movements[0]?.itemId ?? "");
+
+  // A MOVE CHANGES WHERE STOCK IS, NEVER WHAT IT IS WORTH. A put-away or a
+  // bin-to-bin move is written as a `-q`/`+q` pair (binService.moveStock). Fed
+  // through the arithmetic below, the `-q` half consumed the oldest FIFO layer
+  // (or units at the average) and the `+q` half came back in at whatever cost
+  // the caller could find for it — the item's CURRENT price-list cost, since a
+  // move has no order behind it. So every put-away silently replaced order and
+  // landed cost with price-list cost, and under FIFO sent the oldest layer to
+  // the back of the queue. 10 bought at 100, the item repriced to 150, all 10
+  // put away: the shelf read 1,500 where it had cost 1,000.
+  //
+  // So the pairs are NETTED, not valued: a complete pair contributes nothing.
+  // What is left over is a pair whose second write never landed (the move
+  // writes OUT first, so a residual is almost always negative) — that stock
+  // really did leave the ledger, and it is taken out as an issue AFTER every
+  // other movement, the one position that cannot re-cost a layer the rest of
+  // the history depends on. A positive residual (an `in` with no `out`) comes
+  // in at the cost its own row was given, as any unexplained receipt does.
+  let transferNet = 0;
+  let transferCost: number | undefined;
+  const ordinary: CostedMovement[] = [];
+  for (const m of movements) {
+    if (!m.transfer) { ordinary.push(m); continue; }
+    transferNet = round(transferNet + num(m.qty));
+    if (num(m.qty) > 0) transferCost = m.unitCost;
+  }
+
   // STABLE, AND BY TIME. `sort` is stable in every engine this runs on, so two
   // movements sharing an instant keep the order they were appended in — which
   // for an append-only ledger is the order they happened.
-  const ordered = [...movements].sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+  const ordered = ordinary.sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+  if (transferNet !== 0) ordered.push({ itemId, qty: transferNet, unitCost: transferCost });
 
   let uncosted = 0;
 
@@ -178,4 +212,57 @@ export function valueStock(
     total: roundSum(items.reduce((n, i) => n + i.value, 0)),
     uncosted: round(items.reduce((n, i) => n + i.uncosted, 0)),
   };
+}
+
+// ---- from the stored ledger to costed movements ---------------------------
+
+/** The sources that write a net-zero pair — see `valueItem` on why they are netted. */
+export const TRANSFER_SOURCES: readonly string[] = ["bin-move", "batch-move"];
+
+/** A stock-ledger row as it is stored: `qty` positive on `in`/`out`, signed on `adjust`. */
+export type LedgerRow = {
+  itemId?: unknown; kind?: unknown; qty?: unknown; at?: unknown;
+  sourceType?: unknown; sourceId?: unknown; unitCost?: unknown;
+};
+
+/**
+ * EVERY STORED MOVEMENT WITH WHAT IT COST — the join `stockValue.ts` makes,
+ * kept here and pure so the precedence is asserted without a database.
+ *
+ * ON AN INBOUND MOVEMENT, MOST SPECIFIC FIRST:
+ *  1. the ORDER's price (landed where recorded) — a receipt against an order;
+ *  2. the cost STORED ON THE MOVEMENT — a part given back from a maintenance
+ *     work order carries what the order was charged for it (inventory.ts,
+ *     `moveForWorkOrder`). Valuing that return at the item's price TODAY put
+ *     back a different number from the one the issue took off, so a repricing
+ *     between issue and return moved the stock value on a round trip that
+ *     moved no stock;
+ *  3. the ITEM's recorded cost — an adjustment or opening balance, which has
+ *     nothing better behind it;
+ *  4. nought, counted as uncosted.
+ */
+export function costLedger(
+  rows: readonly LedgerRow[],
+  { orderCost, itemCost }: {
+    orderCost: (orderId: string, itemId: string) => number | undefined;
+    itemCost: (itemId: string) => number | undefined;
+  },
+): CostedMovement[] {
+  return rows.map((m) => {
+    const itemId = String(m.itemId ?? "");
+    // `kind` is "in"/"out" and `qty` is positive on those rows; an `adjust`
+    // carries its own sign. This is the one place that knows the storage shape.
+    const qty = String(m.kind) === "out" ? -Math.abs(num(m.qty)) : num(m.qty);
+    const at = String(m.at ?? "");
+    const transfer = TRANSFER_SOURCES.includes(String(m.sourceType ?? ""));
+    if (qty <= 0) return { itemId, qty, at, ...(transfer ? { transfer } : {}) };
+
+    const fromOrder = String(m.sourceType) === "order"
+      ? orderCost(String(m.sourceId ?? ""), itemId)
+      : undefined;
+    const stored = m.unitCost !== undefined && m.unitCost !== null && m.unitCost !== ""
+      && Number.isFinite(Number(m.unitCost)) ? Number(m.unitCost) : undefined;
+    const unitCost = fromOrder ?? stored ?? itemCost(itemId) ?? 0;
+    return { itemId, qty, unitCost, at, ...(transfer ? { transfer } : {}) };
+  });
 }

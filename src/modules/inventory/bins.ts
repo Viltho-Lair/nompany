@@ -70,6 +70,16 @@ const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
 /**
+ * WHY A BIN IS REFUSED, as TOKENS. The screen says each in the reader's
+ * language (shared/studio/bins, `problem`), with the code they typed put back
+ * into the sentence — English sentences built here reached an Arabic studio
+ * verbatim, which is the one kind of copy that can never be translated after
+ * the fact.
+ */
+export const BIN_PROBLEMS = ["code-missing", "code-format", "location-missing", "location-unknown", "code-taken"] as const;
+export type BinProblem = (typeof BIN_PROBLEMS)[number];
+
+/**
  * WHAT IS WRONG WITH THIS BIN, or an empty array. Reasons rather than a boolean,
  * the shape every other validator in the product returns.
  */
@@ -80,8 +90,8 @@ export function binProblems(
     existing: Bin[];
     selfId?: string;
   },
-): string[] {
-  const problems: string[] = [];
+): BinProblem[] {
+  const problems: BinProblem[] = [];
   // NOT TRUNCATED BEFORE IT IS JUDGED. `cleanBin` caps at 16, so validating a
   // capped value would turn "A-01-SHELF-THREE-B" into the legal
   // "A-01-SHELF-THREE" and store a bin nobody typed — the same silent-coercion
@@ -89,17 +99,15 @@ export function binProblems(
   const code = String(input.code ?? "").trim();
   const locationId = str(input.locationId, 60);
 
-  if (!code) problems.push("a bin needs a code");
-  else if (!CODE_RE.test(code)) {
-    problems.push(`"${code}" must be 1-16 characters: letters, digits, and - . / only`);
-  }
+  if (!code) problems.push("code-missing");
+  else if (!CODE_RE.test(code)) problems.push("code-format");
 
   // A BIN WITH NO LOCATION IS A BIN NOBODY CAN WALK TO. The whole question this
   // answers is "where", so the one field that says where is required — and it
   // must name a location that exists, because a dangling id would put stock in
   // a place the studio has never heard of.
-  if (!locationId) problems.push("a bin needs a location");
-  else if (!locations.some((l) => l.id === locationId)) problems.push("that location does not exist");
+  if (!locationId) problems.push("location-missing");
+  else if (!locations.some((l) => l.id === locationId)) problems.push("location-unknown");
 
   // UNIQUE WITHIN ITS LOCATION, NOT ACROSS THE STUDIO. Every warehouse in the
   // world has an A-01, and forcing site-wide uniqueness would make the second
@@ -108,7 +116,7 @@ export function binProblems(
   // rows for it is a split nobody can reconcile.
   const clash = existing.some((b) =>
     b.id !== selfId && b.locationId === locationId && b.code.toLowerCase() === code.toLowerCase());
-  if (clash) problems.push(`"${code}" is already a bin in that location`);
+  if (clash) problems.push("code-taken");
 
   return problems;
 }

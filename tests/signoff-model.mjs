@@ -21,6 +21,9 @@ ok("a name with no mark is refused",
 ok("a mark with no name is refused",
   signoffProblems({ mediaId: "med_1" }).length === 1);
 ok("neither is two problems", signoffProblems({}).length === 2);
+// TOKENS, NOT SENTENCES: the screen words them in the reader's language.
+ok("the problems are tokens the screen can word",
+  signoffProblems({}).join(",") === "signer-name,signer-mark");
 ok("both together pass",
   signoffProblems({ signedByName: "A Khoury", mediaId: "med_1" }).length === 0);
 

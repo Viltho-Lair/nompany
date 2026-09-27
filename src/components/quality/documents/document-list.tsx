@@ -9,6 +9,7 @@ import { useReload } from "@/components/studio2/useReload";
 import { ArrowLeft, FilePlus2, FileText, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { fmtDate } from "@/lib/format";
 import type { StoredDocument } from "@/components/quality/documents/document-view";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -78,19 +79,26 @@ export function DocumentList({
     }
   }
 
-  async function remove(id: string) {
+  async function remove(document: StoredDocument) {
+    // A DELETE CANNOT BE UNDONE, so it is asked first — the bin sat one stray
+    // click away from erasing a draft somebody had spent a week on.
+    if (!window.confirm(tr.confirmDeleteDocument(document.title || document.code || ""))) return;
+    const id = document.id;
     const response = await fetch(
       `/api/studios/${studio.slug}/quality/docs?id=${encodeURIComponent(id)}`,
       { method: "DELETE" },
     );
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      // An issued document is refused rather than quietly kept: somebody is
-      // working from it, and the record outlives whoever wants it gone.
+      // A document that was ever issued is refused rather than quietly kept:
+      // somebody worked from it, and the record outlives whoever wants it gone.
+      // A chosen layout is refused too — the studio prints through it.
       setError(
         payload.error === "controlled"
           ? tr.issuedDocumentCannotDeleted
-          : tr.documentCouldNotDeleted,
+          : payload.error === "in-use"
+            ? tr.layoutInUse
+            : tr.documentCouldNotDeleted,
       );
       return;
     }
@@ -170,7 +178,7 @@ export function DocumentList({
                     </span>
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {document.updatedAt ? `Edited ${String(document.updatedAt).slice(0, 10)}` : tr.neverEdited}
+                    {document.updatedAt ? tr.editedOn(fmtDate(document.updatedAt)) : tr.neverEdited}
                   </span>
                 </span>
               </Link>
@@ -180,15 +188,20 @@ export function DocumentList({
                   STATUS_BADGE[document.state ?? "draft"] || STATUS_BADGE.draft
                 }`}
               >
-                {document.state}
+                {tr.docStates[document.state ?? "draft"] ?? document.state}
               </span>
 
-              {canDelete && (
+              {/* ONLY WHERE IT COULD SUCCEED. The bin used to sit on every row,
+                  effective documents included, for the server to refuse; the
+                  server says which may go (`deletable`, the same rule removeDoc
+                  enforces). An older answer without the flag shows none. */}
+              {canDelete && document.deletable === true && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  aria-label={`Delete ${document.title}`}
-                  onClick={() => remove(document.id)}
+                  aria-label={tr.deleteNamed(document.title || document.code || "")}
+                  title={tr.deleteNamed(document.title || document.code || "")}
+                  onClick={() => void remove(document)}
                 >
                   <Trash2 className="size-4" />
                 </Button>

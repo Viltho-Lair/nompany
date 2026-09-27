@@ -4,7 +4,7 @@
 // the stock is labelled, so it answers to `inventory.stock`, the right somebody
 // already holds to move what carries the label.
 
-import { requirePermission } from "@/platform/access";
+import { requirePermission, can } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import {
   batchProblems, cleanBatch, batchView, batchBalances, expiryAlerts, fefoSuggestion,
@@ -14,6 +14,7 @@ import type { Batch } from "./batches";
 import { movementDelta } from "./bins";
 import type { BinMovement } from "./bins";
 import type { InventoryContext } from "./types";
+import { dayIn, studioTimezone } from "@/shared/timezone";
 
 const Batches = repo<Batch>("stockBatches");
 const Stock = repo<BinMovement>("inventoryStock");
@@ -39,10 +40,13 @@ export async function listBatches(ctx: InventoryContext) {
     Items.find({ studio: ctx.studio, section: ctx.itemsSection }),
   ]);
 
-  const asOf = new Date().toISOString().slice(0, 10);
+  // THE STUDIO'S DAY, not the server's UTC one: a batch expiring today must read
+  // as expired from the studio's midnight, not from London's (shared/timezone).
+  const asOf = dayIn(new Date(), studioTimezone(ctx.studio as { timezone?: unknown }));
   const rows = batchView(batches, movements, asOf);
   const label = Object.fromEntries(items.map((i) => [i.id, `${i.sku || ""} · ${i.name || ""}`.trim()]));
-  const named = rows.map((b) => ({ ...b, itemLabel: label[b.itemId] || "(removed item)" }));
+  // A REMOVED ITEM'S LABEL IS EMPTY and the screen words it (see binService).
+  const named = rows.map((b) => ({ ...b, itemLabel: label[b.itemId] || "" }));
 
   const { untracked } = batchBalances(movements, new Set(batches.map((b) => b.id)));
 
@@ -63,9 +67,12 @@ export async function listBatches(ctx: InventoryContext) {
     // than a leftover — the same shape `unbinned` takes.
     untracked: Object.entries(untracked)
       .filter(([, qty]) => qty !== 0)
-      .map(([itemId, qty]) => ({ itemId, itemLabel: label[itemId] || "(removed item)", qty })),
+      .map(([itemId, qty]) => ({ itemId, itemLabel: label[itemId] || "", qty })),
     items: items.map((i) => ({ id: i.id, label: label[i.id] })),
     canManage: ctx.canManageStock,
+    // PER ACT, as the server asks — see listBins.
+    canCreate: can(ctx.access, "inventory.stock.create"),
+    canDelete: can(ctx.access, "inventory.stock.delete"),
   };
 }
 
@@ -127,7 +134,7 @@ export async function createBatch(ctx: InventoryContext, body: Record<string, un
     Items.find({ studio: ctx.studio, section: ctx.itemsSection }),
   ]);
   const problems = batchProblems(body, { items, existing });
-  if (problems.length) return { error: "refused", detail: problems.join("; ") };
+  if (problems.length) return { error: "refused", problems, value: String(body.lot ?? "").trim() };
 
   return { batch: await Batches.create(scope(ctx), cleanBatch(body)) };
 }
@@ -153,7 +160,7 @@ export async function editBatch(ctx: InventoryContext, id: string, body: Record<
     receivedOn: body.receivedOn ?? row.receivedOn,
   };
   const problems = batchProblems(next, { items, existing, selfId: id });
-  if (problems.length) return { error: "refused", detail: problems.join("; ") };
+  if (problems.length) return { error: "refused", problems, value: String(next.lot ?? "").trim() };
 
   const updated = await Batches.update(scope(ctx), id, cleanBatch(next));
   return updated ? { batch: updated } : { error: "notfound" };

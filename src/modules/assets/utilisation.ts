@@ -212,3 +212,20 @@ export function allocationProblem(
   }
   return "";
 }
+
+/**
+ * THE EQUIPMENT STATUSES A MACHINE MAY GO OUT ON A JOB FROM — the register's
+ * own tokens (`equipment` in the engine builtins: In service, Under repair,
+ * Idle, Disposed).
+ *
+ * IN SERVICE and IDLE only. A DISPOSED machine is gone, and booking it charges
+ * a job for plant the company no longer has. UNDER REPAIR is broken today, and
+ * this refusal has no idea of dates — so a machine being fixed for a job next
+ * month is booked once Maintenance hands it back, rather than charged to a job
+ * while it sits in the workshop. The allocation used to accept both, and the
+ * picker only showed the status beside the name.
+ */
+export const BOOKABLE_STATUSES = ["In service", "Idle"] as const;
+
+export const bookable = (status: unknown): boolean =>
+  (BOOKABLE_STATUSES as readonly string[]).includes(String(status ?? "").trim());

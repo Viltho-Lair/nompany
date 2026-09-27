@@ -30,6 +30,9 @@ type Strings = {
   nothingHeldBody: string;
   uncostedUnits: (n: number) => string;
   uncostedLead: string;
+  /** Makes the previewed method the studio's own. */
+  adopt: (m: string) => string;
+  adoptFailed: string;
 };
 
 const METHOD_EN: Record<string, string> = { fifo: "FIFO", average: "Weighted average" };
@@ -55,6 +58,8 @@ const en: Strings = {
   // and a total that quietly included them at nought understates the stock.
   uncostedUnits: (n) => `${n} unit${n === 1 ? "" : "s"} valued at nothing`,
   uncostedLead: "These came in with no cost recorded — an opening balance or an adjustment. They count towards the quantity and add nothing to the value.",
+  adopt: (m) => `Value stock at ${METHOD_EN[m] || m} from now on`,
+  adoptFailed: "The method did not change. You need the right to edit Studio settings.",
 };
 
 // HAND-WRITTEN, NO DIACRITICS — the house rule for Arabic copy.
@@ -75,6 +80,8 @@ const ar: Strings = {
   nothingHeldBody: "بمجرد استلام المخزون يقوم هنا بالطريقة التي اختارها استوديوك.",
   uncostedUnits: (n) => `${n === 1 ? "وحدة واحدة" : n === 2 ? "وحدتان" : n <= 10 ? `${n} وحدات` : `${n} وحدة`} بلا قيمة`,
   uncostedLead: "وصلت هذه بلا تكلفة مسجلة — رصيد افتتاحي أو تسوية. تحسب ضمن الكمية ولا تضيف شيئا إلى القيمة.",
+  adopt: (m) => `اعتماد طريقة ${METHOD_AR[m] || m} لتقويم المخزون من الآن`,
+  adoptFailed: "لم تتغير الطريقة. تحتاج الى صلاحية تعديل اعدادات الاستوديو.",
 };
 
 const valuation = { en, ar };

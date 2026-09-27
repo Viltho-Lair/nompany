@@ -4,18 +4,19 @@
 // deliberately REPORTS rather than silently drops, because a requirement nobody
 // can see is worse than a requirement nobody has.
 import {
-  explode, netRequirements, capacityLoad, isOpen,
+  explode, netRequirements, capacityLoad, isOpen, flatRecord, isPlannable,
 } from "../src/modules/manufacturing/mrp.ts";
 
 let fails = 0;
+const BOMS_REL = () => [{ id: "bom1", product: "Pump A", status: "Released" }];
 const ok = (what, cond, detail = "") => {
   if (!cond) { fails++; console.log(`  FAIL  ${what}${detail ? ` — ${detail}` : ""}`); }
   else console.log(`  ok    ${what}`);
 };
 
 const BOMS = [
-  { id: "bom1", product: "Pump A", revision: "1" },
-  { id: "bom2", product: "Valve B" },
+  { id: "bom1", product: "Pump A", revision: "1", status: "Released" },
+  { id: "bom2", product: "Valve B", status: "Released" },
 ];
 const LINES = [
   { bomId: "bom1", itemId: "impeller", qtyPer: 1 },
@@ -35,6 +36,24 @@ const ORDERS = [
 ok("a finished order consumes nothing", isOpen({ status: "done" }) === false);
 ok("a cancelled order consumes nothing", isOpen({ status: "cancelled" }) === false);
 ok("an order with no status is open", isOpen({}) === true);
+ok("the register's own Completed is closed", isOpen({ status: "Completed" }) === false);
+ok("the register's own Cancelled is closed", isOpen({ status: "Cancelled" }) === false);
+
+// PLANNING COUNTED CLOSED ORDERS. The planner flattened each engine record to
+// its id and its values, and the status is a column of the RECORD, not a value
+// — so every order arrived with no status, `isOpen` answered true for all of
+// them, and Completed and Cancelled work orders drove MRP and station load.
+// `flatRecord` is the flattening both the planner and the terminal use.
+const closedRow = flatRecord({ id: "w9", status: "Completed", values: { product: "Pump A", quantity: 50 } });
+ok("FLATTENING AN ENGINE RECORD KEEPS ITS STATUS", closedRow.status === "Completed", closedRow.status);
+ok("...so a Completed work order read off the register is not open", isOpen(closedRow) === false);
+ok("...and a studio value called status cannot stand in for the record's",
+  flatRecord({ id: "w8", status: "Cancelled", values: { status: "Released" } }).status === "Cancelled");
+const closedBlown = explode(
+  [closedRow, flatRecord({ id: "w10", status: "Cancelled", values: { product: "Pump A", quantity: 7 } })],
+  BOMS_REL(), [{ bomId: "bom1", itemId: "impeller", qtyPer: 1 }],
+);
+ok("A CLOSED ORDER READ OFF THE REGISTER ADDS NO DEMAND", !closedBlown.gross.impeller, String(closedBlown.gross.impeller));
 
 // ---- the explosion ----------------------------------------------------------
 const blown = explode(ORDERS, BOMS, LINES);
@@ -67,6 +86,23 @@ const twoRevs = explode(
 );
 ok("A SECOND BOM FOR ONE PRODUCT IS NOT BLENDED IN", twoRevs.gross.impeller === 10,
   String(twoRevs.gross.impeller));
+
+// PLANNING USED THE NEWEST BOM WHATEVER ITS STATUS, so starting revision 2 as a
+// Draft silently moved every open order's demand onto a bill nobody had
+// agreed. Only a Released bill is planned from; the planner hands them newest
+// first, and the first Released one wins.
+ok("a Draft bill is not plannable", isPlannable({ id: "d", status: "Draft" }) === false);
+ok("a Superseded bill is not plannable", isPlannable({ id: "s", status: "Superseded" }) === false);
+const draftFirst = explode(
+  [{ id: "x", product: "Pump A", quantity: 10 }],
+  [{ id: "rev2", product: "Pump A", status: "Draft" }, { id: "rev1", product: "Pump A", status: "Released" }],
+  [{ bomId: "rev2", itemId: "impeller", qtyPer: 3 }, { bomId: "rev1", itemId: "impeller", qtyPer: 1 }],
+);
+ok("A NEWER DRAFT BILL DOES NOT REPLACE THE RELEASED ONE", draftFirst.gross.impeller === 10,
+  String(draftFirst.gross.impeller));
+const onlyDraft = explode([{ id: "y", product: "Pump A", quantity: 4 }],
+  [{ id: "rev2", product: "Pump A", status: "Draft" }], []);
+ok("an order whose only bill is a Draft is reported as having none", onlyDraft.noBom.length === 1);
 
 // ---- what is actually short -------------------------------------------------
 const need = netRequirements(blown.gross, { impeller: 4, seal: 50 }, { impeller: 2 });
@@ -104,6 +140,19 @@ ok("...and is never reported over", lane("Unrated").over === false);
 ok("an idle station is still a lane", Boolean(lane("Idle")) && lane("Idle").load === 0);
 ok("the fullest station comes first", cap.stations[0].name === "Line 1");
 
+// RETIRED AND DOWN STATIONS COUNTED AS AVAILABLE — the status never reached
+// this. A retired machine is not a lane and its work has nowhere to happen; a
+// down one keeps its lane and is over with anything on it.
+const statusCap = capacityLoad(
+  [{ id: "r1", product: "P", quantity: 3, station: "Old press" }, { id: "d1", product: "P", quantity: 2, station: "Lathe" }],
+  [{ id: "sr", name: "Old press", capacityPerDay: 10, status: "Retired" },
+    { id: "sd", name: "Lathe", capacityPerDay: 10, status: "Down" }],
+);
+ok("A RETIRED STATION IS NOT A LANE", !statusCap.stations.some((s) => s.name === "Old press"));
+ok("...and work sent to it is reported", statusCap.unstationed.some((o) => o.id === "r1"));
+const lathe = statusCap.stations.find((s) => s.name === "Lathe");
+ok("A DOWN STATION WITH WORK ON IT IS OVER", lathe.down === true && lathe.over === true && lathe.days === null);
+
 // WORK WITH NOWHERE TO HAPPEN is exactly what a capacity view exists to
 // surface — but an order with NO station has not been planned yet, which is a
 // different problem from being sent to a station that does not exist.
@@ -123,7 +172,7 @@ const { readFileSync } = await import("node:fs");
 const planning = readFileSync("src/modules/manufacturing/planning.ts", "utf8");
 const builtins = readFileSync("src/platform/engine/builtins.ts", "utf8");
 const asked = [...planning.matchAll(/rowsOf\(ctx, "([a-zA-Z]+)"\)/g)].map((m) => m[1]);
-ok("the planner names some types at all", asked.length === 3, String(asked.length));
+ok("the planner names some types at all", new Set(asked).size === 3, String(new Set(asked).size));
 for (const key of asked) {
   ok(`the planner reads a type that exists: ${key}`, builtins.includes(`key: "${key}"`));
 }

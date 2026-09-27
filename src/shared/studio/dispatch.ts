@@ -29,6 +29,13 @@ type Strings = {
   jobLocation: string;
   jobStart: string;
   jobEnd: string;
+  // The visit's day and its two clock times, picked apart the way the rota's
+  // shift form picks them (StudioDate + two time fields).
+  jobDay: string;
+  jobOvernight: string;
+  // WHY THE BOARD OR THE FORM WAS REFUSED, keyed by the server's token. Both
+  // printed the token itself, or a bare HTTP status, before.
+  problem: (token: string) => string;
   jobAssignee: string;
   nobody: string;
   none: string;
@@ -62,6 +69,9 @@ const en: Strings = {
   jobLocation: "Location",
   jobStart: "Starts",
   jobEnd: "Ends",
+  jobDay: "Day",
+  jobOvernight: "An end earlier than the start runs past midnight into the next day.",
+  problem: (token) => EN_PROBLEMS[token] || EN_PROBLEMS.failed,
   jobAssignee: "Who is on it",
   nobody: "Nobody yet",
   none: "None",
@@ -103,12 +113,43 @@ const ar: Strings = {
   jobLocation: "الموقع",
   jobStart: "تبدأ",
   jobEnd: "تنتهي",
+  jobDay: "اليوم",
+  jobOvernight: "النهاية التي تسبق البداية تمتد بعد منتصف الليل إلى اليوم التالي.",
+  problem: (token) => AR_PROBLEMS[token] || AR_PROBLEMS.failed,
   jobAssignee: "المكلف",
   nobody: "لا أحد بعد",
   none: "لا شيء",
   createJob: "إنشاء المهمة",
   creating: "جار الإنشاء…",
   cancel: "إلغاء",
+};
+
+const EN_PROBLEMS: Record<string, string> = {
+  title: "Give the job a title.",
+  kind: "Pick what kind of job this is.",
+  time: "A start or end time could not be read. Pick the day and the times again.",
+  range: "The job ends before it starts.",
+  person: "Somebody picked for this job is no longer in the studio.",
+  project: "That project no longer exists.",
+  contract: "That maintenance contract no longer exists.",
+  unit: "That installed unit no longer exists.",
+  forbidden: "You can see the board but not add jobs to it. Ask for create access to the schedule.",
+  "no-section": "This studio has no schedule section to file jobs under.",
+  failed: "That didn't save. Try again.",
+};
+
+const AR_PROBLEMS: Record<string, string> = {
+  title: "أعط المهمة عنوانا.",
+  kind: "اختر نوع المهمة.",
+  time: "تعذرت قراءة وقت البداية أو النهاية. اختر اليوم والأوقات مجددا.",
+  range: "تنتهي المهمة قبل أن تبدأ.",
+  person: "أحد من اخترتهم لهذه المهمة لم يعد في الاستوديو.",
+  project: "هذا المشروع لم يعد موجودا.",
+  contract: "عقد الصيانة هذا لم يعد موجودا.",
+  unit: "هذه الوحدة المركبة لم تعد موجودة.",
+  forbidden: "يمكنك رؤية اللوحة دون إضافة مهام إليها. اطلب صلاحية الإنشاء في الجدول.",
+  "no-section": "لا يوجد في هذا الاستوديو قسم جدول تحفظ تحته المهام.",
+  failed: "لم يحفظ ذلك. حاول مجددا.",
 };
 
 const AR_KINDS: Record<string, string> = {

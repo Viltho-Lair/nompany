@@ -11,7 +11,7 @@ import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { listRecords } from "@/platform/engine/records";
 import type { EngineCallerContext } from "@/platform/engine/records";
-import { explode, netRequirements, capacityLoad } from "./mrp";
+import { explode, netRequirements, capacityLoad, flatRecord } from "./mrp";
 import type { BomLine, Bom, WorkOrder, Station } from "./mrp";
 import type { Section } from "@/platform/db/sections";
 
@@ -45,10 +45,13 @@ async function rowsOf(ctx: PlanningContext, typeKey: string): Promise<Record<str
   return (result.records as Record<string, unknown>[]) || [];
 }
 
-/** An engine record's declared fields, flattened onto the row. */
-const flat = (r: Record<string, unknown>) => ({
-  id: String(r.id ?? ""), ...((r.values as Record<string, unknown>) || {}),
-});
+/**
+ * An engine record's declared fields, flattened onto the row — WITH ITS
+ * STATUS. This used to keep the id and the values alone, which dropped the
+ * status (a column of the record, not a value), so `isOpen` answered true for
+ * Completed and Cancelled orders and a Retired station counted as capacity.
+ */
+const flat = flatRecord;
 
 /**
  * WHAT THE FACTORY NEEDS TO BUY, AND WHETHER THE SHOP CAN TAKE THE WORK.
@@ -129,9 +132,34 @@ export async function productionPlan(ctx: PlanningContext) {
     // What a line can be put against, so the BOM editor offers exactly what the
     // server will accept.
     items: items.map((i) => ({ id: i.id, label: label[i.id], unit: unitOf[i.id] })),
-    boms: boms.map((b) => ({ id: b.id, product: String(b.product || ""), revision: String(b.revision || "") })),
+    // THE STATUS TRAVELS so the editor can say which bill the plan is built
+    // from (only Released ones are — see `isPlannable`) and leave a Superseded
+    // one alone, which `bomProblem` refuses to change.
+    boms: boms.map((b) => ({
+      id: b.id, product: String(b.product || ""), revision: String(b.revision || ""), status: String(b.status || ""),
+    })),
     lines,
+    // THE BOM EDITOR'S BUTTONS answer to the BOM's own right, not to the
+    // planning view this screen is opened with. Without this the screen offered
+    // Add and Remove to every planner and the server refused them one by one.
+    canEditBom: !requirePermission(ctx.access, "engine.bom.edit"),
   };
+}
+
+/**
+ * THE BILL A LINE IS BEING WRITTEN AGAINST, or the reason it cannot be.
+ *
+ * READ, NOT TRUSTED. A line was accepted against any `bomId` string, so a
+ * typo or a deleted bill left lines behind that explode into nothing and that
+ * no screen could reach to remove. And a SUPERSEDED bill is what was built
+ * against — the register makes that status one-way for exactly that reason —
+ * so changing its lines would rewrite the history a recall is read from.
+ */
+async function bomProblem(ctx: PlanningContext, bomId: string): Promise<string | null> {
+  const bom = (await rowsOf(ctx, "bom")).map(flat).find((b) => b.id === bomId);
+  if (!bom) return "no-bom";
+  if (bom.status.trim().toLowerCase() === "superseded") return "superseded";
+  return null;
 }
 
 /** Add a line to a bill of materials. Guarded by the BOM's own right. */
@@ -148,7 +176,18 @@ export async function addBomLine(ctx: PlanningContext, body: Record<string, unkn
   if (!itemId) return { error: "item" };
   if (qtyPer <= 0) return { error: "qty" };
 
-  const existing = await Lines.find(scope(ctx));
+  const [bomRefused, item, existing] = await Promise.all([
+    bomProblem(ctx, bomId),
+    // THE ITEM MUST BE A REGISTERED ITEM THE STUDIO HOLDS. An id naming none
+    // explodes into a requirement the screen labels "(removed item)" and that
+    // no buyer can order — the silent version of the refusal below. A studio
+    // with no Inventory has no items, so it has nothing a line could name.
+    ctx.itemsSection ? Items.byId({ studio: ctx.studio, section: ctx.itemsSection }, itemId) : Promise.resolve(null),
+    Lines.find(scope(ctx)),
+  ]);
+  if (bomRefused) return { error: bomRefused };
+  if (!item) return { error: "no-item" };
+
   // ONE LINE PER ITEM PER BOM. Two lines for one component is a quantity
   // somebody meant to change, and summing them silently would make the second
   // edit look like it had worked while doubling the requirement.
@@ -167,6 +206,15 @@ export async function editBomLine(ctx: PlanningContext, id: string, body: Record
   if (denied) return denied;
   const qtyPer = num(body?.qtyPer);
   if (qtyPer <= 0) return { error: "qty" };
+  const line = (await Lines.find(scope(ctx))).find((l) => l.id === id);
+  if (!line) return { error: "notfound" };
+  const bomRefused = await bomProblem(ctx, line.bomId);
+  // A LINE WHOSE BILL IS GONE may still be corrected or removed — refusing it
+  // would strand the row where no screen can reach it. Only a SUPERSEDED bill
+  // is frozen.
+  if (bomRefused === "superseded") return { error: bomRefused };
+  // A quantity is SET rather than flipped, so the object patch says exactly
+  // what the person typed; there is no prior value it depends on.
   const updated = await Lines.update(scope(ctx), id, { qtyPer: round(qtyPer) });
   return updated ? { line: updated } : { error: "notfound" };
 }
@@ -180,7 +228,9 @@ export async function removeBomLine(ctx: PlanningContext, id: string) {
   const denied = requirePermission(ctx.access, "engine.bom.edit");
   if (denied) return denied;
   const rows = await Lines.find(scope(ctx));
-  if (!rows.some((l) => l.id === id)) return { error: "notfound" };
+  const line = rows.find((l) => l.id === id);
+  if (!line) return { error: "notfound" };
+  if ((await bomProblem(ctx, line.bomId)) === "superseded") return { error: "superseded" };
   await Lines.remove(scope(ctx), id);
   return { ok: true };
 }

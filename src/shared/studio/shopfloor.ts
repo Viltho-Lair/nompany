@@ -31,14 +31,19 @@ type Strings = {
   awaiting: (n: number) => string;
   result: (token: string) => string;
   checkFor: (ref: string) => string;
-  problem: (code: string) => string;
+  /**
+   * A refusal, by its token. `title` names the job for `other-run` and
+   * `already-running`. NEVER THE TOKEN ITSELF: this fell back to the raw code,
+   * so "forbidden" and "order" reached an operator's screen as words.
+   */
+  problem: (code: string, title?: string) => string;
 };
 
 const en: Strings = {
   tab: "Shop floor",
   title: "Shop floor",
   lead: "Clock on to a work order, and pass or fail what comes off it.",
-  noOrders: "No work orders open.",
+  noOrders: "No open work orders. Completed and cancelled orders are not shown here.",
   clockOn: "Clock on",
   clockOff: "Clock off",
   // Somebody else is already on it. Shown rather than hidden: an operator
@@ -61,12 +66,22 @@ const en: Strings = {
   awaiting: (n) => `${n} ${n === 1 ? "batch has" : "batches have"} not been checked.`,
   result: (token) => (token === "pass" ? "Passed" : token === "fail" ? "Failed" : token === "concession" ? "Conceded" : token),
   checkFor: (ref) => `Check for ${ref}`,
-  problem: (code) => (
-    code === "other-run" ? "Clock off the job you are on first."
-      : code === "already-running" ? "You are already on this one."
-        : code === "no-run" ? "You are not clocked on to anything."
-          : code === "action" ? "Nothing to do."
-            : code || ""),
+  problem: (code, title) => ({
+    "other-run": title ? `Clock off ${title} first.` : "Clock off the job you are on first.",
+    "already-running": "You are already on this one.",
+    "no-run": "You are not clocked on to anything.",
+    order: "Choose a work order.",
+    "no-order": "That work order is not in the register any more.",
+    "order-closed": "That work order is completed or cancelled, so no time can be logged on it.",
+    "no-batch": "That batch is not in the register any more.",
+    batch: "Choose a batch.",
+    result: "Choose a result.",
+    "fail-reason": "Say why it failed.",
+    "concession-reason": "Say what was conceded.",
+    action: "Nothing to do.",
+    forbidden: "You do not have the right to do that.",
+    "no-section": "Manufacturing is not set up in this studio.",
+  } as Record<string, string>)[code] || "That did not work. Try again.",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -74,7 +89,7 @@ const ar: Strings = {
   tab: "أرضية المصنع",
   title: "أرضية المصنع",
   lead: "سجلوا الدخول على أمر عمل، وأجيزوا أو ارفضوا ما ينتج عنه.",
-  noOrders: "لا توجد أوامر عمل مفتوحة.",
+  noOrders: "لا توجد أوامر عمل مفتوحة. الأوامر المكتملة والملغاة لا تظهر هنا.",
   clockOn: "تسجيل الدخول",
   clockOff: "تسجيل الخروج",
   joinRun: "تسجيل الدخول (شخص آخر عليه)",
@@ -95,12 +110,22 @@ const ar: Strings = {
   awaiting: (n) => `${n} ${n === 1 ? "دفعة لم تفحص" : "دفعات لم تفحص"}.`,
   result: (token) => (token === "pass" ? "مجازة" : token === "fail" ? "مرفوضة" : token === "concession" ? "بتنازل" : token),
   checkFor: (ref) => `فحص ${ref}`,
-  problem: (code) => (
-    code === "other-run" ? "سجلوا الخروج من العمل الحالي أولا."
-      : code === "already-running" ? "أنتم على هذا العمل بالفعل."
-        : code === "no-run" ? "لستم مسجلين على أي عمل."
-          : code === "action" ? "لا يوجد اجراء."
-            : code || ""),
+  problem: (code, title) => ({
+    "other-run": title ? `سجلوا الخروج من ${title} أولا.` : "سجلوا الخروج من العمل الحالي أولا.",
+    "already-running": "أنتم على هذا العمل بالفعل.",
+    "no-run": "لستم مسجلين على أي عمل.",
+    order: "اختاروا أمر عمل.",
+    "no-order": "أمر العمل هذا لم يعد في السجل.",
+    "order-closed": "أمر العمل هذا مكتمل أو ملغى، فلا يمكن تسجيل وقت عليه.",
+    "no-batch": "هذه الدفعة لم تعد في السجل.",
+    batch: "اختاروا دفعة.",
+    result: "اختاروا نتيجة.",
+    "fail-reason": "اذكروا سبب الرفض.",
+    "concession-reason": "اذكروا ما الذي تم التنازل عنه.",
+    action: "لا يوجد اجراء.",
+    forbidden: "لا تملكون صلاحية القيام بذلك.",
+    "no-section": "التصنيع غير مفعل في هذا الاستوديو.",
+  } as Record<string, string>)[code] || "لم تنجح العملية. حاولوا مرة أخرى.",
 };
 
 const dict = { en, ar };

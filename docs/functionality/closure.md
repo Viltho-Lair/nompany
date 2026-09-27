@@ -44,8 +44,16 @@ the same thing whatever a studio calls its stages.
 ## The support period already existed
 
 `supportPeriodDays` has been on `ProjectSchema` since before this slice — a studio-level
-default of 365, editable per project — and **nothing had ever read it**. It was stored, shown
-in a form, and computed into no answer at all. The tracker consumes it.
+default of 365, editable per project. Its only reader was the project list's Support tag
+(`supportStatus` in `sla.ts`), which counted it from the project's **end date** and read a
+nought as 365 — a second calculation that could disagree with this one about the same job. The
+tracker consumes it, and since 27/09/2026 **the tag reads this calculation too**
+(`closurePosition`, through `supportTag`); `supportStatus` is deleted.
+
+**One rule for what a period may be** — a whole number of days, 0 to 3650
+(`supportPeriodProblem`) — asked by every door that writes one: this tab, *Edit details*, the
+create path and the studio default in Settings. The other three used to take any non-negative
+number, which this tab then refused the next time its dates were saved.
 
 **No `warrantyMonths` was minted beside it.** `ProjectSchema` also carries
 `retentionReleaseDate`, whose own comment already calls itself "the defects-liability end".
@@ -77,9 +85,20 @@ Two blockers, and they are returned **as a list** rather than as a bare refusal:
 
 **Closing is its own act**, never a date written through the edit path — a final state
 reachable by a generic write is the shape that let a rejected change order approve itself. And
-**a closed project does not reopen**: `closureProblem` refuses every later write once
-`closedAt` is set, because closing is a statement about the job's whole life and un-saying it
-quietly is how a support period restarts without anybody deciding to restart it.
+**a closed project does not reopen**: `closureProblem` refuses every later write through this
+tab once `closedAt` is set, and `updateProject` refuses *Edit details* (the same dates and the
+same support period, which used to go straight past it), because closing is a statement about
+the job's whole life and un-saying it quietly is how a support period restarts without anybody
+deciding to restart it.
+
+**Every write here is re-asked of the live row** (invariant 8): saving the dates re-runs
+`closureProblem` inside the compare-and-set, and closing re-checks `closedAt` and practical
+completion there, so a project closed — or its completion cleared — between the read and the
+write does not take it. The punch list is another collection and cannot be re-read inside that
+compare-and-set; a snag raised in the same instant as the close is the one race left.
+
+**A refusal is words, never a token.** A close refused with `blocked` names its blockers in the
+reader's language; the screen had no case for it and printed the English token.
 
 **Handover cannot predate practical completion.** Handing over works that are not complete is a
 different event with a different name, and stored that way round the support clock would sit
@@ -89,8 +108,10 @@ behind the handover.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **Nothing raises a snag from this screen.** The punch list is read-only here; snags are
-  raised and answered in the inspections register, so clearing one means going somewhere else.
+- **No screen raises or answers a snag at all.** The punch list is read-only here, and the
+  inspections register it reads has an API (`/api/studios/<slug>/projects/inspections`) and no
+  screen that calls it — so on screen the punch list can only ever be empty, and a snag raised
+  through the API can only be cleared through the API.
 - **Closing does nothing else.** It sets a date and a signature and changes no stage, releases
   no retention, notifies nobody and closes no engagement. The word is honest — it records that
   the job is closed — but it is not a workflow.

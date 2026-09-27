@@ -17,8 +17,9 @@ nothing said whether it PASSED. A studio could trace a batch to a job and could 
 whether the batch was any good — which is the one thing traceability exists to let somebody
 act on.
 
-**Two records, one screen**, because they are one person's job: the operator who ran the
-machine is the one who signs off what came out of it.
+**Two records, one screen**, because they happen at the same place — the machine and what
+came off it. They are NOT assumed to be one person's job: the rights below keep them apart,
+and the screen shows each half only to whoever holds its right.
 
 ### The rights
 
@@ -32,7 +33,22 @@ output are frequently not the same person, and one right over both would make th
 
 **One open run per person, across every order.** An operator standing at one machine cannot
 also be at another, and two open runs is how a day ends with sixteen hours logged against
-eight worked. It refuses by name (`other-run`) so the terminal can say which job to close.
+eight worked. It refuses by name (`other-run`) and the refusal carries the open job's
+`workOrderId` and `title`, so the terminal says which job to clock off.
+
+**Only open orders, and only real ones.** The terminal lists work orders that are not
+Completed or Cancelled, and a run is refused against an order that is not in the register
+(`no-order`) or is closed (`order-closed`). Until 27/09/2026 the status was dropped on the
+way in, so the terminal offered every order and `startRun` accepted any id.
+
+**The one-run rule is a read then a write, so it is checked twice.** The store has no
+unique constraint for "one open run per person" and no lock a service can take. `startRun`
+checks, writes, then re-reads: any request that finds two of the person's open runs keeps
+the earliest (`keptRun` — by `startedAt`, then id, the same answer for every reader) and
+removes its own if it lost. What remains: if the request that stamped the earlier
+`startedAt` lands its write only after the other has re-read, both stand; clock-off then
+closes the earliest and a second tap the other. Clock-off is a FUNCTION patch that leaves an
+already-closed run alone, so a double tap cannot stretch a run.
 
 **Only your own run can be closed.** Not a convenience: a run is a claim about who was
 standing at a machine and for how long, so somebody else closing it would be signing a
@@ -45,12 +61,20 @@ open ones counted separately — folding a guess into the total would produce a 
 moves when nobody has done anything.
 
 **Somebody else's open run is shown, not hidden.** An operator arriving at a busy station
-should see who is on it rather than an empty list; it does not block them, because two
-people on one job is real.
+should see that it is taken rather than an empty list; it does not block them, because two
+people on one job is real. `otherRuns` carries the order and the station and NOT the
+person — the screen says "somebody else is on it", not who.
+
+**The clock-on time is the reader's own**, through `fmtDateTime`; it was the stored UTC
+stamp sliced to hours and minutes.
 
 ### Quality
 
 Three results and no more: `pass`, `fail`, `concession`.
+
+**The batch must be in the register** (`no-batch`); a verdict was accepted against any id.
+The refusal reasons are TOKENS (`batch`, `result`, `fail-reason`, `concession-reason`)
+that the screen says in the reader's language; they were English sentences.
 
 **A fail without a reason is refused**, and so is a concession. "This batch failed" that
 does not say why cannot be acted on, cannot be argued with and cannot be counted into

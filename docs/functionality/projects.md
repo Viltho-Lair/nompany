@@ -17,8 +17,9 @@ has children — a board and a plan. There are **three ways one begins**:
    tender's reference is carried onto the project. One project per tender.
 3. **Directly.** The studio was handed the job with no ticket, no RFQ, no
    quotation behind it — work brought in by a call, a walk-in, a referral.
-   The client, the title, the industry, a description, a value, dates and the
-   support period are typed on the spot.
+   The client, the title, the industry, a description, a value and dates are
+   typed on the spot. No create form asks for a support period: every head
+   takes the studio's default from Settings, and *Edit details* changes it.
 
 **A project is a hub with tabs** (tier 5, 11/09/2026). `/projects-list/<id>` is its
 **Overview** — the client, the project box and what was sold, the same panels the board's
@@ -83,7 +84,8 @@ halves of the dialog.
 | `tenderId` / `tenderRef` | both `""` | the tender's | both `""` |
 | Industry | not read; irrelevant to this path | not read | typed, written onto the Client record |
 | Description (`notes`) | never sent; stays `""` | never sent; stays `""` | typed |
-| Dates, support period | typed on the shared dialog fields either way | not asked — the handover is one button | — |
+| Dates | not asked | not asked — the handover is one button | typed |
+| Support period | the studio's default | the studio's default | the studio's default |
 
 **From a quotation, the commercial gate is hard.** `quotationSource` asks
 `quotationApproved(quote, tasks)` — approval is a fact about the `po` approval
@@ -116,9 +118,9 @@ owns is the drift this product keeps removing. It reaches the engagement by bein
 backfill.ts`) sets `context.industry` from `clientById.get(p.clientId)
 ?.industry`, never from the project.
 
-## The project number is Finance's to issue
+## The project number is issued by the Client PO approval
 
-**`number` is `""` on both paths, by design.** It is quoted on invoices,
+**`number` is `""` on every path, by design.** It is quoted on invoices,
 purchase orders and delivery notes — the studio's commitment to bill the
 work — and it is issued when the quotation's **Client PO approval** is approved
 (`issueProjectNumber`, called from `onApproved` in `modules/approvals/approvals.ts`, not
@@ -134,9 +136,51 @@ Approved, and `openProject` calls the same `issueProjectNumber` straight after
 the create. Before 24/09/2026 the approval found no project, numbered nothing,
 and nothing ever came back to it — the project stayed unnumbered for good.
 
-A direct project is no
-exception: nothing about being created without a quotation issues it a
-number early, or a different way.
+**A direct or tender project is never numbered.** It has no quotation, so it
+has no Client PO approval, and nothing else issues a number — see "Not built
+yet". (This section used to call the number "Finance's to issue"; nothing in
+Finance issues it.)
+
+## One project per quotation, and per tender — under contention too
+
+Both heads check "is there a project from this source already?" by reading the
+projects and then create one, and two requests landing together used to both
+read "no". `openProject` now takes a short NX claim —
+`PROJECT.opening(studio, "quotation:<id>" | "tender:<id>")`, sixty seconds at
+most — before the head runs its check, and releases it as soon as the row is
+written. The second caller is told `already`. The rule stays DERIVED: the claim
+is a lock, not a record, so deleting the project still frees the quotation or
+the tender.
+
+## Editing a project, and a closed one
+
+*Edit details* writes the stage, the manager, the location, the dates and the
+support period (`updateProject`). **The support period is held to the
+Closing-out tab's rule** (`supportPeriodProblem`, `closureModel.ts`) — a whole
+number of days from 0 to 3650 — at every door that writes one: this dialog, the
+closure tab, the create path and the studio default in Settings. Before
+27/09/2026 the other three took any non-negative number, so a fraction typed here
+was refused by the closure tab the next time anybody saved its dates.
+
+**A closed project's details are fixed.** Once `closedAt` is set,
+`updateProject` refuses with `closed`, re-asked inside the row's own
+compare-and-set, and the dialog shows the fields disabled with a sentence saying
+why. It used to go straight past the closure — a closed job's dates, manager and
+support period could all be rewritten.
+
+**The Support tag on a project reads the Closing-out tab's calculation**
+(`closurePosition`): the days left of a period counted from HANDOVER, "No
+support period" for a deliberate nought, and "Not handed over yet" before the
+clock starts. It used to count from the project's END date and read a nought
+as 365, so the tag and the tab could disagree about the same job.
+
+## Settings
+
+The default support period (copied onto each new project) and the overtime
+department. **Requirement weights were removed on 27/09/2026**: they were saved,
+nothing read them — a project's progress is its plan's completion — and the form
+refused to save any setting until they totalled 100%. Values already stored are
+left in place and not read.
 
 ## A direct project roots its own engagement
 
@@ -223,6 +267,13 @@ beyond that.
 
 ## Not built yet — do not assume otherwise
 
+- **Closing freezes only Edit details and the Closing-out tab.** The board, the
+  plan, overtime, site reports, cost codes, billing milestones and claims all
+  still accept writes on a closed project.
+- **The stages cannot be edited.** Settings shows `PROJECT_STAGES`; the route
+  offers that fixed list as the vocabulary and `updateProject` accepts nothing
+  else, so a studio's own stage names are not possible.
+
 - **The print sheet draws no dependency arrows**, because an arrow cannot cross a table
   row; the Predecessors column carries the same links as text. It also prints **every**
   row, collapsed or not, and ignores the editor's search filter. There is no choice of
@@ -244,6 +295,6 @@ beyond that.
   collision, either.
 - **Nothing outside an approved Client PO issues a project number.**
   There is no manual override, no route, and no screen control that lets
-  anyone else set or force one — a direct project with no quotation, and
-  therefore no Client PO approval, keeps `number: ""` for as long as it exists, with
+  anyone else set or force one — a direct project, or one handed over from a
+  tender, has no quotation and therefore no Client PO approval, and keeps `number: ""` for as long as it exists, with
   no way to give it one.

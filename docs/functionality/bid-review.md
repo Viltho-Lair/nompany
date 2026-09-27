@@ -137,25 +137,48 @@ the lines it already fetched; a tender in the studio's own currency triggers no 
 
 ### On screen
 
-The review block draws the button only where pressing it would succeed — `availableBidApproval`
-asks every question `approveBid` asks, from the same file the walk enforces with. Every step is
-shown, signed or not, in the order it must be walked, so somebody looking at a half-signed bid
-sees what it is still waiting for rather than only how far it has come. The step's **label is
-tenant-authored and never translated**; the refusals travel as tokens and are translated on
-display, through `components/studio2/tenderRefusals` — which moved out of `StudioTenders` when
-a second screen started receiving the same tokens.
+*(Rewritten 27/09/2026 for the Approvals-page model. This section used to describe
+`availableBidApproval`, `approveBid` and a `PUT … approve` — none of which exist any more.)*
 
-**The signature goes to the tenders route** (`PUT /tendering/tenders` with `approve`), the only
-door onto `approveBid`. Until 11/09/2026 the button posted to `/tendering/boq`, which read it
-as a line edit and refused, so no bid could be signed and — submission being gated on the
-signature — none could be submitted. The tender's page is reached from its row in the register.
+**Nothing is signed on this page.** The review block shows the bid's value and its basis, how
+far its Bid approval has got (read from the approval, `approvalSummary`), and whether that
+approval is still for the bid as it stands (`stale`). It offers **Request approval** exactly
+where the server would accept one (`review.canRequest`: not yet submitted, fully priced, and
+nothing waiting — or the last answer was a no, or a yes for another price), and links to the
+Approvals page, where the answering happens.
+
+**The request goes to the tenders route** (`PUT /tendering/tenders` with `requestApproval`),
+because asking is an act on the tender — sent to `/tendering/boq` it would read as a line edit.
+
+**Every refusal is translated**, through `components/studio2/tenderRefusals`: `not-configured`,
+`no-approver`, `no-studio-currency`, `unquoted`, `bill-incomplete`, `already-submitted`,
+`already-pending`. Until 27/09/2026 the bill's screen showed them as the bare token. A token the
+mapper has no case for reads as a plain "that did not go through", never as itself.
+
+**Who answers is Approvals'.** `planFor` (`modules/approvals/model`) takes **the person who
+asked off every step** they are named on — so the estimator who asks never answers their own
+bid, and a step where they were the only name refuses the request (`no-approver`) rather than
+approving itself. **The owner and Admins stay on their steps** and may answer a request they
+made; that is the owner's rule for every approval type, not a bid exception.
+
+**An approval covers one value in one currency.** `coversValue` compares the approval's frozen
+amount with the bid's value now *and* its currency (27/09/2026: it compared the digits alone,
+so a tender re-denominated through the API kept an approval given in another currency). A bill
+repriced, or a tender re-denominated, after its yes makes the approval stale, and it is asked
+for again.
+
+**And the bill cannot move once the bid is out** — the bill of quantities locks at Submitted
+(`boq.md`), so the figure that was approved and sent is the figure a handover opens the project
+at.
 
 ### The one thing that will surprise you
 
-**Approving a bid requires the studio to have set its own currency**, and `createStudio` has
-never set one — the same rollout consequence bills already carry. An amount cannot be judged
-against a limit without one. The refusal names the fix rather than merely refusing, and the
-screen says it in place of the button.
+**A studio's own currency is needed only for a foreign-currency bid on a type with a step above
+0.** `judge` (`modules/approvals/approvals`) converts only when some step starts at a threshold
+and the bid's currency differs from the studio's; then, with no studio currency, it refuses
+`no-studio-currency`, and with no quoted rate, `unquoted`. A studio whose Bid steps all start at
+0, or that bids in its own currency, never needs one. The refusal names the fix, in both
+languages.
 
 ## Not built yet
 

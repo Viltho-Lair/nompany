@@ -37,6 +37,7 @@ export const GET = route({ ...spec, body: false }, async (procurement) => {
     canEdit: result.canEdit,
     canDelete: result.canDelete,
     canCertify: result.canCertify,
+    me: result.me,
   };
 });
 

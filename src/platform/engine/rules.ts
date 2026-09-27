@@ -200,3 +200,45 @@ export function alreadyRaised(
   if (!link) return false;
   return existing.some((r) => text(obj(r?.values)[link]) === text(sourceId));
 }
+
+/**
+ * DID ANOTHER WRITER RAISE THE SAME CONSEQUENCE FIRST? Asked AFTER the create,
+ * of a fresh read, by the record that was just made.
+ *
+ * `alreadyRaised` is a read followed by a create, and the store has nothing
+ * that makes the pair atomic: the rows are one row each in `collection_rows`,
+ * with no document to compare-and-set and no uniqueness the engine can declare
+ * on a value. Two writers can both read "none yet" and both create. The status
+ * move no longer lets one arrival run the rules twice — `applyMove` inside the
+ * patch means only the write that CHANGED the status fires them — so what is
+ * left is two DIFFERENT arrivals racing (rejected, reopened and rejected again
+ * by two people in the same instant).
+ *
+ * SO EACH WRITER CHECKS AFTERWARDS, and the one that sorts LATER withdraws its
+ * own record. The order is (createdAt, id) — a total order both writers compute
+ * identically, so they can never both decide to withdraw and lose the
+ * consequence altogether. WHAT REMAINS: if the earlier-sorting writer's create
+ * has not committed when the later one re-reads, the later one sees only itself
+ * and keeps it, and the earlier one then keeps its own too. That window is the
+ * width of one insert, and closing it needs a uniqueness the store would have
+ * to enforce — which is the day this function can go.
+ *
+ * A rule with no `link` has nothing to compare and never withdraws, for the
+ * reason `alreadyRaised` gives.
+ */
+export function raisedEarlierByAnother(
+  rule: RuleDecl,
+  sourceId: string,
+  made: { id?: unknown; createdAt?: unknown },
+  existing: readonly { id?: unknown; createdAt?: unknown; values?: unknown }[],
+): boolean {
+  const link = text(rule?.then?.create?.link);
+  if (!link) return false;
+  const mine = [text(made?.createdAt), text(made?.id)] as const;
+  return existing.some((r) => {
+    if (text(r?.id) === mine[1]) return false;
+    if (text(obj(r?.values)[link]) !== text(sourceId)) return false;
+    const theirs = [text(r?.createdAt), text(r?.id)] as const;
+    return theirs[0] < mine[0] || (theirs[0] === mine[0] && theirs[1] < mine[1]);
+  });
+}

@@ -107,14 +107,14 @@ export default function StudioInventory({ slug, view = "inventory", initial }) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(message(out, tr)); return false; }
+    if (!res.ok) { setError(message(out, tr, view)); return false; }
     await load();
     // THE BODY, not `true`. Every caller here tests this as a boolean and an
     // object is truthy, so nothing changes for them — but the import needs to
     // read what came back (how many landed, which lines did not), and a helper
     // that throws the answer away would force a second fetch to ask again.
     return out;
-  }, [slug, load]);
+  }, [slug, load, view]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingInventory} />;
@@ -131,7 +131,7 @@ export default function StudioInventory({ slug, view = "inventory", initial }) {
   // `canWriteInventoryColumns`, which projects/route.ts derives per column
   // owner — so the coarse flag here answers a question nobody asks any more.
   const {
-    canManageStock, canManageItems, canManageAwb,
+    canManageStock, canManageItems, canManageAwb, canCreateStock, canEditItems, asOf,
     vendors, items, movements, orders, projects, shipments, airlines, summary, vocabulary, nav, categories = [],
     currency: studioCurrency = "",
   } = data;
@@ -149,7 +149,12 @@ export default function StudioInventory({ slug, view = "inventory", initial }) {
       studioCurrency={studioCurrency} canManage={canManageItems} busy={busy} send={send} reload={load} />);
   }
   if (view === "inventory-stock") {
+    // PER ACT, as the server asks: Adjust needs `inventory.stock.create` and a
+    // serial list is saved by an ITEM edit (`inventory.items.edit`).
+    // `canManageStock` is any write right in the sub-section and still decides
+    // only whether the screen says "View only".
     return wrap(<Stock slug={slug} items={items} movements={movements} canManage={canManageStock}
+      canAdjust={Boolean(canCreateStock)} canEditSerials={Boolean(canEditItems)}
       busy={busy} send={send} currency={studioCurrency} />);
   }
   // NO BRANCH FOR procurement-suppliers. The register moved to the supplier
@@ -172,7 +177,7 @@ export default function StudioInventory({ slug, view = "inventory", initial }) {
   if (data.canViewDashboard === false) return wrap(<Empty title={tr.dashboardIsnYoursSee} body={tr.studioKeepsModuleDashboards} />);
   return wrap(<InventoryDashboard slug={slug} summary={summary} items={items}
     orders={orders} movements={movements} nav={nav} stockAlerts={Boolean(data.canSeeStockAlerts)}
-    level={level} currency={studioCurrency} />);
+    level={level} currency={studioCurrency} asOf={asOf} />);
 }
 
 // THE DICTIONARY COMES IN AS AN ARGUMENT — module scope, see StudioFinance.
@@ -180,9 +185,23 @@ export default function StudioInventory({ slug, view = "inventory", initial }) {
 // The counted phrases are functions rather than `${n} item${s}`, because the
 // English rule (one form or the other) is not the Arabic one (four, in the
 // ranges a stock ledger reaches), and the joining word is not "and" either.
-function message(out, tr) {
-  if (out.error === "read-only") return tr.mReadOnly;
+function message(out, tr, view = "") {
+  // THE SCREEN BEING REFUSED IS NAMED. Shipments is Logistics' screen and was
+  // told "this part of Inventory", which sent people to the wrong department's
+  // owner to ask for the right.
+  if (out.error === "read-only") return view === "logistics-shipments" ? tr.mReadOnlyLogistics : tr.mReadOnly;
   if (tr.mApproval(out.error)) return tr.mApproval(out.error);
+  // EACH OF THESE WAS "That didn't save." — true, and no help: the fix for a
+  // missing right, a deleted item, a closed work order and a busy item are four
+  // different things to do.
+  if (out.error === "forbidden") return tr.mForbidden;
+  if (out.error === "item") return tr.mItem;
+  if (out.error === "qty") return tr.mQty;
+  if (out.error === "closed") return tr.mClosed;
+  if (out.error === "notfound") return tr.mNotFound;
+  if (out.error === "already-decided") return tr.mAlreadyDecided;
+  if (out.error === "in-progress") return tr.mInProgress;
+  if (out.error === "missing") return tr.mMissing;
   if (out.error === "duplicate") return tr.mDuplicate;
   if (out.error === "duplicate-sku") return tr.mDuplicateSku;
   // Said by name, the way a bin or batch refusal is: which code, and whose.
@@ -475,7 +494,7 @@ function ItemImage({ value, onChange }) {
   // and never matched the field beside it. Wrapped in <Field> so its box lines
   // up with the other controls in the grid.
   return (
-    <Field label={<>{tr.image} <span className="font-400 normal-case text-slate-400">(500 KB max)</span></>} filled error={err || undefined}>
+    <Field label={<>{tr.image} <span className="font-400 normal-case text-slate-400">{tr.imageMax}</span></>} filled error={err || undefined}>
       <div className="flex items-center gap-3 px-3.5 pb-1.5 pt-5">
         <span className="grid h-6 w-6 shrink-0 place-items-center overflow-hidden rounded-md border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -491,7 +510,7 @@ function ItemImage({ value, onChange }) {
           {value && !busy && (
             <button type="button" onClick={() => onChange("")}
               className="rounded-full px-2 py-1 text-xs font-600 text-slate-400 transition-colors hover:text-rose-600 dark:hover:text-rose-300">
-              Remove
+              {tr.remove}
             </button>
           )}
         </div>
@@ -649,7 +668,7 @@ function ItemForm({ row, vendors, units, categories = [], serviceActions = [], s
 }
 
 // ---- stock management ------------------------------------------------------
-function Stock({ slug, items, movements, canManage, busy, send, currency = "" }) {
+function Stock({ slug, items, movements, canManage, canAdjust, canEditSerials, busy, send, currency = "" }) {
   const locale = useStudioLocale();
   const tr = inventoryDict(locale);
   const [tab, setTab] = useState("onhand");
@@ -659,8 +678,8 @@ function Stock({ slug, items, movements, canManage, busy, send, currency = "" })
   // and moves nothing; the dialog used to close as if it had worked.
   const [notice, setNotice] = useState("");
   const [serialsFor, setSerialsFor] = useState(null);
-  const closeAdjust = useCallback(() => setAdjusting(null), []);
-  const closeSerials = useCallback(() => setSerialsFor(null), []);
+  const closeAdjust = useCallback(() => setAdjusting(null), [setAdjusting]);
+  const closeSerials = useCallback(() => setSerialsFor(null), [setSerialsFor]);
 
   // Keep the open serial dialog on the freshly loaded row after a save.
   useEffect(() => {
@@ -692,8 +711,8 @@ function Stock({ slug, items, movements, canManage, busy, send, currency = "" })
       </div>
 
       {adjusting && (
-        <Dialog title={`Adjust stock — ${adjusting.name}`}
-          description={`On hand: ${num(adjusting.onHand)} ${adjusting.unit}. A positive number adds, a negative one removes.`}
+        <Dialog title={tr.adjustTitle(adjusting.name)}
+          description={tr.adjustDescription(num(adjusting.onHand), adjusting.unit)}
           onClose={closeAdjust} width="max-w-[520px]">
           <AdjustForm item={adjusting} busy={busy} onCancel={closeAdjust}
             onSave={async (v) => {
@@ -712,10 +731,10 @@ function Stock({ slug, items, movements, canManage, busy, send, currency = "" })
       {tab === "onhand" && <PendingAdjustments slug={slug} items={items} />}
 
       {serialsFor && (
-        <Dialog title={`Serial numbers — ${serialsFor.name}`}
+        <Dialog title={tr.serialsTitle(serialsFor.name)}
           description={tr.whichUnitsHeldHand}
           onClose={closeSerials} width="max-w-[620px]">
-          <SerialsForm item={serialsFor} busy={busy} canManage={canManage} onCancel={closeSerials}
+          <SerialsForm item={serialsFor} busy={busy} canManage={canEditSerials} onCancel={closeSerials}
             onSave={async (serials) => { await send("items", "PUT", { id: serialsFor.id, serials }); }} />
         </Dialog>
       )}
@@ -769,9 +788,9 @@ function Stock({ slug, items, movements, canManage, busy, send, currency = "" })
                             {i.serials.slice(0, 4).map((sn) => (
                               <span key={sn} className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 dark:bg-white/10 dark:text-slate-300">{sn}</span>
                             ))}
-                            {i.serials.length > 4 && <span className="text-[11px] text-slate-400">+{i.serials.length - 4} more</span>}
+                            {i.serials.length > 4 && <span className="text-[11px] text-slate-400">{tr.moreSerials(i.serials.length - 4)}</span>}
                             {i.serialMismatch && (
-                              <span title={`${i.serials.length} serials recorded against ${num(i.onHand)} on hand`}
+                              <span title={tr.serialMismatchTitle(i.serials.length, num(i.onHand))}
                                 className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-600 text-amber-700 dark:text-amber-300">
                                 {i.serials.length} ≠ {num(i.onHand)}
                               </span>
@@ -786,7 +805,7 @@ function Stock({ slug, items, movements, canManage, busy, send, currency = "" })
                       <td className={`${td} text-end`}>
                         <span className="inline-flex flex-wrap justify-end gap-2">
                           <button className={btnGhost} onClick={() => setSerialsFor(i)}>{tr.serials}</button>
-                          {canManage && <button className={btnGhost} onClick={() => setAdjusting(i)}>{tr.adjust}</button>}
+                          {canAdjust && <button className={btnGhost} onClick={() => setAdjusting(i)}>{tr.adjust}</button>}
                         </span>
                       </td>
                     </tr>
@@ -892,8 +911,8 @@ function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
   return (
     <>
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        {serials.length} recorded against <span className="font-600">{num(item.onHand)} {item.unit}</span> on hand
-        {reserved.length > 0 && <>, <span className="font-600">{reserved.length} reserved</span> {tr.projectSheets}</>}.
+        {tr.serialsRecorded(serials.length, num(item.onHand), item.unit)}
+        {reserved.length > 0 && <>, <span className="font-600">{tr.serialsReserved(reserved.length)}</span> {tr.projectSheets}</>}.
         {item.serialMismatch && <span className="text-amber-600 dark:text-amber-400"> {tr.theyDisagreeStockMoved}</span>}
       </p>
 
@@ -925,7 +944,7 @@ function SerialsForm({ item, busy, canManage, onSave, onCancel }) {
                     : "bg-white text-slate-700 dark:bg-white/10 dark:text-slate-200"}`}>
                 {sn}
                 {canManage && !held && (
-                  <button type="button" aria-label={`Remove ${sn}`} className="text-slate-400 hover:text-rose-600"
+                  <button type="button" aria-label={tr.removeSerial(sn)} className="text-slate-400 hover:text-rose-600"
                     onClick={() => setSerials((cur) => cur.filter((x) => x !== sn))}>×</button>
                 )}
               </span>
@@ -962,12 +981,12 @@ function Movements({ rows }) {
             {rows.map((m) => (
               <tr key={m.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
                 <td className={`${td} text-slate-500 dark:text-slate-400`}>{fmtDate(m.at)}</td>
-                <td className={`${td} text-slate-900 dark:text-white`}>{m.itemLabel}</td>
+                <td className={`${td} text-slate-900 dark:text-white`}>{m.itemLabel || <span className="text-slate-400">{tr.removedItem}</span>}</td>
                 <td className={td}><StatusPill kind="movement" status={m.kind} /></td>
                 <td className={`${td} text-end font-600 tabular-nums text-slate-900 dark:text-white`}>
                   {m.kind === "out" ? "−" : m.kind === "adjust" && m.qty < 0 ? "" : "+"}{num(Math.abs(m.qty))}
                 </td>
-                <td className={`${td} text-slate-500 dark:text-slate-400`}>{m.reason || "—"}</td>
+                <td className={`${td} text-slate-500 dark:text-slate-400`}>{m.reason ? tr.movementReason(m.reason) : "—"}</td>
                 <td className={`${td} text-slate-500 dark:text-slate-400`}>{m.byAlias || "—"}</td>
               </tr>
             ))}
@@ -988,7 +1007,10 @@ function StatusBadge({ code, delivered }) {
   // so we hand StatusPill a synthesised token (kind "awb") and the code's label.
   if (!code) return <StatusPill kind="awb" status="notmoved" label={tr.notMovedYet} />;
   const status = delivered ? "delivered" : isException(code) ? "exception" : "intransit";
-  return <StatusPill kind="awb" status={status} label={statusLabel(code)} title={AWB_STATUS_BY_CODE[code]?.desc || ""} />;
+  // THE CODE IS THE STORED TOKEN and the words are chosen here, per reader;
+  // English falls back to the milestone model's own names.
+  return <StatusPill kind="awb" status={status} label={tr.awbStatusName[code] || statusLabel(code)}
+    title={tr.awbStatusDesc[code] || AWB_STATUS_BY_CODE[code]?.desc || ""} />;
 }
 
 function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, busy, send }) {
@@ -1039,7 +1061,7 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
             {parsed && (
               <p className={`mt-2 text-xs ${parsed.valid ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                 {parsed.valid
-                  ? <>Valid — {formatAwb(parsed.digits)}{carrier ? ` · ${carrier.name}` : ` · prefix ${parsed.prefix} is not in the registry yet`}</>
+                  ? <>{tr.awbValid(formatAwb(parsed.digits))}{carrier ? ` · ${carrier.name}` : ` · ${tr.awbPrefixUnknown(parsed.prefix)}`}</>
                   : parsed.reason}
               </p>
             )}
@@ -1087,13 +1109,13 @@ function Awb({ shipments, airlines, projects, statuses, slug, nav, canManage, bu
                       {s.reference && <div className="text-xs text-slate-400">{s.reference}</div>}
                     </td>
                     <td className={`${td} ps-2 text-slate-600 dark:text-slate-300`}>
-                      {s.airlineName || <span className="text-slate-400">prefix {s.prefix}</span>}
+                      {s.airlineName || <span className="text-slate-400">{tr.awbPrefix(s.prefix)}</span>}
                     </td>
                     <td className={`${td} ps-2 text-slate-600 dark:text-slate-300`}>
                       {s.origin || "—"} → {s.destination || "—"}
                     </td>
                     <td className={`${td} ps-2 text-end tabular-nums text-slate-600 dark:text-slate-300`}>
-                      {s.pieces || "—"}{s.weightKg > 0 && <span className="text-xs text-slate-400"> · {num(s.weightKg)} kg</span>}
+                      {s.pieces || "—"}{s.weightKg > 0 && <span className="text-xs text-slate-400"> · {tr.weightKg(num(s.weightKg))}</span>}
                     </td>
                     <td className={`${td} ps-2`}><StatusBadge code={s.currentStatus} delivered={s.delivered} /></td>
                     <td className={`${td} ps-2 text-slate-500 dark:text-slate-400`}>{s.currentStatusAt ? fmtDateTime(s.currentStatusAt) : "—"}</td>
@@ -1127,15 +1149,15 @@ function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav,
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-3">
-        <div><label className={label}>{tr.carrier}</label><input className={inputRO} readOnly value={s.airlineName || `Prefix ${s.prefix}`} /></div>
+        <div><label className={label}>{tr.carrier}</label><input className={inputRO} readOnly value={s.airlineName || tr.awbPrefix(s.prefix)} /></div>
         <div><label className={label}>{tr.route}</label><input className={inputRO} readOnly value={`${s.origin || "—"} → ${s.destination || "—"}`} /></div>
-        <div><label className={label}>{tr.consignment}</label><input className={inputRO} readOnly value={`${s.pieces || 0} pcs${s.weightKg > 0 ? ` · ${num(s.weightKg)} kg` : ""}`} /></div>
+        <div><label className={label}>{tr.consignment}</label><input className={inputRO} readOnly value={tr.consignmentOf(s.pieces || 0, s.weightKg > 0 ? num(s.weightKg) : "")} /></div>
       </div>
       {s.projectId && (
         <p className="mt-3 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           <span className="font-600 uppercase tracking-wide">{tr.for}</span>
           <RecordLink href={linkIf(nav?.projects, linkToProject(slug, s.projectId))} title={tr.openProject}>
-            {projects.find((p) => p.id === s.projectId)?.number || "project"}
+            {projects.find((p) => p.id === s.projectId)?.number || tr.projectFallback}
           </RecordLink>
         </p>
       )}
@@ -1166,13 +1188,13 @@ function Shipment({ shipment: s, statuses, projects, canManage, busy, slug, nav,
           <p className={microLabel}>{tr.recordMilestone}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={tr.status} as="select" required value={code} onChange={(v) => setCode(v)}
-              options={statuses.map((st) => ({ value: st.code, label: `${st.code} — ${st.label}` }))} />
-            <Field label={<>{tr.when} <span className="font-400 normal-case text-slate-400">(now if blank)</span></>} type="datetime-local" value={at} onChange={(v) => setAt(v)} />
+              options={statuses.map((st) => ({ value: st.code, label: `${st.code} — ${tr.awbStatusName[st.code] || st.label}` }))} />
+            <Field label={<>{tr.when} <span className="font-400 normal-case text-slate-400">{tr.nowIfBlank}</span></>} type="datetime-local" value={at} onChange={(v) => setAt(v)} />
             <Field label={tr.station} value={station} onChange={(v) => setStation(v.toUpperCase())} hint={tr.airportCodeHint} />
             <Field label={tr.flight} value={flightNo} onChange={(v) => setFlightNo(v.toUpperCase())} hint={tr.airlineCodeNumber} />
             <Field label={tr.note} value={note} onChange={(v) => setNote(v)} className="sm:col-span-2" />
           </div>
-          <p className="mt-2 text-xs text-slate-400">{AWB_STATUS_BY_CODE[code]?.desc}</p>
+          <p className="mt-2 text-xs text-slate-400">{tr.awbStatusDesc[code] || AWB_STATUS_BY_CODE[code]?.desc}</p>
           <div className="mt-3">
             <button className={btn} disabled={busy} onClick={async () => {
               const ok = await onSave({ movement: { code, at: at ? new Date(at).toISOString() : "", station, flightNo, note } });
@@ -1214,12 +1236,12 @@ function Airlines({ rows, busy, onSave, onCancel }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={tr.prefix3Digits} value={form.prefix} hint={tr.airline3DigitPrefix}
               onChange={(v) => setForm((s) => ({ ...s, prefix: v.replace(/\D/g, "").slice(0, 3) }))} />
-            <Field label={tr.iataCode} value={form.iata} hint="2-letter airline code"
+            <Field label={tr.iataCode} value={form.iata} hint={tr.iataHint}
               onChange={(v) => setForm((s) => ({ ...s, iata: v.toUpperCase().slice(0, 3) }))} />
             <Field label={tr.airlineName} value={form.name} className="sm:col-span-2"
               onChange={(v) => setForm((s) => ({ ...s, name: v }))} />
             <Field className="sm:col-span-2" value={form.trackUrlTemplate} hint="https://airline.com/track?awb={SERIAL}"
-              label={<>{tr.trackingUrlTemplate} <span className="font-400 normal-case text-slate-400">(tokens {"{AWB} {PREFIX} {SERIAL}"})</span></>}
+              label={<>{tr.trackingUrlTemplate} <span className="font-400 normal-case text-slate-400">{tr.trackTokens}</span></>}
               onChange={(v) => setForm((s) => ({ ...s, trackUrlTemplate: v }))} />
           </div>
           <div className="mt-4 flex gap-3">

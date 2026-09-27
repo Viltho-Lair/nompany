@@ -1,5 +1,5 @@
 import { route } from "@/platform/http/route";
-import { requirePermission } from "@/platform/access";
+import { requirePermission, can } from "@/platform/access";
 import { inventoryContext } from "@/modules/inventory/inventory";
 import { stockValuation } from "@/modules/inventory/stockValue";
 import { isValuationMethod, DEFAULT_METHOD } from "@/modules/inventory/valuation";
@@ -41,5 +41,8 @@ export const GET = route(spec, async (c) => {
     // silently is not the policy is how the wrong one ends up on a return.
     studioMethod: chosen,
     preview: method !== chosen,
+    // WHETHER THIS READER MAY MAKE THE PREVIEWED METHOD THE POLICY — the right
+    // the settings route asks for the write (ValuationPanel's `adopt`).
+    canSetMethod: can(ctx.access, "administration.settings.edit"),
   };
 });

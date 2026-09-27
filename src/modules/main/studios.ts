@@ -400,24 +400,21 @@ export async function createStudio(
     const masterSection = sections.find((sec) => sec.key === "administration-master");
     if (masterSection) await listDepartments({ studio, section: masterSection });
 
-    // THE BUILT-IN RECORD TYPES, seeded HERE AND NOWHERE ELSE — which is the
-    // one way this differs from the two seeds above it, and the difference is
-    // the whole rollout story.
+    // THE BUILT-IN RECORD TYPES, seeded here AND caught up on read, like the
+    // two seeds above it — the owner's rule, "IT IS A SYSTEM, IT MUST TAKE
+    // UPDATES".
     //
-    // Sections catch up on read (`listSections` plants what a studio is short
-    // of) and the departments register seeds on read, so a studio created
-    // before either of those shipped repairs itself the next time somebody
-    // opens it. `seedBuiltinTypes` runs inside `createStudio` only, so A STUDIO
-    // CREATED BEFORE THIS SHIPPED GETS NOTHING.
-    //
-    // AND A READ-PATH CATCH-UP COULD NOT RESCUE IT. Every engine read is gated
-    // on `engine.<typeKey>.view`, a key no existing studio's roles carry, so
-    // the request that would trigger a catch-up is the request that is refused
-    // before it gets there — the seed would be waiting on a door only the seed
-    // can open. `scripts/migrate/seed-builtin-types.mjs` is the way in: every
-    // studio walked deliberately rather than each waiting to be opened. It
-    // CALLS this function, so there is one seed rather than two free to
-    // disagree.
+    // This comment used to say they were seeded HERE AND NOWHERE ELSE, so a
+    // studio created before a register shipped got nothing, and that a
+    // read-path catch-up could not rescue it because every engine read is gated
+    // on `engine.<typeKey>.view`. That reason was wrong: the engine's context
+    // guards MEMBERSHIP only (platform/engine/context.ts), and the per-type
+    // right is asked after the context is built. So the same `seedBuiltinTypes`
+    // now runs from `engineContext` and the Access screen's grant reader, seeds
+    // what is missing and reconciles what is stale by version, and costs a
+    // set/version comparison over the section rows when nothing is behind.
+    // Running it here as well means a new studio's first screen is already
+    // complete rather than completing itself on its first engine request.
     //
     // AFTER the section write, because seeding a type plants that type's own
     // sub-section under a parent that has to exist already — and it reads the

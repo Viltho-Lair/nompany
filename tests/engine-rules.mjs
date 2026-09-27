@@ -12,9 +12,9 @@ import { pathToFileURL } from "node:url";
 const root = pathToFileURL(process.cwd() + "/").href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
-const { ruleProblem, ruleProblems, rulesFiredBy, newRecordValues, alreadyRaised } =
+const { ruleProblem, ruleProblems, rulesFiredBy, newRecordValues, alreadyRaised, raisedEarlierByAnother } =
   await import("@/platform/engine/rules");
-const { BUILTIN_TYPES } = await import("@/platform/engine/builtins");
+const { BUILTIN_TYPES, builtinTypesBehind, reconcileProblem } = await import("@/platform/engine/builtins");
 
 let fails = 0;
 const ok = (label, cond, detail = "") => {
@@ -132,6 +132,67 @@ eq("a different source still fires", alreadyRaised(good, "rec_9", raised), false
 // behaviour is a decision rather than a surprise.
 eq("a rule with no link cannot be de-duplicated",
   alreadyRaised({ when: { status: "Rejected" }, then: { create: { typeKey: "ncr" } } }, "rec_1", raised), false);
+
+console.log("\n== two writers raising the same consequence keep one");
+// THE DEFECT: `alreadyRaised` is a read and then a create, which the store cannot
+// make atomic, so two arrivals racing both read "none yet" and both raised an
+// NCR against one test. Each writer now looks again after its create, and the
+// one that sorts LATER withdraws its own record.
+const early = { id: "ncr_a", createdAt: "2026-09-27T10:00:00.000Z", values: { foundBy: "rec_1" } };
+const late = { id: "ncr_b", createdAt: "2026-09-27T10:00:00.004Z", values: { foundBy: "rec_1" } };
+const both = [late, early];
+eq("the later writer sees the earlier one and withdraws", raisedEarlierByAnother(good, "rec_1", late, both), true);
+eq("THE EARLIER WRITER KEEPS ITS OWN — both never withdraw", raisedEarlierByAnother(good, "rec_1", early, both), false);
+const tieA = { ...early, id: "ncr_a" };
+const tieB = { ...early, id: "ncr_b" };
+eq("in the same millisecond the id breaks the tie one way",
+  raisedEarlierByAnother(good, "rec_1", tieB, [tieA, tieB]), true);
+eq("...and the other writer agrees", raisedEarlierByAnother(good, "rec_1", tieA, [tieA, tieB]), false);
+eq("a record naming a different source is not a duplicate",
+  raisedEarlierByAnother(good, "rec_1", late, [late, { ...early, values: { foundBy: "rec_9" } }]), false);
+eq("alone, nothing is withdrawn", raisedEarlierByAnother(good, "rec_1", late, [late]), false);
+
+console.log("\n== a built-in register reaches a studio that already exists");
+// THE DEFECT: `seedBuiltinTypes` ran in `createStudio` alone, and a version bump
+// reached nobody without a script. The catch-up runs on every engine read now,
+// so the question "is this studio behind" must be answerable from the section
+// rows the request already holds, and must be FALSE for a studio that is not.
+const ownSection = (decl, version) => ({
+  key: `engine-${decl.key}`, settings: version === undefined ? {} : { builtinVersion: version },
+});
+const parents = [...new Set(BUILTIN_TYPES.map((t) => t.parentSectionKey))].map((key) => ({ key }));
+const current = [
+  { key: "administration-settings" }, ...parents,
+  ...BUILTIN_TYPES.map((t) => ownSection(t, t.version)),
+];
+eq("an up-to-date studio is behind on nothing — the fast path", builtinTypesBehind(current).length, 0);
+const newRegister = BUILTIN_TYPES[BUILTIN_TYPES.length - 1];
+eq("a register shipped after the studio was created is behind",
+  builtinTypesBehind(current.filter((s) => s.key !== `engine-${newRegister.key}`)).map((d) => d.key).join(),
+  newRegister.key);
+const bumped = BUILTIN_TYPES.find((t) => t.version > 1);
+eq("a declaration bumped past the studio's stamp is behind",
+  builtinTypesBehind(current.map((s) => (s.key === `engine-${bumped.key}` ? ownSection(bumped, bumped.version - 1) : s)))
+    .map((d) => d.key).join(), bumped.key);
+eq("a studio that predates the stamp is behind on everything ONCE",
+  builtinTypesBehind(current.map((s) => (s.key.startsWith("engine-") ? { key: s.key, settings: {} } : s))).length,
+  BUILTIN_TYPES.length);
+// NEVER BEHIND ON WHAT IT CANNOT FIX, or the slow path runs on every request.
+eq("a type whose parent section the studio lacks is not behind",
+  builtinTypesBehind(current.filter((s) => s.key !== newRegister.parentSectionKey
+    && !BUILTIN_TYPES.some((t) => t.parentSectionKey === newRegister.parentSectionKey && s.key === `engine-${t.key}`)))
+    .length, 0);
+eq("a studio with nowhere to store a type is behind on nothing",
+  builtinTypesBehind([...parents]).length, 0);
+
+console.log("\n== a reconcile never strands a record");
+// REMOVING A STATUS STRANDS EVERY RECORD SITTING AT IT, and the reconcile now
+// runs by itself on a read with nobody watching — so it refuses, rather than
+// trusting every future edit to the declarations to have read the warning.
+const ladder = { statuses: ["Open", "Closed"] };
+eq("a declaration that ADDS a status reconciles", reconcileProblem(ladder, { statuses: ["Open", "Held", "Closed"] }), "");
+eq("A DECLARATION THAT DROPS ONE IS REFUSED", reconcileProblem(ladder, { statuses: ["Open"] }), "drops-status");
+eq("...and a renamed status is a dropped one", reconcileProblem(ladder, { statuses: ["Open", "Done"] }), "drops-status");
 
 console.log("\n== every rule the product ships is well-formed");
 // AGAINST THE REAL DECLARATIONS, because a rule that only validates against a

@@ -37,6 +37,7 @@ import type { Refusal } from "@/modules/approvals/effects";
 import type { Approval } from "@/modules/approvals/schema";
 import type { StudioRef } from "@/modules/context";
 import type { InventoryContext } from "./types";
+import { withStockLock, freshLedger } from "./stockLock";
 
 export const ADJUSTMENT_APPROVAL = "adjustment";
 
@@ -180,11 +181,18 @@ async function adjustmentFor(studio: StudioRef, approval: Approval, byCollaborat
  * find the shelf emptied in between; the approver hears that while their yes
  * has not landed, rather than the ledger going below nought.
  */
-async function adjustmentProblem(found: Exclude<Awaited<ReturnType<typeof adjustmentFor>>, Refusal>): Promise<Refusal | null> {
+async function adjustmentProblem(
+  found: Exclude<Awaited<ReturnType<typeof adjustmentFor>>, Refusal>,
+  { fresh = false }: { fresh?: boolean } = {},
+): Promise<Refusal | null> {
   const { ctx, row, inv } = found;
   if (row.status !== "Pending") return { error: "already-decided", status: row.status };
   if (row.qty < 0) {
-    const have = Number(inv.balances(await inv.stockMovements(ctx))[row.itemId]) || 0;
+    // FRESH WHEN IT DECIDES: under the item's lease the ledger is read past the
+    // request cache (./stockLock), because the cached copy is exactly the stale
+    // balance two approvals of two write-offs both passed against.
+    const movements = fresh ? await freshLedger(scope(ctx), [row.itemId]) : await inv.stockMovements(ctx);
+    const have = Number(inv.balances(movements)[row.itemId]) || 0;
     if (have + row.qty < 0) return { error: "insufficient", have, needed: Math.abs(row.qty) };
   }
   return null;
@@ -201,16 +209,22 @@ export const adjustmentApproval = {
   approved: async (studio: StudioRef, approval: Approval, by: string) => {
     const found = await adjustmentFor(studio, approval, by);
     if ("error" in found) return found;
-    const problem = await adjustmentProblem(found);
-    if (problem) return problem;
     const { ctx, row, inv } = found;
-    const at = new Date().toISOString();
-    const flipped = await Adjustments.update(scope(ctx), row.id, (cur) => (cur.status !== "Pending" ? cur : {
-      ...cur, status: "Approved", approvedAt: at, approvedByCollaboratorId: by,
-    }));
-    if (!flipped || flipped.status !== "Approved" || flipped.approvedAt !== at) return { error: "already-decided" };
-    await inv.applyApprovedAdjustment(ctx, flipped);
-    return "done" as const;
+    // THE CHECK, THE FLIP AND THE MOVEMENT HAPPEN WHILE THE ITEM IS HELD
+    // (./stockLock). Checked outside it, two write-offs approved in the same
+    // second each saw the shelf before the other's movement landed.
+    const done = await withStockLock(ctx.studio.id, [row.itemId], async () => {
+      const problem = await adjustmentProblem(found, { fresh: true });
+      if (problem) return problem;
+      const at = new Date().toISOString();
+      const flipped = await Adjustments.update(scope(ctx), row.id, (cur) => (cur.status !== "Pending" ? cur : {
+        ...cur, status: "Approved", approvedAt: at, approvedByCollaboratorId: by,
+      }));
+      if (!flipped || flipped.status !== "Approved" || flipped.approvedAt !== at) return { error: "already-decided" } as Refusal;
+      await inv.applyApprovedAdjustment(ctx, flipped);
+      return null;
+    });
+    return done ?? ("done" as const);
   },
   rejected: async (studio: StudioRef, approval: Approval, by: string, reason: string) => {
     const found = await adjustmentFor(studio, approval, by);

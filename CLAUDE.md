@@ -154,8 +154,17 @@ when the code looks cleaner afterwards.
    authority ("I am an Owner by default, I must have every access"), and a one-person studio
    could otherwise never pay itself or a supplier, or move stock past the adjustment limit.
    On a bill and an adjustment the Admin may also sign a later step after an earlier one, and
-   may turn down an adjustment they raised. Bids, requisitions and payment-hold releases keep
-   the rule for everyone.
+   may turn down an adjustment they raised.
+   **AND ON EVERY APPROVAL TYPE SINCE — the owner, 27/09/2026: "the code is right."** This
+   paragraph said bids, requisitions and payment-hold releases kept the rule for everyone;
+   the Approvals engine (`modules/approvals/model.ts` `planFor`/`decisionProblem`) lets the
+   owner or an Admin answer their own request on every type, and `approvals.md` says so.
+   **Two things stay strict for everyone, owner included:** a controlled DOCUMENT REVISION
+   (its reviewer is never its approver), and a SUBCONTRACT CERTIFICATE (its valuation's writer
+   never certifies it, `same-signer`). Neither goes through the Approvals engine. A PERMIT TO
+   WORK separates the acts by right instead — requesting is `qualityHse.permits.create`,
+   issuing is a move under `.edit` — so a studio gives the two to different people; the
+   owner, asked 27/09/2026, left it there.
 8. **Writes go through `editArr`/`editJSON`** (compare-and-set). No blind whole-
    collection write; there is deliberately no `writeCol`. `updateRow` takes a
    **function** patch so "flip this field" stays a flip under contention.
@@ -1314,8 +1323,9 @@ supplier's currency nor the client's, so the amount is already in base and `rate
 **CONVERSION REUSES INVENTORY'S `createOrder` RATHER THAN WRITING AN ORDER.** `openProject`'s
 comment makes the argument: a second create path is a second place the engagement attach can be
 forgotten. So `createOrder` gained a `requisitionId` — a fourth source beside quotation, direct
-and tender — and **`Ordered` is DERIVED** from an order naming the request, so deleting the
-order frees it again. Only an approved request, and only once. **A free-text requisition cannot
+and tender — and **`Ordered` is DERIVED** from a LIVE order naming the request, so
+CANCELLING the order frees it again (nothing deletes an order; until 27/09/2026 a cancelled
+one still blocked the request for good). Only an approved request, and only once. **A free-text requisition cannot
 become an order at all** and refuses by name: `cleanLines` drops any line without a Registered
 Item because an order moves stock, and an empty order would read as success and buy nothing.
 

@@ -3,8 +3,13 @@
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 import { dispatchDict } from "@/shared/studio/dispatch";
 import { useReload } from "@/components/studio2/useReload";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { fmtDate } from "@/components/studio2/ui";
+import { fmtTime } from "@/lib/format";
+import { addDaysISO } from "@/shared/dates";
 
 // THE DISPATCH BOARD — one day, every crew, and the jobs nobody is on.
 //
@@ -19,8 +24,11 @@ import { useReload } from "@/components/studio2/useReload";
 // BUT A JOB CAN BE RAISED HERE (tier 5). No screen could create one before: the
 // jobs POST existed and was reachable only by hand, so the dispatch board showed
 // a collection nothing could add to. "New job" posts to that same route.
-export default function DispatchPanel({ slug, locale = "en" }) {
-  const tr = dispatchDict(locale);
+//
+// THE LANGUAGE IS THE STUDIO SHELL'S (useStudioLocale), never a prop that
+// defaulted to English for any caller that forgot it.
+export default function DispatchPanel({ slug }) {
+  const tr = dispatchDict(useStudioLocale());
   const [data, setData] = useState(null);
   const [day, setDay] = useState("");
   const [problem, setProblem] = useState("");
@@ -41,20 +49,24 @@ export default function DispatchPanel({ slug, locale = "en" }) {
     const qs = day ? `?day=${encodeURIComponent(day)}` : "";
     const res = await fetch(`/api/studios/${slug}/operations/dispatch${qs}`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) { setProblem(body.error || "failed"); return; }
+    if (!res.ok) { setProblem(tr.problem(body.error || "failed")); return; }
+    setProblem("");
     setData(body);
-    // THE DAY COMES BACK FROM THE SERVER on the first load, because the records
-    // are UTC and a browser's idea of "today" is not. Adopting the answer means
-    // the picker and the board can never be a day apart.
+    // THE DAY COMES BACK FROM THE SERVER on the first load, because "today" is
+    // the STUDIO's (its time zone, set in Studio settings) and a browser's idea
+    // of it is not. Adopting the answer means the picker and the board can
+    // never be a day apart.
     setDay((d) => d || body.day);
-  }, [slug, day, setData, setDay, setProblem]);
+  }, [slug, day, tr, setData, setDay, setProblem]);
 
   useReload(load);
 
   if (!data) return <ScreenSkeleton />;
 
   const { lanes = [], unassigned = [], stranded = [], totalHours, today } = data;
-  const time = (v) => (v ? String(v).slice(11, 16) : "—");
+  // THE STUDIO'S CLOCK FORMAT, not a slice of the stored string. A bare date (a
+  // PM visit is due on a day, not at an hour) has no time to show.
+  const time = (v) => (v && String(v).includes("T") ? fmtTime(v) : "—");
   const jobLine = (j) => `${time(j.scheduledStart)}–${time(j.scheduledEnd)} · ${j.title || tr.untitled}`;
 
   return (
@@ -64,8 +76,12 @@ export default function DispatchPanel({ slug, locale = "en" }) {
           <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.title}</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.lead}</p>
         </div>
-        <Field label={tr.day} type="date" className="w-full sm:w-44 sm:ms-auto"
-          value={day} onChange={(v) => setDay(v)} />
+        {/* THE SHARED PICKER, not the browser's: a native date input draws
+            in the device's locale and format, so an Arabic studio on an
+            English laptop picked its day off an American calendar. */}
+        <Field label={tr.day} filled={!!day} className="w-full sm:w-44 sm:ms-auto">
+          <StudioDate value={day} onChange={(iso) => { if (iso) setDay(iso); }} />
+        </Field>
         {options?.canCreate && !creating && (
           <button type="button" className={BTN} onClick={() => setCreating(true)}>{tr.newJob}</button>
         )}
@@ -94,7 +110,7 @@ export default function DispatchPanel({ slug, locale = "en" }) {
             {stranded.map((j) => (
               <li key={j.id} className="flex justify-between text-sm text-rose-700 dark:text-rose-300">
                 <span>{j.title || tr.untitled}</span>
-                <span className="num">{String(j.scheduledStart || "").slice(0, 10)}</span>
+                <span className="num">{fmtDate(j.scheduledStart)}</span>
               </li>
             ))}
           </ul>
@@ -156,7 +172,7 @@ export default function DispatchPanel({ slug, locale = "en" }) {
       </div>
 
       <p className="text-xs text-slate-400 dark:text-slate-500">
-        {tr.booked(totalHours)}{day && day !== today ? ` · ${day}` : ""}
+        {tr.booked(totalHours)}{day && day !== today ? ` · ${fmtDate(day)}` : ""}
       </p>
     </div>
   );
@@ -170,9 +186,14 @@ const KINDS = ["service-job", "scheduled-visit", "work-package", "work-order"];
 // field-service deal (Template D — "a warranty call is a job with no sale"),
 // and the form says so rather than asking for a deal id nobody can find.
 function NewJobForm({ slug, tr, pickers, lanes, onCancel, onDone }) {
+  // THE DAY AND ITS TWO CLOCK TIMES, picked the way the rota's shift form picks
+  // them — the shared date picker for the day and two time fields — rather than
+  // the browser's datetime-local, which drew in the device's locale. What is
+  // sent is the same zoneless wall clock that input produced ("2026-09-27T08:30"),
+  // which the board reads as the studio's own time (dispatch.dayOf).
   const [f, setF] = useState({
     title: "", kind: "service-job", projectId: "", contractId: "", installedUnitId: "",
-    location: "", scheduledStart: "", scheduledEnd: "", assignee: "",
+    location: "", day: "", from: "", to: "", assignee: "",
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -185,15 +206,19 @@ function NewJobForm({ slug, tr, pickers, lanes, onCancel, onDone }) {
   async function submit() {
     setBusy(true);
     setError("");
-    const { assignee, ...rest } = f;
+    const { assignee, day, from, to, ...rest } = f;
+    // AN END EARLIER THAN THE START RUNS PAST MIDNIGHT — the rota's own rule for
+    // an overnight shift — so a 22:00–06:00 call-out is one job, not a refusal.
+    const scheduledStart = day ? (from ? `${day}T${from}` : day) : "";
+    const scheduledEnd = day && to ? `${from && to <= from ? addDaysISO(day, 1) : day}T${to}` : "";
     const res = await fetch(`/api/studios/${slug}/operations/jobs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...rest, assignedToCollaboratorIds: assignee ? [assignee] : [] }),
+      body: JSON.stringify({ ...rest, scheduledStart, scheduledEnd, assignedToCollaboratorIds: assignee ? [assignee] : [] }),
     });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(body.error || String(res.status)); return; }
+    if (!res.ok) { setError(tr.problem(body.error || "failed")); return; }
     onDone();
   }
 
@@ -216,9 +241,15 @@ function NewJobForm({ slug, tr, pickers, lanes, onCancel, onDone }) {
           <Field label={tr.jobUnit} as="select" value={f.installedUnitId} onChange={(v) => set({ installedUnitId: v })}
             options={none(units)} />
         )}
-        <Field label={tr.jobStart} type="datetime-local" value={f.scheduledStart} onChange={(v) => set({ scheduledStart: v })} />
-        <Field label={tr.jobEnd} type="datetime-local" value={f.scheduledEnd} onChange={(v) => set({ scheduledEnd: v })} />
+        <Field label={tr.jobDay} filled={!!f.day}>
+          <StudioDate value={f.day} onChange={(iso) => set({ day: iso })} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={tr.jobStart} type="time" value={f.from} onChange={(v) => set({ from: v })} />
+          <Field label={tr.jobEnd} type="time" value={f.to} onChange={(v) => set({ to: v })} />
+        </div>
       </div>
+      {f.from && f.to && f.to <= f.from && <p className="text-xs text-slate-500 dark:text-slate-400">{tr.jobOvernight}</p>}
       {!f.projectId && <p className="text-xs text-slate-500 dark:text-slate-400">{tr.jobProjectHint}</p>}
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
       <div className="flex flex-wrap gap-2">

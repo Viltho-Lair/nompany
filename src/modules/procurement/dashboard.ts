@@ -22,6 +22,7 @@ import { threeWayMatch } from "./receivingModel";
 import { supplierQualification, supplierOnTime } from "./supplierModel";
 import { subcontractPosition } from "./subcontractModel";
 import { requisitionTotals } from "./model";
+import { orderIsLive } from "./orderModel";
 import type { GoodsReceipt } from "./receivingSchema";
 import type { Requisition } from "./schema";
 import type { Rfq } from "./rfqSchema";
@@ -75,7 +76,9 @@ export async function procurementDashboard(ctx: ProcurementContext) {
   // ORDERS FEED TWO BLOCKS, so they are fetched once for either. Expediting and
   // receiving are different rights over the same rows, and reading them twice
   // would be two round trips for one answer.
-  const wantsOrders = may.expediting || may.receiving;
+  // The requisition block reads them too: "ready to order" is an approved
+  // request NO live order names yet, and only the orders can say which.
+  const wantsOrders = may.expediting || may.receiving || may.requisitions;
 
   const [requisitions, rfqs, orders, receipts, vendors, subcontracts, certificates, bills] =
     await Promise.all([
@@ -114,6 +117,8 @@ export async function procurementDashboard(ctx: ProcurementContext) {
   const today = asOf.slice(0, 10);
 
   // ---- requisitions --------------------------------------------------------
+  const orderedIds = new Set(orders.filter(orderIsLive)
+    .map((o) => String((o as { requisitionId?: unknown }).requisitionId || "")).filter(Boolean));
   const awaiting = requisitions.filter((r) => AWAITING.has(String(r.status || "")));
   const awaitingTotals = awaiting.map((r) => requisitionTotals(r.lines, studio.currency));
   const requisitionBlock = may.requisitions ? {
@@ -128,7 +133,12 @@ export async function procurementDashboard(ctx: ProcurementContext) {
     // one that admits it does not know.
     awaitingValueComplete: awaitingTotals.every((t) => t.complete),
     // APPROVED AND NOT YET ORDERED — the queue the buyer is actually working.
-    approved: requisitions.filter((r) => String(r.status || "") === "Approved").length,
+    // An ordered request is STORED as Approved (model.ts says why), so this
+    // counted every request already bought until it asked the orders: the
+    // tile read "ready to order" for work that was on its way. A cancelled
+    // order answers nothing, so its request is back in the queue.
+    approved: requisitions.filter((r) => String(r.status || "") === "Approved"
+      && !orderedIds.has(String(r.id))).length,
   } : null;
 
   // ---- supplier quotes -----------------------------------------------------

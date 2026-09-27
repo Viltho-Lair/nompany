@@ -28,7 +28,13 @@ import Combo from "@/components/studio2/Combo";
 // module specifier a second time.
 import { Field, BARE_CONTROL } from "@/components/fields/Field";
 import StudioDate from "@/components/fields/StudioDate";
-import { supportStatus, fmtDate as slaDate } from "@/modules/projects/sla";
+// THE SUPPORT TAG READS THE CLOSING-OUT TAB'S OWN CALCULATION. It used to read
+// `supportStatus` (projects/sla), which counted from the END date and turned a
+// nought into 365 — so the list and the project's own tab could disagree about
+// the same job. Pure and import-free, so it costs the chunk almost nothing.
+import { closurePosition, supportTag } from "@/modules/projects/closureModel";
+import { todayISO } from "@/shared/dates";
+import { statusLabel } from "@/shared/studio/statuses";
 import { hoursBetween } from "@/modules/projects/projectSchedule";
 import { useReload } from "@/components/studio2/useReload";
 
@@ -86,12 +92,27 @@ const EMPTY_FILTERS = {
   endFrom: "", endTo: "",
 };
 
+// ONE PROJECT'S SUPPORT POSITION, as the Closing-out tab computes it. UTC today,
+// the day the server's closure read uses, so the two cannot be a day apart
+// either. Snags are not passed: the tag reads the clock, not the punch list.
+const supportOf = (project) => closurePosition(project, [], project?.id, todayISO());
+
+const TAG = "rounded-full px-2.5 py-0.5 text-xs font-600";
 function SupportTag({ project }) {
   const tr = projectsDict(useStudioLocale());
-  const s = supportStatus(project);
-  if (!s.known) return <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-600 text-slate-500 dark:bg-white/10 dark:text-slate-400">{tr.supportNotSet}</span>;
-  if (s.inSupport) return <span className="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-600 text-white">Support: {s.daysRemaining}d left</span>;
-  return <span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-600 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300">{tr.supportEnded}</span>;
+  const position = supportOf(project);
+  switch (supportTag(position)) {
+    case "running":
+      return <span className={`${TAG} bg-emerald-600 text-white`}>{tr.supportDaysLeft(position.warrantyDaysLeft)}</span>;
+    case "ended":
+      return <span className={`${TAG} bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300`}>{tr.supportEnded}</span>;
+    case "none":
+      return <span className={`${TAG} bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-400`}>{tr.supportNone}</span>;
+    // NOT "not set": the period is set on every project. What has not happened
+    // is the handover the clock starts from.
+    default:
+      return <span className={`${TAG} bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-slate-400`}>{tr.supportNotStarted}</span>;
+  }
 }
 
 // The project list is a Data Grid now — sortable columns and client-side paging
@@ -109,7 +130,7 @@ const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioData
 //   projects-list       -> the project list and its detail
 //   projects-sla        -> a pointer: service contracts are Maintenance's now
 //   projects-overtimes  -> hours logged outside the plan
-//   projects-settings   -> requirement weights, default OT department, stages
+//   projects-settings   -> the default support period, default OT department, stages
 //
 // `initial` is the /projects body the studio page answered in its own render —
 // one read for every view — so the screen paints at once; absent, it fetches.
@@ -156,6 +177,12 @@ export default function StudioProjects({ slug, view = "projects", initial }) {
         : out.error === "date" ? tr.pickDate
         : out.error === "times" ? tr.endTimeMustAfter
         : out.error === "people" ? tr.pickLeastOnePerson
+        // A CLOSED PROJECT'S DETAILS ARE FIXED (updateProject), and the support
+        // period is held to the Closing-out tab's rule at every door.
+        : out.error === "closed" ? tr.refuseClosedEdit
+        : out.error === "warranty-negative" ? tr.refuseWarrantyNegative
+        : out.error === "warranty-fraction" ? tr.refuseWarrantyFraction
+        : out.error === "warranty-range" ? tr.refuseWarrantyRange
         : tr.didnSave
       );
       return false;
@@ -212,7 +239,6 @@ export default function StudioProjects({ slug, view = "projects", initial }) {
       <div className="space-y-6">
         {banner}
         <ProjectsSettings settings={settings} departments={directory.departments} stages={vocabulary.stages}
-          serviceActions={vocabulary.serviceActions || []}
           canManage={canManageSettings} onSave={(patch) => send("", "PATCH", patch)} />
       </div>
     );
@@ -249,7 +275,8 @@ export default function StudioProjects({ slug, view = "projects", initial }) {
 
 function ProjectList({ projects, approvedQuotations, people, clients = [], industries = [],
   studioDefaults = {}, stages, canManage, slug, nav, focus, onOpen, onSave, onDelete }) {
-  const tr = projectsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = projectsDict(locale);
   const PROJECT_COLUMNS = useMemo(() => projectColumns(tr), [tr]);
   const router = useRouter();
   const [opening, setOpening] = useState(false);
@@ -394,7 +421,8 @@ function ProjectList({ projects, approvedQuotations, people, clients = [], indus
           {/* The stages are the STUDIO'S — vocabulary.stages, not a list this
               screen invented — so a tenant that renamed them filters by the
               names it actually uses. */}
-          <Field label={tr.stage} as="select" value={filters.stage} onChange={(v) => setFilter({ stage: v })} options={stages} />
+          <Field label={tr.stage} as="select" value={filters.stage} onChange={(v) => setFilter({ stage: v })}
+            options={stages.map((st) => ({ value: st, label: statusLabel("project", st, locale) }))} />
           <Field label={tr.manager} as="select" value={filters.manager} onChange={(v) => setFilter({ manager: v })}
             options={people.map((p) => ({ value: p.id, label: p.alias }))} />
           <div>
@@ -700,8 +728,13 @@ function DirectProject({ people, clients, industries, studioDefaults, busy, setB
 }
 
 function ProjectDetail({ project: p, people, stages, canManage, slug, nav, onSave, onDelete, onClose }) {
-  const tr = projectsDict(useStudioLocale());
-  const support = supportStatus(p);
+  const locale = useStudioLocale();
+  const tr = projectsDict(locale);
+  const support = supportOf(p);
+  // A CLOSED PROJECT'S DETAILS ARE FIXED — the server refuses the write
+  // (updateProject), so the form says so rather than offering fields that will
+  // only answer with a refusal.
+  const closed = Boolean(p.closedAt);
   // Location and the support period commit on blur, dates on pick — the same
   // save points the old uncontrolled inputs had. Field is controlled, so these
   // hold the edit locally and hand it to onSave at the same moment as before.
@@ -740,7 +773,7 @@ function ProjectDetail({ project: p, people, stages, canManage, slug, nav, onSav
         <span className="font-600 uppercase tracking-wide">{tr.from}</span>
         {lineage.length === 0 ? <span>{tr.direct}</span> : lineage.map((step, i, arr) => (
           <span key={step.label + i} className="flex items-center gap-2">
-            <RecordLink href={step.href} title={`Open ${step.label}`}>{step.label}</RecordLink>
+            <RecordLink href={step.href} title={tr.openRecord(step.label)}>{step.label}</RecordLink>
             {i < arr.length - 1 && <span aria-hidden="true">→</span>}
           </span>
         ))}
@@ -767,29 +800,40 @@ function ProjectDetail({ project: p, people, stages, canManage, slug, nav, onSav
         </div>
       </div>
 
+      {canManage && closed && (
+        <p className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:bg-white/5 dark:text-slate-300">
+          {tr.closedDetailsFixed}
+        </p>
+      )}
+
       {canManage && (
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
-          <Field label={tr.stage} as="select" value={p.stage}
+          {/* THE STAGE IS A STORED TOKEN, translated on display like every
+              status in the studio; the value written back is still the token. */}
+          <Field label={tr.stage} as="select" value={p.stage} disabled={closed}
             onChange={(val) => onSave({ stage: val })}
-            options={stages.map((s) => ({ value: s, label: s }))} />
-          <Field label={tr.manager} as="select" value={p.managerCollaboratorId || ""}
+            options={stages.map((s) => ({ value: s, label: statusLabel("project", s, locale) }))} />
+          <Field label={tr.manager} as="select" value={p.managerCollaboratorId || ""} disabled={closed}
             onChange={(val) => onSave({ managerCollaboratorId: val })}
             options={[{ value: "", label: tr.unassigned }, ...people.map((x) => ({ value: x.id, label: x.alias }))]} />
           {/* Wrapper onBlur keeps the save-on-blur point without overriding
               Field's own input onBlur (which tracks the focus ring). */}
-          <div onBlur={() => onSave({ location: loc })}>
-            <Field label={tr.location} value={loc} onChange={(val) => setLoc(val)} />
+          <div onBlur={() => { if (!closed) onSave({ location: loc }); }}>
+            <Field label={tr.location} value={loc} disabled={closed} onChange={(val) => setLoc(val)} />
           </div>
-          <Field label={tr.start} filled={!!start}>
-            <StudioDate value={start} onChange={(iso) => { setStart(iso); onSave({ startDate: iso }); }} />
+          <Field label={tr.start} filled={!!start} disabled={closed}>
+            <StudioDate value={start} disabled={closed} onChange={(iso) => { setStart(iso); onSave({ startDate: iso }); }} />
           </Field>
-          <Field label={tr.targetEnd} filled={!!end}>
-            <StudioDate value={end} onChange={(iso) => { setEnd(iso); onSave({ endDate: iso }); }} />
+          <Field label={tr.targetEnd} filled={!!end} disabled={closed}>
+            <StudioDate value={end} disabled={closed} onChange={(iso) => { setEnd(iso); onSave({ endDate: iso }); }} />
           </Field>
-          <div onBlur={() => onSave({ supportPeriodDays: sup })}>
-            <Field label={tr.supportPeriodDays} type="number" min="0" value={sup}
+          <div onBlur={() => { if (!closed) onSave({ supportPeriodDays: sup }); }}>
+            {/* THE CLOCK RUNS FROM HANDOVER (the Closing-out tab), so until
+                there is one the hint says where it starts rather than
+                inventing an end date. */}
+            <Field label={tr.supportPeriodDays} type="number" min="0" max="3650" value={sup} disabled={closed}
               onChange={(val) => setSup(val)}
-              hint={support.known ? `Runs to ${slaDate(support.supportEnd)}.` : undefined} />
+              hint={support.warrantyEndsAt ? tr.supportRunsTo(fmtDate(support.warrantyEndsAt)) : tr.supportCountsFromHandover} />
           </div>
         </div>
       )}
@@ -1080,26 +1124,22 @@ function EditOvertime({ record, projects, directory, onSave, onDelete, onCancel 
 }
 
 // ---- settings --------------------------------------------------------------
-function ProjectsSettings({ settings, departments, stages, serviceActions, canManage, onSave }) {
+// REQUIREMENT WEIGHTS LEFT THIS FORM (27/09/2026). They were saved and read by
+// NOTHING — a project's progress is its plan's completion, and the function that
+// would have applied them had no caller — yet the whole form refused to save
+// until they totalled exactly 100, so a studio could not change its default
+// support period without first balancing a split that did nothing. A control
+// nothing can exercise is invariant 16's bug; see saveProjectsSettings.
+function ProjectsSettings({ settings, departments, stages, canManage, onSave }) {
   const tr = projectsDict(useStudioLocale());
-  const [weights, setWeights] = useState(() =>
-    Object.fromEntries(serviceActions.map((a) => [a, settings.requirementWeights?.[a] ?? ""])));
   const [otDept, setOtDept] = useState(settings.overtimeDefaultDepartmentId || "");
   const [supportDays, setSupportDays] = useState(settings.supportPeriodDays ?? 365);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const set = (k, v) => { setSaved(false); setWeights((s) => ({ ...s, [k]: v })); };
-  const total = serviceActions.reduce((a, act) => a + (Number(weights[act]) || 0), 0);
-  // Block the save while the percentages exist but don't add up — a project's
-  // completion split is only meaningful at exactly 100%. With no actions defined
-  // there is nothing to weight, so nothing to block.
-  const weightsOk = serviceActions.length === 0 || total === 100;
-
   async function save() {
     setBusy(true);
     const ok = await onSave({
-      requirementWeights: weights,
       overtimeDefaultDepartmentId: otDept,
       supportPeriodDays: supportDays,
     });
@@ -1109,33 +1149,6 @@ function ProjectsSettings({ settings, departments, stages, serviceActions, canMa
 
   return (
     <div className="space-y-6">
-      <section className={panel}>
-        <h2 className={h2}>{tr.requirementWeights}</h2>
-        <p className={sub}>
-          {tr.howCompletionSplits}
-        </p>
-        {serviceActions.length === 0 ? (
-          <p className="mt-4 rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-400 dark:border-white/10">
-            {tr.noServiceActionsYet}
-          </p>
-        ) : (
-          <>
-            <div className="mt-4 grid gap-4 sm:grid-cols-4">
-              {serviceActions.map((act) => (
-                <Field key={act} label={`${act} %`} type="number" min="0" max="100"
-                  value={weights[act] ?? ""} disabled={!canManage}
-                  onChange={(v) => set(act, v)} />
-              ))}
-            </div>
-            <p className={`mt-2 text-xs font-600 ${total === 100 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-300"}`}>
-              {total === 100
-                ? tr.theyTotal100
-                : `They total ${total}% — ${total > 100 ? "over" : "under"} by ${Math.abs(100 - total)}%. Adjust to 100% to save.`}
-            </p>
-          </>
-        )}
-      </section>
-
       <section className={panel}>
         <h2 className={h2}>{tr.support}</h2>
         <p className={sub}>{tr.howLongProjectStays}</p>
@@ -1174,10 +1187,8 @@ function ProjectsSettings({ settings, departments, stages, serviceActions, canMa
 
       {canManage ? (
         <div className="flex items-center gap-3">
-          <button className={btn} disabled={busy || !weightsOk} onClick={save}
-            title={weightsOk ? "" : tr.weightsMustTotal100}>{busy ? tr.saving : tr.saveSettings}</button>
-          {!weightsOk && <span className="text-sm text-rose-600 dark:text-rose-300">{tr.weightsMustTotal100}</span>}
-          {saved && weightsOk && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
+          <button className={btn} disabled={busy} onClick={save}>{busy ? tr.saving : tr.saveSettings}</button>
+          {saved && <span className="text-sm text-emerald-700 dark:text-emerald-400">{tr.saved}</span>}
         </div>
       ) : (
         <p className="text-xs text-slate-500 dark:text-slate-400">{tr.viewOnlyAccessProjects}</p>

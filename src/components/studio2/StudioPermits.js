@@ -8,6 +8,7 @@ import { useReload } from "@/components/studio2/useReload";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
 import { h2, sub } from "@/components/studio2/ui";
 import PermitsPanel from "@/components/studio2/PermitsPanel";
+import { operationsRefusal } from "@/components/studio2/operationsRefusal";
 
 // QUALITY & HSE → PERMITS — the one permit register (tier 5).
 //
@@ -31,10 +32,10 @@ export default function StudioPermits({ slug, initial }) {
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/quality/permits`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) { setError(body.error || String(res.status)); return; }
+    if (!res.ok) { setError(operationsRefusal(body, tr)); return; }
     setError("");
     setData(body);
-  }, [slug]);
+  }, [slug, tr]);
 
   useReload(load, initial);
   useLiveUpdates(slug, "field-service", load);
@@ -50,11 +51,19 @@ export default function StudioPermits({ slug, initial }) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(out.error || String(res.status)); return false; }
+    if (!res.ok) {
+      // A permit somebody else moved or removed: redraw the real state FIRST,
+      // because a successful load clears the banner, and the refusal must be
+      // what is left on screen.
+      if (["transition", "already", "notfound", "closed"].includes(out.error)) await load();
+      // IN WORDS, not the token: this printed "controlled" and "forbidden".
+      setError(operationsRefusal(out, tr));
+      return false;
+    }
     setError("");
     await load();
     return true;
-  }, [slug, load]);
+  }, [slug, tr, load]);
 
   if (!data) return error ? <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p> : <RecordSkeleton />;
 
@@ -74,7 +83,7 @@ export default function StudioPermits({ slug, initial }) {
         windowDays={data.windowDays}
         slug={slug}
         nav={data.nav}
-        canManage={Boolean(data.canCreate || data.canEdit)}
+        rights={{ canCreate: Boolean(data.canCreate), canEdit: Boolean(data.canEdit), canDelete: Boolean(data.canDelete) }}
         busy={busy}
         send={send}
       />

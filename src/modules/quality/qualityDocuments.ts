@@ -30,7 +30,7 @@ export const STATUS_LABELS = {
 
 // A document is a published, controlled thing from `effective` onwards. Before
 // that it is somebody's work in progress, which is what decides whether it may
-// still be deleted — see removeDocument in modules/quality/quality.js.
+// still be deleted — see `deleteProblem` below and removeDoc in ./qualityDocs.
 export const isControlled = (status: string) => status === "effective" || status === "obsolete";
 
 // ---- languages -------------------------------------------------------------
@@ -162,6 +162,12 @@ export const REV_LABELS: Record<string, string> = {
   effective: "Effective",
   superseded: "Superseded",
   rejected: "Sent back",
+  // NOT A REVISION STATE — the DOCUMENT's, read off `obsoletedAt`. Listed here
+  // because the workflow view labels the stage it stands at, and a withdrawn
+  // document stands at none of the revision states: its issued revision is
+  // `superseded` and nothing may follow it (`workflowStage`). A screen draws
+  // its own words for every key here; these are the API's English fallback.
+  withdrawn: "Withdrawn",
 };
 
 // A revision somebody is still working on, as opposed to one that has been
@@ -195,6 +201,58 @@ export const TRANSITIONS: Record<string, Transition> = {
 
 export const canMove = (action: string, state: string) =>
   Boolean(TRANSITIONS[action]?.from.includes(state));
+
+// WITHDRAWAL IS FINAL. `withdraw` moves the issued revision to `superseded`,
+// which leaves no effective and no open revision — exactly what a document
+// nobody has issued yet looks like. Read off the revisions alone, a withdrawn
+// document therefore came back as a DRAFT: Send for review was offered, a new
+// revision could be submitted and issued, and the working copy unlocked. So
+// `obsoletedAt` is asked FIRST, everywhere a move or an edit is decided, and a
+// withdrawn document is a stage of its own that no transition starts from.
+export const isWithdrawn = (document: { obsoletedAt?: unknown } | null | undefined) =>
+  Boolean(document?.obsoletedAt);
+
+/**
+ * WHERE THE DOCUMENT'S LADDER STANDS, as the token the workflow view is drawn
+ * from: `withdrawn`, else the open revision's state, else `effective` when one
+ * is issued, else `draft`. No transition starts from `withdrawn`, so asking the
+ * table for the moves from it answers none — no button can be drawn.
+ */
+export function workflowStage(
+  document: QualityDocument | null | undefined,
+  revisions: QualityRevision[] = [],
+) {
+  if (isWithdrawn(document)) return "withdrawn";
+  const mine = revisions.filter((r) => r.documentId === document?.id);
+  const open = mine.find((r) => isOpen(r.state));
+  if (open) return String(open.state);
+  return mine.some((r) => r.state === "effective") ? "effective" : "draft";
+}
+
+// A REVISION THAT WAS EVER ISSUED. `superseded` is reached only from
+// `effective` (a later issue, or the withdrawal), and `effectiveDate` is
+// stamped at issue — so either says somebody was once told to work to it.
+export const wasIssued = (revision: { state?: unknown; effectiveDate?: unknown }) =>
+  revision.state === "effective" || revision.state === "superseded" || Boolean(revision.effectiveDate);
+
+/**
+ * WHY THIS DOCUMENT MAY NOT BE DELETED, or null when it may.
+ *
+ * NOT ONLY THE EFFECTIVE ONE. The old rule refused an effective document and
+ * nothing else, so a withdrawn document — and every version it had issued —
+ * could be deleted outright: the record of what people were told to do vanished
+ * the moment nobody worked to it any more. Only a document that never issued
+ * anything is somebody's unfinished work, and only that may go.
+ */
+export function deleteProblem(
+  document: QualityDocument | null | undefined,
+  revisions: QualityRevision[] = [],
+) {
+  if (isWithdrawn(document)) return "controlled";
+  if (isControlled(documentState(document, revisions))) return "controlled";
+  const mine = revisions.filter((r) => r.documentId === document?.id);
+  return mine.some(wasIssued) ? "controlled" : null;
+}
 
 // THE DOCUMENT'S OWN STATE, derived from its revisions rather than stored.
 //

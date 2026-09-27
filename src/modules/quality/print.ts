@@ -89,7 +89,10 @@ export async function printDocument(
   const template = docs.find((d) => d.id === templateId);
   const issued = revisions.find((r) => r.documentId === templateId && r.state === "effective");
   // Chosen once and since withdrawn, deleted, or superseded with nothing
-  // effective: the slot names a layout nothing can print from.
+  // effective: the slot names a layout nothing can print from. The register
+  // REFUSES withdrawing or deleting a chosen layout since 27/09/2026
+  // (`layoutSlotsFor`, ./layouts), so this is a slot stored before that — or a
+  // document removed some other way — and it answers in words, not a blank.
   if (!template || !issued) return { state: "not-issued", kind, language, templateId: template ? templateId : "" };
 
   // The template is bound to the TYPE; the record is supplied here, for this

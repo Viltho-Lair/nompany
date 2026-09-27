@@ -51,6 +51,21 @@ only through Tracking — it still shows the register, so nobody loses the way t
 between. `/operations/permits` keeps POST/PUT/PATCH/DELETE for that tab; `/quality/permits` is the
 register's own route.
 
+**The buttons are three answers, not one** (27/09/2026). Add asks `create`, Issue/Close/Cancel and
+Edit ask `edit`, Delete asks `delete` — each service asks its own verb through `permitDenied`. On
+the Schedule tab each ALSO needs managing the Field Service root, which `/operations/permits`
+checks first, so `scheduleView` returns `permitRights` as both halves together. The tab used to
+gate every button on `canManagePlaces` (the root alone) under a comment claiming "the button and
+the route can never disagree"; they disagreed for anybody holding a Field Service write and no
+permit right. The register's screen gated on "create OR edit" and drew Delete for both.
+
+**A move is judged against the row being written** (`movePermit`, invariant 8): the legal-move
+check runs again inside the function patch, so Close and Cancel pressed at once cannot both win.
+**Refusals are words on both screens** — `components/studio2/operationsRefusal.js`, one function
+for the two, where the register printed the token ("controlled", "forbidden") and the tab
+collapsed everything unlisted to "That didn't save." A permit's expiry ("expires … (n days)")
+and "no." are the dictionary's too. "Today" for validity is the studio's (`shared/timezone`).
+
 ## What was fixed on the way
 
 - The schema declared `kind`, which nothing wrote, and none of title, type, number, issuer,

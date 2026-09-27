@@ -25,7 +25,10 @@ import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { bumpCounter } from "@/platform/db/store";
 import { SEC } from "@/platform/db/keys";
-import { formatCode, highestSeq, MAX_TITLE, documentState, pendingRevision, isOpen } from "./qualityDocuments";
+import {
+  formatCode, highestSeq, MAX_TITLE, documentState, pendingRevision, isOpen, isWithdrawn, deleteProblem,
+} from "./qualityDocuments";
+import { layoutSlotsFor } from "./layouts";
 import { unknownPlaceholders } from "./qualityFields";
 import type { QualityContext, QualityDocument, QualityRevision } from "./types";
 
@@ -117,7 +120,14 @@ const withState = (doc: QualityDocument, revisions: QualityRevision[]) => ({
   // first time one of them is written without the other.
   state: documentState(doc, revisions),
   pending: pendingRevision(doc, revisions),
+  // WHETHER THE REGISTER MAY OFFER A BIN — the rule removeDoc enforces, so a
+  // bin is drawn only where pressing it could succeed. listDocs narrows it by
+  // the studio's chosen layouts, which are the studio's and not the document's.
+  deletable: !deleteProblem(doc, revisions),
 });
+
+/** The studio's chosen quotation and invoice layouts, as stored on the studio record. */
+const layoutsOf = (ctx: QualityContext) => (ctx.studio as { documentLayouts?: unknown }).documentLayouts;
 
 // `ctx` IS a scope — it already carries `studio` and `section` — so these read
 // exactly what the hand-written calls read, with one fewer thing to get wrong.
@@ -129,8 +139,10 @@ export async function listDocs(ctx: QualityContext) {
     Docs.find(ctx),
     Revisions.find(ctx),
   ]);
+  const layouts = layoutsOf(ctx);
   return docs
     .map((d) => withState(d, revisions))
+    .map((d) => (d.deletable && layoutSlotsFor(layouts, d.id).length ? { ...d, deletable: false } : d))
     .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
 }
 
@@ -153,7 +165,10 @@ export async function getDoc(ctx: QualityContext, id: string) {
   return {
     document: withState(doc, revisions),
     issued: !open && effective ? effective : null,
-    canEdit: Boolean(open) || !effective,
+    // A WITHDRAWN DOCUMENT IS NEVER WRITABLE again — its last issue is
+    // superseded and nothing is open, which read as "a draft" before
+    // `obsoletedAt` was asked first.
+    canEdit: !isWithdrawn(doc) && (Boolean(open) || !effective),
   };
 }
 
@@ -172,8 +187,12 @@ export async function getDoc(ctx: QualityContext, id: string) {
  * writing in.
  */
 async function editable(ctx: QualityContext, documentId: string) {
-  const revisions = (await Revisions.find(ctx))
-    .filter((r) => r.documentId === documentId);
+  const [doc, all] = await Promise.all([Docs.byId(ctx, documentId), Revisions.find(ctx)]);
+  // WITHDRAWN IS FINAL, and it is asked before the revisions: a withdrawn
+  // document has no effective and no open revision, which is exactly the shape
+  // the "draft, write freely" answer below was written for.
+  if (isWithdrawn(doc)) return { error: "obsolete" };
+  const revisions = all.filter((r) => r.documentId === documentId);
   if (revisions.some((r) => isOpen(r.state))) return null;
   if (revisions.some((r) => r.state === "effective")) return { error: "issued" };
   return null;
@@ -223,19 +242,35 @@ export async function createDoc(ctx: QualityContext, body: Record<string, unknow
   return { document: withState(row, []) };
 }
 
+/**
+ * A WRITE TO THE WORKING COPY THAT A WITHDRAWAL STOPS, even one landing between
+ * the check above it and the write itself. The patch is a FUNCTION (invariant
+ * 8), so the guard is asked again of the row as it is when the write lands: a
+ * document withdrawn in that gap takes nothing, and the caller is told why.
+ */
+async function writeUnlessWithdrawn(ctx: QualityContext, id: string, fields: Record<string, unknown>) {
+  const row = await Docs.update(ctx, id, (cur) => (isWithdrawn(cur) ? {} : fields));
+  if (!row) return { error: "notfound" as const };
+  if (isWithdrawn(row)) return { error: "obsolete" as const };
+  return { row };
+}
+
 export async function renameDoc(ctx: QualityContext, id: string, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "engineeringDocs.register.edit");
   if (denied) return denied;
   const title = str(body?.title, MAX_TITLE) || "Untitled document";
-  const row = await Docs.update(ctx, id, {
-    title, updatedAt: new Date().toISOString(),
-  });
-  return row ? { document: row } : { error: "notfound" };
+  // A WITHDRAWN DOCUMENT KEEPS THE NAME IT WAS WITHDRAWN UNDER — the register
+  // is the record of what people were told to work to, and that includes what
+  // it was called. An issued one may still be retitled, as it always could:
+  // the title is not part of the frozen revision (SETUP_SNAPSHOT).
+  const out = await writeUnlessWithdrawn(ctx, id, { title, updatedAt: new Date().toISOString() });
+  return "error" in out ? out : { document: out.row };
 }
 
 /**
  * The hot path. Called on a debounce while somebody types, so it patches and
- * returns without reading anything it does not need.
+ * returns without reading anything it does not need — the document and its
+ * revisions, read together, are what decide whether it may be written at all.
  */
 export async function saveContent(ctx: QualityContext, id: string, body: Record<string, unknown>) {
   const denied = requirePermission(ctx.access, "engineeringDocs.register.edit");
@@ -259,10 +294,8 @@ export async function saveContent(ctx: QualityContext, id: string, body: Record<
   }
   if (content.length > 2_000_000) return { error: "too-large" };
 
-  const row = await Docs.update(ctx, id, {
-    content, updatedAt: new Date().toISOString(),
-  });
-  return row ? { ok: true } : { error: "notfound" };
+  const out = await writeUnlessWithdrawn(ctx, id, { content, updatedAt: new Date().toISOString() });
+  return "error" in out ? out : { ok: true };
 }
 
 export async function savePageSetup(ctx: QualityContext, id: string, body: Record<string, unknown>) {
@@ -284,10 +317,8 @@ export async function savePageSetup(ctx: QualityContext, id: string, body: Recor
     } catch { /* not JSON: the legacy plain-text band, which holds no placeholder */ }
   }
 
-  const row = await Docs.update(ctx, id, {
-    ...patch, updatedAt: new Date().toISOString(),
-  });
-  return row ? { document: row } : { error: "notfound" };
+  const out = await writeUnlessWithdrawn(ctx, id, { ...patch, updatedAt: new Date().toISOString() });
+  return "error" in out ? out : { document: out.row };
 }
 
 export async function removeDoc(ctx: QualityContext, id: string) {
@@ -299,9 +330,19 @@ export async function removeDoc(ctx: QualityContext, id: string) {
   const doc = await Docs.byId(ctx, id);
   if (!doc) return { error: "notfound" };
 
-  // AN ISSUED DOCUMENT IS NOT DELETABLE. Somebody is working from it, and the
-  // record of what they were told to do outlives whoever wants it gone.
-  if (documentState(doc, revisions) === "effective") return { error: "controlled" };
+  // NOTHING THAT WAS EVER ISSUED IS DELETABLE — effective, withdrawn, or any
+  // document holding a superseded version. Somebody worked from each of them,
+  // and the record of what they were told to do outlives whoever wants it
+  // gone. This refused only an EFFECTIVE document until 27/09/2026, so a
+  // withdrawal followed by a delete erased every version the document had
+  // issued. Only a document that never issued anything goes (`deleteProblem`).
+  const problem = deleteProblem(doc, revisions);
+  if (problem) return { error: problem };
+  // A CHOSEN LAYOUT is refused too, and in words: the studio's quotations or
+  // invoices print through it, and deleting it would leave printing with
+  // nothing. Setting a layout needs an issued revision, so this is reached
+  // only by a slot stored before that rule — but it costs nothing to ask.
+  if (layoutSlotsFor(layoutsOf(ctx), id).length) return { error: "in-use" };
 
   await Promise.all(mine.map((r) => Revisions.remove(ctx, r.id)));
   const gone = await Docs.remove(ctx, id);

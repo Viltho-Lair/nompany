@@ -17,9 +17,11 @@ none of them can be read off a calendar without counting by hand.
 - **Load.** Hours booked per person, so "who can take this" has an answer.
 
 **No permission key, no collection, no write.** It reads `jobs` through `listJobs`, which
-asks `fieldService.schedule.view`. Staffing a job is editing the job and answers to
-`PUT /operations/jobs` like every other change to one — a second write path out of a board
-would be two ways to staff a job, free to disagree about what staffing one means.
+asks `fieldService.schedule.view`. Staffing a job is editing the job, and the only door for
+that is `PUT /operations/jobs` (`updateJob`) — a second write path out of a board would be two
+ways to staff a job, free to disagree about what staffing one means. **No screen calls that
+door yet**: nothing opens a job once it is created, so a job's people and times are the ones it
+was raised with (see "Not built yet").
 
 ### The rules, and why each is that way
 
@@ -60,18 +62,42 @@ happened, and chasing it would be chasing a record rather than a job.
 
 ### The day
 
-**`day` comes from the caller and today is the server's**, read once in the route. A board
-whose default day was the viewer's clock would disagree with the records across a timezone,
-and the records are UTC. The screen adopts the day that comes back on its first load, so
-the picker and the board can never be a day apart. `dispatchBoard` takes the day as an
-argument, which is what makes every state assertable without a clock.
+**`day` comes from the caller and today is the STUDIO's**, read once in the route from the
+time zone set in Studio settings (`shared/timezone`; no zone set reads UTC). A board whose
+default day was the viewer's clock would disagree with the records across a timezone, and one
+whose default was the server's UTC date opened a studio east of Greenwich onto yesterday every
+morning. The screen adopts the day that comes back on its first load, so the picker and the
+board can never be a day apart. `dispatchBoard` takes the day and the zone as arguments, which
+is what makes every state assertable without a clock.
+
+**Which day a job is on** (`dayOf`): a time with no zone — what the New job form writes,
+"2026-09-27T23:30" — IS the studio's wall clock, so its day is its own date; a time carrying a
+zone is an instant, placed on the day the studio's clock showed then. Parsing the zoneless
+form on the server's clock is how a late job moved to the next day's board.
 
 ## One job system (tier 5, 11/09/2026)
 
 **A job can be raised from the dispatch board.** *New job* opens a form — title, kind, who is on
-it, project, location, start and end, and the maintenance contract and installed unit it is
-about when those registers exist and the reader may open them. No screen could create a job
-before: `POST /operations/jobs` existed and was reachable only by hand.
+it, project, location, the day and its start and end times, and the maintenance contract and
+installed unit it is about when those registers exist and the reader may open them. No screen
+could create a job before: `POST /operations/jobs` existed and was reachable only by hand. The
+day is the shared date picker and the times are two clock fields — the rota's shift form's
+shape, not the browser's datetime-local — and an end earlier than the start runs past midnight
+into the next day, the rota's own rule for an overnight shift.
+
+**What a job names must exist** (`createJob`/`updateJob`): the people on it, its project, its
+contract and its installed unit are checked against their registers, and its times must parse
+and not end before they start. Each was stored as typed, so a stale picker filed a job against a
+deleted project, or staffed it with somebody who had left and so never saw it on any round. The
+refusals (`person`, `project`, `contract`, `unit`, `time`, `range`) are worded on the screen.
+
+**A move is judged against the row being written** (`setJobStatus`, invariant 8): the legal-move
+check runs again inside the function patch, so a technician tapping Finish while the office
+cancels cannot bring a cancelled job back as completed. The same holds for editing a closed job
+and for signing one that was cancelled meanwhile.
+
+**My round draws Start, Finish and Take signature only for `fieldService.schedule.edit`** — the
+right both writes ask (`fieldView` returns `canEdit`). A viewer sees the round with no buttons.
 
 **A job no longer needs a deal id to be created.** Which deal it executes is decided by the one
 insert every door uses (`insertJob`, `modules/operations/jobs.ts`): the deal it was given
@@ -110,9 +136,12 @@ removing the service orders afterwards is a separate step under invariant 17.
 
 ## Not built yet
 
-- **No drag and drop.** Staffing a job means opening it; the board shows the gap and does
-  not fill it. That is the next slice and it is what would make this the screen a
-  dispatcher lives in rather than one they check.
+- **No way to change a job on screen.** No screen opens a job once it is created, so its
+  people, times, title and links stay what it was raised with; `PUT /operations/jobs` exists
+  and nothing calls it. Nor can a job be cancelled from a screen. The board shows the gap and
+  does not fill it — a job-edit dialog (and then drag and drop) is the next slice, and it is
+  what would make this the screen a dispatcher lives in rather than one they check.
+- **No drag and drop.**
 - **No travel time, no geography.** `location` is a string printed beside a job. Nothing
   knows whether two jobs on one lane are forty kilometres apart, so a lane with room may
   have none in practice.

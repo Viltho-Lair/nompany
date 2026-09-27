@@ -14,7 +14,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { procurementDict } from "@/shared/studio/procurement";
+import { procurementDict, procurementRefusal } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, money, fmtDate } from "@/components/studio2/ui";
@@ -31,7 +31,7 @@ function refusal(tr, token) {
     case "quote-expired": return tr.refuseQuoteExpired;
     case "reason-required": return tr.refuseReasonRequired;
     case "not-awardable": return tr.refuseNotAwardable;
-    default: return token;
+    default: return procurementRefusal(tr, token) || token;
   }
 }
 
@@ -47,6 +47,8 @@ export default function StudioRfq({ slug, initial }) {
   const [form, setForm] = useState(null);
   const [quoting, setQuoting] = useState(null);
   const [awarding, setAwarding] = useState(null);
+  // WHO ELSE TO ASK, after the request has gone out — see the Sent row below.
+  const [asking, setAsking] = useState(null);
 
   const read = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/procurement/rfq`, { cache: "no-store" });
@@ -94,11 +96,11 @@ export default function StudioRfq({ slug, initial }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingRfqs} />;
 
-  const { rfqs, canCreate, canEdit, canDelete, canAward, pickers = {} } = data;
+  const { rfqs, canCreate, canEdit, canDelete, canAward, pickers = {}, requisitionChoices = [] } = data;
 
   const openForm = (row) => setForm(row
     ? { ...row, vendorIds: Array.isArray(row.vendorIds) ? row.vendorIds : [], lines: [...(row.lines || []), emptyLine()] }
-    : { title: "", dueBy: "", notes: "", vendorIds: [], lines: [emptyLine()] });
+    : { title: "", dueBy: "", notes: "", requisitionId: "", vendorIds: [], lines: [emptyLine()] });
   const toggleAsked = (id) => setForm((f) => {
     const asked = new Set(f.vendorIds || []);
     if (asked.has(id)) asked.delete(id); else asked.add(id);
@@ -116,6 +118,9 @@ export default function StudioRfq({ slug, initial }) {
       title: form.title,
       dueBy: form.dueBy || "",
       notes: form.notes || "",
+      // ON CREATE ONLY: the server copies the request's lines where none are
+      // typed, and an RFQ's source is fixed once it exists.
+      ...(form.id ? {} : { requisitionId: form.requisitionId || "" }),
       vendorIds: Array.isArray(form.vendorIds) ? form.vendorIds : [],
       lines: (form.lines || []).map((l) => ({
         id: l.id, description: l.description, unit: l.unit,
@@ -162,6 +167,7 @@ export default function StudioRfq({ slug, initial }) {
                       {tr.raisedBy}: {r.createdByAlias || r.createdByCollaboratorId || "—"}
                       {r.dueBy ? ` · ${tr.quotesDueBy} ${fmtDate(r.dueBy)}` : ""}
                       {(r.vendorIds || []).length ? ` · ${tr.suppliersAsked}: ${r.vendorIds.length}` : ""}
+                      {r.requisitionReference ? ` · ${tr.fromRequisition} ${r.requisitionReference}` : ""}
                     </p>
                     {awarded && (
                       <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
@@ -178,6 +184,15 @@ export default function StudioRfq({ slug, initial }) {
                         <button type="button" className={btn} disabled={busy}
                           onClick={() => send("PUT", { id: r.id, action: "send" })}>{tr.sendRfq}</button>
                       </>
+                    )}
+                    {/* ADDING A SUPPLIER AFTER SENDING, which the server has always
+                        allowed (the line list freezes, who is asked does not) and
+                        no screen offered: Edit is a Draft's alone. */}
+                    {canEdit && r.status === "Sent" && (
+                      <button type="button" className={btnRow} disabled={busy}
+                        onClick={() => setAsking({ id: r.id, vendorIds: Array.isArray(r.vendorIds) ? r.vendorIds : [] })}>
+                        {tr.addSuppliers}
+                      </button>
                     )}
                     {canEdit && r.status === "Sent" && (
                       <button type="button" className={btn} disabled={busy}
@@ -281,6 +296,45 @@ export default function StudioRfq({ slug, initial }) {
                             </tbody>
                           </table>
                         </div>
+
+                        {/* WHO IS CHEAPEST ON EACH LINE. `compareQuotes` has always
+                            worked this out — across every live quote that priced
+                            the line, complete or not — and nothing showed it. It is
+                            what a split award is made of, and "who is dear on
+                            what" even where nobody splits. */}
+                        <p className="mt-4 text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                          {tr.cheapestByLineHeading}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{tr.cheapestByLineHint}</p>
+                        <div className="mt-2 overflow-x-auto">
+                          <table className="w-full min-w-[460px] text-sm">
+                            <thead>
+                              <tr className="border-b border-slate-100 text-start dark:border-white/5">
+                                <th className="px-4 py-2 text-start text-xs font-700 uppercase tracking-wide text-slate-500">{tr.lineDescription}</th>
+                                <th className="px-4 py-2 text-start text-xs font-700 uppercase tracking-wide text-slate-500">{tr.quoteFrom}</th>
+                                <th className="px-4 py-2 text-end text-xs font-700 uppercase tracking-wide text-slate-500">{tr.lineEstCost}</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(r.lines || []).map((l) => {
+                                const bestId = (cmp.cheapestByLine || {})[l.id];
+                                const best = (cmp.quotes || []).find((q) => q.id === bestId);
+                                const cell = best && (best.lines || []).find((x) => x.rfqLineId === l.id);
+                                return (
+                                  <tr key={l.id} className="border-t border-slate-100 dark:border-slate-800">
+                                    <td className="px-4 py-2 text-slate-700 dark:text-slate-200">{l.description}</td>
+                                    <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
+                                      {best ? supplierName(pickers, best.vendorId) : <span className="text-slate-400 dark:text-slate-500">{tr.noLinePriced}</span>}
+                                    </td>
+                                    <td className="num px-4 py-2 text-end text-slate-900 dark:text-white">
+                                      {cell && cell.unitPrice !== null ? money(cell.unitPrice) : "—"}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </>
                     )}
                   </div>
@@ -299,6 +353,21 @@ export default function StudioRfq({ slug, initial }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={tr.quotesDueBy} type="date" value={form.dueBy || ""}
                 onChange={(v) => setForm((f) => ({ ...f, dueBy: v }))} />
+              {/* RAISED FROM A REQUISITION — the join this section exists for.
+                  `createRfq` copies the request's lines where none are typed,
+                  and had no screen that could send one. Offered on a NEW
+                  request only, and only the requests this reader may open. */}
+              {!form.id && requisitionChoices.length > 0 && (
+                <Field label={tr.fromRequisition} as="select" value={form.requisitionId || ""}
+                  onChange={(v) => setForm((f) => {
+                    const picked = requisitionChoices.find((q) => q.id === v);
+                    return { ...f, requisitionId: v, title: f.title || (picked ? picked.title : "") };
+                  })}
+                  options={[
+                    { value: "", label: tr.noRequisitionPicked },
+                    ...requisitionChoices.map((q) => ({ value: q.id, label: `${q.reference} · ${q.title}` })),
+                  ]} />
+              )}
             </div>
             {/* WHO IS BEING ASKED, ticked from the register. This was one text
                 box taking a comma-separated list of internal ids. */}
@@ -429,6 +498,40 @@ export default function StudioRfq({ slug, initial }) {
                     })),
                   });
                   if (done) setQuoting(null);
+                }}>
+                {tr.save}
+              </button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+
+      {asking && (
+        <Dialog title={tr.addSuppliers} onClose={() => setAsking(null)} width="max-w-[560px]">
+          <div className="space-y-4">
+            {/* THE LINE LIST STAYS FROZEN — only who is asked changes, which
+                alters nothing anybody has already quoted against. */}
+            <div className="grid max-h-60 gap-1 overflow-y-auto rounded-xl border border-slate-200 p-3 sm:grid-cols-2 dark:border-white/10">
+              {(pickers.suppliers || []).map((s) => (
+                <label key={s.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                  <input type="checkbox" className="h-4 w-4 accent-brand-600"
+                    checked={asking.vendorIds.includes(s.id)}
+                    onChange={() => setAsking((a) => ({
+                      ...a,
+                      vendorIds: a.vendorIds.includes(s.id)
+                        ? a.vendorIds.filter((x) => x !== s.id)
+                        : [...a.vendorIds, s.id],
+                    }))} />
+                  {s.name}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" className={btnGhost} onClick={() => setAsking(null)}>{tr.cancel}</button>
+              <button type="button" className={btn} disabled={busy}
+                onClick={async () => {
+                  const done = await send("PUT", { id: asking.id, vendorIds: asking.vendorIds });
+                  if (done) setAsking(null);
                 }}>
                 {tr.save}
               </button>

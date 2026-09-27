@@ -12,7 +12,7 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const {
-  daysOf, utilisation, allocationProblem,
+  daysOf, utilisation, allocationProblem, bookable,
 } = await import("@/modules/assets/utilisation");
 
 let fails = 0;
@@ -136,6 +136,23 @@ ok("a backwards range is refused",
   allocationProblem(alloc({ id: "n", from: "2026-09-20", to: "2026-09-10" }), []) === "order");
 ok("no asset is refused", allocationProblem({ id: "n", assetId: "", dealId: "d", from: "2026-09-01" }, []) === "asset");
 ok("no deal is refused", allocationProblem({ id: "n", assetId: "a", dealId: "", from: "2026-09-01" }, []) === "deal");
+
+console.log("\n== only a machine that can work goes out");
+
+// A DISPOSED OR UNDER-REPAIR MACHINE WAS ALLOCATED WITHOUT A WORD, and the job
+// was charged for plant the company had sold or that sat in the workshop. The
+// tokens are the equipment register's own (engine builtins).
+ok("In service goes out", bookable("In service"));
+ok("Idle goes out", bookable("Idle"));
+ok("A DISPOSED MACHINE CANNOT BE PUT ON A JOB", !bookable("Disposed"));
+ok("AN UNDER-REPAIR MACHINE CANNOT BE PUT ON A JOB", !bookable("Under repair"));
+ok("a machine with no status is not assumed to work", !bookable(""));
+{
+  const { readFileSync } = await import("node:fs");
+  const builtins = readFileSync("src/platform/engine/builtins.ts", "utf8");
+  ok("the bookable tokens are the equipment register's declared ones",
+    builtins.includes('statuses: ["In service", "Under repair", "Idle", "Disposed"]'));
+}
 
 console.log(fails ? `\nutilisation model: ${fails} FAILURES\n` : "\nutilisation model: all passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.

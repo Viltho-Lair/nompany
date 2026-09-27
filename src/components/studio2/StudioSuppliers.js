@@ -17,7 +17,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { procurementDict } from "@/shared/studio/procurement";
+import { procurementDict, procurementRefusal } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, Empty, Dialog, Toolbar, microLabel, fmtDate } from "@/components/studio2/ui";
@@ -37,7 +37,9 @@ function refusal(tr, token) {
     case "period": return tr.refusePeriod;
     case "no-scores": return tr.refuseNoScores;
     case "range": return tr.refuseRange;
-    default: return token;
+    // THE VENDOR ROUTE'S OWN — name, duplicate, in-use — which the supplier
+    // register printed raw until 27/09/2026.
+    default: return procurementRefusal(tr, token) || token;
   }
 }
 
@@ -166,14 +168,14 @@ export default function StudioSuppliers({ slug, initial }) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(out.error || "failed"); return false; }
+    if (!res.ok) { setError(refusal(tr, out.error || "failed")); return false; }
     await reload();
     // THE BODY, not `true` — the import reads how many landed and which lines
     // did not, and a helper that threw the answer away would force a second
     // fetch to ask again. Every other caller tests it as a boolean, and an
     // object is truthy.
     return out;
-  }, [slug, reload]);
+  }, [slug, reload, tr]);
 
   const blocked = useMemo(
     () => (data?.suppliers || []).filter((s) => !s.position?.qualification?.usable).length,

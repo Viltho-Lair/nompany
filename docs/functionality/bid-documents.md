@@ -59,6 +59,15 @@ exactly what the server refuses:
   destroys the history; deleting its replacement leaves the older one reading as replaced by
   nothing. A document nothing links to is an upload somebody got wrong, and that one goes.
 
+**The rules are asked again at the write** (27/09/2026). Marking a document replaced used to be a
+plain patch after a check on a read, so two people linking one document to two revisions both
+passed and the second silently replaced the first. The mark is a function patch now (invariant
+8): the document's own half — not already replaced — is re-asked of the row as it stands. The
+replacement is another row, which a row patch cannot see, so it is re-read straight after: if it
+was itself replaced or deleted meanwhile (A→B racing B→A is the loop the first rule exists to
+make unwritable), the mark is taken back — only while it is still that request's own — and the
+request is refused.
+
 **A document must belong to a tender that exists** — the same guard the bill takes, or a
 crafted request files paperwork where no screen shows it and no cascade reaps it.
 

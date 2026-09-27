@@ -15,8 +15,8 @@ import type { Locale } from "../locale";
 //
 // SO THEY TRANSLATE THE SAME WAY: on DISPLAY, keyed by the stored token, with
 // the stored word as the fallback. Nothing stored changes — a status is still
-// "In progress" in the database, in the API, in a rule's trigger and in an
-// export — and a type whose `origin` is not "builtin" is never looked up at
+// "In progress" in the database, in the API and in a rule's trigger (the CSV
+// export shows the word, as the table does) — and a type whose `origin` is not "builtin" is never looked up at
 // all, because what a studio typed is shown as typed.
 //
 // A word added to a declaration before it is added here reads as English

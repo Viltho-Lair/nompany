@@ -103,5 +103,55 @@ console.log("\n== the attention list");
   ok("an empty register adds nothing", E.attention([], []).length === 0);
 }
 
+// ---- the register's own rules, which the dashboard's states are read from ----
+// Pure, so they are asserted here beside the figures that depend on them.
+const Q = await import("@/modules/quality/qualityDocuments");
+const L = await import("@/modules/quality/layouts");
+
+console.log("\n== a withdrawn document is final");
+{
+  // THE BUG: withdraw moves the issued revision to `superseded`, leaving no
+  // effective and no open revision — the shape of a never-issued draft — so
+  // the workflow view offered Send for review on a withdrawn document.
+  const doc = { id: "w1", obsoletedAt: "2026-09-20T10:00:00Z" };
+  const revs = [{ documentId: "w1", rev: 1, state: "superseded", effectiveDate: "2026-01-01" }];
+  ok("A WITHDRAWN DOCUMENT IS ITS OWN STAGE, not a draft", Q.workflowStage(doc, revs) === "withdrawn");
+  ok("...and no transition starts from it", Object.keys(Q.TRANSITIONS).every((a) => !Q.canMove(a, "withdrawn")));
+  ok("...while the register still calls it obsolete", Q.documentState(doc, revs) === "obsolete");
+  ok("without obsoletedAt the same revisions are a draft's — which is why it is asked first",
+    Q.workflowStage({ id: "w1" }, revs) === "draft");
+  ok("an issued document stands at effective", Q.workflowStage({ id: "e1" }, [{ documentId: "e1", rev: 1, state: "effective" }]) === "effective");
+  ok("an open revision's state wins over the issued one",
+    Q.workflowStage({ id: "e1" }, [{ documentId: "e1", rev: 1, state: "effective" }, { documentId: "e1", rev: 2, state: "review" }]) === "review");
+  ok("the stage has a label", Q.REV_LABELS.withdrawn === "Withdrawn");
+}
+
+console.log("\n== nothing ever issued is deletable");
+{
+  // THE BUG: removeDoc refused only an EFFECTIVE document, so withdrawing and
+  // then deleting erased every version the document had issued.
+  ok("a never-issued draft may go", Q.deleteProblem({ id: "d" }, []) === null);
+  ok("...and one still in review", Q.deleteProblem({ id: "d" }, [{ documentId: "d", rev: 1, state: "review" }]) === null);
+  ok("an effective document may not", Q.deleteProblem({ id: "d" }, [{ documentId: "d", rev: 1, state: "effective" }]) === "controlled");
+  ok("A WITHDRAWN DOCUMENT MAY NOT",
+    Q.deleteProblem({ id: "d", obsoletedAt: "2026-09-20" }, [{ documentId: "d", rev: 1, state: "superseded" }]) === "controlled");
+  ok("nor one holding any superseded version, withdrawal half-written or not",
+    Q.deleteProblem({ id: "d" }, [{ documentId: "d", rev: 1, state: "superseded" }]) === "controlled");
+  ok("another document's issued revision does not protect this one",
+    Q.deleteProblem({ id: "d" }, [{ documentId: "x", rev: 1, state: "effective" }]) === null);
+}
+
+console.log("\n== a chosen layout is found wherever it is chosen");
+{
+  const stored = { quotation: { en: "lay1", ar: "lay2" }, invoice: { en: "lay1" } };
+  const slots = L.layoutSlotsFor(stored, "lay1");
+  ok("every slot naming it is reported", slots.length === 2
+    && slots.some((s) => s.kind === "quotation" && s.language === "en")
+    && slots.some((s) => s.kind === "invoice" && s.language === "en"), JSON.stringify(slots));
+  ok("a document no slot names is free", L.layoutSlotsFor(stored, "other").length === 0);
+  ok("an empty id matches nothing", L.layoutSlotsFor({ quotation: { en: "" } }, "").length === 0);
+  ok("a studio with no layouts stored names nothing", L.layoutSlotsFor(undefined, "lay1").length === 0);
+}
+
 console.log(fails ? `\nengineering dashboard: ${fails} FAILURES\n` : "\nengineering dashboard: all passed\n");
 process.exit(fails ? 1 : 0);

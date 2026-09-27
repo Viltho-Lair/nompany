@@ -28,7 +28,12 @@ export type HandoverState = {
   /** The project this tender became, when it became one. */
   projectId: string;
   projectTitle: string;
-  /** Blank until Finance issues it — see the projects doc. */
+  /**
+   * Blank, and it stays blank. A project number is issued only by a
+   * quotation's Client PO approval (`issueProjectNumber`), and a project handed
+   * over from a tender has no quotation behind it — so nothing numbers it. See
+   * docs/functionality/projects.md, "Not built yet".
+   */
   projectNumber: string;
   /** True only where pressing the button would succeed. */
   canHandOver: boolean;
@@ -36,7 +41,7 @@ export type HandoverState = {
    * Why it would not, as a TOKEN. The screen translates it; sending prose would
    * put an English sentence on an Arabic page.
    */
-  blocked: "not-won" | "already" | "no-projects" | "handover-forbidden" | null;
+  blocked: "not-won" | "already" | "no-projects" | "no-customers" | "handover-forbidden" | null;
 };
 
 /**
@@ -76,6 +81,14 @@ export async function handoverState(
   if (!isWonTender(String(tender.status || ""))) {
     return { ...none, canHandOver: false, blocked: "not-won" };
   }
+
+  // A PROJECT NEEDS A CUSTOMER, AND CUSTOMERS ARE CRM & SALES'. `tenderSource`
+  // refuses with `client` when the studio has no customer list to resolve the
+  // issuer into — and this state never asked, so the button was offered and
+  // pressing it answered with the sentence meant for a PICKED customer that
+  // has since gone ("pick another"), on a screen with nothing to pick. Its own
+  // token, because the fix is somewhere else entirely: switching the section on.
+  if (!ctx.salesClientsSection) return { ...none, canHandOver: false, blocked: "no-customers" };
 
   // THE RIGHT THAT MATTERS IS PROJECTS', not Tendering's, because the act
   // CREATES a project. Somebody who may run the tender register but not open

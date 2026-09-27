@@ -227,3 +227,18 @@ export function expediteOrders(
     asOf: today,
   };
 }
+
+/**
+ * HOW FAR AHEAD "DUE SOON" REACHES, from the `?soon=` a screen may send —
+ * clamped to 1..90 days because it arrives from a URL, and SEVEN when absent.
+ *
+ * PRESENCE IS ASKED BEFORE CONVERSION. The route used to run `Number()` on the
+ * raw parameter, and `Number(null)` is 0 — finite — so an absent `?soon=`
+ * clamped to ONE day rather than falling to seven: the Expediting screen's
+ * "Due soon" covered today and tomorrow while the dashboard, asking the same
+ * question with the same function, counted a week. A blank value is absent too.
+ */
+export function soonDaysFrom(given: string | null | undefined): number {
+  const raw = given === null || given === undefined || String(given).trim() === "" ? NaN : Number(given);
+  return Number.isFinite(raw) ? Math.max(1, Math.min(90, Math.floor(raw))) : 7;
+}

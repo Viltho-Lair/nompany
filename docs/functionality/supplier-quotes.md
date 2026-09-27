@@ -44,10 +44,12 @@ takes it for free; **every other archetype is an explicit list**, so without tha
 Procurement Manager built from the role library would get suppliers and requisitions and no
 RFQs at all.
 
-**Why `award` is there when `procurement.requisitions.approve` deliberately is not.** They look
-like the same kind of power and are not: approving a requisition authorises somebody else's
-spend, which is exactly why it sits away from the person doing the buying; awarding chooses
-between quotes for a spend already authorised, which *is* the buying. A buyer who may ask three
+**Why `award` is a right when approving a requisition is not.** (This paragraph named a
+`procurement.requisitions.approve` right; it left the catalogue on 19/09/2026 — a requisition is
+answered on the Approvals page by the people Approvals settings name, `requisitions.md`.) They
+look like the same kind of power and are not: approving a requisition authorises somebody
+else's spend, which is exactly why it sits away from the person doing the buying; awarding
+chooses between quotes for a spend already authorised, which *is* the buying. A buyer who may ask three
 suppliers for a price and may not pick one has been given half a job.
 
 **This paragraph said the opposite for about an hour.** It recorded a grant seeded to the
@@ -74,7 +76,22 @@ price by collision.
 **The line list freezes when the request goes out.** A supplier quoting three lines must not
 find a fourth appearing afterwards; their quote would silently become an answer to a question
 nobody asked them. **Who it went to stays editable** — a studio that thinks of a fourth
-supplier on Tuesday should add them, and that changes nothing anybody has already quoted.
+supplier on Tuesday should add them, and that changes nothing anybody has already quoted. The
+screen offers it as **Add suppliers** on a Sent request (27/09/2026); until then Edit was a
+Draft's alone, so the server allowed what no screen could send.
+
+**Raised from a requisition, on screen.** `createRfq` has always taken a `requisitionId` and
+copied the request's lines; since 27/09/2026 the new-request form offers **From requisition**,
+listing the Submitted and Approved requests, and the row names the request it came from. The
+list (`requisitionChoices`, and each row's `requisitionReference`) is sent **only to a reader
+holding `procurement.requisitions.view`** — a dropdown of request titles would otherwise leak a
+register the reader was refused. Typed lines win, but only real ones: the form always carries a
+blank row, and a non-empty array of blanks used to beat the request's lines and raise an RFQ
+asking for nothing.
+
+**Cheapest on each line is shown** under the comparison (27/09/2026): for every line, the
+supplier with the lowest live price across every quote that priced it, complete or not, and its
+unit price — `cheapestByLine`, which `compareQuotes` computed from the start and no screen drew.
 
 **A quote is accepted only against a request that has been sent.** A draft has been sent to
 nobody, so a quote against it came from nowhere; an awarded one has been decided, and a price
@@ -133,8 +150,11 @@ Stated in words, because a silent gap reads as a finished feature.
 - **The award creates no purchase order.** It records who won and why; somebody still raises the
   PO separately. Wiring it into `createOrder` — which already takes a `requisitionId` — is the
   obvious next step and is not done.
-- **No split award.** `cheapestByLine` is computed and shown, and awarding is whole-quote only,
-  so a studio that wants two suppliers for one request cannot record that.
+- **No split award.** `cheapestByLine` is computed and shown (since 27/09/2026), and awarding is
+  whole-quote only, so a studio that wants two suppliers for one request cannot record that.
+- **Creating an RFQ from a requisition is not gated on the requisitions right.** The picker is,
+  but `createRfq` copies the lines of any `requisitionId` it is sent, so a caller holding
+  `procurement.rfq.create` alone could copy a request's lines by id.
 - **Nothing is sent to anybody.** "Mark as sent" is a status a person sets; no email leaves the
   product. The suppliers asked are ticked from the register, and a quote's supplier is picked
   from it (the ones asked listed first) — until 11/09/2026 both were ids typed by hand.

@@ -22,6 +22,11 @@ import { permitDeletable, permitLive, permitMoves, permitStatusOf } from "@/modu
 //
 // `send(path, method, body)` is the screen's own writer, so the panel works
 // against whichever route its screen answers to.
+//
+// `rights` IS THREE ANSWERS, NOT ONE. Add asks create, Issue/Close/Cancel and
+// Edit ask edit, Delete asks delete — each service asks its own verb. A single
+// `canManage` drew every button for whoever held any one of them, and each
+// press the server then refused was a button that lied.
 
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
 const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
@@ -33,7 +38,8 @@ const STANDING_TONE = {
   Cancelled: "bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400",
 };
 
-export default function PermitsPanel({ rows, locations, people, projects, types, windowDays, slug, nav, canManage, busy, send }) {
+export default function PermitsPanel({ rows, locations, people, projects, types, windowDays, slug, nav, rights, busy, send }) {
+  const { canCreate = false, canEdit = false, canDelete = false } = rights || {};
   const tr = operationsDict(useStudioLocale());
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -42,7 +48,7 @@ export default function PermitsPanel({ rows, locations, people, projects, types,
 
   return (
     <>
-      {canManage && <button className={btn} onClick={() => setAdding(true)}>{tr.addPermit}</button>}
+      {canCreate && <button className={btn} onClick={() => setAdding(true)}>{tr.addPermit}</button>}
       {(adding || editing) && (
         <Dialog
           title={editing ? tr.editPermit : tr.newPermit}
@@ -64,8 +70,8 @@ export default function PermitsPanel({ rows, locations, people, projects, types,
             {attention.map((p) => (
               <li key={p.id}>
                 {p.reference} · {p.title} — {p.state === "Expired"
-                  ? `expired ${fmt(p.validTo)}`
-                  : `expires ${fmt(p.validTo)} (${p.daysLeft} days)`}
+                  ? tr.permitExpired(fmt(p.validTo))
+                  : tr.permitExpires(fmt(p.validTo), p.daysLeft)}
               </li>
             ))}
           </ul>
@@ -92,24 +98,24 @@ export default function PermitsPanel({ rows, locations, people, projects, types,
                       )}
                     </div>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                      {[p.type, p.locationName, p.number && `no. ${p.number}`, p.issuer].filter(Boolean).join(" · ")}
+                      {[p.type, p.locationName, p.number && tr.permitNo(p.number), p.issuer].filter(Boolean).join(" · ")}
                     </p>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                       {p.validFrom || p.validTo ? `${fmt(p.validFrom)} – ${fmt(p.validTo)}` : tr.noDatesSet}
                       {p.holderAliases.length > 0 && ` · ${p.holderAliases.join(", ")}`}
                     </p>
                   </div>
-                  {canManage && (
+                  {(canEdit || canDelete) && (
                     <div className="flex flex-wrap gap-2">
-                      {permitMoves(p).map((to) => (
+                      {canEdit && permitMoves(p).map((to) => (
                         <button key={to} className={to === "Cancelled" ? btnGhost : btn} disabled={busy}
                           onClick={() => send("permits", "PATCH", { id: p.id, status: to })}>
                           {moveLabel[to]}
                         </button>
                       ))}
-                      {open && <button className={btnGhost} onClick={() => setEditing(p)}>{tr.edit}</button>}
+                      {canEdit && open && <button className={btnGhost} onClick={() => setEditing(p)}>{tr.edit}</button>}
                       {/* CANCELLED, NEVER DELETED: only a request nobody issued goes. */}
-                      {permitDeletable(p) && (
+                      {canDelete && permitDeletable(p) && (
                         <button className={btnDanger} disabled={busy} onClick={() => send("permits", "DELETE", { id: p.id })}>{tr.delete}</button>
                       )}
                     </div>

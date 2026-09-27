@@ -45,7 +45,11 @@ export type Signoff = {
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
-/** What is wrong with this sign-off, or an empty array. */
+/**
+ * What is wrong with this sign-off, as TOKENS, or an empty array. Tokens because
+ * the screen says it in the reader's language (shared/studio/field); these were
+ * English sentences printed verbatim to an Arabic technician.
+ */
 export function signoffProblems(input: SignoffInput): string[] {
   const problems: string[] = [];
   const name = str(input.signedByName, 160);
@@ -55,8 +59,8 @@ export function signoffProblems(input: SignoffInput): string[] {
   // the other. A drawn squiggle nobody can read is not evidence of who signed;
   // a typed name with no mark is exactly the `receivedBy` field this exists to
   // replace, and it was never a signature.
-  if (!name) problems.push("a signature needs the name of the person signing");
-  if (!mediaId) problems.push("a signature needs the mark itself");
+  if (!name) problems.push("signer-name");
+  if (!mediaId) problems.push("signer-mark");
   return problems;
 }
 

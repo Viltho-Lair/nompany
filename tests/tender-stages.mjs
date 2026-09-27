@@ -60,6 +60,23 @@ ok("...and that includes one declined", p("No Bid", "Preparing") === "already-de
 // exit is Withdrawn, which says something different to whoever reads it later.
 ok("a submitted tender cannot become a No Bid", p("Submitted", "No Bid", "changed our mind") === "already-submitted");
 ok("...but it can be withdrawn", p("Submitted", "Withdrawn", "client cancelled") === null);
+// THE DEFECT: Submitted → Preparing was allowed and left `submittedAt` stamped
+// on an open tender. From there No Bid was accepted (the rule above looks only
+// at the current stage), the win rate counted it as a contested loss, and the
+// tender could never be submitted again — asking for and approving a bid both
+// refuse a tender carrying `submittedAt`.
+ok("a submitted tender cannot go back to Preparing", p("Submitted", "Preparing") === "cannot-unsubmit");
+ok("...nor back to Identified", p("Submitted", "Identified") === "cannot-unsubmit");
+ok("...so No Bid after a submission cannot be reached through Preparing",
+  p("Submitted", "Preparing") !== null && p("Submitted", "No Bid", "x") === "already-submitted");
+ok("...and a tender the old hole already sent back is still refused a No Bid by its stamp",
+  T.tenderProblem({ from: "Preparing", to: "No Bid", reason: "x", submittedAt: "2026-09-01T00:00:00.000Z" }) === "already-submitted"
+  && T.tenderProblem({ from: "Preparing", to: "No Bid", reason: "x", submittedAt: "" }) === null);
+ok("...while an open tender still moves between open stages",
+  p("Identified", "Preparing") === null && p("Preparing", "Identified") === null);
+ok("...and the approved gate still applies to going out",
+  T.tenderProblem({ from: "Preparing", to: "Submitted", approved: false }) === "not-approved"
+  && T.tenderProblem({ from: "Preparing", to: "Submitted", approved: true }) === null);
 ok("...and No Bid is fine before the bid goes in",
   p("Identified", "No Bid", "out of scope") === null && p("Preparing", "No Bid", "no capacity") === null);
 

@@ -61,6 +61,17 @@ type Strings = CommonStrings & {
   refuseNotAllowed: string;
   refuseMissing: string;
   refuseStatusUnknown: string;
+  // EVERY OTHER REFUSAL THE ENGINE ROUTE CAN SEND, as a sentence. The screen
+  // used to print the token itself — `forbidden`, `no-section` — as the whole
+  // page when a read failed, which tells a reader nothing they can act on.
+  refuseForbidden: string;
+  refuseNotFound: string;
+  refuseNoSection: string;
+  refuseControlled: string;
+  refuseSignedOut: string;
+  // Anything unnamed. Never the raw token: a word the reader cannot act on is
+  // worse than a plain "it did not work".
+  refuseFailed: string;
   search1900Fonts: string;
 };
 
@@ -92,7 +103,13 @@ const en: Strings = {
   recordsLoading: "Loading…",
   refuseNotAllowed: "That move is not one this record type allows.",
   refuseMissing: "Fill in every required field before saving.",
-  refuseStatusUnknown: "That is not a status this record type has.",
+  refuseStatusUnknown: "This record or its type has changed since you opened it. Refresh and try again.",
+  refuseForbidden: "You do not have access to do that in this register.",
+  refuseNotFound: "This register or record no longer exists. It may have been deleted.",
+  refuseNoSection: "This register has nowhere to keep its records in this studio yet. Ask the studio owner to check its sections.",
+  refuseControlled: "Records of this kind are kept and cannot be deleted.",
+  refuseSignedOut: "Your session has ended. Sign in again.",
+  refuseFailed: "That did not work. Try again in a moment.",
   search1900Fonts: "Search 1,900+ fonts",
 };
 
@@ -124,7 +141,13 @@ const ar: Strings = {
   recordsLoading: "جار التحميل…",
   refuseNotAllowed: "هذه النقلة لا يسمح بها هذا النوع من السجلات.",
   refuseMissing: "أكمل كل حقل مطلوب قبل الحفظ.",
-  refuseStatusUnknown: "ليست هذه حالة يحملها هذا النوع من السجلات.",
+  refuseStatusUnknown: "تغيّر هذا السجل أو نوعه منذ أن فتحته. حدّث الصفحة وحاول مرة أخرى.",
+  refuseForbidden: "ليست لديك صلاحية القيام بذلك في هذا السجل.",
+  refuseNotFound: "لم يعد هذا السجل أو هذا القيد موجودا. ربما حُذف.",
+  refuseNoSection: "لا يوجد لهذا السجل مكان يحفظ فيه قيوده في هذا الاستوديو بعد. اطلب من مالك الاستوديو مراجعة أقسامه.",
+  refuseControlled: "تُحفظ السجلات من هذا النوع ولا يمكن حذفها.",
+  refuseSignedOut: "انتهت جلستك. سجّل الدخول مرة أخرى.",
+  refuseFailed: "لم ينجح ذلك. حاول مرة أخرى بعد قليل.",
   search1900Fonts: "ابحث في أكثر من 1,900 خط",
 };
 

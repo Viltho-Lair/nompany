@@ -51,8 +51,7 @@ export function MarginsDialog({
         <DialogHeader>
           <DialogTitle>{tr.customMargins}</DialogTitle>
           <DialogDescription>
-            Millimetres from each edge of the {paper.label} sheet (
-            {paper.dimensions}).
+            {tr.marginsFromEdges(paper.label, paper.dimensions)}
           </DialogDescription>
         </DialogHeader>
 

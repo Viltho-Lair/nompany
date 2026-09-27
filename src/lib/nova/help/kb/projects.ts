@@ -19,9 +19,15 @@ import type { HelpModule } from "../types";
 // tabs are called Cost breakdown, Payment schedule, Site reports and Closing
 // out on screen (ProjectHubTabs.jsx); raising a claim's invoice needs Finance's
 // Receivables create right, not a cash right (claims route, createInvoice);
-// requirement weights are saved and read by NOTHING — `scaledWeights` has no
+// requirement weights were saved and read by NOTHING — `scaledWeights` had no
 // caller, and a project's progress is its plan's completion; and the resource
 // view has no button anywhere, only its address.
+//
+// REVISED 27/09/2026 WITH THE CODE: the weights left Settings (and so every
+// `projects-settings.weights*` answer now says they are gone, ids unchanged);
+// the Support tag reads the Closing-out tab's own calculation; a closed
+// project's Edit details are fixed; the support period is held to one rule at
+// every door; and the New report form has a Work stopped box.
 //
 // MOVED OUT OF `./projectsSide.ts`, 27/09/2026, when Projects got this chapter.
 // Its topic and entry ids did not change, and entries elsewhere may still link
@@ -73,7 +79,7 @@ export const projects: HelpModule = {
       blurb: { en: "Gantt plans, dependencies, the critical path, templates and who is committed", ar: "خطط جانت والاعتماديات والمسار الحرج والقوالب ومن هو مرتبط" } },
     { id: "dept.projects-settings", parent: "dept.projects", order: 4, sectionKey: "projects-settings",
       label: { en: "Settings", ar: "الإعدادات" },
-      blurb: { en: "Requirement weights, the default support period and the overtime department", ar: "أوزان المتطلبات وفترة الدعم الافتراضية وقسم العمل الإضافي" } },
+      blurb: { en: "The default support period and the overtime department", ar: "فترة الدعم الافتراضية وقسم العمل الإضافي" } },
   ],
 
   entries: [
@@ -144,8 +150,8 @@ export const projects: HelpModule = {
       id: "projects.progress", topic: "dept.projects", kind: "about", open: "projects-planner",
       q: { en: "Where does a project's progress percentage come from?", ar: "من أين تأتي نسبة تقدم المشروع؟" },
       a: {
-        en: "A project's progress is its plan's overall completion, read from the Planner every time; it is never typed on the project. A project with no plan reads 0 per cent, and so does a plan nobody has started. If a project has more than one plan, only the first is read. The requirement weights in Settings do not change this figure today.",
-        ar: "تقدم المشروع هو نسبة الإنجاز الكلية لخطته، تُقرأ من المخطط في كل مرة؛ ولا تُكتب على المشروع أبدًا. والمشروع الذي لا خطة له يقرأ صفرًا بالمئة، وكذلك الخطة التي لم يبدأها أحد. وإن كان للمشروع أكثر من خطة فلا تُقرأ إلا الأولى. ولا تغيّر أوزان المتطلبات في الإعدادات هذا الرقم حاليًّا.",
+        en: "A project's progress is its plan's overall completion, read from the Planner every time; it is never typed on the project. A project with no plan reads 0 per cent, and so does a plan nobody has started. If a project has more than one plan, only the first is read. Nothing in Settings changes this figure: the requirement weights that used to sit there were removed because nothing read them.",
+        ar: "تقدم المشروع هو نسبة الإنجاز الكلية لخطته، تُقرأ من المخطط في كل مرة؛ ولا تُكتب على المشروع أبدًا. والمشروع الذي لا خطة له يقرأ صفرًا بالمئة، وكذلك الخطة التي لم يبدأها أحد. وإن كان للمشروع أكثر من خطة فلا تُقرأ إلا الأولى. ولا شيء في الإعدادات يغيّر هذا الرقم: فأوزان المتطلبات التي كانت هناك أُزيلت لأن لا شيء كان يقرؤها.",
       },
       keywords: ["progress", "percent complete", "completion", "plan progress", "التقدم", "نسبة الإنجاز", "الإنجاز", "تقدم الخطة"],
       related: ["projects-list.create-plan", "projects-settings.weights-unused"],
@@ -446,13 +452,16 @@ export const projects: HelpModule = {
     // Progress; Stage; Manager; Location, saved on leaving the field; Start;
     // Target end; Support period (days), saved on leaving the field; Delete
     // project) and updateProject in src/modules/projects/projects.ts (refuses
-    // "title", "stage"; title and notes are accepted but not on the screen).
+    // "title", "stage", "closed" and the three warranty-* tokens of
+    // supportPeriodProblem; title and notes are accepted but not on the screen).
+    // The Support tag is closurePosition's (closureModel.ts), counted from
+    // handover; on a closed project every field is disabled.
     {
       id: "projects-list.edit-fields", topic: "dept.projects-list", kind: "fields", open: "projects-list",
       q: { en: "What can I change in a project's details?", ar: "ما الذي يمكنني تغييره في تفاصيل المشروع؟" },
       a: {
-        en: "Edit details shows the client, value and support status read-only, the progress bar, and the fields below for somebody who may manage the list. Each change saves as soon as you make it, with no Save button; location and support period save when you leave the field. The value and title cannot be changed here.",
-        ar: "تعرض نافذة «تعديل التفاصيل» العميل والقيمة وحالة الدعم للقراءة فقط، وشريط التقدم، والحقول أدناه لمن يستطيع إدارة القائمة. ويُحفظ كل تغيير بمجرد إجرائه دون زر حفظ؛ ويُحفظ الموقع ومدة الدعم عند مغادرة الحقل. ولا يمكن تغيير القيمة والعنوان هنا.",
+        en: "Edit details shows the client, value and support status read-only, the progress bar, and the fields below for somebody who may manage the list. Each change saves as soon as you make it, with no Save button; location and support period save when you leave the field. The value and title cannot be changed here. The support status is the one Closing out shows, counted from handover. Once a project is closed its details are fixed: the fields are disabled and a change is refused.",
+        ar: "تعرض نافذة «تعديل التفاصيل» العميل والقيمة وحالة الدعم للقراءة فقط، وشريط التقدم، والحقول أدناه لمن يستطيع إدارة القائمة. ويُحفظ كل تغيير بمجرد إجرائه دون زر حفظ؛ ويُحفظ الموقع ومدة الدعم عند مغادرة الحقل. ولا يمكن تغيير القيمة والعنوان هنا. وحالة الدعم هي نفسها التي يعرضها الإغلاق، محسوبة من التسليم. ومتى أُغلق المشروع ثبتت تفاصيله: فتُعطَّل الحقول ويُرفض أي تغيير.",
       },
       fields: {
         en: [
@@ -460,14 +469,14 @@ export const projects: HelpModule = {
           "Manager: a member of the studio, or Unassigned; the new manager is told",
           "Location: the site or city",
           "Start and Target end",
-          "Support period (days): how long the project is supported; it starts at the studio's default",
+          "Support period (days): a whole number from 0 to 3650, counted from handover; it starts at the studio's default",
         ],
         ar: [
           "المرحلة: مستلم أو قيد التنفيذ أو معلق أو مكتمل",
           "المدير: عضو في الاستوديو، أو «غير مسند»؛ ويُبلَّغ المدير الجديد",
           "الموقع: الموقع أو المدينة",
           "البداية والنهاية المستهدفة",
-          "فترة الدعم (بالأيام): مدة دعم المشروع؛ وتبدأ بالقيمة الافتراضية للاستوديو",
+          "فترة الدعم (بالأيام): عدد صحيح من 0 إلى 3650، تُحسب من التسليم؛ وتبدأ بالقيمة الافتراضية للاستوديو",
         ],
       },
       keywords: ["edit project", "project details", "stage", "manager", "تعديل المشروع", "تفاصيل المشروع", "المرحلة", "المدير"],
@@ -1431,7 +1440,8 @@ export const projects: HelpModule = {
     // src/modules/projects/siteReportSchema.ts (weather max 200, trade max 80,
     // plant max 160, delay max 600, progress max 8000, visitors max 2000); the
     // refusals are reportProblem's in src/modules/projects/siteReportModel.ts.
-    // The schema's `workStopped` has NO control on the form.
+    // `workStopped` is the Work stopped box under Weather (added 27/09/2026;
+    // until then the form had no control for it).
     {
       id: "projects-list.report-fields", topic: "dept.projects-list-reports", kind: "fields", open: "projects-list",
       q: { en: "What goes into a site report?", ar: "ما الذي يدخل في التقرير اليومي؟" },
@@ -1443,6 +1453,7 @@ export const projects: HelpModule = {
         en: [
           "Day reported on (required): the day this is about, not the day you are writing it",
           "Weather: in your own words, up to 200 characters",
+          "Work stopped on site this day: tick it when the site stood down, which is what the diary's days work stopped counts",
           "Labour on site: rows of trade and how many were on site",
           "Plant: rows of plant, how many were on site and how many stood idle",
           "Delays and disruption: rows of what happened, hours lost and a cause of Weather, Access, Information, Materials, Labour or Other",
@@ -1453,6 +1464,7 @@ export const projects: HelpModule = {
         ar: [
           "اليوم المشمول (مطلوب): اليوم الذي يتحدث عنه التقرير، لا يوم كتابته",
           "الطقس: بكلماتك، حتى 200 حرف",
+          "توقف العمل في الموقع هذا اليوم: علّمها حين يتوقف الموقع عن العمل، وهذا ما يحسبه السجل في أيام توقف العمل",
           "العمالة في الموقع: صفوف بالمهنة وعدد الحاضرين",
           "المعدات: صفوف بالمعدة وعدد الموجود منها في الموقع وعدد المتوقف",
           "التأخير والتعطل: صفوف بما حدث والساعات الضائعة وسبب من الطقس أو الوصول أو المعلومات أو المواد أو العمالة أو أخرى",
@@ -1544,10 +1556,10 @@ export const projects: HelpModule = {
       id: "projects-list.work-stopped", topic: "dept.projects-list-reports", kind: "troubleshoot", open: "projects-list",
       q: { en: "How do I record that work stopped on a day?", ar: "كيف أسجل أن العمل توقف في يوم ما؟" },
       a: {
-        en: "A report can carry a Work stopped mark, and the diary counts the days work stopped, but the New report form has no box for it yet, so the mark cannot be set from the screen. Record the stoppage as a delay with its hours lost and cause instead, which is what the hours-lost totals read.",
-        ar: "يمكن أن يحمل التقرير علامة «توقف العمل»، ويحسب السجل أيام توقف العمل، لكن نموذج «تقرير جديد» ليس فيه خانة لها بعد، فلا يمكن ضبط العلامة من الشاشة. سجّل التوقف بدلًا من ذلك تأخيرًا بساعاته الضائعة وسببه، وهذا ما تقرؤه إجماليات الساعات الضائعة.",
+        en: "Tick Work stopped on site this day on the New report form, under Weather. The report then shows a Work stopped tag and the diary counts it among the days work stopped. It is its own question rather than something read from the delays, because hours lost is not the same as the site standing down, so record what caused the stoppage as a delay too, with its hours lost and cause, which is what the hours-lost totals read. A submitted report cannot be changed, so tick it before submitting.",
+        ar: "علّم «توقف العمل في الموقع هذا اليوم» في نموذج «تقرير جديد»، تحت الطقس. فيظهر على التقرير وسم «توقف العمل» ويحسبه السجل ضمن أيام توقف العمل. وهو سؤال مستقل لا يُستنتج من التأخيرات، لأن الساعات الضائعة ليست كتوقف الموقع عن العمل، لذا سجّل سبب التوقف أيضًا تأخيرًا بساعاته الضائعة وسببه، وهذا ما تقرؤه إجماليات الساعات الضائعة. ولا يمكن تغيير التقرير بعد اعتماده، فعلّمها قبل الاعتماد.",
       },
-      keywords: ["work stopped", "stoppage", "no checkbox", "توقف العمل", "توقف", "لا خانة"],
+      keywords: ["work stopped", "stoppage", "checkbox", "site stood down", "توقف العمل", "توقف", "خانة"],
       related: ["projects-list.report-fields", "projects-list.diary-gaps"],
     },
     {
@@ -1596,8 +1608,8 @@ export const projects: HelpModule = {
       id: "projects-list.support-clock", topic: "dept.projects-list-closure", kind: "about", open: "projects-list",
       q: { en: "How is the support period tracked?", ar: "كيف تُتابَع مدة الدعم؟" },
       a: {
-        en: "On Closing out the support period runs from the handover date: before handover it says the period has not started, a period of 0 says the job carries none, and otherwise it shows the days left, turning to Ends in once 60 days remain and to Ended afterwards. The Support tag in the project's details counts differently today, from the target end date, and treats 0 as the studio's default, so the two can disagree. Trust Closing out once handover is recorded.",
-        ar: "في الإغلاق تبدأ مدة الدعم من تاريخ التسليم: فقبل التسليم تقول إن المدة لم تبدأ، والمدة صفر تعني أن العمل لا دعم له، وإلا فتعرض الأيام المتبقية، ثم تتحول إلى «ينتهي بعد» حين تبقى 60 يومًا، ثم إلى «انتهى». أما شارة الدعم في تفاصيل المشروع فتحسب اليوم بطريقة أخرى، من تاريخ النهاية المستهدفة، وتعامل الصفر كقيمة الاستوديو الافتراضية، فقد يختلف الاثنان. واعتمد على الإغلاق متى سُجِّل التسليم.",
+        en: "The support period runs from the handover date recorded on Closing out: before handover it says the period has not started, a period of 0 says the job carries none, and otherwise it shows the days left, turning to Ends in once 60 days remain and to Ended afterwards. The Support tag in the project's details reads the same calculation, so the two always agree: Not handed over yet, No support period, the days left, or Support ended.",
+        ar: "تبدأ مدة الدعم من تاريخ التسليم المسجَّل في الإغلاق: فقبل التسليم تقول إن المدة لم تبدأ، والمدة صفر تعني أن العمل لا دعم له، وإلا فتعرض الأيام المتبقية، ثم تتحول إلى «ينتهي بعد» حين تبقى 60 يومًا، ثم إلى «انتهى». وشارة الدعم في تفاصيل المشروع تقرأ الحساب نفسه، فيتفق الاثنان دائمًا: لم يسلم بعد، أو لا مدة دعم، أو الأيام المتبقية، أو انتهى الدعم.",
       },
       keywords: ["support period", "warranty", "defects liability", "days left", "مدة الدعم", "الضمان", "فترة ضمان العيوب", "الأيام المتبقية"],
       related: ["projects-settings.support-period", "projects-list.record-closure"],
@@ -1658,8 +1670,8 @@ export const projects: HelpModule = {
       id: "projects-list.close-project", topic: "dept.projects-list-closure", kind: "howto", open: "projects-list",
       q: { en: "How do I close the project?", ar: "كيف أغلق المشروع؟" },
       a: {
-        en: "Close the project is enabled only when practical completion is recorded and the punch list is clear; while it is not, the tab says in words what is in the way. Closing is final and a closed project does not reopen.",
-        ar: "لا يُفعَّل زر «إغلاق المشروع» إلا حين يُسجَّل الإنجاز الفعلي وتخلو قائمة الملاحظات؛ وما دام الأمر غير ذلك يقول التبويب بالكلمات ما الذي يعيقه. والإغلاق نهائي، والمشروع المغلق لا يُعاد فتحه.",
+        en: "Close the project is enabled only when practical completion is recorded and the punch list is clear; while it is not, the tab says in words what is in the way. Closing is final and a closed project does not reopen: its closing-out dates and its Edit details are fixed from then on.",
+        ar: "لا يُفعَّل زر «إغلاق المشروع» إلا حين يُسجَّل الإنجاز الفعلي وتخلو قائمة الملاحظات؛ وما دام الأمر غير ذلك يقول التبويب بالكلمات ما الذي يعيقه. والإغلاق نهائي، والمشروع المغلق لا يُعاد فتحه: فتثبت تواريخ إغلاقه وتفاصيله في «تعديل التفاصيل» من حينها.",
       },
       steps: {
         en: [
@@ -1700,8 +1712,8 @@ export const projects: HelpModule = {
       id: "projects-list.support-refused", topic: "dept.projects-list-closure", kind: "troubleshoot", open: "projects-list",
       q: { en: "Why was the support period refused?", ar: "لماذا رُفضت مدة الدعم؟" },
       a: {
-        en: "On Closing out the support period must be a whole number of days, not negative, and not longer than ten years, which is 3650 days. A longer figure is refused so that a typing slip is caught rather than stored. Enter the days the contract states.",
-        ar: "في الإغلاق يجب أن تكون مدة الدعم عددًا صحيحًا من الأيام، غير سالب، ولا يتجاوز عشر سنوات، أي 3650 يومًا. ويُرفض الرقم الأطول حتى يُكتشف خطأ الكتابة بدل أن يُخزَّن. أدخل عدد الأيام الذي ينص عليه العقد.",
+        en: "A support period must be a whole number of days, not negative, and not longer than ten years, which is 3650 days, wherever it is typed: on Closing out, in Edit details, or as the default in Projects settings. A longer figure is refused so that a typing slip is caught rather than stored, and an empty box is refused rather than read as no support. Enter the days the contract states.",
+        ar: "يجب أن تكون مدة الدعم عددًا صحيحًا من الأيام، غير سالب، ولا يتجاوز عشر سنوات، أي 3650 يومًا، أينما كُتبت: في الإغلاق، أو في «تعديل التفاصيل»، أو قيمةً افتراضية في إعدادات المشاريع. ويُرفض الرقم الأطول حتى يُكتشف خطأ الكتابة بدل أن يُخزَّن، ويُرفض الحقل الفارغ بدل أن يُقرأ على أنه بلا دعم. أدخل عدد الأيام الذي ينص عليه العقد.",
       },
       keywords: ["support period refused", "negative", "whole number", "ten years", "رفض مدة الدعم", "سالبة", "عدد صحيح", "عشر سنوات"],
       related: ["projects-list.closure-fields"],
@@ -2284,8 +2296,8 @@ export const projects: HelpModule = {
       id: "projects-settings.about", topic: "dept.projects-settings", kind: "about", common: true, open: "projects-settings",
       q: { en: "What can I set in Projects settings?", ar: "ماذا يمكنني ضبطه في إعدادات المشاريع؟" },
       a: {
-        en: "Projects settings holds the department's defaults: requirement weights across your studio's service actions, the default support period in days, and the department the overtime people list opens on. It also shows the stages a project moves through, which cannot be changed yet. Everything is saved together with Save settings, which needs the right to edit Projects settings; without it the page says you have view-only access.",
-        ar: "تضم إعدادات المشاريع القيم الافتراضية للقسم: أوزان المتطلبات على إجراءات الخدمة في الاستوديو، وفترة الدعم الافتراضية بالأيام، والقسم الذي تُفتح عليه قائمة الأشخاص في العمل الإضافي. وتعرض أيضًا المراحل التي يمر بها المشروع، ولا يمكن تغييرها بعد. ويُحفظ كل شيء معًا بزر «حفظ الإعدادات»، الذي يحتاج إلى صلاحية تعديل إعدادات المشاريع؛ ومن دونها تقول الصفحة إن لديك صلاحية عرض فقط.",
+        en: "Projects settings holds the department's defaults: the default support period in days, and the department the overtime people list opens on. It also shows the stages a project moves through, which cannot be changed yet. Everything is saved together with Save settings, which needs the right to edit Projects settings; without it the page says you have view-only access.",
+        ar: "تضم إعدادات المشاريع القيم الافتراضية للقسم: فترة الدعم الافتراضية بالأيام، والقسم الذي تُفتح عليه قائمة الأشخاص في العمل الإضافي. وتعرض أيضًا المراحل التي يمر بها المشروع، ولا يمكن تغييرها بعد. ويُحفظ كل شيء معًا بزر «حفظ الإعدادات»، الذي يحتاج إلى صلاحية تعديل إعدادات المشاريع؛ ومن دونها تقول الصفحة إن لديك صلاحية عرض فقط.",
       },
       keywords: ["projects settings", "defaults", "configuration", "إعدادات المشاريع", "القيم الافتراضية", "تهيئة"],
       related: ["projects-settings.weights", "projects-settings.support-period"],
@@ -2294,8 +2306,8 @@ export const projects: HelpModule = {
       id: "projects-settings.weights", topic: "dept.projects-settings", kind: "settings", common: true, open: "projects-settings",
       q: { en: "What are requirement weights?", ar: "ما أوزان المتطلبات؟" },
       a: {
-        en: "Requirement weights give each of your studio's service actions a share of a project's completion, and together they must total exactly 100 per cent before the page will save. The service actions themselves come from Studio settings. The weights are saved, but nothing reads them yet: a project's progress today is its plan's completion.",
-        ar: "تعطي أوزان المتطلبات كل إجراء خدمة في الاستوديو نصيبًا من إنجاز المشروع، ويجب أن يبلغ مجموعها 100 بالمئة تمامًا قبل أن تحفظ الصفحة. وتأتي إجراءات الخدمة نفسها من إعدادات الاستوديو. وتُحفظ الأوزان، لكن لا شيء يقرؤها بعد: فتقدم المشروع اليوم هو نسبة إنجاز خطته.",
+        en: "Projects settings no longer has requirement weights. They gave each of your studio's service actions a share of a project's completion, but nothing ever read them, and the page would not save any other setting until they totalled 100 per cent, so they were removed. A project's progress is its plan's completion. Weights a studio saved before are kept but not used.",
+        ar: "لم تعد في إعدادات المشاريع أوزان للمتطلبات. كانت تعطي كل إجراء خدمة في الاستوديو نصيبًا من إنجاز المشروع، لكن لا شيء كان يقرؤها، ولم تكن الصفحة تحفظ أي إعداد آخر حتى يبلغ مجموعها 100 بالمئة، فأُزيلت. وتقدم المشروع هو نسبة إنجاز خطته. والأوزان التي حفظها الاستوديو من قبل باقية لكنها غير مستخدمة.",
       },
       keywords: ["requirement weights", "completion", "percentage", "service actions", "أوزان المتطلبات", "نسبة الإنجاز", "إجراءات الخدمة", "نسبة مئوية"],
       related: ["projects-settings.weights-unused", "projects.progress"],
@@ -2304,8 +2316,8 @@ export const projects: HelpModule = {
       id: "projects-settings.support-period", topic: "dept.projects-settings", kind: "settings", open: "projects-settings",
       q: { en: "What is the default support period?", ar: "ما فترة الدعم الافتراضية؟" },
       a: {
-        en: "It is how many days a project stays in support, 365 unless you change it. Every new project starts with this number, and each project's own figure can be changed afterwards in Edit details or on Closing out. Changing the default changes no project that already exists. On Closing out the period runs from the handover date.",
-        ar: "هي عدد الأيام التي يبقى فيها المشروع تحت الدعم، 365 ما لم تغيّرها. ويبدأ كل مشروع جديد بهذا الرقم، ويمكن تغيير رقم كل مشروع بعد ذلك من «تعديل التفاصيل» أو من الإغلاق. وتغيير القيمة الافتراضية لا يغيّر أي مشروع موجود. وفي الإغلاق تبدأ المدة من تاريخ التسليم.",
+        en: "It is how many days a project stays in support, 365 unless you change it, as a whole number from 0 to 3650. Every new project starts with this number, and each project's own figure can be changed afterwards in Edit details or on Closing out. Changing the default changes no project that already exists. The period runs from the handover date recorded on Closing out.",
+        ar: "هي عدد الأيام التي يبقى فيها المشروع تحت الدعم، 365 ما لم تغيّرها، عددًا صحيحًا من 0 إلى 3650. ويبدأ كل مشروع جديد بهذا الرقم، ويمكن تغيير رقم كل مشروع بعد ذلك من «تعديل التفاصيل» أو من الإغلاق. وتغيير القيمة الافتراضية لا يغيّر أي مشروع موجود. وتبدأ المدة من تاريخ التسليم المسجَّل في الإغلاق.",
       },
       keywords: ["support period", "warranty", "defects liability", "فترة الدعم", "الضمان", "فترة الصيانة", "المسؤولية عن العيوب"],
       related: ["projects-list.support-clock", "projects.closure"],
@@ -2334,18 +2346,18 @@ export const projects: HelpModule = {
       id: "projects-settings.cannot-save", topic: "dept.projects-settings", kind: "troubleshoot", open: "projects-settings",
       q: { en: "Why can't I save Projects settings?", ar: "لماذا لا أستطيع حفظ إعدادات المشاريع؟" },
       a: {
-        en: "Most often the requirement weights do not add up to 100 per cent; the line under them says by how much they are over or under. Because everything saves together, this also blocks a change to the support period or the overtime department, so give the weights shares that total 100 first. If the fields are greyed out, you do not hold the right to edit Projects settings.",
-        ar: "غالبًا لأن أوزان المتطلبات لا يبلغ مجموعها 100 بالمئة؛ ويذكر السطر تحتها مقدار الزيادة أو النقص. ولأن كل شيء يُحفظ معًا، فهذا يمنع أيضًا تغيير فترة الدعم أو قسم العمل الإضافي، لذلك أعطِ الأوزان أنصبة مجموعها 100 أولًا. وإن كانت الحقول معطلة، فأنت لا تملك صلاحية تعديل إعدادات المشاريع.",
+        en: "If the fields are greyed out, you do not hold the right to edit Projects settings. If Save settings answers with a refusal, the default support period is the cause: it must be a whole number of days from 0 to 3650, and an empty box is refused. The requirement weights that used to block saving are gone.",
+        ar: "إن كانت الحقول معطلة، فأنت لا تملك صلاحية تعديل إعدادات المشاريع. وإن ردّ «حفظ الإعدادات» برفض، فالسبب فترة الدعم الافتراضية: يجب أن تكون عددًا صحيحًا من الأيام من 0 إلى 3650، ويُرفض الحقل الفارغ. أما أوزان المتطلبات التي كانت تمنع الحفظ فقد أُزيلت.",
       },
       keywords: ["cannot save", "weights total", "greyed out", "لا يمكن الحفظ", "مجموع الأوزان", "حقول معطلة"],
-      related: ["projects-settings.weights"],
+      related: ["projects-settings.support-period", "projects-list.support-refused"],
     },
     {
       id: "projects-settings.weights-unused", topic: "dept.projects-settings", kind: "troubleshoot", open: "projects-settings",
       q: { en: "Why do the requirement weights not change a project's progress?", ar: "لماذا لا تغيّر أوزان المتطلبات تقدم المشروع؟" },
       a: {
-        en: "Because nothing reads them yet. A project's progress is its plan's overall completion, whatever weights are saved here. Keep the weights at 100 per cent so the page can save your other settings, and track progress through the plan.",
-        ar: "لأن لا شيء يقرؤها بعد. فتقدم المشروع هو نسبة الإنجاز الكلية لخطته، أيًّا كانت الأوزان المحفوظة هنا. أبقِ الأوزان عند 100 بالمئة حتى تستطيع الصفحة حفظ إعداداتك الأخرى، وتابع التقدم عبر الخطة.",
+        en: "Because nothing ever read them, which is why they were removed from Projects settings. A project's progress is its plan's overall completion, so track progress through the plan.",
+        ar: "لأن لا شيء كان يقرؤها، ولهذا أُزيلت من إعدادات المشاريع. فتقدم المشروع هو نسبة الإنجاز الكلية لخطته، فتابع التقدم عبر الخطة.",
       },
       keywords: ["weights not used", "progress unchanged", "weights", "الأوزان غير مستخدمة", "التقدم لا يتغير", "الأوزان"],
       related: ["projects.progress", "projects-settings.weights"],
@@ -2354,8 +2366,8 @@ export const projects: HelpModule = {
       id: "projects-settings.no-service-actions", topic: "dept.projects-settings", kind: "troubleshoot", open: "administration-settings",
       q: { en: "Why does it say there are no service actions yet?", ar: "لماذا يقول إنه لا توجد إجراءات خدمة بعد؟" },
       a: {
-        en: "The weights are given to your studio's service actions, and your studio has none yet. Add them in Studio settings, then weight them here. With no service actions there is nothing to weight, and the page saves your other settings without asking for 100 per cent.",
-        ar: "تُعطى الأوزان لإجراءات الخدمة في الاستوديو، ولا يملك الاستوديو أيًّا منها بعد. أضفها في إعدادات الاستوديو، ثم وزّع أوزانها هنا. وبلا إجراءات خدمة لا شيء يُوزَّن، فتحفظ الصفحة إعداداتك الأخرى دون أن تطلب 100 بالمئة.",
+        en: "Projects settings no longer asks about service actions: they were there only for the requirement weights, which were removed. If another screen says there are none, your studio has not listed any yet; add them in Studio settings.",
+        ar: "لم تعد إعدادات المشاريع تسأل عن إجراءات الخدمة: فقد كانت هناك لأجل أوزان المتطلبات فقط، وقد أُزيلت. وإن قالت شاشة أخرى إنه لا يوجد أي منها، فاستوديوك لم يُدرجها بعد؛ أضفها في إعدادات الاستوديو.",
       },
       keywords: ["no service actions", "service actions", "studio settings", "لا إجراءات خدمة", "إجراءات الخدمة", "إعدادات الاستوديو"],
       related: ["admin.settings.field-of-work"],

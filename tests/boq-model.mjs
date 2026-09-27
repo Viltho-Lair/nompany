@@ -150,6 +150,21 @@ ok("...with an id something can still key off", Boolean(unnamed[0].id));
 ok("an empty bill is no tables at all", B.boqAsTables([]).length === 0);
 ok("nonsense is no tables either", B.boqAsTables(null).length === 0);
 
+console.log("\n== the bill freezes from submission, not from handover");
+
+// THE DEFECT: the bill froze only at handover, so between Submitted and the
+// handover any line could still be edited — and the handover copies the bill's
+// total into the project, which then opened at the bill as it was that day
+// rather than at the figure that was signed and sent.
+const S = await import("@/modules/tendering/stages");
+ok("a bill still being priced edits", S.billFreeze("Identified", false) === null && S.billFreeze("Preparing", false) === null);
+ok("a submitted bid's bill is locked", S.billFreeze("Submitted", false) === "bill-locked");
+ok("...and a won one's before any project exists", S.billFreeze("Won", false) === "bill-locked");
+ok("...and a lost, declined or withdrawn one's",
+  ["Lost", "No Bid", "Withdrawn"].every((s) => S.billFreeze(s, false) === "bill-locked"));
+ok("the handover still says handed-over, which says more", S.billFreeze("Won", true) === "handed-over");
+ok("a stage nobody knows does not lock anything", S.billFreeze("Shortlisted", false) === null);
+
 console.log("\n== the file stays pure");
 
 const { readFileSync } = await import("node:fs");

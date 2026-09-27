@@ -3,9 +3,17 @@
 // The board is a view of jobs the schedule already stores, so what is asserted
 // here is the three things the schedule cannot show: who is unstaffed, who is
 // double-booked, and who has room.
-import {
+// THROUGH THE LOADER, because the board now reads the studio's clock from
+// `@/shared/timezone` (pure) — a bare relative import cannot resolve the alias.
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+const root = pathToFileURL(`${process.cwd()}/`).href;
+register(new URL("./loader.mjs", import.meta.url), { data: { root } });
+
+const {
   dispatchBoard, strandedJobs, overlaps, onDay, hoursOf, freeFor, dayOf,
-} from "../src/modules/operations/dispatch.ts";
+} = await import("@/modules/operations/dispatch");
 
 let fails = 0;
 const ok = (what, cond, detail = "") => {
@@ -22,6 +30,17 @@ const job = (over) => ({
 // ---- the primitives --------------------------------------------------------
 ok("a day is read off an instant", dayOf("2026-09-09T23:30:00.000Z") === "2026-09-09");
 ok("rubbish is no day at all", dayOf("later") === "");
+
+// THE STUDIO'S DAY, NOT THE SERVER'S (shared/timezone). An instant late on the
+// 9th in UTC is already the 10th in Amman, and the board must put it there.
+ok("an instant is read on the studio's clock", dayOf("2026-09-09T23:30:00.000Z", "Asia/Amman") === "2026-09-10");
+// A WALL-CLOCK VALUE — what the New job form writes — IS the studio's time
+// already; reading it on the server's clock is how a 23:30 job moved days.
+ok("a zoneless time keeps its own date", dayOf("2026-09-09T23:30", "Asia/Amman") === "2026-09-09");
+ok("a bare date is its own day", dayOf("2026-09-09", "America/New_York") === "2026-09-09");
+ok("a stranded job is judged on the studio's day too",
+  strandedJobs([{ id: "late", status: "scheduled", assignedToCollaboratorIds: [],
+    scheduledStart: "2026-09-09T22:30:00.000Z" }], "2026-09-10", "Asia/Amman").length === 0);
 
 // A JOB THAT RUNS OVERNIGHT IS ON BOTH DAYS, because the crew is unavailable on
 // both — asking only about the start would show an empty morning already spoken

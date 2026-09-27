@@ -202,6 +202,10 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   shifts: "Shift",
   trackingPositions: "TrackingPosition",
   approvals: "Approval",
+  // The register's document collection. Its own table rather than
+  // QualityDocument's: the retired builder's rows carry `sections` and no
+  // `content`, and a shared table would mix two shapes under one name.
+  qualityDocs: "QualityDoc",
   qualityDocuments: "QualityDocument",
   qualityTypes: "QualityType",
   qualityRevisions: "QualityRevision",

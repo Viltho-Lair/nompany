@@ -25,6 +25,15 @@ import { panel, h2, sub, btn, btnGhost, btnRow, money, fmtDate, Empty } from "@/
 // `initial` is the /logistics/landed-cost LIST body (no `order`) the studio page
 // answered in its own render, so the panel lands with the page; absent, it
 // fetches on mount as before. Opening one order is still its own request.
+// A REFUSAL IN WORDS. `forbidden` and `missing` reached the screen as the raw
+// token; a refusal that names the delete right is the empty-save and Clear
+// case, which has a sentence of its own because the fix (ask for that right)
+// is different from every other refusal's.
+function refusal(body, tr) {
+  if (body?.error === "forbidden" && String(body.key || "").endsWith(".delete")) return tr.refuse.forbiddenClear;
+  return tr.refuse[body?.error] || tr.refuse.failed;
+}
+
 export default function LandedCostPanel({ slug, locale = "en", currency = "", initial }) {
   const tr = logisticsDict(locale);
   const [data, setData] = useState(initial ?? null);
@@ -35,10 +44,10 @@ export default function LandedCostPanel({ slug, locale = "en", currency = "", in
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/logistics/landed-cost`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) { setProblem(body.error || "failed"); return; }
+    if (!res.ok) { setProblem(refusal(body, tr)); return; }
     setProblem("");
     setData(body);
-  }, [slug, setData, setProblem]);
+  }, [slug, tr, setData, setProblem]);
 
   useReload(load, initial);
 
@@ -49,7 +58,7 @@ export default function LandedCostPanel({ slug, locale = "en", currency = "", in
     const res = await fetch(`/api/studios/${slug}/logistics/landed-cost?order=${encodeURIComponent(orderId)}`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setProblem(tr.refuse[body.error] || body.error || tr.refuse.failed); return; }
+    if (!res.ok) { setProblem(refusal(body, tr)); return; }
     // THE SERVER'S TOTAL KEPT UNDER ITS OWN NAME. `charges` is the editable ROW
     // array here, and the answer's `charges` is the total those rows came to —
     // spreading the body and then shadowing one with the other is how the
@@ -68,7 +77,7 @@ export default function LandedCostPanel({ slug, locale = "en", currency = "", in
       // THE INDEX TRAVELS WITH THE REFUSAL, so the wrong charge row is named
       // rather than the whole form.
       const at = typeof body.at === "number" ? ` (${body.at + 1})` : "";
-      setProblem((tr.refuse[body.error] || body.error || tr.refuse.failed) + at);
+      setProblem(refusal(body, tr) + at);
       return false;
     }
     await load();
@@ -80,7 +89,7 @@ export default function LandedCostPanel({ slug, locale = "en", currency = "", in
   // box the way the register summary above it does rather than a whole page.
   if (!data) return <div className="mt-5 h-24 rounded-xl skel" aria-busy="true" />;
 
-  const { orders = [], canManage } = data;
+  const { orders = [], canManage, canDelete } = data;
   const amount = (n) => `${money(n)}${currency ? ` ${currency}` : ""}`;
 
   return (
@@ -139,7 +148,7 @@ export default function LandedCostPanel({ slug, locale = "en", currency = "", in
 
       {open && (
         <OrderCharges
-          state={open} tr={tr} amount={amount} busy={busy} canManage={canManage}
+          state={open} tr={tr} amount={amount} busy={busy} canManage={canManage} canDelete={canDelete}
           onChange={setOpen}
           onClose={() => { setOpen(null); setProblem(""); }}
           onSave={async () => {
@@ -163,7 +172,7 @@ export default function LandedCostPanel({ slug, locale = "en", currency = "", in
 // the SAVED one — editing a charge changes nothing on screen until it is saved,
 // because the shares come from the server's own arithmetic and guessing them
 // here would be the second copy this panel exists to avoid.
-function OrderCharges({ state, tr, amount, busy, canManage, onChange, onClose, onSave, onClear }) {
+function OrderCharges({ state, tr, amount, busy, canManage, canDelete, onChange, onClose, onSave, onClear }) {
   const set = (patch) => onChange({ ...state, ...patch });
   const setCharge = (i, patch) =>
     set({ charges: state.charges.map((c, j) => (j === i ? { ...c, ...patch } : c)) });
@@ -219,10 +228,14 @@ function OrderCharges({ state, tr, amount, busy, canManage, onChange, onClose, o
           <button type="button" className={btn} disabled={busy} onClick={onSave}>
             {busy ? tr.saving : tr.save}
           </button>
-          <button type="button" className="rounded-full px-3 py-2 text-sm text-rose-600 hover:underline dark:text-rose-300"
-            disabled={busy} onClick={onClear}>
-            {tr.removeAll}
-          </button>
+          {/* CLEAR IS A DELETE and asks `.delete`, so it is drawn on that right
+              (the list says whether the reader holds it), not on `.edit`. */}
+          {canDelete && (
+            <button type="button" className="rounded-full px-3 py-2 text-sm text-rose-600 hover:underline dark:text-rose-300"
+              disabled={busy} onClick={onClear}>
+              {tr.removeAll}
+            </button>
+          )}
         </div>
       )}
 

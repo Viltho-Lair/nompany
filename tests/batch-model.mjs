@@ -14,7 +14,7 @@ const root = pathToFileURL(`${process.cwd()}/`).href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
 const {
-  batchProblems, cleanBatch, batchBalances, batchView, daysUntil,
+  batchProblems, BATCH_PROBLEMS, cleanBatch, batchBalances, batchView, daysUntil,
   fefoSuggestion, expiryAlerts, serialStates, serialGap,
 } = await import("@/modules/inventory/batches");
 
@@ -35,7 +35,7 @@ ok("a batch needs a lot number", batchProblems({ itemId: "i1" }, { items: ITEMS,
 ok("a batch needs an item", batchProblems({ lot: "LOT-A" }, { items: ITEMS, existing: [] }).length === 1);
 ok("an item that does not exist is refused",
   batchProblems({ lot: "L", itemId: "nope" }, { items: ITEMS, existing: [] })
-    .some((p) => /does not exist/.test(p)));
+    .includes("item-unknown"));
 ok("a good batch passes",
   batchProblems({ lot: "LOT-B", itemId: "i1" }, { items: ITEMS, existing: EXISTING }).length === 0);
 ok("a lot with a space is refused",
@@ -49,7 +49,7 @@ ok("a non-date expiry is refused",
 // a picker to a drum that was never usable.
 ok("expiring before it arrived is refused",
   batchProblems({ lot: "L", itemId: "i1", receivedOn: "2026-05-01", expiresOn: "2026-04-01" },
-    { items: ITEMS, existing: [] }).some((p) => /before it was received/.test(p)));
+    { items: ITEMS, existing: [] }).includes("expires-before-received"));
 
 // UNIQUE PER ITEM, not across the studio: two suppliers' lot numbers collide
 // routinely, and global uniqueness would make a studio rename a printed label.
@@ -62,6 +62,12 @@ ok("THE SAME LOT ON ANOTHER ITEM IS FINE",
 
 // BOTH DATES ARE OPTIONAL: plenty of stock is batch-tracked for traceability
 // and never expires, and an invented expiry is worse than none.
+// REFUSALS ARE TOKENS, never English sentences — a sentence built on the
+// server reached an Arabic studio verbatim (the screen words each token).
+ok("every refusal is a declared token", [
+  batchProblems({}, { items: ITEMS, existing: [] }),
+  batchProblems({ lot: "L A", itemId: "nope", expiresOn: "x", receivedOn: "y" }, { items: ITEMS, existing: [] }),
+].flat().every((t) => BATCH_PROBLEMS.includes(t)));
 ok("a batch with no dates is legal",
   batchProblems({ lot: "LOT-C", itemId: "i1" }, { items: ITEMS, existing: EXISTING }).length === 0);
 ok("a rubbish date is dropped rather than stored",

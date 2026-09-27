@@ -5,6 +5,8 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { batchesDict } from "@/shared/studio/batches";
 import { useReload } from "@/components/studio2/useReload";
+import StudioDate from "@/components/fields/StudioDate";
+import { fmtDate } from "@/components/studio2/ui";
 
 // WHICH UNITS, AND WHEN THEY STOP BEING USABLE.
 //
@@ -15,6 +17,17 @@ import { useReload } from "@/components/studio2/useReload";
 //
 // IT VALIDATES NOTHING ITSELF. `modules/inventory/batches` holds the rules and
 // the server refuses on them; this shows what came back.
+
+// A REFUSAL IN THE READER'S LANGUAGE — the same shape as the bin register's:
+// `refused` carries `problems` (tokens) and the lot that was typed; anything
+// else is one token. Shown verbatim, both put English in front of every Arabic
+// studio.
+function say(body, tr) {
+  return body?.error === "refused" && Array.isArray(body.problems)
+    ? body.problems.map((p) => tr.problem(p, String(body.value ?? ""))).join(" ")
+    : tr.refused(body || {});
+}
+
 export default function BatchesPanel({ slug, locale = "en" }) {
   const tr = batchesDict(locale);
   const [data, setData] = useState(null);
@@ -31,10 +44,10 @@ export default function BatchesPanel({ slug, locale = "en" }) {
       fetch(`/api/studios/${slug}/inventory/batches?serials=1`, { cache: "no-store" }),
     ]);
     const body = await reg.json().catch(() => ({}));
-    if (!reg.ok) { setProblem(body.error || "failed"); return; }
+    if (!reg.ok) { setProblem(say(body, tr)); return; }
     setData(body);
     if (ser.ok) setSerials(await ser.json().catch(() => null));
-  }, [slug, setData, setSerials, setProblem]);
+  }, [slug, tr, setData, setSerials, setProblem]);
 
   useReload(load);
 
@@ -45,16 +58,23 @@ export default function BatchesPanel({ slug, locale = "en" }) {
     });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
-    // THE SERVER'S REASON, VERBATIM: `batchProblems` names which field and what
-    // is wrong with it.
-    if (!res.ok) { setProblem(body.detail || body.error || "failed"); return false; }
+    // THE SERVER'S REASON, not "couldn't save": `batchProblems` names which
+    // field and what is wrong with it, and `say` words it for this reader.
+    if (!res.ok) { setProblem(say(body, tr)); return false; }
     await load();
     return true;
-  }, [slug, load, setBusy, setProblem]);
+  }, [slug, tr, load, setBusy, setProblem]);
 
   if (!data) return <ScreenSkeleton />;
 
-  const { batches = [], alerts = [], untracked = [], items = [], canManage, asOf } = data;
+  // PER ACT, as the server asks: adding and assigning need
+  // `inventory.stock.create`, removing `.delete` — `canManage` (any write
+  // right) offered all three to somebody holding only `edit`.
+  const { batches = [], alerts = [], untracked = [], items = [], fefo = [], canCreate, canDelete, asOf } = data;
+  const label = (itemLabel) => itemLabel || tr.removedItem;
+  // DATES ARE STORED yyyy-mm-dd AND SHOWN THE STUDIO'S WAY (dd/mm/yyyy by
+  // default) — through fmtDate, never raw.
+  const day = (iso) => (iso ? fmtDate(iso) : "");
   // The state a row is in decides its colour, and `empty` is deliberately not a
   // warning: a drum used up before it went out of date is nobody's problem.
   const tone = {
@@ -87,7 +107,7 @@ export default function BatchesPanel({ slug, locale = "en" }) {
           <ul className="mt-1 space-y-0.5">
             {alerts.map((b) => (
               <li key={b.id} className="flex justify-between text-sm text-amber-800 dark:text-amber-200">
-                <span>{b.lot} · {b.itemLabel}</span>
+                <span>{b.lot} · {label(b.itemLabel)}</span>
                 <span className="num">
                   {b.daysLeft < 0 ? tr.expiredDaysAgo(-b.daysLeft) : tr.daysLeft(b.daysLeft)}
                 </span>
@@ -97,9 +117,30 @@ export default function BatchesPanel({ slug, locale = "en" }) {
         </div>
       )}
 
+      {/* WHICH BATCH TO PICK NEXT, per item — first expired, first out. The
+          server has computed this since the register shipped (`fefoSuggestion`)
+          and nothing drew it, so the one question a picker asks at the rack had
+          an answer nobody could see. A suggestion, never a rule. */}
+      {fefo.length > 0 && (
+        <div className="rounded-xl border border-slate-200 px-4 py-3 dark:border-white/10">
+          <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.pickNext}</h3>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.pickNextLead}</p>
+          <ul className="mt-2 space-y-0.5">
+            {fefo.map((f) => (
+              <li key={f.itemId} className="flex flex-wrap justify-between gap-2 text-sm text-slate-700 dark:text-slate-200">
+                <span>{label(f.itemLabel)}</span>
+                <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                  {tr.pickLot(f.batch.lot, day(f.batch.expiresOn))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {items.length === 0 ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">{tr.registerItemsFirst}</p>
-      ) : canManage && !adding && (
+      ) : canCreate && !adding && (
         <button
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white"
           onClick={() => { setAdding(true); setDraft({ itemId: items[0].id, lot: "", expiresOn: "", receivedOn: "" }); }}
@@ -118,10 +159,15 @@ export default function BatchesPanel({ slug, locale = "en" }) {
           {/* BOTH DATES ARE OPTIONAL. Plenty of stock is batch-tracked for
               traceability and never expires; an invented expiry is worse than
               none, because everything downstream believes it. */}
-          <Field label={tr.received} type="date" className="w-full sm:w-40"
-            value={draft.receivedOn} onChange={(v) => setDraft({ ...draft, receivedOn: v })} />
-          <Field label={tr.expires} type="date" className="w-full sm:w-40"
-            value={draft.expiresOn} onChange={(v) => setDraft({ ...draft, expiresOn: v })} />
+          {/* THE STUDIO'S DATE PICKER, not the browser's native one — which
+              draws in the BROWSER's locale and order, so a dd/mm studio was
+              asked for mm/dd on an American laptop. */}
+          <Field label={tr.received} className="w-full sm:w-40" filled={!!draft.receivedOn}>
+            <StudioDate value={draft.receivedOn} onChange={(iso) => setDraft((d) => ({ ...d, receivedOn: iso || "" }))} />
+          </Field>
+          <Field label={tr.expires} className="w-full sm:w-40" filled={!!draft.expiresOn}>
+            <StudioDate value={draft.expiresOn} onChange={(iso) => setDraft((d) => ({ ...d, expiresOn: iso || "" }))} />
+          </Field>
           <button
             className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white disabled:opacity-50"
             disabled={busy || !draft.lot.trim()}
@@ -146,19 +192,21 @@ export default function BatchesPanel({ slug, locale = "en" }) {
           {batches.map((b) => (
             <div key={b.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 dark:border-white/10">
               <span className="font-mono text-sm font-600 text-slate-900 dark:text-white">{b.lot}</span>
-              <span className="text-sm text-slate-600 dark:text-slate-300">{b.itemLabel}</span>
+              <span className="text-sm text-slate-600 dark:text-slate-300">{label(b.itemLabel)}</span>
               <span className={`text-xs ${tone[b.state]}`}>
-                {stateWord[b.state]}{b.expiresOn ? ` · ${b.expiresOn}` : ""}
+                {stateWord[b.state]}{b.expiresOn ? ` · ${day(b.expiresOn)}` : ""}
               </span>
               <span className="num ms-auto text-sm text-slate-700 dark:text-slate-200">{b.qty}</span>
-              {canManage && (
+              {canCreate && (
+                <button
+                  className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 dark:border-white/15 dark:text-slate-300"
+                  onClick={() => setAssigning({ to: b.id, from: "", itemId: b.itemId, qty: "" })}
+                >
+                  {tr.assign}
+                </button>
+              )}
+              {canDelete && (
                 <>
-                  <button
-                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 dark:border-white/15 dark:text-slate-300"
-                    onClick={() => setAssigning({ to: b.id, from: "", itemId: b.itemId, qty: "" })}
-                  >
-                    {tr.assign}
-                  </button>
                   <button
                     className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:text-rose-500"
                     disabled={busy}
@@ -212,7 +260,7 @@ export default function BatchesPanel({ slug, locale = "en" }) {
           <ul className="mt-2 space-y-0.5">
             {untracked.map((u) => (
               <li key={u.itemId} className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
-                <span>{u.itemLabel}</span>
+                <span>{label(u.itemLabel)}</span>
                 <span className="num">{u.qty}</span>
               </li>
             ))}
@@ -256,7 +304,7 @@ export default function BatchesPanel({ slug, locale = "en" }) {
         </div>
       )}
 
-      <p className="text-xs text-slate-400 dark:text-slate-500">{tr.asOf(asOf)}</p>
+      <p className="text-xs text-slate-400 dark:text-slate-500">{tr.asOf(day(asOf))}</p>
     </div>
   );
 }

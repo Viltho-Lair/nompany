@@ -28,6 +28,10 @@ type Strings = {
   openInMaintenance: string;
   dueOn: (day: string) => string;
   overdue: string;
+  // WHY SOMETHING WAS REFUSED, keyed by the server's token. The screen printed
+  // the token itself ("not-started", "forbidden") and, for a signature, English
+  // sentences joined with semicolons — to technicians working in Arabic.
+  problem: (token: string) => string;
 };
 
 const en: Strings = {
@@ -56,6 +60,20 @@ const en: Strings = {
   openInMaintenance: "Open in Maintenance",
   dueOn: (day) => `Due ${day}`,
   overdue: "Overdue",
+  problem: (token) => EN_PROBLEMS[token] || EN_PROBLEMS.failed,
+};
+
+const EN_PROBLEMS: Record<string, string> = {
+  "not-started": "Start the work before taking a signature — a signature is for work in front of the customer.",
+  cancelled: "This job has been cancelled, so there is nothing to sign for.",
+  transition: "This job has already moved on — somebody else changed it. The list has been refreshed.",
+  closed: "This job is already finished or cancelled.",
+  forbidden: "You can see your round but not change it. Ask for edit access to the schedule.",
+  "signer-name": "Write the name of the person signing.",
+  "signer-mark": "The signature itself is missing — sign in the box.",
+  upload: "The signature could not be uploaded. Check the connection and try again.",
+  notfound: "This job no longer exists.",
+  failed: "That didn't go through. Try again.",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -82,6 +100,20 @@ const ar: Strings = {
   openInMaintenance: "فتح في الصيانة",
   dueOn: (day) => `الموعد ${day}`,
   overdue: "متأخر",
+  problem: (token) => AR_PROBLEMS[token] || AR_PROBLEMS.failed,
+};
+
+const AR_PROBLEMS: Record<string, string> = {
+  "not-started": "ابدأ العمل قبل أخذ التوقيع — التوقيع على عمل أمام العميل.",
+  cancelled: "ألغيت هذه المهمة، فلا شيء يوقع عليه.",
+  transition: "تغيرت هذه المهمة بالفعل — عدلها شخص آخر. تم تحديث القائمة.",
+  closed: "هذه المهمة منجزة أو ملغاة بالفعل.",
+  forbidden: "يمكنك رؤية جولتك دون تعديلها. اطلب صلاحية تعديل الجدول.",
+  "signer-name": "اكتب اسم الشخص الموقع.",
+  "signer-mark": "التوقيع نفسه غير موجود — وقع في المربع.",
+  upload: "تعذر رفع التوقيع. تحقق من الاتصال وحاول مجددا.",
+  notfound: "هذه المهمة لم تعد موجودة.",
+  failed: "لم يتم ذلك. حاول مجددا.",
 };
 
 const dict = { en, ar };

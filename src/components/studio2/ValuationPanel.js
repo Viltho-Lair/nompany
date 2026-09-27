@@ -27,6 +27,7 @@ export default function ValuationPanel({ slug, locale = "en", currency = "" }) {
   const [data, setData] = useState(null);
   const [problem, setProblem] = useState("");
   const [method, setMethod] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     const qs = method ? `?method=${encodeURIComponent(method)}` : "";
@@ -42,7 +43,26 @@ export default function ValuationPanel({ slug, locale = "en", currency = "" }) {
   if (problem && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p>;
   if (!data) return <ScreenSkeleton />;
 
-  const { items = [], total = 0, uncosted = 0, method: shown, studioMethod, preview } = data;
+  const { items = [], total = 0, uncosted = 0, method: shown, studioMethod, preview, canSetMethod } = data;
+
+  // THE ONE PLACE THE POLICY IS CHOSEN. `valuationMethod` was accepted by the
+  // settings route and honoured by the valuation route, and no screen could set
+  // it — so every studio valued at the default whatever its accountant wanted,
+  // a setting nothing could exercise (invariant 16). It is chosen HERE, beside
+  // the preview that shows what choosing it does, and written through Studio
+  // settings because it is the studio's accounting policy rather than a view
+  // option (settings/route.ts says why) — so it asks that route's right,
+  // `administration.settings.edit`, which the valuation route reports.
+  async function adopt() {
+    setSaving(true); setProblem("");
+    const res = await fetch(`/api/studios/${slug}/settings`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valuationMethod: shown }),
+    });
+    setSaving(false);
+    if (!res.ok) { setProblem(tr.adoptFailed); return; }
+    setMethod("");
+    await load();
+  }
   const amount = (n) => `${money(n)}${currency ? ` ${currency}` : ""}`;
 
   return (
@@ -66,8 +86,15 @@ export default function ValuationPanel({ slug, locale = "en", currency = "" }) {
       {preview && (
         <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
           {tr.previewing(shown)}
+          {canSetMethod && (
+            <button type="button" disabled={saving} onClick={adopt}
+              className="ms-2 rounded-full bg-brand-700 px-3 py-1 text-xs font-600 text-white disabled:opacity-60">
+              {tr.adopt(shown)}
+            </button>
+          )}
         </p>
       )}
+      {problem && <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p>}
 
       {items.length === 0 ? (
         <Empty title={tr.nothingHeld} body={tr.nothingHeldBody} />

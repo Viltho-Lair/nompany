@@ -19,6 +19,18 @@ import { useReload } from "@/components/studio2/useReload";
 // IT VALIDATES NOTHING ITSELF. The rules are `modules/inventory/bins`, which
 // the server refuses on, and this shows what came back — the same posture the
 // numbering and unit editors take, so a second copy of the rules cannot drift.
+
+// A REFUSAL IN THE READER'S LANGUAGE. The server answers with tokens —
+// `refused` carries `problems` (which field, what is wrong) and the value that
+// was typed; everything else is a single token — and `binsDict` words them.
+// Showing `body.detail || body.error` verbatim put English sentences and bare
+// tokens in front of every Arabic studio.
+function say(body, tr) {
+  return body?.error === "refused" && Array.isArray(body.problems)
+    ? body.problems.map((p) => tr.problem(p, String(body.value ?? ""))).join(" ")
+    : tr.refused(body || {});
+}
+
 export default function BinsPanel({ slug, locale = "en" }) {
   const tr = binsDict(locale);
   const [data, setData] = useState(null);
@@ -31,18 +43,18 @@ export default function BinsPanel({ slug, locale = "en" }) {
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/inventory/bins`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) { setProblem(body.error || "failed"); return; }
+    if (!res.ok) { setProblem(say(body, tr)); return; }
     setData(body);
     // The setters are named because the React Compiler infers them and
     // refuses to preserve a memoization whose stated deps are narrower
     // than the ones it found. They are stable, so this costs nothing.
-  }, [slug, setData, setProblem]);
+  }, [slug, tr, setData, setProblem]);
 
   useReload(load);
 
-  // THE SERVER'S REASON, VERBATIM — `binProblems` names which field and what is
-  // wrong with it, and replacing that with "couldn't save" would throw away the
-  // only thing that tells somebody what to change.
+  // THE SERVER'S REASON, NOT "couldn't save" — `binProblems` names which field
+  // and what is wrong with it, which is the only thing that tells somebody what
+  // to change; `say` puts it in their language.
   const send = useCallback(async (method, payload) => {
     setBusy(true); setProblem("");
     const res = await fetch(`/api/studios/${slug}/inventory/bins`, {
@@ -50,19 +62,23 @@ export default function BinsPanel({ slug, locale = "en" }) {
     });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setProblem(body.detail || body.error || "failed"); return false; }
+    if (!res.ok) { setProblem(say(body, tr)); return false; }
     await load();
     return true;
-  }, [slug, load, setBusy, setProblem]);
+  }, [slug, tr, load, setBusy, setProblem]);
 
   if (!data) return <ScreenSkeleton />;
 
-  const { bins = [], locations = [], unbinned = [], negative = [], canManage } = data;
+  // PER ACT, as the server asks: adding a bin and moving stock need
+  // `inventory.stock.create`, removing one `.delete`. `canManage` (any write
+  // right) offered all three to somebody holding only `edit`.
+  const { bins = [], locations = [], unbinned = [], negative = [], canCreate, canDelete } = data;
+  const label = (itemLabel) => itemLabel || tr.removedItem;
   const codeOf = (id) => bins.find((b) => b.id === id)?.code || "";
   // Every item the studio actually holds somewhere, each listed once.
   const movable = [
-    ...unbinned.map((u) => [u.itemId, u.itemLabel]),
-    ...bins.flatMap((b) => b.lines.map((l) => [l.itemId, l.itemLabel])),
+    ...unbinned.map((u) => [u.itemId, label(u.itemLabel)]),
+    ...bins.flatMap((b) => b.lines.map((l) => [l.itemId, label(l.itemLabel)])),
   ].filter(([id], i, all) => all.findIndex(([x]) => x === id) === i);
 
   return (
@@ -81,7 +97,7 @@ export default function BinsPanel({ slug, locale = "en" }) {
         <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
           {tr.noLocations}
         </p>
-      ) : canManage && !adding && (
+      ) : canCreate && !adding && (
         <button
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white"
           onClick={() => { setAdding(true); setDraft({ code: "", name: "", locationId: locations[0].id }); }}
@@ -130,14 +146,16 @@ export default function BinsPanel({ slug, locale = "en" }) {
                 <span className="ms-auto text-xs text-slate-500 dark:text-slate-400">
                   {b.lines.length === 0 ? tr.empty : tr.units(b.units)}
                 </span>
-                {canManage && (
+                {canCreate && (
+                  <button
+                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 dark:border-white/15 dark:text-slate-300"
+                    onClick={() => setMoving({ toBinId: b.id, fromBinId: "", itemId: "", qty: "" })}
+                  >
+                    {tr.moveHere}
+                  </button>
+                )}
+                {canDelete && (
                   <>
-                    <button
-                      className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 dark:border-white/15 dark:text-slate-300"
-                      onClick={() => setMoving({ toBinId: b.id, fromBinId: "", itemId: "", qty: "" })}
-                    >
-                      {tr.moveHere}
-                    </button>
                     {/* A BIN STILL HOLDING SOMETHING IS REFUSED BY THE SERVER —
                         it would strand real units where nobody can pick them —
                         so the button is offered and the reason comes back. */}
@@ -155,7 +173,7 @@ export default function BinsPanel({ slug, locale = "en" }) {
                 <ul className="mt-2 space-y-0.5">
                   {b.lines.map((l) => (
                     <li key={l.itemId} className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
-                      <span>{l.itemLabel}</span>
+                      <span>{label(l.itemLabel)}</span>
                       <span className="num">{l.qty}</span>
                     </li>
                   ))}
@@ -218,7 +236,7 @@ export default function BinsPanel({ slug, locale = "en" }) {
           <ul className="mt-2 space-y-0.5">
             {unbinned.map((u) => (
               <li key={u.itemId} className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
-                <span>{u.itemLabel}</span>
+                <span>{label(u.itemLabel)}</span>
                 <span className="num">{u.qty}</span>
               </li>
             ))}
@@ -234,7 +252,7 @@ export default function BinsPanel({ slug, locale = "en" }) {
           <ul className="mt-2 space-y-0.5">
             {negative.map((n) => (
               <li key={`${n.binId}-${n.itemId}`} className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
-                <span>{codeOf(n.binId)} · {n.itemLabel}</span>
+                <span>{codeOf(n.binId)} · {label(n.itemLabel)}</span>
                 <span className="num text-rose-600 dark:text-rose-300">{n.qty}</span>
               </li>
             ))}

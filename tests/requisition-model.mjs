@@ -23,6 +23,7 @@ const M = await import("@/modules/procurement/model");
 // `UV_HANDLE_CLOSING` assert, the loader hook's thread torn down under
 // `process.exit`. permit-model.mjs has the same two imports up here and exits 0.
 const B = await import("@/modules/procurement/bulkNeeds");
+const O = await import("@/modules/procurement/orderModel");
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -82,16 +83,23 @@ ok("and only a draft may be",
 ok("APPROVED IS NOT A MOVE", M.requisitionProblem(draft, "Approved") === "not-answerable");
 ok("...AND NEITHER IS REJECTED", M.requisitionProblem(draft, "Rejected") === "not-answerable");
 
-// ONLY AN APPROVED REQUEST BECOMES AN ORDER.
-ok("a submitted request cannot be ordered",
-  M.requisitionProblem({ status: "Submitted", lines }, "Ordered") === "not-approved");
-ok("an approved one can",
-  M.requisitionProblem({ status: "Approved", lines }, "Ordered") === null);
+// "ORDERED" IS NOT A STORED STATUS — the defect: it was declared terminal and
+// nothing wrote it, so every bought request stayed Approved while the ladder
+// claimed otherwise. It is derived from a live order, for display, and is not
+// a move anybody can ask for.
+ok("ORDERED IS NOT A STORED STATUS", !M.REQUISITION_STATUSES.includes("Ordered"));
+ok("...so it is not a move",
+  M.requisitionProblem({ status: "Approved", lines }, "Ordered") === "status");
+ok("an approved request a live order names READS Ordered",
+  M.requisitionStage({ status: "Approved", ordered: true }) === "Ordered");
+ok("...and without one it reads Approved — a cancelled order frees it",
+  M.requisitionStage({ status: "Approved", ordered: false }) === "Approved");
+ok("...and only an approved one is ever Ordered",
+  M.requisitionStage({ status: "Submitted", ordered: true }) === "Submitted");
 
-// TERMINAL MEANS TERMINAL: an ordered request has a purchase order hanging off
-// it, and a decided one records a decision. Moving either puts a request back
-// in front of somebody after the answer.
-for (const from of ["Ordered", "Cancelled", "Rejected"]) {
+// TERMINAL MEANS TERMINAL: a decided request records a decision. Moving it
+// puts a request back in front of somebody after the answer.
+for (const from of ["Cancelled", "Rejected"]) {
   ok(`a ${from.toLowerCase()} request is decided`,
     M.requisitionProblem({ status: from, lines }, "Submitted") === "decided");
 }
@@ -107,6 +115,10 @@ ok("a submitted request may be withdrawn",
   M.requisitionProblem({ status: "Submitted", lines }, "Cancelled") === null);
 ok("...and so may an approved one",
   M.requisitionProblem({ status: "Approved", lines }, "Cancelled") === null);
+// THE DEFECT: an approved request that a live order names could be cancelled,
+// leaving money committed on a request that says it was withdrawn.
+ok("A BOUGHT REQUEST CANNOT BE CANCELLED",
+  M.requisitionProblem({ status: "Approved", lines, ordered: true }, "Cancelled") === "requisition-ordered");
 
 ok("an unknown status is refused", M.requisitionProblem(draft, "Purchased") === "status");
 ok("a missing record is refused", M.requisitionProblem(null, "Submitted") === "notfound");
@@ -160,13 +172,43 @@ ok("a second press asks for nothing", B.bulkNeeds(groups, asked).needs.length ==
 // AN ORDER COUNTS ONCE. One converted from a requisition IS that requisition's
 // quantity; a direct order stands on its own; a cancelled one asked for nothing.
 const withOrders = B.askedFor("p1",
-  [{ projectId: "p1", status: "Ordered", lines: [{ itemId: "cam", qty: 5 }] }],
+  [{ projectId: "p1", status: "Approved", lines: [{ itemId: "cam", qty: 5 }] }],
   [
     { projectId: "p1", status: "Ordered", requisitionId: "r1", lines: [{ itemId: "cam", qty: 5 }] },
     { projectId: "p1", status: "Ordered", lines: [{ itemId: "cam", qty: 2 }] },
     { projectId: "p1", status: "Cancelled", lines: [{ itemId: "cam", qty: 50 }] },
   ]);
 ok("a converted order is not counted on top of its requisition", withOrders.get("cam") === 7, String(withOrders.get("cam")));
+
+console.log("\n== what may happen to a purchase order's status");
+
+// THE DEFECT: editOrder took any status but the two receiving derives, from any
+// state — a received order cancelled, a cancelled one reopened, a received one
+// put back to Draft.
+const draftPo = { status: "Draft", lines: [{ itemId: "cam", qty: 5, received: 0 }] };
+const placedPo = { status: "Ordered", lines: [{ itemId: "cam", qty: 5, received: 0 }] };
+ok("a draft may be placed", O.orderMoveProblem(draftPo, "Ordered") === null);
+ok("a draft may be cancelled", O.orderMoveProblem(draftPo, "Cancelled") === null);
+ok("a placed order may be cancelled while nothing has arrived", O.orderMoveProblem(placedPo, "Cancelled") === null);
+ok("A PLACED ORDER DOES NOT GO BACK TO DRAFT", O.orderMoveProblem(placedPo, "Draft") === "order-placed");
+ok("A PARTLY RECEIVED ORDER CANNOT BE CANCELLED",
+  O.orderMoveProblem({ status: "Partly received", lines: [{ qty: 5, received: 2 }] }, "Cancelled") === "received-already");
+ok("A RECEIVED ORDER DOES NOT GO BACK TO DRAFT",
+  O.orderMoveProblem({ status: "Received", lines: [{ qty: 5, received: 5 }] }, "Draft") === "received-already");
+ok("...nor does an Ordered one with a receipt against it cancel",
+  O.orderMoveProblem({ status: "Ordered", lines: [{ qty: 5, received: 1 }] }, "Cancelled") === "received-already");
+ok("A CANCELLED ORDER IS NOT REOPENED", O.orderMoveProblem({ status: "Cancelled", lines: [] }, "Ordered") === "order-cancelled");
+ok("...nor put back to draft", O.orderMoveProblem({ status: "Cancelled", lines: [] }, "Draft") === "order-cancelled");
+ok("received is never set by hand", O.orderMoveProblem(placedPo, "Received") === "derived-status");
+ok("...nor partly received", O.orderMoveProblem(placedPo, "Partly received") === "derived-status");
+ok("the status it already has is no move", O.orderMoveProblem(placedPo, "Ordered") === null);
+ok("an unknown status is refused", O.orderMoveProblem(draftPo, "Shipped") === "status");
+
+// THE DEFECT: a cancelled order counted as "already ordered", so its request
+// was stuck at Approved with no way to order it again.
+ok("A CANCELLED ORDER IS NOT LIVE", O.orderIsLive({ status: "Cancelled" }) === false);
+ok("...every other one is",
+  ["Draft", "Ordered", "Partly received", "Received"].every((st) => O.orderIsLive({ status: st })));
 
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 // exitCode, not exit(): see the imports above — the natural shutdown waits for

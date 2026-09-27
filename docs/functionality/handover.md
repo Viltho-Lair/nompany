@@ -38,8 +38,12 @@ stricter of the two gates wins.
 
 **The project opens at the bill's total, not the typed estimate.** This is what the handover is
 *for*. `valueFromBoq` returns null only when there is no bill at all, and only then does
-`estimatedValue` stand — the same precedence `modules/tendering/bid` uses to route the approval,
-so **the number a project opens at is the number that was signed**. A source-level assertion in
+`estimatedValue` stand — the same precedence `modules/tendering/bid` uses to route the approval.
+**And the bill cannot move between the bid going out and the handover**: it locks at Submitted
+(`billFreeze`, `boq.md`), and submitting needs an approval covering the bill's value and currency
+as they then stood. So **the number a project opens at is the number that was signed and sent**
+— until 27/09/2026 it was the bill as it happened to be on the day of the handover, because the
+bill froze only at the handover itself. A source-level assertion in
 `tests/bid-review.mjs` guards it, because the wrong version still passes every runtime test on a
 tender whose two numbers happen to agree.
 
@@ -60,6 +64,13 @@ answer free to disagree with the projects it describes — and deriving it means
 project genuinely frees the tender rather than stranding it. The quotation head derives its own
 the same way.
 
+**And it holds when two handovers land together.** Read-then-create is a race: two requests both
+read "no project yet" and both create. `openProject` takes a short NX claim on
+`PROJECT.opening(studio, "tender:<id>")` (a quotation takes `"quotation:<id>"`) before the head
+runs its check, and releases it the moment the row is written. The loser is told `already`. It is
+a lock and not a record — sixty seconds at most, retaken automatically after a crash — so the rule
+stays derived and deleting the project still frees the tender.
+
 **The project roots its own engagement**, like the direct head and unlike the quotation head: a
 tender has no engagement to join, because a tender is not in the stage registry. So `engId` is
 blank and `openProject` takes the mint branch.
@@ -70,9 +81,10 @@ issued (invariant 10), and it has to read correctly on the project even in a stu
 reader cannot open the Tendering section. The project's lineage row shows it, linked only where
 the reader has the register in their nav.
 
-**The project number stays blank**, on this head exactly as on the other two. Issuing it is
-Finance's act, taken when the client's PO is authorised; nothing about being handed over issues
-one early.
+**The project number stays blank, and on this head it stays blank for good.** A number is issued
+only by a quotation's **Client PO approval** (`issueProjectNumber`), and a handed-over project has
+no quotation behind it, so nothing ever numbers it — the same as a direct project
+(`docs/functionality/projects.md`, "Not built yet").
 
 **Handing over answers to `projects.list.create`**, not to any Tendering right — the act creates
 a project, and the handover is Projects' to accept. Somebody who runs the register and cannot
@@ -83,8 +95,14 @@ open projects is shown the state and offered no button.
 The Handover block sits under the bid review, because the sequence is the studio's: price it,
 sign it, send it, win it, deliver it — and all four of those blocks are on that page in that
 order. Before the handover it says what the project will open at; after it, it names the project
-and links to it, and says the number is not issued yet when Finance has not issued one. The
+and links to it, and says the number is not issued when the project has none — which, for a
+handed-over project, is always. The
 refusals travel as tokens and are translated on display.
+
+**A studio with no CRM & Sales customer list is told so, and offered no button**
+(`no-customers`, 27/09/2026). A project is opened for a customer and `tenderSource` refuses
+without that section; `handoverState` did not ask, so the button was offered and pressing it
+answered "that customer no longer exists — pick another", on a screen with nothing to pick.
 
 ## The sheets fill from the bill
 
@@ -126,10 +144,11 @@ never fill from that screen.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **A frozen bill cannot be thawed except by deleting the project.** Freezing is DERIVED from
-  the projects, so there is no unlock: correcting a bill after handover means deleting the
-  project the handover made, which is a heavier act than the correction usually deserves. A
-  variation against the project is the intended route and Projects owns it.
+- **A locked bill cannot be unlocked at all.** It locks at Submitted, derived from the tender's
+  stage, and a submitted or decided tender cannot go back to an open stage — so there is no
+  thaw, and deleting the project no longer gives one (it only changes the grid's sentence from
+  "handed over" to "the bid has gone out"). A correction after the bid is out is a variation
+  against the project, which Projects owns; a correction before the handover has no route.
 - **No handover to Sales.** A won tender does not become a ticket, an RFQ or a quotation, so a
   studio whose delivery runs through the Sales chain still re-enters it.
 - **Nothing is notified.** The project's manager is notified by `openProject` as on any other

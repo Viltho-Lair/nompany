@@ -40,10 +40,18 @@ import type { HelpModule } from "../types";
 // (kb/maintenance.ts). The Maintenance register that used to sit here is
 // retired, and `maintenance.old-registers` answers for it; do not repeat it.
 //
-// NOTHING IN ASSETS READS THE STUDIO TIME ZONE YET. The reminder run, the
-// Registers panel and the hire totals all count days on the UTC calendar
-// (daily-notices, records/summary, utilisationReport). Say so; never promise
-// the studio's own clock here until the code keeps it.
+// THE STUDIO TIME ZONE, PART WAY. The hire totals count a machine still out up
+// to the studio's own today (utilisationReport, 27/09/2026), and the Registers
+// panel measures overdue against the studio's today (records/summary's
+// `today`). The calibration REMINDER RUN still counts on the UTC calendar
+// (cron/daily-notices, shared by every department). Say exactly that; never
+// promise the reminders the studio's own clock until that route keeps it.
+//
+// PLANT ALLOCATION, corrected the same day: a machine goes out only when it is
+// In service or Idle (`bookable`), each button follows its own right (create
+// to add, delete to remove), refusals are sentences, and a job the reader
+// cannot open shows the project it was booked through or a sentence, never an
+// internal id.
 //
 // ENTRY IDS ARE FOREVER: support tickets and taught phrasings name them. Rewrite
 // the words freely; never rename an id. (`assets.equipment` is the register's
@@ -181,8 +189,8 @@ export const assets: HelpModule = {
       id: "assets.rights", topic: "dept.assets", kind: "about", open: "administration-access",
       q: { en: "Who can see and do what in Assets & Equipment?", ar: "من يستطيع رؤية ماذا وفعل ماذا في الأصول والمعدات؟" },
       a: {
-        en: "Rights are given through roles on the Access screen, where Assets & Equipment lists Plant allocation and hire, Equipment register and Calibration, each with view, create, edit and delete. Plant allocation's view shows the allocations and what every job was charged; on the screen, Put a machine on a job and the remove button appear only with its edit right, putting a machine on a job also needs create, and removing one needs delete. A register's view opens it, create adds records, edit changes them and moves their status, and delete removes them for good. Maintenance moves a machine's status by itself without anybody needing the register's edit right. Only people with Calibration's edit right receive calibration reminders.",
-        ar: "تُمنح الصلاحيات عبر الأدوار في شاشة الصلاحيات، حيث تسرد الأصول والمعدات «تخصيص المعدات والأجرة الداخلية» و«سجل المعدات» و«المعايرة»، ولكل منها العرض والإنشاء والتعديل والحذف. فالعرض في تخصيص المعدات يُظهر التخصيصات وما حُمِّل على كل عمل؛ وعلى الشاشة لا يظهر زر «وضع معدة على عمل» ولا زر الإزالة إلا مع صلاحية التعديل، ويحتاج وضع معدة على عمل أيضًا إلى الإنشاء، وتحتاج الإزالة إلى الحذف. والعرض في السجل يفتحه، والإنشاء يضيف السجلات، والتعديل يغيّرها وينقل حالتها، والحذف يزيلها نهائيًّا. وتنقل الصيانة حالة الآلة بنفسها دون حاجة أحد إلى صلاحية التعديل في السجل. ولا يتلقى تذكير المعايرة إلا من يملك صلاحية تعديل المعايرة.",
+        en: "Rights are given through roles on the Access screen, where Assets & Equipment lists Plant allocation and hire, Equipment register and Calibration, each with view, create, edit and delete. Plant allocation's view shows the allocations and what every job was charged; on the screen, Put a machine on a job appears with its create right and the remove button with its delete right. A register's view opens it, create adds records, edit changes them and moves their status, and delete removes them for good. Maintenance moves a machine's status by itself without anybody needing the register's edit right. Only people with Calibration's edit right receive calibration reminders.",
+        ar: "تُمنح الصلاحيات عبر الأدوار في شاشة الصلاحيات، حيث تسرد الأصول والمعدات «تخصيص المعدات والأجرة الداخلية» و«سجل المعدات» و«المعايرة»، ولكل منها العرض والإنشاء والتعديل والحذف. فالعرض في تخصيص المعدات يُظهر التخصيصات وما حُمِّل على كل عمل؛ وعلى الشاشة يظهر زر «وضع معدة على عمل» مع صلاحية الإنشاء، وزر الإزالة مع صلاحية الحذف. والعرض في السجل يفتحه، والإنشاء يضيف السجلات، والتعديل يغيّرها وينقل حالتها، والحذف يزيلها نهائيًّا. وتنقل الصيانة حالة الآلة بنفسها دون حاجة أحد إلى صلاحية التعديل في السجل. ولا يتلقى تذكير المعايرة إلا من يملك صلاحية تعديل المعايرة.",
       },
       keywords: ["assets rights", "permissions", "access", "who can", "role", "صلاحيات الأصول", "الصلاحيات", "الوصول", "من يستطيع", "الدور"],
       related: ["assets.who-does-what", "assets.refused-right", "admin.access.grant"],
@@ -257,8 +265,8 @@ export const assets: HelpModule = {
       id: "assets.currency", topic: "dept.assets", kind: "settings", open: "administration-settings",
       q: { en: "Which currency are hire rates and charges in?", ar: "بأي عملة تكون أجور التأجير والمبالغ المحملة؟" },
       a: {
-        en: "In the studio's own currency, set in Studio settings. A charge to a job is days times the daily rate, rounded to that currency's decimals, so a currency with three decimals keeps three. The screen shows the amounts as plain numbers without a currency sign. A machine's hire rate is typed as a plain number and is taken to be in the same currency.",
-        ar: "بعملة الاستوديو نفسه، التي تُضبط في إعدادات الاستوديو. فالمبلغ المحمّل على العمل هو الأيام مضروبة في الأجرة اليومية، مقرّبًا إلى منازل تلك العملة، فتحتفظ العملة ذات المنازل الثلاث بثلاث. وتعرض الشاشة المبالغ أرقامًا مجردة دون رمز العملة. ويُكتب سعر تأجير الآلة رقمًا مجردًا ويُعدّ بالعملة نفسها.",
+        en: "In the studio's own currency, set in Studio settings. A charge to a job is days times the daily rate, rounded to that currency's decimals, so a currency with three decimals keeps three. The screen shows every amount to that currency's decimals, without a currency sign. A machine's hire rate is typed as a plain number and is taken to be in the same currency.",
+        ar: "بعملة الاستوديو نفسه، التي تُضبط في إعدادات الاستوديو. فالمبلغ المحمّل على العمل هو الأيام مضروبة في الأجرة اليومية، مقرّبًا إلى منازل تلك العملة، فتحتفظ العملة ذات المنازل الثلاث بثلاث. وتعرض الشاشة كل مبلغ بمنازل تلك العملة، دون رمز العملة. ويُكتب سعر تأجير الآلة رقمًا مجردًا ويُعدّ بالعملة نفسها.",
       },
       keywords: ["currency", "hire rate currency", "decimals", "العملة", "عملة الأجرة", "المنازل العشرية"],
       related: ["admin.settings.currency", "assets.hire-rate"],
@@ -267,8 +275,8 @@ export const assets: HelpModule = {
       id: "assets.timezone", topic: "dept.assets", kind: "settings", open: "administration-settings",
       q: { en: "Does the studio's time zone decide which day it is in Assets?", ar: "هل تحدد المنطقة الزمنية للاستوديو أي يوم هو في قسم الأصول؟" },
       a: {
-        en: "Not yet. The studio's time zone is set in Studio settings, but Assets still counts days on the UTC calendar: the calibration reminders, the overdue figures in the Registers panel, and how far a machine that is still out has run. For a studio far from UTC, a reminder or an overdue count can therefore change around your midnight rather than exactly at it. The reminder run happens once a day, early in the morning UTC.",
-        ar: "ليس بعد. تُضبط المنطقة الزمنية للاستوديو في إعدادات الاستوديو، لكن قسم الأصول ما زال يعدّ الأيام على تقويم UTC: تذكيرات المعايرة، وأرقام التأخر في لوحة السجلات، والمدة التي قطعتها معدة ما زالت خارجًا. لذا قد يتغير التذكير أو عدد المتأخر لاستوديو بعيد عن UTC قبل منتصف ليله أو بعده لا عنده بالضبط. ويجري تشغيل التذكيرات مرة واحدة في اليوم، في الصباح الباكر بتوقيت UTC.",
+        en: "Partly. The studio's time zone is set in Studio settings. A machine that is still out runs to the studio's own today, and the overdue figures in the Registers panel are measured against the studio's today. The calibration reminders are not yet: the reminder run happens once a day, early in the morning UTC, and counts days on the UTC calendar, so for a studio far from UTC a reminder can arrive a day before or after the date you expect.",
+        ar: "جزئيًّا. تُضبط المنطقة الزمنية للاستوديو في إعدادات الاستوديو. فالمعدة التي ما زالت خارجًا تمتد إلى يوم الاستوديو نفسه، وأرقام التأخر في لوحة السجلات تُقاس بيوم الاستوديو. أما تذكيرات المعايرة فليس بعد: إذ يجري تشغيلها مرة واحدة في اليوم، في الصباح الباكر بتوقيت UTC، وتعدّ الأيام على تقويم UTC، لذا قد يصل التذكير لاستوديو بعيد عن UTC قبل اليوم الذي تتوقعه بيوم أو بعده.",
       },
       keywords: ["time zone", "timezone", "today", "UTC", "midnight", "المنطقة الزمنية", "التوقيت", "اليوم", "منتصف الليل"],
       related: ["admin.settings.timezone", "assets.calibration-reminders"],
@@ -307,8 +315,8 @@ export const assets: HelpModule = {
       id: "assets.refused-right", topic: "dept.assets", kind: "troubleshoot", open: "administration-access",
       q: { en: "A button in Assets was refused, or showed the word forbidden. What do I do?", ar: "رُفض زر في الأصول، أو ظهرت كلمة forbidden. ماذا أفعل؟" },
       a: {
-        en: "Each act asks one right, and in Assets the refusal may show only the word forbidden rather than a sentence. On Plant allocation the buttons follow the edit right, so a role with edit but without create or delete sees buttons it is then refused. In a register, buttons you cannot use are not shown, so a refusal there usually means your role changed while the screen was open. Find the right you need among Plant allocation and hire, Equipment register and Calibration, and ask whoever manages roles to add it on the Access screen.",
-        ar: "يطلب كل فعل صلاحية واحدة، وقد يُظهر الرفض في الأصول كلمة forbidden وحدها بدل جملة. ففي تخصيص المعدات تتبع الأزرار صلاحية التعديل، فيرى الدور الذي يملك التعديل دون الإنشاء أو الحذف أزرارًا ثم يُرفض عند استخدامها. أما في السجل فالأزرار التي لا تستطيع استخدامها لا تظهر، فالرفض هناك يعني غالبًا أن دورك تغيّر والشاشة مفتوحة. ابحث عن الصلاحية التي تحتاجها بين «تخصيص المعدات والأجرة الداخلية» و«سجل المعدات» و«المعايرة»، واطلب ممن يدير الأدوار إضافتها في شاشة الصلاحيات.",
+        en: "Each act asks one right, and the refusal says so in a sentence. On Plant allocation, Put a machine on a job appears only with the create right and the remove cross only with the delete right, and in a register the buttons you cannot use are not shown, so a refusal usually means your role changed while the screen was open. Find the right you need among Plant allocation and hire, Equipment register and Calibration, and ask whoever manages roles to add it on the Access screen.",
+        ar: "يطلب كل فعل صلاحية واحدة، ويذكر الرفض ذلك في جملة. ففي تخصيص المعدات لا يظهر زر «وضع معدة على عمل» إلا مع صلاحية الإنشاء، ولا علامة الإزالة إلا مع صلاحية الحذف، وفي السجل لا تظهر الأزرار التي لا تستطيع استخدامها، فالرفض يعني غالبًا أن دورك تغيّر والشاشة مفتوحة. ابحث عن الصلاحية التي تحتاجها بين «تخصيص المعدات والأجرة الداخلية» و«سجل المعدات» و«المعايرة»، واطلب ممن يدير الأدوار إضافتها في شاشة الصلاحيات.",
       },
       keywords: ["forbidden", "no right", "refused", "no permission", "ممنوع", "لا صلاحية", "مرفوض", "ليس لدي صلاحية"],
       related: ["assets.rights", "admin.access.grant"],
@@ -948,8 +956,8 @@ export const assets: HelpModule = {
       id: "assets.plant-days", topic: "dept.assets.plant", kind: "about", open: "assets",
       q: { en: "How are the days of a hire counted?", ar: "كيف تُحسب أيام التخصيص؟" },
       a: {
-        en: "Both ends count: a machine that goes out and comes back on the same day is charged for one day. A hire with no Back date is still out, and runs to today every time the page is opened, so its charge grows daily until a return date is recorded. Days are counted on the UTC calendar, not your studio's time zone.",
-        ar: "يُحسب الطرفان كلاهما: فالآلة التي تخرج وتعود في اليوم نفسه تُحمَّل يومًا واحدًا. والتخصيص الذي ليس له تاريخ «العودة» ما زال خارجًا، ويمتد إلى اليوم في كل مرة تُفتح فيها الصفحة، فيزيد مبلغه يوميًّا إلى أن يُسجَّل تاريخ عودة. وتُعد الأيام على تقويم UTC، لا على المنطقة الزمنية للاستوديو.",
+        en: "Both ends count: a machine that goes out and comes back on the same day is charged for one day. A hire with no Back date is still out, and runs to today every time the page is opened, so its charge grows daily until a return date is recorded. Today is the studio's today, in the time zone set in Studio settings.",
+        ar: "يُحسب الطرفان كلاهما: فالآلة التي تخرج وتعود في اليوم نفسه تُحمَّل يومًا واحدًا. والتخصيص الذي ليس له تاريخ «العودة» ما زال خارجًا، ويمتد إلى اليوم في كل مرة تُفتح فيها الصفحة، فيزيد مبلغه يوميًّا إلى أن يُسجَّل تاريخ عودة. واليوم هو يوم الاستوديو، بالمنطقة الزمنية المضبوطة في إعدادات الاستوديو.",
       },
       keywords: ["days counted", "inclusive", "still out", "same day", "حساب الأيام", "شاملة", "ما زالت خارجا", "اليوم نفسه"],
       related: ["assets.plant-return", "assets.timezone"],
@@ -968,21 +976,22 @@ export const assets: HelpModule = {
       id: "assets.plant-status-shown", topic: "dept.assets.plant", kind: "about", open: "assets",
       q: { en: "Can I put a machine that is under repair on a job?", ar: "هل يمكنني وضع آلة قيد الإصلاح على عمل؟" },
       a: {
-        en: "Yes. The machine list shows each machine's status beside its name, so you can see it is Under repair, Idle or Disposed, but nothing stops the booking, because booking a machine being fixed for a job that starts next month is legitimate. The only thing refused is the same machine on two jobs over the same days.",
-        ar: "نعم. تعرض قائمة الآلات حالة كل آلة بجانب اسمها، فترى أنها «قيد الإصلاح» أو «متوقف» أو «مُستبعد»، لكن لا شيء يمنع الحجز، لأن حجز آلة قيد الإصلاح لعمل يبدأ الشهر القادم أمر مشروع. والشيء الوحيد المرفوض هو الآلة نفسها على عملين في الأيام نفسها.",
+        en: "No. Only a machine that is In service or Idle can go out on a job. The machine list shows each machine's status beside its name, and a machine Under repair or Disposed is shown greyed out; if it is chosen anyway the save is refused and names its status. Once Maintenance completes the repair and the machine is back In service, book it. The same machine on two jobs over the same days is refused too.",
+        ar: "لا. لا تخرج على عمل إلا آلة «في الخدمة» أو «متوقف». وتعرض قائمة الآلات حالة كل آلة بجانب اسمها، والآلة «قيد الإصلاح» أو «مُستبعد» تظهر باهتة؛ وإن اختيرت مع ذلك يُرفض الحفظ مع ذكر حالتها. وحين تُكمل الصيانة الإصلاح وتعود الآلة «في الخدمة» احجزها. وتُرفض أيضًا الآلة نفسها على عملين في الأيام نفسها.",
       },
       keywords: ["under repair", "book broken machine", "status in list", "قيد الإصلاح", "حجز آلة معطلة", "الحالة في القائمة"],
       related: ["assets.plant-refused", "assets.equipment-status"],
     },
     // Checked against src/components/studio2/StudioPlantAllocation.js (the Put a
     // machine on a job form: Machine, required, a select showing name, tag and
-    // status; Job, required, a select of deals, or of projects when deals are
-    // refused; Out, required, a date; Back, a date, hint Still out; Daily rate, a
+    // status, a machine that cannot go out greyed; Job, required, a select of
+    // deals, or of projects when deals are refused; Out, required, the shared date
+    // picker; Back, the same picker, hint Still out; Daily rate, a
     // number prefilled from the machine's hire rate) with the words of
     // src/shared/studio/assets.ts, and the Allocation type in
     // src/modules/assets/utilisation.ts; the refusals are allocationProblem's
     // (from, order, asset, deal, clash) in src/modules/assets/utilisation.ts and
-    // allocateAsset's (asset) in src/modules/assets/allocations.ts. The service
+    // allocateAsset's (asset, unavailable) in src/modules/assets/allocations.ts. The service
     // also takes a note (500 characters) that the form does not offer.
     {
       id: "assets.plant-fields", topic: "dept.assets.plant", kind: "fields", open: "assets",
@@ -993,14 +1002,14 @@ export const assets: HelpModule = {
       },
       fields: {
         en: [
-          "Machine (required): from the equipment register, shown with its tag and status",
+          "Machine (required): from the equipment register, shown with its tag and status; only a machine In service or Idle can be chosen",
           "Job (required): a deal, or a project if you may not open deals",
           "Out (required): the date the machine went to the job",
           "Back: the date it came back; empty means still out",
           "Daily rate: what the job is charged per day, prefilled from the machine's hire rate",
         ],
         ar: [
-          "المعدة (مطلوبة): من سجل المعدات، معروضة برقم أصلها وحالتها",
+          "المعدة (مطلوبة): من سجل المعدات، معروضة برقم أصلها وحالتها؛ ولا تُختار إلا آلة «في الخدمة» أو «متوقف»",
           "العمل (مطلوب): صفقة، أو مشروع إن كنت لا تستطيع فتح الصفقات",
           "الخروج (مطلوب): تاريخ ذهاب الآلة إلى العمل",
           "العودة: تاريخ رجوعها؛ والفراغ يعني أنها ما زالت خارجًا",
@@ -1014,8 +1023,8 @@ export const assets: HelpModule = {
       id: "assets.plant-allocation", topic: "dept.assets.plant", kind: "howto", common: true, open: "assets",
       q: { en: "How do I put a machine on a job?", ar: "كيف أضع معدة على عمل؟" },
       a: {
-        en: "Use Put a machine on a job on the Assets & Equipment page. The button appears with the Plant allocation edit right, and saving also needs its create right. The rate saved is the rate the job is charged for the whole hire.",
-        ar: "استخدم «وضع معدة على عمل» في صفحة الأصول والمعدات. ويظهر الزر مع صلاحية التعديل في تخصيص المعدات، ويحتاج الحفظ أيضًا إلى صلاحية الإنشاء فيه. والأجرة المحفوظة هي ما يُحمَّل على العمل طوال التخصيص.",
+        en: "Use Put a machine on a job on the Assets & Equipment page. The button appears with the Plant allocation create right. The rate saved is the rate the job is charged for the whole hire.",
+        ar: "استخدم «وضع معدة على عمل» في صفحة الأصول والمعدات. ويظهر الزر مع صلاحية الإنشاء في تخصيص المعدات. والأجرة المحفوظة هي ما يُحمَّل على العمل طوال التخصيص.",
       },
       steps: {
         en: [
@@ -1100,8 +1109,8 @@ export const assets: HelpModule = {
       id: "assets.plant-refused", topic: "dept.assets.plant", kind: "troubleshoot", open: "assets",
       q: { en: "Why was my plant allocation refused?", ar: "لماذا رُفض تخصيص المعدة؟" },
       a: {
-        en: "That machine is already on another job over those dates means the days overlap an allocation of the same machine; both ends count, so a machine coming back on the 10th is not free for another job on the 10th, and a hire with no Back date blocks every day after its start. A hire needs a start date means Out is empty, and The return date is before the machine went out means the dates are the wrong way round. Choose a machine means none was chosen or it has since been deleted from the register, and Choose a job means none was chosen or the project chosen has no deal behind it.",
-        ar: "«تلك المعدة مخصصة لعمل آخر في تلك الفترة» تعني أن الأيام تتداخل مع تخصيص للآلة نفسها؛ ويُحسب الطرفان، فالآلة العائدة يوم العاشر ليست متاحة لعمل آخر يوم العاشر، والتخصيص الذي بلا تاريخ عودة يحجز كل يوم بعد بدايته. و«الأجرة تحتاج تاريخ بدء» تعني أن «الخروج» فارغ، و«تاريخ العودة قبل تاريخ الخروج» تعني أن التاريخين معكوسان. و«اختر معدة» تعني أنه لم تُختر معدة أو أنها حُذفت من السجل بعد ذلك، و«اختر عملًا» تعني أنه لم يُختر عمل أو أن المشروع المختار لا صفقة وراءه.",
+        en: "That machine is already on another job over those dates means the days overlap an allocation of the same machine; both ends count, so a machine coming back on the 10th is not free for another job on the 10th, and a hire with no Back date blocks every day after its start. That machine is Under repair or Disposed means only a machine In service or Idle can go out. A hire needs a start date means Out is empty, and The return date is before the machine went out means the dates are the wrong way round. Choose a machine means none was chosen or it has since been deleted from the register, and Choose a job means none was chosen or the project chosen has no deal behind it. The form stays open after a refusal, so correct it and save again.",
+        ar: "«تلك المعدة مخصصة لعمل آخر في تلك الفترة» تعني أن الأيام تتداخل مع تخصيص للآلة نفسها؛ ويُحسب الطرفان، فالآلة العائدة يوم العاشر ليست متاحة لعمل آخر يوم العاشر، والتخصيص الذي بلا تاريخ عودة يحجز كل يوم بعد بدايته. والرفض الذي يذكر أن حالة المعدة «قيد الإصلاح» أو «مُستبعد» يعني أنه لا تخرج إلا آلة «في الخدمة» أو «متوقف». و«الأجرة تحتاج تاريخ بدء» تعني أن «الخروج» فارغ، و«تاريخ العودة قبل تاريخ الخروج» تعني أن التاريخين معكوسان. و«اختر معدة» تعني أنه لم تُختر معدة أو أنها حُذفت من السجل بعد ذلك، و«اختر عملًا» تعني أنه لم يُختر عمل أو أن المشروع المختار لا صفقة وراءه. ويبقى النموذج مفتوحًا بعد الرفض، فصحّحه واحفظ من جديد.",
       },
       keywords: ["overlap", "double booked machine", "allocation refused", "clash", "تداخل", "معدة محجوزة", "رفض التخصيص", "تعارض"],
       related: ["assets.plant-fields", "assets.plant-return"],
@@ -1120,8 +1129,8 @@ export const assets: HelpModule = {
       id: "assets.plant-no-button", topic: "dept.assets.plant", kind: "troubleshoot", open: "assets",
       q: { en: "Why is there no Put a machine on a job button?", ar: "لماذا لا يوجد زر «وضع معدة على عمل»؟" },
       a: {
-        en: "The button, and the remove cross on each row, appear only with the Plant allocation edit right, even though saving a new allocation checks the create right. So a role holding view and create without edit sees the figures and cannot book. Ask for the edit right, and the create right as well if you do not hold it.",
-        ar: "لا يظهر الزر، ولا علامة الإزالة على كل صف، إلا مع صلاحية التعديل في تخصيص المعدات، مع أن حفظ تخصيص جديد يتحقق من صلاحية الإنشاء. فالدور الذي يملك العرض والإنشاء دون التعديل يرى الأرقام ولا يستطيع الحجز. اطلب صلاحية التعديل، وصلاحية الإنشاء أيضًا إن لم تكن تملكها.",
+        en: "The button appears only with the Plant allocation create right, and the remove cross on each row only with its delete right. So a role holding view alone sees the figures and cannot book. Ask for the create right to book machines, and the delete right to remove hires.",
+        ar: "لا يظهر الزر إلا مع صلاحية الإنشاء في تخصيص المعدات، ولا تظهر علامة الإزالة على كل صف إلا مع صلاحية الحذف فيه. فالدور الذي يملك العرض وحده يرى الأرقام ولا يستطيع الحجز. اطلب صلاحية الإنشاء لحجز المعدات، وصلاحية الحذف لإزالة التخصيصات.",
       },
       keywords: ["no button", "cannot allocate", "edit right", "لا زر", "لا أستطيع التخصيص", "صلاحية التعديل"],
       related: ["assets.rights", "assets.refused-right"],
@@ -1130,8 +1139,8 @@ export const assets: HelpModule = {
       id: "assets.plant-remove-refused", topic: "dept.assets.plant", kind: "troubleshoot", open: "assets",
       q: { en: "Why was removing an allocation refused?", ar: "لماذا رُفضت إزالة التخصيص؟" },
       a: {
-        en: "Removing needs the Plant allocation delete right, while the cross is shown to anybody with its edit right, so you can see it and still be refused, sometimes with the bare word forbidden. If it says the allocation was not found, somebody else removed it while your screen was open. Ask whoever manages roles for the delete right.",
-        ar: "تحتاج الإزالة صلاحية الحذف في تخصيص المعدات، بينما تظهر العلامة لكل من يملك صلاحية التعديل، فقد تراها وتُرفض مع ذلك، وأحيانًا بكلمة forbidden وحدها. وإن قال إن التخصيص غير موجود، فقد أزاله غيرك والشاشة مفتوحة. واطلب صلاحية الحذف ممن يدير الأدوار.",
+        en: "Removing needs the Plant allocation delete right, and the cross is shown only to somebody who holds it, so a refusal usually means your role changed while the screen was open. If it says the allocation is not there any more, somebody else removed it while your screen was open. Ask whoever manages roles for the delete right.",
+        ar: "تحتاج الإزالة صلاحية الحذف في تخصيص المعدات، ولا تظهر العلامة إلا لمن يملكها، فالرفض يعني غالبًا أن دورك تغيّر والشاشة مفتوحة. وإن قيل إن التخصيص لم يعد موجودًا، فقد أزاله غيرك والشاشة مفتوحة. واطلب صلاحية الحذف ممن يدير الأدوار.",
       },
       keywords: ["remove refused", "cannot delete allocation", "forbidden", "رفض الإزالة", "لا أستطيع حذف التخصيص", "ممنوع"],
       related: ["assets.plant-remove", "assets.refused-right"],
@@ -1140,8 +1149,8 @@ export const assets: HelpModule = {
       id: "assets.plant-job-list", topic: "dept.assets.plant", kind: "troubleshoot", open: "assets",
       q: { en: "Why does the job list show projects, or a job show as a code?", ar: "لماذا تعرض قائمة الأعمال مشاريع، أو يظهر العمل رمزًا؟" },
       a: {
-        en: "The list of deals is offered only to somebody who may open deals; everybody else is offered the studio's projects. For the same reason, such a reader sees each allocation's job, and the By job breakdown, as an internal code rather than a deal reference. Ask for the right to view deals if you need the names, or use the machine's name in By machine.",
-        ar: "لا تُعرض قائمة الصفقات إلا لمن يستطيع فتح الصفقات؛ أما غيره فتُعرض عليه مشاريع الاستوديو. وللسبب نفسه يرى هذا القارئ عمل كل تخصيص، وتفصيل «حسب العمل»، رمزًا داخليًّا لا مرجع صفقة. اطلب صلاحية عرض الصفقات إن كنت تحتاج الأسماء، أو استعن باسم الآلة في «حسب المعدة».",
+        en: "The list of deals is offered only to somebody who may open deals; everybody else is offered the studio's projects. Such a reader sees each allocation's job, and the By job breakdown, as the project it was booked through when it was booked through a project, and otherwise as A job you cannot open, never as a code. Ask for the right to view deals if you need the names, or use the machine's name in By machine.",
+        ar: "لا تُعرض قائمة الصفقات إلا لمن يستطيع فتح الصفقات؛ أما غيره فتُعرض عليه مشاريع الاستوديو. ويرى هذا القارئ عمل كل تخصيص، وتفصيل «حسب العمل»، باسم المشروع الذي حُجز من خلاله إن حُجز من خلال مشروع، وإلا بعبارة «عمل لا تملك صلاحية فتحه»، لا رمزًا أبدًا. اطلب صلاحية عرض الصفقات إن كنت تحتاج الأسماء، أو استعن باسم الآلة في «حسب المعدة».",
       },
       keywords: ["job list", "projects instead of deals", "job code", "قائمة الأعمال", "مشاريع بدل الصفقات", "رمز العمل"],
       related: ["assets.plant-job"],

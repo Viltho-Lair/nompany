@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { shopFloorDict } from "@/shared/studio/shopfloor";
 import { useReload } from "@/components/studio2/useReload";
+import { fmtDateTime } from "@/lib/format";
 
 // THE SHOP-FLOOR TERMINAL — an operator at a station.
 //
@@ -27,9 +28,10 @@ export default function ShopFloorPanel({ slug, locale = "en" }) {
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/manufacturing/shopfloor`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) { setProblem(body.error || "failed"); return; }
+    // SAID IN THE READER'S LANGUAGE, never the raw token.
+    if (!res.ok) { setProblem(shopFloorDict(locale).problem(body.error)); return; }
     setData(body);
-  }, [slug, setData, setProblem]);
+  }, [slug, locale, setData, setProblem]);
 
   useReload(load);
 
@@ -40,12 +42,25 @@ export default function ShopFloorPanel({ slug, locale = "en" }) {
     });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setProblem(body.detail || tr.problem(body.error) || "failed"); return false; }
+    if (!res.ok) {
+      // A QC REFUSAL CARRIES EVERY TOKEN in `detail`, each said in the
+      // reader's language; any other refusal is one token, and `other-run`
+      // brings the title of the job to clock off.
+      setProblem(body.error === "refused" && body.detail
+        ? String(body.detail).split(";").map((t) => tr.problem(t)).join(" ")
+        : tr.problem(body.error, body.title));
+      return false;
+    }
     await load();
     return true;
   }, [slug, load, tr, setBusy, setProblem]);
 
-  if (!data) return <ScreenSkeleton />;
+  // A FAILED FIRST LOAD SAYS WHY rather than leaving the skeleton up for ever.
+  if (!data) {
+    return problem
+      ? <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{problem}</p>
+      : <ScreenSkeleton />;
+  }
 
   const { orders = [], myRun = null, otherRuns = [], batches = [], awaitingCheck = [], canLog, canCheck } = data;
   const busyElsewhere = (id) => otherRuns.some((r) => r.workOrderId === id);
@@ -69,10 +84,13 @@ export default function ShopFloorPanel({ slug, locale = "en" }) {
       {myRun && (
         <div className="rounded-geex border border-brand-300 bg-brand-50 p-4 dark:border-brand-400/30 dark:bg-brand-500/10">
           <p className="text-sm font-600 text-slate-900 dark:text-white">
-            {tr.running(orders.find((o) => o.id === myRun.workOrderId)?.title || myRun.workOrderId)}
+            {tr.running(myRun.title || orders.find((o) => o.id === myRun.workOrderId)?.title || "—")}
           </p>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            {tr.since(String(myRun.startedAt).slice(11, 16))}
+            {/* THE READER'S OWN CLOCK, through the shared formatter. This sliced
+                the stored UTC stamp, so an operator in Amman who clocked on at
+                nine read "Since 06:00". */}
+            {tr.since(fmtDateTime(myRun.startedAt))}
           </p>
           <button
             className="mt-3 w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-600 text-white disabled:opacity-50"

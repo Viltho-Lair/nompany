@@ -70,6 +70,11 @@ that does not.
 **Weather hours are kept apart from every other cause**, because that is the figure an
 extension of time turns on.
 
+**"Days work stopped" counts the reports that say work stopped** (`workStopped`), its own
+question on the New report form rather than something inferred from the delays — hours lost is
+not the same as the site standing down. Until 27/09/2026 the form had no control for it, so the
+figure was nought on every project whatever the site had been through.
+
 **The diary is only computed for a single project.** A gap across every project at once is
 just the days nobody built anything, so the unscoped list returns `diary: null`.
 

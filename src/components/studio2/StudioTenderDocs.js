@@ -18,6 +18,7 @@ import { tenderingDict } from "@/shared/studio/tendering";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, microLabel, Empty, Dialog, fmtDate, fmtDateTime } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 import { refusal } from "@/components/studio2/tenderRefusals";
 import {
   chainFor, currentDocuments, documentSummary, isAnswered, openClarifications,
@@ -50,10 +51,10 @@ export default function StudioTenderDocs({ slug, tenderId }) {
   }, [slug, tenderId]);
 
   const apply = useCallback(({ ok, body }) => {
-    if (!ok) { setError(body.error || "failed"); return; }
+    if (!ok) { setError(refusal(tr, body.error || "failed")); return; }
     setError("");
     setData(body);
-  }, []);
+  }, [tr]);
 
   // The same guarded load the bill above it uses, and for the same reason: this
   // is part of a RECORD page, which can be pointed at a different tender while
@@ -323,8 +324,9 @@ export default function StudioTenderDocs({ slug, tenderId }) {
                 onChange={(v) => setDocForm((f) => ({ ...f, reference: v }))} inputProps={{ maxLength: 80 }} />
               <Field label={tr.docRevision} value={docForm.revision || ""}
                 onChange={(v) => setDocForm((f) => ({ ...f, revision: v }))} inputProps={{ maxLength: 40 }} />
-              <Field label={tr.docIssuedOn} type="date" value={docForm.issuedOn || ""}
-                onChange={(v) => setDocForm((f) => ({ ...f, issuedOn: v }))} />
+              <Field label={tr.docIssuedOn} filled={!!docForm.issuedOn}>
+                <StudioDate value={docForm.issuedOn || ""} onChange={(iso) => setDocForm((f) => ({ ...f, issuedOn: iso }))} />
+              </Field>
             </div>
             <div>
               <span className={microLabel}>{tr.attachFile}</span>
@@ -368,8 +370,9 @@ export default function StudioTenderDocs({ slug, tenderId }) {
           <div className="space-y-4">
             <Field label={tr.theQuestion} as="textarea" required value={asking.question}
               onChange={(v) => setAsking((a) => ({ ...a, question: v }))} inputProps={{ maxLength: 4000 }} />
-            <Field label={tr.askedOn} type="date" value={asking.askedOn}
-              onChange={(v) => setAsking((a) => ({ ...a, askedOn: v }))} />
+            <Field label={tr.askedOn} filled={!!asking.askedOn}>
+              <StudioDate value={asking.askedOn || ""} onChange={(iso) => setAsking((a) => ({ ...a, askedOn: iso }))} />
+            </Field>
             <div className="flex justify-end gap-2">
               <button type="button" className={btnGhost} onClick={() => setAsking(null)}>{tr.cancel}</button>
               <button type="button" className={btn} disabled={busy || !asking.question.trim()}

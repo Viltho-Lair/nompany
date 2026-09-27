@@ -16,6 +16,7 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, money } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import { refusal } from "@/components/studio2/tenderRefusals";
 
 // `initial` is the /tendering/rates body the studio page answered in its own
 // render, so the library paints at once; absent, it fetches on mount as before.
@@ -32,10 +33,10 @@ export default function StudioRates({ slug, initial }) {
   }, [slug]);
 
   const apply = useCallback(({ ok, body }) => {
-    if (!ok) { setError(body.error || "failed"); return; }
+    if (!ok) { setError(refusal(tr, body.error || "failed")); return; }
     setError("");
     setData(body);
-  }, []);
+  }, [tr]);
 
   // The reader the page already answered for is skipped by IDENTITY, not by a
   // flag, so React's development double-effect cannot spend it (useReload says
@@ -65,9 +66,11 @@ export default function StudioRates({ slug, initial }) {
     const out = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
-      // `duplicate` is the one refusal worth a sentence: a library with two
-      // rows for one code makes every reference to that code ambiguous.
-      setError(out.error === "duplicate" ? tr.duplicateCode : (out.error || "failed"));
+      // THROUGH THE SHARED MAPPER, which carries `duplicate` (a library with two
+      // rows for one code makes every reference to that code ambiguous) beside
+      // `code`, `description`, `notfound` and `forbidden` — all of which this
+      // used to show as the bare token.
+      setError(refusal(tr, out.error || "failed"));
       return false;
     }
     await reload();

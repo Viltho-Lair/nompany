@@ -57,6 +57,22 @@ is behind, so refusing would stop a warehouse whose shelves are correct. A move 
 somebody standing at a shelf saying they are carrying five units off it — if the records
 say three, one of the two is wrong and moving five would bury it.
 
+**The check is made twice, the second time holding the item** (`modules/inventory/stockLock`,
+27/09/2026). The ledger is one row per movement, so no compare-and-set can guard an append;
+two people moving the same five units each passed against the same balance and the shelf
+went below nought. A move now takes a short per-item lease (`S.stockLock` in `keys.ts`,
+thirty seconds, released on the way out), reads that item's movements FRESH — past the
+request cache — checks again and only then writes the pair. The same lease guards a
+write-off, a work-order issue or return, an approved adjustment and a delivery note's
+issue. A writer that cannot get it in about two seconds is refused `in-progress` (409).
+**Point of Sale's sale does not take it yet**, so a till sale can still race these.
+
+**A move changes where stock is, never what it is worth.** Stock valuation NETS every
+`bin-move`/`batch-move` pair (`TRANSFER_SOURCES`, `valuation.ts`) rather than valuing each
+half; valued, the `+qty` half came back in at the item's current price-list cost and every
+put-away silently replaced order and landed cost. Nothing stored changed — the fix is in how
+the ledger is read.
+
 ### Deleting
 
 **A bin still holding something is refused** (`not-empty`): it would strand real units
@@ -67,6 +83,12 @@ total that fell because somebody tidied a list would be a report that punishes
 housekeeping. That is the rule a deleted cost code already follows.
 
 ### What is refused, and why
+
+**Refusals are TOKENS, worded on the screen** (`BIN_PROBLEMS` in `bins.ts`, words in
+`shared/studio/bins`): `{ error: "refused", problems: [...tokens], value }`. They were
+English sentences built on the server and shown verbatim. The Add bin and Move buttons ask
+`inventory.stock.create` and Remove asks `.delete` (`canCreate`/`canDelete` on the
+register), rather than "may write anything here".
 
 - **A code with a space.** A bin code is scanned and typed, and a trailing space is a
   different bin that looks identical.

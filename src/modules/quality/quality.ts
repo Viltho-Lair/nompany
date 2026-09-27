@@ -47,6 +47,7 @@ import { netUnitPrice, discountPct } from "@/modules/technical/quotations";
 // invoice printed with a total its own ledger disagrees with is worse than none.
 import { invoiceTotals } from "@/modules/finance/finance";
 import { roundMoney } from "@/shared/money";
+import { dayIn, studioTimezone } from "@/shared/timezone";
 import { approvalRows } from "@/modules/approvals/approvals";
 import { quotationApproved } from "@/modules/approvals/reads";
 import type { PermissionKey } from "@/platform/access";
@@ -238,8 +239,10 @@ export async function mergeValuesFor(
     "document.owner": alias(document.ownerCollaboratorId),
     "document.effectiveDate": String(document.effectiveDate || ""),
     "document.nextReviewDate": String(document.nextReviewDate || ""),
-    // The day this is being rendered, not the day the template was written.
-    "misc.today": new Date().toISOString().slice(0, 10),
+    // The day this is being rendered, not the day the template was written —
+    // and the STUDIO's day (shared/timezone): a letter printed in Amman at one
+    // in the morning was dated the day before, on the server's UTC clock.
+    "misc.today": dayIn(new Date(), studioTimezone(ctx.studio as { timezone?: unknown })),
   };
 
   // The studio's own legal rows — VAT number, CR number, whatever it puts on its

@@ -2,7 +2,8 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { procurementDict } from "@/shared/studio/procurement";
+import { procurementDict, procurementRefusal } from "@/shared/studio/procurement";
+import { orderMoveProblem } from "@/modules/procurement/orderModel";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { useReload } from "@/components/studio2/useReload";
 import { RecordSkeleton } from "@/components/studio2/RecordSkeleton";
@@ -24,6 +25,14 @@ import { panel, h2, sub, btnRow, btnRowPrimary, money, fmtDate } from "@/compone
 // WATCHES `inventory-sheets`, the section the orders are WRITTEN under (see
 // invariant 14) — not this section, which owns no collection.
 
+// IN WORDS, never the raw token or a bare HTTP status — this printed
+// "received-already" or "409" until 27/09/2026. A token nothing names falls to
+// the generic sentence rather than to the code.
+function refusal(tr, token) {
+  if (token === "status") return tr.refuseOrderStatus;
+  return procurementRefusal(tr, token) || tr.refuseFailed;
+}
+
 const FILTERS = ["", "Draft", "Ordered", "Partly received", "Received", "Cancelled"];
 
 // `initial` is the orders GET body, answered by the studio page in its render,
@@ -38,10 +47,10 @@ export default function StudioPurchaseOrders({ slug, initial }) {
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/inventory/orders`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) { setError(body.error || String(res.status)); return; }
+    if (!res.ok) { setError(refusal(tr, body.error || "failed")); return; }
     setError("");
     setData(body);
-  }, [slug]);
+  }, [slug, tr]);
 
   useReload(load, initial);
   useLiveUpdates(slug, "inventory-sheets", load);
@@ -56,7 +65,7 @@ export default function StudioPurchaseOrders({ slug, initial }) {
     setBusy("");
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setError(body.error || String(res.status));
+      setError(refusal(tr, body.error || "failed"));
     }
     await load();
   };
@@ -124,6 +133,8 @@ export default function StudioPurchaseOrders({ slug, initial }) {
                     <td className="py-2 text-end">
                       {data.canPlace && (
                         <span className="inline-flex gap-2">
+                          {/* THE SAME RULE editOrder asks (procurement/orderModel), so a
+                              button is drawn only where the move would be taken. */}
                           {o.status === "Draft" && (
                             <button className={btnRowPrimary} disabled={busy === o.id} onClick={() => move(o.id, "Ordered")}>
                               {tr.placeOrder}
@@ -131,7 +142,7 @@ export default function StudioPurchaseOrders({ slug, initial }) {
                           )}
                           {/* Only an order nothing has been received against —
                               once goods arrive, the order explains real stock. */}
-                          {(o.status === "Draft" || o.status === "Ordered") && (
+                          {!orderMoveProblem(o, "Cancelled") && o.status !== "Cancelled" && (
                             <button className={btnRow} disabled={busy === o.id} onClick={() => move(o.id, "Cancelled")}>
                               {tr.cancelOrder}
                             </button>

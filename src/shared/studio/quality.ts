@@ -245,6 +245,23 @@ type Strings = CommonStrings & {
   whoeverHoldsRight: string;
   working: string;
   wrongState: string;
+  // THE REGISTER'S STATES AND THE LADDER'S WORDS, keyed by the stored token so
+  // what the API returns never changes — the words are drawn on display only.
+  docStates: Record<string, string>;
+  stages: Record<string, string>;
+  moveLabels: Record<string, string>;
+  revN: (rev: number) => string;
+  editedOn: (date: string) => string;
+  deleteNamed: (title: string) => string;
+  confirmDeleteDocument: (title: string) => string;
+  confirmWithdraw: string;
+  layoutInUse: string;
+  issueTitle: string;
+  issueBody: string;
+  nextReviewDate: string;
+  nextReviewHint: string;
+  issueNow: string;
+  marginsFromEdges: (paper: string, dimensions: string) => string;
 };
 
 const en: Strings = {
@@ -347,7 +364,7 @@ const en: Strings = {
   inlineCode: "Inline code",
   insertImage: "Insert image",
   insertTable: "Insert table",
-  issuedDocumentCannotDeleted: "An issued document cannot be deleted. Withdraw it instead.",
+  issuedDocumentCannotDeleted: "A document that was ever issued cannot be deleted, withdrawn or not: the versions people worked to are kept.",
   italic: "Italic",
   justify: "Justify",
   language: "Language",
@@ -484,6 +501,25 @@ const en: Strings = {
   whoeverHoldsRight: "whoever holds the right",
   working: "Working…",
   wrongState: "This revision has moved on since the screen was drawn. Reload to see where it is.",
+  docStates: { draft: "Draft", "in-review": "In review", approved: "Approved", effective: "Effective", obsolete: "Obsolete" },
+  stages: {
+    draft: "Draft", review: "Waiting for review", approval: "Waiting for approval",
+    approved: "Approved, not yet issued", effective: "Effective", superseded: "Superseded",
+    rejected: "Sent back", withdrawn: "Withdrawn — no further revision can be issued",
+  },
+  moveLabels: { submit: "Send for review", publish: "Issue this revision", withdraw: "Withdraw the document" },
+  revN: (rev) => `Rev ${rev}`,
+  editedOn: (date) => `Edited ${date}`,
+  deleteNamed: (title) => `Delete ${title}`,
+  confirmDeleteDocument: (title) => `Delete “${title}”? It has never been issued, and it cannot be brought back.`,
+  confirmWithdraw: "Withdraw this document? Nobody will work to it any more, no further revision can be issued, and this cannot be undone.",
+  layoutInUse: "This is the layout your studio prints its quotations or invoices through. Choose another layout first.",
+  issueTitle: "Issue this revision",
+  issueBody: "From the moment it is issued, this revision is what people work to, and the one before it is superseded.",
+  nextReviewDate: "Next review date",
+  nextReviewHint: "Optional. When this document should next be reviewed — the dashboard counts it as due 30 days before.",
+  issueNow: "Issue",
+  marginsFromEdges: (paper, dimensions) => `Millimetres from each edge of the ${paper} sheet (${dimensions}).`,
 };
 
 const ar: Strings = {
@@ -586,7 +622,7 @@ const ar: Strings = {
   inlineCode: "كود ضمن السطر",
   insertImage: "إدراج صورة",
   insertTable: "إدراج جدول",
-  issuedDocumentCannotDeleted: "لا يمكن حذف وثيقة صادرة. اسحبها بدلا من ذلك.",
+  issuedDocumentCannotDeleted: "لا يمكن حذف وثيقة صدرت يوما، سحبت أم لم تسحب: تحفظ النسخ التي عمل الناس بموجبها.",
   italic: "مائل",
   justify: "ضبط",
   language: "اللغة",
@@ -724,6 +760,25 @@ const ar: Strings = {
   whoeverHoldsRight: "من يحمل الصلاحية",
   working: "جار العمل…",
   wrongState: "تقدمت هذه المراجعة منذ رسم الشاشة. أعد التحميل لترى وضعها.",
+  docStates: { draft: "مسودة", "in-review": "قيد المراجعة", approved: "معتمد", effective: "سار", obsolete: "ملغى" },
+  stages: {
+    draft: "مسودة", review: "بانتظار المراجعة", approval: "بانتظار الاعتماد",
+    approved: "معتمدة ولم تصدر بعد", effective: "سارية", superseded: "مستبدلة",
+    rejected: "أعيدت", withdrawn: "مسحوبة — لا يمكن إصدار مراجعة أخرى",
+  },
+  moveLabels: { submit: "أرسل للمراجعة", publish: "أصدر هذه المراجعة", withdraw: "اسحب الوثيقة" },
+  revN: (rev) => `المراجعة ${rev}`,
+  editedOn: (date) => `حررت ${date}`,
+  deleteNamed: (title) => `احذف ${title}`,
+  confirmDeleteDocument: (title) => `حذف «${title}»؟ لم تصدر قط، ولا يمكن استعادتها.`,
+  confirmWithdraw: "سحب هذه الوثيقة؟ لن يعمل أحد بموجبها بعد الآن، ولا يمكن إصدار مراجعة أخرى منها، ولا يمكن التراجع عن ذلك.",
+  layoutInUse: "هذا هو التخطيط الذي يطبع به الاستوديو عروض الأسعار أو الفواتير. اختر تخطيطا آخر أولا.",
+  issueTitle: "أصدر هذه المراجعة",
+  issueBody: "من لحظة إصدارها تصبح هذه المراجعة ما يعمل الناس بموجبه، وتستبدل المراجعة التي قبلها.",
+  nextReviewDate: "تاريخ المراجعة التالية",
+  nextReviewHint: "اختياري. متى يجب مراجعة هذه الوثيقة مجددا — تعدها لوحة المتابعة مستحقة قبل 30 يوما.",
+  issueNow: "أصدر",
+  marginsFromEdges: (paper, dimensions) => `بالمليمتر من كل حافة من ورقة ${paper} (${dimensions}).`,
 };
 
 const quality = { en, ar };

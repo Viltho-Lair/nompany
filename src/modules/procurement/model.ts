@@ -32,23 +32,45 @@ export type RequisitionLike = {
   lines?: unknown;
   createdByCollaboratorId?: unknown;
   orderId?: unknown;
+  /**
+   * WHETHER A LIVE PURCHASE ORDER NAMES THIS REQUEST — derived by the caller
+   * from the orders (a cancelled order does not count), never stored.
+   */
+  ordered?: unknown;
 };
 
 /**
- * THE LADDER, and it is its own rather than a reuse of the tender's or the
- * pipeline's. A requisition is refused, cancelled or fulfilled far more often
- * than it is "won", and recording only the ones that became orders is how a
- * studio loses the ability to say what it declines to buy.
+ * THE LADDER AS STORED, and it is its own rather than a reuse of the tender's
+ * or the pipeline's. A requisition is refused, cancelled or fulfilled far more
+ * often than it is "won", and recording only the ones that became orders is
+ * how a studio loses the ability to say what it declines to buy.
  *
- * `Ordered` IS THE TERMINAL STATE, not `Approved`: approval authorises the
- * purchase, and the purchase is the order. A requisition that stopped at
- * Approved would look outstanding for ever once its order existed.
+ * ORDERED IS NOT HERE, AND THAT IS THE DECISION (27/09/2026). It used to be
+ * declared as the terminal stored state while nothing anywhere wrote it — every
+ * converted request stayed `Approved` in the store, the ladder's terminal state
+ * was unreachable, and the code that treated "Ordered" as decided guarded a
+ * value no row could hold. Whether a request has been bought is a fact about
+ * the ORDERS, and a stored copy would part company with them the first time an
+ * order was cancelled. So it is derived: `requisitionStage` below answers
+ * "Ordered" for an approved request that a live order names, for display, and
+ * the stored status stays `Approved`.
  */
 export const REQUISITION_STATUSES = [
-  "Draft", "Submitted", "Approved", "Rejected", "Ordered", "Cancelled",
+  "Draft", "Submitted", "Approved", "Rejected", "Cancelled",
 ] as const;
 
 export type RequisitionStatus = (typeof REQUISITION_STATUSES)[number];
+
+/**
+ * WHAT A REQUEST'S ROW SAYS IT IS: the stored status, except that an approved
+ * request a live order names reads "Ordered". Derived on every read, so
+ * cancelling the order puts the request back to "Approved" — orderable again —
+ * with nothing written.
+ */
+export function requisitionStage(req: RequisitionLike | null | undefined): string {
+  const status = text(req?.status) || "Draft";
+  return status === "Approved" && req?.ordered ? "Ordered" : status;
+}
 
 const num = (v: unknown): number => {
   const n = Number(v);
@@ -117,10 +139,11 @@ export function requisitionProblem(
   if (!(REQUISITION_STATUSES as readonly string[]).includes(next)) return "status";
   if (from === next) return "already";
 
-  // TERMINAL MEANS TERMINAL. An ordered requisition has a purchase order
-  // hanging off it and a cancelled one was withdrawn; moving either would put
-  // a request back in front of somebody after the decision it records.
-  if (from === "Ordered" || from === "Cancelled" || from === "Rejected") return "decided";
+  // TERMINAL MEANS TERMINAL. A cancelled one was withdrawn and a rejected one
+  // was answered; moving either would put a request back in front of somebody
+  // after the decision it records. (An ORDERED request is an approved one a
+  // live order names — see `requisitionStage` — and is handled below.)
+  if (from === "Cancelled" || from === "Rejected") return "decided";
 
   switch (next) {
     case "Submitted": {
@@ -136,17 +159,17 @@ export function requisitionProblem(
     case "Approved":
     case "Rejected":
       return "not-answerable";
-    case "Ordered": {
-      // ONLY AN APPROVED REQUEST BECOMES AN ORDER, and only once. The second
-      // half is derived from the order rather than from a flag, so deleting
-      // the order frees the requisition again.
-      if (from !== "Approved") return "not-approved";
-      return null;
-    }
     case "Cancelled": {
       // A submitted request may be withdrawn by its raiser; an approved one
       // has authority behind it and cancelling it is still honest, because the
       // alternative is an order nobody wanted.
+      //
+      // BUT NOT ONCE IT HAS BEEN BOUGHT. A request a live purchase order names
+      // is the reason that order exists; cancelling the request left the order
+      // standing with a cancelled request behind it — money committed on a
+      // request that says it was withdrawn. Cancel the ORDER first, and the
+      // request is free (a cancelled order answers no request).
+      if (req.ordered) return "requisition-ordered";
       return null;
     }
     case "Draft":

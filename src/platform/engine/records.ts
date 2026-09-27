@@ -11,8 +11,9 @@ import { sectionName } from "@/shared/studio/sections";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { transitionProblem, coerceRecord, mergeRecord, recordProblem } from "./types";
-import { rulesFiredBy, newRecordValues, alreadyRaised } from "./rules";
+import { transitionProblem, applyMove, coerceRecord, mergeRecord, recordProblem } from "./types";
+import { rulesFiredBy, newRecordValues, alreadyRaised, raisedEarlierByAnother } from "./rules";
+import { seedBuiltinTypes } from "./builtins";
 import type { RecordType, EngineRecord } from "./schema";
 import type { Row } from "@/platform/db/store";
 import type { PermissionSet } from "@/platform/access";
@@ -24,6 +25,9 @@ const Types = repo<RecordType>("recordTypes");
 const Records = repo<EngineRecord>("engineRecords");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+
+/** What the attempt the compare-and-set KEPT decided — see `applyMove`. */
+type MoveOutcome = { row: Row; moved: boolean; problem: string | null; from: string };
 const now = () => new Date().toISOString();
 
 /**
@@ -119,7 +123,10 @@ async function typeFor(ctx: EngineCallerContext, typeKey: string) {
 export async function studioTypesForGrants(
   studioId: string,
 ): Promise<{ key: string; parentSectionKey: string }[]> {
-  const sections = await sectionsAsStored(studioId);
+  // CAUGHT UP FIRST, so a department seeded today gets its roles' registers
+  // expanded against every built-in type, including one shipped this morning.
+  // Free when nothing is behind — see `seedBuiltinTypes`.
+  const sections = await seedBuiltinTypes(studioId, await sectionsAsStored(studioId));
   const settings = sections.find((s) => s.key === "administration-settings");
   if (!settings) return [];
   const studio = { id: studioId } as Parameters<typeof Types.find>[0]["studio"];
@@ -176,8 +183,19 @@ export async function moveRecordAsStudio(
   const problem = transitionProblem(type, existing.status, to);
   if (problem) return { moved: false, problem };
 
+  // RE-ASKED INSIDE THE PATCH (invariant 8), for the reason `applyMove` gives:
+  // the answer above is about a row somebody else may have moved since. The
+  // LAST invocation is the attempt the compare-and-set kept, so `outcome` is
+  // what actually landed, never what an abandoned round decided.
   const at = now();
-  await Records.update(scope, id, (row) => ({ ...row, status: str(to, 60), updatedAt: at }));
+  let outcome: MoveOutcome = { row: existing, moved: false, problem: null, from: "" };
+  const written = await Records.update(scope, id, (row) => {
+    outcome = applyMove(type, row, to, { updatedAt: at });
+    return outcome.row;
+  });
+  if (!written) return { moved: false, problem: "notfound" };
+  // Arriving where somebody else already put it is still "already there".
+  if (!outcome.moved) return outcome.problem ? { moved: false, problem: outcome.problem } : { moved: false };
   return { moved: true };
 }
 
@@ -218,7 +236,10 @@ export async function grantableTypeAreas(
   // has switched off is left out, as that department's own areas are.
   on: (sectionKey: string) => boolean = () => true,
 ): Promise<Area[]> {
-  const settingsSection = ctx.sections.find((s) => s.key === "administration-settings");
+  // CAUGHT UP FIRST: the Access screen is where a new register becomes
+  // grantable, and it must not wait for somebody to open an engine screen.
+  const sections = await seedBuiltinTypes(String(ctx.studio.id), ctx.sections);
+  const settingsSection = sections.find((s) => s.key === "administration-settings");
   if (!settingsSection) return [];
 
   const types = await Types.find({ studio: ctx.studio, section: settingsSection });
@@ -229,7 +250,7 @@ export async function grantableTypeAreas(
     // beside the rest of Quality & HSE rather than in a bucket called "Engine".
     // The stored section name is the fallback, and `sectionName` translates the
     // seeded keys — the same call every other surface makes.
-    const parent = ctx.sections.find((s) => s.key === t.parentSectionKey);
+    const parent = sections.find((s) => s.key === t.parentSectionKey);
     return {
       key: `engine.${t.key}`,
       group: sectionName(t.parentSectionKey, parent?.name || t.parentSectionKey, locale),
@@ -576,6 +597,17 @@ async function runRulesForMove(
       createdAt: at,
       updatedAt: at,
     });
+
+    // CHECKED AGAIN AFTER THE CREATE, because the read above and the create are
+    // two steps the store cannot make one. `raisedEarlierByAnother` says why,
+    // and what window is still open. A withdrawn record has taken a reference
+    // number that is not reissued (invariant 10): a gap in NCR numbers is the
+    // honest trace of two writers racing, and a duplicate NCR is not.
+    const after = await Records.find(targetScope, { where: { typeKey: targetKey } });
+    if (raisedEarlierByAnother(rule, String(source.id), made, after)) {
+      await Records.remove(targetScope, String(made.id));
+      continue;
+    }
     raised.push({ typeKey: targetKey, reference: String(made.reference || "") });
   }
   return { raised };
@@ -600,16 +632,36 @@ export async function moveRecord(
   // Read once, outside the patch — see the note in editRecord above.
   const at = now();
 
-  const record = await Records.update(scope, id, (row) => ({
-    ...row, status: str(to, 60), updatedAt: at,
-  }));
+  // THE TRANSITION IS ASKED AGAIN INSIDE THE PATCH (invariant 8). The check
+  // above answers for the row as it was read, and a second move landing in
+  // between used to be overwritten by this one whether or not the move still
+  // held — `applyMove` carries the whole story. `outcome` is set by every
+  // invocation and the LAST is the attempt the compare-and-set kept.
+  let outcome: MoveOutcome = { row: existing, moved: false, problem: null, from: "" };
+  const record = await Records.update(scope, id, (row) => {
+    outcome = applyMove(type, row, to, { updatedAt: at });
+    return outcome.row;
+  });
+  if (!record) return { error: "notfound" as const };
+
+  if (!outcome.moved) {
+    // SOMEBODY ELSE ALREADY PUT IT WHERE THIS CALLER ASKED — a double submit,
+    // or two people agreeing. The status they wanted holds, so it is not an
+    // error; but THIS call changed nothing, so it fires nothing either.
+    if (!outcome.problem) return { record, raised: [] };
+    // THE RECORD MOVED UNDERNEATH THE CALLER to a status this move does not
+    // leave from. `wrong-state` (409) rather than the declaration's own
+    // `not-allowed`: the request was fine when it was made, and re-reading the
+    // record is the whole repair.
+    return { error: "wrong-state" as const };
+  }
 
   // AFTER THE MOVE, NEVER INSIDE THE PATCH. `Records.update` takes a FUNCTION
   // and may run it more than once — once per contended round (invariant 8) —
-  // so a rule fired from inside would raise one NCR per attempt.
-  const { raised } = await runRulesForMove(
-    ctx, type, (record || existing) as Row, String(existing.status || ""), str(to, 60),
-  );
+  // so a rule fired from inside would raise one NCR per attempt. And ONLY for a
+  // write that changed the status, from the status it really left: a second
+  // caller whose move turned out to be a no-op must not raise a second NCR.
+  const { raised } = await runRulesForMove(ctx, type, record as Row, outcome.from, str(to, 60));
 
   return { record, raised };
 }

@@ -182,5 +182,28 @@ ok("...and equal to it is allowed", M.certificateProblem(sub, 10000, 10000) === 
 ok("a negative valuation is refused", M.certificateProblem(sub, -1, 0) === "value");
 ok("a missing subcontract is refused", M.certificateProblem(null, 1, 0) === "notfound");
 
+console.log("\n== who may certify it");
+
+// INVARIANT 7 ON A VALUATION — the defect: `certifyCertificate` asked only for
+// the `certify` right, so somebody holding both `edit` and `certify` (a project
+// manager usually does) wrote a figure and then agreed it themselves. There is
+// no owner/Admin exception for a certificate; invariant 7 names three and this
+// is not one of them.
+ok("THE VALUATION'S WRITER DOES NOT CERTIFY IT",
+  M.certifierProblem({ createdByCollaboratorId: "c1" }, "c1") === "same-signer");
+ok("...somebody else does", M.certifierProblem({ createdByCollaboratorId: "c1" }, "c2") === null);
+ok("a certificate with no recorded writer compares against nobody",
+  M.certifierProblem({}, "c2") === null);
+ok("a missing certificate is refused", M.certifierProblem(null, "c2") === "notfound");
+
+// INVARIANT 10 — the defect: certificates were numbered `existing.length + 1`,
+// so two valuations written at once both became the same number. The tally
+// seeds from the highest number already issued, never from how many exist.
+ok("the counter's floor is the highest number issued, not the count",
+  M.highestCertificateNumber([{ number: "1" }, { number: "4" }, { number: "2" }]) === 4);
+ok("...and nought for a package with none", M.highestCertificateNumber([]) === 0);
+ok("...ignoring anything that is not a number",
+  M.highestCertificateNumber([{ number: "x" }, { number: "3" }]) === 3);
+
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);

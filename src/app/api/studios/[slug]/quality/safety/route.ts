@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 // over records two others already govern would be free to disagree with both.
 const spec = { auth: "studio", context: engineContext, body: false, name: "quality/safety" };
 
-const Timesheets = repo<{ entries?: unknown[] }>("timesheets");
+const Timesheets = repo<{ status?: string; entries?: unknown[] }>("timesheets");
 
 export const GET = route(spec, async (c) => {
   const ctx = c as EngineContext & { request: Request };
@@ -65,7 +65,16 @@ export const GET = route(spec, async (c) => {
       // person's days under it; summing the header would lose the DATE each
       // day's hours belong to, which is the whole reason a window can be asked
       // for at all.
-      worked = sheets.flatMap((t) => (t.entries || []).map((e) => {
+      // APPROVED SHEETS ONLY. A draft is somebody still typing, and a rejected
+      // sheet is hours the studio has said did NOT happen as booked — counting
+      // either put hours in the denominator that nobody had agreed, and a bigger
+      // denominator is a SMALLER rate: the error flattered every LTIFR. Submitted
+      // sheets are left out too, deliberately: they are awaiting the same
+      // answer and may yet be rejected, and a safety rate must not be improved by
+      // hours that could be taken back. The cost is a lag — a week whose sheets
+      // are not approved yet reads high until they are — and that is the
+      // conservative direction for a figure quoted to clients and insurers.
+      worked = sheets.filter((t) => t.status === "approved").flatMap((t) => (t.entries || []).map((e) => {
         const entry = e as { date?: unknown; normalHours?: unknown; overtimeHours?: unknown };
         return {
           date: String(entry.date ?? ""),

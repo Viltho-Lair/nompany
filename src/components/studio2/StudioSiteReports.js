@@ -18,6 +18,9 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, Empty, Dialog, microLabel, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+// The studio's own picker, so the day reported on reads dd/mm/yyyy like every
+// other date in the studio rather than in the browser's own format.
+import StudioDate from "@/components/fields/StudioDate";
 
 function refusal(tr, token) {
   switch (token) {
@@ -27,7 +30,9 @@ function refusal(tr, token) {
     case "negative-hours": return tr.refuseNegativeHours;
     case "idle-exceeds": return tr.refuseIdleExceeds;
     case "date": return tr.refuseNoDate;
-    default: return token;
+    // Never the raw token: an unforeseen refusal gets the generic sentence in
+    // the reader's language rather than an English word.
+    default: return tr.didnSave;
   }
 }
 
@@ -69,10 +74,11 @@ export default function StudioSiteReports({ slug, projectId = "" }) {
   }, [slug, projectId]);
 
   const apply = useCallback(({ ok, body }) => {
-    if (!ok) { setError(body.error || "failed"); return; }
+    // The reader's language, never the route's token.
+    if (!ok) { setError(tr.loadFailed); return; }
     setError("");
     setData(body);
-  }, []);
+  }, [tr]);
 
   useEffect(() => {
     let current = true;
@@ -299,11 +305,24 @@ export default function StudioSiteReports({ slug, projectId = "" }) {
         <Dialog title={tr.newReport} onClose={() => setForm(null)}>
           <div className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-2">
-              <Field type="date" label={tr.reportDate} value={form.reportDate} hint={tr.reportDateHint}
-                onChange={(v) => setForm({ ...form, reportDate: v })} />
+              <Field label={tr.reportDate} filled={!!form.reportDate} hint={tr.reportDateHint}>
+                <StudioDate value={form.reportDate} onChange={(iso) => setForm({ ...form, reportDate: iso || "" })} />
+              </Field>
               <Field label={tr.weatherLabel} value={form.weather}
                 onChange={(v) => setForm({ ...form, weather: v })} />
             </div>
+
+            {/* WORK STOPPED HAD NO CONTROL. The field was stored, drawn as a tag on
+                every report and counted in "Days work stopped", and nothing on
+                this form could set it — so that figure was nought on every
+                project, whatever the site had been through. Its own question
+                rather than something inferred from the delays: hours lost is
+                not the same as the site standing down. */}
+            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+              <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={Boolean(form.workStopped)}
+                onChange={(e) => setForm({ ...form, workStopped: e.target.checked })} />
+              {tr.workStoppedQuestion}
+            </label>
 
             <Rows form={form} setForm={setForm} field="labour" label={tr.labourLabel}
               addLabel={tr.addLine} blank={{ trade: "", headcount: "" }}

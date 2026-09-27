@@ -42,6 +42,15 @@ type Strings = CommonStrings & {
   refuseWarrantyNegative: string;
   refuseWarrantyFraction: string;
   refuseWarrantyRange: string;
+  refuseBlocked: string;
+  refuseClosedEdit: string;
+  closedDetailsFixed: string;
+  supportDaysLeft: (n: number | null) => string;
+  supportNone: string;
+  supportNotStarted: string;
+  supportRunsTo: (date: string) => string;
+  supportCountsFromHandover: string;
+  openRecord: (label: string) => string;
   siteReports: string;
   siteReportsSub: string;
   loadingReports: string;
@@ -53,6 +62,7 @@ type Strings = CommonStrings & {
   reportDateHint: string;
   weatherLabel: string;
   workStoppedLabel: string;
+  workStoppedQuestion: string;
   labourLabel: string;
   tradeLabel: string;
   headcountLabel: string;
@@ -153,7 +163,6 @@ type Strings = CommonStrings & {
   giveName: string;
   handler: string;
   hours: string;
-  howCompletionSplits: string;
   howLongProjectStays: string;
   item: string;
   loadingProject: string;
@@ -302,7 +311,6 @@ type Strings = CommonStrings & {
   evStraightLine: string;
   evTwoForecasts: string;
   evElapsed: (pct: number) => string;
-  noServiceActionsYet: string;
   nobodyDepartment: string;
   noneStock: string;
   notIssuedYet: string;
@@ -365,7 +373,6 @@ type Strings = CommonStrings & {
   received: string;
   registeredProjectValue: string;
   releaseUnit: string;
-  requirementWeights: string;
   reservedLine: string;
   save: string;
   saveSettings: string;
@@ -392,11 +399,9 @@ type Strings = CommonStrings & {
   studioKeepsModuleDashboards: string;
   support: string;
   supportEnded: string;
-  supportNotSet: string;
   supportPeriodDays: string;
   targetEnd: string;
   thatIs: string;
-  theyTotal100: string;
   ticket: string;
   title: string;
   to: string;
@@ -415,7 +420,6 @@ type Strings = CommonStrings & {
   viewOnly: string;
   viewOnlyAccessPart: string;
   viewOnlyAccessProjects: string;
-  weightsMustTotal100: string;
   whatSold: string;
   whereWorkSits: string;
   workloadManager: string;
@@ -515,6 +519,15 @@ const en: Strings = {
   refuseWarrantyNegative: "A support period cannot be negative.",
   refuseWarrantyFraction: "A support period is a whole number of days.",
   refuseWarrantyRange: "That support period is longer than ten years — check the number.",
+  refuseBlocked: "This project cannot be closed yet.",
+  refuseClosedEdit: "This project is closed, so its details can no longer be changed.",
+  closedDetailsFixed: "This project is closed. Its stage, manager, dates and support period are fixed.",
+  supportDaysLeft: (n) => (n === 1 ? "Support: 1 day left" : `Support: ${n ?? 0} days left`),
+  supportNone: "No support period",
+  supportNotStarted: "Not handed over yet",
+  supportRunsTo: (date) => `Runs to ${date}, counted from handover.`,
+  supportCountsFromHandover: "Counted from handover, recorded on the Closing out tab.",
+  openRecord: (label) => `Open ${label}`,
   siteReports: "Site reports",
   siteReportsSub: "What happened on site each day — and where the diary is missing days.",
   loadingReports: "Loading site reports…",
@@ -526,6 +539,7 @@ const en: Strings = {
   reportDateHint: "The day this is about, not the day you are writing it. A report typed on Monday for Friday belongs on Friday.",
   weatherLabel: "Weather",
   workStoppedLabel: "Work stopped",
+  workStoppedQuestion: "Work stopped on site this day",
   labourLabel: "Labour on site",
   tradeLabel: "Trade",
   headcountLabel: "On site",
@@ -630,7 +644,6 @@ const en: Strings = {
   giveName: "Give it a name.",
   handler: "Handler",
   hours: "Hours",
-  howCompletionSplits: "How a project's completion percentage splits across its requirements — your studio's service actions. Give each a share; together they must total 100%. Only the actions a project actually carries are counted, and their shares are re-scaled to fill the bar.",
   howLongProjectStays: "How long a project stays in support after its end date. A new project starts with this, and can be changed on its own.",
   item: "Item",
   loadingProject: "Loading project…",
@@ -773,7 +786,6 @@ const en: Strings = {
   evStraightLine: "Planned value assumes the budget is spread evenly across the calendar. The plan’s own curve needs task dates the planner does not store.",
   evTwoForecasts: "Two forecasts, and they answer different questions: “At this rate” projects the budget at the cost performance so far; “Forecast” above is the ledger — what is spent plus what is ordered.",
   evElapsed: (pct) => `${pct}% of the schedule has gone`,
-  noServiceActionsYet: "No service actions yet — add them in Studio Settings, then weight them here.",
   nobodyDepartment: "Nobody in this department.",
   noneStock: "none in stock",
   notIssuedYet: "Not issued yet",
@@ -833,7 +845,6 @@ const en: Strings = {
   received: "Received",
   registeredProjectValue: "Registered project value",
   releaseUnit: "Release this unit",
-  requirementWeights: "Requirement weights",
   reservedLine: "Reserved to this line",
   save: "Save",
   saveSettings: "Save settings",
@@ -860,11 +871,9 @@ const en: Strings = {
   studioKeepsModuleDashboards: "This studio keeps its module dashboards behind a right of their own. The screens underneath are unaffected — pick one from the sidebar.",
   support: "Support",
   supportEnded: "Support ended",
-  supportNotSet: "Support not set",
   supportPeriodDays: "Support period (days)",
   targetEnd: "Target end",
   thatIs: "That is",
-  theyTotal100: "They total 100%.",
   ticket: "Ticket",
   title: "Title",
   to: "To",
@@ -883,7 +892,6 @@ const en: Strings = {
   viewOnly: "View only",
   viewOnlyAccessPart: "You have view-only access to this part of Projects.",
   viewOnlyAccessProjects: "You have view-only access to Projects settings.",
-  weightsMustTotal100: "Weights must total 100%.",
   whatSold: "What was sold",
   whereWorkSits: "Where the work sits",
   workloadManager: "Workload by manager",
@@ -990,6 +998,15 @@ const ar: Strings = {
   refuseWarrantyNegative: "لا تكون مدة الدعم سالبة.",
   refuseWarrantyFraction: "مدة الدعم عدد صحيح من الأيام.",
   refuseWarrantyRange: "مدة الدعم تتجاوز عشر سنوات — راجع الرقم.",
+  refuseBlocked: "لا يمكن إغلاق هذا المشروع بعد.",
+  refuseClosedEdit: "هذا المشروع مغلق، فلم تعد تفاصيله قابلة للتغيير.",
+  closedDetailsFixed: "هذا المشروع مغلق. مرحلته ومديره وتواريخه ومدة دعمه ثابتة.",
+  supportDaysLeft: (n) => (n === 1 ? "الدعم: متبق يوم واحد" : `الدعم: متبق ${n ?? 0} يوما`),
+  supportNone: "لا مدة دعم",
+  supportNotStarted: "لم يسلم بعد",
+  supportRunsTo: (date) => `تمتد حتى ${date}، محسوبة من التسليم.`,
+  supportCountsFromHandover: "تحسب من التسليم، الذي يسجل في تبويب الإغلاق.",
+  openRecord: (label) => `فتح ${label}`,
   siteReports: "التقارير اليومية",
   siteReportsSub: "ما جرى في الموقع كل يوم — وأين تنقص الأيام من السجل.",
   loadingReports: "جار تحميل التقارير…",
@@ -1001,6 +1018,7 @@ const ar: Strings = {
   reportDateHint: "اليوم الذي يتحدث عنه التقرير، لا يوم كتابته.",
   weatherLabel: "الطقس",
   workStoppedLabel: "توقف العمل",
+  workStoppedQuestion: "توقف العمل في الموقع هذا اليوم",
   labourLabel: "العمالة في الموقع",
   tradeLabel: "المهنة",
   headcountLabel: "العدد",
@@ -1103,7 +1121,6 @@ const ar: Strings = {
   giveName: "أعطه اسما.",
   handler: "المتولي",
   hours: "الساعات",
-  howCompletionSplits: "كيف تتوزع نسبة إنجاز المشروع على متطلباته — أي إجراءات الخدمة في استوديوك. أعط كلا منها نصيبا؛ ومجموعها يجب أن يكون 100%. ولا تحتسب إلا الإجراءات التي يحملها المشروع فعلا، ويعاد تحجيم أنصبتها لملء الشريط.",
   howLongProjectStays: "كم يبقى المشروع تحت الدعم بعد تاريخ انتهائه. يبدأ المشروع الجديد بهذه المدة، ويمكن تغييرها له وحده.",
   item: "الصنف",
   loadingProject: "جار تحميل المشروع…",
@@ -1246,7 +1263,6 @@ const ar: Strings = {
   evStraightLine: "القيمة المخططة تفترض توزيع الميزانية بالتساوي على المدة. منحنى الخطة نفسها يحتاج تواريخ مهام لا يحفظها المخطط.",
   evTwoForecasts: "توقعان يجيبان سؤالين مختلفين: «على هذا المعدل» يسقط الميزانية على أداء التكلفة حتى الآن؛ و«المتوقع» أعلاه هو الدفتر: ما صرف زائد ما طلب.",
   evElapsed: (pct) => `مضى ${pct}% من المدة`,
-  noServiceActionsYet: "لا إجراءات خدمة بعد — أضفها في إعدادات الاستوديو ثم وزع أوزانها هنا.",
   nobodyDepartment: "لا أحد في هذا القسم.",
   noneStock: "لا شيء في المخزون",
   notIssuedYet: "لم يصدر بعد",
@@ -1313,7 +1329,6 @@ const ar: Strings = {
   received: "مستلم",
   registeredProjectValue: "قيمة المشاريع المسجلة",
   releaseUnit: "تحرير هذه الوحدة",
-  requirementWeights: "أوزان المتطلبات",
   reservedLine: "محجوزة لهذا السطر",
   save: "حفظ",
   saveSettings: "حفظ الإعدادات",
@@ -1340,11 +1355,9 @@ const ar: Strings = {
   studioKeepsModuleDashboards: "يبقي هذا الاستوديو لوحات معلومات الوحدات خلف صلاحية خاصة بها. الشاشات التي تحتها غير متأثرة — اختر واحدة من الشريط الجانبي.",
   support: "الدعم",
   supportEnded: "انتهى الدعم",
-  supportNotSet: "الدعم غير محدد",
   supportPeriodDays: "فترة الدعم (بالأيام)",
   targetEnd: "النهاية المستهدفة",
   thatIs: "أي",
-  theyTotal100: "مجموعها 100٪.",
   ticket: "التذكرة",
   title: "العنوان",
   to: "إلى",
@@ -1363,7 +1376,6 @@ const ar: Strings = {
   viewOnly: "للعرض فقط",
   viewOnlyAccessPart: "لديك صلاحية عرض فقط على هذا الجزء من المشاريع.",
   viewOnlyAccessProjects: "لديك صلاحية عرض فقط على إعدادات المشاريع.",
-  weightsMustTotal100: "يجب أن يكون مجموع الأوزان 100٪.",
   whatSold: "ما تم بيعه",
   whereWorkSits: "أين يقف العمل",
   workloadManager: "عبء العمل حسب المدير",

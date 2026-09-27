@@ -2,7 +2,9 @@
 
 import { useCallback, useState } from "react";
 import { safetyDict } from "@/shared/studio/safety";
+import { engineWords } from "@/shared/studio/engineTypes";
 import { useReload } from "@/components/studio2/useReload";
+import { useStudioLocale } from "@/components/studio2/locale";
 
 // SAFETY PERFORMANCE, on the Quality & HSE page.
 //
@@ -19,8 +21,18 @@ import { useReload } from "@/components/studio2/useReload";
 // `initial` is the /quality/safety body the studio page answered in its own
 // render, so the panel lands with the page rather than after it; absent —
 // including a refusal, which must still draw nothing — it fetches as before.
-export default function StudioSafety({ slug, locale = "en", initial }) {
+//
+// THE LANGUAGE IS THE STUDIO SHELL'S (useStudioLocale), never a prop: this took
+// `locale = "en"`, which is how the panel would have stayed English for any
+// caller that forgot to pass one.
+export default function StudioSafety({ slug, initial }) {
+  const locale = useStudioLocale();
   const tr = safetyDict(locale);
+  // THE KINDS ARE THE BUILT-IN INCIDENT REGISTER'S OPTIONS, so they translate
+  // on display exactly as the register itself shows them (engineWords, keyed by
+  // the stored word). A kind a studio added itself has no translation and is
+  // shown as typed — typed data is data.
+  const kindWord = engineWords({ key: "incident", origin: "builtin" }, locale).word;
   const [data, setData] = useState(initial ?? null);
   const [state, setState] = useState(initial !== undefined ? "ready" : "loading");
 
@@ -65,9 +77,11 @@ export default function StudioSafety({ slug, locale = "en", initial }) {
         <ul className="mt-4 space-y-1">
           {data.byKind.map((k) => (
             <li key={k.kind} className="flex items-baseline justify-between gap-2 text-xs">
-              {/* The KIND is the studio's own declared option, so it is shown
-                  verbatim — the rule every register's statuses follow. */}
-              <span className="min-w-0 truncate text-slate-600 dark:text-slate-300">{k.kind}</span>
+              {/* TRANSLATED ON DISPLAY, keyed by the stored option — the rule
+                  every register's statuses follow. This printed the stored
+                  English to every Arabic studio. "" is an incident nobody has
+                  classified yet, and it is said in words, not left blank. */}
+              <span className="min-w-0 truncate text-slate-600 dark:text-slate-300">{k.kind ? kindWord(k.kind) : tr.unclassified}</span>
               <span className="num shrink-0 text-slate-900 dark:text-white">{k.count}</span>
             </li>
           ))}

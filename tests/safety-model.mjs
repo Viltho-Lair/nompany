@@ -111,7 +111,8 @@ const ragged = safetySummary([
 ], [hrs("2026-08-01", "300000"), hrs("bad-date", 999), hrs("2026-08-02", -5)], Q3);
 
 ok("an incident with no kind is grouped rather than dropped",
-  ragged.byKind.some((k) => k.kind === "Unclassified" && k.count === 1),
+  // Keyed "" — a token the screen words in the reader's language, not English.
+  ragged.byKind.some((k) => k.kind === "" && k.count === 1),
   JSON.stringify(ragged.byKind));
 // AN UNFILLED daysLost CANNOT UNDERSTATE THE RATE, because the rate is built on
 // the COUNT of lost-time incidents rather than on the days.

@@ -49,11 +49,13 @@ export default function StudioBoq({ slug, tenderId, initial }) {
     return { ok: res.ok, body: await res.json().catch(() => ({})) };
   }, [slug, tenderId]);
 
+  // A FAILED LOAD SPEAKS TOO: `notfound` for a tender deleted under the page,
+  // `forbidden` for a reader without the right — words, not the token.
   const apply = useCallback(({ ok, body }) => {
-    if (!ok) { setError(body.error || "failed"); return; }
+    if (!ok) { setError(refusal(tr, body.error || "failed")); return; }
     setError("");
     setData(body);
-  }, []);
+  }, [tr]);
 
   // The same guarded load the customer page uses, and for the same reason: this
   // is a RECORD page, so it can be pointed at a different tender while the
@@ -75,19 +77,25 @@ export default function StudioBoq({ slug, tenderId, initial }) {
 
   const reload = useCallback(async () => { apply(await read()); }, [read, apply]);
   // TWO SECTIONS, because the payload has two sources. The bill's lines and the
-  // tender they price both live under `tendering-register`; `frozen` does not —
-  // a handover is DERIVED from the projects naming this tender, so the grid goes
-  // read-only because of a row written in Projects, and a screen watching only
-  // its own section would keep offering edits the server has started refusing.
+  // tender they price both live under `tendering-register`, and so does the
+  // stage that locks the bill from submission; which WORDS the lock carries
+  // does not — a handover is DERIVED from the projects naming this tender, a
+  // row written in Projects, and a screen watching only its own section would
+  // go on saying "bid" about a bill the project now reads.
   useLiveUpdates(slug, "tendering-register", reload);
   useLiveUpdates(slug, "projects-list", reload);
   // How far the bid's approval has got is written under Approvals.
   useLiveUpdates(slug, "approvals", reload);
 
-  // `route` names the endpoint: the bill's lines are `boq`, but a SIGNATURE is
-  // an act on the tender and only the tenders route answers `approve` — sent to
-  // `boq`, the Sign button was read as a line edit and refused, so no bid could
-  // ever be signed and none could be submitted.
+  // `route` names the endpoint: the bill's lines are `boq`, but asking for the
+  // bid's approval is an act on the TENDER, and only the tenders route answers
+  // `requestApproval` — sent to `boq`, it would be read as a line edit.
+  //
+  // EVERY REFUSAL IS TRANSLATED. This showed `out.error` as it came, so each
+  // approval refusal (`not-configured`, `no-approver`, `no-studio-currency`,
+  // `bill-incomplete`, `already-submitted`) and each line refusal (`bill-locked`,
+  // `handed-over`, `description`, `notfound`) reached the studio as a token —
+  // while tenderRefusals held the words and nothing here called it.
   const send = useCallback(async (method, payload, route = "boq") => {
     setError(""); setBusy(true);
     const res = await fetch(`/api/studios/${slug}/tendering/${route}`, {
@@ -95,20 +103,20 @@ export default function StudioBoq({ slug, tenderId, initial }) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(out.error || "failed"); return false; }
+    if (!res.ok) { setError(refusal(tr, out.error || "failed")); return false; }
     await reload();
     return true;
-  }, [slug, reload]);
+  }, [slug, reload, tr]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <RecordSkeleton loadingLabel={tr.loadingBoq} />;
 
   const { tender, review, handover } = data;
-  // THE BILL IS WHAT WAS BID, once the work became a project. The project's
-  // value was copied at handover and its sheets follow these lines LIVE, so an
-  // edit here would move what the buyers work from and leave the project's
-  // headline figure behind it. `frozen` comes from the server, which refuses
-  // the same writes this hides.
+  // THE BILL IS WHAT WAS BID, from the moment the bid goes out: the handover
+  // copies its total into the project, so a line edited after submission would
+  // open the project at a figure nobody signed — and once handed over, the
+  // project's sheets follow these lines LIVE. `frozen` comes from the server,
+  // which refuses the same writes this hides.
   const canEdit = data.canEdit && !data.frozen;
   const lines = data.lines || [];
   const rates = data.rates || [];
@@ -184,9 +192,11 @@ export default function StudioBoq({ slug, tenderId, initial }) {
       {/* SAID, NOT JUST ENFORCED. A grid that has quietly stopped accepting
           edits reads as broken; one that says the bill is now the project's
           baseline reads as a rule. */}
+      {/* `frozen` IS WHY, not just whether: `bill-locked` from the moment the
+          bid goes out, `handed-over` once a project reads these lines. */}
       {data.frozen && (
         <p className="rounded-xl bg-slate-100 px-4 py-3 text-sm font-600 text-slate-700 dark:bg-white/5 dark:text-slate-200">
-          {tr.billFrozen}
+          {data.frozen === "handed-over" ? tr.billFrozen : tr.billLocked}
         </p>
       )}
 

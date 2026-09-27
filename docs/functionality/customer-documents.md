@@ -106,6 +106,12 @@ receives. **The quality docs route is the only writer** (`setDefaultLayout`) —
 that can check the binding, the language and the publication together. Studio settings does
 not accept the key, so there is never a second door.
 
+**A chosen layout cannot be withdrawn or deleted** (since 27/09/2026): the register refuses both
+with `in-use` and the screen says *choose another layout first* (`layoutSlotsFor`,
+`modules/quality/layouts.ts`). Before that, withdrawing the chosen layout left its slot naming a
+document with nothing effective, and every print of that type and language answered
+`not-issued` until somebody noticed. A slot stored before the rule still answers that way.
+
 ## Printing
 
 **Print** is on the quotation viewer (Sales), in Technical's quotation builder, and on every

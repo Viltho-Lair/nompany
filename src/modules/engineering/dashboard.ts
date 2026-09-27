@@ -21,14 +21,21 @@ import { repo } from "@/platform/db/repo";
 import { switchboard } from "@/lib/dashboardWidgets";
 import type { EngineRecord } from "@/platform/engine/schema";
 import type { QualityDocument, QualityRevision } from "@/modules/quality/types";
+import { DOCS, REVISIONS } from "@/modules/quality/qualityDocs";
 import { moduleContext, type ModuleContext } from "../context";
 import type { Section } from "@/platform/db/sections";
 import {
   documentFigures, rfiFigures, submittalFigures, countStatus, attention,
 } from "./model";
 
-const Docs = repo<QualityDocument>("qualityDocuments");
-const Revisions = repo<QualityRevision>("qualityRevisions");
+// THE REGISTER'S OWN COLLECTION NAMES, imported rather than typed. This read
+// the literal "qualityDocuments" — the RETIRED builder's collection, which the
+// register stopped writing when it moved to `qualityDocs` — so every document
+// tile and chart counted old rows and ignored every document in the register.
+// A literal here is a second answer to "where do documents live" that nothing
+// keeps in step with the first.
+const Docs = repo<QualityDocument>(DOCS);
+const Revisions = repo<QualityRevision>(REVISIONS);
 const Records = repo<EngineRecord>("engineRecords");
 
 /** The five built-in registers this dashboard reads, by type key. */

@@ -81,6 +81,14 @@ export function tenderProblem(input: {
    * cannot explain. The SERVER always passes it; see editTender.
    */
   approved?: boolean;
+  /**
+   * The tender's `submittedAt`, when the caller has the row. A tender moved back
+   * to Preparing BEFORE `cannot-unsubmit` existed is open by status and bid by
+   * its stamp; asked only of the status, it could still become a No Bid, which
+   * the win rate counts as a contested loss. Optional so the pure callers that
+   * judge a status alone keep working.
+   */
+  submittedAt?: unknown;
 }): string | null {
   const { from, to } = input;
   const target = STAGES[to];
@@ -100,7 +108,17 @@ export function tenderProblem(input: {
   // AND YOU CANNOT DECLINE ONE YOU HAVE ALREADY SENT. After submission the
   // honest exit is Withdrawn, which says something different to a client and
   // to whoever reads the register later.
-  if (to === "No Bid" && isSubmitted(from)) return "already-submitted";
+  if (to === "No Bid" && (isSubmitted(from) || Boolean(input.submittedAt))) return "already-submitted";
+
+  // NOR UN-SEND IT. Submitted → Preparing used to be allowed, and it was a
+  // hole with three ends: `submittedAt` stayed stamped on a tender the ladder
+  // now called open; from Preparing the rule above (which looks only at where
+  // the tender IS) let it become a No Bid, which the register's win rate then
+  // counted as a contested loss because `submittedAt` said it had been bid;
+  // and it could never be submitted again, because asking for and approving a
+  // bid both refuse a tender that carries `submittedAt`. A bid that has gone
+  // out is out — the exits are the outcome, or Withdrawn.
+  if (isSubmitted(from) && target.kind === "open") return "cannot-unsubmit";
 
   if (target.needsReason && !String(input.reason || "").trim()) return "reason-required";
 
@@ -116,6 +134,33 @@ export function tenderProblem(input: {
   if (target.kind === "submitted" && input.approved === false) return "not-approved";
 
   return null;
+}
+
+/**
+ * WHY A TENDER'S BILL NO LONGER EDITS, or null while it is still being priced.
+ *
+ * FROM SUBMITTED ON, THE BILL IS WHAT WAS BID. It used to freeze only at the
+ * handover, which left the whole stretch between them open: a bill edited
+ * after the bid went out, or after it was won, moved the total the handover
+ * then copied into the project — so the project opened at the bill as it
+ * happened to be that day, not at the figure that was signed and sent. Every
+ * later stage is at or past submission (Won and Lost require it; a No Bid or a
+ * Withdrawn is a decision, and a decision is history), so "not open" is the
+ * whole rule.
+ *
+ * DERIVED FROM THE STAGE, never a stored flag, for the reason the handover
+ * freeze is derived from the projects: a flag is a second answer free to
+ * disagree with the status it is meant to describe.
+ *
+ * `handed-over` WINS where both hold, because it says more: the lines are the
+ * project's baseline and its sheets read them.
+ */
+export type BillFreeze = "handed-over" | "bill-locked" | null;
+
+export function billFreeze(status: string, handedOver: boolean): BillFreeze {
+  if (handedOver) return "handed-over";
+  const kind = STAGES[status]?.kind;
+  return kind === "submitted" || kind === "closed" ? "bill-locked" : null;
 }
 
 /** One line of a tender's stage history. */

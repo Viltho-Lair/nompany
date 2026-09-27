@@ -340,6 +340,32 @@ type Strings = {
   refuseNoItems: string;
   refuseAlreadyOrdered: string;
   refuseNotAnswerable: string;
+  // REFUSALS THE SCREENS USED TO PRINT AS RAW TOKENS (27/09/2026) — "vendor",
+  // "supplier-suspended", "in-use", or a bare HTTP status.
+  refuseVendor: string;
+  refuseSupplierSuspended: string;
+  refuseSupplierRejected: string;
+  refuseSupplierLapsed: string;
+  refuseProject: string;
+  refuseRequisitionGone: string;
+  refuseNoProcurement: string;
+  refuseOrderCancelled: string;
+  refuseOrderPlaced: string;
+  refuseReceivedAlready: string;
+  refuseDerivedStatus: string;
+  refuseOrderStatus: string;
+  refuseSupplierName: string;
+  refuseSupplierDuplicate: string;
+  refuseSupplierInUse: string;
+  refuseNotFound: string;
+  refuseFailed: string;
+  refuseCertifySameSigner: string;
+  certifyNotYours: string;
+  addSuppliers: string;
+  noRequisitionPicked: string;
+  cheapestByLineHeading: string;
+  cheapestByLineHint: string;
+  noLinePriced: string;
   save: string;
   cancel: string;
   removeLabel: string;
@@ -719,8 +745,32 @@ const en: Strings = {
   refuseNotApproved: "Only an approved request becomes a purchase order.",
   refuseNoStudioCurrency: "Set your studio's currency in Studio settings before approving — an amount cannot be judged against a limit without one.",
   refuseNoItems: "None of these lines names a Registered Item, and a purchase order moves stock. Pick the item on each line you want ordered.",
-  refuseAlreadyOrdered: "A purchase order has already been raised against this request.",
+  refuseAlreadyOrdered: "A purchase order has already been raised against this request. Cancel that order first if the request is no longer wanted.",
   refuseNotAnswerable: "Approving and rejecting go through the approval, not through an edit.",
+  refuseVendor: "Pick a supplier from the register.",
+  refuseSupplierSuspended: "This supplier is suspended in the register, so nothing can be ordered from them until they are reinstated.",
+  refuseSupplierRejected: "This supplier was rejected in the register, so nothing can be ordered from them.",
+  refuseSupplierLapsed: "This supplier's paperwork has expired. Record the renewed document in Suppliers before ordering.",
+  refuseProject: "That project no longer exists. Pick another, or none.",
+  refuseRequisitionGone: "That request no longer exists.",
+  refuseNoProcurement: "This studio has no requisition register switched on, so an order cannot answer a request.",
+  refuseOrderCancelled: "This order was cancelled. A new need is a new order.",
+  refuseOrderPlaced: "This order has been placed with the supplier and cannot go back to draft.",
+  refuseReceivedAlready: "Goods have been received against this order, so it can no longer be changed or cancelled.",
+  refuseDerivedStatus: "Received and partly received follow the goods booked in; they are not set by hand.",
+  refuseOrderStatus: "An order cannot be moved to that status.",
+  refuseSupplierName: "Give the supplier a name.",
+  refuseSupplierDuplicate: "A supplier with that name is already in the register.",
+  refuseSupplierInUse: "This supplier is named on items or orders, so it cannot be removed.",
+  refuseNotFound: "That record no longer exists. Refresh to see the current list.",
+  refuseFailed: "That did not go through. Try again.",
+  refuseCertifySameSigner: "You wrote this valuation, so somebody else has to certify it.",
+  certifyNotYours: "Written by you — somebody else certifies it",
+  addSuppliers: "Add suppliers",
+  noRequisitionPicked: "None — type the lines",
+  cheapestByLineHeading: "Cheapest on each line",
+  cheapestByLineHint: "Across every live quote that priced the line, complete or not — what a split award would be made of.",
+  noLinePriced: "Nobody has priced this line",
   save: "Save",
   cancel: "Cancel",
   removeLabel: "Remove",
@@ -1082,8 +1132,32 @@ const ar: Strings = {
   refuseNotApproved: "لا يصير أمر شراء إلا الطلب المعتمد.",
   refuseNoStudioCurrency: "حدد عملة الاستوديو في الإعدادات قبل الاعتماد — لا يقاس مبلغ على حد بغير عملة.",
   refuseNoItems: "لا يسمي أي من هذه البنود صنفا مسجلا، وأمر الشراء يحرك المخزون. اختر الصنف في كل بند تريد طلبه.",
-  refuseAlreadyOrdered: "صدر أمر شراء على هذا الطلب بالفعل.",
+  refuseAlreadyOrdered: "صدر أمر شراء على هذا الطلب بالفعل. ألغ ذلك الأمر أولا إن لم يعد الطلب مطلوبا.",
   refuseNotAnswerable: "الاعتماد والرفض يمران بالاعتماد لا بالتعديل.",
+  refuseVendor: "اختر موردا من السجل.",
+  refuseSupplierSuspended: "هذا المورد موقوف في السجل، فلا يطلب منه شيء حتى يعاد اعتماده.",
+  refuseSupplierRejected: "رفض هذا المورد في السجل، فلا يطلب منه شيء.",
+  refuseSupplierLapsed: "انتهت صلاحية مستندات هذا المورد. سجل المستند المجدد في الموردين قبل الطلب.",
+  refuseProject: "لم يعد هذا المشروع موجودا. اختر غيره أو لا شيء.",
+  refuseRequisitionGone: "لم يعد هذا الطلب موجودا.",
+  refuseNoProcurement: "لا يوجد سجل طلبات شراء مفعل في هذا الاستوديو، فلا يجيب أمر عن طلب.",
+  refuseOrderCancelled: "ألغي هذا الأمر. الحاجة الجديدة أمر جديد.",
+  refuseOrderPlaced: "أرسل هذا الأمر إلى المورد ولا يعود مسودة.",
+  refuseReceivedAlready: "استلمت بضائع على هذا الأمر، فلا يعدل ولا يلغى بعد الآن.",
+  refuseDerivedStatus: "حالتا الاستلام الكلي والجزئي تتبعان البضائع المستلمة، ولا تضبطان يدويا.",
+  refuseOrderStatus: "لا ينقل الأمر إلى هذه الحالة.",
+  refuseSupplierName: "أعط المورد اسما.",
+  refuseSupplierDuplicate: "يوجد مورد بهذا الاسم في السجل بالفعل.",
+  refuseSupplierInUse: "هذا المورد مذكور على أصناف أو أوامر، فلا يحذف.",
+  refuseNotFound: "لم يعد هذا السجل موجودا. حدث الصفحة لترى القائمة الحالية.",
+  refuseFailed: "لم يتم ذلك. حاول مرة أخرى.",
+  refuseCertifySameSigner: "أنت من كتب هذا التقييم، فيعتمده شخص آخر.",
+  certifyNotYours: "كتبته أنت — يعتمده شخص آخر",
+  addSuppliers: "إضافة موردين",
+  noRequisitionPicked: "لا شيء — اكتب البنود",
+  cheapestByLineHeading: "الأرخص في كل بند",
+  cheapestByLineHint: "عبر كل عرض ساري سعر البند، مكتملا كان أو لا — وهو ما تبنى منه ترسية مجزأة.",
+  noLinePriced: "لم يسعر أحد هذا البند",
   save: "حفظ",
   cancel: "إلغاء",
   removeLabel: "حذف",
@@ -1129,4 +1203,38 @@ const AR_ORDER_STATUS: Record<string, string> = {
 
 export function procurementDict(locale: string): Strings {
   return String(locale || "").startsWith("ar") ? ar : en;
+}
+
+/**
+ * THE REFUSALS SEVERAL PROCUREMENT SCREENS MEET, in words — the order's
+ * status moves, supplier qualification, the supplier register's own and the
+ * generic ones. Null for a token this does not know, so each screen's own
+ * switch still decides what IT means by the rest (a "same-signer" on a
+ * requisition and on a certificate are different sentences).
+ *
+ * ONE MAPPING, NOT FOUR. The requisition row, the order register, the supplier
+ * register and the RFQ screen all used to print these raw ("vendor",
+ * "supplier-suspended", "in-use", a bare 409), and four copies of the fix
+ * would be four lists free to disagree about which tokens have words.
+ */
+export function procurementRefusal(tr: Strings, token: string): string | null {
+  switch (token) {
+    case "vendor": return tr.refuseVendor;
+    case "supplier-suspended": return tr.refuseSupplierSuspended;
+    case "supplier-rejected": return tr.refuseSupplierRejected;
+    case "supplier-document-expired": return tr.refuseSupplierLapsed;
+    case "project": return tr.refuseProject;
+    case "requisition": return tr.refuseRequisitionGone;
+    case "no-procurement": return tr.refuseNoProcurement;
+    case "order-cancelled": return tr.refuseOrderCancelled;
+    case "order-placed": return tr.refuseOrderPlaced;
+    case "received-already": return tr.refuseReceivedAlready;
+    case "derived-status": return tr.refuseDerivedStatus;
+    case "name": return tr.refuseSupplierName;
+    case "duplicate": return tr.refuseSupplierDuplicate;
+    case "in-use": return tr.refuseSupplierInUse;
+    case "notfound": return tr.refuseNotFound;
+    case "failed": return tr.refuseFailed;
+    default: return null;
+  }
 }

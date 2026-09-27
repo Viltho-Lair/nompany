@@ -14,8 +14,10 @@
 //
 // PURE, so tests/requisition-model.mjs holds the arithmetic without a store.
 
+// No "Ordered": it is never stored (model.ts, REQUISITION_STATUSES) — a bought
+// request stays Approved, and still stands for its quantity here.
 /** The requisition states that still stand for the quantity on them. */
-export const LIVE_REQUISITION = new Set(["Draft", "Submitted", "Approved", "Ordered"]);
+export const LIVE_REQUISITION = new Set(["Draft", "Submitted", "Approved"]);
 
 type Line = { itemId?: unknown; qty?: unknown };
 

@@ -89,11 +89,21 @@ export async function listRfqs(ctx: ProcurementContext) {
   const denied = requirePermission(ctx.access, "procurement.rfq.view");
   if (denied) return denied;
 
-  const { studio, rfqSection } = ctx;
-  const [rows, quotes, people] = await Promise.all([
+  const { studio, rfqSection, requisitionsSection } = ctx;
+  // THE REQUESTS AN RFQ MAY BE RAISED FROM. `createRfq` has always taken a
+  // `requisitionId` and copied its lines, and no screen could send one — so the
+  // join this section exists for was reachable only by hand-crafted request.
+  // Offered only to a reader who may OPEN requisitions: a picker listing their
+  // titles to somebody refused the register would leak it through a dropdown.
+  const mayReadRequisitions = Boolean(requisitionsSection)
+    && !requirePermission(ctx.access, "procurement.requisitions.view");
+  const [rows, quotes, people, requisitions] = await Promise.all([
     Rfqs.find({ studio, section: rfqSection }),
     Quotes.find({ studio, section: rfqSection }),
     listCollaborators(studio.id),
+    mayReadRequisitions && requisitionsSection
+      ? Requisitions.find({ studio, section: requisitionsSection })
+      : Promise.resolve([] as Requisition[]),
   ]);
   const aliasOf = new Map(
     (people as { id?: unknown; alias?: unknown }[])
@@ -124,8 +134,20 @@ export async function listRfqs(ctx: ProcurementContext) {
       };
     });
 
+  // SUBMITTED OR APPROVED — a request somebody is still going to buy against.
+  // Asking the market before the approval lands is ordinary (the price is what
+  // the approver wants to see); a draft is still being written and a decided
+  // one needs no quote. Newest first, the order the requisition list uses.
+  const requisitionChoices = requisitions
+    .filter((r) => ["Submitted", "Approved"].includes(String(r.status || "")))
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+    .map((r) => ({ id: r.id, reference: String(r.reference || ""), title: String(r.title || "") }));
+  // AND THE REFERENCE OF THE ONE EACH RFQ CAME FROM, for the same reader only.
+  const requisitionRef = new Map(requisitions.map((r) => [r.id, String(r.reference || "")] as const));
+
   return {
-    rfqs,
+    rfqs: rfqs.map((r) => ({ ...r, requisitionReference: requisitionRef.get(String(r.requisitionId || "")) || "" })),
+    requisitionChoices,
     asOf,
     canCreate: !requirePermission(ctx.access, "procurement.rfq.create"),
     canEdit: !requirePermission(ctx.access, "procurement.rfq.edit"),
@@ -158,9 +180,11 @@ export async function createRfq(ctx: ProcurementContext, body: Record<string, un
     projectId = projectId || String(req.projectId || "");
   }
 
-  const lines = Array.isArray(body?.lines) && (body.lines as unknown[]).length
-    ? cleanLines(body.lines)
-    : seeded;
+  // TYPED LINES WIN, but only REAL ones: a form always carries an empty row at
+  // the bottom, and a non-empty ARRAY of blank rows used to beat the
+  // requisition's lines and raise an RFQ asking for nothing.
+  const typed = Array.isArray(body?.lines) ? cleanLines(body.lines) : [];
+  const lines = typed.length ? typed : seeded;
 
   const rows = await Rfqs.find({ studio, section: rfqSection });
   const at = now();

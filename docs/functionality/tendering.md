@@ -56,7 +56,10 @@ transition**, never by the form, so a date cannot disagree with the status it be
 attached; a register ordered by when somebody typed it in answers no question anybody has.
 Undated tenders sink to the bottom — one with no closing date is not urgent, it is incomplete.
 
-**Four rules stand between a request and the row:**
+**Five rules stand between a request and the row** — judged on a read, and judged AGAIN inside
+the write's function patch against the row as it then stands (27/09/2026), so two people
+pressing Won and Lost on one tender cannot both land: the second finds it decided and is
+refused `already-decided`.
 
 - **A tender cannot be won or lost unless it was submitted** (`not-submitted`). "Won" straight
   from "Preparing" reads as a win and means the bid was never sent; a studio would be counting
@@ -65,6 +68,11 @@ Undated tenders sink to the bottom — one with no closing date is not urgent, i
   deal follows.
 - **A submitted tender cannot become a No Bid** (`already-submitted`). After the bid has gone
   in the honest exit is Withdrawn, which says something different to whoever reads it later.
+  A tender carrying `submittedAt` is refused a No Bid whatever its stage says.
+- **A submitted tender cannot go back to Identified or Preparing** (`cannot-unsubmit`,
+  27/09/2026). It used to be able to, with `submittedAt` still stamped: from Preparing it could
+  then become a No Bid, which the win rate counted as a contested loss, and it could never be
+  submitted again, because asking for and approving a bid both refuse a tender already sent.
 - **Losing, declining and withdrawing must say why** (`reason-required`). Winning need not,
   which is the asymmetry that makes the field mean something.
 
@@ -176,9 +184,6 @@ otherwise, and a gap list that has not caught up with what shipped is worse than
   nineteen more depend on it — see
   `docs/superpowers/specs/2026-09-06-server-rendered-first-payload-design.md`. The manifest
   and the dispatch normalisation that the rest needs do not exist yet.
-- **The bill is not frozen once a tender is handed over.** Its lines still edit, the project's
-  sheets follow them live, and the project's `value` — copied at handover — does not, so the
-  two can disagree with nothing saying so. See `handover.md`.
 - **A tender is not an engagement.** It has no entry in the stage registry, so it does not
   appear on the engagements view and nothing cascades from it.
 - **No comments and no notifications.** A deadline approaching tells nobody, and an addendum

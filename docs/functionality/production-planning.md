@@ -29,7 +29,16 @@ answers to Procurement's right.
 
 **A BOM line mints nothing.** A line IS the bill of materials' content, so it answers to
 `engine.bom.edit` — the argument a BOQ line already makes about a tender, and a second
-right over one act would be free to disagree with the first about who works on a BOM.
+right over one act would be free to disagree with the first about who works on a BOM. The
+planning body carries `canEditBom`, and the screen draws Add line and Remove only for a
+holder: it used to draw them for every planner and let the server refuse each press.
+
+**A line is checked against what it names.** The bill must be in the register
+(`no-bom`), the item must be a Registered Item (`no-item`), and a **Superseded** bill's
+lines are frozen for add, edit and remove alike (`superseded`) — Superseded is one-way
+in the register because it is what was built, and its lines are what a recall reads. A
+line whose bill has since been DELETED may still be corrected or removed, or it would sit
+where no screen could reach it. Every refusal is a token the screen says in a sentence.
 
 ### The limitation, stated rather than hidden
 
@@ -37,13 +46,27 @@ right over one act would be free to disagree with the first about who works on a
 BOM, because both are engine records whose fields are studio-defined; there is no id
 between them. Matched case-insensitively and trimmed.
 
-**An order whose product matches no BOM is REPORTED** (`noBom`), and so is one with no
-quantity (`noQuantity`). A requirement nobody can see is worse than a requirement nobody
+**An order whose product matches no RELEASED BOM is REPORTED** (`noBom`), and so is one
+with no quantity (`noQuantity`). A requirement nobody can see is worse than a requirement nobody
 has, because the buyer believes the list is complete.
 
-**A second BOM for one product is not blended in.** Two BOMs for one product name is a
-revision the studio has not retired; adding both would double every requirement, which is
-the one arithmetic error a buyer cannot spot by looking at the answer. The first wins.
+**Only a Released bill is planned from** (`isPlannable`). A Draft is a bill somebody is
+still writing and a Superseded one is last revision's; exploding either orders the wrong
+parts. Until 27/09/2026 the status was ignored, so starting revision 2 as a Draft silently
+moved every open order's demand onto it.
+
+**A second Released BOM for one product is not blended in.** Two Released bills for one
+product name is a revision the studio has not superseded; adding both would double every
+requirement, which is the one arithmetic error a buyer cannot spot by looking at the
+answer. **The NEWEST Released bill wins**: the engine lists records newest first, and the
+first eligible bill in that order is taken. (This said "the first wins", which read as the
+oldest and was the newest.)
+
+**"Open" means the register's status, and it reaches the arithmetic now.** A work order
+counts unless it is Completed or Cancelled (`isOpen`). Until 27/09/2026 the planner
+flattened each engine record to its id and values and dropped the status — a column of the
+record, not a value — so every order counted, closed ones included. `flatRecord` keeps it,
+and `tests/mrp-model.mjs` pins that.
 
 ### The arithmetic, and what it refuses to say
 
@@ -53,14 +76,23 @@ different facts, and a signed number makes a buyer read one as the other at a gl
 
 **On-order counts**, which is what stops this ordering the same thing twice: a purchase
 order placed yesterday for exactly this shortage would otherwise be invisible, and MRP run
-daily would raise a fresh requisition every morning until the goods turned up. Only the
-outstanding part of a line counts — a line already received IS the stock, and netting it in
-both places would cover every requirement twice.
+daily would raise a fresh requisition every morning until the goods turned up. What counts
+is the outstanding part (`qty − received`) of each line on every purchase order that is
+not **Draft** or **Cancelled** — Ordered, Partly received and Received alike, though a
+Received order has nothing outstanding by construction. A line already received IS the
+stock, and netting it in both places would cover every requirement twice. The purchase
+orders are read whole, whatever project they were placed for: on-order is not narrowed to
+what was bought for manufacturing.
 
 **An unrated station says null, not zero.** A station nobody has rated is not one with
 infinite capacity and not one with none; "we do not know how long this takes" is a third
 answer, and dividing by nought to avoid saying it would print Infinity on a shop-floor
 screen. `over` is false there for the same reason.
+
+**A station's status counts.** A **Retired** station is not a lane, and orders naming it
+are reported with the unstationed ones — work with nowhere to happen. A **Down** station
+keeps its lane with `down: true`, `days` null, and `over` true as soon as any open order
+names it. Both used to count as available capacity.
 
 **An order sent to a station that does not exist is reported; an order with NO station is
 not.** The second has not been planned yet, which is a different problem from being pointed

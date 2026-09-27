@@ -21,6 +21,48 @@ type Strings = CommonStrings & {
   joinAnd: (parts: string[]) => string;
   mInUse: (what: string) => string;
   mInsufficient: (have: string, needed: string) => string;
+  // REFUSALS THE SCREEN USED TO CALL "That didn't save." — each names what to fix.
+  mForbidden: string;
+  mItem: string;
+  mQty: string;
+  mClosed: string;
+  mNotFound: string;
+  mAlreadyDecided: string;
+  mInProgress: string;
+  mMissing: string;
+  /** `read-only` on the Logistics shipments screen — it is not part of Inventory. */
+  mReadOnlyLogistics: string;
+  adjustTitle: (name: string) => string;
+  adjustDescription: (onHand: string, unit: string) => string;
+  serialsTitle: (name: string) => string;
+  moreSerials: (n: number) => string;
+  serialMismatchTitle: (serials: number, onHand: string) => string;
+  serialsRecorded: (n: number, onHand: string, unit: string) => string;
+  serialsReserved: (n: number) => string;
+  removeSerial: (serial: string) => string;
+  imageMax: string;
+  /** Said where an item has been deleted since a movement or bin named it. */
+  removedItem: string;
+  /**
+   * A MOVEMENT'S REASON AS THE READER SHOULD SEE IT. The ledger stores the
+   * reasons the product writes (`Put away`, `Issued to WO-0004`…) in English,
+   * and a stored row is never rewritten, so they are matched here and said in
+   * the reader's language. Anything else is what somebody typed, and typed
+   * text is never translated.
+   */
+  movementReason: (reason: string) => string;
+  awbValid: (formatted: string) => string;
+  awbPrefixUnknown: (prefix: string) => string;
+  awbPrefix: (prefix: string) => string;
+  consignmentOf: (pieces: number, weight: string) => string;
+  weightKg: (weight: string) => string;
+  nowIfBlank: string;
+  projectFallback: string;
+  iataHint: string;
+  trackTokens: string;
+  /** A milestone's name and description, by IATA code — the stored token is the code. */
+  awbStatusName: Record<string, string>;
+  awbStatusDesc: Record<string, string>;
   mOverReceive: (remaining: string) => string;
   mShort: (detail: string) => string;
   mShortNeedHave: (needed: string, have: string) => string;
@@ -300,6 +342,40 @@ const en: Strings = {
   joinAnd: (parts) => parts.join(" and "),
   mInUse: (what) => `Still referenced by ${what} — that history can't be erased.`,
   mInsufficient: (have, needed) => `Not enough stock — you have ${have} and asked for ${needed}.`,
+  mForbidden: "You do not have the right to do that.",
+  mItem: "That item no longer exists — refresh and choose it again.",
+  mQty: "Enter a quantity other than nought.",
+  mClosed: "That work order is closed, so parts can no longer be issued to or returned from it.",
+  mNotFound: "That record no longer exists — somebody may have removed it.",
+  mAlreadyDecided: "That has already been decided.",
+  mInProgress: "Somebody else is moving this item's stock right now. Try again in a moment.",
+  mMissing: "Something the request needs is missing — refresh and try again.",
+  mReadOnlyLogistics: "You have view-only access to shipments.",
+  adjustTitle: (name) => `Adjust stock — ${name}`,
+  adjustDescription: (onHand, unit) => `On hand: ${onHand} ${unit}. A positive number adds, a negative one removes.`,
+  serialsTitle: (name) => `Serial numbers — ${name}`,
+  moreSerials: (n) => `+${n} more`,
+  serialMismatchTitle: (serials, onHand) => `${serials} serials recorded against ${onHand} on hand`,
+  serialsRecorded: (n, onHand, unit) => `${n} recorded against ${onHand} ${unit} on hand`,
+  serialsReserved: (n) => `${n} reserved`,
+  removeSerial: (serial) => `Remove ${serial}`,
+  imageMax: "(500 KB max)",
+  removedItem: "(removed item)",
+  movementReason: (reason) => reason,
+  awbValid: (formatted) => `Valid — ${formatted}`,
+  awbPrefixUnknown: (prefix) => `prefix ${prefix} is not in the registry yet`,
+  awbPrefix: (prefix) => `Prefix ${prefix}`,
+  consignmentOf: (pieces, weight) => `${pieces} pcs${weight ? ` · ${weight} kg` : ""}`,
+  weightKg: (weight) => `${weight} kg`,
+  nowIfBlank: "(now if blank)",
+  projectFallback: "project",
+  iataHint: "2-letter airline code",
+  trackTokens: "(tokens {AWB} {PREFIX} {SERIAL})",
+  // EMPTY IN ENGLISH ON PURPOSE: the English names live on the milestone model
+  // (modules/inventory/awbStatus) and the screen falls back to them, so they
+  // are written once.
+  awbStatusName: {},
+  awbStatusDesc: {},
   mOverReceive: (remaining) => `That's more than the order still expects (${remaining} outstanding).`,
   mShort: (detail) => `Not enough stock: ${detail}.`,
   mShortNeedHave: (needed, have) => `need ${needed}, have ${have}`,
@@ -574,6 +650,26 @@ Here is my vendor list:`,
   dashNoStock: "No items registered yet.",
 };
 
+// THE REASONS THE PRODUCT ITSELF WRITES onto a stock movement, word for word
+// (inventory.ts, binService.ts, sales/pos.ts). Stored in English and never
+// rewritten; matched here so an Arabic reader sees Arabic.
+const AR_REASONS: Record<string, string> = {
+  "Manual adjustment": "تسوية يدوية",
+  "Approved adjustment": "تسوية معتمدة",
+  "Put away": "وضع في موقع فرعي",
+  "Moved between bins": "نقل بين المواقع الفرعية",
+};
+// Each carries a reference (a number somebody quotes), which is data and
+// stays as it was written.
+const AR_REASON_PATTERNS: [RegExp, (ref: string) => string][] = [
+  [/^Issued to (.+)$/, (ref) => `صرف الى ${ref}`],
+  [/^Returned from (.+)$/, (ref) => `ارجاع من ${ref}`],
+  [/^Issued on (.+)$/, (ref) => `صرف بموجب ${ref}`],
+  [/^Received on (.+)$/, (ref) => `استلام بموجب ${ref}`],
+  [/^Correction to (.+)$/, (ref) => `تصحيح على ${ref}`],
+  [/^POS (.+)$/, (ref) => `نقطة البيع ${ref}`],
+];
+
 const ar: Strings = {
   ...commonAr,
   countDeliveries: (n) => `${n === 1 ? "تسليم واحد" : n === 2 ? "تسليمان" : n <= 10 ? `${n} تسليمات` : `${n} تسليما`}`,
@@ -589,6 +685,67 @@ const ar: Strings = {
   joinAnd: (parts) => parts.join(" و"),
   mInUse: (what) => `لا يزال مشارا إليه من ${what} — لا يمكن محو ذلك السجل.`,
   mInsufficient: (have, needed) => `المخزون غير كاف — لديك ${have} وطلبت ${needed}.`,
+  mForbidden: "ليست لديك صلاحية القيام بذلك.",
+  mItem: "هذا الصنف لم يعد موجودا — حدث الصفحة واختره مجددا.",
+  mQty: "أدخل كمية غير الصفر.",
+  mClosed: "أمر العمل هذا مغلق، فلا يمكن صرف قطع له أو ارجاعها منه.",
+  mNotFound: "هذا السجل لم يعد موجودا — ربما حذفه أحدهم.",
+  mAlreadyDecided: "تم البت في هذا مسبقا.",
+  mInProgress: "شخص آخر يحرك مخزون هذا الصنف الآن. حاول مجددا بعد لحظة.",
+  mMissing: "ينقص الطلب شيء يحتاجه — حدث الصفحة وحاول مجددا.",
+  mReadOnlyLogistics: "لديك صلاحية عرض فقط على الشحنات.",
+  adjustTitle: (name) => `تسوية المخزون — ${name}`,
+  adjustDescription: (onHand, unit) => `المتوفر: ${onHand} ${unit}. الرقم الموجب يضيف والسالب ينقص.`,
+  serialsTitle: (name) => `الأرقام التسلسلية — ${name}`,
+  moreSerials: (n) => `+${n} أخرى`,
+  serialMismatchTitle: (serials, onHand) => `${serials} رقما تسلسليا مسجلا مقابل ${onHand} متوفر`,
+  serialsRecorded: (n, onHand, unit) => `${n} مسجل مقابل ${onHand} ${unit} متوفر`,
+  serialsReserved: (n) => `${n} محجوز`,
+  removeSerial: (serial) => `ازالة ${serial}`,
+  imageMax: "(500 كيلوبايت كحد أقصى)",
+  removedItem: "(صنف محذوف)",
+  movementReason: (reason) => {
+    const text = String(reason || "");
+    const fixed = AR_REASONS[text];
+    if (fixed) return fixed;
+    for (const [pattern, say] of AR_REASON_PATTERNS) {
+      const m = pattern.exec(text);
+      if (m) return say(m[1]);
+    }
+    return text;
+  },
+  awbValid: (formatted) => `صالح — ${formatted}`,
+  awbPrefixUnknown: (prefix) => `البادئة ${prefix} ليست في السجل بعد`,
+  awbPrefix: (prefix) => `البادئة ${prefix}`,
+  consignmentOf: (pieces, weight) => `${pieces} قطعة${weight ? ` · ${weight} كغ` : ""}`,
+  weightKg: (weight) => `${weight} كغ`,
+  nowIfBlank: "(الآن اذا ترك فارغا)",
+  projectFallback: "مشروع",
+  iataHint: "رمز شركة الطيران من حرفين",
+  trackTokens: "(الرموز {AWB} {PREFIX} {SERIAL})",
+  awbStatusName: {
+    FOH: "البضاعة في العهدة", RCS: "استلمت من الشاحن", BKD: "محجوزة", MAN: "مدرجة في البيان",
+    DEP: "أقلعت", ARR: "وصلت", RCF: "استلمت من الرحلة", TRM: "بانتظار التحويل", TFD: "حولت",
+    NFD: "تم الاشعار", AWD: "سلمت مستندات الوصول", CCD: "تخليص جمركي", DLV: "سلمت",
+    DIS: "تعارض", MSCA: "نقص / مفقود",
+  },
+  awbStatusDesc: {
+    FOH: "استلم المناول البضاعة في بلد المنشأ.",
+    RCS: "قبل الناقل البضاعة وهي جاهزة للنقل.",
+    BKD: "تأكدت المساحة على رحلة.",
+    MAN: "أضيفت الى بيان شحن رحلة.",
+    DEP: "أقلعت الرحلة من المحطة.",
+    ARR: "وصلت الرحلة الى محطة.",
+    RCF: "أنزلت واستلمت في محطة العبور أو الوصول.",
+    TRM: "بانتظار التحويل الى شريك جوي أو بري.",
+    TFD: "سلمت الى شريك جوي أو نقل بري.",
+    NFD: "أشعر المستلم أو المخلص — جاهزة للاستلام.",
+    AWD: "سلمت مستندات الوصول.",
+    CCD: "أفرجت عنها الجمارك.",
+    DLV: "استلمها المستلم أو سلمت اليه.",
+    DIS: "استثناء — رفض أو مشكلة مبلغ عنها.",
+    MSCA: "استثناء — قطع مفقودة عند المسح.",
+  },
   mOverReceive: (remaining) => `هذا أكثر مما لا يزال الطلب يتوقعه (${remaining} متبقية).`,
   mShort: (detail) => `المخزون غير كاف: ${detail}.`,
   mShortNeedHave: (needed, have) => `المطلوب ${needed}، والمتوفر ${have}`,

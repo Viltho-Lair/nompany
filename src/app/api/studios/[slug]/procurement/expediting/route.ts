@@ -1,6 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { procurementContext } from "@/modules/procurement/requisitions";
 import { listExpediting, recordChase } from "@/modules/procurement/chase";
+import { soonDaysFrom } from "@/modules/procurement/expediting";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,10 +14,9 @@ const spec = {
 export const GET = route({ ...spec, body: false }, async (procurement) => {
   // HOW FAR AHEAD "DUE SOON" REACHES, from the query rather than hard-coded, so
   // a studio working to a fortnight can widen it — and the arithmetic still
-  // happens once, on the server, rather than a second copy appearing in the
-  // browser. Clamped because it arrives from a URL.
-  const raw = Number(new URL(procurement.request.url).searchParams.get("soon"));
-  const soonDays = Number.isFinite(raw) ? Math.max(1, Math.min(90, raw)) : 7;
+  // happens once, on the server. `soonDaysFrom` clamps it and says why an
+  // absent value must be asked about BEFORE it is converted.
+  const soonDays = soonDaysFrom(new URL(procurement.request.url).searchParams.get("soon"));
 
   const result = await listExpediting(procurement, soonDays);
   if (refused(result)) return result;

@@ -45,6 +45,25 @@ export function cleanLayouts(stored: unknown): DocumentLayouts {
 export const layoutIdFor = (stored: unknown, kind: DocumentKind, language: LayoutLanguage) =>
   cleanLayouts(stored)[kind]?.[language] || "";
 
+/**
+ * EVERY SLOT THIS DOCUMENT FILLS — the types and languages the studio prints
+ * through it. Asked before a layout is withdrawn or deleted: either one leaves
+ * the slot naming a document nothing can print from, and printing then answers
+ * "not issued" for every quotation or invoice until somebody notices. So the
+ * register refuses and says to choose another layout first.
+ */
+export function layoutSlotsFor(stored: unknown, documentId: string) {
+  const slots: { kind: DocumentKind; language: LayoutLanguage }[] = [];
+  if (!documentId) return slots;
+  const clean = cleanLayouts(stored);
+  for (const kind of DOCUMENT_KINDS) {
+    for (const language of LAYOUT_LANGUAGES) {
+      if (clean[kind]?.[language] === documentId) slots.push({ kind, language });
+    }
+  }
+  return slots;
+}
+
 /** The setting with one slot set — or cleared, when `id` is empty. */
 export function withLayout(stored: unknown, kind: DocumentKind, language: LayoutLanguage, id: string): DocumentLayouts {
   const next = cleanLayouts(stored);

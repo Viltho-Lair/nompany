@@ -10,6 +10,11 @@
 // missing the end date is NULL: the clock has not started, which is not the
 // same as having run out, and defaulting to today-plus-a-year would invent a
 // date nobody agreed.
+//
+// AND, READ AS SOURCE rather than run, that the doors actually use it: the list's
+// Support tag, Edit details, the settings write and the opening claim. Each of
+// those was a real defect (27/09/2026) that a pure test of the model alone could
+// not see, because the model was right and nothing was calling it.
 
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -135,6 +140,89 @@ ok("a fractional one is refused", M.closureProblem({}, { supportPeriodDays: 1.5 
 ok("...and an absurd one", M.closureProblem({}, { supportPeriodDays: 99999 }) === "warranty-range");
 ok("a year is fine", M.closureProblem({}, { supportPeriodDays: 365 }) === null);
 ok("nought days is fine", M.closureProblem({}, { supportPeriodDays: 0 }) === null);
+// `num` read "abc" as nought, so a typo recorded a job as carrying no support.
+ok("something that is not a number is refused, not read as nought",
+  M.closureProblem({}, { supportPeriodDays: "abc" }) === "warranty-fraction");
+
+console.log("\n== one rule for a support period, at every door ==\n");
+
+// Edit details, the create path and the studio default used `nonNeg`, which
+// let 1.5 and 99999 through — and the closing-out tab then refused the next
+// save of its dates over a number nobody had typed there.
+ok("a fraction is refused by the shared rule", M.supportPeriodProblem(1.5) === "warranty-fraction");
+ok("...and a century", M.supportPeriodProblem(36500) === "warranty-range");
+ok("...and a negative", M.supportPeriodProblem(-3) === "warranty-negative");
+ok("...and a blank, which is not a nought", M.supportPeriodProblem("") === "warranty-fraction");
+ok("a whole number typed as text is fine", M.supportPeriodProblem("730") === null);
+ok("ten years exactly is fine", M.supportPeriodProblem(3650) === null);
+
+console.log("\n== the list's Support tag reads the same clock as the tab ==\n");
+
+// THE DEFECT: `supportStatus` (projects/sla) counted from the END date and
+// turned 0 into 365, while this model counts from HANDOVER and reads 0 as "no
+// support". A project that ended last month, carries a deliberate nought and was
+// handed over was "Support: 335d left" on the list and "no support period" on
+// its own tab.
+const tagOf = (p) => M.supportTag(M.closurePosition(p, [], "p1", TODAY));
+ok("a deliberate nought is NO SUPPORT, never a year",
+  tagOf({ endDate: "2031-05-15", handoverAt: "2031-05-15", supportPeriodDays: 0 }) === "none");
+ok("an end date alone does not start the clock — handover does",
+  tagOf({ endDate: "2031-05-15", supportPeriodDays: 365 }) === "not-started");
+ok("running from handover",
+  tagOf({ handoverAt: "2031-06-01", supportPeriodDays: 365 }) === "running");
+ok("...including inside the warning window, which is still support",
+  tagOf({ handoverAt: "2030-07-01", supportPeriodDays: 365 }) === "running");
+ok("ended once the period from handover has passed",
+  tagOf({ handoverAt: "2029-01-01", supportPeriodDays: 365 }) === "ended");
+
+// AND THE SCREENS ACTUALLY READ IT. A pure function nobody calls is exactly how
+// the second calculation survived, so the wiring is asserted from the source.
+import { readFileSync } from "node:fs";
+const src = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+const screen = src("src/components/studio2/StudioProjects.js");
+const sla = src("src/modules/projects/sla.ts");
+ok("the project list's tag reads closurePosition",
+  /closurePosition/.test(screen) && /supportTag\(/.test(screen));
+ok("...and the second calculation is gone",
+  !/export function supportStatus/.test(sla) && !/from "@\/modules\/projects\/sla"/.test(screen));
+
+console.log("\n== a closed project is closed everywhere ==\n");
+
+// Edit details wrote straight past the closure: dates, manager and support
+// period could all be rewritten on a closed job.
+const projects = src("src/modules/projects/projects.ts");
+const update = projects.slice(projects.indexOf("export async function updateProject"),
+  projects.indexOf("export async function removeProject"));
+ok("updateProject refuses a closed project",
+  /if \(current\.closedAt\) return \{ error: "closed" \}/.test(update));
+ok("...and asks again inside the row's own compare-and-set (invariant 8)",
+  /Projects\.update\(\{[^}]*\}, id, \(row\) =>/.test(update) && /row\.closedAt/.test(update));
+ok("...and holds the support period to the tab's rule, not nonNeg",
+  /supportPeriodProblem\(body\.supportPeriodDays\)/.test(update) && !/nonNeg\(body\.supportPeriodDays/.test(update));
+
+console.log("\n== settings merge into the live row, and weights are gone ==\n");
+
+const settings = projects.slice(projects.indexOf("export async function saveProjectsSettings"),
+  projects.indexOf("export function readProjectsSettings"));
+// The whole object was rebuilt from the copy the request read and written as a
+// plain patch, so two people saving two settings at once lost one.
+ok("saveProjectsSettings writes a FUNCTION patch over the live settings",
+  /updateSection\(studio\.id, settingsSection\.id, \(live\) =>/.test(settings));
+ok("requirement weights are no longer written — nothing read them",
+  !/requirementWeights/.test(settings));
+
+console.log("\n== one project per tender, under contention ==\n");
+
+// Two handovers landing together both read "no project yet" and both created.
+const open = projects.slice(projects.indexOf("export async function openProject"),
+  projects.indexOf("const OPENING_HOLD_SECONDS"));
+const claimAt = open.indexOf("await claim(opening");
+ok("openProject claims the source before any head runs its check",
+  claimAt > 0 && claimAt < open.indexOf("await tenderSource(") && claimAt < open.indexOf("await quotationSource("));
+ok("...keyed by the tender through keys.ts, never a literal (invariant 1)",
+  /PROJECT\.opening\(studio\.id, `tender:\$\{tenderId\}`\)/.test(open));
+ok("...and releases it once the row exists, in a finally",
+  /finally \{[^}]*release\(opening\)/.test(open));
 
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);

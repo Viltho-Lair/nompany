@@ -12,7 +12,7 @@ import { pathToFileURL } from "node:url";
 register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
 
 const {
-  valueItem, valueStock, VALUATION_METHODS, isValuationMethod, DEFAULT_METHOD,
+  valueItem, valueStock, VALUATION_METHODS, isValuationMethod, DEFAULT_METHOD, costLedger,
 } = await import("../src/modules/inventory/valuation.ts");
 
 let fails = 0;
@@ -112,6 +112,62 @@ ok("the method travels with the answer", all.method === "average");
 
 ok("no movements is an empty valuation, not a throw",
   valueStock([], "fifo").total === 0 && valueStock([], "fifo").items.length === 0);
+
+console.log("\n== a move between bins or batches changes where, never what it is worth");
+// THE DEFECT: a put-away is a -q/+q pair of `adjust` rows. The -q half consumed
+// FIFO or average cost and the +q half came back in at the item's CURRENT
+// price-list cost, so every put-away silently replaced order and landed cost.
+{
+  const ledger = [
+    { itemId: "i1", kind: "in", qty: 10, sourceType: "order", sourceId: "po1", at: "2026-01-01" },
+    { itemId: "i1", kind: "adjust", qty: -10, sourceType: "bin-move", sourceId: "b1", at: "2026-02-01" },
+    { itemId: "i1", kind: "adjust", qty: 10, sourceType: "bin-move", sourceId: "", at: "2026-02-01" },
+  ];
+  const lookups = { orderCost: () => 100, itemCost: () => 150 };
+  for (const method of ["fifo", "average"]) {
+    const v = valueItem(costLedger(ledger, lookups), method);
+    ok(`a put-away keeps the order cost (${method})`, v.qty === 10 && v.value === 1000, JSON.stringify(v));
+  }
+  // FIFO ORDER SURVIVES A MOVE: the oldest layer is still the one an issue eats.
+  const layered = [
+    { itemId: "i1", kind: "in", qty: 5, sourceType: "order", sourceId: "cheap", at: "2026-01-01" },
+    { itemId: "i1", kind: "in", qty: 5, sourceType: "order", sourceId: "dear", at: "2026-01-02" },
+    { itemId: "i1", kind: "adjust", qty: -5, sourceType: "batch-move", at: "2026-01-03" },
+    { itemId: "i1", kind: "adjust", qty: 5, sourceType: "batch-move", at: "2026-01-03" },
+    { itemId: "i1", kind: "out", qty: 5, at: "2026-01-04" },
+  ];
+  const cost = { orderCost: (o) => (o === "cheap" ? 100 : 200), itemCost: () => 999 };
+  const fifo = valueItem(costLedger(layered, cost), "fifo");
+  ok("a batch move does not send the oldest layer to the back of the FIFO queue",
+    fifo.qty === 5 && fifo.value === 1000, JSON.stringify(fifo));
+  // A HALF-WRITTEN MOVE (the out landed, the in did not) still takes the units
+  // out, because the ledger says they are gone.
+  const half = valueItem(costLedger(ledger.slice(0, 2), lookups), "average");
+  ok("a move whose second half never landed still takes the units out", half.qty === 0, JSON.stringify(half));
+  ok("both halves of the pair are marked as a transfer",
+    costLedger(ledger, lookups).filter((m) => m.transfer).length === 2);
+}
+
+console.log("\n== a work-order return is valued at what the order was charged");
+// THE DEFECT: a return stores the unitCost the order was charged, and valuation
+// ignored it for the item's price TODAY.
+{
+  const ledger = [
+    { itemId: "i1", kind: "in", qty: 4, sourceType: "order", sourceId: "po1", at: "2026-01-01" },
+    { itemId: "i1", kind: "out", qty: 2, sourceType: "workorder", sourceId: "wo1", unitCost: 50, at: "2026-01-02" },
+    { itemId: "i1", kind: "in", qty: 2, sourceType: "workorder", sourceId: "wo1", unitCost: 50, at: "2026-01-03" },
+  ];
+  const costed = costLedger(ledger, { orderCost: () => 50, itemCost: () => 80 });
+  ok("the return carries its stored cost, not today's price", costed[2].unitCost === 50, String(costed[2].unitCost));
+  ok("...so the shelf is worth what it cost", valueItem(costed, "average").value === 200);
+  ok("an adjustment with no stored cost still falls back to the item",
+    costLedger([{ itemId: "i1", kind: "adjust", qty: 3 }], { orderCost: () => undefined, itemCost: () => 7 })[0].unitCost === 7);
+  ok("an order receipt still prefers the order over a stored cost",
+    costLedger([{ itemId: "i1", kind: "in", qty: 1, sourceType: "order", sourceId: "p", unitCost: 1 }],
+      { orderCost: () => 9, itemCost: () => 7 })[0].unitCost === 9);
+  ok("an out is signed negative",
+    costLedger([{ itemId: "i1", kind: "out", qty: 3 }], { orderCost: () => 0, itemCost: () => 0 })[0].qty === -3);
+}
 
 console.log(fails ? `\nvaluation model: ${fails} FAILURES\n` : "\nvaluation model: all passed\n");
 // exitCode, not exit(): exiting while the alias loader's thread is live crashes Node on Windows.

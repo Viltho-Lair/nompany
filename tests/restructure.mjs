@@ -208,9 +208,6 @@ const KNOWN_COLLISIONS = {
   // spelled exactly like a retired SECTION key — so each needed an exemption
   // here saying "not that sales", and the next such screen needed another. The
   // kind is `ticketStage` now (StatusPill.jsx), which collides with nothing.
-  "src/components/studio2/QualityWorkflow.js": [
-    { value: "quality", reason: "StatusPill.jsx's STATUS_TONES record-kind key for revision-state colours" },
-  ],
   // THE MARKETING SITE'S ENQUIRY MAILBOX, which is a WHO-to-email and not a
   // section: mailboxFor() answers "sales" or "support", the contact route picks
   // CONTACT.sales or CONTACT.support from it, and the view prints the address it

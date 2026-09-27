@@ -87,9 +87,24 @@ const amountOf = (ctx: Pick<TenderingContext, "studio">, tender: Tender, value: 
  * IS THIS APPROVAL FOR THE BID AS IT STANDS? Its frozen amount against the value
  * now, to the currency's own minor unit. A bill repriced after its approval was
  * asked for is a different promise.
+ *
+ * AND IN THE SAME CURRENCY. This compared the digits alone, so a tender whose
+ * currency was changed after its yes — `editTender` accepts `currency` from any
+ * API caller, though the screen never sends it — kept an approval given for
+ * 100,000 dirhams as cover for 100,000 dollars. Compared here rather than by
+ * refusing the edit once an approval exists, because this is the ONE place
+ * every reader of "is it approved" already passes through (the screen's stale
+ * flag, the submit gate), and it treats a re-denominated bid exactly as a
+ * repriced one: the old yes goes stale and the bid is asked about again. A
+ * refusal in `editTender` would cost an approvals read on every tender edit and
+ * still leave this comparison wrong for anything written before it.
  */
-function coversValue(approval: Pick<Approval, "amount"> | null | undefined, value: BidValue, currency: unknown) {
+export function coversValue(approval: Pick<Approval, "amount"> | null | undefined, value: BidValue, currency: unknown) {
   if (!approval?.amount) return false;
+  // SPELT AS THE APPROVAL STORES IT: `approvalAmount` trims and upper-cases the
+  // code, so a tender typed "aed" is the same currency as the "AED" it filed.
+  const code = (c: unknown) => String(c ?? "").trim().toUpperCase();
+  if (code(approval.amount.currency) !== code(currency)) return false;
   return roundMoney(approval.amount.value, currency) === roundMoney(value.amount, currency);
 }
 

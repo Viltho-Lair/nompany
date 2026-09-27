@@ -9,6 +9,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { microLabel, Dialog, fmtDate, fmtWeekday } from "@/components/studio2/ui";
 import LocationsPanel from "@/components/studio2/LocationsPanel";
 import PermitsPanel from "@/components/studio2/PermitsPanel";
+import { operationsRefusal } from "@/components/studio2/operationsRefusal";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -116,7 +117,7 @@ export default function StudioOperations({ slug, view = "field-service", initial
     const res = await fetch(`/api/studios/${slug}/${endpoint}`, { cache: "no-store" });
     if (!res.ok) { setError(tr.accessOperationsStudio); return; }
     setData(await res.json());
-  }, [slug, endpoint]);
+  }, [slug, endpoint, tr]);
   useReload(load, initial);
   // Shifts and permits change from more than one desk — stay current.
   useLiveUpdates(slug, "field-service", load);
@@ -138,16 +139,22 @@ export default function StudioOperations({ slug, view = "field-service", initial
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(message(out, tr)); return false; }
+    if (!res.ok) {
+      setError(operationsRefusal(out, tr));
+      // A ROW SOMEBODY ELSE MOVED OR REMOVED leaves this screen drawing buttons
+      // for a state that no longer exists; reload so it draws the real one.
+      if (["transition", "already", "notfound", "closed"].includes(out.error)) await load();
+      return false;
+    }
     await load();
     return true;
-  }, [slug, load]);
+  }, [slug, tr, load]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingOperations} />;
 
   const {
-    canManage: canManageParent, canManageTracking, canManageSettings, canManagePlaces,
+    canManage: canManageParent, canManageTracking, canManageSettings,
     locations, permits, shifts, projects, people, window, positions, settings, summary, vocabulary, nav, me,
   } = data;
   // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
@@ -198,10 +205,14 @@ export default function StudioOperations({ slug, view = "field-service", initial
 
   // THE SCHEDULE SCREEN — the rota, and now Permits and Locations too, which moved
   // here off the Operations landing. All three are peers, reached from the bottom
-  // bar and flipping in place. The rota answers to the schedule grant; Permits and
-  // Locations to whether the caller may manage the operations root, which their
-  // write routes enforce — `canManagePlaces`, computed on the server so the button
-  // and the route can never disagree.
+  // bar and flipping in place. The rota answers to the schedule grant. Permits
+  // answer to `permitRights` — BOTH halves of what a permit write asks: managing
+  // the Field Service root (the route's guard) AND the permit right itself
+  // (`qualityHse.permits.*`, asked by each service through `permitDenied`). This
+  // comment used to say `canManagePlaces` meant "the button and the route can
+  // never disagree"; it asked only the first half, so they did — Add and Issue
+  // were drawn for people every service then refused. Locations answer to Master
+  // data's own rights (below).
   if (view === "field-service-schedule") {
     return (
       <div className="space-y-6 pb-20">
@@ -214,12 +225,12 @@ export default function StudioOperations({ slug, view = "field-service", initial
           // payload does not carry — the rota and the job list are different
           // collections under the same section — and it is read-only, so it
           // needs none of the `send` machinery around it.
-          <DispatchPanel slug={slug} locale={locale} />
+          <DispatchPanel slug={slug} />
         ) : sub === "field" ? (
           // THE OTHER END OF THE SAME JOBS: a dispatcher looks at everybody
           // on one day, a technician at themselves across the days that are
           // still open. Same collection, opposite question.
-          <FieldViewPanel slug={slug} locale={locale} />
+          <FieldViewPanel slug={slug} />
         ) : sub === "permits" ? (
           // PERMITS MOVED TO QUALITY & HSE (tier 5). Where the studio has that
           // register and this reader may open it, this tab says so and links
@@ -232,7 +243,7 @@ export default function StudioOperations({ slug, view = "field-service", initial
             </div>
           ) : (
             <PermitsPanel rows={permits} locations={locations} people={people} projects={projects} types={vocabulary.permitTypes}
-              windowDays={vocabulary.expiryWindowDays} slug={slug} nav={nav} canManage={canManagePlaces} busy={busy} send={send} />
+              windowDays={vocabulary.expiryWindowDays} slug={slug} nav={nav} rights={data.permitRights} busy={busy} send={send} />
           )
         ) : (
           // NOT `canManagePlaces`. That asked whether the caller may manage the
@@ -276,23 +287,8 @@ function OperationsBottomBar({ active, onTab }) {
   return <PanelBar items={items.map(([key, label]) => ({ key, label }))} active={active} onSelect={onTab} />;
 }
 
-// THE DICTIONARY COMES IN AS AN ARGUMENT — module scope, see StudioFinance.
-function message(out, tr) {
-  if (out.error === "read-only") return tr.mReadOnly;
-  if (out.error === "duplicate") return tr.mDuplicate;
-  if (out.error === "clash") return tr.mClash(out.startTime, out.endTime);
-  if (out.error === "on-leave") return tr.mOnLeave(String(out.type || "").toLowerCase(), fmt(out.from), fmt(out.to));
-  if (out.error === "in-use") {
-    const bits = [];
-    if (out.permits) bits.push(tr.countPermits(out.permits));
-    if (out.shifts) bits.push(tr.countShifts(out.shifts));
-    return tr.mInUse(tr.joinAnd(bits));
-  }
-  if (out.error === "range") return tr.mRange;
-  if (out.error === "time") return tr.mTime;
-  if (out.error === "person") return tr.mPerson;
-  return tr.mDidntSave;
-}
+// REFUSALS ARE WORDED BY operationsRefusal.js, shared with Quality & HSE's
+// Permits screen — the same services, the same tokens, one set of words.
 
 // ---- schedule --------------------------------------------------------------
 // Two readings of the same rota: the CALENDAR, which answers "who is where at
@@ -374,7 +370,7 @@ function Schedule({ shifts, people, locations, window, settings, canManage, busy
                         </span>
                         {canManage && (
                           <button className="text-xs text-rose-600 hover:underline dark:text-rose-400"
-                            disabled={busy} onClick={() => send("schedule/shifts", "DELETE", { id: s.id })}>remove</button>
+                            disabled={busy} onClick={() => send("schedule/shifts", "DELETE", { id: s.id })}>{tr.remove}</button>
                         )}
                       </li>
                     ))}

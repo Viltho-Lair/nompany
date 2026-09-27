@@ -156,6 +156,8 @@ export type StoredDocument = {
   title?: string;
   content?: string;
   state?: string;
+  /** Whether the register may offer to delete it — only a never-issued document that is no chosen layout. */
+  deletable?: boolean;
   /** What this document is a layout FOR — "quotation", "invoice", or nothing. */
   subjectType?: string;
   updatedAt?: string;

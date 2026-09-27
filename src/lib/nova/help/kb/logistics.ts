@@ -31,8 +31,9 @@ import type { HelpModule } from "../types";
 //
 // THE TRAPS PARTICULAR TO THIS DEPARTMENT:
 //   - Shipments is `logistics-shipments`, but its screen is StudioInventory.js
-//     and its words are Inventory's dictionary (`shared/studio/inventory.ts`) —
-//     including a view-only refusal that still says "this part of Inventory".
+//     and its words are Inventory's dictionary (`shared/studio/inventory.ts`).
+//     Its view-only refusal said "this part of Inventory" until 27/09/2026;
+//     it names shipments now (`mReadOnlyLogistics`), and the entry keeps its id.
 //   - Landed cost is not a section: it is a panel on the Logistics ROOT page
 //     (LandedCostPanel.js), filed under `logistics`, reading purchase orders
 //     where they are filed (`inventory-sheets`). PURCHASE ORDERS STAY UNDER
@@ -167,8 +168,8 @@ export const logistics: HelpModule = {
       id: "logistics.rights", topic: "dept.logistics", kind: "about", open: "administration-access",
       q: { en: "Who can see and do what in Logistics & Fleet?", ar: "من يستطيع رؤية ماذا وفعل ماذا في الخدمات اللوجستية والأسطول؟" },
       a: {
-        en: "Rights are given through roles on the Access screen, where Logistics & Fleet lists Landed cost and Shipments, and each register under its own name: Deliveries and POD, Trips and routing and Fleet register. Landed cost's view opens the panel, its edit records and changes an order's charges, first time included, and its delete clears them; its create is listed but nothing asks for it. Shipments' view opens the screen, create tracks a waybill and adds an airline, edit records milestones and edits an airline, and delete stops tracking and removes an airline. On each register, view opens it, create is New, edit is both Edit and the Move to buttons, and delete removes a record. The Logistics page opens with Landed cost view or with the view right on any of its parts.",
-        ar: "تُمنح الصلاحيات عبر الأدوار في شاشة الصلاحيات، حيث تسرد مجموعة «اللوجستيات» صلاحيتي Landed cost و«تتبع بوالص الشحن»، وكل سجل باسمه: Deliveries and POD وTrips and routing وFleet register. فعرض Landed cost يفتح اللوحة، وتعديلها يسجل رسوم الأمر ويغيرها بما في ذلك أول مرة، وحذفها يمسحها؛ أما الإنشاء فيها فمدرج لكن لا شيء يطلبه. وعرض الشحنات يفتح الشاشة، والإنشاء فيها يتتبع بوليصة ويضيف شركة طيران، والتعديل يسجل المحطات ويعدّل شركة الطيران، والحذف يوقف التتبع ويزيل شركة الطيران. وفي كل سجل، العرض يفتحه، والإنشاء هو «جديد»، والتعديل هو «تعديل» وأزرار «النقل إلى» معًا، والحذف يزيل السجل. وتُفتح صفحة القسم بعرض Landed cost أو بصلاحية العرض على أي جزء منه.",
+        en: "Rights are given through roles on the Access screen, where Logistics & Fleet lists Landed cost and Shipments, and each register under its own name: Deliveries and POD, Trips and routing and Fleet register. Landed cost's view opens the panel, its edit records and changes an order's charges, first time included, and its delete clears them, whether by Clear or by saving an order with every charge removed; its create is listed but nothing asks for it. Shipments' view opens the screen, create tracks a waybill and adds an airline, edit records milestones and edits an airline, and delete stops tracking and removes an airline. On each register, view opens it, create is New, edit is both Edit and the Move to buttons, and delete removes a record. The Logistics page opens with Landed cost view or with the view right on any of its parts.",
+        ar: "تُمنح الصلاحيات عبر الأدوار في شاشة الصلاحيات، حيث تسرد مجموعة «اللوجستيات» صلاحيتي Landed cost و«تتبع بوالص الشحن»، وكل سجل باسمه: Deliveries and POD وTrips and routing وFleet register. فعرض Landed cost يفتح اللوحة، وتعديلها يسجل رسوم الأمر ويغيرها بما في ذلك أول مرة، وحذفها يمسحها، سواء بزر المسح أو بحفظ الأمر بعد إزالة كل رسومه؛ أما الإنشاء فيها فمدرج لكن لا شيء يطلبه. وعرض الشحنات يفتح الشاشة، والإنشاء فيها يتتبع بوليصة ويضيف شركة طيران، والتعديل يسجل المحطات ويعدّل شركة الطيران، والحذف يوقف التتبع ويزيل شركة الطيران. وفي كل سجل، العرض يفتحه، والإنشاء هو «جديد»، والتعديل هو «تعديل» وأزرار «النقل إلى» معًا، والحذف يزيل السجل. وتُفتح صفحة القسم بعرض Landed cost أو بصلاحية العرض على أي جزء منه.",
       },
       keywords: ["logistics rights", "permissions", "access", "who can", "role", "صلاحيات", "الوصول", "من يستطيع", "الدور"],
       related: ["logistics.who-does-what", "logistics.refused-right", "admin.access.grant"],
@@ -571,10 +572,10 @@ export const logistics: HelpModule = {
     },
     {
       id: "logistics-shipments.read-only", topic: "dept.logistics-shipments", kind: "troubleshoot", open: "logistics-shipments",
-      q: { en: "Why does Shipments say I have view-only access to this part of Inventory?", ar: "لماذا تقول الشحنات إن لدي صلاحية عرض فقط على هذا الجزء من المخزون؟" },
+      q: { en: "Why does Shipments say I have view-only access?", ar: "لماذا تقول الشحنات إن لدي صلاحية عرض فقط؟" },
       a: {
-        en: "Shipments was once part of Inventory and still borrows its wording, so this message means you hold no write right on Shipments at all. With only the view right you see the list and timelines but no tracking box, no Record and no Airline registry. Ask an Admin for the Shipments create, edit or delete right, whichever you need.",
-        ar: "كانت الشحنات جزءًا من المخزون وما زالت تستعير عباراته، فهذه الرسالة تعني أنك لا تملك أي صلاحية كتابة على الشحنات. وبصلاحية العرض وحدها ترى القائمة والمسارات الزمنية دون مربع التتبع وزر «تسجيل» وسجل شركات الطيران. اطلب من المسؤول صلاحية الإنشاء أو التعديل أو الحذف في الشحنات، أيها تحتاج.",
+        en: "You have view-only access to shipments means you hold no write right on Shipments at all. (Older screens said this part of Inventory, because Shipments was once part of Inventory; it is the same refusal.) With only the view right you see the list and timelines but no tracking box, no Record and no Airline registry. Ask an Admin for the Shipments create, edit or delete right, whichever you need.",
+        ar: "عبارة «لديك صلاحية عرض فقط على الشحنات» تعني أنك لا تملك أي صلاحية كتابة على الشحنات. (كانت الشاشات الأقدم تقول «هذا الجزء من المخزون» لأن الشحنات كانت جزءًا منه؛ وهو الرفض نفسه.) وبصلاحية العرض وحدها ترى القائمة والمسارات الزمنية دون مربع التتبع وزر «تسجيل» وسجل شركات الطيران. اطلب من المسؤول صلاحية الإنشاء أو التعديل أو الحذف في الشحنات، أيها تحتاج.",
       },
       keywords: ["view only", "read only", "part of Inventory", "cannot track", "عرض فقط", "قراءة فقط", "جزء من المخزون", "لا أستطيع التتبع"],
       related: ["logistics.rights", "logistics.refused-right"],
@@ -756,8 +757,8 @@ export const logistics: HelpModule = {
       id: "logistics.landed-clear", topic: "dept.logistics.landed-cost", kind: "howto", open: "logistics",
       q: { en: "How do I clear all of an order's charges?", ar: "كيف أمسح كل رسوم أمر ما؟" },
       a: {
-        en: "Clear this order's charges removes the order's landed cost record altogether, and the order goes back to Not costed and to the supplier's price in the stock value. It needs the Landed cost delete right, although the button shows for anybody who may edit; without delete it is refused.",
-        ar: "يزيل زر «امسح رسوم هذا الأمر» سجل التكلفة حتى الوصول للأمر كليًّا، فيعود الأمر «غير مكلف» ويعود المخزون إلى سعر المورد في تقويمه. ويحتاج إلى صلاحية حذف Landed cost، مع أن الزر يظهر لكل من يملك التعديل؛ ومن دون الحذف يُرفض.",
+        en: "Clear this order's charges removes the order's landed cost record altogether, and the order goes back to Not costed and to the supplier's price in the stock value. It needs the Landed cost delete right, and the button shows only to a holder of it. Removing every charge and pressing Save clears them just the same, so that needs the delete right too. Clearing an order that has no charges simply succeeds.",
+        ar: "يزيل زر «امسح رسوم هذا الأمر» سجل التكلفة حتى الوصول للأمر كليًّا، فيعود الأمر «غير مكلف» ويعود المخزون إلى سعر المورد في تقويمه. ويحتاج إلى صلاحية حذف Landed cost، ولا يظهر الزر إلا لمن يملكها. وإزالة كل الرسوم ثم الضغط على «حفظ» تمسحها بالقدر نفسه، فتحتاج صلاحية الحذف أيضًا. ومسح أمر لا رسوم عليه ينجح ببساطة.",
       },
       steps: {
         en: [
@@ -786,8 +787,8 @@ export const logistics: HelpModule = {
       id: "logistics.landed-refused", topic: "dept.logistics.landed-cost", kind: "troubleshoot", open: "logistics",
       q: { en: "Why won't my charges save?", ar: "لماذا لا تُحفظ رسومي؟" },
       a: {
-        en: "Every charge row must have a name and an amount above nought. Name the charge means a row's name is blank, and A charge needs an amount above nothing means its amount is empty, nought or negative; the number in brackets after the message is the row, counting from the top. Remove any empty row you added by mistake. That order no longer exists means the purchase order was deleted while you had it open.",
-        ar: "يجب أن يكون لكل صف رسم اسم ومبلغ أكبر من الصفر. فعبارة «سم الرسم» تعني أن اسم أحد الصفوف فارغ، وعبارة «الرسم يحتاج مبلغا أكبر من الصفر» تعني أن مبلغه فارغ أو صفر أو سالب؛ والرقم بين القوسين بعد الرسالة هو رقم الصف من الأعلى. أزل أي صف فارغ أضفته خطأً. وعبارة «لم يعد هذا الأمر موجودا» تعني أن أمر الشراء حُذف وهو مفتوح أمامك.",
+        en: "Every charge row must have a name and an amount above nought. Name the charge means a row's name is blank, and A charge needs an amount above nothing means its amount is empty, nought or negative; the number in brackets after the message is the row, counting from the top. Remove any empty row you added by mistake. That order no longer exists means the purchase order was deleted while you had it open. If you removed every charge and saved, and are told that clearing needs the right to delete landed costs, you hold edit but not delete: an empty save clears the order, which is a delete.",
+        ar: "يجب أن يكون لكل صف رسم اسم ومبلغ أكبر من الصفر. فعبارة «سم الرسم» تعني أن اسم أحد الصفوف فارغ، وعبارة «الرسم يحتاج مبلغا أكبر من الصفر» تعني أن مبلغه فارغ أو صفر أو سالب؛ والرقم بين القوسين بعد الرسالة هو رقم الصف من الأعلى. أزل أي صف فارغ أضفته خطأً. وعبارة «لم يعد هذا الأمر موجودا» تعني أن أمر الشراء حُذف وهو مفتوح أمامك. وإن أزلت كل الرسوم وحفظت فقيل لك إن المسح يحتاج صلاحية الحذف، فأنت تملك التعديل دون الحذف: فالحفظ الفارغ يمسح الأمر، وهذا حذف.",
       },
       keywords: ["cannot save", "name the charge", "amount above nothing", "order no longer exists", "لا يحفظ", "سم الرسم", "مبلغ أكبر من الصفر", "الأمر غير موجود"],
       related: ["logistics.landed-fields"],

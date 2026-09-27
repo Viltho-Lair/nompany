@@ -306,6 +306,9 @@ export async function editTender(ctx: TenderingContext, id: string, body: Record
     ? { to: String(body.status), reason: str(body.decisionReason, 400) }
     : null;
 
+  // The bid review's answer, carried into the write below so the move is judged
+  // there a second time against the row as it then stands.
+  let approved: boolean | undefined;
   if (move) {
     const existing = await Tenders.byId({ studio, section: registerSection }, id);
     if (!existing) return { error: "notfound" };
@@ -314,10 +317,12 @@ export async function editTender(ctx: TenderingContext, id: string, body: Record
     // require having submitted — needs no plan, so it costs no read: resolving
     // one means a collection read for the bill and possibly an FX fetch, and a
     // studio moving a tender to Preparing should pay for neither.
-    const approved = tenderStage(move.to)?.kind === "submitted"
+    approved = tenderStage(move.to)?.kind === "submitted"
       ? await bidApproved(ctx, existing)
       : undefined;
-    const problem = tenderProblem({ from: existing.status, to: move.to, reason: move.reason, approved });
+    const problem = tenderProblem({
+      from: existing.status, to: move.to, reason: move.reason, approved, submittedAt: existing.submittedAt,
+    });
     if (problem) return { error: problem };
   }
 
@@ -334,19 +339,40 @@ export async function editTender(ctx: TenderingContext, id: string, body: Record
   // A FUNCTION PATCH WHEN THE STAGE MOVES (invariant 8), so the history is
   // appended to the row as it stands at write time rather than to the copy read
   // a moment ago for the refusal.
+  //
+  // AND THE MOVE IS JUDGED AGAIN IN HERE, against that same row. The refusal
+  // above was asked of an earlier read, so two people pressing Won and Lost on
+  // one submitted tender both passed it, and the second write simply replaced
+  // the first — rewriting an outcome `already-decided` exists to make history.
+  // Re-run on every contended round, the loser now finds the tender decided and
+  // writes nothing. (`refused` is reassigned each round, so a round that loses
+  // and a later one that wins cannot leave a stale answer behind.) The customer
+  // resolution above may still have written a client by then; that is a record
+  // Sales keeps either way, and `resolveClientFor` reuses it by name next time.
+  let refused = "";
   const tender = await Tenders.update({ studio, section: registerSection }, id, move
-    ? (row: Tender) => ({
-      ...patch,
-      ...tenderPatch({
-        from: row.status,
-        to: move.to,
-        at: String(patch.updatedAt),
-        byCollaboratorId: collaborator?.id || "",
-        reason: move.reason,
-        history: row.stageHistory,
-      }),
-    })
+    ? (row: Tender) => {
+      refused = tenderProblem({
+        from: String(row.status || ""), to: move.to, reason: move.reason, approved, submittedAt: row.submittedAt,
+      }) || "";
+      if (refused) return {};
+      // ALREADY THERE — the other press of the same button won. Re-stamping
+      // would move `submittedAt`/`decidedAt` and log the move twice.
+      if (row.status === move.to) return patch;
+      return {
+        ...patch,
+        ...tenderPatch({
+          from: row.status,
+          to: move.to,
+          at: String(patch.updatedAt),
+          byCollaboratorId: collaborator?.id || "",
+          reason: move.reason,
+          history: row.stageHistory,
+        }),
+      };
+    }
     : patch);
+  if (refused) return { error: refused };
   return tender ? { tender } : { error: "notfound" };
 }
 

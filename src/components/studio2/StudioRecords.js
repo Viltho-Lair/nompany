@@ -16,7 +16,8 @@
 // names already follow. THE BUILT-INS ARE NOT THAT: this repository declares
 // them and a studio cannot edit them, so their words translate on display
 // through `engineWords` (shared/studio/engineTypes), keyed by the stored token.
-// Every value written, filtered on, moved to or exported stays the stored word.
+// Every value written, filtered on or moved to stays the stored word; the CSV
+// export carries the words the reader saw, like the table does.
 //
 // FOUR ACTS, ONE PER RIGHT, AND NOT ONE MORE THAN THE PAYLOAD ALLOWS.
 // `engine.<typeKey>.<verb>` mints create, edit and delete for every declared
@@ -64,17 +65,27 @@ import { recordProblem } from "@/platform/engine/types";
 
 function refusal(tr, token) {
   switch (token) {
-    // `wrong-state` is the type not declaring that status AT ALL, which on this
-    // screen means the reader is holding a declaration the studio has since
-    // edited. `not-allowed` is a move the chain does not offer. Two refusals,
-    // two sentences, because they send somebody to two different places.
+    // `wrong-state` is the reader being BEHIND: the type no longer declares
+    // that status, or the record moved underneath them between opening it and
+    // pressing the button (`applyMove`, platform/engine/types). Refreshing is
+    // the repair for both. `not-allowed` is a move the chain does not offer.
+    // Two refusals, two sentences, because they send somebody to two places.
     case "wrong-state": return tr.refuseStatusUnknown;
     case "not-allowed": return tr.refuseNotAllowed;
     // `missing` is a required field left empty. The screen refuses it before
     // sending and the route refuses it again; both land here, so the reader is
     // told the same thing whichever door said no.
     case "missing": return tr.refuseMissing;
-    default: return token;
+    case "forbidden": return tr.refuseForbidden;
+    case "notfound": return tr.refuseNotFound;
+    case "no-section": return tr.refuseNoSection;
+    case "controlled": return tr.refuseControlled;
+    case "unauthorized": return tr.refuseSignedOut;
+    // NEVER THE TOKEN. This fell back to it, so a refusal nobody had named
+    // reached the reader as `failed` or `rate-limited` — English, lower-case,
+    // hyphenated, in an Arabic studio — and a read that failed printed it as
+    // the whole screen.
+    default: return tr.refuseFailed;
   }
 }
 
@@ -300,11 +311,14 @@ export default function StudioRecords({ slug, typeKey, initial }) {
     return { ok: res.ok, body: await res.json().catch(() => ({})) };
   }, [slug, typeKey]);
 
+  // A FAILED READ IS SAID AS A SENTENCE, through the same `refusal` a failed
+  // write uses — it used to store the raw token and the screen printed
+  // `forbidden` or `no-section` as the whole page.
   const apply = useCallback(({ ok, body }) => {
-    if (!ok) { setError(body.error || "failed"); return; }
+    if (!ok) { setError(refusal(tr, body.error || "failed")); return; }
     setError("");
     setData(body);
-  }, []);
+  }, [tr]);
 
   // The reader the page already answered for is skipped by IDENTITY, not by a
   // flag, so React's development double-effect cannot spend it (useReload says
@@ -430,8 +444,25 @@ export default function StudioRecords({ slug, typeKey, initial }) {
     const cols = ["reference", ...columns.map((f) => f.key), "status"];
     const heads = [tr.reference, ...columns.map((f) => w.field(f.key, f.label)), tr.status];
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    // THE WORDS THE READER SAW, NOT THE STORED TOKENS. The export wrote
+    // `r.status` and raw option values, so an Arabic studio's spreadsheet came
+    // out with its headers in Arabic and every status and choice in English —
+    // and a boolean as `true`, a date as ISO, a link as an id nobody can
+    // follow. Each cell now goes through `cell`, the function the table draws
+    // with, so the file and the screen cannot disagree. Two exceptions, both
+    // for the spreadsheet's sake: an empty value is an empty cell rather than
+    // the table's dash, and a number or money value stays a bare number so a
+    // column can still be summed.
+    const byKey = new Map(columns.map((f) => [f.key, f]));
+    const fieldCell = (r, key) => {
+      const field = byKey.get(key);
+      const v = r.values?.[key];
+      if (field.kind !== "boolean" && (v === null || v === undefined || v === "")) return "";
+      if (field.kind === "number" || field.kind === "money") return v;
+      return cell(tr, w, field, v, data.references);
+    };
     const body = shown.map((r) => cols.map((c) =>
-      esc(c === "reference" ? r.reference : c === "status" ? r.status : r.values?.[c])).join(","));
+      esc(c === "reference" ? r.reference : c === "status" ? w.word(r.status) : fieldCell(r, c))).join(","));
     // A BOM, because Excel opens a UTF-8 CSV without one as mojibake and half
     // this product's registers are in Arabic.
     const blob = new Blob(["\uFEFF" + [heads.map(esc).join(","), ...body].join("\r\n")],

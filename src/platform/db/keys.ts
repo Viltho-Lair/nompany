@@ -562,6 +562,13 @@ export const S = {
   // already holding. A tally only ever moves forward, so it cannot.
   // Under the studio prefix, so it dies with the studio like everything else.
   counters: (studioId: string) => `${P}s:${studioId}:counters`,
+  // WHO IS TAKING STOCK OF ONE ITEM RIGHT NOW — a short lease, claimed before
+  // a movement that could take the item below nought reads the ledger, and
+  // released once its movement is written (modules/inventory/stockLock). The
+  // ledger is one row per movement, so there is no single row a
+  // compare-and-set could guard; this is the key two such writers meet on.
+  // Under the studio prefix, so it dies with the studio.
+  stockLock: (studioId: string, itemId: string) => `${P}s:${studioId}:stock-lock:${itemId}`,
   // A STUDIO'S E-INVOICE CHAIN — the counter and the previous document's hash
   // that every Saudi invoice must carry (modules/finance/zatca). One document
   // rather than a counter field, because the two must move TOGETHER in one
@@ -611,6 +618,13 @@ export const SEC = {
 // a deleted project leaves no board behind (deletion is children-first).
 export const PROJECT = {
   board: (studioId: string, projectId: string) => `${P}s:${studioId}:project:${projectId}:board`,
+  // THE SHORT-LIVED NX CLAIM that makes opening a project from one source
+  // first-wins (modules/projects/projects.ts, openProject). `source` is
+  // "tender:<TenderID>" or "quotation:<QuotationID>". A LOCK, never a record:
+  // released as soon as the row exists and given a TTL, because "one project
+  // per tender" is DERIVED from the projects and deleting the project must
+  // free the tender again.
+  opening: (studioId: string, source: string) => `${P}s:${studioId}:project-opening:${source}`,
 };
 
 // ---- project plans (studio-level; die with the studio) ---------------------
@@ -1228,7 +1242,13 @@ export const SECTION_COLLECTIONS = {
   // inspections, NCRs, audits, incidents, permits. Revisions, templates and
   // the distribution log join them as the screens that write them land; a
   // name here before then is a key nothing fills.
-  "engineering-docs-register": ["qualityDocuments", "qualityTypes", "qualityRevisions",
+  // `qualityDocs` IS THE REGISTER'S DOCUMENT COLLECTION (modules/quality/
+  // qualityDocs.ts) and was missing from this list, so the studio export, the
+  // migration extract and anything else walking this map skipped every
+  // document the register holds. `qualityDocuments` STAYS: it is the retired
+  // builder's rows, still under this section after the restructure moved them
+  // here, and nothing else names them for export or for deletion.
+  "engineering-docs-register": ["qualityDocs", "qualityDocuments", "qualityTypes", "qualityRevisions",
     "qualityAudit", "qualityAcknowledgements"],
   // projects — the project list, and the labour booked against it. A timesheet
   // lives HERE rather than under `projects-overtimes` (which holds the older,

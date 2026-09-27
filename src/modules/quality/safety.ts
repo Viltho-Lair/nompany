@@ -40,7 +40,7 @@ export const RATE_BASE = 1_000_000;
 
 export type SafetySummary = {
   period: Period;
-  /** Every incident kind that occurred, commonest first. */
+  /** Every incident kind that occurred, commonest first. "" is an incident with no kind. */
   byKind: { kind: string; count: number }[];
   incidents: number;
   recordable: number;
@@ -104,7 +104,10 @@ export function safetySummary(
   let recordable = 0;
 
   for (const i of inWindow) {
-    const kind = String(i.values?.kind ?? "").trim() || "Unclassified";
+    // AN UNCLASSIFIED INCIDENT IS KEYED "" — a token, not a word. This wrote
+    // "Unclassified" here and every Arabic studio read it in English; the
+    // screen now says it in the reader's language, the way it says the kinds.
+    const kind = String(i.values?.kind ?? "").trim();
     kinds.set(kind, (kinds.get(kind) || 0) + 1);
     // `daysLost` IS NULLABLE ON THE RECORD AND SUMS AS ZERO HERE, which is the
     // one place the two readings agree: nought days lost and nobody having said

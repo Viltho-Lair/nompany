@@ -25,6 +25,9 @@ export const GET = route({ ...spec, body: false }, async (procurement) => {
     ok: true,
     rfqs: result.rfqs,
     pickers,
+    // WHAT A NEW RFQ MAY BE RAISED FROM — empty for a reader who may not open
+    // requisitions (listRfqs says why).
+    requisitionChoices: result.requisitionChoices,
     // THE CLOCK TRAVELS WITH THE ANSWER, so which quotes have lapsed is decided
     // once on the server rather than by whenever the screen happened to render.
     asOf: result.asOf,

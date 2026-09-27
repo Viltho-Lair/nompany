@@ -3,6 +3,7 @@ import { engineContext } from "@/platform/engine/context";
 import { summariseSection } from "@/platform/engine/summary";
 import { listRecordTypes, listRecords } from "@/platform/engine/records";
 import type { EngineContext } from "@/platform/engine/context";
+import { dayIn, studioTimezone } from "@/shared/timezone";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,7 +60,7 @@ export const GET = route(spec, async (c) => {
   // show" rather than "you may not". `listRecordTypes` makes the same argument
   // for handing back an empty catalogue.
   if (!mine.length) {
-    return { section: sectionKey, registers: [], attention: [], total: 0, totalOverdue: 0, asOf: today() };
+    return { section: sectionKey, registers: [], attention: [], total: 0, totalOverdue: 0, asOf: today(c.studio) };
   }
 
   // READ PER REGISTER, THROUGH THE SERVICE THAT GUARDS IT. Reaching into the
@@ -79,7 +80,7 @@ export const GET = route(spec, async (c) => {
         transitions: t.transitions, fields: t.fields,
       })),
       perType.flat() as Parameters<typeof summariseSection>[1],
-      today(),
+      today(c.studio),
     ),
   };
 });
@@ -88,6 +89,14 @@ export const GET = route(spec, async (c) => {
 // screen never reads its own — the rule the tender register and the operations
 // week window already follow, so a figure and the date it was measured against
 // can never disagree.
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
+//
+// IN THE STUDIO'S ZONE, NOT UTC. "Overdue" is a date compared with today, and a
+// UTC today is the wrong day for part of every day almost everywhere: in Riyadh
+// it is still yesterday until three in the morning, so a record due yesterday
+// was not yet overdue; west of Greenwich UTC rolls over in the local evening, so
+// a record due today was called overdue before the day ended. The studio's zone is the one clock
+// every department asks (shared/timezone.ts); unset falls back to the instant's
+// own date, which is exactly what this answered before.
+function today(studio: unknown): string {
+  return dayIn(new Date(), studioTimezone(studio as { timezone?: unknown }));
 }

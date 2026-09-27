@@ -33,6 +33,16 @@ type Strings = {
   remove: string;
   cancel: string;
   units: (n: number) => string;
+  /** Said where the item a bin line names has since been deleted. */
+  removedItem: string;
+  /**
+   * WHY THE SERVER REFUSED, in words. The server answers with a token (and the
+   * code that was typed, for the sentences that repeat it); English sentences
+   * built there reached Arabic studios verbatim. Unknown tokens fall back to
+   * `failed`, never to the raw token.
+   */
+  problem: (token: string, value: string) => string;
+  refused: (body: { error?: string; have?: number; needed?: number; holding?: number }) => string;
 };
 
 const en: Strings = {
@@ -63,6 +73,27 @@ const en: Strings = {
   remove: "Remove",
   cancel: "Cancel",
   units: (n) => `${n} ${n === 1 ? "unit" : "units"}`,
+  removedItem: "(removed item)",
+  problem: (token, value) => ({
+    "code-missing": "A bin needs a code.",
+    "code-format": `"${value}" must be 1–16 characters: letters, digits, and - . / only.`,
+    "location-missing": "A bin needs a location.",
+    "location-unknown": "That location no longer exists.",
+    "code-taken": `"${value}" is already a bin in that location.`,
+  } as Record<string, string>)[token] || "That did not save.",
+  refused: (b) => ({
+    forbidden: "You do not have the right to do that.",
+    "read-only": "You have view-only access to stock.",
+    notfound: "That bin no longer exists — somebody may have removed it.",
+    "not-empty": `That bin still holds ${b.holding || "some"} ${b.holding === 1 ? "item" : "items"}. Move or issue them first.`,
+    qty: "Enter a quantity above nought.",
+    "same-bin": "The stock is already there — choose a different bin.",
+    item: "That item no longer exists.",
+    bin: "Choose a bin that exists.",
+    insufficient: `Not enough there — it holds ${b.have ?? 0} and you asked to move ${b.needed ?? 0}.`,
+    "in-progress": "Somebody else is moving this item's stock right now. Try again in a moment.",
+    missing: "Something the request needs is missing — refresh and try again.",
+  } as Record<string, string>)[String(b.error || "")] || "That did not save.",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -92,6 +123,27 @@ const ar: Strings = {
   remove: "حذف",
   cancel: "الغاء",
   units: (n) => `${n} ${n === 1 ? "وحدة" : n === 2 ? "وحدتان" : n <= 10 ? "وحدات" : "وحدة"}`,
+  removedItem: "(صنف محذوف)",
+  problem: (token, value) => ({
+    "code-missing": "الموقع الفرعي يحتاج رمزا.",
+    "code-format": `"${value}" يجب أن يكون من 1 الى 16 حرفا: حروف وأرقام و - . / فقط.`,
+    "location-missing": "الموقع الفرعي يحتاج موقعا.",
+    "location-unknown": "هذا الموقع لم يعد موجودا.",
+    "code-taken": `"${value}" موقع فرعي موجود في هذا الموقع.`,
+  } as Record<string, string>)[token] || "لم يحفظ ذلك.",
+  refused: (b) => ({
+    forbidden: "ليست لديك صلاحية القيام بذلك.",
+    "read-only": "لديك صلاحية عرض فقط على المخزون.",
+    notfound: "هذا الموقع الفرعي لم يعد موجودا — ربما حذفه أحدهم.",
+    "not-empty": "هذا الموقع الفرعي لا يزال يحتوي أصنافا. انقلها أو اصرفها أولا.",
+    qty: "أدخل كمية أكبر من الصفر.",
+    "same-bin": "المخزون موجود هناك أصلا — اختر موقعا فرعيا آخر.",
+    item: "هذا الصنف لم يعد موجودا.",
+    bin: "اختر موقعا فرعيا موجودا.",
+    insufficient: `الكمية هناك غير كافية — يحتوي ${b.have ?? 0} وطلبت نقل ${b.needed ?? 0}.`,
+    "in-progress": "شخص آخر يحرك مخزون هذا الصنف الآن. حاول مجددا بعد لحظة.",
+    missing: "ينقص الطلب شيء يحتاجه — حدث الصفحة وحاول مجددا.",
+  } as Record<string, string>)[String(b.error || "")] || "لم يحفظ ذلك.",
 };
 
 const dict = { en, ar };

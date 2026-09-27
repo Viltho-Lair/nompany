@@ -299,5 +299,21 @@ for (const locale of ["en", "ar"]) {
   ok("column letters run past Z", W.columnName(0) === "A" && W.columnName(25) === "Z" && W.columnName(26) === "AA");
 }
 
+// ---- the SKU a blank item is given (modules/inventory/sku) -------------------
+// THE DEFECT: blank SKUs were numbered from `rows.length + 1`, so deleting an
+// item let the next create reissue its SKU and two creates in one second both
+// wanted the same code. The number comes off the forward-only tally now; these
+// are the pure halves of that.
+{
+  const K = await import("@/modules/inventory/sku");
+  ok("a SKU is ITM and four places", K.skuOf(7) === "ITM-0007" && K.skuOf(12345) === "ITM-12345");
+  ok("a block of one is the first number alone", K.reservedNumbers(5, 5, 1).join() === "5");
+  ok("an uncontended block is contiguous", K.reservedNumbers(5, 7, 3).join() === "5,6,7");
+  // Somebody else took 6 between the two increments: the second increment
+  // returned 8, so ours are 5, 7 and 8 — a gap, never a shared number.
+  ok("a contended block skips what somebody else took", K.reservedNumbers(5, 8, 3).join() === "5,7,8");
+  ok("nothing asked for is nothing reserved", K.reservedNumbers(5, 5, 0).length === 0);
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nitem import: all passed");
 process.exit(fails ? 1 : 0);

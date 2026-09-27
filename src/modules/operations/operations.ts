@@ -26,6 +26,7 @@ import { moduleContext } from "../context";
 import { permitDeletable, permitMoveProblem, permitStatusOf } from "./permitModel";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { dayIn, studioTimezone } from "@/shared/timezone";
 import { nextReference } from "@/modules/main/references";
 import { DAYS, DEFAULT_LEGEND, normalizeLegend, normalizeSchedule } from "./operationsCalendar";
 import type { WorkingWeek } from "./operationsCalendar";
@@ -69,7 +70,14 @@ export const EXPIRY_WINDOW_DAYS = 30;
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
 const clock = (v: unknown) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v ?? "").trim()) ? String(v).trim() : "");
-const today = () => new Date().toISOString().slice(0, 10);
+// THE STUDIO'S DAY, never the server's. A permit that lapses "today" and the
+// week a rota is planned over both ask which day it is, and the answer is the
+// studio's clock (shared/timezone) — a server on UTC told a studio in Amman that
+// Sunday was still Saturday until three in the morning. No zone reads UTC, the
+// fallback `dayIn` takes everywhere, so an unset studio behaves as before.
+const today = (timezone?: string) => dayIn(new Date(), timezone);
+/** The studio's own date right now — what "today" means to its rota and its permits. */
+export const studioToday = (studio: unknown) => today(studioTimezone(studio as { timezone?: unknown }));
 
 export const operationsContext = moduleContext<OperationsContext>({
   root: "field-service",
@@ -157,7 +165,7 @@ export function scheduleFromStudio(studio: Record<string, unknown>) {
 // drawn against. Reads the shifts and locations from the operations ROOT section
 // (this sub-section owns no collection) and the legend from operations-settings.
 export async function scheduleView(ctx: ScheduleContext) {
-  const window = weekWindow();
+  const window = weekWindow(studioToday(ctx.studio));
   const section = ctx.operationsMainSection;
   // Permits and Locations are read HERE now — they moved off the Operations
   // landing to sit under Schedule with the rota, all three read through this one
@@ -180,6 +188,18 @@ export async function scheduleView(ctx: ScheduleContext) {
   // grant that gates the rota. `ctx.canManage` is the schedule answer; this is the
   // places answer, and the two can differ.
   const canManagePlaces = sectionManageable(ctx.access, "field-service", ctx.sections.map((s) => s.key));
+  // WHO MAY WRITE A PERMIT FROM THIS TAB — BOTH halves of what the write asks.
+  // `/operations/permits` refuses anyone who may not manage the Field Service
+  // root, and then each service asks the permit right itself (`permitDenied`,
+  // create/edit/delete). The tab used to gate on `canManagePlaces` alone, so a
+  // dispatcher holding any Field Service write saw Add, Issue and Delete and
+  // was refused by the service on every click. A move (issue, close, cancel) is
+  // an edit — `movePermit` asks `edit` — so it shares that flag.
+  const permitRights = {
+    canCreate: canManagePlaces && !permitDenied(ctx.access, "create"),
+    canEdit: canManagePlaces && !permitDenied(ctx.access, "edit"),
+    canDelete: canManagePlaces && !permitDenied(ctx.access, "delete"),
+  };
   // PERMITS MOVED TO QUALITY & HSE (tier 5), by screen. Where this studio has
   // that register and this reader may open it, the Permits tab here says so and
   // links there; otherwise — a studio not yet planted, or somebody who holds
@@ -190,6 +210,7 @@ export async function scheduleView(ctx: ScheduleContext) {
   return {
     canManage: ctx.canManage,
     canManagePlaces,
+    permitRights,
     permitsMoved,
     nav: ctx.nav,
     me: { collaboratorId: ctx.collaborator.id },
@@ -442,10 +463,21 @@ export async function movePermit(ctx: PermitCtx, id: string, to: string) {
   const problem = permitMoveProblem(current, to);
   if (problem) return { error: problem, from: permitStatusOf(current), to };
   const at = new Date().toISOString();
-  const permit = await Permits.update(scope, id, () => ({
-    status: to, statusAt: at, statusByCollaboratorId: ctx.collaborator.id,
-  }));
-  return permit ? { permit } : { error: "notfound" };
+  // THE MOVE IS JUDGED AGAIN AGAINST THE ROW BEING WRITTEN (invariant 8). The
+  // check above read a permit that somebody else may have closed a moment
+  // later; without this, two people pressing Close and Cancel at once both
+  // "win" and the second silently rewrites the first's answer. A patch that no
+  // longer holds writes nothing (`{}`), and the move is refused with the reason
+  // the fresh row gives. Reset on every invocation, because a CAS retry runs
+  // the patch again and only the last run is what was written.
+  let lost = null as string | null;
+  const permit = await Permits.update(scope, id, (row) => {
+    lost = permitMoveProblem(row, to);
+    return lost ? {} : { status: to, statusAt: at, statusByCollaboratorId: ctx.collaborator.id };
+  });
+  if (!permit) return { error: "notfound" };
+  if (lost) return { error: lost, from: permitStatusOf(permit), to };
+  return { permit };
 }
 
 export async function listPermits(
@@ -463,7 +495,7 @@ export async function listPermits(
   const locName = Object.fromEntries(locations.map((l) => [l.id, l.name]));
   const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
   const projectNumber = Object.fromEntries(projects.map((p) => [p.id, p.number]));
-  const now = today();
+  const now = studioToday(studio);
 
   return [...permits]
     .sort((a, b) => (a.validTo || "9999").localeCompare(b.validTo || "9999"))

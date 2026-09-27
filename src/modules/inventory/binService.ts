@@ -12,11 +12,12 @@
 // stock that sits in it. A separate right over the shelving would be a right
 // nobody could exercise without the first one anyway.
 
-import { requirePermission } from "@/platform/access";
+import { requirePermission, can } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { binProblems, cleanBin, binView, binBalances, negativeBins, splitBy } from "./bins";
 import type { Bin, BinMovement } from "./bins";
 import type { InventoryContext } from "./types";
+import { withStockLock, freshLedger } from "./stockLock";
 
 const Bins = repo<Bin>("stockBins");
 const Batches = repo<{ id: string }>("stockBatches");
@@ -54,7 +55,9 @@ export async function listBins(ctx: InventoryContext) {
 
   const label = Object.fromEntries(items.map((i) => [i.id, `${i.sku || ""} · ${i.name || ""}`.trim()]));
   const { unbinned, byBin } = binBalances(movements, new Set(bins.map((b) => b.id)));
-  const name = (itemId: string) => label[itemId] || "(removed item)";
+  // A REMOVED ITEM'S LABEL IS EMPTY, and the screen says "removed item" in the
+  // reader's language — a word written here reached every Arabic studio in English.
+  const name = (itemId: string) => label[itemId] || "";
 
   return {
     bins: binView(bins, locations, movements).map((b) => ({
@@ -71,6 +74,12 @@ export async function listBins(ctx: InventoryContext) {
     // refused — see `negativeBins` for why the total is not in doubt.
     negative: negativeBins(byBin).map((n) => ({ ...n, itemLabel: name(n.itemId) })),
     canManage: ctx.canManageStock,
+    // PER ACT, the way the server asks: adding a bin and moving stock need
+    // `inventory.stock.create`, removing a bin `.delete`. `canManage` is any
+    // write right in the sub-section, so a person holding only `edit` was shown
+    // buttons every one of which the server then refused.
+    canCreate: can(ctx.access, "inventory.stock.create"),
+    canDelete: can(ctx.access, "inventory.stock.delete"),
   };
 }
 
@@ -80,7 +89,7 @@ export async function createBin(ctx: InventoryContext, body: Record<string, unkn
 
   const [existing, locations] = await Promise.all([Bins.find(scope(ctx)), placesOf(ctx)]);
   const problems = binProblems(body, { locations, existing });
-  if (problems.length) return { error: "refused", detail: problems.join("; ") };
+  if (problems.length) return { error: "refused", problems, value: String(body.code ?? "").trim() };
 
   return { bin: await Bins.create(scope(ctx), cleanBin(body)) };
 }
@@ -98,7 +107,7 @@ export async function editBin(ctx: InventoryContext, id: string, body: Record<st
   // bin to another location can collide with a code that was fine where it was.
   const next = { code: body.code ?? row.code, name: body.name ?? row.name, locationId: body.locationId ?? row.locationId };
   const problems = binProblems(next, { locations, existing, selfId: id });
-  if (problems.length) return { error: "refused", detail: problems.join("; ") };
+  if (problems.length) return { error: "refused", problems, value: String(next.code ?? "").trim() };
 
   const updated = await Bins.update(scope(ctx), id, cleanBin(next));
   return updated ? { bin: updated } : { error: "notfound" };
@@ -197,11 +206,22 @@ export async function moveStock(
   if (fromBinId && !known.has(fromBinId)) return { error: "bin" };
   if (!toBinId && !fromBinId) return { error: "bin" };
 
-  const { grouped, ungrouped } = splitBy(movements, field, known);
-  const have = fromBinId ? (grouped[fromBinId]?.[itemId] || 0) : (ungrouped[itemId] || 0);
-  if (have < amount) return { error: "insufficient", have, needed: amount };
+  // AN EARLY ANSWER FROM THE WHOLE-LEDGER READ, so an obvious refusal costs no
+  // lease — then ASKED AGAIN, FRESH, while the item is held (./stockLock). Two
+  // people carrying the same five units off one shelf each passed against the
+  // same balance before this existed, and the shelf went below nought.
+  const haveIn = (rows: BinMovement[]) => {
+    const { grouped, ungrouped } = splitBy(rows, field, known);
+    return fromBinId ? (grouped[fromBinId]?.[itemId] || 0) : (ungrouped[itemId] || 0);
+  };
+  const early = haveIn(movements);
+  if (early < amount) return { error: "insufficient", have: early, needed: amount };
 
   const at = new Date().toISOString();
+  // THE DEFAULT REASON IS STORED AS WRITTEN — English — and translated where it
+  // is read (`movementReason`, shared/studio/inventory). A stored row is never
+  // rewritten, so every put-away already in the ledger says exactly this, and
+  // a token here would leave those rows and the new ones reading differently.
   const reason = String(body?.reason ?? "").trim().slice(0, 300)
     || (fromBinId ? "Moved between bins" : "Put away");
   const write = (qty: number, end: string, otherEnd: string) => Stock.create(scope(ctx), {
@@ -209,13 +229,19 @@ export async function moveStock(
     // WHICH MOVE THIS HALF BELONGS TO. Without it the ledger shows two
     // unexplained adjustments of opposite sign and nobody can tell they were
     // one act — which is exactly how a stock ledger stops being an audit trail.
+    // It is also what valuation nets on (`TRANSFER_SOURCES`, ./valuation), so a
+    // move never re-costs the stock it moves.
     sourceType: field === "binId" ? "bin-move" : "batch-move", sourceId: otherEnd,
     [field]: end, byCollaboratorId: ctx.collaborator.id, at,
   } as unknown as BinMovement);
 
-  // OUT FIRST. If the second write fails, the studio is short in the ledger and
-  // sees it; the other order would create units that never existed.
-  const out = await write(-amount, fromBinId, toBinId);
-  const into = await write(amount, toBinId, fromBinId);
-  return { moved: { itemId, qty: amount, from: fromBinId, to: toBinId }, movements: [out, into] };
+  return withStockLock(ctx.studio.id, [itemId], async () => {
+    const have = haveIn(await freshLedger(scope(ctx), [itemId]) as unknown as BinMovement[]);
+    if (have < amount) return { error: "insufficient", have, needed: amount };
+    // OUT FIRST. If the second write fails, the studio is short in the ledger and
+    // sees it; the other order would create units that never existed.
+    const out = await write(-amount, fromBinId, toBinId);
+    const into = await write(amount, toBinId, fromBinId);
+    return { moved: { itemId, qty: amount, from: fromBinId, to: toBinId }, movements: [out, into] };
+  });
 }

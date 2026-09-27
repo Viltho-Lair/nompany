@@ -10,7 +10,8 @@ import { getSectionByKey } from "@/platform/db/sections";
 import { projectEngagementId } from "@/platform/db/engagement";
 import { moduleContext } from "@/modules/context";
 import { roundSum } from "@/shared/money";
-import { allocationProblem, utilisation, type Allocation } from "./utilisation";
+import { dayIn, studioTimezone } from "@/shared/timezone";
+import { allocationProblem, bookable, utilisation, type Allocation } from "./utilisation";
 import type { Section } from "@/platform/db/sections";
 import type { ModuleContext } from "@/modules/context";
 
@@ -86,6 +87,14 @@ const money = (v: unknown) => {
  * with nothing wrong but the section handle.
  */
 async function ratesFor(ctx: AssetsContext): Promise<Map<string, number>> {
+  return new Map([...(await fleetFor(ctx))].map(([id, m]) => [id, m.rate]));
+}
+
+/**
+ * Each machine's rate AND STATUS, by record id — one read serving both the
+ * rate the hire copies and the status `bookable` refuses on.
+ */
+async function fleetFor(ctx: AssetsContext): Promise<Map<string, { rate: number; status: string }>> {
   const section = ctx.sections.find((x) => x.key === "engine-equipment");
   if (!section) return new Map();
   const rows = await Records.find(
@@ -94,7 +103,7 @@ async function ratesFor(ctx: AssetsContext): Promise<Map<string, number>> {
   );
   return new Map(rows.map((r) => [
     String(r.id),
-    money((r.values as Record<string, unknown> | undefined)?.hireRate),
+    { rate: money((r.values as Record<string, unknown> | undefined)?.hireRate), status: str(r.status, 40) },
   ]));
 }
 
@@ -109,10 +118,13 @@ async function ratesFor(ctx: AssetsContext): Promise<Map<string, number>> {
  * second fetch for them would be a second chance for the names on screen to
  * disagree with the ids underneath them.
  *
- * STATUS TRAVELS TOO, so the picker can say a machine is Under repair before
- * somebody allocates it. It is NOT a refusal — a studio may legitimately book
- * plant that is being fixed for a job starting next month, and `allocationProblem`
- * deliberately refuses only double-booking. Shown, not enforced.
+ * STATUS TRAVELS TOO, so the picker can say a machine is Under repair or
+ * Disposed and offer it disabled. It IS a refusal now (`bookable` in
+ * `allocateAsset`): this comment used to argue a studio might book plant being
+ * fixed for a job next month, but the refusal has no dates to reason with, and
+ * what it actually allowed was a job charged for a machine in the workshop, or
+ * for one the company had sold. `bookable` travels as its own flag so the
+ * picker and the server cannot disagree about which statuses count.
  */
 async function assetOptions(ctx: AssetsContext) {
   const section = ctx.sections.find((x) => x.key === "engine-equipment");
@@ -129,6 +141,7 @@ async function assetOptions(ctx: AssetsContext) {
       assetTag: str(v.assetTag, 60),
       category: str(v.category, 40),
       status: str(r.status, 40),
+      bookable: bookable(r.status),
       hireRate: money(v.hireRate),
     };
   }).sort((a, b) => a.name.localeCompare(b.name));
@@ -149,11 +162,18 @@ export async function listAllocations(ctx: AssetsContext) {
     allocations,
     assets,
     projects,
+    // THE CURRENCY THE CHARGES ARE IN, so the screen shows each amount to that
+    // currency's decimals through the shared money helper.
+    currency: String(ctx.studio.currency || ""),
     // WHETHER THE READER MAY WRITE, answered by the server rather than inferred
-    // in the browser from the shape of what came back. `assets.utilisation` is
-    // a full-verb area, so viewing the fleet and booking it out are different
-    // grants and the screen must be able to draw one without the other.
-    canManage: !requirePermission(ctx.access, "assets.utilisation.edit"),
+    // in the browser from the shape of what came back — ONE FLAG PER ACT.
+    // `assets.utilisation` is a full-verb area and the doors below ask
+    // `.create` to put a machine out and `.delete` to remove a hire; a single
+    // `canManage` read off `.edit` drew both buttons for somebody the server
+    // then refused, and hid them from somebody it would have allowed.
+    canCreate: !requirePermission(ctx.access, "assets.utilisation.create"),
+    canEdit: !requirePermission(ctx.access, "assets.utilisation.edit"),
+    canDelete: !requirePermission(ctx.access, "assets.utilisation.delete"),
   };
 }
 
@@ -163,6 +183,11 @@ export async function listAllocations(ctx: AssetsContext) {
  * `asOf` IS THE SERVER'S AND TRAVELS BACK. An allocation still open runs to the
  * end of the window being asked about, never to "today" as the browser sees it
  * — two people in two time zones must not get two answers for last month.
+ *
+ * AND "TODAY" IS THE STUDIO'S DAY (shared/timezone.ts). This read the UTC date,
+ * so a machine still out gained its next day at UTC midnight — three hours
+ * early in Riyadh, hours late west of Greenwich. Unset falls back to UTC, which
+ * is exactly what this answered before.
  */
 export async function utilisationReport(
   ctx: AssetsContext,
@@ -172,7 +197,7 @@ export async function utilisationReport(
   if (denied) return denied;
 
   const [allocations, rates] = await Promise.all([Allocations.find(scope(ctx)), ratesFor(ctx)]);
-  const to = period.to || new Date().toISOString().slice(0, 10);
+  const to = period.to || dayIn(new Date(), studioTimezone(ctx.studio as { timezone?: unknown }));
 
   return utilisation(
     allocations as unknown as Allocation[],
@@ -194,7 +219,7 @@ export async function allocateAsset(ctx: AssetsContext, body: Record<string, unk
   const denied = requirePermission(ctx.access, "assets.utilisation.create");
   if (denied) return denied;
 
-  const [existing, rates] = await Promise.all([Allocations.find(scope(ctx)), ratesFor(ctx)]);
+  const [existing, fleet] = await Promise.all([Allocations.find(scope(ctx)), fleetFor(ctx)]);
   const assetId = str(body?.assetId, 60);
   // A PROJECT STANDS IN FOR ITS DEAL, for a reader offered projects rather than
   // deals. Resolved through the reverse index openProject recorded, so the hire
@@ -216,7 +241,11 @@ export async function allocateAsset(ctx: AssetsContext, body: Record<string, unk
   // THE ASSET MUST BE ONE THE STUDIO HOLDS. Checked against the register rather
   // than trusted: an id that names no equipment would allocate at no rate and
   // report utilisation for a machine that does not exist.
-  if (!rates.has(assetId)) return { error: "asset" };
+  const machine = fleet.get(assetId);
+  if (!machine) return { error: "asset" };
+  // AND IT MUST BE ONE THAT CAN WORK — see `bookable`. The status travels
+  // with the refusal so the screen can say which one stood in the way.
+  if (!bookable(machine.status)) return { error: "unavailable", status: machine.status };
 
   // NAMED, NOT SPREAD. `proposed` carries `id: ""` so `allocationProblem` can
   // tell "this is new" from "this is an edit of itself" — spreading it into the
@@ -226,9 +255,14 @@ export async function allocateAsset(ctx: AssetsContext, body: Record<string, unk
   const allocation = await Allocations.create(scope(ctx), {
     assetId: proposed.assetId,
     dealId: proposed.dealId,
+    // THE PROJECT IT WAS BOOKED THROUGH, when it was. The deal id is what the
+    // report groups by, and a reader refused `engagements.view` cannot turn it
+    // into a name — the screen printed the internal id. Kept beside it so that
+    // reader sees the project they picked. Blank when booked against a deal.
+    projectId: str(body?.dealId, 60) ? "" : projectId,
     from: proposed.from,
     to: proposed.to,
-    dailyRate: money(body?.dailyRate) || rates.get(assetId) || 0,
+    dailyRate: money(body?.dailyRate) || machine.rate || 0,
     note: str(body?.note, 500),
     createdByCollaboratorId: ctx.collaborator.id,
     createdAt: new Date().toISOString(),

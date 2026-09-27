@@ -5,8 +5,9 @@ import { useCallback, useRef, useState } from "react";
 import { Field } from "@/components/fields/Field";
 import { fieldDict } from "@/shared/studio/field";
 import { maintenanceDict } from "@/shared/studio/maintenance";
-import { fmtDate } from "@/components/studio2/ui";
+import { fmtDate, fmtDateTime } from "@/components/studio2/ui";
 import { useReload } from "@/components/studio2/useReload";
+import { useStudioLocale } from "@/components/studio2/locale";
 
 // THE MOBILE FIELD VIEW — one technician's round, on the phone they are holding.
 //
@@ -18,7 +19,11 @@ import { useReload } from "@/components/studio2/useReload";
 // THE CALLER NEVER NAMES THEMSELVES. `assignedToCollaboratorIds` holds
 // CollaboratorIDs and the route reads the caller's own, so "my round" needs no
 // parameter — which is also what stops one technician asking for another's.
-export default function FieldViewPanel({ slug, locale = "en" }) {
+//
+// THE LANGUAGE IS THE STUDIO SHELL'S (useStudioLocale), never a prop: this took
+// `locale = "en"`, so any caller that forgot to pass one got an English round.
+export default function FieldViewPanel({ slug }) {
+  const locale = useStudioLocale();
   const tr = fieldDict(locale);
   const [data, setData] = useState(null);
   const [problem, setProblem] = useState("");
@@ -29,9 +34,9 @@ export default function FieldViewPanel({ slug, locale = "en" }) {
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/operations/field`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) { setProblem(body.error || "failed"); return; }
+    if (!res.ok) { setProblem(tr.problem(body.error || "failed")); return; }
     setData(body);
-  }, [slug, setData, setProblem]);
+  }, [slug, tr, setData, setProblem]);
 
   useReload(load);
 
@@ -43,15 +48,24 @@ export default function FieldViewPanel({ slug, locale = "en" }) {
     });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setProblem(body.error || "failed"); return; }
+    if (!res.ok) {
+      setProblem(tr.problem(body.error || "failed"));
+      // A MOVE SOMEBODY ELSE BEAT US TO leaves this card showing a status the
+      // job no longer has; reloading draws the buttons the job really offers.
+      if (body.error === "transition") await load();
+      return;
+    }
     await load();
-  }, [slug, load, setBusy, setProblem]);
+  }, [slug, tr, load, setBusy, setProblem]);
 
   if (!data) return <ScreenSkeleton />;
 
-  const { jobs = [], outstanding, completed, awaitingSignature = [], workOrders = [] } = data;
+  const { jobs = [], outstanding, completed, awaitingSignature = [], workOrders = [], canEdit = false } = data;
   const mt = maintenanceDict(locale);
-  const time = (v) => (v ? `${String(v).slice(0, 10)} ${String(v).slice(11, 16)}` : tr.unscheduled);
+  // THROUGH THE STUDIO'S DATE FORMAT, never a raw slice: "2026-09-27 08:30" is
+  // not how any studio writes a date. A bare date (a PM visit is due on a day)
+  // has no time to show, so it is drawn as a date alone.
+  const time = (v) => (!v ? tr.unscheduled : String(v).includes("T") ? fmtDateTime(v) : fmtDate(v));
 
   return (
     <div className="space-y-5 pb-24">
@@ -77,12 +91,14 @@ export default function FieldViewPanel({ slug, locale = "en" }) {
             {awaitingSignature.map((j) => (
               <li key={j.id} className="flex flex-wrap items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
                 <span>{j.title}</span>
-                <button
-                  className="ms-auto rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-600 text-white"
-                  onClick={() => { setSigning(j); setWho({ name: "", title: "" }); }}
-                >
-                  {tr.sign}
-                </button>
+                {canEdit && (
+                  <button
+                    className="ms-auto rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-600 text-white"
+                    onClick={() => { setSigning(j); setWho({ name: "", title: "" }); }}
+                  >
+                    {tr.sign}
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -125,8 +141,10 @@ export default function FieldViewPanel({ slug, locale = "en" }) {
               {j.notes && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{j.notes}</p>}
 
               {/* FULL-WIDTH, FINGER-SIZED. This is the one screen in the
-                  product held in one hand. */}
-              <div className="mt-3 grid gap-2">
+                  product held in one hand. DRAWN ONLY FOR AN EDITOR: starting,
+                  finishing and signing all ask fieldService.schedule.edit, and
+                  a button the server will refuse is worse than none. */}
+              {canEdit && <div className="mt-3 grid gap-2">
                 {j.status === "scheduled" && (
                   <button className="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-600 text-white disabled:opacity-50"
                     disabled={busy} onClick={() => move(j.id, "in-progress")}>
@@ -149,12 +167,12 @@ export default function FieldViewPanel({ slug, locale = "en" }) {
                     </button>
                   </>
                 )}
-              </div>
+              </div>}
 
               {j.signoffs?.length > 0 && (
                 <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
                   {tr.signedBy(j.signoffs[j.signoffs.length - 1].signedByName,
-                    String(j.signoffs[j.signoffs.length - 1].at).slice(0, 10))}
+                    fmtDate(j.signoffs[j.signoffs.length - 1].at))}
                 </p>
               )}
             </div>
@@ -247,7 +265,7 @@ function SignaturePad({ slug, job, tr, who, setWho, onDone, onCancel, onProblem 
     setBusy(true);
     try {
       const blob = await new Promise((res) => canvas.current.toBlob(res, "image/png"));
-      if (!blob) { onProblem("failed"); return; }
+      if (!blob) { onProblem(tr.problem("failed")); return; }
       const form = new FormData();
       form.append("file", blob, "signature.png");
       // PRIVATE. The route checks membership before it writes and again before
@@ -260,7 +278,9 @@ function SignaturePad({ slug, job, tr, who, setWho, onDone, onCancel, onProblem 
         method: "POST", body: form,
       });
       const media = await up1.json().catch(() => ({}));
-      if (!up1.ok) { onProblem(media.error || "upload"); return; }
+      // The media route's own token names its own failure, not this screen's;
+      // what the technician needs to know is that the mark did not go up.
+      if (!up1.ok) { onProblem(tr.problem("upload")); return; }
 
       const res = await fetch(`/api/studios/${slug}/operations/field`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -270,7 +290,7 @@ function SignaturePad({ slug, job, tr, who, setWho, onDone, onCancel, onProblem 
         }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) { onProblem(body.detail || body.error || "failed"); return; }
+      if (!res.ok) { onProblem(tr.problem(body.error || "failed")); return; }
       await onDone();
     } finally {
       setBusy(false);

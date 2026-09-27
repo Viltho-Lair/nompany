@@ -152,7 +152,14 @@ export async function listLandedCosts(ctx: LogisticsContext) {
     };
   }).sort((a, b) => Number(b.costed) - Number(a.costed) || a.reference.localeCompare(b.reference));
 
-  return { landedCosts: records, orders: costable, canManage: !requirePermission(ctx.access, "logistics.landedCost.edit") };
+  return {
+    landedCosts: records, orders: costable,
+    canManage: !requirePermission(ctx.access, "logistics.landedCost.edit"),
+    // CLEARING IS DELETING, and the DELETE asks `.delete` — so Clear is drawn
+    // on this, not on `canManage`, or an editor is offered a button the server
+    // refuses. (Saving an empty set is refused the same way; see saveLandedCost.)
+    canDelete: !requirePermission(ctx.access, "logistics.landedCost.delete"),
+  };
 }
 
 /** One order costed: its lines, its charges, and what each unit really cost. */
@@ -223,16 +230,47 @@ export async function saveLandedCost(ctx: LogisticsContext, body: Record<string,
   const basis: Basis = isBasis(body?.basis) ? body.basis as Basis : DEFAULT_BASIS;
   const existing = (await Landed.find(scope(ctx))).find((r) => r.orderId === orderId);
 
-  const row = existing
-    ? await Landed.update(scope(ctx), String(existing.id), { basis, charges })
-    : await Landed.create(scope(ctx), {
-      orderId,
-      orderReference: String(order.reference || ""),
-      basis,
-      charges,
-      createdByCollaboratorId: ctx.collaborator.id,
-      createdAt: new Date().toISOString(),
-    });
+  // AN EMPTY SAVE OVER RECORDED CHARGES IS A DELETE BY ANOTHER NAME. Saving
+  // replaces the set, so `charges: []` wipes every invoice recorded against
+  // the order — exactly what DELETE does — and it was open to anybody holding
+  // `.edit`, which made the separate `.delete` right decorative. So it asks
+  // the right the DELETE asks. An empty FIRST save is still allowed: there is
+  // nothing to clear, and "opened and recorded nothing" is a state of its own.
+  const hadCharges = ((existing?.charges || []) as unknown[]).length > 0;
+  if (!charges.length && hadCharges) {
+    const deniedClear = requirePermission(ctx.access, "logistics.landedCost.delete");
+    if (deniedClear) return deniedClear;
+  }
+
+  // ONE RECORD PER ORDER, AND THE DATABASE HOLDS IT TO THAT. This was
+  // find-then-create, so two first saves of one order both found nothing and
+  // both created — two records whose charges were each counted by whichever
+  // reader met them first. A new record's id is now DERIVED from the order,
+  // and the row's primary key refuses a second one: the loser of that race
+  // re-reads the winner and replaces its set, which is what a save means
+  // anyway. Records written before this keep their random ids and are found
+  // by `orderId` as they always were; nothing stored is rewritten.
+  const recordId = `landed-${orderId}`;
+  const patch = { basis, charges };
+  let row = existing ? await Landed.update(scope(ctx), String(existing.id), patch) : null;
+  if (!existing) {
+    try {
+      row = await Landed.create(scope(ctx), {
+        id: recordId,
+        orderId,
+        orderReference: String(order.reference || ""),
+        basis,
+        charges,
+        createdByCollaboratorId: ctx.collaborator.id,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      // Only the race is absorbed: if no row holds the derived id, the create
+      // failed for some other reason and that is not ours to hide.
+      if (!(await Landed.byId(scope(ctx), recordId))) throw err;
+      row = await Landed.update(scope(ctx), recordId, patch);
+    }
+  }
   if (!row) return { error: "notfound" };
 
   return { landedCost: row, ...landedCost(linesOf(order), charges, basis, ctx.studio.currency) };
@@ -241,9 +279,15 @@ export async function saveLandedCost(ctx: LogisticsContext, body: Record<string,
 export async function removeLandedCost(ctx: LogisticsContext, orderId: string) {
   const denied = requirePermission(ctx.access, "logistics.landedCost.delete");
   if (denied) return denied;
-  const existing = (await Landed.find(scope(ctx))).find((r) => r.orderId === orderId);
-  if (!existing) return { error: "notfound" };
-  return (await Landed.remove(scope(ctx), String(existing.id))) ? { ok: true } : { error: "notfound" };
+  // NOTHING RECORDED IS ALREADY CLEAR. This answered `notfound`, which the
+  // screen words as "That order no longer exists" — about an order that exists
+  // and simply has no charges. Clearing what is already clear succeeds.
+  const existing = (await Landed.find(scope(ctx))).filter((r) => r.orderId === orderId);
+  if (!existing.length) return { ok: true, removed: 0 };
+  // EVERY record for the order, so a duplicate left by the old find-then-create
+  // race cannot survive a Clear and keep being counted.
+  const removed = await Landed.removeMany(scope(ctx), existing.map((r) => String(r.id)));
+  return { ok: true, removed };
 }
 
 /**

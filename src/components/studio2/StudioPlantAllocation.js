@@ -7,7 +7,10 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { assetsDict } from "@/shared/studio/assets";
 import { fmtDate } from "@/lib/format";
+import { moneyText } from "@/shared/money";
+import { engineWords } from "@/shared/studio/engineTypes";
 import { Field } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 
 // WHICH MACHINE IS ON WHICH JOB — the screen `assets.utilisation` never had.
 //
@@ -71,12 +74,39 @@ export default function StudioPlantAllocation({ slug, initial }) {
   // under (invariant 14), and `assetAllocations` is on the Assets ROOT.
   useLiveUpdates(slug, "assets", load);
 
-  if (error) return <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
-  if (!data) return <ScreenSkeleton />;
+  // THE WHOLE SCREEN BECOMES THE ERROR ONLY WHEN THERE IS NOTHING TO SHOW.
+  // This returned early on ANY error, so one refused save — a clash, a
+  // missing date — replaced the entire board with a sentence and the reader
+  // lost the form they were filling in. With data in hand the refusal goes to
+  // the banner below instead.
+  if (!data) {
+    return error
+      ? <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>
+      : <ScreenSkeleton />;
+  }
 
-  const { allocations = [], assets = [], projects = [], utilisation = null, canManage = false } = data;
+  const {
+    allocations = [], assets = [], projects = [], utilisation = null, currency = "",
+    canCreate = false, canDelete = false,
+  } = data;
+  // MONEY THROUGH THE SHARED HELPER, to the studio currency's decimals — a
+  // bare `toLocaleString()` cut a dinar's third decimal and grouped digits by
+  // the browser's locale rather than the reader's.
+  const money = (n) => moneyText(n, currency, locale);
+  // THE REGISTER'S STATUS WORD, translated as the Equipment register shows it.
+  const statusWord = engineWords({ key: "equipment", origin: "builtin" }, locale).word;
   const nameOf = (id) => assets.find((a) => a.id === id)?.name || id;
-  const dealOf = (id) => deals?.find((d) => d.id === id)?.ref || id;
+  // A DEAL THE READER CANNOT NAME IS NOT PRINTED AS ITS ID. With the deal list
+  // refused, the job is the project the hire was booked through; failing that,
+  // a sentence rather than an internal engagement id.
+  const projectOfDeal = new Map(allocations.filter((a) => a.projectId).map((a) => [a.dealId, a.projectId]));
+  const projectLabel = (pid) => {
+    const found = projects.find((x) => x.id === pid);
+    return found ? [found.number, found.title].filter(Boolean).join(" \u00b7 ") : "";
+  };
+  const dealOf = (id) => deals?.find((d) => d.id === id)?.ref
+    || projectLabel(projectOfDeal.get(id))
+    || tr.unknownJob;
 
   async function send(method, body) {
     setBusy(true);
@@ -97,7 +127,11 @@ export default function StudioPlantAllocation({ slug, initial }) {
         // This key read `overlap`, which nothing returns, so the one refusal
         // that matters most showed the raw word "clash" in both languages.
         deal: tr.refuseDeal, clash: tr.refuseOverlap,
-      }[out.detail || out.error] || out.detail || out.error);
+        unavailable: tr.refuseUnavailable(statusWord(out.status || "")),
+        forbidden: tr.refuseForbidden, notfound: tr.refuseNotFound,
+        // AN UNKNOWN TOKEN GETS A SENTENCE, never itself — "forbidden" printed
+        // as a word is a refusal nobody reading it can act on.
+      }[out.error] || tr.refuseFailed);
       return;
     }
     setError("");
@@ -127,13 +161,13 @@ export default function StudioPlantAllocation({ slug, initial }) {
         <p className="mt-1 max-w-3xl text-sm text-slate-500 dark:text-slate-400">{tr.lead}</p>
       </div>
 
-      {typeof error === "string" && error && (
+      {error && (
         <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>
       )}
 
       {utilisation && (
         <div className="grid gap-3 sm:grid-cols-3">
-          <Tile label={tr.totalCost} value={<span className="num">{utilisation.cost.toLocaleString()}</span>} />
+          <Tile label={tr.totalCost} value={<span className="num">{money(utilisation.cost)}</span>} />
           <Tile label={tr.totalDays} value={<span className="num">{utilisation.days}</span>} />
           {/* SHOWN EVEN WHEN NOUGHT, because "we charge for everything we run"
               is a real and reassuring answer, and hiding the row would make its
@@ -145,7 +179,7 @@ export default function StudioPlantAllocation({ slug, initial }) {
       <section className="rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.allocations}</h3>
-          {canManage && !draft && (
+          {canCreate && !draft && (
             <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white"
               onClick={() => setDraft({ assetId: "", dealId: "", projectId: "", from: "", to: "", dailyRate: "" })}>
               {tr.allocate}
@@ -170,9 +204,13 @@ export default function StudioPlantAllocation({ slug, initial }) {
                 const a = assets.find((x) => x.id === v);
                 setDraft({ ...draft, assetId: v, dailyRate: a?.hireRate || "" });
               }}
+              // A MACHINE THAT CANNOT GO OUT IS OFFERED DISABLED, with its
+              // status in the reader's language — the server refuses it
+              // (`bookable`), and the picker says so before Save does.
               options={assets.map((a) => ({
                 value: a.id,
-                label: `${a.name}${a.assetTag ? ` \u00b7 ${a.assetTag}` : ""}${a.status ? ` \u00b7 ${a.status}` : ""}`,
+                label: [a.name, a.assetTag, a.status ? statusWord(a.status) : ""].filter(Boolean).join(" \u00b7 "),
+                disabled: a.bookable === false,
               }))} />
 
             {/* THE JOB PICKER DEGRADES TO THE PROJECTS rather than refusing.
@@ -190,12 +228,16 @@ export default function StudioPlantAllocation({ slug, initial }) {
                 options={projects.map((p) => ({ value: p.id, label: [p.number, p.title].filter(Boolean).join(" · ") || p.id }))} />
             )}
 
-            <Field label={tr.from} type="date" required value={draft.from}
-              onChange={(v) => setDraft({ ...draft, from: v })} />
+            {/* THE SHARED DATE PICKER, not a native `type="date"` — the native
+                control spoke the browser's language and its own date order. */}
+            <Field label={tr.from} required filled={!!draft.from}>
+              <StudioDate value={draft.from} onChange={(v) => setDraft({ ...draft, from: v })} />
+            </Field>
             {/* A BLANK `to` IS A FACT — the machine is still out — so the hint
                 says so rather than the field looking unfinished. */}
-            <Field label={tr.to} type="date" value={draft.to} hint={tr.stillOut}
-              onChange={(v) => setDraft({ ...draft, to: v })} />
+            <Field label={tr.to} hint={tr.stillOut} filled={!!draft.to}>
+              <StudioDate value={draft.to} onChange={(v) => setDraft({ ...draft, to: v })} />
+            </Field>
             <Field label={tr.dailyRate} type="number" value={draft.dailyRate} hint={tr.dailyRateHint}
               onChange={(v) => setDraft({ ...draft, dailyRate: v })} />
 
@@ -233,9 +275,9 @@ export default function StudioPlantAllocation({ slug, initial }) {
                         is still out. Rendering an em dash would read as data
                         somebody forgot to enter. */}
                     <td className={cell}>{a.to ? fmtDate(a.to, locale) : <span className="text-slate-400 dark:text-slate-500">{tr.stillOut}</span>}</td>
-                    <td className={`${cell} num`}>{Number(a.dailyRate) > 0 ? Number(a.dailyRate).toLocaleString() : "—"}</td>
+                    <td className={`${cell} num`}>{Number(a.dailyRate) > 0 ? money(a.dailyRate) : "—"}</td>
                     <td className={cell}>
-                      {canManage && (
+                      {canDelete && (
                         <button className="text-slate-400 hover:text-rose-500" aria-label={tr.remove}
                           disabled={busy} onClick={() => send("DELETE", { id: a.id })}>×</button>
                       )}
@@ -252,10 +294,10 @@ export default function StudioPlantAllocation({ slug, initial }) {
         <section className="grid gap-4 lg:grid-cols-2">
           <Report title={tr.byDeal} rows={utilisation.deals.map((d) => ({
             key: d.dealId, label: dealOf(d.dealId), days: d.days, cost: d.cost,
-          }))} tr={tr} head={head} cell={cell} />
+          }))} tr={tr} head={head} cell={cell} money={money} />
           <Report title={tr.byAsset} rows={utilisation.byAsset.map((a) => ({
             key: a.assetId, label: nameOf(a.assetId), days: a.days, cost: a.cost,
-          }))} tr={tr} head={head} cell={cell} />
+          }))} tr={tr} head={head} cell={cell} money={money} />
         </section>
       )}
     </div>
@@ -271,7 +313,7 @@ function Tile({ label, value, hint }) {
   );
 }
 
-function Report({ title, rows, tr, head, cell }) {
+function Report({ title, rows, tr, head, cell, money }) {
   return (
     <div className="rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]">
       <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{title}</h3>
@@ -287,7 +329,7 @@ function Report({ title, rows, tr, head, cell }) {
               <tr key={r.key} className="border-t border-slate-100 dark:border-white/10">
                 <td className={cell}>{r.label}</td>
                 <td className={`${cell} num`}>{r.days}</td>
-                <td className={`${cell} num`}>{r.cost.toLocaleString()}</td>
+                <td className={`${cell} num`}>{money(r.cost)}</td>
               </tr>
             ))}
           </tbody>

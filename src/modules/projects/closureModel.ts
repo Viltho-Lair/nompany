@@ -36,8 +36,11 @@ export type ClosureLike = {
    * THE PERIOD THIS PROJECT IS SUPPORTED FOR, IN DAYS, AND IT ALREADY EXISTED.
    *
    * `ProjectSchema` has carried it since before this slice, with a studio-level
-   * default of 365, editable per project — and NOTHING HAS EVER READ IT. It was
-   * stored, shown in a form, and computed into no answer at all.
+   * default of 365, editable per project. Before this slice the only reader was
+   * the project list's Support tag (`supportStatus`, since deleted), which
+   * counted it from the project's END date and read a nought as 365 — so this
+   * file and that tag gave one project two different support periods. The tag
+   * reads `supportTag` below now; there is one calculation.
    *
    * So the tracker consumes it rather than minting a `warrantyMonths` beside
    * it. A third period field in this area would be one too many: `ProjectSchema`
@@ -243,12 +246,49 @@ export function closureProblem(
   // way round it would put the warranty clock behind the handover.
   if (pc && handover && handover < pc) return "handover-before-completion";
 
-  if (patch?.supportPeriodDays !== undefined) {
-    const days = num(patch.supportPeriodDays);
-    if (days < 0) return "warranty-negative";
-    if (!Number.isInteger(days)) return "warranty-fraction";
-    // A decade of support is already unusual; beyond that it is a typo.
-    if (days > 3650) return "warranty-range";
-  }
+  if (patch?.supportPeriodDays !== undefined) return supportPeriodProblem(patch.supportPeriodDays);
   return null;
+}
+
+/**
+ * WHAT A SUPPORT PERIOD MAY BE, asked by every door that writes one — the
+ * closing-out tab, a project's Edit details, the create dialog and the studio
+ * default in Settings. It used to be asked here alone, and the other three took
+ * anything non-negative: a fraction or a century went in through Edit details
+ * and was then refused here the next time anybody saved the closure dates, for
+ * a number they had never typed on that screen.
+ *
+ * Something that is not a number at all is not a whole number of days either,
+ * and is refused as one — reading it as nought would record "no support" for a
+ * typo.
+ */
+export function supportPeriodProblem(value: unknown): string | null {
+  const days = Number(value);
+  if (!Number.isFinite(days) || (typeof value === "string" && !value.trim())) return "warranty-fraction";
+  if (days < 0) return "warranty-negative";
+  if (!Number.isInteger(days)) return "warranty-fraction";
+  // A decade of support is already unusual; beyond that it is a typo.
+  if (days > 3650) return "warranty-range";
+  return null;
+}
+
+/**
+ * THE SUPPORT TAG ON THE PROJECT LIST, as one of four answers — read off
+ * `closurePosition` and nothing else.
+ *
+ * There used to be a second calculation (`supportStatus` in ./sla) that counted
+ * from the project's END date and turned a deliberate nought into 365, while
+ * the Closing-out tab counted from HANDOVER and read nought as "no support". So
+ * one project could be "Support: 200d left" on the list and "This job carries
+ * no support period" on its own tab. One clock, read in two places.
+ */
+export type SupportTag = "not-started" | "none" | "running" | "ended";
+export function supportTag(position: Pick<ClosurePosition, "warrantyState">): SupportTag {
+  switch (position.warrantyState) {
+    case "none": return "none";
+    case "running":
+    case "expiring": return "running";
+    case "expired": return "ended";
+    default: return "not-started";
+  }
 }

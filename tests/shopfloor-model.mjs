@@ -3,9 +3,17 @@
 // Two things a factory could not answer before: how long a run took, and
 // whether the batch was any good. What is worth asserting is what each of them
 // REFUSES to say when it does not know.
-import {
-  runHours, startProblem, orderEffort, qcProblems, batchVerdict, awaitingCheck, QC_RESULTS,
-} from "../src/modules/manufacturing/shopfloor.ts";
+// THROUGH THE LOADER, because `shopfloor.ts` now imports `./mrp` for the one
+// rule of what an open work order is, and Node's own resolver will not find an
+// extensionless sibling.
+import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+register(new URL("./loader.mjs", import.meta.url), { data: { root: pathToFileURL(`${process.cwd()}/`).href } });
+
+const {
+  runHours, startProblem, keptRun, orderEffort, qcProblems, batchVerdict, awaitingCheck, QC_RESULTS,
+} = await import("@/modules/manufacturing/shopfloor");
 
 let fails = 0;
 const ok = (what, cond, detail = "") => {
@@ -28,17 +36,42 @@ ok("a backwards run is nought rather than negative",
 ok("a run with no start is null", runHours(log({ startedAt: "" })) === null);
 
 // ---- one open run per person ------------------------------------------------
-ok("nothing open means anybody can start", startProblem("wo1", "me", []) === null);
+const OPEN = { status: "Released" };
+ok("nothing open means anybody can start", startProblem("wo1", "me", [], OPEN) === null);
 ok("starting the same order twice is refused by name",
-  startProblem("wo1", "me", [log({ endedAt: "" })]) === "already-running");
+  startProblem("wo1", "me", [log({ endedAt: "" })], OPEN) === "already-running");
 // AN OPERATOR AT ONE MACHINE CANNOT ALSO BE AT ANOTHER, and two open runs is
 // how a day ends with sixteen hours logged against eight worked.
 ok("STARTING A SECOND ORDER WHILE ONE IS RUNNING IS REFUSED",
-  startProblem("wo2", "me", [log({ endedAt: "" })]) === "other-run");
+  startProblem("wo2", "me", [log({ endedAt: "" })], OPEN) === "other-run");
 ok("somebody else's open run does not block me",
-  startProblem("wo1", "you", [log({ endedAt: "", byCollaboratorId: "me" })]) === null);
-ok("a closed run blocks nothing", startProblem("wo1", "me", [log({})]) === null);
-ok("a run needs an order", startProblem("", "me", []) === "order");
+  startProblem("wo1", "you", [log({ endedAt: "", byCollaboratorId: "me" })], OPEN) === null);
+ok("a closed run blocks nothing", startProblem("wo1", "me", [log({})], OPEN) === null);
+ok("a run needs an order", startProblem("", "me", [], OPEN) === "order");
+
+// THE TERMINAL OFFERED EVERY WORK ORDER, Completed and Cancelled included, and
+// `startRun` never looked the order up — the status was dropped on the way in,
+// and any id at all was accepted. Hours logged against a shut job are cost
+// nobody can put anywhere.
+ok("A RUN AGAINST AN ORDER THAT DOES NOT EXIST IS REFUSED", startProblem("ghost", "me", [], null) === "no-order");
+ok("A RUN AGAINST A COMPLETED ORDER IS REFUSED",
+  startProblem("wo1", "me", [], { status: "Completed" }) === "order-closed");
+ok("...and against a Cancelled one", startProblem("wo1", "me", [], { status: "Cancelled" }) === "order-closed");
+ok("an In progress order takes a run", startProblem("wo1", "me", [], { status: "In progress" }) === null);
+
+// A DOUBLE TAP COULD OPEN TWO RUNS: the one-open-run check is a read followed
+// by a write, and the store has no unique constraint for it. `startRun` writes
+// first and re-reads; every reader keeps the SAME run, so exactly one stands.
+const twin = [
+  log({ id: "b", endedAt: "", startedAt: "2026-09-09T08:00:00.001Z" }),
+  log({ id: "a", endedAt: "", startedAt: "2026-09-09T08:00:00.000Z" }),
+  log({ id: "z", endedAt: "", byCollaboratorId: "you", startedAt: "2026-09-09T07:00:00.000Z" }),
+];
+ok("OF TWO OPEN RUNS, THE EARLIEST IS KEPT", keptRun(twin, "me").id === "a");
+ok("...whichever order they are read in", keptRun([...twin].reverse(), "me").id === "a");
+ok("...ties go to the id, so every reader agrees",
+  keptRun([log({ id: "q", endedAt: "" }), log({ id: "p", endedAt: "" })], "me").id === "p");
+ok("somebody else's run is never mine to keep", keptRun(twin, "nobody") === null);
 
 // ---- what an order has cost -------------------------------------------------
 const LOGS = [
@@ -57,6 +90,11 @@ ok("AN OPEN RUN IS COUNTED, NOT ESTIMATED INTO THE TOTAL", effort.openRuns === 1
 // ---- the verdict ------------------------------------------------------------
 ok("the three results are the whole ladder", QC_RESULTS.join("|") === "pass|fail|concession");
 ok("a check needs a batch", qcProblems({ result: "pass" }).length === 1);
+// THE REASONS WERE ENGLISH SENTENCES joined into the refusal, so an Arabic
+// terminal printed "say why it failed". They are tokens the screen translates.
+ok("A QC REFUSAL IS A TOKEN, NOT AN ENGLISH SENTENCE",
+  qcProblems({ batchId: "b1", result: "fail" }).join() === "fail-reason");
+ok("...and so is a missing batch", qcProblems({ result: "pass" }).join() === "batch");
 ok("a check needs a result", qcProblems({ batchId: "b1" }).length === 1);
 ok("a nonsense result is refused", qcProblems({ batchId: "b1", result: "maybe" }).length === 1);
 ok("a pass needs no reason", qcProblems({ batchId: "b1", result: "pass" }).length === 0);

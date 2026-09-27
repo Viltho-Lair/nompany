@@ -12,6 +12,7 @@ import { stageOf } from "@/platform/engagement/registry";
 import type { Section } from "@/platform/db/sections";
 import type { EngineRecord } from "@/platform/engine/schema";
 import { referencePickers } from "@/modules/procurement/pickers";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import type { Sla } from "@/modules/maintenance/schema";
 import type { Job } from "./jobSchema";
 import { JOB_KINDS, JOB_STATUSES } from "./jobSchema";
@@ -31,10 +32,65 @@ const Records = repo<EngineRecord>("engineRecords");
 // SERVICE CONTRACTS, filed under `projects-sla` — Maintenance's register, read
 // here so a scheduled visit can name the contract it is under.
 const Slas = repo<Sla>("slas");
+const Projects = repo<{ id: string }>("projects");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const ids = (v: unknown, max = 50) =>
   (Array.isArray(v) ? v : []).map((x) => str(x, 60)).filter(Boolean).slice(0, max);
+
+// A JOB TIME: blank, a date, or a date and time — with or without a zone. What
+// the New job form sends is the dispatcher's wall clock with no zone
+// ("2026-09-27T08:30"), which dispatch.dayOf reads as the studio's own time.
+// Anything else was stored as typed and then read by the board as no day at
+// all, so the job vanished from every view while existing. Null means refused.
+const TIME = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})?)?$/;
+const jobTime = (v: unknown): string | null => {
+  const raw = str(v, 40);
+  if (!raw) return "";
+  return TIME.test(raw) && Number.isFinite(Date.parse(raw)) ? raw : null;
+};
+
+/**
+ * WHAT A JOB NAMES MUST EXIST — the people on it, the project, the contract and
+ * the installed unit. Each was stored as typed, so a stale picker or a hand-made
+ * request filed a job against a project that had been deleted, staffed it with
+ * somebody who had left (who then never saw it on any round), or named a
+ * contract nothing could resolve. EXISTENCE ONLY: the pickers already offer
+ * only what the reader may open, and a refusal here says nothing about a row
+ * beyond "not one of ours". Blank is always allowed — every link is optional.
+ * The refusal token, or null.
+ */
+async function linksProblem(
+  ctx: ScheduleContext,
+  v: { assignedToCollaboratorIds?: string[]; projectId?: string; contractId?: string; installedUnitId?: string },
+): Promise<string | null> {
+  const { studio } = ctx;
+  if (v.assignedToCollaboratorIds?.length) {
+    const known = new Set((await listCollaborators(studio.id)).map((c) => String(c.id)));
+    if (v.assignedToCollaboratorIds.some((id) => !known.has(id))) return "person";
+  }
+  if (v.projectId) {
+    const section = ctx.projectsListSection;
+    if (!section || !(await Projects.byId({ studio, section }, v.projectId))) return "project";
+  }
+  if (v.contractId) {
+    const section = ctx.slasSection;
+    if (!section || !(await Slas.byId({ studio, section }, v.contractId))) return "contract";
+  }
+  if (v.installedUnitId) {
+    const section = ctx.sections.find((s) => s.key === engineSectionKey("installed"));
+    const row = section ? await Records.byId({ studio, section }, v.installedUnitId) : null;
+    if (!row || row.typeKey !== "installed") return "unit";
+  }
+  return null;
+}
+
+/** The two ends of a visit: each must parse, and it cannot end before it starts. */
+function timesProblem(start: string | null, end: string | null): string | null {
+  if (start === null || end === null) return "time";
+  if (start && end && Date.parse(end) < Date.parse(start)) return "range";
+  return null;
+}
 
 /**
  * A JOB'S OBJECT CLASS DECIDES WHAT IT MAY TEACH THE DEAL.
@@ -194,18 +250,29 @@ export async function createJob(ctx: ScheduleContext, body: Record<string, unkno
   const kind = str(body?.kind, 30);
   if (!isKind(kind)) return { error: "kind" };
 
+  const scheduledStart = jobTime(body?.scheduledStart);
+  const scheduledEnd = jobTime(body?.scheduledEnd);
+  const badTime = timesProblem(scheduledStart, scheduledEnd);
+  if (badTime) return { error: badTime };
+
+  const links = {
+    projectId: str(body?.projectId, 60),
+    assignedToCollaboratorIds: ids(body?.assignedToCollaboratorIds),
+    contractId: str(body?.contractId, 60),
+    installedUnitId: str(body?.installedUnitId, 60),
+  };
+  const badLink = await linksProblem(ctx, links);
+  if (badLink) return { error: badLink };
+
   const job = await insertJob({ studio, section }, {
     title,
     kind,
     dealId: str(body?.dealId, 60),
-    projectId: str(body?.projectId, 60),
     location: str(body?.location, 300),
-    scheduledStart: str(body?.scheduledStart, 40),
-    scheduledEnd: str(body?.scheduledEnd, 40),
-    assignedToCollaboratorIds: ids(body?.assignedToCollaboratorIds),
+    scheduledStart: scheduledStart || "",
+    scheduledEnd: scheduledEnd || "",
     notes: str(body?.notes, 4000),
-    contractId: str(body?.contractId, 60),
-    installedUnitId: str(body?.installedUnitId, 60),
+    ...links,
   }, { id: collaborator.id, type: "collaborator" });
 
   return { job };
@@ -277,11 +344,24 @@ export async function updateJob(ctx: ScheduleContext, id: string, body: Record<s
   //   number  — invariant 10: a reference only moves forward.
   //   status  — a transition, not a field. See setJobStatus.
   const patch: Partial<Job> = {};
-  if (body.title !== undefined) patch.title = str(body.title, 200);
+  if (body.title !== undefined) {
+    // A title is required at create, so an edit may not blank it either.
+    const title = str(body.title, 200);
+    if (!title) return { error: "title" };
+    patch.title = title;
+  }
   if (body.projectId !== undefined) patch.projectId = str(body.projectId, 60);
   if (body.location !== undefined) patch.location = str(body.location, 300);
-  if (body.scheduledStart !== undefined) patch.scheduledStart = str(body.scheduledStart, 40);
-  if (body.scheduledEnd !== undefined) patch.scheduledEnd = str(body.scheduledEnd, 40);
+  if (body.scheduledStart !== undefined || body.scheduledEnd !== undefined) {
+    // BOTH ENDS JUDGED TOGETHER, the one sent against the one stored, so moving
+    // the start past a stored end is refused rather than written.
+    const start = body.scheduledStart !== undefined ? jobTime(body.scheduledStart) : current.scheduledStart || "";
+    const end = body.scheduledEnd !== undefined ? jobTime(body.scheduledEnd) : current.scheduledEnd || "";
+    const badTime = timesProblem(start, end);
+    if (badTime) return { error: badTime };
+    if (body.scheduledStart !== undefined) patch.scheduledStart = start || "";
+    if (body.scheduledEnd !== undefined) patch.scheduledEnd = end || "";
+  }
   if (body.notes !== undefined) patch.notes = str(body.notes, 4000);
   // What the visit is about can be corrected; which plan raised it cannot —
   // that pair is the PM run's idempotency key.
@@ -295,12 +375,29 @@ export async function updateJob(ctx: ScheduleContext, id: string, body: Record<s
     if (!isKind(kind)) return { error: "kind" };
     patch.kind = kind;
   }
+  // ONLY THE LINKS THIS EDIT CARRIES are checked — an edit to the title is not
+  // refused because a contract named months ago has since been removed.
+  const badLink = await linksProblem(ctx, {
+    assignedToCollaboratorIds: patch.assignedToCollaboratorIds,
+    projectId: patch.projectId, contractId: patch.contractId, installedUnitId: patch.installedUnitId,
+  });
+  if (badLink) return { error: badLink };
 
   if (!Object.keys(patch).length) return { error: "nothing" };
   patch.updatedAt = new Date().toISOString();
 
-  const job = await Jobs.update({ studio, section }, id, patch);
-  return job ? { job } : { error: "notfound" };
+  // CLOSED IS ASKED AGAIN OF THE ROW BEING WRITTEN (invariant 8): a job
+  // completed on site while the office was editing it must not be re-scheduled
+  // by the edit that read it open. A patch that no longer holds writes nothing.
+  // Reset per invocation, because a CAS retry runs the patch again.
+  let closed = "";
+  const job = await Jobs.update({ studio, section }, id, (row) => {
+    closed = row.status === "completed" || row.status === "cancelled" ? row.status : "";
+    return closed ? {} : patch;
+  });
+  if (!job) return { error: "notfound" };
+  if (closed) return { error: "closed", status: closed };
+  return { job };
 }
 
 /**
@@ -340,13 +437,26 @@ export async function setJobStatus(ctx: ScheduleContext, id: string, next: strin
   // once per store under NOMPANY_DB=parity — and a `new Date()` inside would
   // disagree between those invocations.
   const at = new Date().toISOString();
-  const job = await Jobs.update({ studio, section }, id, () => ({
-    status: next,
-    // STAMPED ONLY ON COMPLETION, and never typed. A cancelled job did not
-    // complete, so giving it a completion time would make it count as work done
-    // in every report that asks how much was delivered.
-    ...(next === "completed" ? { completedAt: at } : {}),
-    updatedAt: at,
-  }));
-  return job ? { job } : { error: "notfound" };
+  // THE MOVE IS JUDGED AGAIN AGAINST THE ROW BEING WRITTEN (invariant 8), not
+  // only the one read above: a technician tapping Finish while the office
+  // cancels would otherwise both "win", and a cancelled job would come back
+  // completed — billable under Template D's signoff trigger. A move that no
+  // longer holds writes nothing (`{}`) and is refused with the status the row
+  // really has. Reset per invocation, because a CAS retry runs the patch again.
+  let movedFrom = null as JobStatus | null;
+  const job = await Jobs.update({ studio, section }, id, (row) => {
+    movedFrom = NEXT_STATUS[row.status]?.includes(next) ? null : row.status;
+    if (movedFrom) return {};
+    return {
+      status: next,
+      // STAMPED ONLY ON COMPLETION, and never typed. A cancelled job did not
+      // complete, so giving it a completion time would make it count as work
+      // done in every report that asks how much was delivered.
+      ...(next === "completed" ? { completedAt: at } : {}),
+      updatedAt: at,
+    };
+  });
+  if (!job) return { error: "notfound" };
+  if (movedFrom) return { error: "transition", from: movedFrom, to: next };
+  return { job };
 }

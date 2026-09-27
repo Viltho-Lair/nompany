@@ -23,6 +23,7 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, microLabel, Empty, Dialog, StatTile, money, fmtDate, tileRow } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import {
   TENDER_STAGES, LIVE_TENDER_STAGES, DECIDED_TENDER_STAGES,
@@ -96,7 +97,7 @@ export default function StudioTenders({ slug, view = "", initial, initialError =
   const tr = tenderingDict(locale);
   const fromClient = useSearchParams().get("client") || "";
   const [data, setData] = useState(initial ?? null);
-  const [error, setError] = useState(initialError);
+  const [error, setError] = useState(() => (initialError ? refusal(tr, initialError) : ""));
   const [busy, setBusy] = useState(false);
   // With a server payload the customer is known at once; without one, the
   // first answer opens it (see `apply`), and only the first.
@@ -110,8 +111,9 @@ export default function StudioTenders({ slug, view = "", initial, initialError =
     return { ok: res.ok, body: await res.json().catch(() => ({})) };
   }, [slug]);
 
+  // A failed load is translated like any refusal — `forbidden` was shown raw.
   const apply = useCallback(({ ok, body }) => {
-    if (!ok) { setError(body.error || "failed"); return; }
+    if (!ok) { setError(refusal(tr, body.error || "failed")); return; }
     setError("");
     setData(body);
     if (pendingClient.current) {
@@ -119,7 +121,7 @@ export default function StudioTenders({ slug, view = "", initial, initialError =
       pendingClient.current = "";
       if (opened) setForm(opened);
     }
-  }, []);
+  }, [tr]);
 
   // THE FIRST FETCH IS THE ONE THIS SAVES. With a server payload in hand there is
   // nothing to ask for, and asking anyway would spend the round trip the whole
@@ -183,7 +185,7 @@ export default function StudioTenders({ slug, view = "", initial, initialError =
   // structure. A placeholder reason is passed so `reason-required` does not
   // hide the very stages that ask for one — the dialog collects it.
   const targetsFor = useCallback((t) => TENDER_STAGES.filter((to) => (
-    to !== t.status && !tenderProblem({ from: t.status, to, reason: "-" })
+    to !== t.status && !tenderProblem({ from: t.status, to, reason: "-", submittedAt: t.submittedAt })
   )), []);
 
   const onPick = useCallback((tender, to) => {
@@ -384,10 +386,16 @@ export default function StudioTenders({ slug, view = "", initial, initialError =
             <Field label={tr.issuer} value={form.issuer || ""} hint={tr.issuerHint}
               onChange={(v) => setForm((f) => ({ ...f, issuer: v }))} inputProps={{ maxLength: 160 }} />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={tr.deadline} type="date" required value={form.submissionDeadline || ""}
-                onChange={(v) => setForm((f) => ({ ...f, submissionDeadline: v }))} />
-              <Field label={tr.issueDate} type="date" value={form.issueDate || ""}
-                onChange={(v) => setForm((f) => ({ ...f, issueDate: v }))} />
+              {/* THE STUDIO'S PICKER, not the browser's: a native date input
+                  shows the machine's own format (mm/dd on a US laptop) where
+                  every other date in the studio reads dd/mm/yyyy. */}
+              <Field label={tr.deadline} required filled={!!form.submissionDeadline}>
+                <StudioDate value={form.submissionDeadline || ""}
+                  onChange={(iso) => setForm((f) => ({ ...f, submissionDeadline: iso }))} />
+              </Field>
+              <Field label={tr.issueDate} filled={!!form.issueDate}>
+                <StudioDate value={form.issueDate || ""} onChange={(iso) => setForm((f) => ({ ...f, issueDate: iso }))} />
+              </Field>
               <Field label={tr.estimatedValue} type="number" value={form.estimatedValue ?? ""}
                 onChange={(v) => setForm((f) => ({ ...f, estimatedValue: v }))} inputProps={{ min: "0", step: "0.01" }} />
               <Field label={tr.source} as="select" value={form.source || ""} hint={tr.sourceHint}

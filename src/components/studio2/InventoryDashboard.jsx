@@ -113,7 +113,7 @@ function derive({ items, orders }, tr) {
 
 export default function InventoryDashboard({
   slug, summary, items = [], orders = [], movements = [], nav,
-  currency = "", stockAlerts = false,
+  currency = "", stockAlerts = false, asOf: studioAsOf = "",
 }) {
   const locale = useStudioLocale();
   const tr = inventoryDict(locale);
@@ -129,7 +129,11 @@ export default function InventoryDashboard({
 
   // ---- the richer half (10/09/2026) ---------------------------------------
   const rtl = locale === "ar";
-  const asOf = new Date().toISOString().slice(0, 10);
+  // THE STUDIO'S DATE, handed down by the inventory route (shared/timezone):
+  // the twelve weeks and twelve months end on the day the studio is living in,
+  // not on the reader's laptop clock or UTC. The fallback is only for a body
+  // that predates the field.
+  const asOf = studioAsOf || new Date().toISOString().slice(0, 10);
   // ONE STATE PER ITEM, decided in this order: nothing on the shelf is out of
   // stock whatever its level says; below the level is low; and an item with no
   // level set cannot be judged, so it is said to be so rather than called healthy.
@@ -261,7 +265,7 @@ export default function InventoryDashboard({
               {recent.map((m) => (
                 <li key={m.id} className="flex items-center gap-3 py-2 text-sm">
                   <StatusPill kind="movement" status={m.kind} base="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-600" />
-                  <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{m.itemLabel}</span>
+                  <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-200">{m.itemLabel || tr.removedItem}</span>
                   <span className="num shrink-0 font-600 text-slate-900 dark:text-white">
                     {m.kind === "out" ? "−" : m.kind === "adjust" && m.qty < 0 ? "" : "+"}{qty(Math.abs(m.qty))}
                   </span>

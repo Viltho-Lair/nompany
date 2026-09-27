@@ -14,7 +14,7 @@
 import { requirePermission, can } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
-import { getJSON, editJSON, delKeys } from "@/platform/db/store";
+import { getJSON, editJSON, delKeys, claim, release } from "@/platform/db/store";
 import { PROJECT } from "@/platform/db/keys";
 import {
   readEngagement, attachRecord, setApprovedQuotation,
@@ -30,6 +30,7 @@ import { clientContacts, clientLocations, resolveClientFor } from "@/modules/sal
 import type { Client } from "@/modules/sales/types";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
 import { DEFAULT_SUPPORT_DAYS, hoursBetween } from "./projectSchedule";
+import { supportPeriodProblem } from "./closureModel";
 import { nextReference } from "@/modules/main/references";
 import { ticketFacts } from "@/modules/technical/technical";
 import { departmentsAsStored } from "@/modules/administration/departments";
@@ -136,39 +137,50 @@ export const projectsContext = moduleContext<ProjectsContext>({
 // Projects Settings live on the projects-settings sub-section's own `settings`
 // object, so they need no key of their own and die with the sub-section.
 // Patch semantics: only the keys present in the body are touched.
+//
+// MERGED INTO THE LIVE ROW, NOT THE COPY THIS REQUEST READ (invariant 8). The
+// whole object used to be rebuilt from `ctx.settingsSection` — read when the
+// request began — and written as a plain patch, so two people saving two
+// different settings at once each put back the other's old value. The changes
+// are worked out first; `updateSection`'s function patch lays only those onto
+// whatever is stored when the compare-and-set lands.
+//
+// REQUIREMENT WEIGHTS ARE NO LONGER WRITTEN (27/09/2026). They were a
+// completion split per service action, and NOTHING read them: a project's
+// progress is its plan's completion (`progressByProject`), and the one function
+// that would have applied them, `scaledWeights`, had no caller. Yet the screen
+// refused to save ANY setting until they totalled exactly 100. A setting nothing
+// can exercise is invariant 16's bug, so the field left the form and this door
+// ignores it. Values already stored are left where they are — deleting a
+// studio's typed numbers is not this change's to do — and they are simply not
+// read.
 export async function saveProjectsSettings(ctx: ProjectsContext, body: Record<string, unknown>) {
   // Guarded before anything is read or written — see platform/access/resolve.ts.
   const denied = requirePermission(ctx.access, "projects.settings.edit");
   if (denied) return denied;
 
   const { studio, settingsSection } = ctx;
-  const next = { ...(settingsSection.settings || {}) };
+  const changes: Record<string, unknown> = {};
   if (body?.stages !== undefined) {
-    next.stages = (Array.isArray(body.stages) ? body.stages : [])
+    changes.stages = (Array.isArray(body.stages) ? body.stages : [])
       .map((v) => String(v ?? "").trim().slice(0, 120)).filter(Boolean).slice(0, 40);
   }
-  // How a project's completion percentage divides across its requirements. The
-  // requirements are the studio's own SERVICE ACTIONS, so the weights are keyed by
-  // action name — only actions the studio actually named are stored, and a value
-  // outside that set is dropped rather than kept as an orphan. A blank is "not
-  // set" and stored as such, so it falls back to an even split rather than a zero
-  // that would silently drop the requirement.
-  if (body?.requirementWeights !== undefined) {
-    const raw: Record<string, unknown> = body.requirementWeights && typeof body.requirementWeights === "object"
-      ? body.requirementWeights as Record<string, unknown>
-      : {};
-    const actions = Array.isArray(studio.serviceActions) ? (studio.serviceActions as string[]) : [];
-    next.requirementWeights = Object.fromEntries(
-      actions.map((a) => [a, raw[a] === "" || raw[a] == null ? "" : nonNeg(raw[a], 0)]),
-    );
-  }
   if (body?.overtimeDefaultDepartmentId !== undefined) {
-    next.overtimeDefaultDepartmentId = str(body.overtimeDefaultDepartmentId, 60);
+    changes.overtimeDefaultDepartmentId = str(body.overtimeDefaultDepartmentId, 60);
   }
-  if (body?.supportPeriodDays !== undefined) next.supportPeriodDays = nonNeg(body.supportPeriodDays, DEFAULT_SUPPORT_DAYS);
+  if (body?.supportPeriodDays !== undefined) {
+    // THE DEFAULT IS COPIED ONTO EVERY NEW PROJECT, so it is held to the rule a
+    // project's own period is held to — a fraction here would be a fraction on
+    // every job opened afterwards.
+    const problem = supportPeriodProblem(body.supportPeriodDays);
+    if (problem) return { error: problem };
+    changes.supportPeriodDays = Number(body.supportPeriodDays);
+  }
 
-  const updated = await updateSection(studio.id, settingsSection.id, { settings: next });
-  return updated ? { settings: next } : { error: "notfound" };
+  const updated = await updateSection(studio.id, settingsSection.id, (live) => ({
+    settings: { ...((live.settings as Record<string, unknown>) || {}), ...changes },
+  }));
+  return updated ? { settings: (updated.settings || {}) as Record<string, unknown> } : { error: "notfound" };
 }
 
 export function readProjectsSettings(
@@ -177,7 +189,6 @@ export function readProjectsSettings(
   const s = settingsSection?.settings || {};
   return {
     stages: Array.isArray(s.stages) && s.stages.length ? s.stages : PROJECT_STAGES,
-    requirementWeights: s.requirementWeights && typeof s.requirementWeights === "object" ? s.requirementWeights : {},
     overtimeDefaultDepartmentId: s.overtimeDefaultDepartmentId || "",
     supportPeriodDays: nonNeg(s.supportPeriodDays, DEFAULT_SUPPORT_DAYS),
   };
@@ -412,7 +423,8 @@ async function tenderSource(
   // ONE PROJECT PER TENDER, derived rather than stored — exactly as the
   // quotation head derives it. A flag written back onto the tender would be a
   // second answer to the same question, free to disagree with the projects it
-  // is supposed to describe.
+  // is supposed to describe. Read UNDER openProject's opening claim, so two
+  // simultaneous handovers cannot both find nothing here and both create.
   const existing = await Projects.find({ studio, section: listSection });
   if (existing.some((p) => p.tenderId === tenderId)) return { error: "already" };
 
@@ -587,7 +599,7 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   const denied = requirePermission(ctx.access, "projects.list.create");
   if (denied) return denied;
 
-  const { studio, listSection, collaborator, sheetsSection } = ctx;
+  const { studio, collaborator } = ctx;
 
   // WHICH HEAD RUNS IS DECIDED BY THE BODY, not by a mode flag. A payload with
   // a quotationId is opening a project from that quotation and must pass its
@@ -596,21 +608,80 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
   // work directly. No flag a client could set skips either gate, and the two
   // ids are mutually exclusive by the order they are read — a body carrying
   // both is opening from the quotation, which is the stricter of the two.
-  const source = str(body?.quotationId, 60)
-    ? await quotationSource(ctx, body)
-    : str(body?.tenderId, 60)
-      ? await tenderSource(ctx, body)
-      : await directSource(ctx, body);
-  if ("error" in source) return source;
+  const quotationId = str(body?.quotationId, 60);
+  const tenderId = quotationId ? "" : str(body?.tenderId, 60);
 
+  // A SUPPORT PERIOD IS HELD TO ONE RULE at every door that writes one — see
+  // `supportPeriodProblem`. Blank means "the studio's default", as it always has.
+  const typedSupport = body?.supportPeriodDays;
+  const supportGiven = typedSupport !== undefined && typedSupport !== null && String(typedSupport).trim() !== "";
+  if (supportGiven) {
+    const problem = supportPeriodProblem(typedSupport);
+    if (problem) return { error: problem };
+  }
+
+  // ONE PROJECT PER TENDER, AND PER QUOTATION, UNDER CONTENTION TOO. Each head
+  // checks "is there a project from this source already?" by reading the
+  // projects and then creates one — two requests landing together both read
+  // "no" and both create, which is two projects, two pairs of sheets and two
+  // engagement attaches for one won job. The check stays DERIVED (deleting the
+  // project must free the tender), so what closes the window is a short NX
+  // claim around check-and-create rather than a flag on the tender: whoever
+  // takes the claim runs the check with nobody else between its read and its
+  // write; whoever does not is told `already`, which is what they would have
+  // been told a second later. The TTL is only a backstop for a crash between
+  // the claim and the release — `claim` retakes an expired hold by itself.
+  //
+  // A direct project has no source to be unique against, so it takes no claim.
+  const opening = quotationId
+    ? PROJECT.opening(studio.id, `quotation:${quotationId}`)
+    : tenderId ? PROJECT.opening(studio.id, `tender:${tenderId}`) : "";
+  if (opening && !(await claim(opening, collaborator.id, OPENING_HOLD_SECONDS))) return { error: "already" };
+
+  let source: ProjectSource;
+  let project: Project;
   const now = new Date().toISOString();
-  let project = await Projects.create({ studio, section: listSection }, {
-    // BLANK UNTIL FINANCE ISSUES IT, and true of both heads. The project number
-    // is quoted on invoices, purchase orders and delivery notes — it is the
-    // studio's commitment to bill this work — and issuing it is Finance's act,
-    // taken when they authorise the client's PO. A project can exist before
-    // that: the work is planned, the handler is named, the sheet is drawn up.
-    // What it cannot do is carry a number nobody issued.
+  try {
+    const resolved = quotationId
+      ? await quotationSource(ctx, body)
+      : tenderId
+        ? await tenderSource(ctx, body)
+        : await directSource(ctx, body);
+    if ("error" in resolved) return resolved;
+    source = resolved;
+    project = await createProjectRow(ctx, body, source, now, supportGiven ? Number(typedSupport) : null);
+  } finally {
+    // Released the moment the row exists (or the head refused), not at the end
+    // of the function: the checks the claim protects are all behind us, and the
+    // sheets and engagement writes below must not hold a second caller's answer.
+    if (opening) await release(opening);
+  }
+
+  return finishOpening(ctx, project, source, now);
+}
+
+// How long an opening claim may be held before it is treated as abandoned. An
+// opening takes a few reads and one write; a minute is generous for that and
+// short enough that a crashed request does not lock a tender for long.
+const OPENING_HOLD_SECONDS = 60;
+
+async function createProjectRow(
+  ctx: ProjectsContext, body: Record<string, unknown>, source: ProjectSource, now: string,
+  supportPeriodDays: number | null,
+): Promise<Project> {
+  const { studio, listSection, collaborator } = ctx;
+  return Projects.create({ studio, section: listSection }, {
+    // BLANK AT OPENING, on all three heads. The project number is quoted on
+    // invoices, purchase orders and delivery notes — it is the studio's
+    // commitment to bill this work — and it is ISSUED BY THE QUOTATION'S CLIENT
+    // PO APPROVAL (`issueProjectNumber`, below, called when that approval is
+    // approved, or straight after this create when it already was). A project
+    // can exist before that: the work is planned, the handler is named, the
+    // sheet is drawn up. What it cannot do is carry a number nobody issued.
+    //
+    // SO A TENDER OR DIRECT PROJECT IS NEVER NUMBERED: it has no quotation and
+    // therefore no Client PO approval, and nothing else issues one
+    // (docs/functionality/projects.md, "Not built yet").
     //
     // Blank rather than provisional, deliberately. A placeholder number would
     // be quoted on something before long, and then it would be the number.
@@ -626,10 +697,11 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
     stage: DEFAULT_STAGE,
     managerCollaboratorId: str(body?.managerCollaboratorId, 60),
     location: str(body?.location, 200),
-    // The complementary support window runs from the project's END date, so it
-    // means nothing until the project has one — but the length is decided now.
-    supportPeriodDays: nonNeg(body?.supportPeriodDays,
-      (ctx.settings as { supportPeriodDays?: number })?.supportPeriodDays ?? DEFAULT_SUPPORT_DAYS),
+    // The support window runs from HANDOVER (./closureModel), so it means
+    // nothing until the project is handed over — but the length is decided now.
+    // Validated by the caller; null means "the studio's default".
+    supportPeriodDays: supportPeriodDays ?? nonNeg(
+      (ctx.settings as { supportPeriodDays?: number })?.supportPeriodDays, DEFAULT_SUPPORT_DAYS),
     receivedDate: now.slice(0, 10),
     startDate: str(body?.startDate, 10),
     endDate: str(body?.endDate, 10),
@@ -639,6 +711,14 @@ export async function openProject(ctx: ProjectsContext, body: Record<string, unk
     openedByCollaboratorId: collaborator.id,
     createdAt: now,
   });
+}
+
+// EVERYTHING AFTER THE ROW EXISTS — the number, the engagement, the sheets and
+// the manager's notification. Split from openProject so the opening claim can
+// be released as soon as the row is written, and none of this runs under it.
+async function finishOpening(ctx: ProjectsContext, created: Project, source: ProjectSource, now: string) {
+  const { studio, listSection, collaborator, sheetsSection } = ctx;
+  let project = created;
 
   // Dual-write: the project joins its engagement as the PROJECT singleton —
   // the ticket's when the quotation has one, the quotation's OWN engagement
@@ -782,6 +862,12 @@ export async function updateProject(ctx: ProjectsContext, id: string, body: Reco
   const rows = await Projects.find({ studio, section: listSection });
   const current = rows.find((p) => p.id === id);
   if (!current) return { error: "notfound" };
+  // A CLOSED PROJECT IS NOT EDITED HERE EITHER. `closureProblem` refused every
+  // later write through the Closing-out tab, and Edit details — the same
+  // fields, and the same support period — went straight past it: a closed job
+  // could have its dates, its manager and its support period rewritten, which
+  // is exactly the quiet un-saying closing exists to prevent.
+  if (current.closedAt) return { error: "closed" };
 
   const patch: Record<string, unknown> = {};
   if (body?.title !== undefined) { const v = str(body.title, 200); if (!v) return { error: "title" }; patch.title = v; }
@@ -792,10 +878,24 @@ export async function updateProject(ctx: ProjectsContext, id: string, body: Reco
   for (const f of ["startDate", "endDate"]) if (body?.[f] !== undefined) patch[f] = str(body[f], 10);
   if (body?.managerCollaboratorId !== undefined) patch.managerCollaboratorId = str(body.managerCollaboratorId, 60);
   if (body?.location !== undefined) patch.location = str(body.location, 200);
-  if (body?.supportPeriodDays !== undefined) patch.supportPeriodDays = nonNeg(body.supportPeriodDays, DEFAULT_SUPPORT_DAYS);
+  if (body?.supportPeriodDays !== undefined) {
+    // THE CLOSING-OUT TAB'S RULE, not a looser one of its own: `nonNeg` let a
+    // fraction or a century through here, which the tab then refused the next
+    // time anybody saved its dates.
+    const problem = supportPeriodProblem(body.supportPeriodDays);
+    if (problem) return { error: problem };
+    patch.supportPeriodDays = Number(body.supportPeriodDays);
+  }
   if (body?.notes !== undefined) patch.notes = str(body.notes, 4000);
 
-  const project = await Projects.update({ studio, section: listSection }, id, patch);
+  // RE-ASKED OF THE LIVE ROW (invariant 8): a project closed between the read
+  // above and this write must not take the edit either.
+  let closed = false;
+  const project = await Projects.update({ studio, section: listSection }, id, (row) => {
+    closed = Boolean(row.closedAt);
+    return closed ? {} : patch;
+  });
+  if (closed) return { error: "closed" };
   if (!project) return { error: "notfound" };
   await announceProjectManager(ctx, project, current.managerCollaboratorId || "");
   // Progress rides the project's plan, not this row, so it is read back from the

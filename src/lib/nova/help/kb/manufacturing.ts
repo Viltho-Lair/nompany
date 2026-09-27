@@ -18,13 +18,15 @@ import type { HelpModule } from "../types";
 // above it, the component and declaration its list was checked against, so the
 // next person can re-verify it rather than trust it. What a doc lists under
 // "Not built yet" (production-planning.md, shop-floor.md, record-engine.md) is
-// answered here as NOT AVAILABLE YET, never as a feature. Four of the old
-// sentences were corrected rather than carried: two bills for one product do
-// not resolve to "the first" in any sense a person can see — the register lists
-// newest first and planning takes the NEWEST, whatever its status, so retiring
-// the old revision (Superseded) changes nothing (mrp.ts explode + listRecords'
-// sort); the other-run refusal does not name the open job, it says to clock off
-// first, while the terminal shows your own run at the top; shop-floor reading
+// answered here as NOT AVAILABLE YET, never as a feature. Corrected 27/09/2026
+// against the fixes of that day: planning counts only OPEN work orders (the
+// status used to be dropped on the way in, so Completed and Cancelled counted),
+// explodes only RELEASED bills — the newest Released one when two share a
+// product name — and treats a Retired station as gone and a Down one as over
+// (mrp.ts isPlannable/isRetired/isDown); the shop floor lists open orders only
+// and refuses a run on a missing or closed one; the other-run refusal NAMES the
+// open job; and BOM line buttons show only with the Bills of materials edit
+// right (canEditBom). Still true from the older corrections: shop-floor reading
 // needs the Production planning right AND the register's own view right,
 // because `rowsOf` swallows a refusal as an empty list; and the four registers
 // have no statuses of their own for a QC verdict — the check lives beside the
@@ -269,8 +271,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.refused-right", topic: "dept.manufacturing", kind: "troubleshoot", open: "administration-access",
       q: { en: "A button says I do not have the right. What do I do?", ar: "يقول زر إنني لا أملك الصلاحية. ماذا أفعل؟" },
       a: {
-        en: "Each act in Manufacturing asks one right, and most buttons you cannot use are not shown at all. The exceptions are on the Production planning tab, where Add line and Remove are shown to everybody who can open the page and answer forbidden to somebody without the Bills of materials edit right. Find the right you need in the list for Manufacturing & Production, and ask an Admin, or whoever manages roles, to add it to your role on the Access screen.",
-        ar: "يطلب كل إجراء في التصنيع صلاحية واحدة، ومعظم الأزرار التي لا تستطيع استخدامها لا تظهر أصلًا. والاستثناء في تبويب تخطيط الإنتاج، حيث يظهر زرا «إضافة سطر» و«حذف» لكل من يفتح الصفحة، ويجيبان بكلمة forbidden لمن لا يملك صلاحية تعديل قوائم المواد. ابحث عن الصلاحية التي تحتاجها في قائمة التصنيع والإنتاج، واطلب من المسؤول أو ممن يدير الأدوار إضافتها إلى دورك في شاشة الصلاحيات.",
+        en: "Each act in Manufacturing asks one right, and the buttons you cannot use are not shown at all: on the Production planning tab, Add line and Remove appear only with the Bills of materials edit right. If a button is refused anyway, your role probably changed while the page was open. Find the right you need in the list for Manufacturing & Production, and ask an Admin, or whoever manages roles, to add it to your role on the Access screen.",
+        ar: "يطلب كل إجراء في التصنيع صلاحية واحدة، والأزرار التي لا تستطيع استخدامها لا تظهر أصلًا: ففي تبويب تخطيط الإنتاج لا يظهر زرا «إضافة سطر» و«حذف» إلا مع صلاحية تعديل قوائم المواد. وإن رُفض زر مع ذلك، فالأرجح أن دورك تغيّر والصفحة مفتوحة. ابحث عن الصلاحية التي تحتاجها في قائمة التصنيع والإنتاج، واطلب من المسؤول أو ممن يدير الأدوار إضافتها إلى دورك في شاشة الصلاحيات.",
       },
       keywords: ["no right", "forbidden", "refused", "no permission", "لا صلاحية", "ممنوع", "مرفوض", "ليس لدي صلاحية"],
       related: ["manufacturing.rights", "admin.access.grant"],
@@ -565,8 +567,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.bom-statuses", topic: "dept.manufacturing.boms", kind: "about", open: "manufacturing",
       q: { en: "What do a bill of materials' statuses mean?", ar: "ماذا تعني حالات قائمة المواد؟" },
       a: {
-        en: "A bill starts as Draft, is Released when it is the one to build to, and is Superseded when a newer revision replaces it; Superseded is one-way, so the next revision is a new record. Planning pays no attention to the status: it matches a work order to the newest bill carrying the same product name, whether that bill is Draft, Released or Superseded. Nor does the status lock anything, so a superseded bill's fields and lines can still be changed; leave them alone, because they are what earlier batches were built to.",
-        ar: "تبدأ القائمة «مسودة»، وتصبح «مُطلقة» حين تكون المعتمدة للتصنيع، و«مستبدلة» حين تحل محلها مراجعة أحدث؛ و«مستبدل» في اتجاه واحد، فالمراجعة التالية سجل جديد. ولا يلتفت التخطيط إلى الحالة: فهو يطابق أمر العمل مع أحدث قائمة تحمل اسم المنتج نفسه، سواء كانت مسودة أو مُطلقة أو مستبدلة. ولا تقفل الحالة شيئًا كذلك، فيمكن تغيير حقول القائمة المستبدلة وبنودها؛ فاتركها كما هي، لأنها ما صُنعت وفقه الدفعات السابقة.",
+        en: "A bill starts as Draft, is Released when it is the one to build to, and is Superseded when a newer revision replaces it; Superseded is one-way, so the next revision is a new record. Planning uses Released bills only: a work order is matched to the newest Released bill carrying the same product name, and a Draft or Superseded bill is never exploded. A Superseded bill's lines can no longer be added, changed or removed, because they are what earlier batches were built to; its fields in the register can still be edited, so leave them alone.",
+        ar: "تبدأ القائمة «مسودة»، وتصبح «مُطلقة» حين تكون المعتمدة للتصنيع، و«مستبدلة» حين تحل محلها مراجعة أحدث؛ و«مستبدل» في اتجاه واحد، فالمراجعة التالية سجل جديد. ولا يستخدم التخطيط إلا القوائم المُطلقة: فيُطابَق أمر العمل مع أحدث قائمة مُطلقة تحمل اسم المنتج نفسه، ولا تُفكَّك قائمة مسودة أو مستبدلة أبدًا. ولا يمكن بعد ذلك إضافة بنود إلى القائمة المستبدلة أو تغييرها أو حذفها، لأنها ما صُنعت وفقه الدفعات السابقة؛ أما حقولها في السجل فما زال تعديلها ممكنًا، فاتركها كما هي.",
       },
       keywords: ["draft", "released", "superseded", "revision", "BOM status", "مسودة", "مطلقة", "مستبدلة", "مراجعة", "حالة القائمة"],
       related: ["manufacturing.bom-revision", "manufacturing.no-bom"],
@@ -688,8 +690,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.bom-revision", topic: "dept.manufacturing.boms", kind: "howto", open: "manufacturing",
       q: { en: "How do I bring in a new revision of a bill of materials?", ar: "كيف أعتمد مراجعة جديدة لقائمة المواد؟" },
       a: {
-        en: "A new revision is a new bill with the same product name and its own lines. Because planning always uses the newest bill for a product name, the new one takes over the moment it is saved, even as a Draft, so add its lines straight away or planning will count nothing for that product.",
-        ar: "المراجعة الجديدة قائمة جديدة باسم المنتج نفسه وببنودها الخاصة. ولأن التخطيط يستخدم دائمًا أحدث قائمة لاسم المنتج، تحل الجديدة محل القديمة لحظة حفظها، ولو كانت مسودة، فأضف بنودها فورًا وإلا لن يحسب التخطيط شيئًا لذلك المنتج.",
+        en: "A new revision is a new bill with the same product name and its own lines. While it is a Draft, planning keeps using the Released one, so add the new lines at your own pace. When it is ready, move it to Released: from then on planning uses it, because it is the newest Released bill for that product. Then move the old one to Superseded, which freezes its lines.",
+        ar: "المراجعة الجديدة قائمة جديدة باسم المنتج نفسه وببنودها الخاصة. وما دامت مسودة يواصل التخطيط استخدام القائمة المُطلقة، فأضف البنود الجديدة على مهل. وحين تجهز انقلها إلى «مُطلقة»: فيستخدمها التخطيط من ذلك الحين لأنها أحدث قائمة مُطلقة لذلك المنتج. ثم انقل القديمة إلى «مستبدلة»، فتُجمَّد بنودها.",
       },
       steps: {
         en: [
@@ -722,8 +724,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.bom-line-refused", topic: "dept.manufacturing.boms", kind: "troubleshoot", open: "manufacturing",
       q: { en: "Why was a bill of materials line refused?", ar: "لماذا رُفض بند في قائمة المواد؟" },
       a: {
-        en: "The screen shows a one-word reason. Duplicate means that item is already on this bill; remove the line and add it again with the right quantity. Qty means the quantity per unit was not above nought, and item means no component was chosen. Forbidden means you lack the Bills of materials edit right, which the page does not check before showing the button.",
-        ar: "تعرض الشاشة سببًا بكلمة واحدة. فكلمة duplicate تعني أن الصنف موجود في هذه القائمة من قبل؛ فاحذف البند وأضفه من جديد بالكمية الصحيحة. وكلمة qty تعني أن الكمية لكل وحدة لم تكن أكبر من صفر، وكلمة item تعني أنه لم يُختر مكون. وكلمة forbidden تعني أنك لا تملك صلاحية التعديل في قوائم المواد، والصفحة لا تتحقق منها قبل إظهار الزر.",
+        en: "The screen says why in a sentence. The component is already on this bill: remove its line and add it again with the right quantity. Enter how many one unit takes: the quantity per unit was not above nought. That component is not a registered item: it was deleted from Inventory, or Inventory is not set up. That bill of materials is not in the register any more: it was deleted, or you lack the Bills of materials view right. That bill is Superseded: its lines are frozen. Without the Bills of materials edit right the Add line and Remove buttons are not shown at all.",
+        ar: "تذكر الشاشة السبب في جملة. فإن قالت إن المكون موجود على القائمة بالفعل، فاحذف بنده وأضفه من جديد بالكمية الصحيحة. وإن طلبت إدخال كم تحتاج الوحدة الواحدة، فالكمية لكل وحدة لم تكن أكبر من صفر. وإن قالت إن المكون ليس صنفًا مسجلًا، فقد حُذف من المخزون أو أن المخزون غير مفعّل. وإن قالت إن قائمة المواد لم تعد في السجل، فقد حُذفت أو أنك لا تملك صلاحية عرض قوائم المواد. وإن قالت إن القائمة مستبدلة، فبنودها مجمّدة. ودون صلاحية تعديل قوائم المواد لا يظهر زرا «إضافة سطر» و«حذف» أصلًا.",
       },
       keywords: ["duplicate", "qty", "forbidden", "line refused", "مكرر", "الكمية", "مرفوض", "رفض البند"],
       related: ["manufacturing.bom-change-line", "manufacturing.refused-right"],
@@ -754,8 +756,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.station-statuses", topic: "dept.manufacturing.stations", kind: "about", open: "manufacturing",
       q: { en: "What do a work station's statuses mean?", ar: "ماذا تعني حالات محطة العمل؟" },
       a: {
-        en: "A station is Available, Down when it cannot be used, or Retired when it is gone for good. Available and Down move back and forth, and either can be Retired, which is final. Planning does not look at the status: a station that is Down or Retired still shows its load, and orders written against it still count, so move their work to another station by editing the orders.",
-        ar: "تكون المحطة «متاحة»، أو «معطّلة» حين لا يمكن استخدامها، أو «متقاعدة» حين تخرج نهائيًّا. وتتنقل الحالتان «متاحة» و«معطّلة» ذهابًا وإيابًا، ويمكن نقل أي منهما إلى «متقاعدة»، وهي نهائية. ولا ينظر التخطيط إلى الحالة: فالمحطة المعطلة أو المتقاعدة تُظهر حِملها، وتبقى الأوامر المكتوبة باسمها محسوبة، فانقل عملها إلى محطة أخرى بتعديل الأوامر.",
+        en: "A station is Available, Down when it cannot be used, or Retired when it is gone for good. Available and Down move back and forth, and either can be Retired, which is final. Planning reads the status: a Down station keeps its row, shows Down instead of a day figure, and is marked over as soon as any open order names it; a Retired station has no row at all, and orders still naming it are listed as sent to a station that does not exist or is retired, so move their work to another station by editing the orders.",
+        ar: "تكون المحطة «متاحة»، أو «معطّلة» حين لا يمكن استخدامها، أو «متقاعدة» حين تخرج نهائيًّا. وتتنقل الحالتان «متاحة» و«معطّلة» ذهابًا وإيابًا، ويمكن نقل أي منهما إلى «متقاعدة»، وهي نهائية. ويقرأ التخطيط الحالة: فالمحطة المعطلة تبقى في صفها، وتُظهر «معطلة» بدل رقم الأيام، وتُعلَّم بالزيادة ما إن يسميها أي أمر مفتوح؛ أما المتقاعدة فلا صف لها، والأوامر التي ما زالت تسميها تُدرج على أنها مرسلة إلى محطة غير موجودة أو متقاعدة، فانقل عملها إلى محطة أخرى بتعديل الأوامر.",
       },
       keywords: ["available", "down", "retired", "station status", "متاحة", "معطلة", "متقاعدة", "حالة المحطة"],
       related: ["manufacturing.station-down"],
@@ -809,8 +811,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.station-down", topic: "dept.manufacturing.stations", kind: "howto", open: "manufacturing",
       q: { en: "How do I mark a station down, and move its work elsewhere?", ar: "كيف أعلّم محطة معطّلة وأنقل عملها إلى غيرها؟" },
       a: {
-        en: "Marking a station Down records that it cannot be used, but planning keeps loading it, so its work has to be moved by hand. Both steps need edit rights: Work stations for the status and Work orders for the orders.",
-        ar: "تعليم المحطة «معطّلة» يسجل أنه لا يمكن استخدامها، لكن التخطيط يستمر في تحميلها، فلا بد من نقل عملها يدويًّا. وتحتاج الخطوتان إلى صلاحيات التعديل: في محطات العمل للحالة، وفي أوامر العمل للأوامر.",
+        en: "Marking a station Down records that it cannot be used, and planning then shows it as Down and marks it over while any open order still names it, so its work is visibly stuck until you move it. Moving the work is by hand: edit each order's Work station. Both steps need edit rights: Work stations for the status and Work orders for the orders.",
+        ar: "تعليم المحطة «معطّلة» يسجل أنه لا يمكن استخدامها، فيُظهرها التخطيط عندئذ «معطلة» ويعلّمها بالزيادة ما دام أمر مفتوح يسميها، فيبدو عملها عالقًا إلى أن تنقله. ونقل العمل يدوي: عدّل «محطة العمل» في كل أمر. وتحتاج الخطوتان إلى صلاحيات التعديل: في محطات العمل للحالة، وفي أوامر العمل للأوامر.",
       },
       steps: {
         en: [
@@ -1015,8 +1017,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.planning-counted", topic: "dept.manufacturing.planning", kind: "about", open: "manufacturing",
       q: { en: "Which work orders does planning count?", ar: "ما أوامر العمل التي يحسبها التخطيط؟" },
       a: {
-        en: "Every work order that is not Completed or Cancelled: Planned, Released and In progress alike, whatever its due date, because planning has no dates. An open order whose product matches no bill of materials is listed under the requirements as not counted, and so is one with no quantity, so you know the list is incomplete. An order counts for its whole quantity until it is completed, however much has already been made.",
-        ar: "كل أمر عمل ليس «مكتملًا» أو «ملغى»: المخطط والمُطلق وقيد التنفيذ على السواء، مهما كان تاريخ استحقاقه، لأن التخطيط بلا تواريخ. والأمر المفتوح الذي لا يطابق منتجه أي قائمة مواد يُدرج تحت الاحتياجات على أنه غير محسوب، وكذلك الأمر بلا كمية، لتعرف أن القائمة غير مكتملة. ويُحسب الأمر بكامل كميته إلى أن يكتمل، مهما صُنع منه.",
+        en: "Every work order that is not Completed or Cancelled: Planned, Released and In progress alike, whatever its due date, because planning has no dates. An open order whose product matches no Released bill of materials is listed under the requirements as not counted, and so is one with no quantity, so you know the list is incomplete. An order counts for its whole quantity until it is completed, however much has already been made.",
+        ar: "كل أمر عمل ليس «مكتملًا» أو «ملغى»: المخطط والمُطلق وقيد التنفيذ على السواء، مهما كان تاريخ استحقاقه، لأن التخطيط بلا تواريخ. والأمر المفتوح الذي لا يطابق منتجه أي قائمة مواد مُطلقة يُدرج تحت الاحتياجات على أنه غير محسوب، وكذلك الأمر بلا كمية، لتعرف أن القائمة غير مكتملة. ويُحسب الأمر بكامل كميته إلى أن يكتمل، مهما صُنع منه.",
       },
       keywords: ["open orders", "counted", "not counted", "due date", "الأوامر المفتوحة", "محسوب", "غير محسوب", "تاريخ الاستحقاق"],
       related: ["manufacturing.no-bom", "manufacturing.work-order-statuses"],
@@ -1025,8 +1027,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.capacity", topic: "dept.manufacturing.planning", kind: "about", open: "manufacturing",
       q: { en: "How is work station capacity checked?", ar: "كيف يتم التحقق من طاقة محطة العمل؟" },
       a: {
-        en: "Under Can the shop take it, each station shows the units of work pointed at it, the sum of the quantities of the open orders naming it, and how many days that is at its capacity per day. The day figure turns red when the work is more than one day's capacity. A station nobody has rated shows No rate set rather than zero or a guess. Capacity is measured in units, not hours, and a station's status is not considered, so a station that is Down still takes load.",
-        ar: "تحت «هل يستوعب المشغل» تُظهر كل محطة وحدات العمل الموجهة إليها، وهي مجموع كميات الأوامر المفتوحة التي تسميها، وكم يومًا يعادل ذلك بطاقتها اليومية. ويصبح رقم الأيام أحمر حين يزيد العمل على طاقة يوم واحد. والمحطة التي لم تحدد طاقتها تُظهر «بلا معدل محدد» بدل الصفر أو التخمين. وتُقاس الطاقة بالوحدات لا بالساعات، ولا تُراعى حالة المحطة، فالمحطة المعطلة تستقبل الحِمل أيضًا.",
+        en: "Under Can the shop take it, each station shows the units of work pointed at it, the sum of the quantities of the open orders naming it, and how many days that is at its capacity per day. The day figure turns red when the work is more than one day's capacity. A station nobody has rated shows No rate set rather than zero or a guess. A Down station shows Down and turns red while any work is on it, and a Retired station is left out. Capacity is measured in units, not hours.",
+        ar: "تحت «هل يستوعب المشغل» تُظهر كل محطة وحدات العمل الموجهة إليها، وهي مجموع كميات الأوامر المفتوحة التي تسميها، وكم يومًا يعادل ذلك بطاقتها اليومية. ويصبح رقم الأيام أحمر حين يزيد العمل على طاقة يوم واحد. والمحطة التي لم تحدد طاقتها تُظهر «بلا معدل محدد» بدل الصفر أو التخمين. والمحطة المعطلة تُظهر «معطلة» وتصبح حمراء ما دام عليها عمل، والمتقاعدة تُستبعد. وتُقاس الطاقة بالوحدات لا بالساعات.",
       },
       keywords: ["capacity", "work station", "overload", "days of work", "load", "طاقة", "محطة عمل", "حمل زائد", "أيام العمل", "الحمل"],
       related: ["manufacturing.station-capacity", "manufacturing.planning-unstationed"],
@@ -1059,8 +1061,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.no-bom", topic: "dept.manufacturing.planning", kind: "troubleshoot", open: "manufacturing",
       q: { en: "Why does planning say a work order has no bill of materials?", ar: "لماذا يقول التخطيط إن أمر العمل ليس له قائمة مواد؟" },
       a: {
-        en: "A work order is matched to its bill of materials by the product name, ignoring capitals and spaces at either end, so a spelling difference leaves it not counted; edit the order or the bill so the names agree. If the names do match but the bill has no lines, the order is counted and adds nothing. If two bills share one product name, planning uses the newest, whatever its status, so a fresh Draft revision with no lines yet makes that product need nothing. Give an old revision a different product name only if you truly want it ignored.",
-        ar: "يُطابق أمر العمل مع قائمة مواده باسم المنتج، مع تجاهل الأحرف الكبيرة والمسافات في الطرفين، فأي اختلاف في الإملاء يتركه غير محسوب؛ فعدّل الأمر أو القائمة حتى يتفق الاسمان. وإن تطابق الاسمان لكن القائمة بلا بنود، يُحسب الأمر ولا يضيف شيئًا. وإن اشتركت قائمتان في اسم منتج واحد، يستخدم التخطيط الأحدث مهما كانت حالتها، فالمراجعة المسودة الجديدة التي لم تُضف بنودها بعد تجعل ذلك المنتج لا يحتاج شيئًا. ولا تعطِ المراجعة القديمة اسم منتج مختلفًا إلا إن كنت تريد تجاهلها فعلًا.",
+        en: "A work order is matched to its bill of materials by the product name, ignoring capitals and spaces at either end, so a spelling difference leaves it not counted; edit the order or the bill so the names agree. Only a Released bill counts, so an order whose only bill is still a Draft, or has been Superseded with no Released successor, is reported as having none: move the right bill to Released. If the names match and the bill is Released but has no lines, the order is counted and adds nothing. If two Released bills share one product name, planning uses the newest; move the old one to Superseded.",
+        ar: "يُطابق أمر العمل مع قائمة مواده باسم المنتج، مع تجاهل الأحرف الكبيرة والمسافات في الطرفين، فأي اختلاف في الإملاء يتركه غير محسوب؛ فعدّل الأمر أو القائمة حتى يتفق الاسمان. ولا تُحسب إلا القائمة المُطلقة، فالأمر الذي قائمته الوحيدة ما زالت مسودة، أو استُبدلت دون خلف مُطلق، يُبلَّغ عنه على أنه بلا قائمة: فانقل القائمة الصحيحة إلى «مُطلقة». وإن تطابق الاسمان وكانت القائمة مُطلقة لكنها بلا بنود، يُحسب الأمر ولا يضيف شيئًا. وإن اشتركت قائمتان مُطلقتان في اسم منتج واحد، يستخدم التخطيط الأحدث؛ فانقل القديمة إلى «مستبدلة».",
       },
       keywords: ["no BOM", "product name", "not counted", "missing quantity", "بلا قائمة مواد", "اسم المنتج", "غير محسوب", "كمية مفقودة"],
       related: ["manufacturing.matching", "manufacturing.bom-revision"],
@@ -1099,8 +1101,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.planning-unstationed", topic: "dept.manufacturing.planning", kind: "troubleshoot", open: "manufacturing",
       q: { en: "Why does planning say an order was sent to a work station that does not exist?", ar: "لماذا يقول التخطيط إن أمرًا أُرسل إلى محطة عمل غير موجودة؟" },
       a: {
-        en: "The order's Work station names no station in the Work stations register, usually a spelling difference, a renamed station, or a station you may not view. Its quantity is then added to no station's load. Edit the order to a station's exact name, or add the station. An order with no station at all is not reported here; it simply has not been planned onto a station yet.",
-        ar: "حقل «محطة العمل» في الأمر لا يسمي أي محطة في سجل محطات العمل، وسبب ذلك عادةً اختلاف في الإملاء، أو محطة أُعيدت تسميتها، أو محطة لا يحق لك عرضها. فلا تُضاف كميته عندئذ إلى حِمل أي محطة. عدّل الأمر إلى الاسم الدقيق لمحطة، أو أضف المحطة. أما الأمر الذي بلا محطة إطلاقًا فلا يُبلَّغ عنه هنا؛ فهو ببساطة لم يُخطط على محطة بعد.",
+        en: "The order's Work station names no station in the Work stations register, or names one that has been Retired, usually a spelling difference, a renamed station, a retired machine, or a station you may not view. Its quantity is then added to no station's load. Edit the order to a working station's exact name, or add the station. An order with no station at all is not reported here; it simply has not been planned onto a station yet.",
+        ar: "حقل «محطة العمل» في الأمر لا يسمي أي محطة في سجل محطات العمل، أو يسمي محطة متقاعدة، وسبب ذلك عادةً اختلاف في الإملاء، أو محطة أُعيدت تسميتها، أو آلة متقاعدة، أو محطة لا يحق لك عرضها. فلا تُضاف كميته عندئذ إلى حِمل أي محطة. عدّل الأمر إلى الاسم الدقيق لمحطة عاملة، أو أضف المحطة. أما الأمر الذي بلا محطة إطلاقًا فلا يُبلَّغ عنه هنا؛ فهو ببساطة لم يُخطط على محطة بعد.",
       },
       keywords: ["station does not exist", "unstationed", "wrong station", "محطة غير موجودة", "بلا محطة", "محطة خاطئة"],
       related: ["manufacturing.station-rename", "manufacturing.matching"],
@@ -1181,8 +1183,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.shopfloor-run", topic: "dept.manufacturing.shop-floor", kind: "howto", common: true, open: "manufacturing",
       q: { en: "How do I log my time on a work order?", ar: "كيف أسجل وقتي على أمر عمل؟" },
       a: {
-        en: "Clock on to the work order you are working on and clock off when you stop; the closed run records who was on the job and for how long, at the order's station. You can be on only one job at a time, so while you are clocked on the other Clock on buttons are hidden. Logging runs needs Production planning, and view and edit on Work orders.",
-        ar: "سجّل دخولك على أمر العمل الذي تعمل عليه، وسجّل خروجك عند التوقف؛ فتسجل التشغيلة المغلقة من كان على المهمة وكم استغرق، في محطة الأمر. ولا يمكن أن تكون إلا على مهمة واحدة في الوقت نفسه، لذا تختفي أزرار «تسجيل الدخول» الأخرى ما دمت مسجلًا. ويحتاج تسجيل التشغيلات إلى تخطيط الإنتاج، وإلى العرض والتعديل في أوامر العمل.",
+        en: "Clock on to the work order you are working on and clock off when you stop; the closed run records who was on the job and for how long, at the order's station, and the box at the top says since when, in your own clock. Only open orders are listed, and a run cannot be started on a Completed or Cancelled one. You can be on only one job at a time, so while you are clocked on the other Clock on buttons are hidden. Logging runs needs Production planning, and view and edit on Work orders.",
+        ar: "سجّل دخولك على أمر العمل الذي تعمل عليه، وسجّل خروجك عند التوقف؛ فتسجل التشغيلة المغلقة من كان على المهمة وكم استغرق، في محطة الأمر، ويذكر المربع في الأعلى منذ متى بتوقيتك أنت. ولا تُسرد إلا الأوامر المفتوحة، ولا يمكن بدء تشغيلة على أمر مكتمل أو ملغى. ولا يمكن أن تكون إلا على مهمة واحدة في الوقت نفسه، لذا تختفي أزرار «تسجيل الدخول» الأخرى ما دمت مسجلًا. ويحتاج تسجيل التشغيلات إلى تخطيط الإنتاج، وإلى العرض والتعديل في أوامر العمل.",
       },
       steps: {
         en: ["Open Manufacturing & Production and choose the Shop floor tab.", "Find the work order and press Clock on.", "When you stop, press Clock off in the box at the top that says which job you are on."],
@@ -1223,8 +1225,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.other-run", topic: "dept.manufacturing.shop-floor", kind: "troubleshoot", open: "manufacturing",
       q: { en: "Why can't I start or close a run?", ar: "لماذا لا أستطيع بدء تشغيل أو إغلاقه؟" },
       a: {
-        en: "You can have only one open run at a time across every order, so Clock off the job you are on first; it is the one shown at the top of the tab. You can close only your own run, never somebody else's, because a run is a claim about who was at the machine; if you are told you are not clocked on to anything, your run was already closed. Starting and closing runs needs the Work orders edit right, and without it no Clock on button is shown.",
-        ar: "لا يمكن أن تكون لديك إلا تشغيلة مفتوحة واحدة في الوقت نفسه عبر كل الأوامر، فسجّل خروجك من المهمة التي أنت عليها أولًا؛ وهي الظاهرة في أعلى التبويب. ولا يمكنك إغلاق إلا تشغيلتك أنت، لا تشغيلة غيرك، لأن التشغيلة ادعاء بمن كان على الآلة؛ وإن قيل لك إنك لست مسجلًا على أي عمل، فقد أُغلقت تشغيلتك من قبل. ويتطلب بدء التشغيلات وإغلاقها صلاحية التعديل في أوامر العمل، ومن دونها لا يظهر زر «تسجيل الدخول».",
+        en: "You can have only one open run at a time across every order, so the refusal names the job you are on: clock off that one first; it is also the one shown at the top of the tab. A work order that is completed or cancelled, or no longer in the register, cannot be clocked on to. You can close only your own run, never somebody else's, because a run is a claim about who was at the machine; if you are told you are not clocked on to anything, your run was already closed. Starting and closing runs needs the Work orders edit right, and without it no Clock on button is shown.",
+        ar: "لا يمكن أن تكون لديك إلا تشغيلة مفتوحة واحدة في الوقت نفسه عبر كل الأوامر، لذا يسمي الرفض المهمة التي أنت عليها: فسجّل خروجك منها أولًا؛ وهي أيضًا الظاهرة في أعلى التبويب. ولا يمكن تسجيل الدخول على أمر عمل مكتمل أو ملغى أو لم يعد في السجل. ولا يمكنك إغلاق إلا تشغيلتك أنت، لا تشغيلة غيرك، لأن التشغيلة ادعاء بمن كان على الآلة؛ وإن قيل لك إنك لست مسجلًا على أي عمل، فقد أُغلقت تشغيلتك من قبل. ويتطلب بدء التشغيلات وإغلاقها صلاحية التعديل في أوامر العمل، ومن دونها لا يظهر زر «تسجيل الدخول».",
       },
       keywords: ["open run", "another run", "clock off first", "cannot clock on", "تشغيل مفتوح", "تشغيل آخر", "سجل الخروج أولا", "لا يمكن تسجيل الدخول"],
       related: ["manufacturing.shopfloor-run", "manufacturing.shopfloor-forgot"],
@@ -1243,8 +1245,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.qc-refused", topic: "dept.manufacturing.shop-floor", kind: "troubleshoot", open: "manufacturing",
       q: { en: "Why can't I record a quality check?", ar: "لماذا لا أستطيع تسجيل فحص جودة؟" },
       a: {
-        en: "A fail must say why it failed and a concession what was conceded, so Record stays greyed out until the reason is written. If no Record check button shows at all, you lack the Production batches edit right. If the Quality list says no production batches are recorded while there are some, you lack the Production batches view right, because the tab reads the register with your rights.",
-        ar: "لا بد أن يذكر الرفض سببه والقبول الاستثنائي ما تم التنازل عنه، لذا يبقى زر «تسجيل» معطلًا حتى يُكتب السبب. وإن لم يظهر زر «تسجيل فحص» أصلًا، فأنت لا تملك صلاحية التعديل في دفعات الإنتاج. وإن قالت قائمة الجودة إنه لا توجد دفعات إنتاج مسجلة مع وجودها، فأنت لا تملك صلاحية عرض دفعات الإنتاج، لأن التبويب يقرأ السجل بصلاحياتك.",
+        en: "A fail must say why it failed and a concession what was conceded, so Record stays greyed out until the reason is written. If it says the batch is not in the register any more, it was deleted while your screen was open. If no Record check button shows at all, you lack the Production batches edit right. If the Quality list says no production batches are recorded while there are some, you lack the Production batches view right, because the tab reads the register with your rights.",
+        ar: "لا بد أن يذكر الرفض سببه والقبول الاستثنائي ما تم التنازل عنه، لذا يبقى زر «تسجيل» معطلًا حتى يُكتب السبب. وإن قيل إن الدفعة لم تعد في السجل، فقد حُذفت والشاشة مفتوحة. وإن لم يظهر زر «تسجيل فحص» أصلًا، فأنت لا تملك صلاحية التعديل في دفعات الإنتاج. وإن قالت قائمة الجودة إنه لا توجد دفعات إنتاج مسجلة مع وجودها، فأنت لا تملك صلاحية عرض دفعات الإنتاج، لأن التبويب يقرأ السجل بصلاحياتك.",
       },
       keywords: ["cannot record check", "reason required", "no batches", "no button", "لا أستطيع تسجيل الفحص", "السبب مطلوب", "لا دفعات", "لا زر"],
       related: ["manufacturing.qc-fields", "manufacturing.rights"],
@@ -1253,8 +1255,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.shopfloor-empty", topic: "dept.manufacturing.shop-floor", kind: "troubleshoot", open: "manufacturing",
       q: { en: "Why does the Shop floor tab list no work orders, or ones that are finished?", ar: "لماذا لا يسرد تبويب أرضية المصنع أي أمر عمل، أو يسرد أوامر منتهية؟" },
       a: {
-        en: "The tab reads the Work orders register with your rights, so without the Work orders view right it says no work orders are open even when there are. With it, the tab lists every work order in the register, including Planned, Completed and Cancelled ones, so check the status in the register before clocking on. Clocking on does not check or change the order's status.",
-        ar: "يقرأ التبويب سجل أوامر العمل بصلاحياتك، فدون صلاحية عرض أوامر العمل يقول إنه لا توجد أوامر عمل مفتوحة حتى لو وُجدت. ومعها يسرد التبويب كل أوامر العمل في السجل، بما فيها المخططة والمكتملة والملغاة، فتحقق من الحالة في السجل قبل تسجيل الدخول. وتسجيل الدخول لا يتحقق من حالة الأمر ولا يغيّرها.",
+        en: "The tab reads the Work orders register with your rights, so without the Work orders view right it says no work orders are open even when there are. With it, the tab lists only the open work orders, Planned, Released and In progress; Completed and Cancelled ones are left out, and clocking on to one is refused. Clocking on does not change the order's status, so move it to In progress in the register yourself.",
+        ar: "يقرأ التبويب سجل أوامر العمل بصلاحياتك، فدون صلاحية عرض أوامر العمل يقول إنه لا توجد أوامر عمل مفتوحة حتى لو وُجدت. ومعها لا يسرد التبويب إلا أوامر العمل المفتوحة، المخططة والمُطلقة وقيد التنفيذ؛ أما المكتملة والملغاة فتُستبعد، ويُرفض تسجيل الدخول عليها. وتسجيل الدخول لا يغيّر حالة الأمر، فانقله بنفسك إلى «قيد التنفيذ» في السجل.",
       },
       keywords: ["no work orders", "finished orders listed", "empty shop floor", "لا أوامر عمل", "أوامر منتهية", "أرضية المصنع فارغة"],
       related: ["manufacturing.work-order-release", "manufacturing.rights"],

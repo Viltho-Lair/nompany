@@ -19,8 +19,8 @@ import type { HelpModule } from "../types";
 // exists and nothing calls it), so that is now answered as not available yet.
 //
 // DRAWN FROM THE CODE, not from the docs. Where docs/functionality/ and the
-// screens disagree, the screens win (dispatch.md still says staffing a job
-// means opening it). Every `fields` entry names, in a comment above it, the
+// screens disagree, the screens win (dispatch.md said staffing a job meant
+// opening it until 27/09/2026; it now says no screen does). Every `fields` entry names, in a comment above it, the
 // component and schema its list was checked against, so the next person can
 // re-verify it rather than trust it. What a doc lists under "Not built yet" is
 // answered here as NOT AVAILABLE YET, never as a feature. The words are the
@@ -252,8 +252,8 @@ export const fieldService: HelpModule = {
       id: "field-service.short-codes", topic: "dept.field-service", kind: "troubleshoot", open: "field-service-schedule",
       q: { en: "Why did a refusal on the Dispatch or My round tab show a short English word?", ar: "لماذا ظهر رفض في تبويب التوزيع أو جولتي بكلمة إنجليزية قصيرة؟" },
       a: {
-        en: "These two tabs show the refusal's code rather than a sentence, in either language. title means the job has no title, forbidden means your role lacks the right, transition means the job cannot make that move from where it is, not-started means a scheduled job cannot be signed yet, and cancelled means a cancelled job cannot be signed at all. A longer English message after refused names what the signature was missing. Each of these has its own answer in this chapter.",
-        ar: "يعرض هذان التبويبان رمز الرفض بدل جملة، في اللغتين. فـ title تعني أن المهمة بلا عنوان، وforbidden أن دورك يفتقد الصلاحية، وtransition أن المهمة لا تستطيع تلك النقلة من حالتها الحالية، وnot-started أن المهمة المجدولة لا يمكن توقيعها بعد، وcancelled أن المهمة الملغاة لا يمكن توقيعها أبدًا. والرسالة الإنجليزية الأطول بعد refused تذكر ما ينقص التوقيع. ولكلٍّ من هذه جوابه في هذا الفصل.",
+        en: "They should not any more: the Dispatch and My round tabs, the Schedule screen and the Permits register now say every refusal as a sentence in your language, naming what to do. A missing title, a right your role lacks, a job or permit somebody else moved first, a start that cannot be signed yet, a cancelled job, a signature missing its name or its mark, and a time that could not be read each have their own sentence. If a bare code still appears, it is one nompany has no sentence for yet; the matching answer in this chapter explains it.",
+        ar: "لم يعد يُفترض أن يحدث ذلك: فتبويبا «التوزيع» و«جولتي» وشاشة الجدول وسجل التصاريح تقول الآن كل رفض بجملة بلغتك تذكر ما يجب فعله. فلكلٍّ من العنوان الناقص، والصلاحية التي يفتقدها دورك، والمهمة أو التصريح الذي حرّكه شخص آخر أولًا، والمهمة التي لا يمكن توقيعها بعد، والمهمة الملغاة، والتوقيع الناقص الاسم أو الرسم، والوقت الذي تعذرت قراءته، جملته الخاصة. وإن ظهر رمز مجرد فهو رمز لا جملة له في nompany بعد، والجواب المقابل في هذا الفصل يشرحه.",
       },
       keywords: ["error code", "forbidden", "transition", "not-started", "رمز الخطأ", "رسالة إنجليزية", "رفض", "خطأ"],
       related: ["field-service-schedule.job-refused", "field-service-schedule.cant-sign", "field-service-schedule.move-refused"],
@@ -262,8 +262,8 @@ export const fieldService: HelpModule = {
       id: "field-service.wrong-day", topic: "dept.field-service", kind: "troubleshoot", open: "field-service-schedule",
       q: { en: "Why does the dispatch board or the shift list open on the wrong day?", ar: "لماذا تُفتح لوحة التوزيع أو قائمة الورديات على اليوم الخطأ؟" },
       a: {
-        en: "The dispatch board's today and the shift list's week are counted in UTC, the clock nompany stores records in, not yet in the time zone set in Studio settings. Near midnight, and all evening in a zone far from UTC, they can open a day away from your own clock. Pick the day you want in the board's Day field; the shift calendar itself follows your device's clock. A job's times are shown exactly as they were typed.",
-        ar: "يُحسب «اليوم» في لوحة التوزيع وأسبوع قائمة الورديات بتوقيت UTC، وهو التوقيت الذي يحفظ به nompany السجلات، لا بالمنطقة الزمنية المحددة في إعدادات الاستوديو بعد. لذا قد تُفتحان قرب منتصف الليل، أو طوال المساء في منطقة بعيدة عن UTC، على يوم يختلف عن ساعتك. اختر اليوم الذي تريده في حقل «اليوم» على اللوحة؛ أما تقويم الورديات نفسه فيتبع ساعة جهازك. وتظهر أوقات المهمة كما كُتبت تمامًا.",
+        en: "The dispatch board's today, the shift list's week, permit expiry and overdue work orders on My round are all counted on the studio's own clock, the time zone set in Studio settings. If they open on the wrong day, check that setting: with no time zone set they fall back to UTC. A job's times are the times that were picked, on that same clock. The shift calendar's own week still follows your device's clock, and the board's Day field lets you pick any day.",
+        ar: "يُحسب «اليوم» في لوحة التوزيع، وأسبوع قائمة الورديات، وانتهاء التصاريح، وأوامر العمل المتأخرة في «جولتي» كلها بساعة الاستوديو نفسها، أي المنطقة الزمنية المحددة في إعدادات الاستوديو. فإن فُتحت على يوم خطأ فتحقق من ذلك الإعداد: فبلا منطقة زمنية تعود إلى توقيت UTC. وأوقات المهمة هي الأوقات التي اختيرت، على الساعة نفسها. أما أسبوع تقويم الورديات نفسه فما زال يتبع ساعة جهازك، ويتيح حقل «اليوم» في اللوحة اختيار أي يوم.",
       },
       keywords: ["wrong day", "time zone", "UTC", "yesterday", "tomorrow", "اليوم الخطأ", "المنطقة الزمنية", "التوقيت", "أمس"],
       related: ["admin.settings.timezone", "field-service-schedule.pick-day"],
@@ -324,8 +324,8 @@ export const fieldService: HelpModule = {
       id: "field-service-schedule.permits-tab", topic: "dept.field-service-schedule", kind: "about", open: "quality-hse-permits",
       q: { en: "What is the Permits tab on Schedule?", ar: "ما تبويب التصاريح في شاشة الجدول؟" },
       a: {
-        en: "Permits belong to Quality & HSE now, and they are answered in its chapter. Where your studio has Quality & HSE's Permits and you may open it, the tab says permits are kept there and offers Open permits. Otherwise the tab still shows the same permit register here, so nobody loses the way to their permits. In a studio whose roles have not yet been given the Permits right, the Tracking rights still open permits.",
-        ar: "أصبحت التصاريح تابعة للجودة والسلامة الآن، وتُشرح في فصلها. فحيث يملك الاستوديو تصاريح الجودة والسلامة وتستطيع فتحها، يقول التبويب إن التصاريح محفوظة هناك ويعرض «فتح التصاريح». وإلا فيبقى التبويب يعرض سجل التصاريح نفسه هنا، حتى لا يفقد أحد طريقه إلى تصاريحه. وفي استوديو لم تُمنح أدواره صلاحية التصاريح بعد، ما زالت صلاحيات التتبع تفتح التصاريح.",
+        en: "Permits belong to Quality & HSE now, and they are answered in its chapter. Where your studio has Quality & HSE's Permits and you may open it, the tab says permits are kept there and offers Open permits. Otherwise the tab still shows the same permit register here, so nobody loses the way to their permits. Its buttons follow your permit rights one by one: Add permit needs the create right, Issue, Close, Cancel and Edit need the edit right, and Delete needs the delete right, each on top of managing Field Operations. In a studio whose roles have not yet been given the Permits right, the Tracking rights still open permits.",
+        ar: "أصبحت التصاريح تابعة للجودة والسلامة الآن، وتُشرح في فصلها. فحيث يملك الاستوديو تصاريح الجودة والسلامة وتستطيع فتحها، يقول التبويب إن التصاريح محفوظة هناك ويعرض «فتح التصاريح». وإلا فيبقى التبويب يعرض سجل التصاريح نفسه هنا، حتى لا يفقد أحد طريقه إلى تصاريحه. وتتبع أزراره صلاحيات التصاريح لديك واحدة واحدة: «إضافة تصريح» يحتاج صلاحية الإنشاء، و«إصدار» و«إغلاق» و«إلغاء» و«تعديل» تحتاج صلاحية التعديل، و«حذف» يحتاج صلاحية الحذف، وكلها فوق إدارة العمليات الميدانية. وفي استوديو لم تُمنح أدواره صلاحية التصاريح بعد، ما زالت صلاحيات التتبع تفتح التصاريح.",
       },
       keywords: ["permits", "permit to work", "quality and HSE", "open permits", "التصاريح", "تصريح عمل", "الجودة والسلامة", "فتح التصاريح"],
       related: ["quality-hse-permits.schedule-tab", "quality-hse-permits.about"],
@@ -454,8 +454,8 @@ export const fieldService: HelpModule = {
       id: "field-service-schedule.shift-refused", topic: "dept.field-service-schedule", kind: "troubleshoot", open: "field-service-schedule",
       q: { en: "Why won't my shift save?", ar: "لماذا لا تُحفظ ورديتي؟" },
       a: {
-        en: "Schedule stays greyed until you pick who and a date, and Schedule a shift is greyed while the studio has no members to pick. Pick who is working means the person chosen is no longer in the studio; give the shift a date, a start and an end means a time was cleared. That didn't save usually means the location was removed from Master data while the form was open, so close the form and pick again. View-only access means your role cannot change the rota.",
-        ar: "يبقى زر «جدولة» معطلًا حتى تختار من والتاريخ، ويكون «جدولة وردية» معطلًا ما دام الاستوديو بلا أعضاء يمكن اختيارهم. ورسالة «اختر من سيعمل» تعني أن الشخص المختار لم يعد في الاستوديو، ورسالة «أعط الوردية تاريخًا وبداية ونهاية» تعني أن وقتًا مُسح. أما «لم يحفظ ذلك» فتعني غالبًا أن الموقع أُزيل من البيانات الأساسية والنموذج مفتوح، فأغلق النموذج واختر من جديد. ورسالة صلاحية العرض فقط تعني أن دورك لا يستطيع تغيير الجدول.",
+        en: "Schedule stays greyed until you pick who and a date, and Schedule a shift is greyed while the studio has no members to pick. Pick who is working means the person chosen is no longer in the studio; give the shift a date, a start and an end means a time was cleared. A message that the location no longer exists means it was removed from Master data while the form was open, so pick another. View-only access means your role cannot change the rota.",
+        ar: "يبقى زر «جدولة» معطلًا حتى تختار من والتاريخ، ويكون «جدولة وردية» معطلًا ما دام الاستوديو بلا أعضاء يمكن اختيارهم. ورسالة «اختر من سيعمل» تعني أن الشخص المختار لم يعد في الاستوديو، ورسالة «أعط الوردية تاريخًا وبداية ونهاية» تعني أن وقتًا مُسح. أما الرسالة التي تقول إن الموقع لم يعد موجودًا فتعني أنه أُزيل من البيانات الأساسية والنموذج مفتوح، فاختر غيره. ورسالة صلاحية العرض فقط تعني أن دورك لا يستطيع تغيير الجدول.",
       },
       keywords: ["shift won't save", "greyed out", "pick who", "didn't save", "view-only", "لا تُحفظ الوردية", "زر معطل", "اختر من سيعمل", "لم يحفظ"],
       related: ["field-service-schedule.shift-fields", "field-service.rights"],
@@ -554,11 +554,13 @@ export const fieldService: HelpModule = {
     },
     // Checked against src/components/studio2/DispatchPanel.js (NewJobForm, the New
     // job form: Title; Kind; Who is on it; Project; Location; Maintenance
-    // contract; Installed unit; Starts; Ends — Create job stays greyed without a
-    // title) and JobSchema in src/modules/operations/jobSchema.ts (title max 200,
-    // location max 300, four kinds); the refusals are createJob's in
-    // src/modules/operations/jobs.ts (title, kind) and the pickers are
-    // jobFormOptions' there.
+    // contract; Installed unit; Day; Starts; Ends — the day on the shared date
+    // picker and two clock times, an end earlier than the start running past
+    // midnight; Create job stays greyed without a title) and JobSchema in
+    // src/modules/operations/jobSchema.ts (title max 200, location max 300, four
+    // kinds); the refusals are createJob's in src/modules/operations/jobs.ts
+    // (title, kind, time, range, person, project, contract, unit), worded by
+    // dispatchDict's `problem`, and the pickers are jobFormOptions' there.
     {
       id: "field-service-schedule.job-fields", topic: "dept.field-service.jobs", kind: "fields", open: "field-service-schedule",
       q: { en: "What information does a new job need?", ar: "ما المعلومات التي تحتاجها المهمة الجديدة؟" },
@@ -575,8 +577,9 @@ export const fieldService: HelpModule = {
           "Location: typed, up to 300 characters",
           "Maintenance contract: a service contract, or None",
           "Installed unit: a unit from the Installed base, or None",
-          "Starts: a date and time",
-          "Ends: a date and time",
+          "Day: the day of the visit, on the studio's date picker",
+          "Starts: a clock time",
+          "Ends: a clock time; one earlier than the start runs past midnight into the next day",
         ],
         ar: [
           "العنوان (مطلوب): حتى 200 حرف",
@@ -586,8 +589,9 @@ export const fieldService: HelpModule = {
           "الموقع: يُكتب، حتى 300 حرف",
           "عقد الصيانة: عقد خدمة، أو «لا شيء»",
           "الوحدة المركبة: وحدة من سجل المعدات المركّبة لدى العملاء، أو «لا شيء»",
-          "تبدأ: تاريخ ووقت",
-          "تنتهي: تاريخ ووقت",
+          "اليوم: يوم الزيارة، من منتقي التاريخ في الاستوديو",
+          "تبدأ: وقت على الساعة",
+          "تنتهي: وقت على الساعة، وما يسبق البداية يمتد بعد منتصف الليل إلى اليوم التالي",
         ],
       },
       keywords: ["new job form", "job title", "job kind", "who is on it", "installed unit", "نموذج المهمة", "عنوان المهمة", "نوع المهمة", "المكلف", "الوحدة المركبة"],
@@ -601,8 +605,8 @@ export const fieldService: HelpModule = {
         ar: "تُنشأ المهام من لوحة التوزيع بزر «مهمة جديدة»، الذي يحتاج صلاحية الإنشاء في «الجدول». ولا تحتاج المهمة إلى صفقة، فهي تنضم إلى صفقة مشروعها أو تفتح صفقة خدمة ميدانية خاصة بها. اختر مكلَّفيها وأوقاتها بعناية، لأن المهمة لا يمكن فتحها وتغييرها من الشاشة بعد إنشائها.",
       },
       steps: {
-        en: ["Open Field Operations, then Schedule, and choose the Dispatch tab.", "Choose New job.", "Enter the title and kind, and pick who is on it.", "Add the project, location, start and end, and the contract or installed unit if relevant.", "Choose Create job."],
-        ar: ["افتح العمليات الميدانية ثم الجدول، واختر تبويب «التوزيع».", "اختر «مهمة جديدة».", "أدخل العنوان والنوع، واختر المكلف.", "أضف المشروع والموقع والبداية والنهاية، والعقد أو الوحدة المركبة إن وجدت.", "اختر «إنشاء المهمة»."],
+        en: ["Open Field Operations, then Schedule, and choose the Dispatch tab.", "Choose New job.", "Enter the title and kind, and pick who is on it.", "Add the project, location, day, start and end times, and the contract or installed unit if relevant.", "Choose Create job."],
+        ar: ["افتح العمليات الميدانية ثم الجدول، واختر تبويب «التوزيع».", "اختر «مهمة جديدة».", "أدخل العنوان والنوع، واختر المكلف.", "أضف المشروع والموقع واليوم ووقتي البداية والنهاية، والعقد أو الوحدة المركبة إن وجدت.", "اختر «إنشاء المهمة»."],
       },
       keywords: ["new job", "create job", "service call", "dispatch a crew", "مهمة جديدة", "إنشاء مهمة", "زيارة خدمة", "إرسال فريق"],
       related: ["field-service-schedule.job-fields", "field-service-schedule.dispatch"],
@@ -649,8 +653,8 @@ export const fieldService: HelpModule = {
       id: "field-service-schedule.job-refused", topic: "dept.field-service.jobs", kind: "troubleshoot", open: "field-service-schedule",
       q: { en: "Why can't I create a job?", ar: "لماذا لا أستطيع إنشاء مهمة؟" },
       a: {
-        en: "New job appears only for somebody holding the Schedule create right. Create job stays greyed until the job has a title, and a title of spaces alone is refused with the word title. The word kind means the kind was not one of the four, which the form itself cannot send. If the project, contract or unit you want is not offered, see why the lists are empty.",
-        ar: "لا يظهر زر «مهمة جديدة» إلا لمن يملك صلاحية الإنشاء في «الجدول». ويبقى «إنشاء المهمة» معطلًا حتى يكون للمهمة عنوان، والعنوان المكوّن من مسافات فقط يُرفض بكلمة title. وكلمة kind تعني أن النوع ليس أحد الأنواع الأربعة، وهو ما لا يستطيع النموذج نفسه إرساله. وإن لم يُعرض المشروع أو العقد أو الوحدة التي تريدها فانظر لماذا القوائم فارغة.",
+        en: "New job appears only for somebody holding the Schedule create right. Create job stays greyed until the job has a title, and a title of spaces alone is refused. A job that ends before it starts is refused, and so is a time that cannot be read. If the person, project, contract or installed unit you picked was removed while the form was open, the job is refused and says which, so pick again. If the project, contract or unit you want is not offered, see why the lists are empty.",
+        ar: "لا يظهر زر «مهمة جديدة» إلا لمن يملك صلاحية الإنشاء في «الجدول». ويبقى «إنشاء المهمة» معطلًا حتى يكون للمهمة عنوان، والعنوان المكوّن من مسافات فقط يُرفض. وتُرفض المهمة التي تنتهي قبل أن تبدأ، وكذلك الوقت الذي تتعذر قراءته. وإن أُزيل الشخص أو المشروع أو العقد أو الوحدة المركبة التي اخترتها والنموذج مفتوح، تُرفض المهمة وتقول أيها، فاختر من جديد. وإن لم يُعرض المشروع أو العقد أو الوحدة التي تريدها فانظر لماذا القوائم فارغة.",
       },
       keywords: ["cannot create job", "no new job button", "create job greyed", "title", "لا أستطيع إنشاء مهمة", "لا يوجد زر مهمة جديدة", "زر معطل", "العنوان"],
       related: ["field-service-schedule.empty-pickers", "field-service.short-codes"],
@@ -779,8 +783,8 @@ export const fieldService: HelpModule = {
       id: "field-service-schedule.start-job", topic: "dept.field-service.round", kind: "howto", open: "field-service-schedule",
       q: { en: "How do I start and finish a job?", ar: "كيف أبدأ مهمة وأنهيها؟" },
       a: {
-        en: "Starting and finishing are done on My round and need the Schedule edit right. Start work appears only on a Scheduled job, and Mark finished only once it is In progress. Finishing stamps the completion time and takes the job off your outstanding list.",
-        ar: "يتم البدء والإنهاء من «جولتي» ويحتاجان صلاحية التعديل في «الجدول». ولا يظهر «بدء العمل» إلا على مهمة مجدولة، ولا يظهر «تعليم كمنجز» إلا بعد أن تصبح قيد التنفيذ. ويسجل الإنهاء وقت الإكمال ويُخرج المهمة من قائمة المعلق لديك.",
+        en: "Starting and finishing are done on My round and need the Schedule edit right; without it the round shows your jobs with no buttons at all. Start work appears only on a Scheduled job, and Mark finished only once it is In progress. Finishing stamps the completion time and takes the job off your outstanding list.",
+        ar: "يتم البدء والإنهاء من «جولتي» ويحتاجان صلاحية التعديل في «الجدول»؛ ومن دونها تعرض الجولة مهامك بلا أزرار أصلًا. ولا يظهر «بدء العمل» إلا على مهمة مجدولة، ولا يظهر «تعليم كمنجز» إلا بعد أن تصبح قيد التنفيذ. ويسجل الإنهاء وقت الإكمال ويُخرج المهمة من قائمة المعلق لديك.",
       },
       steps: {
         en: ["Open Field Operations, then Schedule, and choose My round.", "On arrival, press Start work on the job.", "Take the customer's signature if they are there.", "When the work is done, press Mark finished."],
@@ -821,20 +825,20 @@ export const fieldService: HelpModule = {
       id: "field-service-schedule.cant-sign", topic: "dept.field-service.round", kind: "troubleshoot", open: "field-service-schedule",
       q: { en: "Why can't I take a signature on a job?", ar: "لماذا لا أستطيع أخذ توقيع على مهمة؟" },
       a: {
-        en: "A job still Scheduled cannot be signed, because nothing has been done yet, and the refusal says not-started; press Start work first. A cancelled job cannot be signed at all. Save signature stays greyed until the name is typed and something is drawn, and signing needs the Schedule edit right. A signature taken in error cannot be deleted; it can only be followed by another one.",
-        ar: "لا يمكن توقيع مهمة ما زالت مجدولة لأنه لم يُنجز شيء بعد، ويقول الرفض not-started؛ فاضغط «بدء العمل» أولًا. ولا يمكن توقيع مهمة ملغاة أبدًا. ويبقى «حفظ التوقيع» معطلًا حتى يُكتب الاسم ويُرسم شيء، ويحتاج التوقيع صلاحية التعديل في «الجدول». ولا يمكن حذف توقيع أُخذ بالخطأ، بل يمكن فقط إتباعه بتوقيع آخر.",
+        en: "Take signature appears only for somebody holding the Schedule edit right. A job still Scheduled cannot be signed, because nothing has been done yet, and the refusal says to start the work first; press Start work. A cancelled job cannot be signed at all, including one cancelled from the office while the customer was signing. Save signature stays greyed until the name is typed and something is drawn. A signature taken in error cannot be deleted; it can only be followed by another one.",
+        ar: "لا يظهر «أخذ التوقيع» إلا لمن يملك صلاحية التعديل في «الجدول». ولا يمكن توقيع مهمة ما زالت مجدولة لأنه لم يُنجز شيء بعد، ويطلب الرفض بدء العمل أولًا؛ فاضغط «بدء العمل». ولا يمكن توقيع مهمة ملغاة أبدًا، ومنها المهمة التي أُلغيت من المكتب والعميل يوقّع. ويبقى «حفظ التوقيع» معطلًا حتى يُكتب الاسم ويُرسم شيء. ولا يمكن حذف توقيع أُخذ بالخطأ، بل يمكن فقط إتباعه بتوقيع آخر.",
       },
-      keywords: ["cannot sign", "signature refused", "save greyed", "not-started", "لا يمكن التوقيع", "رفض التوقيع", "زر الحفظ معطل"],
+      keywords: ["cannot sign", "signature refused", "save greyed", "start the work first", "لا يمكن التوقيع", "رفض التوقيع", "زر الحفظ معطل"],
       related: ["field-service-schedule.signature-fields", "field-service.short-codes"],
     },
     {
       id: "field-service-schedule.move-refused", topic: "dept.field-service.round", kind: "troubleshoot", open: "field-service-schedule",
       q: { en: "Why was Start work or Mark finished refused?", ar: "لماذا رُفض «بدء العمل» أو «تعليم كمنجز»؟" },
       a: {
-        en: "The word forbidden means your role lacks the Schedule edit right, which moving a job needs even on your own round. The word transition means the job has already moved on, for example somebody else started or finished it while your screen was open; refresh My round to see where it stands. A completed or cancelled job cannot move again.",
-        ar: "كلمة forbidden تعني أن دورك يفتقد صلاحية التعديل في «الجدول»، التي يحتاجها تحريك المهمة حتى في جولتك. وكلمة transition تعني أن المهمة تحركت بالفعل، كأن يكون شخص آخر بدأها أو أنهاها والشاشة مفتوحة لديك؛ فحدّث «جولتي» لترى حالتها. والمهمة المكتملة أو الملغاة لا تتحرك مرة أخرى.",
+        en: "A job can be refused because it has already moved on: somebody else started, finished or cancelled it while your screen was open. The message says so and My round refreshes to show where it now stands. A completed or cancelled job cannot move again. Without the Schedule edit right the buttons are not shown at all, even on your own round.",
+        ar: "قد تُرفض المهمة لأنها تحركت بالفعل: كأن يكون شخص آخر بدأها أو أنهاها أو ألغاها والشاشة مفتوحة لديك. فتقول الرسالة ذلك وتتحدث «جولتي» لتعرض حالتها الآن. والمهمة المكتملة أو الملغاة لا تتحرك مرة أخرى. ومن دون صلاحية التعديل في «الجدول» لا تظهر الأزرار أصلًا، حتى في جولتك.",
       },
-      keywords: ["start refused", "finish refused", "forbidden", "transition", "رفض البدء", "رفض الإنهاء", "لا صلاحية", "انتقال"],
+      keywords: ["start refused", "finish refused", "already moved", "no buttons", "رفض البدء", "رفض الإنهاء", "لا صلاحية", "تحركت بالفعل"],
       related: ["field-service-schedule.start-job", "field-service.short-codes"],
     },
     {

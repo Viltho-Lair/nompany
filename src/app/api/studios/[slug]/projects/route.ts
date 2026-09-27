@@ -90,10 +90,9 @@ export const GET = route({ ...spec, body: false }, async (c) => {
     // form starts where a ticket and a quotation start rather than empty.
     studioDefaults: { country: c.studio?.country || "", city: c.studio?.city || "" },
     vocabulary: {
-      // Requirement weights are keyed by the studio's own service actions now, so
-      // the settings screen reads that list rather than a fixed set of keys.
+      // (The studio's service actions used to travel here for the requirement
+      // weights, which were deleted on 27/09/2026 — nothing read them.)
       stages: PROJECT_STAGES,
-      serviceActions: (c.studio.serviceActions as string[]) || [],
       // THE SAME LIST SALES AND TECHNICAL OFFER, not a third copy — an
       // industry typed here has to match one typed there or the two screens
       // describe the same client differently.
@@ -103,8 +102,8 @@ export const GET = route({ ...spec, body: false }, async (c) => {
   };
 });
 
-// Projects Settings — requirement weights, the default overtime department and
-// the stage vocabulary.
+// Projects Settings — the default support period and the default overtime
+// department. (The screen shows the stages; it offers no way to edit them.)
 export const PATCH = route(spec, async (c) => {
   if (!c.canManageSettings) return { error: "read-only" };
 

@@ -19,6 +19,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { alertIfLow } from "./stockAlerts";
+import { withStockLock, freshLedger } from "./stockLock";
 import {
   adjustmentValue, raiseAdjustment, unitCostOf, ADJUSTMENT_APPROVAL,
 } from "./adjustmentApproval";
@@ -27,6 +28,7 @@ import { unitsFor } from "@/modules/administration/units";
 // PROCUREMENT DECIDES WHO MAY BE BOUGHT FROM, and this is the one place
 // Inventory asks. Pure, no store, so the check below adds no round trip.
 import { supplierQualification } from "@/modules/procurement/supplierModel";
+import { orderMoveProblem, orderIsLive } from "@/modules/procurement/orderModel";
 import { isKnownCurrency } from "@/shared/currencies";
 import { repo } from "@/platform/db/repo";
 import { getSectionByKey } from "@/platform/db/sections";
@@ -35,7 +37,12 @@ import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
-import { nextReference } from "@/modules/main/references";
+import { nextReference, highestIssued } from "@/modules/main/references";
+import { S } from "@/platform/db/keys";
+import { bumpCounter, hIncrBy } from "@/platform/db/store";
+import { SKU_PREFIX, skuOf, reservedNumbers } from "./sku";
+import { dayIn, studioTimezone } from "@/shared/timezone";
+
 // THE RULES A RECEIPT FOLLOWS ARE PROCUREMENT'S, and pure, so the screen
 // refuses exactly what this refuses.
 import { receiptProblem } from "@/modules/procurement/receivingModel";
@@ -67,6 +74,12 @@ import { barcodeProblems, cleanBarcode, type Barcoded } from "./barcodes";
 import {
   ITEM_FIELDS, IMPORT_BATCH, planItemImport, type ImportRefusal, type ItemField, type ItemImportRow,
 } from "./itemImport";
+
+// "TODAY" IS THE STUDIO'S, NOT THE SERVER'S (shared/timezone, the owner,
+// 22/09/2026). The server runs on UTC, so a receipt booked at 01:00 in Riyadh
+// defaulted to yesterday and a supplier whose certificate lapsed at midnight
+// local time stayed usable for three more hours.
+const studioToday = (studio: unknown) => dayIn(new Date(), studioTimezone(studio as { timezone?: unknown }));
 
 const VENDORS = "inventoryVendors";
 const ITEMS = "inventoryItems";
@@ -487,7 +500,7 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
 
   const units = unitsFor(studio.units, studio.unitsOff);
   const rows = await Items.find({ studio, section: itemsSection });
-  const sku = str(body?.sku, 40).toUpperCase() || nextSku(rows);
+  const sku = str(body?.sku, 40).toUpperCase() || (await nextSkus(studio.id, rows, 1))[0];
   if (rows.some((i) => i.sku.toUpperCase() === sku)) return { error: "duplicate-sku" };
   // WHAT A SCANNER READS, refused by name when it is malformed or already
   // another item's — see ./barcodes.
@@ -780,18 +793,13 @@ export async function importItems(ctx: InventoryContext, body: Record<string, un
   const vendorIdOf = new Map(vendors.map((v) => [v.name.trim().toLowerCase(), v.id]));
   const vendorOf = (name: string) => (name ? vendorIdOf.get(name.toLowerCase()) || "" : "");
 
-  // A blank SKU gets the next free ITM-number, counted past every one this
-  // batch hands out as well as every one already stored.
-  const taken = new Set(items.map((i) => String(i.sku || "").toUpperCase()));
-  for (const p of plan.create) if (p.sku) taken.add(p.sku);
-  let n = items.length;
-  const nextFree = () => {
-    for (;;) {
-      n += 1;
-      const candidate = `ITM-${String(n).padStart(4, "0")}`;
-      if (!taken.has(candidate)) { taken.add(candidate); return candidate; }
-    }
-  };
+  // A blank SKU gets the next free ITM-number off the studio's tally (./sku),
+  // stepped past every SKU this batch names as well as every one already
+  // stored — reserved as ONE block, so an import of two hundred costs two
+  // counter writes rather than two hundred.
+  const blanks = plan.create.filter((p) => !p.sku).length;
+  const givenSkus = await nextSkus(studio.id, items, blanks, plan.create.map((p) => String(p.sku || "").toUpperCase()).filter(Boolean));
+  const nextFree = () => givenSkus.shift() as string;
 
   // Field order is createItem's, so an imported item and a typed one are the
   // same shape; the two import fields come last.
@@ -908,14 +916,24 @@ export async function undoItemImport(ctx: InventoryContext, importId: string) {
   return { removed, vendorsRemoved, vendorsKept: added.length - vendorsRemoved };
 }
 
-function nextSku(rows: Item[]) {
-  const n = rows.length + 1;
-  const taken = new Set(rows.map((i) => String(i.sku || "").toUpperCase()));
-  for (let i = n; i < n + 1000; i++) {
-    const candidate = `ITM-${String(i).padStart(4, "0")}`;
-    if (!taken.has(candidate)) return candidate;
+// THE NEXT `count` FREE SKUS — see ./sku for why a SKU comes off the studio's
+// forward-only tally rather than off how many items exist. A code somebody
+// typed by hand that happens to match is stepped past, the way
+// `nextReference` steps past a typed reference.
+async function nextSkus(studioId: string, rows: Item[], count: number, alsoTaken: Iterable<string> = []): Promise<string[]> {
+  if (count <= 0) return [];
+  const key = S.counters(studioId);
+  const first = await bumpCounter(key, SKU_PREFIX, highestIssued(rows, "sku", SKU_PREFIX));
+  const last = count > 1 ? await hIncrBy(key, SKU_PREFIX, count - 1) : first;
+  const taken = new Set([...rows.map((i) => String(i.sku || "").toUpperCase()), ...alsoTaken]);
+  const out: string[] = [];
+  for (const n of reservedNumbers(first, last, count)) {
+    let candidate = skuOf(n);
+    while (taken.has(candidate)) candidate = skuOf(await bumpCounter(key, SKU_PREFIX));
+    taken.add(candidate);
+    out.push(candidate);
   }
-  return `ITM-${Date.now()}`;
+  return out;
 }
 
 // ---- the stock ledger ------------------------------------------------------
@@ -944,12 +962,16 @@ export async function listMovements(
     listCollaborators(studio.id),
   ]);
   const itemName = Object.fromEntries(items.map((i) => [i.id, `${i.sku} · ${i.name}`]));
-  const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || "Unnamed"]));
+  // NO WORDS ARE WRITTEN HERE. A removed item's label and a person with no
+  // alias come back EMPTY and the screen says "removed item" / "someone" in the
+  // reader's language (shared/studio/inventory); "(removed item)" and
+  // "Unnamed" built here reached every Arabic studio in English.
+  const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || ""]));
 
   return [...movements]
     .sort((a, b) => (b.at || "").localeCompare(a.at || ""))
     .slice(0, limit)
-    .map((m) => ({ ...m, itemLabel: itemName[m.itemId] || "(removed item)", byAlias: alias[m.byCollaboratorId] || "" }));
+    .map((m) => ({ ...m, itemLabel: itemName[m.itemId] || "", byAlias: alias[m.byCollaboratorId] || "" }));
 }
 
 // Append-only. Everything that changes stock goes through here, so there is
@@ -1047,12 +1069,21 @@ export async function adjustStock(ctx: InventoryContext, body: Record<string, un
     return { ...raised, pending: true };
   }
 
-  const movement = await record(ctx, {
+  const write = () => record(ctx, {
     itemId, kind: "adjust", quantity: amount,
     reason: str(body?.reason, 300) || "Manual adjustment",
     sourceType: "adjustment",
   });
-  return { movement };
+  // ADDING NEEDS NO LEASE — nothing goes below nought by gaining stock. A
+  // write-off does: the check above was against a balance another writer may
+  // have moved since, so it is asked again, fresh, while this item is held
+  // (./stockLock), and the movement lands before anybody else may ask.
+  if (amount > 0) return { movement: await write() };
+  return withStockLock(studio.id, [itemId], async () => {
+    const have = Number(balances(await freshLedger({ studio, section: stockSection }, [itemId]))[itemId]) || 0;
+    if (have + amount < 0) return { error: "insufficient", have, needed: Math.abs(amount) };
+    return { movement: await write() };
+  });
 }
 
 /**
@@ -1098,27 +1129,45 @@ export async function moveForWorkOrder(ctx: InventoryContext, body: Record<strin
   if (!orderEditable(order)) return { error: "closed" };
   if (!items.some((i) => i.id === itemId)) return { error: "item" };
 
+  // THE EARLY ANSWERS ABOVE ARE ASKED AGAIN, FRESH, UNDER THE ITEM'S LEASE
+  // (./stockLock): two issues of the last unit, or two returns of the same
+  // part, each passed against the same balance before this existed. The
+  // unlocked checks stay first so an obvious refusal costs no lease.
   if (direction === "issue") {
     const have = Number(balances(movements)[itemId]) || 0;
     if (have < amount) return { error: "insufficient", have, needed: amount };
-    const movement = await record(ctx, {
-      itemId, kind: "out", quantity: amount,
-      reason: `Issued to ${order.reference}`,
-      sourceType: WORKORDER_SOURCE, sourceId: order.id,
-      unitCost: await unitCostOf(ctx, itemId),
+    const unitCost = await unitCostOf(ctx, itemId);
+    return withStockLock(studio.id, [itemId], async () => {
+      const now = Number(balances(await freshLedger({ studio, section: stockSection }, [itemId]))[itemId]) || 0;
+      if (now < amount) return { error: "insufficient", have: now, needed: amount };
+      const movement = await record(ctx, {
+        itemId, kind: "out", quantity: amount,
+        // STORED AS THE REFERENCE ALONE is not possible — the ledger's reason
+        // is free text a person may also type. The words are English and are
+        // matched on display (`movementReason`, shared/studio/inventory), so an
+        // Arabic reader sees them in Arabic without a stored row changing.
+        reason: `Issued to ${order.reference}`,
+        sourceType: WORKORDER_SOURCE, sourceId: order.id,
+        unitCost,
+      });
+      return { movement };
     });
-    return { movement };
   }
 
   const over = returnProblem(movements, order.id, itemId, amount);
   if (over) return { error: over };
-  const movement = await record(ctx, {
-    itemId, kind: "in", quantity: amount,
-    reason: `Returned from ${order.reference}`,
-    sourceType: WORKORDER_SOURCE, sourceId: order.id,
-    unitCost: averageIssuedCost(movements, order.id, itemId),
+  return withStockLock(studio.id, [itemId], async () => {
+    const fresh = await freshLedger({ studio, section: stockSection }, [itemId]);
+    const stillOver = returnProblem(fresh, order.id, itemId, amount);
+    if (stillOver) return { error: stillOver };
+    const movement = await record(ctx, {
+      itemId, kind: "in", quantity: amount,
+      reason: `Returned from ${order.reference}`,
+      sourceType: WORKORDER_SOURCE, sourceId: order.id,
+      unitCost: averageIssuedCost(fresh, order.id, itemId),
+    });
+    return { movement };
   });
-  return { movement };
 }
 
 /** Every movement in the stock ledger — what an adjustment's approval checks the shelf against. */
@@ -1557,7 +1606,7 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
   // AN ITEM IS NOT GATED, only an order: pointing a catalogue entry at a
   // supplier commits nothing, and refusing that would make the register
   // unusable for exactly the housekeeping that fixes it.
-  const qualification = supplierQualification(vendor, new Date().toISOString().slice(0, 10));
+  const qualification = supplierQualification(vendor, studioToday(studio));
   if (!qualification.usable) return { error: `supplier-${qualification.reason}` };
 
   const projectId = str(body?.projectId, 60);
@@ -1586,8 +1635,12 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
     if (String(req.status || "") !== "Approved") return { error: "requisition-not-approved" };
     // AND ONLY ONCE, derived from the orders rather than a flag on the request:
     // two orders against one requisition is one approval spent twice.
+    // A CANCELLED ORDER IS NOT ONE OF THEM: it bought nothing, and counting it
+    // left the request stuck at Approved with no way to order it again.
+    // `ordersByRequisition` (procurement/requisitions) skips it for the same
+    // reason, so the row and this refusal agree.
     const placed = await Orders.find({ studio, section: sheetsSection }, { where: { requisitionId } });
-    if (placed.length) return { error: "requisition-ordered" };
+    if (placed.some(orderIsLive)) return { error: "requisition-ordered" };
     fromRequisition = req as { lines?: unknown };
   }
 
@@ -1658,12 +1711,31 @@ export async function editOrder(ctx: InventoryContext, id: string, body: Record<
   if (!order) return { error: "notfound" };
 
   const patch: Record<string, unknown> = {};
+  let nextStatus = "";
   if (body?.status !== undefined) {
     if (!ORDER_STATUSES.includes(String(body.status))) return { error: "status" };
-    // Received/Partly received are consequences of receiving goods, not things
-    // you assert — otherwise the status could contradict the ledger.
-    if (body.status === "Received" || body.status === "Partly received") return { error: "derived-status" };
-    patch.status = body.status;
+    // A STATUS MOVE HAS A FROM-STATE (procurement/orderModel): Draft → Ordered
+    // or Cancelled, Ordered → Cancelled while nothing has arrived, and nothing
+    // else. Received/Partly received stay consequences of receiving goods.
+    const moveProblem = orderMoveProblem(order, String(body.status));
+    if (moveProblem) return { error: moveProblem };
+    if (String(body.status) !== String(order.status || "Draft")) {
+      nextStatus = String(body.status);
+      patch.status = nextStatus;
+    }
+    // PLACING IS THE ACT THAT COMMITS MONEY, so qualification is asked HERE
+    // too — not only when the Draft was written. A Draft converted from a
+    // requisition a week ago names a supplier who may since have been
+    // suspended or let their paperwork lapse; placing it would commit money to
+    // exactly the supplier the register exists to stop. The same rule, and the
+    // same tokens, `createOrder` uses.
+    if (nextStatus === "Ordered") {
+      const vendors = await Vendors.find({ studio, section: ctx.vendorsSection });
+      const vendor = vendors.find((v) => v.id === order.vendorId);
+      if (!vendor) return { error: "vendor" };
+      const qualification = supplierQualification(vendor, studioToday(studio));
+      if (!qualification.usable) return { error: `supplier-${qualification.reason}` };
+    }
   }
   if (body?.expectedAt !== undefined) patch.expectedAt = day(body.expectedAt);
   // RE-CODED WITHOUT RE-ORDERING. Which budget a commitment belongs to is a
@@ -1684,7 +1756,17 @@ export async function editOrder(ctx: InventoryContext, id: string, body: Record<
     patch.projectId = projectId;
   }
 
-  const updated = await Orders.update({ studio, section: sheetsSection }, id, patch);
+  // THE GUARDS ARE ASKED AGAIN OF THE ROW BEING WRITTEN (invariant 8), not only
+  // of the one read above: a delivery booked in, or a colleague cancelling,
+  // between that read and this write must not be overwritten by a move judged
+  // against the order as it used to be.
+  let refused = "";
+  const updated = await Orders.update({ studio, section: sheetsSection }, id, (row: Order) => {
+    refused = (nextStatus && orderMoveProblem(row, nextStatus))
+      || (patch.lines !== undefined && (row.lines || []).some((l) => Number(l.received || 0) > 0) ? "received-already" : "");
+    return refused ? {} : patch;
+  });
+  if (refused) return { error: refused };
   return updated ? { order: updated } : { error: "notfound" };
 }
 
@@ -1730,7 +1812,7 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
   }
   if (!asked.size && !rejected.size) return { error: "nothing" };
 
-  const receivedAt = str(body?.receivedAt, 10) || new Date().toISOString().slice(0, 10);
+  const receivedAt = str(body?.receivedAt, 10) || studioToday(studio);
   const problem = receiptProblem({
     orderId: id,
     receivedAt,
@@ -1936,13 +2018,26 @@ export async function issueDelivery(ctx: InventoryContext, id: string) {
     .map((l) => ({ itemId: l.itemId, have: have[String(l.itemId || "")] || 0, needed: l.qty }));
   if (short.length) return { error: "insufficient", short };
 
-  for (const l of delivery.lines) {
-    await record(ctx, {
-      itemId: l.itemId, kind: "out", quantity: l.qty,
-      reason: `Issued on ${delivery.reference}`,
-      sourceType: "delivery", sourceId: delivery.id,
-    });
-  }
+  // EVERY LINE'S ITEM IS HELD WHILE THE NOTE ISSUES (./stockLock), and the
+  // availability asked again against the ledger as it is now — the check
+  // above can be a request old.
+  const itemIds = delivery.lines.map((l) => String(l.itemId || ""));
+  const issued = await withStockLock(studio.id, itemIds, async () => {
+    const now = balances(await freshLedger({ studio, section: stockSection }, itemIds));
+    const stillShort = delivery.lines
+      .filter((l) => (now[String(l.itemId || "")] || 0) < (l.qty || 0))
+      .map((l) => ({ itemId: l.itemId, have: now[String(l.itemId || "")] || 0, needed: l.qty }));
+    if (stillShort.length) return { error: "insufficient" as const, short: stillShort };
+    for (const l of delivery.lines) {
+      await record(ctx, {
+        itemId: l.itemId, kind: "out", quantity: l.qty,
+        reason: `Issued on ${delivery.reference}`,
+        sourceType: "delivery", sourceId: delivery.id,
+      });
+    }
+    return null;
+  });
+  if (issued) return issued;
 
   const updated = await Deliveries.update({ studio, section: deliveriesSection }, id, {
     status: "Issued",

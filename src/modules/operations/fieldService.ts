@@ -18,6 +18,7 @@ import type { ScheduleContext } from "./types";
 import type { Job } from "./jobSchema";
 import type { WorkOrder } from "@/modules/maintenance/schema";
 import { orderOpen, orderOverdue } from "@/modules/maintenance/model";
+import { dayIn, studioTimezone } from "@/shared/timezone";
 
 const Jobs = repo<Job & { signoffs?: Signoff[] }>("jobs");
 const WorkOrders = repo<WorkOrder>("workOrders");
@@ -35,7 +36,10 @@ const WorkOrders = repo<WorkOrder>("workOrders");
 async function myWorkOrders(ctx: ScheduleContext) {
   const section = ctx.maintenanceOrdersSection;
   if (!section || requirePermission(ctx.access, "maintenance.orders.view")) return [];
-  const today = new Date().toISOString().slice(0, 10);
+  // THE STUDIO'S DAY (shared/timezone): "overdue" is a judgement about the
+  // studio's calendar, and the server's UTC date lags it east of Greenwich — an
+  // order due yesterday read as due today for the first hours of every morning.
+  const today = dayIn(new Date(), studioTimezone(ctx.studio as { timezone?: unknown }));
   const rows = await WorkOrders.find({ studio: ctx.studio, section });
   return rows
     .filter((o) => orderOpen(o) && (o.assignedToCollaboratorIds || []).includes(ctx.collaborator.id))
@@ -66,6 +70,12 @@ export async function fieldView(ctx: ScheduleContext) {
   const summary = fieldSummary(mine, signoffs);
 
   return {
+    // WHETHER THIS READER MAY MOVE OR SIGN A JOB. Reading the round asks
+    // `.view`; starting, finishing and signing all ask `.edit` (the jobs PATCH
+    // and `signJob`). The screen drew all three buttons for every viewer, so a
+    // read-only holder tapped Start in a plant room and was refused — asked here
+    // so a button appears only where the write would be accepted.
+    canEdit: !requirePermission(ctx.access, "fieldService.schedule.edit"),
     // The outstanding round, soonest first — see `myJobs` for why an
     // unscheduled job sorts last rather than first.
     jobs: myJobs(mine, ctx.collaborator.id).map((j) => ({
@@ -103,17 +113,30 @@ export async function signJob(ctx: ScheduleContext, id: string, body: Record<str
   const blocked = signoffProblem(job);
   if (blocked) return { error: blocked };
 
+  // A TOKEN, NOT A SENTENCE. This joined English sentences into `detail` and the
+  // screen printed them to an Arabic technician; the first problem's token is
+  // what the screen turns into words in the reader's language.
   const problems = signoffProblems(body);
-  if (problems.length) return { error: "refused", detail: problems.join("; ") };
+  if (problems.length) return { error: problems[0], problems };
 
   const entry = cleanSignoff(body, {
     capturedByCollaboratorId: ctx.collaborator.id,
     at: new Date().toISOString(),
   });
 
-  const updated = await Jobs.update(scope(ctx), id, (row) => ({
-    signoffs: [...((row as { signoffs?: Signoff[] }).signoffs || []), entry],
-    updatedAt: entry.at,
-  }));
-  return updated ? { job: updated } : { error: "notfound" };
+  // THE "MAY IT BE SIGNED" CHECK IS ASKED AGAIN OF THE ROW BEING WRITTEN: a job
+  // cancelled from the office while the customer was signing on site must not
+  // gain a signature on work nobody is doing. Reset per invocation — a CAS
+  // retry runs the patch again, and only its last run is what was written.
+  let late = null as string | null;
+  const updated = await Jobs.update(scope(ctx), id, (row) => {
+    late = signoffProblem(row);
+    return late ? {} : {
+      signoffs: [...((row as { signoffs?: Signoff[] }).signoffs || []), entry],
+      updatedAt: entry.at,
+    };
+  });
+  if (!updated) return { error: "notfound" };
+  if (late) return { error: late };
+  return { job: updated };
 }

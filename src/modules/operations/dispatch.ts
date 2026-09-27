@@ -18,9 +18,12 @@
 //    overlaps a five-minute handover — it is something to SHOW.
 //  - LOAD. Hours booked per person, so "who can take this" has an answer.
 //
-// PURE. No imports, no store, and the day comes in as an argument: a board that
-// read its own clock would give a different answer on every call and could not
-// be asserted.
+// PURE. No store, and the day comes in as an argument: a board that read its
+// own clock would give a different answer on every call and could not be
+// asserted. The one import is the studio's clock arithmetic (shared/timezone),
+// itself pure — the ZONE comes in as an argument too.
+
+import { dayIn } from "@/shared/timezone";
 
 /** A job, in the only shape this file needs. */
 export type DispatchJob = {
@@ -51,10 +54,26 @@ const ms = (v: unknown): number => {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-/** The calendar day an instant falls on, in the same UTC the records use. */
-export const dayOf = (v: unknown): string => {
-  const t = ms(v);
-  return Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : "";
+// A WALL-CLOCK VALUE: a date, or a date and time with NO zone. This is what the
+// New job form writes ("2026-09-27T23:30") and what the PM run writes (a due
+// date) — the time the dispatcher meant, on the studio's own clock.
+const WALL = /^(\d{4}-\d{2}-\d{2})(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?)?$/;
+
+/**
+ * THE STUDIO'S CALENDAR DAY for a job time (shared/timezone).
+ *
+ * A value with no zone IS already the studio's wall clock, so its day is its own
+ * date part — parsing it would read it on the SERVER's clock, which is how a job
+ * typed for 23:30 in Amman landed on the next day's board. A value carrying a
+ * zone (an ISO instant from the API) is an instant, and its day is the day the
+ * studio's clock showed then. No zone reads UTC, the old behaviour.
+ */
+export const dayOf = (v: unknown, timezone?: string): string => {
+  const raw = String(v ?? "").trim();
+  const wall = WALL.exec(raw);
+  if (wall) return wall[1];
+  const t = ms(raw);
+  return Number.isFinite(t) ? dayIn(new Date(t), timezone) : "";
 };
 
 /**
@@ -63,9 +82,9 @@ export const dayOf = (v: unknown): string => {
  * only about `scheduledStart` would show a dispatcher an empty morning that is
  * already spoken for.
  */
-export function onDay(job: DispatchJob, day: string): boolean {
-  const start = dayOf(job.scheduledStart);
-  const end = dayOf(job.scheduledEnd) || start;
+export function onDay(job: DispatchJob, day: string, timezone?: string): boolean {
+  const start = dayOf(job.scheduledStart, timezone);
+  const end = dayOf(job.scheduledEnd, timezone) || start;
   if (!start) return false;
   return start <= day && day <= end;
 }
@@ -105,8 +124,9 @@ export function dispatchBoard(
   jobs: DispatchJob[],
   people: { id: string; alias?: string }[],
   day: string,
+  timezone?: string,
 ): { day: string; lanes: Lane[]; unassigned: DispatchJob[]; totalHours: number } {
-  const today = jobs.filter((j) => j.status !== "cancelled" && onDay(j, day));
+  const today = jobs.filter((j) => j.status !== "cancelled" && onDay(j, day, timezone));
 
   const lanes: Lane[] = people.map((p) => {
     const mine = today
@@ -155,13 +175,13 @@ export function dispatchBoard(
  * put on and nobody has looked at since. It is invisible on any day view,
  * because the day it is invisible on is one nobody opens any more.
  */
-export function strandedJobs(jobs: DispatchJob[], asOf: string): DispatchJob[] {
+export function strandedJobs(jobs: DispatchJob[], asOf: string, timezone?: string): DispatchJob[] {
   return jobs
     .filter((j) =>
       j.status === "scheduled"
       && (j.assignedToCollaboratorIds || []).length === 0
-      && dayOf(j.scheduledStart) !== ""
-      && dayOf(j.scheduledStart) < asOf)
+      && dayOf(j.scheduledStart, timezone) !== ""
+      && dayOf(j.scheduledStart, timezone) < asOf)
     .sort((a, b) => String(a.scheduledStart || "").localeCompare(String(b.scheduledStart || "")));
 }
 

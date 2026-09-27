@@ -38,6 +38,14 @@ type Strings = {
   expiredDaysAgo: (n: number) => string;
   untraced: (n: number) => string;
   asOf: (day: string) => string;
+  removedItem: string;
+  /** The FEFO list — which batch of each item to pick next. */
+  pickNext: string;
+  pickNextLead: string;
+  pickLot: (lot: string, expires: string) => string;
+  /** Why the server refused, in words — see ./bins `problem`. */
+  problem: (token: string, value: string) => string;
+  refused: (body: { error?: string; have?: number; needed?: number }) => string;
 };
 
 const en: Strings = {
@@ -76,6 +84,33 @@ const en: Strings = {
     ? `${n} held with no serial recorded`
     : `${-n} more serials listed than the ledger holds`),
   asOf: (day) => `As at ${day}`,
+  removedItem: "(removed item)",
+  pickNext: "Pick next",
+  pickNextLead: "The batch of each item that expires soonest and is still in date. A suggestion — the picker at the rack decides.",
+  pickLot: (lot, expires) => (expires ? `${lot} · expires ${expires}` : `${lot} · no expiry`),
+  problem: (token, value) => ({
+    "lot-missing": "A batch needs a lot number.",
+    "lot-format": `"${value}" must be 1–24 characters: letters, digits, and - . _ / only.`,
+    "item-missing": "A batch needs an item.",
+    "item-unknown": "That item no longer exists.",
+    "expiry-date": "The expiry date must be a date.",
+    "received-date": "The received date must be a date.",
+    "expires-before-received": "A batch cannot expire before it was received.",
+    "lot-taken": `"${value}" is already a batch of that item.`,
+  } as Record<string, string>)[token] || "That did not save.",
+  refused: (b) => ({
+    forbidden: "You do not have the right to do that.",
+    "read-only": "You have view-only access to stock.",
+    notfound: "That batch no longer exists — somebody may have removed it.",
+    "not-empty": "That batch still holds stock. Assign or issue it first.",
+    qty: "Enter a quantity above nought.",
+    "same-bin": "The stock is already in that batch — choose a different one.",
+    item: "That item no longer exists.",
+    bin: "Choose a batch that exists.",
+    insufficient: `Not enough there — it holds ${b.have ?? 0} and you asked to assign ${b.needed ?? 0}.`,
+    "in-progress": "Somebody else is moving this item's stock right now. Try again in a moment.",
+    missing: "Something the request needs is missing — refresh and try again.",
+  } as Record<string, string>)[String(b.error || "")] || "That did not save.",
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
@@ -113,6 +148,33 @@ const ar: Strings = {
     ? `${n} وحدة بلا رقم تسلسلي مسجل`
     : `${-n} رقما تسلسليا أكثر مما يحمله السجل`),
   asOf: (day) => `بتاريخ ${day}`,
+  removedItem: "(صنف محذوف)",
+  pickNext: "الدفعة التالية للصرف",
+  pickNextLead: "دفعة كل صنف الأقرب انتهاء والتي لا تزال سارية. اقتراح — والقرار لمن يقف عند الرف.",
+  pickLot: (lot, expires) => (expires ? `${lot} · تنتهي ${expires}` : `${lot} · بلا تاريخ انتهاء`),
+  problem: (token, value) => ({
+    "lot-missing": "الدفعة تحتاج رقم تشغيلة.",
+    "lot-format": `"${value}" يجب أن يكون من 1 الى 24 حرفا: حروف وأرقام و - . _ / فقط.`,
+    "item-missing": "الدفعة تحتاج صنفا.",
+    "item-unknown": "هذا الصنف لم يعد موجودا.",
+    "expiry-date": "تاريخ الانتهاء يجب أن يكون تاريخا.",
+    "received-date": "تاريخ الاستلام يجب أن يكون تاريخا.",
+    "expires-before-received": "لا يمكن أن تنتهي الدفعة قبل استلامها.",
+    "lot-taken": `"${value}" دفعة موجودة لهذا الصنف.`,
+  } as Record<string, string>)[token] || "لم يحفظ ذلك.",
+  refused: (b) => ({
+    forbidden: "ليست لديك صلاحية القيام بذلك.",
+    "read-only": "لديك صلاحية عرض فقط على المخزون.",
+    notfound: "هذه الدفعة لم تعد موجودة — ربما حذفها أحدهم.",
+    "not-empty": "هذه الدفعة لا تزال تحتوي مخزونا. خصصه أو اصرفه أولا.",
+    qty: "أدخل كمية أكبر من الصفر.",
+    "same-bin": "المخزون في هذه الدفعة أصلا — اختر دفعة أخرى.",
+    item: "هذا الصنف لم يعد موجودا.",
+    bin: "اختر دفعة موجودة.",
+    insufficient: `الكمية هناك غير كافية — تحتوي ${b.have ?? 0} وطلبت تخصيص ${b.needed ?? 0}.`,
+    "in-progress": "شخص آخر يحرك مخزون هذا الصنف الآن. حاول مجددا بعد لحظة.",
+    missing: "ينقص الطلب شيء يحتاجه — حدث الصفحة وحاول مجددا.",
+  } as Record<string, string>)[String(b.error || "")] || "لم يحفظ ذلك.",
 };
 
 const dict = { en, ar };

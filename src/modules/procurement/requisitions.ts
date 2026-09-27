@@ -1,10 +1,12 @@
 // PURCHASE REQUISITIONS — the request that stands before a purchase order.
 //
-// GUARDED BY `procurement.requisitions`, whose `approve`/`approveHigh` verbs are
-// extras on the same area rather than a second one: asking to buy something and
-// authorising the spend are different powers over the SAME record, which is
-// what an extra verb is for. A second area would be a second answer to "who
-// works on requisitions".
+// GUARDED BY `procurement.requisitions` — view/create/edit/delete, and nothing
+// more. AUTHORISING THE SPEND IS NOT A RIGHT HERE (19/09/2026): submitting a
+// request asks for its approval, answered on the Approvals page by the people
+// Approvals settings name (./approval). The `approve`/`approveHigh` extras this
+// header used to name left the catalogue that day; they survive only as the
+// default steps of the legacy chain in modules/approvals/registry, read until a
+// studio saves its own requisition approvers.
 //
 // THE RULES ARE IN ./model, which is pure, so the screen refuses exactly what
 // the server refuses.
@@ -16,10 +18,11 @@ import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import {
   requisitionTotals, requisitionProblem, requisitionEditable, requisitionDeletable,
-  lineIsReal,
+  requisitionStage, lineIsReal,
 } from "./model";
 import type { Requisition, RequisitionLine } from "./schema";
 import type { Order } from "@/modules/inventory/schema";
+import { orderIsLive } from "./orderModel";
 import type { ProcurementContext } from "./types";
 import { askForRequisition, requisitionApprovals, submitPreflight } from "./approval";
 
@@ -87,8 +90,11 @@ function cleanLines(raw: unknown): RequisitionLine[] {
  * written back.
  *
  * The handover's rule, for the handover's reason: a flag and a real order are
- * two answers, and deleting the order would leave the requisition reading as
- * fulfilled for ever. Derived, deleting the order frees the request again.
+ * two answers, and cancelling the order would leave the requisition reading as
+ * fulfilled for ever. Derived, a CANCELLED order frees the request again —
+ * nothing deletes an order, so cancelling is the way one stops answering.
+ * `createOrder`'s "already ordered" refusal skips cancelled orders by the same
+ * `orderIsLive`, so the row and the refusal cannot disagree.
  *
  * Foreign and therefore nullable: a studio with no Inventory section has placed
  * no orders, so nothing is ordered — which is the honest answer rather than an
@@ -100,6 +106,8 @@ async function ordersByRequisition(ctx: ProcurementContext): Promise<Map<string,
   const rows = await Orders.find({ studio, section: ordersSection });
   const out = new Map<string, Order>();
   for (const o of rows) {
+    // A CANCELLED ORDER BOUGHT NOTHING and answers no request.
+    if (!orderIsLive(o)) continue;
     const rid = String((o as { requisitionId?: unknown }).requisitionId || "");
     // FIRST ONE WINS and the rest are ignored rather than overwriting: two
     // orders against one requisition is a data problem somebody should see in
@@ -139,6 +147,10 @@ function decorate(
     // the request's own row is where it gets placed, and it has to know.
     orderStatus: String(order?.status || ""),
     ordered: Boolean(order),
+    // WHAT THE ROW SAYS IT IS — "Ordered" is derived here, never stored (see
+    // `REQUISITION_STATUSES`). `status` stays the stored value, which is what
+    // every rule and the approval read.
+    stage: requisitionStage({ status: req.status, ordered: Boolean(order) }),
   };
 }
 
@@ -257,7 +269,15 @@ export async function editRequisition(
   if (body?.status !== undefined) return { error: "not-answerable" };
   patch.updatedAt = now();
 
-  const requisition = await Requisitions.update({ studio, section: requisitionsSection }, id, patch);
+  // STILL A DRAFT AT THE WRITE (invariant 8) — a request submitted between the
+  // read above and this write must not have its lines changed underneath the
+  // approver it was just put in front of.
+  let refused = "";
+  const requisition = await Requisitions.update({ studio, section: requisitionsSection }, id, (row: Requisition) => {
+    refused = requisitionEditable(row) ? "" : "not-draft";
+    return refused ? {} : patch;
+  });
+  if (refused) return { error: refused };
   return requisition ? { requisition } : { error: "notfound" };
 }
 
@@ -271,10 +291,15 @@ export async function moveRequisition(ctx: ProcurementContext, id: string, next:
   if (denied) return denied;
 
   const { studio, requisitionsSection, collaborator } = ctx;
-  const current = await Requisitions.byId({ studio, section: requisitionsSection }, id);
+  const [current, liveOrder] = await Promise.all([
+    Requisitions.byId({ studio, section: requisitionsSection }, id),
+    // WHETHER A LIVE ORDER NAMES IT — cancelling a request that has been bought
+    // is refused, so the rule needs to know. Only asked when it can matter.
+    next === "Cancelled" ? hasLiveOrder(ctx, id) : Promise.resolve(false),
+  ]);
   if (!current) return { error: "notfound" };
 
-  const problem = requisitionProblem(current, next);
+  const problem = requisitionProblem({ ...current, ordered: liveOrder }, next);
   if (problem) return { error: problem };
 
   // SUBMITTING IS ASKING FOR ITS APPROVAL (19/09/2026). Asked first whether
@@ -295,7 +320,17 @@ export async function moveRequisition(ctx: ProcurementContext, id: string, next:
     if (straightThrough) Object.assign(patch, { answeredByCollaboratorId: collaborator.id, answeredAt: at });
   }
 
-  const requisition = await Requisitions.update({ studio, section: requisitionsSection }, id, patch);
+  // THE RULE IS ASKED AGAIN OF THE ROW BEING WRITTEN (invariant 8). The read
+  // above can be stale: a colleague cancelling, or the approval answering,
+  // between it and this write would otherwise be overwritten by a move judged
+  // against a status the request no longer has — a withdrawn request put back
+  // to Submitted, or an approved one cancelled while its approval landed.
+  let refused = "";
+  const requisition = await Requisitions.update({ studio, section: requisitionsSection }, id, (row: Requisition) => {
+    refused = requisitionProblem({ ...row, ordered: liveOrder }, next) || "";
+    return refused ? {} : patch;
+  });
+  if (refused) return { error: refused };
   if (!requisition) return { error: "notfound" };
   if (next === "Submitted" && !straightThrough) {
     const asked = await askForRequisition(requester, requisition);
@@ -304,6 +339,14 @@ export async function moveRequisition(ctx: ProcurementContext, id: string, next:
     if (asked.error) return { requisition, approvalProblem: asked.error };
   }
   return { requisition };
+}
+
+/** Does a live (not cancelled) purchase order name this requisition? */
+async function hasLiveOrder(ctx: ProcurementContext, requisitionId: string): Promise<boolean> {
+  const { studio, ordersSection } = ctx;
+  if (!ordersSection) return false;
+  const rows = await Orders.find({ studio, section: ordersSection }, { where: { requisitionId } });
+  return rows.some(orderIsLive);
 }
 
 export async function removeRequisition(ctx: ProcurementContext, id: string) {

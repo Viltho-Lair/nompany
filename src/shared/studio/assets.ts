@@ -44,6 +44,12 @@ type Strings = CommonStrings & {
   refuseAsset: string;
   refuseDeal: string;
   refuseOverlap: string;
+  refuseUnavailable: (status: string) => string;
+  refuseForbidden: string;
+  refuseNotFound: string;
+  refuseFailed: string;
+  /** A job the reader cannot name: booked against a deal they may not open. */
+  unknownJob: string;
 };
 
 const en: Strings = {
@@ -80,6 +86,11 @@ const en: Strings = {
   refuseAsset: "Choose a machine.",
   refuseDeal: "Choose a job.",
   refuseOverlap: "That machine is already on another job over those dates. A machine cannot be on two jobs at once.",
+  refuseUnavailable: (status) => `That machine is ${status}. Only a machine In service or Idle can go out on a job.`,
+  refuseForbidden: "You do not have the right to do that.",
+  refuseNotFound: "That allocation is not there any more.",
+  refuseFailed: "That did not work. Try again.",
+  unknownJob: "A job you cannot open",
 };
 
 // HAND-WRITTEN, NO DIACRITICS — the house rule for Arabic copy.
@@ -117,6 +128,11 @@ const ar: Strings = {
   refuseAsset: "اختر معدة.",
   refuseDeal: "اختر عملا.",
   refuseOverlap: "تلك المعدة مخصصة لعمل اخر في تلك الفترة. لا يمكن ان تكون معدة على عملين في ان واحد.",
+  refuseUnavailable: (status) => `حالة تلك المعدة «${status}». لا تخرج على عمل الا معدة في الخدمة او متوقفة.`,
+  refuseForbidden: "لا تملك صلاحية القيام بذلك.",
+  refuseNotFound: "هذا التخصيص لم يعد موجودا.",
+  refuseFailed: "لم تنجح العملية. حاول مرة اخرى.",
+  unknownJob: "عمل لا تملك صلاحية فتحه",
 };
 
 export function assetsDict(locale: string): Strings {

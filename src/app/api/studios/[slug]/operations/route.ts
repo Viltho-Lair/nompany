@@ -3,7 +3,7 @@ import { valuesFor } from "@/modules/administration/taxonomy";
 import { requirePermission } from "@/platform/access";
 import {
   operationsContext, listLocations, listPermits, listShifts, operationsProjects,
-  schedulablePeople, weekWindow, summarise, listPositions,
+  schedulablePeople, weekWindow, studioToday, summarise, listPositions,
   readOperationsSettings, saveOperationsSettings, scheduleFromStudio,
   LOCATION_KINDS, PERMIT_TYPES, EXPIRY_WINDOW_DAYS,
 } from "@/modules/operations/operations";
@@ -18,7 +18,8 @@ export const dynamic = "force-dynamic";
 const spec = { auth: "studio", context: operationsContext, name: "field-service" };
 
 export const GET = route(spec, async (g) => {
-  const window = weekWindow();
+  // THE STUDIO'S WEEK, from the studio's own today (shared/timezone), not the server's.
+  const window = weekWindow(studioToday(g.studio));
   // PERMITS ARE FILED HERE AND WORKED IN QUALITY & HSE → PERMITS, so they are
   // read only while that part is on; switched off, the dashboard's permit
   // figures are not drawn and nothing of them is sent. (A studio with no such

@@ -70,6 +70,7 @@ export default function BoqImport({ slug, tenderId, onDone, onCancel }) {
     setBusy(false);
     if (!res.ok) {
       setError(out.error === "handed-over" ? tr.billFrozen
+        : out.error === "bill-locked" ? tr.billLocked
         : out.error === "too-many" ? tr.importTooMany(MAX_IMPORT_LINES)
           : tr.importFailed);
       return;

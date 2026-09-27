@@ -36,6 +36,16 @@ const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
+/**
+ * WHY A BATCH IS REFUSED, as TOKENS the screen words in the reader's language
+ * (shared/studio/batches, `problem`) — see `BIN_PROBLEMS` in ./bins.
+ */
+export const BATCH_PROBLEMS = [
+  "lot-missing", "lot-format", "item-missing", "item-unknown",
+  "expiry-date", "received-date", "expires-before-received", "lot-taken",
+] as const;
+export type BatchProblem = (typeof BATCH_PROBLEMS)[number];
+
 /** What is wrong with this batch, or an empty array. */
 export function batchProblems(
   input: BatchInput,
@@ -44,8 +54,8 @@ export function batchProblems(
     existing: Batch[];
     selfId?: string;
   },
-): string[] {
-  const problems: string[] = [];
+): BatchProblem[] {
+  const problems: BatchProblem[] = [];
   // NOT TRUNCATED BEFORE IT IS JUDGED — see `binProblems` for the incident that
   // rule comes from.
   const lot = String(input.lot ?? "").trim();
@@ -53,23 +63,21 @@ export function batchProblems(
   const expiresOn = str(input.expiresOn, 10);
   const receivedOn = str(input.receivedOn, 10);
 
-  if (!lot) problems.push("a batch needs a lot number");
-  else if (!LOT_RE.test(lot)) {
-    problems.push(`"${lot}" must be 1-24 characters: letters, digits, and - . _ / only`);
-  }
+  if (!lot) problems.push("lot-missing");
+  else if (!LOT_RE.test(lot)) problems.push("lot-format");
 
   // A BATCH BELONGS TO ONE ITEM. A lot number is meaningless without the thing
   // it is a lot OF, and "LOT-4" on two different products is two batches.
-  if (!itemId) problems.push("a batch needs an item");
-  else if (!items.some((i) => i.id === itemId)) problems.push("that item does not exist");
+  if (!itemId) problems.push("item-missing");
+  else if (!items.some((i) => i.id === itemId)) problems.push("item-unknown");
 
-  if (expiresOn && !DAY_RE.test(expiresOn)) problems.push("the expiry date must be a date");
-  if (receivedOn && !DAY_RE.test(receivedOn)) problems.push("the received date must be a date");
+  if (expiresOn && !DAY_RE.test(expiresOn)) problems.push("expiry-date");
+  if (receivedOn && !DAY_RE.test(receivedOn)) problems.push("received-date");
   // A BATCH THAT EXPIRED BEFORE IT ARRIVED is a typo somebody wants to hear
   // about, not a state to record: it would sort first under FEFO and send a
   // picker to a drum that was never usable.
   if (expiresOn && receivedOn && expiresOn < receivedOn) {
-    problems.push("a batch cannot expire before it was received");
+    problems.push("expires-before-received");
   }
 
   // UNIQUE PER ITEM, not across the studio: two suppliers' lot numbers collide
@@ -77,7 +85,7 @@ export function batchProblems(
   // somebody else's printed label.
   const clash = existing.some((b) =>
     b.id !== selfId && b.itemId === itemId && b.lot.toLowerCase() === lot.toLowerCase());
-  if (clash) problems.push(`"${lot}" is already a batch of that item`);
+  if (clash) problems.push("lot-taken");
 
   return problems;
 }

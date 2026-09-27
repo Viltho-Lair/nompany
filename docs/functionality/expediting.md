@@ -94,6 +94,9 @@ Stated in words, because a silent gap reads as a finished feature.
 - **No line-level expediting.** Lateness and the outstanding fraction are whole-order; an order
   where one line of six is holding everything up cannot say so.
 - **"Due soon" is a query parameter, not a studio setting.** It defaults to seven days and the
-  screen does not yet offer a control to change it.
+  screen does not yet offer a control to change it. (The default did not hold until 27/09/2026:
+  the route converted the absent parameter with `Number(null)`, which is 0, and clamped that to
+  ONE day, so the screen's Due soon covered today and tomorrow while the dashboard counted a
+  week. `soonDaysFrom` in `modules/procurement/expediting.ts` asks for presence first.)
 - **No link to the RFQ or requisition behind the order.** The chain exists in the data —
   `requisitionId` is on the order — and this screen does not follow it.

@@ -110,8 +110,8 @@ export const tendering: HelpModule = {
       id: "tendering.statuses", topic: "dept.tendering", kind: "about", open: "tendering-register",
       q: { en: "What do a tender's stages mean?", ar: "ماذا تعني مراحل المناقصة؟" },
       a: {
-        en: "Identified means the tender has been noticed, and Preparing that somebody is working on it; both are still open. Submitted means the bid has gone in and the result is not known, and moving there stamps the submission date. Won, Lost, No Bid and Withdrawn are decisions, and a decided tender cannot be moved again. Lost, No Bid and Withdrawn each ask why, because those reasons are what the register is read back for, while Won asks nothing.",
-        ar: "«مرصودة» تعني أن المناقصة لوحظت، و«قيد الإعداد» أن أحدًا يعمل عليها؛ والاثنتان ما زالتا مفتوحتين. و«مقدمة» تعني أن العطاء قُدِّم ولم تُعرف النتيجة، والانتقال إليها يسجل تاريخ التقديم. أما «مربوحة» و«خاسرة» و«لم نتقدم» و«مسحوبة» فقرارات، والمناقصة المحسومة لا تنتقل مرة أخرى. وتطلب «خاسرة» و«لم نتقدم» و«مسحوبة» ذكر السبب، لأن هذه الأسباب هي ما يُقرأ السجل من أجله، أما «مربوحة» فلا تطلب شيئًا.",
+        en: "Identified means the tender has been noticed, and Preparing that somebody is working on it; both are still open. Submitted means the bid has gone in and the result is not known, and moving there stamps the submission date; a submitted tender cannot go back to Identified or Preparing, and its bill stops editing. Won, Lost, No Bid and Withdrawn are decisions, and a decided tender cannot be moved again. Lost, No Bid and Withdrawn each ask why, because those reasons are what the register is read back for, while Won asks nothing.",
+        ar: "«مرصودة» تعني أن المناقصة لوحظت، و«قيد الإعداد» أن أحدًا يعمل عليها؛ والاثنتان ما زالتا مفتوحتين. و«مقدمة» تعني أن العطاء قُدِّم ولم تُعرف النتيجة، والانتقال إليها يسجل تاريخ التقديم؛ ولا تعود المناقصة المقدمة إلى «مرصودة» أو «قيد الإعداد»، ويتوقف تعديل جدولها. أما «مربوحة» و«خاسرة» و«لم نتقدم» و«مسحوبة» فقرارات، والمناقصة المحسومة لا تنتقل مرة أخرى. وتطلب «خاسرة» و«لم نتقدم» و«مسحوبة» ذكر السبب، لأن هذه الأسباب هي ما يُقرأ السجل من أجله، أما «مربوحة» فلا تطلب شيئًا.",
       },
       keywords: ["stage", "status", "identified", "preparing", "submitted", "won", "المرحلة", "مرصودة", "قيد الإعداد", "مقدمة"],
       related: ["tendering.stage-refusals", "tendering-register.move", "tendering-register.record-decision"],
@@ -258,8 +258,8 @@ export const tendering: HelpModule = {
       id: "tendering.stage-refusals", topic: "dept.tendering", kind: "troubleshoot", common: true, open: "tendering-register",
       q: { en: "Why can't I mark a tender as Won or No Bid, or move it at all?", ar: "لماذا لا أستطيع تسجيل المناقصة «مربوحة» أو «لم نتقدم»، أو نقلها أصلًا؟" },
       a: {
-        en: "A tender can be won or lost only after it was submitted, so a bid that never went in cannot count as a win. Once submitted it cannot become a No Bid; the honest exit is Withdrawn. A decided tender cannot be moved again, which is why the Move to list disappears from it. Moving to Submitted also needs the bid's approval at its current value, and Lost, No Bid and Withdrawn cannot be saved without a reason.",
-        ar: "لا يمكن تسجيل المناقصة مربوحة أو خاسرة إلا بعد تقديمها، فالعطاء الذي لم يُقدَّم لا يُحسب فوزًا. وبعد التقديم لا يمكن أن تصير «لم نتقدم»؛ والخروج الصادق هو «مسحوبة». والمناقصة المحسومة لا تنتقل مرة أخرى، ولهذا تختفي منها قائمة «نقل إلى». ويحتاج الانتقال إلى «مقدمة» أيضًا إلى اعتماد العطاء بقيمته الحالية، ولا تُحفظ «خاسرة» و«لم نتقدم» و«مسحوبة» دون سبب.",
+        en: "A tender can be won or lost only after it was submitted, so a bid that never went in cannot count as a win. Once submitted it cannot become a No Bid, and it cannot go back to Identified or Preparing either; the honest exit is Withdrawn. A decided tender cannot be moved again, which is why the Move to list disappears from it. Moving to Submitted also needs the bid's approval at its current value, and Lost, No Bid and Withdrawn cannot be saved without a reason.",
+        ar: "لا يمكن تسجيل المناقصة مربوحة أو خاسرة إلا بعد تقديمها، فالعطاء الذي لم يُقدَّم لا يُحسب فوزًا. وبعد التقديم لا يمكن أن تصير «لم نتقدم»، ولا أن تعود إلى «مرصودة» أو «قيد الإعداد»؛ والخروج الصادق هو «مسحوبة». والمناقصة المحسومة لا تنتقل مرة أخرى، ولهذا تختفي منها قائمة «نقل إلى». ويحتاج الانتقال إلى «مقدمة» أيضًا إلى اعتماد العطاء بقيمته الحالية، ولا تُحفظ «خاسرة» و«لم نتقدم» و«مسحوبة» دون سبب.",
       },
       keywords: ["won", "lost", "no bid", "withdrawn", "cannot move", "مربوحة", "خاسرة", "لم نتقدم", "مسحوبة", "لا يمكن النقل"],
       related: ["tendering.statuses", "tendering-register.submit-bid"],
@@ -470,8 +470,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.handover-about", topic: "dept.tendering-register", kind: "about", open: "tendering-register",
       q: { en: "What happens when a won tender is handed over?", ar: "ماذا يحدث حين تُسلَّم مناقصة مربوحة؟" },
       a: {
-        en: "Handing over opens a project in Projects from the tender: its title, the issuing body as the customer, and the bill's total as its value, or the estimated value when the tender has no bill. If the issuer is not a customer yet, it becomes one, whether or not you hold the right to create customers. The tender's reference is copied onto the project, the project has no number until Finance issues one, and its manager, dates and location are filled in on the project afterwards. From then on the bill is the project's baseline and stops editing.",
-        ar: "يفتح التسليم مشروعًا في قسم المشاريع من المناقصة: بعنوانها، والجهة الطارحة عميلًا له، وإجمالي الجدول قيمةً له، أو القيمة التقديرية حين لا جدول للمناقصة. وإن لم تكن الجهة الطارحة عميلًا بعد صارت عميلًا، سواء ملكت صلاحية إنشاء العملاء أم لا. ويُنسخ مرجع المناقصة إلى المشروع، ولا رقم للمشروع حتى تصدره المالية، ويُكمَل مديره وتواريخه وموقعه في المشروع بعد ذلك. ومن تلك اللحظة يصير الجدول الأساس المرجعي للمشروع ويتوقف تعديله.",
+        en: "Handing over opens a project in Projects from the tender: its title, the issuing body as the customer, and the bill's total as its value, or the estimated value when the tender has no bill. If the issuer is not a customer yet, it becomes one, whether or not you hold the right to create customers. The tender's reference is copied onto the project, the project has no number until Finance issues one, and its manager, dates and location are filled in on the project afterwards. The bill already stopped editing when the bid was submitted, so the project opens at the figure that was approved and sent; from the handover on it is also the project's baseline.",
+        ar: "يفتح التسليم مشروعًا في قسم المشاريع من المناقصة: بعنوانها، والجهة الطارحة عميلًا له، وإجمالي الجدول قيمةً له، أو القيمة التقديرية حين لا جدول للمناقصة. وإن لم تكن الجهة الطارحة عميلًا بعد صارت عميلًا، سواء ملكت صلاحية إنشاء العملاء أم لا. ويُنسخ مرجع المناقصة إلى المشروع، ولا رقم للمشروع حتى تصدره المالية، ويُكمَل مديره وتواريخه وموقعه في المشروع بعد ذلك. وقد توقف تعديل الجدول منذ تقديم العطاء، فيُفتح المشروع بالرقم الذي اعتُمد وأُرسل؛ ومن لحظة التسليم يصير أيضًا الأساس المرجعي للمشروع.",
       },
       keywords: ["handover", "won tender", "open project", "project value", "tender reference", "التسليم", "مناقصة مربوحة", "فتح مشروع", "قيمة المشروع"],
       related: ["tendering-register.handover", "tendering-register.project-gets", "projects.project-number"],
@@ -555,7 +555,7 @@ export const tendering: HelpModule = {
     // Checked against src/components/studio2/StudioBoq.js (the Add a line
     // Dialog: Section and Item side by side, Description required, then Unit,
     // Qty and Rate) and BoqItemSchema in src/modules/tendering/schema.ts; the
-    // refusals are addBoqLine's (`description`, `notfound`, `handed-over`) in
+    // refusals are addBoqLine's (`description`, `notfound`, `bill-locked`, `handed-over`) in
     // src/modules/tendering/boqItems.ts.
     {
       id: "tendering-register.line-fields", topic: "dept.tendering-register", kind: "fields", open: "tendering-register",
@@ -590,7 +590,7 @@ export const tendering: HelpModule = {
     // column picker per BOQ_FIELDS entry) and BOQ_FIELDS / BOQ_ALIASES /
     // MAX_IMPORT_LINES in src/modules/tendering/boqImport.ts; the server side is
     // importBoqLines in src/modules/tendering/boqItems.ts (`nothing`,
-    // `too-many`, `handed-over`).
+    // `too-many`, `bill-locked`, `handed-over`).
     {
       id: "tendering-register.import-fields", topic: "dept.tendering-register", kind: "fields", open: "tendering-register",
       q: { en: "What does Import lines need from my spreadsheet?", ar: "ماذا تحتاج «استيراد بنود» من جدول البيانات؟" },
@@ -1054,8 +1054,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.boq-frozen", topic: "dept.tendering-register", kind: "troubleshoot", common: true, open: "tendering-register",
       q: { en: "Why can't I edit the bill any more?", ar: "لماذا لم أعد أستطيع تعديل جدول الكميات؟" },
       a: {
-        en: "Once a tender has been handed over, its bill is the project's baseline and stops editing: adding, changing, removing and importing lines are all refused, and the page says so above the bill. The project opened at the bill's total and its sheets read these lines, so a later edit would make the two disagree. The only way to reopen the bill is to delete the project the handover made; a change of scope after that belongs to the project, as a variation on its contract. If the tender was not handed over, check that you hold the right to edit tenders.",
-        ar: "بعد تسليم المناقصة يصير جدولها الأساس المرجعي للمشروع ويتوقف تعديله: فتُرفض إضافة البنود وتغييرها وحذفها واستيرادها، وتقول الصفحة ذلك فوق الجدول. فقد فُتح المشروع بإجمالي الجدول وتقرأ أوراقه هذه البنود، وأي تعديل لاحق يجعلهما متعارضين. والطريقة الوحيدة لإعادة فتح الجدول هي حذف المشروع الذي أنشأه التسليم؛ أما تغيير النطاق بعد ذلك فشأن المشروع، بأمر تغيير على عقده. وإن لم تكن المناقصة قد سُلِّمت، فتحقق من امتلاكك صلاحية تعديل المناقصات.",
+        en: "Once the bid has been submitted, its bill stops editing, and it stays that way through Won, Lost, No Bid and Withdrawn: adding, changing, removing and importing lines are all refused, and the page says so above the bill. The bill is then the record of what was bid, and a handover opens the project at its total, so an edit after submission would open the project at a figure nobody approved or sent. After the handover the page says the bill is the project's baseline, because the project's sheets read these lines. There is no way to reopen it, since a submitted tender cannot go back to Preparing; a change of scope after the handover belongs to the project, as a variation on its contract. If the tender is still Identified or Preparing, check that you hold the right to edit tenders.",
+        ar: "بعد تقديم العطاء يتوقف تعديل جدوله، ويبقى كذلك في «مربوحة» و«خاسرة» و«لم نتقدم» و«مسحوبة»: فتُرفض إضافة البنود وتغييرها وحذفها واستيرادها، وتقول الصفحة ذلك فوق الجدول. فالجدول حينها سجل لما قُدِّم، والتسليم يفتح المشروع بإجماليه، وأي تعديل بعد التقديم يفتح المشروع برقم لم يعتمده أحد ولم يُرسل. وبعد التسليم تقول الصفحة إن الجدول صار الأساس المرجعي للمشروع، لأن أوراق المشروع تقرأ هذه البنود. ولا سبيل لإعادة فتحه، إذ لا تعود المناقصة المقدمة إلى «قيد الإعداد»؛ أما تغيير النطاق بعد التسليم فشأن المشروع، بأمر تغيير على عقده. وإن كانت المناقصة ما زالت «مرصودة» أو «قيد الإعداد»، فتحقق من امتلاكك صلاحية تعديل المناقصات.",
       },
       keywords: ["BOQ locked", "read-only", "frozen", "handed over", "جدول الكميات مقفل", "للقراءة فقط", "مجمد", "بعد التسليم"],
       related: ["tendering-register.handover", "projects.variations"],
@@ -1084,8 +1084,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.undo-submission", topic: "dept.tendering-register", kind: "troubleshoot", open: "tendering-register",
       q: { en: "Can I undo a submission I recorded by mistake?", ar: "هل يمكنني التراجع عن تقديم سجلته بالخطأ؟" },
       a: {
-        en: "Only partly. Move to still offers Identified and Preparing on a submitted tender, but the submission date stays: the tender still counts as submitted, still cannot be deleted, and its approval cannot be asked for again. If the bid really did not go in, the honest record is Withdrawn with a reason saying so.",
-        ar: "جزئيًّا فقط. فما زالت قائمة «نقل إلى» تعرض «مرصودة» و«قيد الإعداد» على المناقصة المقدمة، لكن تاريخ التقديم يبقى: فتظل المناقصة معدودة مقدمة، ولا يمكن حذفها، ولا طلب اعتمادها مجددًا. وإن لم يُقدَّم العطاء فعلًا، فالتسجيل الصادق «مسحوبة» مع سبب يقول ذلك.",
+        en: "No. A submitted tender cannot go back to Identified or Preparing: Move to no longer offers them, and the move is refused if asked for another way. The submission date stays, the tender still counts as submitted, it cannot be deleted, its bill stays locked, and it cannot become a No Bid. If the bid really did not go in, the honest record is Withdrawn with a reason saying so.",
+        ar: "لا. فالمناقصة المقدمة لا تعود إلى «مرصودة» أو «قيد الإعداد»: لم تعد قائمة «نقل إلى» تعرضهما، ويُرفض النقل إن طُلب بطريقة أخرى. ويبقى تاريخ التقديم، وتظل المناقصة معدودة مقدمة، ولا يمكن حذفها، ويبقى جدولها مقفلًا، ولا يمكن أن تصير «لم نتقدم». وإن لم يُقدَّم العطاء فعلًا، فالتسجيل الصادق «مسحوبة» مع سبب يقول ذلك.",
       },
       keywords: ["undo submission", "submitted by mistake", "move back", "التراجع عن التقديم", "قدمت بالخطأ", "إرجاع المرحلة"],
       related: ["tendering-register.cannot-delete", "tendering.statuses"],
@@ -1134,8 +1134,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.approval-stale", topic: "dept.tendering-register", kind: "troubleshoot", open: "tendering-register",
       q: { en: "Why does it say the bill has changed since the approval was asked for?", ar: "لماذا يقول إن الجدول تغيّر منذ طلب الاعتماد؟" },
       a: {
-        en: "An approval covers the value the bid had when it was asked for, to the currency's last decimal. Once a quantity or rate moves the total, the approval no longer covers the bid, even if it was granted, and the bid cannot be submitted until you ask again at the new price. Editing the bill while an approval is waiting is allowed, so check the price before you ask. If the old approval is still waiting, it has to be answered before the new one can be filed.",
-        ar: "يغطي الاعتماد القيمة التي كان يحملها العطاء عند طلبه، حتى آخر خانة عشرية في العملة. فحين تحرّك كمية أو سعر الإجمالي لا يعود الاعتماد يغطي العطاء، حتى لو مُنح، ولا يمكن تقديم العطاء إلى أن تطلب مجددًا بالسعر الجديد. وتعديل الجدول أثناء انتظار الاعتماد مسموح، فتحقق من السعر قبل أن تطلب. وإن كان الاعتماد القديم ما زال منتظرًا فلا بد من الرد عليه قبل رفع الجديد.",
+        en: "An approval covers the value the bid had when it was asked for, in the tender's currency, to that currency's last decimal. Once a quantity or rate moves the total, or the tender's currency is changed, the approval no longer covers the bid, even if it was granted, and the bid cannot be submitted until you ask again at the new price. Editing the bill while an approval is waiting is allowed, so check the price before you ask. If the old approval is still waiting, it has to be answered before the new one can be filed.",
+        ar: "يغطي الاعتماد القيمة التي كان يحملها العطاء عند طلبه، بعملة المناقصة، حتى آخر خانة عشرية في تلك العملة. فحين تحرّك كمية أو سعر الإجمالي، أو تتغير عملة المناقصة، لا يعود الاعتماد يغطي العطاء، حتى لو مُنح، ولا يمكن تقديم العطاء إلى أن تطلب مجددًا بالسعر الجديد. وتعديل الجدول أثناء انتظار الاعتماد مسموح، فتحقق من السعر قبل أن تطلب. وإن كان الاعتماد القديم ما زال منتظرًا فلا بد من الرد عليه قبل رفع الجديد.",
       },
       keywords: ["bill changed", "approval stale", "new price", "already-pending", "تغير الجدول", "اعتماد قديم", "سعر جديد"],
       related: ["tendering-register.ask-again", "tendering-register.withdraw-request"],
@@ -1184,8 +1184,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.handover-refused", topic: "dept.tendering-register", kind: "troubleshoot", open: "tendering-register",
       q: { en: "Why can't I open a project from this tender?", ar: "لماذا لا أستطيع فتح مشروع من هذه المناقصة؟" },
       a: {
-        en: "The Handover block says why in place of the button. Only a won tender is handed over, and only once: if it already became a project, the block names it. Handing over opens a project, so it needs the right to create projects, and a studio with Projects switched off has nothing to hand over to. The studio also needs CRM & Sales' customer list, because the issuer becomes a customer; without it the handover is refused with a message about the customer.",
-        ar: "تقول كتلة التسليم السبب مكان الزر. فلا تُسلَّم إلا المناقصة المربوحة، ولمرة واحدة: فإن صارت مشروعًا بالفعل سمّته الكتلة. والتسليم يفتح مشروعًا، فيحتاج إلى صلاحية إنشاء المشاريع، والاستوديو الذي عطّل المشاريع لا جهة لديه يسلّم إليها. ويحتاج الاستوديو أيضًا إلى قائمة عملاء المبيعات وعلاقات العملاء، لأن الجهة الطارحة تصير عميلًا؛ ومن دونها يُرفض التسليم برسالة عن العميل.",
+        en: "The Handover block says why in place of the button. Only a won tender is handed over, and only once: if it already became a project, the block names it. Handing over opens a project, so it needs the right to create projects, and a studio with Projects switched off has nothing to hand over to. The studio also needs CRM & Sales' customer list, because the issuer becomes a customer; without it the block says so and offers no button, and an owner or admin switches that section on.",
+        ar: "تقول كتلة التسليم السبب مكان الزر. فلا تُسلَّم إلا المناقصة المربوحة، ولمرة واحدة: فإن صارت مشروعًا بالفعل سمّته الكتلة. والتسليم يفتح مشروعًا، فيحتاج إلى صلاحية إنشاء المشاريع، والاستوديو الذي عطّل المشاريع لا جهة لديه يسلّم إليها. ويحتاج الاستوديو أيضًا إلى قائمة عملاء المبيعات وعلاقات العملاء، لأن الجهة الطارحة تصير عميلًا؛ ومن دونها تقول الكتلة ذلك ولا تعرض الزر، ويفعّل المالك أو المسؤول ذلك القسم.",
       },
       keywords: ["handover refused", "not won", "already handed over", "no projects", "رفض التسليم", "غير مربوحة", "سُلمت بالفعل", "لا مشاريع"],
       related: ["tendering-register.handover", "tendering.rights"],
@@ -1244,8 +1244,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.bill-after-submit", topic: "dept.tendering-register", kind: "troubleshoot", open: "tendering-register",
       q: { en: "Can the bill still change after the bid has gone in?", ar: "هل يمكن أن يتغير الجدول بعد تقديم العطاء؟" },
       a: {
-        en: "Yes, and nothing stops it until the tender is handed over. A bill has no revisions, so there is no record of what a line was priced at before, and the last state is the only one kept. If you need the submitted figures, add your submitted pricing as a Submitted document before you change anything.",
-        ar: "نعم، ولا شيء يمنع ذلك حتى تُسلَّم المناقصة. فالجدول لا مراجعات له، فلا سجل لما كان عليه سعر البند من قبل، ولا يُحفظ إلا آخر حال. وإن كنت تحتاج إلى أرقام العطاء المقدم، فأضف تسعيرك المقدم مستندًا بنوع «مقدم» قبل أن تغيّر شيئًا.",
+        en: "No. From the moment the tender moves to Submitted its bill stops editing, and it stays locked whatever is decided afterwards: the bill is the record of what was bid, and a handover opens the project at its total. Lines added, changed, removed or imported are refused, and the page says why above the bill. While the tender is still Identified or Preparing the bill edits freely, and a bill has no revisions, so the state at submission is the one kept.",
+        ar: "لا. فمنذ انتقال المناقصة إلى «مقدمة» يتوقف تعديل جدولها، ويبقى مقفلًا أيًّا كان القرار بعد ذلك: فالجدول سجل لما قُدِّم، والتسليم يفتح المشروع بإجماليه. وتُرفض إضافة البنود وتغييرها وحذفها واستيرادها، وتقول الصفحة السبب فوق الجدول. وما دامت المناقصة «مرصودة» أو «قيد الإعداد» فالجدول يُعدَّل بحرية، ولا مراجعات للجدول، فالحال عند التقديم هو ما يُحفظ.",
       },
       keywords: ["bill after submission", "bill revisions", "submitted prices", "الجدول بعد التقديم", "مراجعات الجدول", "أسعار مقدمة"],
       related: ["tendering-register.boq-frozen", "tendering-register.documents"],

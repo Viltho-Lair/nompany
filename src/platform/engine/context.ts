@@ -49,6 +49,7 @@ import { studioContext } from "@/lib/studios";
 import type { ContextError, StudioRef, CollaboratorRef } from "@/modules/context";
 import type { PermissionSet, Role } from "@/platform/access";
 import type { Section } from "@/platform/db/sections";
+import { seedBuiltinTypes } from "./builtins";
 
 /**
  * WHAT THE ROUTE'S HANDLERS RECEIVE. It satisfies `EngineCallerContext`
@@ -79,7 +80,22 @@ export async function engineContext(
   const context = await studioContext(user as { id?: unknown }, slug);
   if (context.error) return context;
 
-  const { studio, collaborator, access, roles, sections } = context;
+  const { studio, collaborator, access, roles } = context;
+
+  // THE BUILT-IN REGISTERS CATCH UP HERE, the engine's own door — "IT IS A
+  // SYSTEM, IT MUST TAKE UPDATES" (the owner, 11/09/2026). A register shipped,
+  // or a declaration bumped, reaches this studio on the first engine request
+  // after the deploy rather than when somebody remembers a script. Free when
+  // nothing is behind: `seedBuiltinTypes` asks the section rows `studioContext`
+  // already read, and hands them back untouched. When it does seed, it hands
+  // back the sections as they now are, so the register it just planted is
+  // addressable on this same request rather than answering `no-section`.
+  //
+  // THIS GUARDS NOTHING AND OPENS NOTHING. Membership was checked above, and a
+  // seeded register answers to `engine.<key>.*`, which nobody holds until it
+  // is granted — so the catch-up no longer waits on "a door only the seed can
+  // open" (the old reason this ran at creation alone): the door is membership.
+  const sections = await seedBuiltinTypes(String(studio.id), context.sections);
 
   // BOTH ENGINE COLLECTIONS ARE ADDRESSED UNDER administration-settings
   // (keys.ts), so this section is STORAGE and not a screen anybody opens.

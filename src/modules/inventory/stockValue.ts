@@ -18,7 +18,7 @@
 // worse than not offering it.
 
 import { repo } from "@/platform/db/repo";
-import { valueStock, type CostedMovement, type ValuationMethod } from "./valuation";
+import { valueStock, costLedger, type ValuationMethod } from "./valuation";
 import { landedUnitCosts } from "@/modules/logistics/landedCostService";
 import type { InventoryContext } from "./types";
 
@@ -68,27 +68,13 @@ export async function stockValuation(ctx: InventoryContext, method: ValuationMet
   );
   const itemCost = new Map(items.map((i) => [String(i.id), num(i.unitCost)]));
 
-  const costed: CostedMovement[] = movements.map((m) => {
-    const itemId = String(m.itemId ?? "");
-    // `kind` is "in"/"out" and `qty` is always positive on the row, so the sign
-    // is applied here — `valuation.ts` takes a signed ledger because that is
-    // the shape the arithmetic wants, and this is the one place that knows the
-    // storage shape.
-    const qty = String(m.kind) === "out" ? -num(m.qty) : num(m.qty);
-    if (qty <= 0) return { itemId, qty, at: String(m.at ?? "") };
-
-    // THE ORDER'S PRICE FIRST, THE ITEM'S AS A FALLBACK, and nought if neither
-    // knows. The fallback is not a guess dressed up: an adjustment or an
-    // opening balance has no order behind it, and the item's own cost is the
-    // best thing the product holds. When even that is absent the units are
-    // valued at nothing and COUNTED as uncosted, so the total is honestly low
-    // rather than confidently wrong.
-    const key = `${String(m.sourceId ?? "")}:${itemId}`;
-    const fromOrder = String(m.sourceType) === "order"
-      ? landed.get(key) ?? costOnOrder.get(key)
-      : undefined;
-    const unitCost = fromOrder ?? itemCost.get(itemId) ?? 0;
-    return { itemId, qty, unitCost, at: String(m.at ?? "") };
+  // WHAT EACH MOVEMENT COST is decided by `costLedger` (./valuation, pure), so
+  // the precedence — order, then what the movement itself carries, then the
+  // item — and the netting of bin and batch moves are asserted without a
+  // database (tests/valuation-model.mjs).
+  const costed = costLedger(movements, {
+    orderCost: (orderId, itemId) => landed.get(`${orderId}:${itemId}`) ?? costOnOrder.get(`${orderId}:${itemId}`),
+    itemCost: (itemId) => itemCost.get(itemId),
   });
 
   const valued = valueStock(costed, method, ctx.studio.currency);

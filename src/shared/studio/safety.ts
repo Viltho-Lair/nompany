@@ -15,6 +15,8 @@ type Strings = {
   trifr: string;
   daysLost: string;
   incidents: string;
+  // An incident whose kind nobody has set — keyed "" by modules/quality/safety.
+  unclassified: string;
   reason: Record<"no-hours-access" | "no-hours" | "no-incidents-yet", string>;
 };
 
@@ -24,6 +26,7 @@ const en: Strings = {
   trifr: "TRIFR",
   daysLost: "Days lost",
   incidents: "Incidents",
+  unclassified: "Not classified yet",
   reason: {
     // Each names the thing to DO about it. "No data" would be true and useless.
     "no-hours-access": "Rates need hours worked, which come from timesheets — ask for access to Projects to see them.",
@@ -39,6 +42,7 @@ const ar: Strings = {
   trifr: "TRIFR",
   daysLost: "أيام ضائعة",
   incidents: "الحوادث",
+  unclassified: "لم يصنف بعد",
   reason: {
     "no-hours-access": "المعدلات تحتاج ساعات العمل، ومصدرها كشوف الدوام — اطلب صلاحية المشاريع لعرضها.",
     "no-hours": "لم تسجل أي ساعات عمل في هذه الفترة، فلا يمكن احتساب معدل.",

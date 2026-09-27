@@ -27,9 +27,10 @@ import type { HelpModule } from "../types";
 // an adjustment, adding bins and batches and moving stock need the Stock CREATE
 // right, not edit (adjustStock, createBin, createBatch, moveStock); saving an
 // item's serial numbers goes through the item and needs the Registered items
-// EDIT right (editItem), whatever the Stock screen offers; the Batches tab does
-// NOT show a first-expired-first-out suggestion — `listBatches` computes `fefo`
-// and BatchesPanel never draws it — so only the till enforces the order; a bin
+// EDIT right (editItem) — and since 27/09/2026 the Stock screen offers Save only
+// to a holder of it; the Batches tab draws the first-expired-first-out
+// suggestion as "Pick next" since 27/09/2026 (it was computed and never drawn),
+// while only the till ENFORCES the order; a bin
 // code is letters, digits and - . / only and a lot number letters, digits and
 // - . _ / only, not merely "no spaces" (binProblems, batchProblems); the unit
 // list is the Units tab of Master data, not "Settings, Units"; and the steps
@@ -52,9 +53,11 @@ import type { HelpModule } from "../types";
 //   (`stockValue`); the Value tab is FIFO or weighted average from the orders
 //   (`stockValuation`). They differ on purpose, and `inventory.dashboard-value`
 //   says so.
-// - There is no screen that chooses the valuation method: `valuationMethod`
-//   is accepted by the settings route and set by nothing, so every studio reads
-//   the default, weighted average.
+// - The valuation method is chosen on the Value tab (27/09/2026): previewing the
+//   other method offers "Value stock at … from now on" to a holder of
+//   `administration.settings.edit`, which writes `valuationMethod` through the
+//   Studio settings route. Before that nothing set it and every studio read
+//   weighted average.
 //
 // ENTRY IDS ARE FOREVER: support tickets and taught phrasings name them. Rewrite
 // the words freely; never rename an id. (`inventory.stocktake` asked how to
@@ -267,8 +270,8 @@ export const inventory: HelpModule = {
       id: "inventory.valuation-method", topic: "dept.inventory", kind: "settings", open: "inventory-stock",
       q: { en: "Where is the stock valuation method set?", ar: "أين تُضبط طريقة تقويم المخزون؟" },
       a: {
-        en: "There is no screen to choose it yet, so every studio values stock at weighted average, which the Value tab names. The tab lets you preview FIFO, and says plainly that a previewed figure is not your studio's method and should not go on a return. If you need FIFO as your policy, ask nompany support.",
-        ar: "لا توجد شاشة لاختيارها بعد، لذا يقوّم كل استوديو مخزونه بالمتوسط المرجح، ويذكر تبويب القيمة ذلك. ويتيح التبويب معاينة طريقة الوارد أولًا يصرف أولًا، ويوضح أن الرقم المعروض للمعاينة ليس طريقة الاستوديو ولا يُوضع في إقرار. وإن احتجت إلى الوارد أولًا يصرف أولًا سياسةً لك فاطلب ذلك من دعم nompany.",
+        en: "On the Value tab of Stock. A studio starts at weighted average, which the tab names. Choose the other method to preview it; the screen says plainly that a previewed figure is not your studio's method, and if your role may edit Studio settings it offers a button to value stock at that method from now on. Changing the method rewrites no movement: the same receipts are valued the other way.",
+        ar: "في تبويب القيمة ضمن المخزون. يبدأ الاستوديو بالمتوسط المرجح، ويذكر التبويب ذلك. اختر الطريقة الأخرى لمعاينتها؛ وتوضح الشاشة أن الرقم المعروض للمعاينة ليس طريقة الاستوديو، وإن كان دورك يسمح بتعديل إعدادات الاستوديو ظهر زر لاعتماد تلك الطريقة لتقويم المخزون من الآن. ولا يعيد تغيير الطريقة كتابة أي حركة: تُقوَّم الاستلامات نفسها بالطريقة الأخرى.",
       },
       keywords: ["valuation method", "FIFO", "weighted average", "costing method", "طريقة التقويم", "الوارد أولا", "المتوسط المرجح"],
       related: ["inventory-stock.valuation"],
@@ -297,8 +300,8 @@ export const inventory: HelpModule = {
       id: "inventory.refused-right", topic: "dept.inventory", kind: "troubleshoot", open: "administration-access",
       q: { en: "A button says I do not have the right. What do I do?", ar: "يقول زر إنني لا أملك الصلاحية. ماذا أفعل؟" },
       a: {
-        en: "The Stock screen shows its buttons to anybody who may create, edit or delete stock, and the server then asks for the exact right each act needs, so you can be offered a button and still be refused. The refusal says you only have view access to that part of Inventory, or that you do not have the right to do that. Find the right in the list for Inventory & Warehouse, and ask an Admin, or whoever manages roles, to add it to your role on the Access screen.",
-        ar: "تعرض شاشة إدارة المخزون أزرارها لكل من يملك الإنشاء أو التعديل أو الحذف في المخزون، ثم يطلب الخادم الصلاحية المحددة التي يحتاجها كل إجراء، لذا قد يُعرض عليك زر ثم تُرفض. ويقول الرفض إن لديك صلاحية عرض فقط على هذا الجزء من المخزون، أو إنك لا تملك صلاحية ذلك. ابحث عن الصلاحية في قائمة المخزون والمستودعات، واطلب من المسؤول، أو ممن يدير الأدوار، إضافتها إلى دورك في شاشة الصلاحيات.",
+        en: "Each button on the Stock screen, and on its Bins and Batches tabs, is shown only to a role holding the exact right its act needs: Adjust, adding a bin or batch and moving stock need Stock create, removing a bin or batch needs Stock delete, and saving serials needs Registered items edit. If you are still refused, your role changed while the screen was open; the refusal says you only have view access to that part of Inventory, or that you do not have the right to do that. Find the right in the list for Inventory & Warehouse, and ask an Admin, or whoever manages roles, to add it to your role on the Access screen.",
+        ar: "لا يظهر كل زر في شاشة المخزون، وفي تبويبي المواقع الفرعية والدفعات، إلا لدور يملك الصلاحية المحددة التي يحتاجها إجراؤه: فالتسوية وإضافة موقع فرعي أو دفعة ونقل المخزون تحتاج صلاحية إنشاء في المخزون، وحذف موقع فرعي أو دفعة يحتاج صلاحية الحذف، وحفظ الأرقام التسلسلية يحتاج صلاحية تعديل الأصناف المسجلة. فإن رُفضت مع ذلك فقد تغير دورك والشاشة مفتوحة؛ ويقول الرفض إن لديك صلاحية عرض فقط على هذا الجزء من المخزون، أو إنك لا تملك صلاحية ذلك. ابحث عن الصلاحية في قائمة المخزون والمستودعات، واطلب من المسؤول، أو ممن يدير الأدوار، إضافتها إلى دورك في شاشة الصلاحيات.",
       },
       keywords: ["no right", "forbidden", "refused", "view only", "no permission", "لا صلاحية", "ممنوع", "مرفوض", "عرض فقط"],
       related: ["inventory.rights", "inventory-stock.read-only", "admin.access.grant"],
@@ -337,8 +340,8 @@ export const inventory: HelpModule = {
       id: "inventory.not-available", topic: "dept.inventory", kind: "troubleshoot", open: "inventory",
       q: { en: "What can Inventory not do yet?", ar: "ما الذي لا يستطيع قسم المخزون فعله بعد؟" },
       a: {
-        en: "Stock cannot be issued to a project or a delivery note printed, and goods booked in do not land in a bin or a batch, so putting them away is a second step. There is no transfer document with stock in transit between sites, no count sheet that adjusts stock by itself, no unit conversion, and no item label printing. A low stock alert does not email anybody or draft a requisition, and there is no screen to choose the valuation method. Each part of this chapter says what is missing in its own area.",
-        ar: "لا يمكن صرف مخزون لمشروع ولا طباعة مذكرة تسليم، ولا تنزل البضاعة المستلمة في موقع فرعي أو دفعة، فوضعها في مكانها خطوة ثانية. ولا يوجد مستند تحويل يُظهر مخزونًا في الطريق بين المواقع، ولا ورقة عدّ تسوّي المخزون بنفسها، ولا تحويل بين الوحدات، ولا طباعة ملصقات للأصناف. ولا يرسل تنبيه انخفاض المخزون بريدًا ولا ينشئ طلب شراء، ولا توجد شاشة لاختيار طريقة التقويم. ويذكر كل جزء من هذا الفصل ما ينقص في مجاله.",
+        en: "Stock cannot be issued to a project or a delivery note printed, and goods booked in do not land in a bin or a batch, so putting them away is a second step. There is no transfer document with stock in transit between sites, no count sheet that adjusts stock by itself, no unit conversion, and no item label printing. A low stock alert does not email anybody or draft a requisition. Each part of this chapter says what is missing in its own area.",
+        ar: "لا يمكن صرف مخزون لمشروع ولا طباعة مذكرة تسليم، ولا تنزل البضاعة المستلمة في موقع فرعي أو دفعة، فوضعها في مكانها خطوة ثانية. ولا يوجد مستند تحويل يُظهر مخزونًا في الطريق بين المواقع، ولا ورقة عدّ تسوّي المخزون بنفسها، ولا تحويل بين الوحدات، ولا طباعة ملصقات للأصناف. ولا يرسل تنبيه انخفاض المخزون بريدًا ولا ينشئ طلب شراء. ويذكر كل جزء من هذا الفصل ما ينقص في مجاله.",
       },
       keywords: ["not available", "missing feature", "limitations", "coming soon", "غير متاح", "ميزة ناقصة", "قيود", "قريبا"],
       related: ["inventory.issue-to-project", "inventory.bins-receipts", "inventory-items.not-yet"],
@@ -675,8 +678,8 @@ export const inventory: HelpModule = {
       id: "inventory-stock.valuation", topic: "dept.inventory-stock", kind: "about", open: "inventory-stock",
       q: { en: "How is my stock valued?", ar: "كيف يتم تقويم المخزون؟" },
       a: {
-        en: "The Value tab shows what the stock on hand is worth, item by item, with the total and the number of items held. Each receipt is costed at the price on the purchase order it came in on, or its landed cost where Logistics recorded one, and what is left is valued at your studio's method, weighted average unless set otherwise. You can preview FIFO, and the screen says clearly that a previewed figure is not your studio's policy. Stock with no order behind it, such as an opening balance, takes the item's unit cost, and if the item has none it counts toward quantity and adds nothing to value.",
-        ar: "يعرض تبويب القيمة قيمة المخزون المتوفر صنفًا صنفًا، مع الإجمالي وعدد الأصناف المتوفرة. ويُكلَّف كل استلام بالسعر في أمر الشراء الذي ورد عليه، أو بتكلفة وصوله إن سجلتها الخدمات اللوجستية، ويُقوَّم ما تبقى بطريقة الاستوديو، وهي المتوسط المرجح ما لم تُضبط غير ذلك. ويمكنك معاينة طريقة الوارد أولًا يصرف أولًا، وتوضح الشاشة أن الرقم المعروض للمعاينة ليس سياسة الاستوديو. أما المخزون الذي لا أمر وراءه، كالرصيد الافتتاحي، فيأخذ تكلفة وحدة الصنف، وإن لم تكن له تكلفة حُسب ضمن الكمية ولم يضف شيئًا إلى القيمة.",
+        en: "The Value tab shows what the stock on hand is worth, item by item, with the total and the number of items held. Each receipt is costed at the price on the purchase order it came in on, or its landed cost where Logistics recorded one, and what is left is valued at your studio's method, weighted average unless set otherwise. You can preview FIFO, and the screen says clearly that a previewed figure is not your studio's policy. Stock with no order behind it, such as an opening balance, takes the item's unit cost, and if the item has none it counts toward quantity and adds nothing to value. A part returned from a work order comes back at the cost the order was charged, and putting stock away or moving it between bins or batches never changes its value.",
+        ar: "يعرض تبويب القيمة قيمة المخزون المتوفر صنفًا صنفًا، مع الإجمالي وعدد الأصناف المتوفرة. ويُكلَّف كل استلام بالسعر في أمر الشراء الذي ورد عليه، أو بتكلفة وصوله إن سجلتها الخدمات اللوجستية، ويُقوَّم ما تبقى بطريقة الاستوديو، وهي المتوسط المرجح ما لم تُضبط غير ذلك. ويمكنك معاينة طريقة الوارد أولًا يصرف أولًا، وتوضح الشاشة أن الرقم المعروض للمعاينة ليس سياسة الاستوديو. أما المخزون الذي لا أمر وراءه، كالرصيد الافتتاحي، فيأخذ تكلفة وحدة الصنف، وإن لم تكن له تكلفة حُسب ضمن الكمية ولم يضف شيئًا إلى القيمة. وتعود القطعة المرتجعة من أمر عمل بالتكلفة التي حُمّلت على الأمر، ولا يغيّر وضع المخزون في مكانه أو نقله بين المواقع الفرعية أو الدفعات قيمته أبدًا.",
       },
       keywords: ["valuation", "stock value", "FIFO", "weighted average", "تقويم المخزون", "قيمة المخزون", "المتوسط المرجح", "الوارد أولا"],
       related: ["inventory.valuation-method", "inventory.dashboard-value"],
@@ -844,8 +847,8 @@ export const inventory: HelpModule = {
       id: "inventory-stock.serials-refused", topic: "dept.inventory-stock", kind: "troubleshoot", open: "inventory-stock",
       q: { en: "Why can't I save serial numbers, or why do the counts disagree?", ar: "لماذا لا أستطيع حفظ الأرقام التسلسلية، أو لماذا يختلف العددان؟" },
       a: {
-        en: "Serials are saved on the item, so saving needs the Registered items edit right even though the button is on the Stock screen; without it the save is refused. When the item shows two different numbers side by side, stock has moved without its serial being recorded, or serials were listed for units that have gone. Add the missing serials or remove the ones that left, unless they are reserved.",
-        ar: "تُحفظ الأرقام التسلسلية على الصنف، لذا يحتاج الحفظ إلى صلاحية التعديل في الأصناف المسجلة وإن كان الزر في شاشة إدارة المخزون؛ ومن دونها يُرفض الحفظ. وحين يعرض الصنف رقمين مختلفين متجاورين، فقد تحرك مخزون دون تسجيل رقمه التسلسلي، أو سُجلت أرقام لوحدات خرجت. أضف الأرقام الناقصة أو أزل ما خرج، ما لم يكن محجوزًا.",
+        en: "Serials are saved on the item, so saving needs the Registered items edit right even though the dialog opens from the Stock screen; without it the dialog shows the serials and no Save button. When the item shows two different numbers side by side, stock has moved without its serial being recorded, or serials were listed for units that have gone. Add the missing serials or remove the ones that left, unless they are reserved.",
+        ar: "تُحفظ الأرقام التسلسلية على الصنف، لذا يحتاج الحفظ إلى صلاحية التعديل في الأصناف المسجلة وإن كانت النافذة تُفتح من شاشة إدارة المخزون؛ ومن دونها تعرض النافذة الأرقام دون زر الحفظ. وحين يعرض الصنف رقمين مختلفين متجاورين، فقد تحرك مخزون دون تسجيل رقمه التسلسلي، أو سُجلت أرقام لوحدات خرجت. أضف الأرقام الناقصة أو أزل ما خرج، ما لم يكن محجوزًا.",
       },
       keywords: ["serials refused", "serial mismatch", "cannot save serials", "رفض الأرقام التسلسلية", "اختلاف العدد", "تعذر الحفظ"],
       related: ["inventory-stock.serials"],
@@ -1026,8 +1029,8 @@ export const inventory: HelpModule = {
       id: "inventory.batches-fefo", topic: "dept.inventory.batches", kind: "about", open: "inventory-stock",
       q: { en: "Which batch should I pick first?", ar: "أي دفعة يجب أن أصرف أولًا؟" },
       a: {
-        en: "Pick first expired, first out: the usable batch closest to its expiry, never an expired one. The Batches tab does not suggest it for you yet, so read the expiry dates on the list. At the Point of Sale till it is enforced: a sale takes stock by earliest expiry and never sells from an expired batch, while a part issued to a work order names no batch.",
-        ar: "اصرف بمبدأ ما ينتهي أولًا يُصرف أولًا: الدفعة الصالحة الأقرب إلى انتهائها، ولا تصرف أبدًا دفعة منتهية. ولا يقترح تبويب الدفعات ذلك بعد، فاقرأ تواريخ الانتهاء في القائمة. أما في نقطة البيع فهو ملزم: يؤخذ المخزون حسب أقرب تاريخ انتهاء ولا يُباع من دفعة منتهية، بينما لا تحدد القطعة المصروفة لأمر عمل أي دفعة.",
+        en: "Pick first expired, first out: the usable batch closest to its expiry, never an expired one. The Batches tab suggests it under Pick next: one line per item, naming the lot to take and when it expires. It is a suggestion, and the choice at the rack stays yours. At the Point of Sale till it is enforced: a sale takes stock by earliest expiry and never sells from an expired batch, while a part issued to a work order names no batch.",
+        ar: "اصرف بمبدأ ما ينتهي أولًا يُصرف أولًا: الدفعة الصالحة الأقرب إلى انتهائها، ولا تصرف أبدًا دفعة منتهية. ويقترحها تبويب الدفعات تحت «الدفعة التالية للصرف»: سطر لكل صنف يسمي التشغيلة التي تؤخذ ومتى تنتهي. وهو اقتراح، والاختيار عند الرف يبقى لك. أما في نقطة البيع فهو ملزم: يؤخذ المخزون حسب أقرب تاريخ انتهاء ولا يُباع من دفعة منتهية، بينما لا تحدد القطعة المصروفة لأمر عمل أي دفعة.",
       },
       keywords: ["FEFO", "first expired first out", "picking", "ما ينتهي أولا يصرف أولا", "صرف الدفعات", "التقاط"],
       related: ["inventory.batches-gaps"],

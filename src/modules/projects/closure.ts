@@ -107,24 +107,34 @@ export async function saveClosure(ctx: ProjectsContext, id: string, body: Record
   if (body?.practicalCompletionAt !== undefined) patch.practicalCompletionAt = day(body.practicalCompletionAt);
   if (body?.handoverAt !== undefined) patch.handoverAt = day(body.handoverAt);
   if (body?.finalAccountAt !== undefined) patch.finalAccountAt = day(body.finalAccountAt);
-  if (body?.supportPeriodDays !== undefined) patch.supportPeriodDays = Number(body.supportPeriodDays);
+  // CHECKED AS TYPED, STORED AS A NUMBER. It used to be `Number()`ed first, so
+  // "abc" became NaN, which the check read as nought and let through — a job
+  // recorded as carrying no support because of a typo.
+  if (body?.supportPeriodDays !== undefined) patch.supportPeriodDays = body.supportPeriodDays;
 
   const problem = closureProblem(existing, patch);
   if (problem) return { error: problem };
+  if (patch.supportPeriodDays !== undefined) patch.supportPeriodDays = Number(patch.supportPeriodDays);
 
-  return {
-    project: await Projects.update({ studio, section: listSection }, id, (row) => ({
-      ...row,
-      ...patch,
-    })),
-  };
+  // ASKED AGAIN OF THE LIVE ROW (invariant 8). The check above read the project
+  // before this write; somebody closing it, or recording a practical completion
+  // later than this handover, in between would otherwise be written over.
+  let refused: string | null = null;
+  const project = await Projects.update({ studio, section: listSection }, id, (row) => {
+    refused = closureProblem(row, patch);
+    return refused ? {} : patch;
+  });
+  if (refused) return { error: refused };
+  return project ? { project } : { error: "notfound" };
 }
 
 /**
  * CLOSING IS ITS OWN ACT, never a date written through the edit path. It is
- * final — `closureProblem` refuses every later write once `closedAt` is set —
- * and a final state reachable by a generic write is the shape that let a
- * rejected change order approve itself.
+ * final — once `closedAt` is set, `closureProblem` refuses every later write
+ * through this tab and `updateProject` refuses Edit details (the same dates and
+ * the same support period, which used to go straight past it) — and a final
+ * state reachable by a generic write is the shape that let a rejected change
+ * order approve itself.
  */
 export async function closeProject(ctx: ProjectsContext, id: string) {
   const denied = requirePermission(ctx.access, "projects.list.edit");
@@ -144,12 +154,18 @@ export async function closeProject(ctx: ProjectsContext, id: string) {
   // close" without being told why sends somebody hunting through the record.
   if (!position.canClose) return { error: "blocked", blockers: position.blockers };
 
+  // RE-ASKED OF THE LIVE ROW (invariant 8): closed by somebody else since the
+  // read above, or its practical completion cleared in between. The punch list
+  // is another collection and cannot be re-read inside this row's
+  // compare-and-set; a snag raised in the same instant as the close is the one
+  // race this leaves, and it is written down in closure.md.
   const at = now();
-  return {
-    project: await Projects.update({ studio, section: listSection }, id, (row) => ({
-      ...row,
-      closedAt: at,
-      closedByCollaboratorId: collaborator.id,
-    })),
-  };
+  let refused = "";
+  const project = await Projects.update({ studio, section: listSection }, id, (row) => {
+    refused = row.closedAt ? "closed" : !row.practicalCompletionAt ? "blocked" : "";
+    return refused ? {} : { closedAt: at, closedByCollaboratorId: collaborator.id };
+  });
+  if (refused === "closed") return { error: "closed" };
+  if (refused) return { error: "blocked", blockers: ["no-practical-completion"] };
+  return project ? { project } : { error: "notfound" };
 }

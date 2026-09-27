@@ -155,5 +155,17 @@ ok("no clock still returns rows", M.expediteOrders([order({ expectedAt: "2031-03
 ok("...with lateness null rather than guessed",
   M.expediteOrders([order({ expectedAt: "2031-03-01" })], "").orders[0].lateDays === null);
 
+console.log("\n== how far ahead \"due soon\" reaches");
+
+// THE DEFECT: with no `?soon=`, `Number(null)` was 0 — finite — so the window
+// clamped to ONE day and the screen's Due soon covered today and tomorrow while
+// the dashboard counted a week.
+ok("NO ?soon= MEANS SEVEN DAYS, NOT ONE", M.soonDaysFrom(null) === 7, String(M.soonDaysFrom(null)));
+ok("...and so does a blank one", M.soonDaysFrom("") === 7);
+ok("...and nonsense", M.soonDaysFrom("soon") === 7);
+ok("a real value is honoured", M.soonDaysFrom("14") === 14);
+ok("...clamped to at least a day", M.soonDaysFrom("0") === 1);
+ok("...and at most ninety", M.soonDaysFrom("400") === 90);
+
 console.log(`\n${fails ? `${fails} FAILURES` : "all passed"}\n`);
 process.exit(fails ? 1 : 0);

@@ -42,17 +42,16 @@ The sections below describe the engine that signed requisitions until then.
 
 ## Who may do what
 
-**One area, `procurement.requisitions`**, with `approve` and `approveHigh` as **extras**
-rather than a second area. Asking to buy something and authorising the spend are different
-powers over the *same* record, which is exactly what an extra verb is for; a second area
-would be a second answer to "who works on requisitions". Catalogue 153 → 159.
+**One area, `procurement.requisitions`** — view, create, edit, delete, and nothing more.
+**Authorising the spend is not a right** since 19/09/2026: it is answered on the Approvals page
+by the people Approvals settings name (above). The `approve` and `approveHigh` extras the area
+once carried left the catalogue that day; they survive only as the default steps of the legacy
+chain (`modules/approvals/registry`), read until a studio saves its own requisition approvers.
 
-**Procurement had no starter grant at all** before this — not even `procurement.suppliers`,
-which has been on the nav since the restructure. That is the same defect the contracts
-register shipped with, and it is fixed here: the Manager role now holds requisitions (full,
-plus `approve`) and suppliers. **`approveHigh` is deliberately not seeded** — the second step
-exists to reach past whoever runs the department, and seeding both would make a two-step
-chain a one-step chain on every new studio.
+**Procurement had no starter grant at all** before the register shipped — not even
+`procurement.suppliers`, which has been on the nav since the restructure. That is the same
+defect the contracts register shipped with, and it was fixed then: the Manager role holds
+requisitions and suppliers.
 
 ## What it does
 
@@ -62,7 +61,16 @@ chain a one-step chain on every new studio.
 been asked, the thing they were asked about must not change underneath them. A submitted
 request is a question somebody was asked and a decided one is the answer — deleting either
 erases a decision rather than a mistake. **Withdrawing is the honest exit** and stays
-available even after approval, because the alternative is an order nobody wanted.
+available even after approval, because the alternative is an order nobody wanted — **until a
+live order names the request** (27/09/2026). Cancelling a bought request left its order
+standing with a withdrawn request behind it, money committed on a request that said it was off;
+`requisitionProblem` now refuses it (`requisition-ordered`) and the screen hides the button.
+Cancel the order first, and the request is free again.
+
+**A move is judged against the row being written** (invariant 8): `moveRequisition` re-asks
+`requisitionProblem` inside a function patch, so a colleague cancelling, or the approval
+answering, between the read and the write is not overwritten by a move judged against a status
+the request no longer has.
 
 **`Approved` and `Rejected` are not moves.** `requisitionProblem` refuses them by name, and
 `editRequisition` refuses a status outright. They are reached through the approval walk, and
@@ -97,13 +105,21 @@ can be forgotten, which is how a record ends up on no deal at all. So `createOrd
 `requisitionId` — a fourth source beside quotation, direct and tender — and Procurement asks
 *it* for the order.
 
-**Ordered is derived, never written back.** Whether a requisition has become an order comes
-from an order naming it, so deleting the order frees the request again. The same rule, for the
-same reason, as one-project-per-tender.
+**Ordered is derived, never written back — and it is not a stored status at all.** Until
+27/09/2026 `REQUISITION_STATUSES` declared `Ordered` as the terminal state while nothing wrote
+it: every converted request stayed `Approved`, and the rules that treated `Ordered` as decided
+guarded a value no row could hold. It left the stored ladder that day. `requisitionStage`
+(`model.ts`) answers "Ordered" for an approved request a **live** order names, the list returns
+it as `stage` beside the stored `status`, and the row shows it. Nothing deletes an order;
+**a CANCELLED order frees the request** — it reads Approved again and can be ordered afresh.
+The same rule, for the same reason, as one-project-per-tender.
 
-**Only an approved request, and only once.** Ordering against a draft would route the money
-around the signature the record exists to collect; a second order against one requisition is
-one approval spent twice.
+**Only an approved request, and one live order at a time.** Ordering against a draft would
+route the money around the signature the record exists to collect; a second live order against
+one requisition is one approval spent twice. `createOrder`'s refusal and the list's
+`ordersByRequisition` both skip a cancelled order through the one `orderIsLive`
+(`modules/procurement/orderModel.ts`), so a request whose order was cancelled is no longer
+stuck — before 27/09/2026 both counted it and the request could never be ordered again.
 
 **The request's cost code follows** where the order carries none, so coding once follows the
 money all the way to the bill — the same inheritance a bill takes from an order.
@@ -140,7 +156,8 @@ orders was the owner's choice: the approval chain still stands between the sheet
 
 - **Short = sold − allocated − already asked for** (`modules/procurement/bulkNeeds.ts`, pure).
   *Allocated* is the serials on the row; *asked for* is every live requisition for the project
-  (Draft, Submitted, Approved, Ordered) plus every live order with **no** requisition behind it
+  (Draft, Submitted, Approved — a bought request is stored as Approved) plus every live order
+  with **no** requisition behind it
   — an order converted from a requisition is that requisition's quantity, already counted. So
   **a second press asks for nothing**: nothing links an order back to a sheet row, and this is
   what stops a double buy.
@@ -161,11 +178,27 @@ which is the right `editOrder` has always asked; `GET inventory/orders` is its r
 studio shows the row once `scripts/migrate/plant-sections.mjs` plants it; nothing is stranded
 before then, because nothing is written under it.
 
-## THE ROLLOUT CONSEQUENCE
+**An order's status has a from-state** (27/09/2026, `orderMoveProblem` in
+`modules/procurement/orderModel.ts`, pure and shared by `editOrder` and both screens):
+Draft → Ordered or Cancelled; Ordered → Cancelled only while nothing has been received; nothing
+else. Before, `editOrder` took any status but the two receiving derives, from any state — a
+partly received order could be cancelled, a Cancelled one reopened, a Received one put back to
+Draft. Refusals: `order-placed`, `order-cancelled`, `received-already`, `derived-status`. The
+rule is asked again inside the function patch (invariant 8), so a delivery booked in between
+the read and the write is not cancelled over.
 
-Approving a requisition needs the studio's own currency, and `createStudio` has never set one —
-the same consequence bills and bids carry. The refusal names the fix and the screen says it in
-place of the button.
+**Placing re-checks the supplier.** Qualification was asked only when the Draft was written, so
+a Draft converted a week ago could be placed with a supplier suspended since. Moving a Draft to
+Ordered now asks `supplierQualification` again and refuses with the same `supplier-<reason>`
+tokens `createOrder` uses.
+
+## Currency
+
+**A requisition does not need the studio's currency.** This file said approving one did, the
+consequence bills and bids carry; it is not true of a requisition. Its estimates carry no
+currency of their own — they are the studio's money — so the approval's amount is already in
+base and `judge` (`modules/approvals/approvals.ts`) never converts it, and never refuses
+`no-studio-currency` for it.
 
 ## Not built yet
 
@@ -175,10 +208,14 @@ Stated in words, because a silent gap reads as a finished feature.
   convert, because that is what a purchase order is in this product. Buying a service, or
   anything nobody has registered, has no path to an order today — Inventory's own order
   buttons were removed on purpose. That is the boundary of the existing order model.
-- **Nothing is notified.** A requisition waiting for a signature tells nobody; the register has
-  to be looked at. No inbox, no delegation, no reminder.
-- **No supplier RFQ and no quote comparison.** `vendorId` records who the requester *expects* to
-  buy from and binds nothing. Comparing quotes and awarding one is the section's next bullet.
+- **No reminder and no delegation.** Submitting tells the approvers who are waiting (through
+  the Approvals engine's notice) and the answer tells the requester; nothing chases an approval
+  left sitting, and nobody can hand theirs to a deputy.
+- **The award does not reach the requisition.** Supplier quotes (`supplier-quotes.md`) can be
+  raised from a request and compared, but `vendorId` still records only who the requester
+  *expects* to buy from, and an award neither changes it nor prices the order.
+- **An order cannot be cancelled once anything has been received**, so a short delivery leaves
+  the order Partly received for ever; there is no "close short".
 - **No budget check.** A requisition can be raised and approved for a cost code with no
   allowance left; `projects.costs` knows, and this does not ask it.
 - **The estimate is never reconciled.** Nothing compares what was estimated against what the

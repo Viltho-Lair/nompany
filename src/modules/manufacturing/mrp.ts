@@ -28,20 +28,67 @@
 // PURE. No imports, no store: the screen shows exactly what the server computed.
 
 export type BomLine = { bomId: string; itemId: string; qtyPer: number };
-export type Bom = { id: string; product?: string; revision?: string };
+export type Bom = { id: string; product?: string; revision?: string; status?: string };
 export type WorkOrder = {
   id: string; title?: string; product?: string; quantity?: number;
   dueOn?: string; station?: string; status?: string;
 };
-export type Station = { id: string; name?: string; capacityPerDay?: number };
+export type Station = { id: string; name?: string; capacityPerDay?: number; status?: string };
 
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const round = (n: number) => Math.round(n * 1000) / 1000;
 const key = (v: unknown) => String(v ?? "").trim().toLowerCase();
 
-/** A work order that is still going to consume material. */
-export const isOpen = (o: WorkOrder): boolean =>
+/**
+ * A work order that is still going to consume material.
+ *
+ * THE STATUS HAS TO BE HANDED IN, and for a long time it was not: the planner
+ * flattened each engine record to its id and its values, and the status lives
+ * on the record rather than in the values — so every order arrived with no
+ * status, this answered true for all of them, and Completed and Cancelled work
+ * orders drove the shortfall and the station load. `flatRecord` below now
+ * carries it, and `tests/mrp-model.mjs` pins that. "done" is kept for a
+ * studio-defined register that says it that way.
+ */
+export const isOpen = (o: Pick<WorkOrder, "status">): boolean =>
   key(o.status) !== "done" && key(o.status) !== "cancelled" && key(o.status) !== "completed";
+
+/**
+ * AN ENGINE RECORD AS THE PLANNER READS IT — its declared values, its id and
+ * its STATUS. The status is a column of the record, not one of its values, so
+ * a flattening that spread only `values` dropped it without a sound. The id and
+ * status go LAST so a studio field that happens to be called `status` cannot
+ * stand in for the record's real one.
+ */
+export function flatRecord(r: Record<string, unknown>): Record<string, unknown> & { id: string; status: string } {
+  return {
+    ...((r.values as Record<string, unknown>) || {}),
+    id: String(r.id ?? ""),
+    status: String(r.status ?? ""),
+  };
+}
+
+/**
+ * A BOM THE PLANNER MAY EXPLODE — Released, and nothing else.
+ *
+ * The register's ladder is Draft → Released → Superseded (engine builtins). A
+ * DRAFT is a bill somebody is still writing, and buying against it orders
+ * components for a product nobody has agreed how to make; a SUPERSEDED bill is
+ * the one the next revision replaced, and exploding it orders last revision's
+ * parts. Before this the newest BOM for a product won whatever its status, so
+ * starting revision 2 as a draft silently moved every open order's demand onto
+ * it. An order whose product has no Released bill is reported in `noBom`, which
+ * is the truth: there is no bill it may be built to yet.
+ */
+export const isPlannable = (b: Bom): boolean => key(b.status) === "released";
+
+/**
+ * A RETIRED station is gone — work pointed at it has nowhere to happen and is
+ * reported with the unstationed orders. A DOWN station will come back: it keeps
+ * its lane, offers no capacity today, and any load on it is over.
+ */
+export const isRetired = (s: Station): boolean => key(s.status) === "retired";
+export const isDown = (s: Station): boolean => key(s.status) === "down";
 
 /**
  * WHAT EVERY OPEN WORK ORDER ADDS UP TO, per Registered Item.
@@ -62,11 +109,15 @@ export function explode(
   perOrder: { orderId: string; bomId: string; items: Record<string, number> }[];
 } {
   const byProduct = new Map<string, Bom>();
-  // FIRST BOM WINS FOR A PRODUCT, and a second is not silently blended in. Two
-  // BOMs for one product name is a revision the studio has not retired; adding
-  // both would double every requirement, which is the one arithmetic error a
-  // buyer cannot spot by looking at the answer.
+  // ONE BOM PER PRODUCT, and a second is not silently blended in. Only a
+  // RELEASED bill is eligible (`isPlannable`); among those the FIRST IN THE
+  // ORDER GIVEN wins, and the planner hands them NEWEST FIRST (the engine lists
+  // records by `createdAt` descending), so it is the newest released revision.
+  // Two released bills for one product name is a revision the studio has not
+  // superseded; adding both would double every requirement, which is the one
+  // arithmetic error a buyer cannot spot by looking at the answer.
   for (const bom of boms) {
+    if (!isPlannable(bom)) continue;
     const k = key(bom.product);
     if (k && !byProduct.has(k)) byProduct.set(k, bom);
   }
@@ -151,6 +202,8 @@ export type StationLoad = {
   stationId: string;
   name: string;
   capacityPerDay: number;
+  /** The station is Down: it offers no capacity today, so any load is over. */
+  down: boolean;
   /** Units of work pointed at this station by open orders. */
   load: number;
   /** Days of work at the station's own rate, or null when it has no rate. */
@@ -178,26 +231,36 @@ export function capacityLoad(
   stations: Station[],
 ): { stations: StationLoad[]; unstationed: WorkOrder[] } {
   const open = orders.filter(isOpen);
-  const byName = new Map(stations.map((s) => [key(s.name), s]));
+  // A RETIRED STATION IS NOT A LANE. Its name still matches the orders that
+  // point at it, and counting it as somewhere the work can happen is exactly
+  // how a scrapped machine absorbed load on this screen.
+  const live = stations.filter((s) => !isRetired(s));
+  const byName = new Map(live.map((s) => [key(s.name), s]));
 
-  const lanes: StationLoad[] = stations.map((s) => {
+  const lanes: StationLoad[] = live.map((s) => {
     const mine = open.filter((o) => key(o.station) === key(s.name));
     const load = round(mine.reduce((sum, o) => sum + num(o.quantity), 0));
     const capacity = num(s.capacityPerDay);
+    const down = isDown(s);
     return {
       stationId: s.id,
       name: String(s.name || "").trim(),
       capacityPerDay: capacity,
+      down,
       load,
-      days: capacity > 0 ? round(load / capacity) : null,
-      over: capacity > 0 && load > capacity,
+      // A DOWN STATION'S DAYS ARE NULL like an unrated one's — it will not
+      // finish this work at any rate today — and it is OVER the moment
+      // anything is pointed at it, because nothing it holds is being made.
+      days: !down && capacity > 0 ? round(load / capacity) : null,
+      over: down ? load > 0 : capacity > 0 && load > capacity,
       orders: mine,
     };
   }).sort((a, b) => (b.days ?? -1) - (a.days ?? -1) || a.name.localeCompare(b.name));
 
   // AN ORDER WITH NO STATION AT ALL is not unstationed — it has not been
   // planned yet, which is a different problem from being pointed at a station
-  // that does not exist. Only the second is a mistake somebody made.
+  // that does not exist or has been retired. Only the second is a mistake
+  // somebody made.
   const unstationed = open.filter((o) => {
     const k = key(o.station);
     return k !== "" && !byName.has(k);

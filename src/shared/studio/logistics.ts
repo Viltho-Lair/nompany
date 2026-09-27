@@ -86,6 +86,12 @@ const en: Strings = {
     amount: "A charge needs an amount above nothing.",
     order: "Choose an order.",
     notfound: "That order no longer exists.",
+    missing: "Choose an order first.",
+    forbidden: "You do not have the right to do that here.",
+    // SAVING NO CHARGES OVER RECORDED ONES CLEARS THEM, which is a delete, so it
+    // asks the delete right (landedCostService.saveLandedCost).
+    forbiddenClear: "Clearing every charge on an order needs the right to delete landed costs.",
+    "read-only": "You have view-only access to landed cost.",
     failed: "That did not save.",
   },
 };
@@ -127,6 +133,10 @@ const ar: Strings = {
     amount: "الرسم يحتاج مبلغا أكبر من الصفر.",
     order: "اختر أمرا.",
     notfound: "لم يعد هذا الأمر موجودا.",
+    missing: "اختر أمرا أولا.",
+    forbidden: "ليست لديك صلاحية القيام بذلك هنا.",
+    forbiddenClear: "مسح كل الرسوم على أمر يحتاج الى صلاحية حذف التكلفة حتى الوصول.",
+    "read-only": "لديك صلاحية عرض فقط على التكلفة حتى الوصول.",
     failed: "لم يحفظ ذلك.",
   },
 };

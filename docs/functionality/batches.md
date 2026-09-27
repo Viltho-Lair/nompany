@@ -52,13 +52,20 @@ answerable afterwards.
 **`asOf` is read once, on the server, and travels in the response.** A screen reading its
 own clock would disagree with the server across midnight and after a tab had been open all
 day — the rule the tender register already follows. `batchView` takes the date as an
-argument, which is what makes it assertable.
+argument, which is what makes it assertable. **It is the STUDIO's date** (`dayIn` in the
+studio's time zone, `shared/timezone`, since 27/09/2026) — it was the server's UTC date,
+so a batch expiring today in Riyadh read as in date until three in the morning.
 
 ### FEFO suggests and never enforces
 
 First expired, first out: for anything with a shelf life the oldest usable stock is the one
 about to stop being usable, and picking by arrival date is what leaves a drum on a shelf
 until the week after it went off.
+
+**It is drawn, as "Pick next", above the register** — one line per item: the lot to take
+and when it expires. `listBatches` has returned it as `fefo` since the register shipped and
+nothing drew it until 27/09/2026, so the one question a picker asks at the rack had an
+answer nobody could see.
 
 **It is a suggestion.** A picker at a rack has reasons — the FEFO batch is behind three
 others, or reserved — and a system that refused every other batch is a system people work
@@ -84,6 +91,12 @@ somebody typing the serials in.
 
 ### What is refused, and why
 
+**Refusals are TOKENS, worded on the screen** (`BATCH_PROBLEMS` in `batches.ts`, words in
+`shared/studio/batches`). They were English sentences built on the server and shown
+verbatim, so an Arabic studio read English; the response is now `{ error: "refused",
+problems: [...tokens], value }`, `value` being the lot as typed for the sentences that
+repeat it. Every other refusal is one token worded the same way.
+
 - **A lot number with a space**, or over 24 characters — **refused, not truncated**, the
   rule bin codes carry for the same reason.
 - **A lot already used on the SAME item**, case-insensitively. The same lot number on a
@@ -93,7 +106,10 @@ somebody typing the serials in.
 - **A batch expiring before it was received.** That is a typo somebody wants to hear about,
   not a state: it would sort first under FEFO and send a picker to a drum that was never
   usable.
-- **An assignment the source cannot cover**, and **both ends the same**.
+- **An assignment the source cannot cover**, and **both ends the same**. The cover is asked
+  again under the item's lease (`stockLock.ts`) before the pair is written, so two
+  assignments of the same units cannot both pass; a writer that cannot get the lease in
+  about two seconds is refused `in-progress`.
 - **Deleting a batch that still holds something.** An emptied one deletes and cascades
   nothing; its movements count as untracked.
 
@@ -107,6 +123,18 @@ than being invented. Unlike `fefoSuggestion`, this ENFORCES: a till cannot see a
 nobody picks a lot number for a customer at a counter. The seller writes one movement per
 batch taken, naming it, which is what makes a recall answerable. Movements now declare the
 `binId` and `batchId` they have always been written with.
+
+### The screen
+
+- **The buttons follow the act, not the sub-section.** Add batch and Assign need
+  `inventory.stock.create`; Remove needs `.delete`. They were drawn on "may write anything
+  here", so somebody holding only `edit` was offered three buttons the server refused.
+  `listBatches` returns `canCreate` and `canDelete`.
+- **Dates are shown the studio's way** (`fmtDate`, dd/mm/yyyy by default) and picked with
+  the studio's date picker (`StudioDate`), not the browser's native one, which drew in the
+  browser's own order.
+- **A deleted item's label comes back empty** and the screen says "(removed item)" in the
+  reader's language.
 
 ## Not built yet
 

@@ -37,7 +37,7 @@ Reference `WR-0001` (numbering series `workRequest`). Raising one notifies every
 holds `maintenance.orders.create`, except the reporter.
 
 **Only Declined is stored.** Accepted is DERIVED from a work order naming the request —
-the requisition's `Ordered` rule, for its reason: deleting the order puts the request back
+the requisition's `Ordered` rule, for its reason (there a CANCELLED order frees the request): deleting the order puts the request back
 in the queue instead of leaving it reading as handled. Accepting copies the report onto a
 corrective work order and takes a priority, a due date and who does it. Declining takes a
 reason (kept blank if none — "duplicate of WR-0012" is sometimes the whole story). Only an
@@ -235,7 +235,12 @@ delivery note: parts going to authorised work is consumption, not a write-off.
 only where a movement is charged to something: an issue snapshots the item's RECORDED unit cost
 that day, and a return is costed at what the order was charged for it, so it takes off exactly
 what the issue put on. Repricing an item later re-prices nothing already used. **It is the price
-list's figure, not FIFO's or average's** — valuation still values the shelf from receipts.
+list's figure, not FIFO's or average's** — valuation still values the shelf from receipts. A
+returned part comes back onto the shelf at the cost STORED ON THE RETURN (`costLedger`,
+`inventory/valuation.ts`, 27/09/2026) — it came back at the item's price that day, so a repricing
+between issue and return moved the stock value on a round trip that moved no stock. Both the
+issue and the return re-check the ledger while holding the item (`inventory/stockLock.ts`), so two
+issues of the last unit cannot both pass.
 
 Each work order shows what it kept, item by item, and its **parts cost**. **Machines** gains
 **parts cost and hours booked** over the same twelve months (`costByAsset`). Hours stay hours:

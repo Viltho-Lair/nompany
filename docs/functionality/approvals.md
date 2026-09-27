@@ -172,8 +172,9 @@ Stated in words, because a silent gap reads as a finished feature.
 - **A document's own reviewer and approver are read but never written.** Its approval asks the
   people the document names when it names them (`stepPeople`), and nothing in the product sets
   those two fields, so in practice Approvals settings decide. The only screen that tried to set
-  them (`components/studio2/QualityWorkflow.js`) is imported by nothing and calls a route that
-  does not exist.
+  them (`components/studio2/QualityWorkflow.js`, imported by nothing and calling a route that did
+  not exist) was deleted 27/09/2026. A revision of a WITHDRAWN document is refused an answer
+  (`obsolete`): nothing it approved could be issued.
 - **No screen submits a timesheet**, so its approval is reached only through the route; and
   **project costing counts a timesheet whatever its approval says** (the audit's gap 14).
 - **Editing a bid's bill while its approval waits is allowed** (the approval then no longer

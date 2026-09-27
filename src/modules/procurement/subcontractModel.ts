@@ -231,3 +231,50 @@ export function certificateProblem(
   if (value < previousCumulative) return "below-previous";
   return null;
 }
+
+/**
+ * MAY THIS PERSON AGREE THIS VALUATION? Null when they may.
+ *
+ * INVARIANT 7 — REVIEWER IS NOT APPROVER — asked of the one act that turns a
+ * number into a debt. `certify` and `edit` are separate RIGHTS so that the
+ * person who wrote the valuation is not the one who agrees it, and a separate
+ * right alone could not say that: somebody holding both (a project manager
+ * usually does) wrote a figure and then signed it, and the separation the verb
+ * was minted for held for nobody.
+ *
+ * REFUSED FOR EVERYONE, OWNER AND ADMIN INCLUDED. Invariant 7 names exactly
+ * three owner/Admin exceptions — a payroll run, a bill and a stock adjustment —
+ * and a payment certificate is not among them; the approvals module carries no
+ * exception for it either. A one-person studio is not stranded by this: it can
+ * have the valuation written by whoever is not certifying it. Should the owner
+ * extend the exception, it goes here and in the invariant together.
+ *
+ * Enforced at the transition, like every signable, never in the permission
+ * model: holding both rights is legitimate, using both on one record is not.
+ */
+export function certifierProblem(
+  certificate: { createdByCollaboratorId?: unknown } | null | undefined,
+  collaboratorId: unknown,
+): string | null {
+  if (!certificate) return "notfound";
+  const writer = text(certificate.createdByCollaboratorId);
+  // A CERTIFICATE WITH NO RECORDED WRITER compares against nobody; refusing it
+  // would strand every row written before the field was, and there are none
+  // such today because `createCertificate` has always stamped it.
+  if (writer && writer === text(collaboratorId)) return "same-signer";
+  return null;
+}
+
+/**
+ * THE HIGHEST CERTIFICATE NUMBER ALREADY ISSUED on one subcontract — the floor
+ * the counter seeds from the first time a subcontract asks, so a package that
+ * already has certificates carries on from them rather than from one.
+ */
+export function highestCertificateNumber(certificates: readonly { number?: unknown }[]): number {
+  let highest = 0;
+  for (const c of certificates || []) {
+    const n = Number.parseInt(text(c?.number), 10);
+    if (Number.isFinite(n) && n > highest) highest = n;
+  }
+  return highest;
+}

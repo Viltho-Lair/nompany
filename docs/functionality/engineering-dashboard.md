@@ -18,7 +18,10 @@ submitted came back, and which controlled documents are due a review.
 
 A document's state is the register's own `documentState`, and "waiting on me" is the open
 revision's gate (`review` → the reviewer, `approval` → the approver), exactly as `waitingOn`
-decides it. RFI, submittal, transmittal, BOM and library figures are read off the statuses the
+decides it. The documents are read from the register's own collections — `DOCS` and `REVISIONS`,
+imported from `modules/quality/qualityDocs.ts` (`qualityDocs`, `qualityRevisions`). **Until
+27/09/2026 it read the literal `qualityDocuments`**, the retired builder's collection, so every
+document tile and chart counted old rows and none of the register's. RFI, submittal, transmittal, BOM and library figures are read off the statuses the
 built-in record types declare (`platform/engine/builtins.ts`). No clock is read on the screen:
 `asOf` is the server's day and travels with the answer.
 
@@ -42,7 +45,7 @@ is missing counts as absent rather than falling back to the root's rows.
 | Waiting on you | Documents whose open revision is at review with you as reviewer, or at approval with you as approver — beside how many are in review or approval at all. It counts the reviewer and approver the DOCUMENT names, which nothing writes today; since 19/09/2026 who answers a revision is the Approvals page's, and that page lists what is waiting on you there |
 | Open RFIs | Status Open, with how many are past *Needed by*. **Answered is not open** — the asker has not accepted the answer yet — and has its own tile |
 | Submittals out for review | Submitted or Under review, with how many are past *Response due*. A draft or a sent-back submittal is not late on the reviewer |
-| Document reviews due | **Effective** documents whose next review falls in the next 30 days or has passed. A draft has nothing issued to review; an obsolete one is not worked to |
+| Document reviews due | **Effective** documents whose next review falls in the next 30 days or has passed. A draft has nothing issued to review; an obsolete one is not worked to. The date is asked when a revision is ISSUED (the issue dialog on the workflow bar sends `nextReviewDate` with `publish`; empty keeps the date already set) and nowhere else |
 | Transmittals awaiting acknowledgement, RFIs answered, engineering BOMs in review, current library references | The second row |
 
 **Paid widgets** (registry section `engineering-docs`):
@@ -57,6 +60,10 @@ is missing counts as absent rather than falling back to the root's rows.
 | `engineering.review-due` | The documents coming due for review, with days left or overdue |
 
 ## Not built yet
+
+- **A next review date is set only at issue.** It cannot be set or moved on an effective document
+  without issuing a new revision, so a document issued without one is never due a review until
+  its next revision carries a date.
 
 - **RFI response time** is not measured. Engine records keep no status history, so when an RFI was
   answered is not recorded — only that it was.

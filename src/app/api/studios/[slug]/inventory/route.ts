@@ -9,6 +9,7 @@ import {
 import { unitsFor } from "@/modules/administration/units";
 import { listShipments, listAirlines } from "@/modules/inventory/awbTracking";
 import { AWB_STATUS } from "@/modules/inventory/awbStatus";
+import { dayIn, studioTimezone } from "@/shared/timezone";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,6 +65,15 @@ export const GET = route(
     canManageItems: g.canManageItems,
     canManageSheets: g.canManageSheets,
     canManageAwb: g.canManageAwb,
+    // PER ACT, as the services ask. `canManageStock` is ANY write right in the
+    // stock sub-section, so somebody holding only `inventory.stock.edit` was
+    // offered Adjust and then refused it, and somebody who could adjust stock
+    // but not edit items was offered a Save on serials the PUT then refused.
+    canCreateStock: can(g.access, "inventory.stock.create"),
+    canEditItems: can(g.access, "inventory.items.edit"),
+    // THE STUDIO'S "TODAY", read once here so the dashboard's weeks and months
+    // end on the studio's date rather than the reader's laptop's (shared/timezone).
+    asOf: dayIn(new Date(), studioTimezone(g.studio as { timezone?: unknown })),
     // WHETHER THE "STOCK TO REORDER" LIST IS DRAWN for this reader — the stock
     // alert is a right the owner hands out (modules/inventory/stockAlerts).
     canSeeStockAlerts: can(g.access, STOCK_ALERT_RIGHT as PermissionKey),

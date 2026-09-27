@@ -15,7 +15,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
-import { procurementDict } from "@/shared/studio/procurement";
+import { procurementDict, procurementRefusal } from "@/shared/studio/procurement";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, money, fmtDate } from "@/components/studio2/ui";
@@ -40,7 +40,9 @@ function refusal(tr, token) {
     // Submitting asks for its approval (19/09/2026): nobody named, or only the asker.
     case "not-configured": return tr.refuseNotConfigured;
     case "no-approver": return tr.refuseNoApprover;
-    default: return token;
+    // THE ORDER'S OWN REFUSALS reach this screen too — converting and placing
+    // go through Inventory's order route — and printed raw until 27/09/2026.
+    default: return procurementRefusal(tr, token) || token;
   }
 }
 
@@ -180,7 +182,8 @@ export default function StudioRequisitions({ slug, initial }) {
                       <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{r.reference}</span>
                       <span className="ms-2 font-600">{r.title}</span>
                       <span className="ms-2 text-xs text-slate-500 dark:text-slate-400">
-                        {tr.status(r.status)}
+                        {/* THE DERIVED STAGE: "Ordered" is never stored (model.ts). */}
+                        {tr.status(r.stage || r.status)}
                       </span>
                     </p>
                     {r.justification && (
@@ -233,7 +236,10 @@ export default function StudioRequisitions({ slug, initial }) {
                       </button>
                     </>
                   )}
-                  {canEdit && (r.status === "Draft" || r.status === "Submitted" || r.status === "Approved") && (
+                  {/* NOT ONCE IT HAS BEEN BOUGHT: a live order names it, and the
+                      server refuses (requisition-ordered) — cancel the order
+                      first and this comes back. */}
+                  {canEdit && !r.ordered && (r.status === "Draft" || r.status === "Submitted" || r.status === "Approved") && (
                     <button type="button" className={btnGhost} disabled={busy}
                       onClick={() => send("PUT", { id: r.id, action: "cancel" })}>
                       {tr.cancelRequest}

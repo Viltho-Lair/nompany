@@ -12,9 +12,11 @@ import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { bumpCounter } from "@/platform/db/store";
+import { S } from "@/platform/db/keys";
 import {
   subcontractPosition, certificateProblem, isCounted,
-  SUBCONTRACT_STATUSES, backChargeIsReal,
+  SUBCONTRACT_STATUSES, backChargeIsReal, certifierProblem, highestCertificateNumber,
 } from "./subcontractModel";
 import type { Subcontract, PaymentCertificate, BackCharge } from "./subcontractSchema";
 import type { ProcurementContext } from "./types";
@@ -98,6 +100,10 @@ export async function listSubcontracts(ctx: ProcurementContext) {
     canEdit: !requirePermission(ctx.access, "procurement.subcontracts.edit"),
     canDelete: !requirePermission(ctx.access, "procurement.subcontracts.delete"),
     canCertify: !requirePermission(ctx.access, "procurement.subcontracts.certify"),
+    // WHO IS ASKING, so the screen can withhold Certify from the valuation's own
+    // writer — `certifyCertificate` refuses them (invariant 7), and a button
+    // that is always refused is a screen lying about what it can do.
+    me: ctx.collaborator.id,
   };
 }
 
@@ -220,14 +226,23 @@ export async function createCertificate(ctx: ProcurementContext, body: Record<st
     subcontract, body?.cumulativeValue, lastCounted(existing));
   if (problem) return { error: problem };
 
+  // NUMBERED WITHIN THE SUBCONTRACT rather than across the studio: a
+  // subcontractor talks about "certificate 3 on the drylining", and a
+  // studio-wide sequence would make that number meaningless to them.
+  //
+  // FROM A TALLY, NOT A COUNT (invariant 10). `existing.length + 1` was
+  // counting: two valuations written in the same second both read two rows and
+  // both became certificate 3 — a number a subcontractor invoices against. The
+  // tally is one field per subcontract in the studio's counters, seeded from
+  // the highest number already issued, so a package with history carries on.
+  const seq = await bumpCounter(
+    S.counters(studio.id), `SUBCONTRACT-CERT:${subcontractId}`, highestCertificateNumber(existing));
+
   const at = now();
   return {
     certificate: await Certificates.create({ studio, section: subcontractsSection }, {
       subcontractId,
-      // NUMBERED WITHIN THE SUBCONTRACT rather than across the studio: a
-      // subcontractor talks about "certificate 3 on the drylining", and a
-      // studio-wide sequence would make that number meaningless to them.
-      number: String(existing.length + 1),
+      number: String(seq),
       periodEnd: day(body?.periodEnd),
       cumulativeValue: num(body?.cumulativeValue),
       backCharges: cleanBackCharges(body?.backCharges),
@@ -298,6 +313,10 @@ export async function certifyCertificate(ctx: ProcurementContext, id: string) {
   const current = await Certificates.byId({ studio, section: subcontractsSection }, id);
   if (!current) return { error: "notfound" };
   if (isCounted(current)) return { error: "already-certified" };
+  // WHOEVER WROTE THE VALUATION DOES NOT AGREE IT (invariant 7), for everyone —
+  // `certifierProblem` says why no owner/Admin exception applies here.
+  const signer = certifierProblem(current, collaborator.id);
+  if (signer) return { error: signer };
 
   const subcontract = await Subcontracts.byId(
     { studio, section: subcontractsSection }, current.subcontractId);
@@ -311,11 +330,19 @@ export async function certifyCertificate(ctx: ProcurementContext, id: string) {
   if (problem) return { error: problem };
 
   const at = now();
-  const certificate = await Certificates.update({ studio, section: subcontractsSection }, id, {
-    status: "Certified",
-    certifiedByCollaboratorId: collaborator.id,
-    certifiedAt: at,
-    updatedAt: at,
+  // JUDGED AGAINST THE ROW BEING WRITTEN (invariant 8): two certifiers pressing
+  // at once must not both sign, and a valuation certified between the read
+  // above and this write must not be signed again over the first signature.
+  let refused = "";
+  const certificate = await Certificates.update({ studio, section: subcontractsSection }, id, (row: PaymentCertificate) => {
+    refused = isCounted(row) ? "already-certified" : (certifierProblem(row, collaborator.id) || "");
+    return refused ? {} : {
+      status: "Certified",
+      certifiedByCollaboratorId: collaborator.id,
+      certifiedAt: at,
+      updatedAt: at,
+    };
   });
+  if (refused) return { error: refused };
   return certificate ? { certificate } : { error: "notfound" };
 }

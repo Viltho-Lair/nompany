@@ -31,9 +31,19 @@ cent cannot come to mean two different things in one product.
 ## Who may do what
 
 **`procurement.subcontracts`**, view/create/edit/delete, with **`certify` as an extra**. Writing
-a valuation is administration; *agreeing* it creates a debt. That is the separation
-`procurement.requisitions.approve` draws, and neither is a rung on the view/edit ladder.
-Catalogue 166 → 171.
+a valuation is administration; *agreeing* it creates a debt — the separation a requisition's
+approval draws (answered on the Approvals page since 19/09/2026; the
+`procurement.requisitions.approve` this line used to cite left the catalogue that day), and
+`certify` is not a rung on the view/edit ladder. Catalogue 166 → 171.
+
+**The valuation's writer does not certify it** (invariant 7, 27/09/2026). A separate right
+alone could not say that: somebody holding both `edit` and `certify` — a project manager
+usually does — wrote a figure and then agreed it. `certifyCertificate` now refuses
+`same-signer` when the certifier is `createdByCollaboratorId`, asked again inside the function
+patch (invariant 8), and the screen shows "Written by you" in place of the button. **No
+owner/Admin exception**: invariant 7 names three (a payroll run, a bill, a stock adjustment) and
+a certificate is not one; the approvals module carries none for it either. Should the owner
+extend it, `certifierProblem` (`subcontractModel.ts`) is the one place.
 
 **On the archetypes the two halves sit with different people.** `buyer` holds
 `procurement.subcontracts` at `edit` — the Subcontracts Administrator in its own note. `certify`
@@ -90,7 +100,10 @@ orphan every certificate recording money owed.
 
 **Certificates are numbered within the subcontract**, not across the studio: a subcontractor
 talks about "certificate 3 on the drylining", and a studio-wide sequence would mean nothing to
-them.
+them. **From a tally, not a count** (invariant 10, 27/09/2026): the number was
+`existing.length + 1`, so two valuations written at once both became the same certificate. It
+is `bumpCounter` now, one field per subcontract in the studio's counters
+(`SUBCONTRACT-CERT:<id>`), seeded from the highest number already issued.
 
 ## Not built yet
 

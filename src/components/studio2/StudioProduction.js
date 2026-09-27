@@ -7,6 +7,7 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { productionDict } from "@/shared/studio/production";
 import { shopFloorDict } from "@/shared/studio/shopfloor";
 import { useStudioLocale } from "@/components/studio2/locale";
+import { engineWords } from "@/shared/studio/engineTypes";
 import { useReload } from "@/components/studio2/useReload";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 // BEHIND A REAL LAZY BOUNDARY, like every other secondary tab: this is a
@@ -42,10 +43,11 @@ export default function StudioProduction({ slug, initial }) {
   const load = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/manufacturing/planning`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) { setProblem(body.error || "failed"); return; }
+    // THE READER'S LANGUAGE, never the raw token.
+    if (!res.ok) { setProblem(productionDict(locale).problem(body.error)); return; }
     setData(body);
     setBomId((b) => b || body.boms?.[0]?.id || "");
-  }, [slug, setData, setBomId, setProblem]);
+  }, [slug, locale, setData, setBomId, setProblem]);
 
   useReload(load, initial);
   // THE ROWS ARE WRITTEN UNDER `manufacturing` — the BOM lines on the root, and
@@ -61,19 +63,35 @@ export default function StudioProduction({ slug, initial }) {
     });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setProblem(body.detail || body.error || "failed"); return false; }
+    // A REFUSAL IS A TOKEN, said here in the reader's language. This printed
+    // `body.error` itself, so a planner read "duplicate" or "forbidden".
+    if (!res.ok) { setProblem(tr.problem(body.error)); return false; }
     await load();
     return true;
-  }, [slug, load, setBusy, setProblem]);
+  }, [slug, load, tr, setBusy, setProblem]);
 
-  if (!data) return <ScreenSkeleton />;
+  // A FAILED FIRST LOAD SAYS WHY rather than leaving the skeleton up for ever.
+  if (!data) {
+    return problem
+      ? <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{problem}</p>
+      : <ScreenSkeleton />;
+  }
 
   const {
     requirements = [], noBom = [], noQuantity = [], stations = [], unstationed = [],
-    items = [], boms = [], lines = [],
+    items = [], boms = [], lines = [], canEditBom = false,
   } = data;
   const itemLabel = Object.fromEntries(items.map((i) => [i.id, i.label]));
   const mine = lines.filter((l) => l.bomId === bomId);
+  // A BOM'S STATUS IS A STORED REGISTER WORD, shown through the register's own
+  // translation so the picker says what the Bills of materials register says.
+  const bomWord = engineWords({ key: "bom", origin: "builtin" }, locale).word;
+  const current = boms.find((b) => b.id === bomId);
+  const bomStatus = String(current?.status || "").toLowerCase();
+  // THE BUTTONS FOLLOW THE BOM'S OWN RIGHT (`engine.bom.edit`), which the
+  // server answers as `canEditBom`, and a Superseded bill offers none because
+  // the server refuses to change it.
+  const editable = canEditBom && bomStatus !== "superseded";
 
   return (
     <div className="space-y-6">
@@ -179,7 +197,7 @@ export default function StudioProduction({ slug, initial }) {
                     saying it would print Infinity on a shop-floor screen. */}
                 <span className={`w-24 text-end text-xs ${
                   s.over ? "text-rose-600 dark:text-rose-300" : "text-slate-400 dark:text-slate-500"}`}>
-                  {s.days === null ? tr.unrated : tr.days(s.days)}
+                  {s.down ? tr.down : s.days === null ? tr.unrated : tr.days(s.days)}
                 </span>
               </li>
             ))}
@@ -206,9 +224,15 @@ export default function StudioProduction({ slug, initial }) {
                 value={bomId} onChange={(v) => setBomId(v)}
                 options={boms.map((b) => ({
                   value: b.id,
-                  label: b.revision ? `${b.product} · ${b.revision}` : b.product,
+                  label: [b.product, b.revision, b.status ? bomWord(b.status) : ""].filter(Boolean).join(" · "),
                 }))} />
             </div>
+            {current && bomStatus === "superseded" && (
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{tr.frozen}</p>
+            )}
+            {current && bomStatus !== "superseded" && bomStatus !== "released" && (
+              <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{tr.notPlanned}</p>
+            )}
 
             {mine.length === 0 ? (
               <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{tr.noLines}</p>
@@ -218,19 +242,21 @@ export default function StudioProduction({ slug, initial }) {
                   <li key={l.id} className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="text-slate-700 dark:text-slate-200">{itemLabel[l.itemId] || l.itemId}</span>
                     <span className="num ms-auto text-slate-600 dark:text-slate-300">{tr.per(l.qtyPer)}</span>
-                    <button
-                      className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:text-rose-500"
-                      disabled={busy}
-                      onClick={() => send("DELETE", { id: l.id })}
-                    >
-                      {tr.remove}
-                    </button>
+                    {editable && (
+                      <button
+                        className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:text-rose-500"
+                        disabled={busy}
+                        onClick={() => send("DELETE", { id: l.id })}
+                      >
+                        {tr.remove}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
             )}
 
-            {items.length > 0 && (
+            {editable && items.length > 0 && (
               <div className="mt-3 flex flex-wrap items-end gap-2">
                 <Field label={tr.component} as="select" className="w-full sm:w-64"
                   value={draft.itemId} onChange={(v) => setDraft({ ...draft, itemId: v })}

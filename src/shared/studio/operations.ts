@@ -92,6 +92,17 @@ type Strings = CommonStrings & {
   mRange: string;
   mReadOnly: string;
   mTime: string;
+  // EVERY OTHER REFUSAL THE SCHEDULE AND PERMIT SCREENS CAN MEET, keyed by the
+  // server's token. Before, anything not listed above collapsed to "That didn't
+  // save." — a permit somebody else had just closed, a right the reader lacks
+  // and a date that would not parse all read the same, and none said what to do.
+  refusal: Partial<Record<string, string>>;
+  // A move refused because the permit moved first: from what, to what.
+  mPermitTransition: (from: string, to: string) => string;
+  permitExpired: (day: string) => string;
+  permitExpires: (day: string, days: number) => string;
+  permitNo: (n: string) => string;
+  remove: string;
   mapLink: string;
   // Where a place is — LocationsPanel, PinPicker, PlacesMap, NavigateMenu.
   coordinates: string;
@@ -298,6 +309,26 @@ const en: Strings = {
   mRange: "The end date can't be before the start date.",
   mReadOnly: "You have view-only access to Operations.",
   mTime: "Give the shift a date, a start and an end.",
+  refusal: {
+    forbidden: "You don't have the right to do that here. Ask whoever manages roles in your studio.",
+    already: "It is already in that state — somebody got there first. The list has been refreshed.",
+    status: "That isn't a step this permit can take.",
+    closed: "A closed or cancelled permit is the record of what was authorised, so it can no longer be edited.",
+    controlled: "An issued permit can't be deleted — cancel it instead, so the record of it stays.",
+    date: "Pick a date.",
+    location: "That location no longer exists. Pick another, or leave it blank.",
+    title: "Give it a title.",
+    project: "That project no longer exists. Pick another, or leave it blank.",
+    coords: "Those coordinates are outside the map. Check the latitude and longitude.",
+    notfound: "It no longer exists — somebody may have removed it. The list has been refreshed.",
+    missing: "Something the save needs was missing. Reload and try again.",
+    "no-section": "This studio has no Field Service section to keep permits under.",
+  },
+  mPermitTransition: (from, to) => `This permit is ${from.toLowerCase()} now, so it can't be moved to ${to.toLowerCase()}. Somebody changed it first.`,
+  permitExpired: (day) => `expired ${day}`,
+  permitExpires: (day, days) => `expires ${day} (${days === 1 ? "1 day" : `${days} days`})`,
+  permitNo: (n) => `no. ${n}`,
+  remove: "remove",
   mapLink: "Map link",
   coordinates: "Coordinates",
   coordinatesHint: "Latitude, longitude — or paste a map link",
@@ -503,6 +534,26 @@ const ar: Strings = {
   mRange: "لا يمكن أن يسبق تاريخ النهاية تاريخ البداية.",
   mReadOnly: "لديك صلاحية عرض فقط على العمليات.",
   mTime: "أعط الوردية تاريخا وبداية ونهاية.",
+  refusal: {
+    forbidden: "لا تملك صلاحية القيام بذلك هنا. اسأل من يدير الأدوار في الاستوديو.",
+    already: "هو في هذه الحالة بالفعل — سبقك إليه شخص آخر. تم تحديث القائمة.",
+    status: "هذه ليست خطوة يمكن أن يأخذها هذا التصريح.",
+    closed: "التصريح المغلق أو الملغى هو سجل ما أُذن به، فلا يمكن تعديله بعد الآن.",
+    controlled: "لا يمكن حذف تصريح صادر — ألغه بدلا من ذلك ليبقى سجله.",
+    date: "اختر تاريخا.",
+    location: "هذا الموقع لم يعد موجودا. اختر غيره أو اتركه فارغا.",
+    title: "أعطه عنوانا.",
+    project: "هذا المشروع لم يعد موجودا. اختر غيره أو اتركه فارغا.",
+    coords: "هذه الإحداثيات خارج الخريطة. تحقق من خط العرض وخط الطول.",
+    notfound: "لم يعد موجودا — ربما أزاله شخص آخر. تم تحديث القائمة.",
+    missing: "نقص شيء يحتاجه الحفظ. أعد التحميل وحاول مجددا.",
+    "no-section": "لا يوجد في هذا الاستوديو قسم خدمة ميدانية تحفظ تحته التصاريح.",
+  },
+  mPermitTransition: (from, to) => `هذا التصريح ${AR_PERMIT_STATUS[from] || from} الآن، فلا يمكن نقله إلى ${AR_PERMIT_STATUS[to] || to}. غيره شخص آخر أولا.`,
+  permitExpired: (day) => `انتهى في ${day}`,
+  permitExpires: (day, days) => `ينتهي في ${day} (${days === 1 ? "يوم واحد" : days === 2 ? "يومان" : days <= 10 ? `${days} أيام` : `${days} يوما`})`,
+  permitNo: (n) => `رقم ${n}`,
+  remove: "إزالة",
   mapLink: "رابط الخريطة",
   coordinates: "الإحداثيات",
   coordinatesHint: "خط العرض، خط الطول — أو الصق رابط خريطة",

@@ -4,7 +4,7 @@
 // validation — it is that a bin split must never contradict the company total,
 // which is the one property this feature can break invisibly.
 import {
-  binProblems, cleanBin, binBalances, negativeBins, binView, whereIs,
+  binProblems, BIN_PROBLEMS, cleanBin, binBalances, negativeBins, binView, whereIs,
 } from "../src/modules/inventory/bins.ts";
 
 let fails = 0;
@@ -26,7 +26,11 @@ ok("a bin needs a code", binProblems({ locationId: "loc1" }, { locations: LOCATI
 ok("a bin needs a location", binProblems({ code: "A-01" }, { locations: LOCATIONS, existing: [] }).length === 1);
 ok("a location that does not exist is refused",
   binProblems({ code: "A-01", locationId: "nope" }, { locations: LOCATIONS, existing: [] })
-    .some((p) => /does not exist/.test(p)));
+    .includes("location-unknown"));
+// REFUSALS ARE TOKENS the screen words, never English built on the server.
+ok("every refusal is a declared token",
+  [...binProblems({}, { locations: LOCATIONS, existing: [] }), ...binProblems({ code: "A 1", locationId: "x" }, { locations: LOCATIONS, existing: [] })]
+    .every((t) => BIN_PROBLEMS.includes(t)));
 ok("a good bin passes",
   binProblems({ code: "A-01", locationId: "loc1" }, { locations: LOCATIONS, existing: [] }).length === 0);
 ok("rack punctuation is allowed",

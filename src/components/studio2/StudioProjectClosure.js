@@ -16,15 +16,28 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, Empty, microLabel, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
+// THE STUDIO'S OWN DATE PICKER, not a native `type="date"` input: the native one
+// paints the BROWSER's format (mm/dd/yyyy on an American machine) where every
+// other date in the studio reads dd/mm/yyyy.
+import StudioDate from "@/components/fields/StudioDate";
 
-function refusal(tr, token) {
-  switch (token) {
+// EVERY TOKEN THE ROUTE CAN ANSWER HAS WORDS, and anything unforeseen gets the
+// generic sentence rather than the raw token. `blocked` had no case: the close
+// button is disabled while the screen knows of a blocker, so the only way to
+// meet it was a blocker arriving between reading and pressing — and then the
+// page printed the English token "blocked" on an Arabic screen.
+function refusal(tr, out) {
+  switch (out.error) {
     case "closed": return tr.refuseClosed;
+    case "blocked": {
+      const why = (out.blockers || []).map((b) => blockerLabel(tr, b)).filter(Boolean);
+      return why.length ? `${tr.cannotCloseYet} ${why.join("; ")}.` : tr.refuseBlocked;
+    }
     case "handover-before-completion": return tr.refuseHandoverBefore;
     case "warranty-negative": return tr.refuseWarrantyNegative;
     case "warranty-fraction": return tr.refuseWarrantyFraction;
     case "warranty-range": return tr.refuseWarrantyRange;
-    default: return token;
+    default: return tr.didnSave;
   }
 }
 
@@ -32,7 +45,7 @@ function blockerLabel(tr, token) {
   switch (token) {
     case "no-practical-completion": return tr.blockerNoCompletion;
     case "open-snags": return tr.blockerOpenSnags;
-    default: return token;
+    default: return "";
   }
 }
 
@@ -65,7 +78,7 @@ export default function StudioProjectClosure({ slug, projectId }) {
   }, [slug, projectId]);
 
   const apply = useCallback(({ ok, body }) => {
-    if (!ok) { setError(body.error || "failed"); return; }
+    if (!ok) { setError(tr.loadFailed); return; }
     setError("");
     setData(body);
     const c = (body.closures || [])[0];
@@ -77,7 +90,7 @@ export default function StudioProjectClosure({ slug, projectId }) {
         finalAccountAt: c.finalAccountAt || "",
       });
     }
-  }, []);
+  }, [tr]);
 
   useEffect(() => {
     let current = true;
@@ -101,7 +114,7 @@ export default function StudioProjectClosure({ slug, projectId }) {
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(refusal(tr, out.error || "failed")); return false; }
+    if (!res.ok) { setError(refusal(tr, out)); return false; }
     await reload();
     return true;
   }, [slug, reload, tr]);
@@ -198,18 +211,24 @@ export default function StudioProjectClosure({ slug, projectId }) {
       {draft && (
         <section className={panel}>
           <div className="grid gap-2 sm:grid-cols-2">
-            <Field type="date" label={tr.practicalCompletion} value={draft.practicalCompletionAt}
-              hint={tr.practicalCompletionHint} disabled={!canEdit || pos.isClosed}
-              onChange={(v) => setDraft({ ...draft, practicalCompletionAt: v })} />
-            <Field type="date" label={tr.handoverDate} value={draft.handoverAt}
-              hint={tr.handoverHint} disabled={!canEdit || pos.isClosed}
-              onChange={(v) => setDraft({ ...draft, handoverAt: v })} />
+            <Field label={tr.practicalCompletion} filled={!!draft.practicalCompletionAt}
+              hint={tr.practicalCompletionHint} disabled={!canEdit || pos.isClosed}>
+              <StudioDate value={draft.practicalCompletionAt} disabled={!canEdit || pos.isClosed}
+                onChange={(iso) => setDraft({ ...draft, practicalCompletionAt: iso || "" })} />
+            </Field>
+            <Field label={tr.handoverDate} filled={!!draft.handoverAt}
+              hint={tr.handoverHint} disabled={!canEdit || pos.isClosed}>
+              <StudioDate value={draft.handoverAt} disabled={!canEdit || pos.isClosed}
+                onChange={(iso) => setDraft({ ...draft, handoverAt: iso || "" })} />
+            </Field>
             <Field type="number" label={tr.supportPeriod} value={draft.supportPeriodDays}
               hint={tr.supportPeriodHint} disabled={!canEdit || pos.isClosed}
               onChange={(v) => setDraft({ ...draft, supportPeriodDays: v })} />
-            <Field type="date" label={tr.finalAccount} value={draft.finalAccountAt}
-              disabled={!canEdit || pos.isClosed}
-              onChange={(v) => setDraft({ ...draft, finalAccountAt: v })} />
+            <Field label={tr.finalAccount} filled={!!draft.finalAccountAt}
+              disabled={!canEdit || pos.isClosed}>
+              <StudioDate value={draft.finalAccountAt} disabled={!canEdit || pos.isClosed}
+                onChange={(iso) => setDraft({ ...draft, finalAccountAt: iso || "" })} />
+            </Field>
           </div>
           {canEdit && !pos.isClosed && (
             <div className="mt-3 flex justify-end">

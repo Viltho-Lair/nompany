@@ -111,7 +111,11 @@ export default function OperationsDashboard({
 
   // ---- the richer half (10/09/2026) ---------------------------------------
   const rtl = locale === "ar";
-  const asOf = new Date().toISOString().slice(0, 10);
+  // THE STUDIO'S TODAY, not the browser's UTC one. `window.from` is the day the
+  // server's rota window starts on, worked out in the studio's time zone
+  // (shared/timezone) — so the months below turn over on the studio's calendar,
+  // for a manager reading from another country just as for the site.
+  const asOf = window.from || new Date().toISOString().slice(0, 10);
   // THE ROTA AS A GRID — location down the side, this week's days across. The
   // same shifts the week chart counts, split by where they are, so a site with
   // nobody on it on Thursday is a pale cell rather than a number to hunt for.

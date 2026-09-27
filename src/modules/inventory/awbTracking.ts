@@ -201,29 +201,40 @@ export async function updateShipment(ctx: InventoryContext, id: string, body: Re
   if (body?.weightKg !== undefined) patch.weightKg = qty(body.weightKg);
   if (body?.projectId !== undefined) patch.projectId = str(body.projectId, 60);
 
-  // Movements are APPENDED one at a time, never replaced wholesale: two people
-  // logging a milestone at once must not overwrite each other, and who recorded
+  // A MILESTONE IS APPENDED TO THE ROW AS IT IS AT THE WRITE, inside a function
+  // patch (invariant 8) — never to the list this request read. This comment
+  // used to promise that two people logging a milestone at once could not
+  // overwrite each other while the code rebuilt the whole list from `current`,
+  // read before the write, and handed `update` a plain object: the second
+  // write replaced the list with its own stale copy plus one, and the first
+  // milestone was simply gone. The function is re-run against the row as it
+  // now stands whenever the compare-and-set loses, so both land. Who recorded
   // it is taken from the session rather than the payload.
+  let milestone: Record<string, unknown> | null = null;
   if (body?.movement) {
     const movement = body.movement as Record<string, unknown>;
     const code = str(movement.code, 8).toUpperCase();
     if (!AWB_STATUS_BY_CODE[code]) return { error: "status" };
-    patch.movements = [
-      ...(Array.isArray(current.movements) ? current.movements : []),
-      {
-        id: `mv${Date.now().toString(36)}`,
-        code,
-        // An event that carries no time is being logged as it happens.
-        at: str(movement.at, 40) || new Date().toISOString(),
-        station: str(movement.station, 8).toUpperCase(),
-        flightNo: str(movement.flightNo, 16).toUpperCase(),
-        note: str(movement.note, 300),
-        byCollaboratorId: collaborator.id,
-      },
-    ];
+    milestone = {
+      // A RANDOM TAIL, because two milestones logged in the same millisecond
+      // are exactly the case this append exists for, and a timestamp alone
+      // would give them one id.
+      id: `mv${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      code,
+      // An event that carries no time is being logged as it happens.
+      at: str(movement.at, 40) || new Date().toISOString(),
+      station: str(movement.station, 8).toUpperCase(),
+      flightNo: str(movement.flightNo, 16).toUpperCase(),
+      note: str(movement.note, 300),
+      byCollaboratorId: collaborator.id,
+    };
   }
 
-  const shipment = await Shipments.update({ studio, section: awbSection }, id, patch);
+  const shipment = await Shipments.update({ studio, section: awbSection }, id, (row) => ({
+    ...row,
+    ...patch,
+    ...(milestone ? { movements: [...(Array.isArray(row.movements) ? row.movements : []), milestone] } : {}),
+  }));
   return shipment ? { shipment: { ...shipment, ...summarizeMovements(shipment.movements) } } : { error: "notfound" };
 }
 
