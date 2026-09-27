@@ -13,7 +13,8 @@ import { MANUAL_FROM_HELP, composeManualArticle, manualAnchors } from "./manual"
 import type { ManualArticle } from "@/shared/studio/manual";
 import { root } from "./kb/root";
 import { general } from "./kb/general";
-import { sales } from "./kb/sales";
+import { pos } from "./kb/pos";
+import { marketing } from "./kb/marketing";
 import { crmSales } from "./kb/crmSales";
 import { quotations } from "./kb/quotations";
 import { maintenance } from "./kb/maintenance";
@@ -30,7 +31,7 @@ import { quality } from "./kb/quality";
 import { hr } from "./kb/hr";
 import { finance } from "./kb/finance";
 
-export const HELP_MODULES: HelpModule[] = [root, general, crmSales, quotations, sales, tendering, projects, engineering, procurement, inventory, manufacturing, fieldService, logistics, assets, quality, maintenance, hr, finance];
+export const HELP_MODULES: HelpModule[] = [root, general, crmSales, quotations, pos, marketing, tendering, projects, engineering, procurement, inventory, manufacturing, fieldService, logistics, assets, quality, maintenance, hr, finance];
 
 export const HELP_TOPICS: HelpTopic[] = HELP_MODULES.flatMap((m) => m.topics);
 export const HELP_ENTRIES: HelpEntry[] = HELP_MODULES.flatMap((m) => m.entries);

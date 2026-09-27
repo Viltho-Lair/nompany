@@ -277,8 +277,10 @@ for (const root of M.MANUAL_FROM_HELP) {
   const sample = pay.entries.find((e) => inRoot.some((x) => x.id === e.id));
   ok(`${root}: Nova's answers link into the chapter`, Boolean(sample?.doc));
 }
-const outside = K.helpPayload("en", K.studioFilter([])).entries.find((e) => e.id.startsWith("pos"));
-ok("a department still written by hand gets no documentation link", outside && outside.doc === "");
+// Every department is composed now; an answer belonging to NO department
+// chapter (Getting started) is what must carry no documentation link.
+const outside = K.helpPayload("en", K.studioFilter([])).entries.find((e) => e.id.startsWith("start."));
+ok("an answer outside every department chapter gets no documentation link", outside && outside.doc === "");
 
 console.log(fails ? `\n${fails} failure(s)` : "\nall passed");
 process.exit(fails ? 1 : 0);

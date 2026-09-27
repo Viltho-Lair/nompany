@@ -30,7 +30,7 @@ import type { HelpEntry, HelpTopic } from "./types";
 export const MANUAL_FROM_HELP = [
   "crm-sales", "quotations", "tendering", "projects", "engineering-docs", "procurement",
   "inventory", "manufacturing", "field-service", "logistics", "assets", "maintenance",
-  "quality-hse", "hr", "finance",
+  "quality-hse", "hr", "finance", "pos", "marketing",
 ] as const;
 
 type Locale = "en" | "ar";
