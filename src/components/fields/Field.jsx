@@ -36,7 +36,7 @@ const BOX_STATE = (focused, error, disabled) =>
   error
     ? "border-rose-400 dark:border-rose-500/60"
     : focused
-      ? "border-brand-500 ring-2 ring-brand-500/20 bg-white dark:bg-[#191921]"
+      ? "border-brand-500 ring-2 ring-brand-500/20 bg-white dark:bg-[#0c0c11]"
       : `border-slate-200 dark:border-white/15 ${disabled ? "opacity-60" : ""}`;
 
 // The control sits with room at the top for the floated label: pt-5 pb-1.5.

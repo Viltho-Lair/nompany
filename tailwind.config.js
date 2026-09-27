@@ -44,22 +44,25 @@ module.exports = {
         input: "rgb(var(--doc-input) / <alpha-value>)",
         ring: "rgb(var(--doc-ring) / <alpha-value>)",
 
-        // nompany brand — royal blue (from the ERP Color Palette spec).
-        // Primary #2563EB (blue-600); dark-mode primary #3B82F6 (blue-500).
-        // Mapped onto the Tailwind blue scale so every existing `brand-*` class
-        // adopts the new palette without touching each component.
+        // nompany brand — THE SITE'S VIOLET (27/09/2026). The public site is
+        // drawn around one accent, #8b7cff, and the account hub and the studio
+        // follow it now rather than the royal blue they had (#2563eb, the ERP
+        // Color Palette spec). A scale built around that one value: 500 IS the
+        // site's accent, 300 its light tint. 600 and 700 are what carry white
+        // text (4.7:1 and 6.1:1), which is why a solid fill is 600 or darker
+        // and never 500.
         brand: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          200: "#bfdbfe",
-          300: "#93c5fd", // light accent on dark surfaces
-          400: "#60a5fa", // legible on dark
-          500: "#3b82f6", // dark-mode primary
-          600: "#2563eb", // PRIMARY brand
-          700: "#1d4ed8",
-          800: "#1e40af",
-          900: "#1e3a8a",
-          950: "#172554",
+          50: "#f4f2ff",
+          100: "#ebe8ff",
+          200: "#d9d4ff",
+          300: "#c9c2ff", // the site's light tint — accent text on dark
+          400: "#a89cff", // legible on dark
+          500: "#8b7cff", // THE SITE'S ACCENT; dark-mode primary
+          600: "#6b5cf0", // PRIMARY on light surfaces
+          700: "#5a4ad6",
+          800: "#4838ad",
+          900: "#3a2f88",
+          950: "#221b52",
         },
         // Neutrals — desaturated blue-gray (Slate) for data-dense, low-fatigue
         // surfaces. Kept under the legacy `steel` name so existing classes work;
@@ -102,7 +105,7 @@ module.exports = {
           700: "#6a26b0",
         },
         geex: {
-          bg: "#f4f5fa",      // page background (light)
+          bg: "#f5f5f8",      // page background (light) — a neutral, not a lavender
           card: "#ffffff",    // surface
           ink: "#2b2b40",     // body text (dark navy)
         },
@@ -141,11 +144,16 @@ module.exports = {
         gold: "rgb(var(--color-gold-rgb) / <alpha-value>)",
       },
       boxShadow: {
-        geex: "0 14px 40px -18px rgba(20, 30, 72, 0.16)",
-        "geex-sm": "0 8px 22px -14px rgba(20, 30, 72, 0.16)",
+        // THROUGH A VARIABLE, because one shadow cannot serve both themes: a
+        // soft drop is a light card's edge, and on the site's near-black ground
+        // it is invisible — there a card is told apart by the inset top
+        // highlight the site's glass carries. globals.css holds both values.
+        geex: "var(--geex-shadow)",
+        "geex-sm": "var(--geex-shadow-sm)",
       },
       borderRadius: {
-        geex: "20px",
+        // 24px — the site's rounded-3xl, the radius of every card on it.
+        geex: "24px",
       },
       fontFamily: {
         // "Saira" WAS A DEAD NAME HERE once the families were self-hosted:

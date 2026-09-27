@@ -1,4 +1,3 @@
-import { Geist } from "next/font/google";
 import { AuthScene } from "@/components/landing/site/pages/auth/AuthScene";
 
 /* ==================================================================
@@ -6,10 +5,9 @@ import { AuthScene } from "@/components/landing/site/pages/auth/AuthScene";
    in the public site's design (27/09/2026): dark ground, the home page's
    field behind a glass card, Geist for English and Readex for Arabic.
 
-   A SERVER COMPONENT, so it can load Geist. These three pages are not in
-   the `(site)` route group and so do not get its font; loading it here
-   keeps it off every other page of the product the way the group's own
-   layout does. The scene itself is `site/pages/auth/AuthScene`.
+   Geist comes from app/fonts.ts on <html> since 27/09/2026, when the account
+   hub and the studio took it too — this frame loaded its own copy while the
+   face was the site's alone. The scene itself is `site/pages/auth/AuthScene`.
 
    Deliberately has no header and no footer — the only chrome is the mark
    (the way back to the landing) and a language switch. `Nav` and `Footer`
@@ -23,11 +21,9 @@ import { AuthScene } from "@/components/landing/site/pages/auth/AuthScene";
    The console's sign-in (/super) has its own AuthShell in
    `app/super/_components/auth`, and never came through this one.
 ================================================================== */
-const geist = Geist({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap", variable: "--f-geist" });
-
 export default function AuthShell({ locale = "en", title, subtitle, children, aside }) {
   return (
-    <div className={geist.variable}>
+    <div>
       <AuthScene locale={locale} title={title} subtitle={subtitle} aside={aside}>
         {children}
       </AuthScene>

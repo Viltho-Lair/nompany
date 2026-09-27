@@ -220,7 +220,7 @@ export default function Walkthrough({ tour, locale = "en", nova = false, support
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         style={pos ? { top: pos.top, left: pos.left } : { visibility: "hidden" }}
-        className="absolute w-[22rem] max-w-[calc(100vw-2rem)] rounded-geex bg-white p-5 text-slate-700 shadow-geex ring-1 ring-slate-200/70 dark:bg-[#20202c] dark:text-slate-300 dark:ring-white/10"
+        className="absolute w-[22rem] max-w-[calc(100vw-2rem)] rounded-geex bg-white p-5 text-slate-700 shadow-geex ring-1 ring-slate-200/70 dark:bg-[#111117] dark:text-slate-300 dark:ring-white/10"
       >
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-cyan-400 shadow-md">

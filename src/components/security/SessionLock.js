@@ -252,7 +252,7 @@ export default function SessionLock({ locale = "en", buttonClass = "" }) {
 function NeedsPin({ t, locale, message, onClose }) {
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl dark:bg-[#20202c]">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl dark:bg-[#111117]">
         <p className="text-sm text-slate-700 dark:text-slate-200">{message}</p>
         <div className="mt-4 flex items-center justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-full px-3 py-1.5 text-sm font-600 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5">{t.dismiss}</button>
@@ -272,13 +272,13 @@ function SignPrompt({ t, message, onDone }) {
     <div role="dialog" aria-modal="true" aria-label={t.signTitle}
       className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/40 p-4">
       <form onSubmit={(e) => { e.preventDefault(); if (pin.length >= 4) onDone(pin); }}
-        className="w-full max-w-sm rounded-2xl bg-white p-5 text-start shadow-xl dark:bg-[#20202c]">
+        className="w-full max-w-sm rounded-2xl bg-white p-5 text-start shadow-xl dark:bg-[#111117]">
         <h2 className="font-display text-lg font-700 text-slate-900 dark:text-white">{t.signTitle}</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{locked ? t.pinLockedFor : t.signBody}</p>
         {!locked && (
           <input type="password" inputMode="numeric" autoComplete="off" autoFocus maxLength={8} dir="ltr"
             aria-label={t.pinLabel} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-            className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-center font-display text-2xl tracking-[0.4em] text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white" />
+            className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-center font-display text-2xl tracking-[0.4em] text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white" />
         )}
         {message?.kind === "invalid" && <p role="alert" className="mt-2 text-sm text-rose-600 dark:text-rose-300">{t.pinWrong(message.left)}</p>}
         <div className="mt-4 flex items-center justify-end gap-2">
@@ -305,12 +305,12 @@ function SignPrompt({ t, message, onDone }) {
 // sign-in form hands in its own class strings (`site/pages/auth/ui`) rather
 // than this file importing the public site's design into the studio's bundle.
 const LOCK_LOOK = {
-  form: "w-full max-w-sm rounded-2xl bg-white p-6 text-start shadow-xl dark:bg-[#20202c]",
+  form: "w-full max-w-sm rounded-2xl bg-white p-6 text-start shadow-xl dark:bg-[#111117]",
   badge: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
   title: "font-display text-xl font-700 text-slate-900 dark:text-white",
   body: "mt-1 text-sm text-slate-500 dark:text-slate-400",
   label: "mt-5 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400",
-  input: "mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-center font-display text-2xl tracking-[0.4em] text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white",
+  input: "mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-center font-display text-2xl tracking-[0.4em] text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white",
   error: "mt-2 text-sm text-rose-600 dark:text-rose-300",
   submit: "rounded-full bg-brand-700 px-5 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60",
   signOut: "text-sm font-600 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white",

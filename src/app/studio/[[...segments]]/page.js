@@ -1173,14 +1173,14 @@ async function firstScreenPayload(route, slug, path, params) {
 // the section that draws it — undefined for anything else, which fetches.
 function SectionDashboard({ section, studio, subsections = [], locale = "en", initial = {} }) {
   return (
-    <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#20202c]">
+    <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#111117]">
       <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{sectionName(section.key, section.name, locale)}</h2>
 
       {subsections.length > 0 && (
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           {subsections.map((s) => (
             <Link key={s.id} href={`/${studio.slug}/${s.key}`}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#0c0c11] dark:hover:border-brand-500/40">
               <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{sectionName(s.key, s.name, locale)}</p>
               <p className="mt-0.5 font-mono text-[11px] text-slate-400 dark:text-slate-500">{s.key}</p>
             </Link>
@@ -1235,7 +1235,7 @@ function SettingsSurface({ studio, sections = [], locale = "en" }) {
   // own and never did. Listing it would offer a card that opens this same page.
   const screens = sections.filter((s) => s.key !== "administration");
   return (
-    <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#20202c]">
+    <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#111117]">
       <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{t.settings}</h2>
       <p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
         {screens.length > 0 ? t.settingsBody : t.settingsNothing}
@@ -1245,7 +1245,7 @@ function SettingsSurface({ studio, sections = [], locale = "en" }) {
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {screens.map((s) => (
             <Link key={s.id} href={`/${studio.slug}/${s.key}`}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40">
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#0c0c11] dark:hover:border-brand-500/40">
               <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{sectionName(s.key, s.name, locale)}</p>
               <p className="mt-0.5 font-mono text-[11px] text-slate-400 dark:text-slate-500">{s.key}</p>
             </Link>
@@ -1260,7 +1260,7 @@ function SettingsSurface({ studio, sections = [], locale = "en" }) {
 function NoSectionAccess({ locale = "en", notBuiltYet = false }) {
   const t = shellDict(locale);
   return (
-    <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
+    <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#111117]">
       <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">
         {notBuiltYet ? t.sectionNotBuiltYet : t.noSectionAccess}
       </h2>
@@ -1274,7 +1274,7 @@ function NoSectionAccess({ locale = "en", notBuiltYet = false }) {
 function NothingGranted({ admin, slug, locale = "en" }) {
   const t = shellDict(locale);
   return (
-    <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
+    <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#111117]">
       <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.nothingGranted}</h2>
       <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.nothingGrantedBody}</p>
       {admin && (

@@ -135,10 +135,10 @@ export default function StudioDataGrid({
         backgroundColor: "rgb(var(--sg-fg) / 0.04)",
       },
       [`& .${gridClasses.row}.Mui-selected`]: {
-        backgroundColor: "rgb(59 130 246 / 0.10)",
+        backgroundColor: "rgb(139 124 255 / 0.10)",
       },
       [`& .${gridClasses.row}.Mui-selected:hover`]: {
-        backgroundColor: "rgb(59 130 246 / 0.16)",
+        backgroundColor: "rgb(139 124 255 / 0.16)",
       },
       // The last row's rule would double up with the panel's own bottom edge.
       [`& .${gridClasses.row}--lastVisible .${gridClasses.cell}`]: {
@@ -193,7 +193,7 @@ export default function StudioDataGrid({
       // theme) so they flip through the existing `.dark` class. `--sg-fg` is
       // slate-900 → white, `--sg-muted` slate-500 → slate-400, `--sg-brand`
       // brand-700 → brand-300 — the same pairs the hand-rolled tables used.
-      className={`w-full [--sg-fg:15_23_42] [--sg-muted:100_116_139] [--sg-brand:29_78_216] dark:[--sg-fg:255_255_255] dark:[--sg-muted:148_163_184] dark:[--sg-brand:147_197_253] ${className}`}
+      className={`w-full [--sg-fg:15_23_42] [--sg-muted:100_116_139] [--sg-brand:90_74_214] dark:[--sg-fg:255_255_255] dark:[--sg-muted:148_163_184] dark:[--sg-brand:201_194_255] ${className}`}
       style={{ height: gridHeight(shownSize) }}
     >
       <DataGrid

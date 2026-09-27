@@ -23,7 +23,7 @@ const when = (iso) => {
   return Number.isFinite(t) ? new Date(t).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
 };
 
-const CARD = "rounded-geex border border-slate-200/70 bg-white p-5 dark:border-white/10 dark:bg-[#20202c]";
+const CARD = "rounded-geex border border-slate-200/70 bg-white p-5 dark:border-white/10 dark:bg-[#111117]";
 const H2 = "mb-3 font-display text-base font-800 text-slate-900 dark:text-white";
 const INPUT = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/15 dark:bg-white/5 dark:text-white";
 const BTN = "rounded-full bg-brand-600 px-4 py-2 font-display text-sm font-700 text-white hover:bg-brand-700 disabled:opacity-60";

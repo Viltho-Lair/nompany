@@ -1,13 +1,11 @@
 import Link from "next/link";
-import { Geist } from "next/font/google";
 import BackButton from "@/components/public/BackButton";
 import { LogoMark } from "@/components/landing/Logo";
 
 // THE 404, IN THE SITE'S DESIGN (27/09/2026) — one view for both not-found
 // files (the locale one and the root one), so a wrong address looks like the
-// site it was typed into. It sits outside the (site) route group, so it loads
-// Geist itself, and it is a server component: the words are in the HTML.
-const geist = Geist({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap", variable: "--f-geist" });
+// site it was typed into. Geist reaches it from <html> (app/fonts.ts), and it
+// is a server component: the words are in the HTML.
 
 export function NotFoundView({ locale, nf, dir }) {
   const home = `/${locale}`;
@@ -16,7 +14,7 @@ export function NotFoundView({ locale, nf, dir }) {
     <main
       dir={dir}
       lang={locale}
-      className={`${geist.variable} relative isolate flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[#07070a] px-6 py-24 text-center text-[#ececf1]`}
+      className={`relative isolate flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[#07070a] px-6 py-24 text-center text-[#ececf1]`}
       style={{ fontFamily: rtl ? "var(--f-readex), system-ui, sans-serif" : "var(--f-geist), var(--f-readex), system-ui, sans-serif" }}
     >
       <div

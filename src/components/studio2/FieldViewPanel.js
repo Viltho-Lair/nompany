@@ -299,7 +299,7 @@ function SignaturePad({ slug, job, tr, who, setWho, onDone, onCancel, onProblem 
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 p-3 sm:items-center">
-      <div className="w-full max-w-md rounded-geex bg-white p-4 dark:bg-[#20202c]">
+      <div className="w-full max-w-md rounded-geex bg-white p-4 dark:bg-[#111117]">
         <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.signFor(job.title)}</h3>
 
         <div className="mt-3 grid gap-2">

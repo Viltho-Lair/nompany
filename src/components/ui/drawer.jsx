@@ -32,7 +32,7 @@ export function Drawer({ open, onClose, title, description, side = "right", widt
         role="dialog"
         aria-modal="true"
         className={cn(
-          "absolute top-0 flex h-full flex-col bg-white shadow-xl transition-transform duration-300 dark:bg-[#20202c]",
+          "absolute top-0 flex h-full flex-col bg-white shadow-xl transition-transform duration-300 dark:bg-[#111117]",
           side === "right" ? "end-0 border-s" : "start-0 border-e",
           "border-slate-200 dark:border-white/10",
           widthClass,

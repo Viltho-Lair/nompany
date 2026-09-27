@@ -50,7 +50,7 @@ export default function StudioReports({ slug, access, sections = [], locale = "e
   }
 
   return (
-    <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#20202c]">
+    <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#111117]">
       <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{tr.title}</h2>
       <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">{tr.lead}</p>
 
@@ -83,7 +83,7 @@ export default function StudioReports({ slug, access, sections = [], locale = "e
                     // both are here because a proxy that strips one still leaves
                     // the other.
                     download
-                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#191921] dark:hover:border-brand-500/40"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 transition-colors hover:border-brand-500 dark:border-white/15 dark:bg-[#0c0c11] dark:hover:border-brand-500/40"
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-600 text-slate-900 dark:text-white">{d.label}</span>

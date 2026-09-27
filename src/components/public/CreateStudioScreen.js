@@ -416,7 +416,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
                 const open = openParts === d.key;
                 return (
                   <li key={d.key} className={cn(
-                    "rounded-2xl border bg-white px-4 py-3 transition-colors dark:bg-[#20202c]",
+                    "rounded-2xl border bg-white px-4 py-3 transition-colors dark:bg-[#111117]",
                     isOn ? "border-brand-500/30" : "border-slate-200/70 dark:border-white/10",
                   )}>
                     <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
@@ -501,7 +501,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
                 <ul className="mt-4 space-y-2">
                   {freeCard && (
                     <li>
-                      <label className={cn("flex cursor-pointer items-start gap-3 rounded-2xl border bg-white px-4 py-3 dark:bg-[#20202c]",
+                      <label className={cn("flex cursor-pointer items-start gap-3 rounded-2xl border bg-white px-4 py-3 dark:bg-[#111117]",
                         !chosenCard ? "border-brand-500/60" : "border-slate-200/70 dark:border-white/10")}>
                         <input type="radio" name="plan" className="mt-1 h-4 w-4 accent-brand-600" checked={!chosenCard}
                           onChange={() => setChoice((x) => ({ ...x, packageId: "", categoryId: "" }))} />
@@ -519,7 +519,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
                     const band = on ? chosenBand : c.categories?.[0];
                     return (
                       <li key={c.id}>
-                        <div className={cn("rounded-2xl border bg-white px-4 py-3 dark:bg-[#20202c]",
+                        <div className={cn("rounded-2xl border bg-white px-4 py-3 dark:bg-[#111117]",
                           on ? "border-brand-500/60" : "border-slate-200/70 dark:border-white/10")}>
                           <label className="flex cursor-pointer items-start gap-3">
                             <input type="radio" name="plan" className="mt-1 h-4 w-4 accent-brand-600" checked={on}
@@ -581,7 +581,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
             <h3 className={H2}>{t.reviewTitle}</h3>
             <p className={SUB}>{t.reviewLead}</p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-brand-500/30 bg-white p-4 dark:bg-[#20202c]">
+              <div className="rounded-2xl border border-brand-500/30 bg-white p-4 dark:bg-[#111117]">
                 <p className="text-xs font-700 uppercase tracking-wide text-brand-700 dark:text-brand-300">{t.onHeading} · {onList.length}</p>
                 <ul className="mt-2 space-y-1.5">
                   {onList.map((d) => {
@@ -596,7 +596,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
                   })}
                 </ul>
               </div>
-              <div className="rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#20202c]">
+              <div className="rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#111117]">
                 <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{t.offHeading} · {offList.length}</p>
                 {offList.length === 0 ? (
                   <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.noneOff}</p>
@@ -622,7 +622,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
       </div>
 
       {/* ---- footer: back and forward ---- */}
-      <div className="sticky bottom-0 mt-6 flex flex-wrap items-center gap-3 border-t border-slate-200/70 bg-geex-bg py-4 dark:border-white/10 dark:bg-[#141420]">
+      <div className="sticky bottom-0 mt-6 flex flex-wrap items-center gap-3 border-t border-slate-200/70 bg-geex-bg py-4 dark:border-white/10 dark:bg-[#07070a]">
         {step === COMPANY
           ? <button type="button" className={BTN_GHOST} onClick={onCancel} disabled={busy}>{tr.cancel}</button>
           : <button type="button" className={BTN_GHOST} onClick={() => setStep(step - 1)} disabled={busy}>{t.back}</button>}

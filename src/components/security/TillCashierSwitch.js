@@ -109,7 +109,7 @@ export default function TillCashierSwitch({ locale = "en", onDone, onCancel, can
           <label htmlFor="till-pin" className="block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{t.pinLabel}</label>
           <input id="till-pin" type="password" inputMode="numeric" autoComplete="off" autoFocus maxLength={8} dir="ltr"
             value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} disabled={busy}
-            className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-center font-display text-2xl tracking-[0.4em] text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white" />
+            className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-center font-display text-2xl tracking-[0.4em] text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white" />
         </div>
       )}
       {error && <p role="alert" className="text-sm text-rose-600 dark:text-rose-300">{error}</p>}

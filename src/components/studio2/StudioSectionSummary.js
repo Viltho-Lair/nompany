@@ -61,7 +61,7 @@ export default function StudioSectionSummary({ slug, sectionKey, locale = "en", 
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {data.registers.map((r) => (
           <div key={r.typeKey}
-            className="rounded-xl border border-slate-200 bg-white p-4 dark:border-white/15 dark:bg-[#191921]">
+            className="rounded-xl border border-slate-200 bg-white p-4 dark:border-white/15 dark:bg-[#0c0c11]">
             <div className="flex items-baseline justify-between gap-2">
               <p className="min-w-0 truncate font-display text-sm font-700 text-slate-900 dark:text-white">{engineWords({ key: r.typeKey, origin: r.origin }, locale).label(r.label)}</p>
               <span className="num shrink-0 text-sm text-slate-500 dark:text-slate-400">{r.total}</span>
@@ -120,7 +120,7 @@ export default function StudioSectionSummary({ slug, sectionKey, locale = "en", 
           six cards. Only from two registers up: one register's bars would repeat
           its own card. */}
       {data.registers.length > 1 && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-white/15 dark:bg-[#191921]">
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-white/15 dark:bg-[#0c0c11]">
           <h4 className="font-display text-xs font-700 text-slate-900 dark:text-white">{tr.chartTitle}</h4>
           <div className="mt-3">
             <ChartFrame labels={data.registers.map((r) => engineWords({ key: r.typeKey, origin: r.origin }, locale).label(r.label))} height={160}

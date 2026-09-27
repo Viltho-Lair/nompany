@@ -110,7 +110,7 @@ export default function SecurityPasskeys({ hasPassword }) {
       )}
 
       {mode && (
-        <form onSubmit={mode === "add" ? add : remove} className="mt-3 space-y-3 rounded-[20px] bg-white p-4 dark:bg-[#20202c]">
+        <form onSubmit={mode === "add" ? add : remove} className="mt-3 space-y-3 rounded-[20px] bg-white p-4 dark:bg-[#111117]">
           {mode === "add" && (
             <div>
               <label className={LABEL} htmlFor="pk-name">{t.passkeyName}</label>

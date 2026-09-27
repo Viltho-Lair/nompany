@@ -16,7 +16,8 @@ const theme = createTheme({
   colorSchemes: {
     light: {
       palette: {
-        primary: { main: "#2563eb", light: "#60a5fa", dark: "#1d4ed8", contrastText: "#ffffff" },
+        // The site's violet (tailwind's brand scale), 27/09/2026.
+        primary: { main: "#6b5cf0", light: "#a89cff", dark: "#5a4ad6", contrastText: "#ffffff" },
         // Secondary is the Geex purple accent, not the logo orange — the logo
         // colours are identity-only (see DESIGN.md).
         secondary: { main: "#8b3dde", light: "#a97ce8", dark: "#6a26b0", contrastText: "#ffffff" },
@@ -24,22 +25,22 @@ const theme = createTheme({
         warning: { main: "#d97706" },
         error: { main: "#e11d48" },
         info: { main: "#0284c7" },
-        background: { default: "#f8fafc", paper: "#ffffff" },
+        background: { default: "#f5f5f8", paper: "#ffffff" },
         text: { primary: "#0f172a", secondary: "#475569", disabled: "#94a3b8" },
         divider: "#e2e8f0",
       },
     },
     dark: {
       palette: {
-        primary: { main: "#3b82f6", light: "#93c5fd", dark: "#2563eb", contrastText: "#0f172a" },
+        primary: { main: "#8b7cff", light: "#c9c2ff", dark: "#6b5cf0", contrastText: "#0b0b10" },
         secondary: { main: "#a97ce8", light: "#ede0fb", dark: "#7a2fca", contrastText: "#0f172a" },
         success: { main: "#059669" },
         warning: { main: "#d97706" },
         error: { main: "#e11d48" },
         info: { main: "#0284c7" },
-        background: { default: "#0f172a", paper: "#1e293b" },
+        background: { default: "#07070a", paper: "#111117" },
         text: { primary: "#f8fafc", secondary: "#94a3b8", disabled: "#64748b" },
-        divider: "#334155",
+        divider: "#26262e",
       },
     },
   },

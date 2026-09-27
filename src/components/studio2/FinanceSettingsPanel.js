@@ -82,7 +82,7 @@ export default function FinanceSettingsPanel({ categories = [], rules = [], hold
     setSaved(true);
   }
 
-  const input = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-[#191921] dark:text-white";
+  const input = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white";
 
   return (
     <div className="space-y-8">

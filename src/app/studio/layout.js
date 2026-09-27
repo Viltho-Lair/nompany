@@ -131,7 +131,7 @@ function NotAMember({ slug, locale = "en" }) {
        instead of it — a non-member has no shell. Without them an Arabic reader
        got mirrored copy in a left-to-right box. */
     <main lang={locale} dir={dirFor(locale)} className="flex min-h-screen items-center justify-center bg-[var(--geex-page)] px-5">
-      <div className="max-w-md rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
+      <div className="max-w-md rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#111117]">
         <h1 className="font-display text-xl font-800 text-slate-900 dark:text-white">{t.notAMember}</h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           {t.notAMemberBefore}<span className="font-mono">{slug}</span>{t.notAMemberAfter}
@@ -206,7 +206,7 @@ function ShutDown({ locale = "en", owner, deletedOn, slug }) {
   const t = subscriptionDict(locale);
   return (
     <main lang={locale} dir={dirFor(locale)} className="flex min-h-screen items-center justify-center bg-[var(--geex-page)] px-5">
-      <div className="max-w-md rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#20202c]">
+      <div className="max-w-md rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#111117]">
         <h1 className="font-display text-xl font-800 text-slate-900 dark:text-white">{t.shutDownTitle}</h1>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           {owner ? t.shutDownOwner(day(deletedOn)) : t.shutDownMember}

@@ -120,7 +120,7 @@ export default function UnitsPanel({ rows, canManage, locale = "en", onSave }) {
       {canManage && (
         <div className="flex flex-wrap items-center gap-2">
           <input
-            className="w-40 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+            className="w-40 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white"
             value={adding}
             maxLength={12}
             aria-label={tr.addLabel}

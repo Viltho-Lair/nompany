@@ -98,7 +98,7 @@ export default function NumberingPanel({ rows, canManage, locale = "en", onSave 
                 <span className="min-w-[11rem] flex-1 text-sm text-slate-700 dark:text-slate-200">{r.label}</span>
 
                 <input
-                  className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 font-mono text-sm uppercase text-slate-900 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+                  className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 font-mono text-sm uppercase text-slate-900 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white"
                   value={valueOf(r, "prefix")}
                   disabled={!canManage}
                   aria-label={tr.prefixFor(r.label)}
@@ -106,7 +106,7 @@ export default function NumberingPanel({ rows, canManage, locale = "en", onSave 
                 />
                 <input
                   type="number" min="2" max="8"
-                  className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+                  className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white"
                   value={valueOf(r, "pad")}
                   disabled={!canManage}
                   aria-label={tr.padFor(r.label)}
@@ -125,7 +125,7 @@ export default function NumberingPanel({ rows, canManage, locale = "en", onSave 
                   <span className="flex shrink-0 items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                     <input
                       type="number" min="0" max="365"
-                      className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+                      className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white"
                       value={valueOf(r, "dueDays") || 0}
                       disabled={!canManage}
                       aria-label={tr.dueDaysFor(r.label)}

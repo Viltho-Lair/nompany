@@ -115,7 +115,7 @@ export default function ExecutiveBoard({ slug, locale = "en" }) {
           <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {g.tiles.map((t) => (
               <div key={t.key}
-                className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#191921]">
+                className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/15 dark:bg-[#0c0c11]">
                 <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{t.label}</p>
                 <p className="num mt-1 text-2xl font-800 text-slate-900 dark:text-white">
                   {t.unit === "count"

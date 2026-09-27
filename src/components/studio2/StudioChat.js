@@ -29,7 +29,7 @@ const STORE_PREFIX = "nompany.chat.";
 const inputClass =
   "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 " +
   "focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 " +
-  "dark:border-white/15 dark:bg-[#191921] dark:text-white dark:placeholder:text-slate-500";
+  "dark:border-white/15 dark:bg-[#0c0c11] dark:text-white dark:placeholder:text-slate-500";
 
 // What the disabled button says on hover. One sentence, in the words the
 // person needs: what happened, and when it stops being true. A function of

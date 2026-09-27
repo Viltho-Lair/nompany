@@ -25,7 +25,7 @@ export function useFocusedRecord(param) {
     if (!rowId || rowId !== id) return {};
     return {
       ref: (el) => { if (el) el.scrollIntoView({ block: "center", behavior: "smooth" }); },
-      className: faded ? "" : "ring-2 ring-brand-500 ring-offset-2 rounded-geex transition-shadow dark:ring-offset-[#191921]",
+      className: faded ? "" : "ring-2 ring-brand-500 ring-offset-2 rounded-geex transition-shadow dark:ring-offset-[#0c0c11]",
     };
   };
 

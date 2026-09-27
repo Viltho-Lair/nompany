@@ -284,27 +284,27 @@
    Only SURFACES, LINES and GREYS are re-pointed — the page, cards, popovers,
    muted fills and borders, as the studio's `html.studio-chrome.dark` block maps
    them. Brand and status colours still come from `--doc-*`, so a primary
-   button is the same blue in both places. Channel triples because every
-   `--ad-*` is one: #141420 page, #20202c card, #191921 inset, and the studio's
+   button is the same violet in both places. Channel triples because every
+   `--ad-*` is one: #07070a page, #111117 card, #0c0c11 inset (the site's darks since 27/09/2026), and the studio's
    white-at-7% hairline flattened onto the card so `rgb(var(--ad-border-rgb))`
    still works as a solid colour. */
 .dark .admindek {
-  --ad-background-rgb: 20 20 32;
+  --ad-background-rgb: 7 7 10;
   --ad-foreground-rgb: 241 241 246;
-  --ad-card-rgb: 32 32 44;
+  --ad-card-rgb: 17 17 23;
   --ad-card-foreground-rgb: 241 241 246;
-  --ad-popover-rgb: 32 32 44;
+  --ad-popover-rgb: 17 17 23;
   --ad-popover-foreground-rgb: 241 241 246;
-  --ad-secondary-rgb: 44 44 58;
+  --ad-secondary-rgb: 30 30 38;
   --ad-secondary-foreground-rgb: 241 241 246;
-  --ad-muted-rgb: 44 44 58;
-  --ad-muted-foreground-rgb: 160 164 184;
-  --ad-accent-rgb: 44 44 58;
+  --ad-muted-rgb: 30 30 38;
+  --ad-muted-foreground-rgb: 158 158 172;
+  --ad-accent-rgb: 30 30 38;
   --ad-accent-foreground-rgb: 241 241 246;
-  --ad-border-rgb: 48 48 62;
-  --ad-input-rgb: 48 48 62;
-  --ad-sidebar-rgb: 32 32 44;
-  --ad-sidebar-border-rgb: 48 48 62;
+  --ad-border-rgb: 34 34 40;
+  --ad-input-rgb: 34 34 40;
+  --ad-sidebar-rgb: 17 17 23;
+  --ad-sidebar-border-rgb: 34 34 40;
 }
 
 /* THE DATA GRID'S SURFACES. MUI declares its four `--DataGrid-t-*` backgrounds

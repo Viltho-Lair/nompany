@@ -79,7 +79,7 @@ export const BottomBar = forwardRef(function BottomBar(
   return (
     <div ref={ref} className={`pointer-events-none fixed bottom-0 end-0 start-0 z-30 ${sidebarInset ? "lg:start-[23.5rem]" : ""}`}>
       <div className="mx-auto max-w-[1400px] px-3 sm:px-8">
-        <div className={`pointer-events-auto flex min-w-0 items-center rounded-t-geex border border-b-0 border-slate-200 bg-white/95 py-2 shadow-geex backdrop-blur dark:border-white/10 dark:bg-[#20202c]/95 ${scroll ? "bar-scroll overflow-x-auto" : ""} ${rowClass}`}>
+        <div className={`pointer-events-auto flex min-w-0 items-center rounded-t-geex border border-b-0 border-slate-200 bg-white/95 py-2 shadow-geex backdrop-blur dark:border-white/10 dark:bg-[#111117]/95 ${scroll ? "bar-scroll overflow-x-auto" : ""} ${rowClass}`}>
           {children}
         </div>
       </div>

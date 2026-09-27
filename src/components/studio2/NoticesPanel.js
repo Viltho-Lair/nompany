@@ -112,7 +112,7 @@ export default function NoticesPanel({ rows, canManage, locale = "en", onSave })
                     {lang === "en" ? tr.english : tr.arabic}
                   </p>
                   <input
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 disabled:opacity-60 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 disabled:opacity-60 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white"
                     dir={lang === "ar" ? "rtl" : "ltr"}
                     maxLength={120}
                     disabled={!canManage}
@@ -122,7 +122,7 @@ export default function NoticesPanel({ rows, canManage, locale = "en", onSave })
                     onChange={(e) => set(row.type, lang, "title", e.target.value, row.shipped[lang])}
                   />
                   <textarea
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 disabled:opacity-60 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 disabled:opacity-60 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white"
                     dir={lang === "ar" ? "rtl" : "ltr"}
                     rows={2}
                     maxLength={300}

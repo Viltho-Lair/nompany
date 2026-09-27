@@ -147,7 +147,7 @@ export default function StudioPlantAllocation({ slug, initial }) {
   // allocations" would send somebody looking for an Add button that cannot help.
   if (assets.length === 0) {
     return (
-      <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#20202c]">
+      <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#111117]">
         <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.noFleet}</h2>
         <p className="mt-2 max-w-xl text-sm text-slate-500 dark:text-slate-400">{tr.noFleetBody}</p>
       </div>
@@ -176,7 +176,7 @@ export default function StudioPlantAllocation({ slug, initial }) {
         </div>
       )}
 
-      <section className="rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]">
+      <section className="rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#111117]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.allocations}</h3>
           {canCreate && !draft && (
@@ -306,7 +306,7 @@ export default function StudioPlantAllocation({ slug, initial }) {
 
 function Tile({ label, value, hint }) {
   return (
-    <div className="rounded-geex border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#20202c]" title={hint}>
+    <div className="rounded-geex border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#111117]" title={hint}>
       <p className="text-[12px] uppercase tracking-wide text-slate-400 dark:text-slate-500">{label}</p>
       <p className="mt-1 font-display text-2xl font-800 text-slate-900 dark:text-white">{value}</p>
     </div>
@@ -315,7 +315,7 @@ function Tile({ label, value, hint }) {
 
 function Report({ title, rows, tr, head, cell, money }) {
   return (
-    <div className="rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]">
+    <div className="rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#111117]">
       <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{title}</h3>
       <div className="mt-3 overflow-x-auto">
         <table className="w-full">

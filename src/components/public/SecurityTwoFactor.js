@@ -90,7 +90,7 @@ export default function SecurityTwoFactor({ hasPassword }) {
       </div>
 
       {mode === "enrol" && !info.enabled && (
-        <form onSubmit={enable} className="mt-3 space-y-3 rounded-[20px] bg-white p-4 dark:bg-[#20202c]">
+        <form onSubmit={enable} className="mt-3 space-y-3 rounded-[20px] bg-white p-4 dark:bg-[#111117]">
           <p className="text-sm text-slate-600 dark:text-slate-300">{t.scanQr}</p>
           {/* Drawn on the server as an SVG string — a QR of the secret must
               never be handed to a third party to draw. */}
@@ -120,7 +120,7 @@ export default function SecurityTwoFactor({ hasPassword }) {
       )}
 
       {mode === "disable" && info.enabled && (
-        <form onSubmit={disable} className="mt-3 space-y-3 rounded-[20px] bg-white p-4 dark:bg-[#20202c]">
+        <form onSubmit={disable} className="mt-3 space-y-3 rounded-[20px] bg-white p-4 dark:bg-[#111117]">
           <p className="text-sm text-slate-600 dark:text-slate-300">{t.disableAsk}</p>
           <input aria-label={t.appCode} autoComplete="one-time-code" maxLength={14} dir="ltr"
             value={code} onChange={(e) => setCode(e.target.value)} className={INPUT} />
@@ -133,7 +133,7 @@ export default function SecurityTwoFactor({ hasPassword }) {
       )}
 
       {codes && (
-        <div className="mt-3 space-y-3 rounded-[20px] bg-white p-4 dark:bg-[#20202c]">
+        <div className="mt-3 space-y-3 rounded-[20px] bg-white p-4 dark:bg-[#111117]">
           <p className="font-600 text-slate-900 dark:text-white">{t.recoveryTitle}</p>
           <p className="text-sm text-slate-600 dark:text-slate-300">{t.recoveryBody}</p>
           <ul dir="ltr" className="grid grid-cols-2 gap-1.5 font-mono text-sm text-slate-800 dark:text-slate-100">

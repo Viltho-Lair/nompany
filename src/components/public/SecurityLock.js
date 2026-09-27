@@ -114,7 +114,7 @@ export default function SecurityLock() {
 
       {mode && (
         <form onSubmit={mode === "set" ? savePin : dropPin}
-          className="mt-3 space-y-3 rounded-[20px] bg-white p-4 dark:bg-[#20202c]">
+          className="mt-3 space-y-3 rounded-[20px] bg-white p-4 dark:bg-[#111117]">
           {mode === "set" && (
             <div className="grid gap-3 sm:grid-cols-2">
               <div>

@@ -55,7 +55,7 @@ export default function StudioSafety({ slug, initial }) {
   const rate = (v) => (v === null || v === undefined ? "—" : v.toFixed(1));
 
   return (
-    <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-white/15 dark:bg-[#191921]">
+    <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-white/15 dark:bg-[#0c0c11]">
       <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.heading}</h3>
 
       <div className="mt-3 grid gap-4 sm:grid-cols-4">

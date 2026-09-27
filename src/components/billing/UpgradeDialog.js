@@ -123,7 +123,7 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={t.title(studioName)} lang={locale} dir={dirFor(locale)}>
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200/70 bg-white p-6 text-slate-900 shadow-xl dark:border-white/10 dark:bg-[#20202c] dark:text-white">
+      <div className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200/70 bg-white p-6 text-slate-900 shadow-xl dark:border-white/10 dark:bg-[#111117] dark:text-white">
         <h2 className="font-display text-lg font-800">{t.title(studioName)}</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.lead}</p>
 

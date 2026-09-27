@@ -1,4 +1,4 @@
-import { Cabin, Geist_Mono, IBM_Plex_Sans, Inter, Noto_Sans_Arabic, Readex_Pro, Saira, Sora, Tajawal } from "next/font/google";
+import { Cabin, Geist, Geist_Mono, IBM_Plex_Sans, Inter, Noto_Sans_Arabic, Readex_Pro, Saira, Sora, Tajawal } from "next/font/google";
 
 /* THE SEVEN FAMILIES, SELF-HOSTED.
    ------------------------------------------------------------------
@@ -95,8 +95,18 @@ export const geistMono = Geist_Mono({
   display: "swap", variable: "--f-geist-mono", preload: false,
 });
 
+/* GEIST IS EVERY SURFACE'S NOW (27/09/2026). It was the (site) group's alone,
+   loaded in that layout so it would not become a variable on every page — and
+   then the account hub and the studio took the site's type, so every page is
+   exactly where it is wanted. Like the rest it is not preloaded: a variable on
+   <html> costs nothing until a rule asks for the face. */
+export const geist = Geist({
+  subsets: ["latin"], weight: ["400", "500", "600", "700"],
+  display: "swap", variable: "--f-geist", preload: false,
+});
+
 export const FONT_VARS = [
   saira.variable, plexSans.variable, sora.variable, inter.variable,
   cabin.variable, notoArabic.variable, tajawal.variable,
-  readex.variable, geistMono.variable,
+  readex.variable, geistMono.variable, geist.variable,
 ].join(" ");

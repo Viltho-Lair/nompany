@@ -80,7 +80,7 @@ export default function LangMenu({
           className={
             site
               ? "min-w-[160px] overflow-hidden rounded-2xl bg-[#101018]/95 p-1 ring-1 ring-inset ring-white/10 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl"
-              : "min-w-[150px] overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-[#20202c]"
+              : "min-w-[150px] overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-[#111117]"
           }
         >
           {options.map((o) => {

@@ -106,7 +106,7 @@ export default function TaxonomyPanel({ rows, canManage, locale = "en", onSave }
             {canManage && (
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <input
-                  className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+                  className="w-52 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white"
                   value={adding[axis.key] || ""}
                   maxLength={48}
                   aria-label={tr.addLabel(words?.name || axis.key)}

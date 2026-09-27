@@ -172,7 +172,7 @@ function Dunning({ tr, data, busy, post }) {
       )}
       {letter && (
         <div className="space-y-2">
-          <textarea readOnly className="h-48 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800 dark:border-white/15 dark:bg-[#191921] dark:text-slate-100"
+          <textarea readOnly className="h-48 w-full rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800 dark:border-white/15 dark:bg-[#0c0c11] dark:text-slate-100"
             value={letterFor(letter)} />
           <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 dark:border-white/15 dark:text-slate-300"
             onClick={() => { try { navigator.clipboard.writeText(letterFor(letter)); } catch { /* the text is selectable */ } }}>{tr.copy}</button>

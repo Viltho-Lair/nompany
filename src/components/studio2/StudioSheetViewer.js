@@ -379,7 +379,7 @@ export default function StudioSheetViewer({ slug, projectId, sheetId, perspectiv
               project, so it can be unticked from here as well as from Unhide. */}
           {isInventory && (
             <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-600 text-slate-600 dark:text-slate-300">
-              <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-white/20 dark:bg-[#191921]"
+              <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-white/20 dark:bg-[#0c0c11]"
                 checked={hidden.includes(sheet.projectId)}
                 onChange={(e) => setHiddenSaved(e.target.checked
                   ? [...hidden, sheet.projectId]
@@ -801,7 +801,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
               screen gets less than 9rem once there is room for it. */}
           <div className="w-28 shrink-0 sm:w-1/5 sm:min-w-[9rem]">
             <input type="search"
-              className="w-full rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+              className="w-full rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white"
               placeholder={tr.projectQuotationPoSerial}
               value={query} onChange={(e) => onQuery(e.target.value)} />
           </div>
@@ -905,7 +905,7 @@ function ProjectBar({ projects, hiddenProjects = [], activeProjectId, query, onQ
                 <div className="border-t border-slate-100 p-2 dark:border-white/10">
                   <input type="search" autoFocus value={find} onChange={(e) => setFind(e.target.value)}
                     placeholder={tr.findHiddenProject}
-                    className="w-full rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none dark:border-white/15 dark:bg-[#191921] dark:text-white" />
+                    className="w-full rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none dark:border-white/15 dark:bg-[#0c0c11] dark:text-white" />
                 </div>
               </div>
             )}

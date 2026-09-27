@@ -56,9 +56,14 @@ import SessionLock from "@/components/security/SessionLock";
 // The shell is a fixed-height flex column, not normal document flow: that is
 // what lets the rail footer and the scope note sit ON the viewport edges, and
 // what lets Overview be sized to fit rather than scroll.
-const PAGE = "flex h-screen flex-col overflow-hidden bg-geex-bg dark:bg-[#141420]";
+// IN THE PUBLIC SITE'S DESIGN (27/09/2026): its ground, its type (`app-type`,
+// globals.css), its glass header and its inset-ring cards — so moving from the
+// site to the account does not look like moving to another company's product.
+// Light mode stays, because the hub and the studio offer the switch and the
+// site does not.
+const PAGE = "app-type flex h-screen flex-col overflow-hidden bg-geex-bg text-slate-700 antialiased selection:bg-brand-500/30 dark:bg-[#07070a] dark:text-slate-300";
 const RAIL_W = "lg:w-[280px]";
-const PANEL = "rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#20202c]";
+const PANEL = "rounded-geex bg-white p-6 shadow-geex-sm ring-1 ring-inset ring-slate-900/[0.06] dark:bg-white/[0.025] dark:ring-white/[0.07]";
 
 // The grouped-stack row styles live in accountKit, shared with the Security blocks.
 
@@ -179,12 +184,13 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
   return (
     <div className={PAGE} onClick={() => menuOpen && setMenuOpen(false)}>
       {/* brand mark top-left, sitting ABOVE the rail; account controls top-right */}
-      <header className="flex items-center justify-between gap-4 px-5 py-4 sm:px-8">
+      {/* The site's floating pill nav, in both themes. */}
+      <header className="mx-3 mt-3 flex items-center justify-between gap-4 rounded-full bg-white/70 py-2 pe-2 ps-4 shadow-geex-sm ring-1 ring-inset ring-slate-900/[0.06] backdrop-blur-xl sm:mx-6 sm:mt-4 sm:pe-2.5 sm:ps-5 dark:bg-[#0d0d14]/60 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] dark:ring-white/10">
         <Link href={`/${locale}`} className="flex items-center gap-2.5 text-slate-900 dark:text-white">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#eef1f6] p-[3px] dark:bg-white/5">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-900/[0.04] p-[3px] dark:bg-white/5">
             <Image src="/brand/logo-icon.png" alt="" width={36} height={36} className="h-full w-full object-contain" priority />
           </span>
-          <span className="font-display text-base font-700 tracking-tight sm:text-lg">{chrome?.brand || "nompany"}</span>
+          <span className="text-base font-600 tracking-[-0.02em] sm:text-[17px]">{chrome?.brand || "nompany"}</span>
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-3">
@@ -201,7 +207,7 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
             <button
               type="button" onClick={() => setMenuOpen((o) => !o)}
               aria-haspopup="menu" aria-expanded={menuOpen}
-              className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-700 font-display text-sm font-700 text-white transition-shadow hover:ring-2 hover:ring-brand-500/40"
+              className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-600 text-sm font-600 text-white transition-shadow hover:ring-2 hover:ring-brand-500/40 dark:bg-brand-500 dark:text-[#0b0b10]"
               title={identity?.user?.email || tr.account}
             >
               {identity?.profile?.photo
@@ -210,7 +216,7 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
                 : initialsOf(name)}
             </button>
             {menuOpen && (
-              <div role="menu" className="absolute end-0 z-30 mt-2 w-56 overflow-hidden rounded-geex border border-slate-200/70 bg-white py-1 shadow-geex dark:border-white/10 dark:bg-[#20202c]">
+              <div role="menu" className="absolute end-0 z-30 mt-3 w-56 overflow-hidden rounded-2xl bg-white/95 py-1 shadow-geex ring-1 ring-inset ring-slate-900/[0.06] backdrop-blur-xl dark:bg-[#101018]/95 dark:ring-white/10">
                 <p className="truncate px-4 py-2 text-xs text-slate-500 dark:text-slate-400">{identity?.user?.email}</p>
                 {owned[0] && (
                   <a role="menuitem" href={`/${owned[0].slug}`} className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
@@ -237,7 +243,7 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-6 px-5 sm:px-8 lg:flex-row lg:gap-10">
+      <div className="flex min-h-0 flex-1 flex-col gap-6 px-5 pt-6 sm:px-8 lg:flex-row lg:gap-10 lg:pt-8">
         {/* fixed rail */}
         <nav className={cn(RAIL_W, "lg:flex lg:shrink-0 lg:flex-col")}>
           <div className="lg:flex-1">
@@ -251,8 +257,8 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
                       aria-current={on && !creating ? "page" : undefined}
                       className={cn(
                         "flex h-12 w-full items-center gap-3 rounded-full px-4 text-start text-sm font-500 transition-colors",
-                        on ? "bg-white text-slate-900 dark:bg-[#20202c] dark:text-white"
-                           : "text-slate-600 hover:bg-white/60 dark:text-slate-300 dark:hover:bg-white/5",
+                        on ? "bg-white text-slate-900 shadow-geex-sm ring-1 ring-inset ring-slate-900/[0.06] dark:bg-white/[0.05] dark:text-white dark:ring-white/10"
+                           : "text-slate-600 hover:bg-white/60 dark:text-white/60 dark:hover:bg-white/[0.04] dark:hover:text-white",
                       )}
                     >
                       <span className={cn("inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full", item.bg)}>
@@ -331,7 +337,7 @@ function StudioCard({ studio, compact = false }) {
   const w = compact ? "w-[104px]" : "w-[132px]";
   return (
     <a href={`/${studio.slug}`} className={cn("group block shrink-0", w)}>
-      <span className={cn("flex aspect-square items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white transition-colors group-hover:border-brand-500 dark:border-white/10 dark:bg-[#20202c] dark:group-hover:border-brand-500/50", w)}>
+      <span className={cn("flex aspect-square items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white transition-colors group-hover:border-brand-500 dark:border-white/10 dark:bg-[#111117] dark:group-hover:border-brand-500/50", w)}>
         {studio.logo
           ? /* object-CONTAIN, not cover: a logo is a whole mark, and cropping
                it to fill a square is how you lose half a wordmark. */
@@ -371,7 +377,7 @@ function StudioStrip({ action, studios, onViewAll }) {
       {action}
       {shown.map((s) => <StudioCard key={s.id} studio={s} compact />)}
       {studios.length > 4 && (
-        <button type="button" onClick={onViewAll} className="flex aspect-square w-[104px] shrink-0 flex-col items-center justify-center gap-1 rounded-geex border border-slate-200/70 bg-white text-xs font-600 text-brand-700 transition-colors hover:border-brand-500 dark:border-white/10 dark:bg-[#20202c] dark:text-brand-300">
+        <button type="button" onClick={onViewAll} className="flex aspect-square w-[104px] shrink-0 flex-col items-center justify-center gap-1 rounded-geex border border-slate-200/70 bg-white text-xs font-600 text-brand-700 transition-colors hover:border-brand-500 dark:border-white/10 dark:bg-[#111117] dark:text-brand-300">
           <Icon name="chevronRight" className="h-5 w-5 rtl:-scale-x-100" />
           {tr.viewAll}
           <span className="text-[11px] font-500 text-slate-400">{studios.length} {tr.total}</span>
@@ -450,7 +456,7 @@ function StudioRow({ studio, onSaved }) {
   return (
     <li className="flex flex-col gap-3 border-b border-slate-100 py-4 last:border-b-0 dark:border-white/5 sm:flex-row sm:items-start sm:gap-4">
       {/* Presentational only — no link, no button. */}
-      <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white dark:border-white/10 dark:bg-[#20202c]">
+      <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white dark:border-white/10 dark:bg-[#111117]">
         {studio.logo
           /* eslint-disable-next-line @next/next/no-img-element */
           ? <img src={studio.logo} alt="" className="h-full w-full object-contain p-1.5" />
@@ -611,7 +617,7 @@ function Dialog({ title, description, onClose, children, width = "max-w-[512px]"
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className={cn("relative w-full overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#20202c]", width)}>
+      <div className={cn("relative w-full overflow-hidden rounded-geex bg-white shadow-geex dark:bg-[#111117]", width)}>
         <div className="flex items-center gap-3 px-6 pt-5">
           <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{title}</h3>
           <button type="button" onClick={onClose} aria-label={tr.close}

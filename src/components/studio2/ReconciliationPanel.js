@@ -194,7 +194,7 @@ export default function ReconciliationPanel({ slug, locale = "en" }) {
         <div className="space-y-2 rounded-xl border border-slate-200 p-4 dark:border-white/10">
           <h4 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.importTitle}</h4>
           <p className="text-sm text-slate-500 dark:text-slate-400">{tr.importLead}</p>
-          <textarea className="h-28 w-full rounded-lg border border-slate-200 bg-white p-2 font-mono text-xs text-slate-800 dark:border-white/15 dark:bg-[#191921] dark:text-slate-100"
+          <textarea className="h-28 w-full rounded-lg border border-slate-200 bg-white p-2 font-mono text-xs text-slate-800 dark:border-white/15 dark:bg-[#0c0c11] dark:text-slate-100"
             aria-label={tr.importPaste} placeholder={tr.importPaste} value={csv} onChange={(e) => setCsv(e.target.value)} />
           <div className="flex flex-wrap items-end gap-2">
             <input type="file" accept=".csv,text/csv,text/plain" aria-label={tr.importPaste} className="text-xs"

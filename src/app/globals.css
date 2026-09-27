@@ -810,13 +810,32 @@
   --p-slate-600: #475569;
   --p-slate-700: #334155;
   --p-slate-900: #0f172a;
-  --p-lavender: #f4f5fa;      /* the light app page */
-  --p-mist: #eef0f7;          /* a light secondary surface */
-  --p-charcoal: #20202c;      /* dark card */
-  --p-charcoal-2: #191921;    /* dark inset / panel */
-  --p-charcoal-3: #141420;    /* dark page */
-  --p-hairline-light: rgba(20, 30, 72, 0.08);
+  /* THE DARK ATOMS ARE THE PUBLIC SITE'S (27/09/2026): its ground is #07070a
+     and its cards are white at 2–4% over it, which lands on #111117. The
+     charcoals they replace (#141420 / #20202c / #191921) were a blue-grey that
+     read as a different product beside the site. The names stay — a primitive
+     is named by what it IS, and these are still charcoals. */
+  --p-lavender: #f5f5f8;      /* the light app page — a neutral now */
+  --p-mist: #ededf2;          /* a light secondary surface */
+  --p-charcoal: #111117;      /* dark card */
+  --p-charcoal-2: #0c0c11;    /* dark inset / panel */
+  --p-charcoal-3: #07070a;    /* dark page — the site's ground */
+  --p-hairline-light: rgba(10, 10, 20, 0.08);
   --p-hairline-dark: rgba(255, 255, 255, 0.07);
+}
+
+/* A CARD'S DEPTH, per theme (tailwind's shadow-geex / shadow-geex-sm read
+   these). On :root rather than under .studio-chrome, because the account hub
+   draws the same cards without that class. Light keeps a soft drop; dark takes
+   the site's glass edge — a one-pixel highlight along the top — since no drop
+   shadow shows on a ground this close to black. */
+:root {
+  --geex-shadow: 0 14px 40px -18px rgba(10, 10, 20, 0.14);
+  --geex-shadow-sm: 0 8px 22px -14px rgba(10, 10, 20, 0.14);
+}
+.dark {
+  --geex-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 24px 48px -24px rgba(0, 0, 0, 0.7);
+  --geex-shadow-sm: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 28px -16px rgba(0, 0, 0, 0.6);
 }
 
 /* SEMANTICS — the studio's roles, scoped to `.studio-chrome` so the public site
@@ -863,13 +882,18 @@ html.studio-chrome .MuiDataGrid-root {
   --DataGrid-t-cell-background-pinned: var(--geex-surface);
 }
 
-/* Studio typeface (see DESIGN.md): Cabin for all Latin/English Studio text,
-   including display headings (the .font-display utility is overridden here so
-   nothing in the Studio escapes Cabin). The public site keeps Saira/IBM Plex. */
+/* THE STUDIO AND THE ACCOUNT HUB SET THE SITE'S FACES (27/09/2026): Geist for
+   Latin, Readex Pro for Arabic — the pair the public site sets — so signing in
+   does not change typeface under somebody's cursor. Cabin was the studio's
+   until then. .font-display is overridden too, so nothing in either escapes to
+   Saira. `.app-type` is the account hub's hook: it has no studio-chrome class
+   and must not take the studio's three-size clamp below. */
 html.studio-chrome,
 html.studio-chrome body,
-html.studio-chrome .font-display {
-  font-family: var(--f-cabin), system-ui, sans-serif;
+html.studio-chrome .font-display,
+.app-type,
+.app-type .font-display {
+  font-family: var(--f-geist), var(--f-readex), system-ui, sans-serif;
 }
 /* Arabic (RTL) Studio uses the display family per design spec.
 
@@ -889,8 +913,11 @@ html.studio-chrome[dir="rtl"],
 html.studio-chrome[dir="rtl"] body,
 html.studio-chrome[dir="rtl"] .font-display,
 html.studio-chrome [dir="rtl"],
-html.studio-chrome [dir="rtl"] .font-display {
-  font-family: var(--font-display), var(--f-saira), system-ui, sans-serif;
+html.studio-chrome [dir="rtl"] .font-display,
+[dir="rtl"] .app-type,
+.app-type[dir="rtl"],
+[dir="rtl"] .app-type .font-display {
+  font-family: var(--f-readex), var(--font-display), system-ui, sans-serif;
 }
 
 /* Studio type scale — the ONLY three font sizes allowed in the Studio
@@ -1326,13 +1353,13 @@ html.studio-chrome .bar-scroll::-webkit-scrollbar {
    compile. Light first, dark below.
    ========================================================================= */
 :root {
-  --doc-background: 244 245 250;      /* geex page  #f4f5fa */
+  --doc-background: 245 245 248;      /* geex page  #f5f5f8 */
   --doc-foreground: 43 43 64;         /* geex ink   #2b2b40 */
   --doc-card: 255 255 255;
   --doc-card-foreground: 43 43 64;
   --doc-popover: 255 255 255;
   --doc-popover-foreground: 43 43 64;
-  --doc-primary: 37 99 235;           /* brand-600 */
+  --doc-primary: 107 92 240;          /* brand-600 */
   --doc-primary-foreground: 255 255 255;
   --doc-secondary: 241 245 249;       /* steel-100 */
   --doc-secondary-foreground: 51 65 85;
@@ -1342,7 +1369,7 @@ html.studio-chrome .bar-scroll::-webkit-scrollbar {
   --doc-destructive-foreground: 255 255 255;
   --doc-border: 226 232 240;          /* steel-200 */
   --doc-input: 226 232 240;
-  --doc-ring: 59 130 246;             /* brand-500 */
+  --doc-ring: 139 124 255;            /* brand-500 */
 
   /* STATE COLOUR IS NOT BRAND ACCENT. A "Pending" pill is --doc-warning even
      when warning and the accent happen to share a hue: the pill says the record
@@ -1376,23 +1403,25 @@ html.studio-chrome .bar-scroll::-webkit-scrollbar {
 }
 
 .dark {
-  --doc-background: 15 23 42;         /* steel-900 */
+  /* The site's ground and card (see the studio primitives), not the slate
+     navy these were — a document sat as a blue box inside a black studio. */
+  --doc-background: 7 7 10;           /* #07070a */
   --doc-foreground: 241 245 249;
-  --doc-card: 30 41 59;               /* steel-800 */
+  --doc-card: 17 17 23;               /* #111117 */
   --doc-card-foreground: 241 245 249;
-  --doc-popover: 30 41 59;
+  --doc-popover: 17 17 23;
   --doc-popover-foreground: 241 245 249;
-  --doc-primary: 59 130 246;          /* brand-500, the dark-mode primary */
-  --doc-primary-foreground: 15 23 42;
-  --doc-secondary: 51 65 85;
+  --doc-primary: 139 124 255;         /* brand-500, the dark-mode primary */
+  --doc-primary-foreground: 11 11 16;
+  --doc-secondary: 32 32 40;
   --doc-secondary-foreground: 241 245 249;
-  --doc-muted: 51 65 85;              /* steel-700 */
+  --doc-muted: 32 32 40;              /* a neutral, not steel-700's blue */
   --doc-muted-foreground: 148 163 184; /* steel-400 */
   --doc-destructive: 244 63 94;
   --doc-destructive-foreground: 15 23 42;
-  --doc-border: 51 65 85;
-  --doc-input: 51 65 85;
-  --doc-ring: 96 165 250;
+  --doc-border: 38 38 46;
+  --doc-input: 38 38 46;
+  --doc-ring: 168 156 255;
 
   /* Lifted one step on dark so 4.5:1 text contrast survives the darker surface;
      the foregrounds invert to the page ink for solid fills. */
@@ -1505,7 +1534,7 @@ html.dark { color-scheme: dark; }
   outline: none;
 }
 .menu-search::placeholder { color: var(--menu-muted); }
-.menu-search:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgb(59 130 246 / 0.2); }
+.menu-search:focus { border-color: #8b7cff; box-shadow: 0 0 0 2px rgb(139 124 255 / 0.2); }
 .menu-list { overflow-y: auto; padding-block: 0.25rem; }
 .menu-empty { padding: 1.5rem 0.875rem; text-align: center; font-size: 0.875rem; color: var(--menu-muted); }
 .menu-row {
@@ -1681,18 +1710,18 @@ html.dark { color-scheme: dark; }
 .ProseMirror .merge-field, .band-surface .merge-field {
   border-radius: 0.25rem;
   padding: 0 0.25rem;
-  background: rgb(37 99 235 / 0.1);
+  background: rgb(107 92 240 / 0.1);
   color: rgb(29 78 216);
-  box-shadow: inset 0 0 0 1px rgb(37 99 235 / 0.25);
+  box-shadow: inset 0 0 0 1px rgb(107 92 240 / 0.25);
   font-weight: 500;
   white-space: nowrap;
 }
 .dark .ProseMirror .merge-field, .dark .band-surface .merge-field { color: rgb(147 197 253); }
 .ProseMirror .merge-block {
   margin: 0.5rem 0;
-  border: 1px dashed rgb(37 99 235 / 0.45);
+  border: 1px dashed rgb(107 92 240 / 0.45);
   border-radius: 0.5rem;
-  background: rgb(37 99 235 / 0.05);
+  background: rgb(107 92 240 / 0.05);
   padding: 1rem 0.75rem;
   text-align: center;
   font-size: 0.875rem;
@@ -1709,7 +1738,7 @@ html.dark { color-scheme: dark; }
   vertical-align: middle;
 }
 .ProseMirror .merge-field.ProseMirror-selectednode,
-.ProseMirror .merge-block.ProseMirror-selectednode { outline: 2px solid rgb(37 99 235); }
+.ProseMirror .merge-block.ProseMirror-selectednode { outline: 2px solid rgb(107 92 240); }
 
 /* The stamp across a customer document that is not final — DRAFT, CANCELLED.
    Fixed, so a printed copy carries it on every sheet, and never clickable. */

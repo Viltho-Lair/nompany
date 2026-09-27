@@ -834,7 +834,7 @@ function EngagementDetail({ slug, block, loading, error }) {
           way. So a skip is a grey line of fact, not an amber banner arguing with
           how a company works. */}
       {block.nextAction && (
-        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-geex border border-slate-200/70 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#20202c]">
+        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-geex border border-slate-200/70 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#111117]">
           <span className="text-xs font-700 uppercase tracking-wide text-slate-400 dark:text-slate-500">
             {tr.nextStep}
           </span>
@@ -876,7 +876,7 @@ function EngagementDetail({ slug, block, loading, error }) {
           it never blocks) is inherited whole: amber says the date passed, and
           nothing on this screen refuses anything because of it. */}
       {(block.kpis?.length > 0) && (
-        <div className="mb-4 rounded-geex border border-slate-200/70 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#20202c]">
+        <div className="mb-4 rounded-geex border border-slate-200/70 bg-white px-4 py-3 dark:border-white/10 dark:bg-[#111117]">
           <p className="mb-2.5 text-xs font-700 uppercase tracking-wide text-slate-400 dark:text-slate-500">{tr.kpis}</p>
           <ul className="grid gap-2 sm:grid-cols-2">
             {block.kpis.map((k) => <KpiRow key={k.id} kpi={k} tr={tr} />)}

@@ -48,7 +48,7 @@ function popup(place, dir) {
     a.target = "_blank";
     a.rel = "noopener noreferrer";
     a.textContent = label;
-    a.style.cssText = "color:#1d4ed8;font-weight:600;text-decoration:none";
+    a.style.cssText = "color:#5a4ad6;font-weight:600;text-decoration:none";
     row.append(a);
   }
   root.append(name, kind, lines, row);
