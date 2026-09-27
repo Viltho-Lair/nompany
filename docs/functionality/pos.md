@@ -301,9 +301,14 @@ not change prices.
 values its country prints on a receipt (`official-values.md` — a Saudi receipt carries the VAT
 number once the studio has a VAT rate), its legal rows less any repeating one of those, number, time, till, the lines, subtotal, tax by rate, total,
 payments, change and the footer. It prints what the server stored, so a reprint reads as the
-first. The print style is mounted only while a receipt is on screen, so no other page's printing
-is affected, and it turns transitions off while printing (a field label mid-way to hidden printed
-beside the slip).
+first. **Every Print button prints the slip on a page of its own** (`printSlip`, `posParts`,
+2026-09-27): the slip and the page's stylesheets are copied into an invisible frame holding
+nothing else, and that frame is printed. It used to be `window.print()` over the whole screen with
+everything but the slip hidden — and hidden is not gone: the till underneath still counted, so the
+printer got two sheets, and the slip was laid out where it sat inside its scrolling dialog, so it
+printed half-way down the page and was cut off after the first line (the owner's print preview).
+The print style is still mounted while a slip is on screen, for printing from the browser's own
+menu, and it turns transitions off (a field label mid-way to hidden printed beside the slip).
 
 **Above "Complete the sale"** (the owner, 2026-09-27):
 - **The last five sales** of this till's open shift, newest first — number, time, total — each

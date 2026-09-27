@@ -296,10 +296,31 @@ function SignPrompt({ t, message, onDone }) {
   );
 }
 
+// HOW THE LOCK LOOKS, and the one thing a host may change about it. The studio
+// and the account page draw it as its own card, light or dark with the page.
+// The sign-in page (27/09/2026) sits it INSIDE its own dark-glass card and is
+// dark whatever the theme cookie says, so the `dark:` variants here never
+// fired there: a white card on the dark scene, with its heading tinted for a
+// dark page and nearly invisible on the white (the owner's screenshot). The
+// sign-in form hands in its own class strings (`site/pages/auth/ui`) rather
+// than this file importing the public site's design into the studio's bundle.
+const LOCK_LOOK = {
+  form: "w-full max-w-sm rounded-2xl bg-white p-6 text-start shadow-xl dark:bg-[#20202c]",
+  badge: "bg-brand-500/10 text-brand-700 dark:text-brand-300",
+  title: "font-display text-xl font-700 text-slate-900 dark:text-white",
+  body: "mt-1 text-sm text-slate-500 dark:text-slate-400",
+  label: "mt-5 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400",
+  input: "mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-center font-display text-2xl tracking-[0.4em] text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white",
+  error: "mt-2 text-sm text-rose-600 dark:text-rose-300",
+  submit: "rounded-full bg-brand-700 px-5 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60",
+  signOut: "text-sm font-600 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white",
+};
+
 // The cover itself. Also used by the sign-in page when a locked session
-// reloads a page, which is why it takes its callbacks rather than knowing
-// where it is.
-export function LockCover({ t, locale, byIdle, onUnlocked, inline = false }) {
+// reloads a page, which is why it takes its callbacks — and, since the sign-in
+// page was redesigned, its look — rather than knowing where it is.
+export function LockCover({ t, locale, byIdle, onUnlocked, inline = false, look = null }) {
+  const c = { ...LOCK_LOOK, ...(look || {}) };
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -326,16 +347,16 @@ export function LockCover({ t, locale, byIdle, onUnlocked, inline = false }) {
   }
 
   const form = (
-    <form onSubmit={unlock} className="w-full max-w-sm rounded-2xl bg-white p-6 text-start shadow-xl dark:bg-[#20202c]">
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-brand-500/10 text-brand-700 dark:text-brand-300">
+    <form onSubmit={unlock} className={c.form}>
+      <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-full ${c.badge}`}>
         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <rect x="5" y="11" width="14" height="9" rx="2" />
           <path d="M8 11V8a4 4 0 118 0v3" />
         </svg>
       </div>
-      <h2 className="font-display text-xl font-700 text-slate-900 dark:text-white">{t.lockTitle}</h2>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{byIdle ? t.lockBodyIdle : t.lockBody}</p>
-      <label className="mt-5 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400" htmlFor="lock-pin">{t.pinLabel}</label>
+      <h2 className={c.title}>{t.lockTitle}</h2>
+      <p className={c.body}>{byIdle ? t.lockBodyIdle : t.lockBody}</p>
+      <label className={c.label} htmlFor="lock-pin">{t.pinLabel}</label>
       <input
         id="lock-pin"
         type="password"
@@ -347,15 +368,14 @@ export function LockCover({ t, locale, byIdle, onUnlocked, inline = false }) {
         onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
         disabled={busy}
         dir="ltr"
-        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-center font-display text-2xl tracking-[0.4em] text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#191921] dark:text-white"
+        className={c.input}
       />
-      {error && <p role="alert" className="mt-2 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
+      {error && <p role="alert" className={c.error}>{error}</p>}
       <div className="mt-5 flex items-center justify-between gap-3">
-        <button type="submit" disabled={busy || pin.length < 4}
-          className="rounded-full bg-brand-700 px-5 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60">
+        <button type="submit" disabled={busy || pin.length < 4} className={c.submit}>
           {busy ? t.unlocking : t.unlock}
         </button>
-        <button type="button" onClick={signOut} className="text-sm font-600 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white">
+        <button type="button" onClick={signOut} className={c.signOut}>
           {t.signOutInstead}
         </button>
       </div>

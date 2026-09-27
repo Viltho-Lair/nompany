@@ -18,7 +18,7 @@ import { securityDict } from "@/shared/security";
 import { findByBarcode } from "@/modules/inventory/barcodes";
 import { posTotals, settle, priceBasket, discountPercentOf, cleanDiscount, cleanPayments, saleFigures, PAYMENT_METHODS } from "@/modules/sales/posModel";
 import { evaluate, offerProblem } from "@/modules/sales/posPromotionsModel";
-import { PRINT_CSS, Receipt, ShiftReport } from "@/components/studio2/posParts";
+import { PRINT_CSS, Receipt, ShiftReport, printSlip } from "@/components/studio2/posParts";
 
 // THE TILL — a full-screen page (shared/studioRoute), because a cashier works a
 // basket, not a sidebar. `docs/functionality/pos.md` is the file.
@@ -241,14 +241,14 @@ export default function StudioPos({ slug }) {
     return () => { alive = false; };
   }, [slug, shiftId, data]);
 
-  // PRINT, THEN LET GO. The slip is on the page by the time the effect runs;
-  // `afterprint` fires when the browser's dialog closes, printed or cancelled.
+  // PRINT, THEN LET GO. The hidden slip is on the page by the time the effect
+  // runs; printSlip prints it on a page of its own and resolves when the
+  // browser's dialog closes, printed or cancelled.
   useEffect(() => {
     if (!toPrint) return;
-    const done = () => setToPrint(null);
-    window.addEventListener("afterprint", done, { once: true });
-    const id = requestAnimationFrame(() => window.print());
-    return () => { cancelAnimationFrame(id); window.removeEventListener("afterprint", done); };
+    let alive = true;
+    const id = requestAnimationFrame(() => { printSlip().then(() => { if (alive) setToPrint(null); }); });
+    return () => { alive = false; cancelAnimationFrame(id); };
   }, [toPrint]);
 
   // CTRL+ENTER COMPLETES THE SALE (the owner, 27/09/2026) — Cmd+Enter on a Mac.
@@ -583,7 +583,7 @@ export default function StudioPos({ slug }) {
           <Receipt tr={tr} receipt={receipt} studio={data.studio} terms={terms}
             tillName={terminals.find((t) => t.id === receipt.terminalId)?.name || ""} />
           <div className="mt-4 flex gap-2">
-            <button type="button" className={btn} onClick={() => window.print()}>{tr.printReceipt}</button>
+            <button type="button" className={btn} onClick={() => printSlip()}>{tr.printReceipt}</button>
             <button type="button" className={btnGhost} onClick={() => setReceipt(null)}>{tr.newSale}</button>
           </div>
         </Dialog>
@@ -635,7 +635,7 @@ export default function StudioPos({ slug }) {
           <ShiftReport tr={tr} shift={report.shift} report={report.report} studio={data.studio}
             currency={terms.currency} tillName={terminals.find((t) => t.id === report.shift.terminalId)?.name || ""} />
           <div className="mt-4 flex gap-2">
-            <button type="button" className={btn} onClick={() => window.print()}>{tr.printReport}</button>
+            <button type="button" className={btn} onClick={() => printSlip()}>{tr.printReport}</button>
             <button type="button" className={btnGhost} onClick={() => setReport(null)}>{tr.done}</button>
           </div>
         </Dialog>

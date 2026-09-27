@@ -20,7 +20,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Field } from "@/components/fields/Field";
 import { panel, th, btn, btnGhost, btnRow, Dialog, money, fmtDateTime, StatTile, tileRow } from "@/components/studio2/ui";
 import { StatRow } from "@/components/dashboard";
-import { PRINT_CSS, Receipt, PeriodPicker, usePosPeriod, rangeQuery } from "@/components/studio2/posParts";
+import { PRINT_CSS, Receipt, PeriodPicker, usePosPeriod, rangeQuery, printSlip } from "@/components/studio2/posParts";
 
 const td = "py-2.5 pe-3 align-middle";
 
@@ -191,7 +191,7 @@ export default function StudioPosSales({ slug, timezone = "" }) {
           </p>
           <Receipt tr={till} receipt={open.receipt} studio={open.studio} terms={open.terms} tillName={open.receipt.till} />
           <div className="mt-4 flex gap-2">
-            <button type="button" className={btn} onClick={() => window.print()}>{tr.print}</button>
+            <button type="button" className={btn} onClick={() => printSlip()}>{tr.print}</button>
             <button type="button" className={btnGhost} onClick={() => setOpen(null)}>{tr.close}</button>
           </div>
         </Dialog>

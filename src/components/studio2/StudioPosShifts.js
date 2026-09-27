@@ -15,7 +15,7 @@ import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { Field } from "@/components/fields/Field";
 import { panel, th, btn, btnGhost, btnRow, Dialog, money, fmtDateTime } from "@/components/studio2/ui";
 import { StatusPill } from "@/components/studio2/StatusPill";
-import { PRINT_CSS, ShiftReport, PeriodPicker, usePosPeriod, rangeQuery } from "@/components/studio2/posParts";
+import { PRINT_CSS, ShiftReport, PeriodPicker, usePosPeriod, rangeQuery, printSlip } from "@/components/studio2/posParts";
 
 const td = "py-2.5 pe-3 align-middle";
 
@@ -131,7 +131,7 @@ export default function StudioPosShifts({ slug, timezone = "" }) {
           <ShiftReport tr={till} shift={open} report={open.report} studio={{ name: data.studioName || "" }}
             currency={cur} tillName={open.till} />
           <div className="mt-4 flex gap-2">
-            <button type="button" className={btn} onClick={() => window.print()}>{tr.print}</button>
+            <button type="button" className={btn} onClick={() => printSlip()}>{tr.print}</button>
             <button type="button" className={btnGhost} onClick={() => setOpen(null)}>{tr.close}</button>
           </div>
         </Dialog>

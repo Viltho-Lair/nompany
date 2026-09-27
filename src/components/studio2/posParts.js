@@ -31,6 +31,76 @@ export const PRINT_CSS = `@media print {
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
+/* ==================================================================
+   PRINTING A SLIP — ON A PAGE OF ITS OWN (the owner, 27/09/2026).
+
+   Every Print button here used to call `window.print()` over the whole screen
+   and lean on PRINT_CSS to hide everything but the slip. Hiding is not
+   removing: the till stayed its full height underneath, so the printer was
+   handed TWO SHEETS, and the slip was laid out where it sat on screen — inside
+   a fixed dialog with its own scroll — so it printed half-way down the page and
+   was cut off after the first line. The owner's print preview showed exactly
+   that, beside a dialog that looked perfect.
+
+   So the slip is copied, with the page's stylesheets, into an invisible frame
+   holding NOTHING else, and that frame is printed. Nothing on the screen —
+   dialog, scroll, the page's height — can reach it. PRINT_CSS stays for anybody
+   printing from the browser's own menu.
+
+   `target` is the slip to print; without one, the slip waiting in
+   `.pos-print-only` (the till's one-click reprint and test print), else the one
+   on screen. Resolves once the print dialog has closed.
+================================================================== */
+const SLIP_PAGE_CSS = `
+  @page { size: 80mm auto; margin: 4mm; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  .pos-print { margin: 0 !important; max-width: none !important; width: 72mm; }
+`;
+
+export function printSlip(target) {
+  const slip = target
+    || document.querySelector(".pos-print-only .pos-print")
+    || document.querySelector(".pos-print");
+  if (!slip) return Promise.resolve();
+  return new Promise((resolve) => {
+    const frame = document.createElement("iframe");
+    frame.setAttribute("aria-hidden", "true");
+    frame.tabIndex = -1;
+    Object.assign(frame.style, { position: "fixed", right: "0", bottom: "0", width: "0", height: "0", border: "0" });
+    document.body.appendChild(frame);
+    const doc = frame.contentDocument;
+    const dir = slip.closest("[dir]")?.getAttribute("dir") || document.documentElement.dir || "ltr";
+    const lang = slip.closest("[lang]")?.getAttribute("lang") || document.documentElement.lang || "en";
+    // The page's own stylesheets (Tailwind, the fonts), so the slip is set
+    // exactly as it is on screen; its <html> classes carry the font variables.
+    const sheets = [...document.querySelectorAll('link[rel="stylesheet"], style')].map((n) => n.outerHTML).join("");
+    doc.open();
+    doc.write(`<!doctype html><html dir="${dir}" lang="${lang}" class="${document.documentElement.className.replace(/\bdark\b/g, "")}"><head><meta charset="utf-8">${sheets}<style>${SLIP_PAGE_CSS}</style></head><body>${slip.outerHTML}</body></html>`);
+    doc.close();
+
+    let finished = false;
+    const finish = () => { if (finished) return; finished = true; frame.remove(); resolve(); };
+    const win = frame.contentWindow;
+    // Wait for the copied stylesheets and the fonts, or the slip prints in the
+    // browser's default serif.
+    const links = [...doc.querySelectorAll('link[rel="stylesheet"]')].map((l) => new Promise((ok) => {
+      if (l.sheet) return ok();
+      l.addEventListener("load", ok, { once: true });
+      l.addEventListener("error", ok, { once: true });
+    }));
+    Promise.all(links)
+      .then(() => (doc.fonts ? doc.fonts.ready : null))
+      .then(() => {
+        win.addEventListener("afterprint", () => setTimeout(finish, 0), { once: true });
+        win.focus();
+        win.print();
+        // A browser that never says the dialog closed still gets its frame back.
+        setTimeout(finish, 60 * 1000);
+      })
+      .catch(finish);
+  });
+}
+
 // THE SLIP, laid out for an 80 mm printer. It prints what the server stored —
 // never the basket — so a reprint reads exactly as the first.
 // `test`: a slip the till printed WITHOUT a sale (27/09/2026). It says so at

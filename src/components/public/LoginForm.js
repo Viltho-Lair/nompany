@@ -17,7 +17,7 @@ import { securityDict, endedMessage } from "@/shared/security";
 // form keeps every attribute and handler of its own. The step crossfade is the
 // CSS keyframe `auth-step`, armed by the frame (site/pages/auth/AuthScene), so
 // nothing here imports `motion/react` and the studio's motion fence holds.
-import { CHECKBOX, FIELD, GHOST, HINT, LABEL, LINK, PRIMARY, STEP, TEXT_BUTTON } from "@/components/landing/site/pages/auth/ui";
+import { CHECKBOX, ERROR, FIELD, GHOST, HINT, LABEL, LINK, PRIMARY, STEP, STEP_TITLE, TEXT_BUTTON } from "@/components/landing/site/pages/auth/ui";
 
 // The eye that reveals the password, sized to sit in the field's trailing
 // gutter. tabIndex -1 so a keyboard user tabbing out of the password lands on
@@ -202,7 +202,19 @@ export default function LoginForm({ locale, dict, providers = [] }) {
     const safe = next.startsWith("/") && !next.startsWith("//") ? next : `/${locale}/account`;
     return (
       <div key="locked" className={`${STEP} flex justify-center`}>
-        <LockCover t={sec} locale={locale} inline onUnlocked={() => window.location.assign(safe)} />
+        {/* IN THE SCENE'S OWN GLASS, not the studio's white card: the card
+            around it is already there, so the form draws none of its own. */}
+        <LockCover t={sec} locale={locale} inline onUnlocked={() => window.location.assign(safe)} look={{
+          form: "w-full text-start",
+          badge: "bg-white/[0.06] text-[#c9c2ff] ring-1 ring-inset ring-white/10",
+          title: STEP_TITLE,
+          body: `mt-1 ${HINT}`,
+          label: `mt-5 ${LABEL}`,
+          input: `${FIELD} text-center text-2xl tracking-[0.4em] sm:text-2xl`,
+          error: `mt-2 ${ERROR}`,
+          submit: PRIMARY,
+          signOut: TEXT_BUTTON,
+        }} />
       </div>
     );
   }
