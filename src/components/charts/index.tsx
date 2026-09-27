@@ -10,14 +10,16 @@
 // a series looks like. Colours now read the `--chart-*` ramp on :root rather
 // than the `--ad-*` aliases, which never leave the console's own scope.
 //
-// SERVER-RENDERED, AND IT HAS TO STAY THAT WAY. `nextId()` below is a module
-// counter, which is safe only because nothing here hydrates: were one of these
-// to render on the client, the server and the browser would mint different
-// gradient ids and React would complain about the mismatch. If a chart ever
-// needs interaction, the interactive part goes in a client island beside it and
-// the drawing stays here.
+// GRADIENT IDS COME FROM `useId`, WHICH IS THE SAME ON BOTH SIDES. They came
+// from a module counter, on the argument that nothing here hydrates — and the
+// home page's live charts (landing/showcase/LiveCharts) render this kit inside
+// a client component, so the server and the browser counted to different
+// numbers (adc3 against adc13) and React reported a hydration mismatch on
+// every visit (27/09/2026). `useId` is stable across the server render and
+// hydration, and works in a Server Component too, so the kit is safe wherever
+// it is drawn rather than only where the old comment assumed.
 
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useId, type ReactNode } from "react";
 
 /* ONE SERIES SHAPE FOR THE WHOLE KIT. Area and Bar take the same object, so a
    card can swap between them without reshaping its data — which is most of why
@@ -49,8 +51,12 @@ const PALETTE = [
   "rgb(var(--chart-5))",
 ];
 
-let uid = 0;
-const nextId = () => `adc${++uid}`;
+/** A gradient id that is unique on the page and identical on the server and
+ *  in the browser. `useId` returns colons, which are legal in an id but must
+ *  be escaped inside `url(#…)`; stripping them is simpler than escaping. */
+function useGradientId() {
+  return `adc${useId().replace(/:/g, "")}`;
+}
 
 function scale(values: number[], height: number, pad: number, max?: number, min?: number) {
   const hi = max ?? Math.max(...values);
@@ -131,6 +137,7 @@ export function AreaChart({
   // EMPTY one is an ordinary state: the first render before a fetch resolves,
   // or a range with no traffic in it. Dropping them here means the rest of this
   // function can still assume every series it draws has points.
+  const baseId = useGradientId();
   const drawable = series.filter((s) => Array.isArray(s.data) && s.data.length > 0);
   const all = drawable.flatMap((s) => s.data);
   const rawMax = Math.max(...all, 1);
@@ -172,7 +179,7 @@ export function AreaChart({
         const color = s.color || PALETTE[si % PALETTE.length];
         const pts: Point[] = s.data.map((v, i) => [x(i, s.data.length), y(v)]);
         const d = smooth ? smoothPath(pts) : linePath(pts);
-        const gid = nextId();
+        const gid = `${baseId}s${si}`;
         return (
           <g key={s.name || si}>
             {fill && !dashed.includes(si) ? (
@@ -554,7 +561,7 @@ export function Sparkline({
     height - 3 - ((v - min) / span) * (height - 6),
   ]);
   const d = smoothPath(pts);
-  const gid = nextId();
+  const gid = useGradientId();
   const stroke = color || "rgb(var(--chart-1))";
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className={className} style={{ width: "100%", height }} preserveAspectRatio="none">

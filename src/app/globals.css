@@ -174,6 +174,301 @@
   opacity: 1;
 }
 
+/* ==================================================================
+   THE LETTERHEAD — the public site's own world (27/09/2026).
+
+   The customers this site sells to run on paper that travels: a quotation
+   with a number on it, a contract, a purchase order, an invoice, each
+   stamped as it passes a desk, on a letterhead that sets English on the
+   left and Arabic on the right. The site is built from that paperwork —
+   sheets, ruled registers, reference numbers and a company stamp in the
+   brand's violet — instead of the dark-glow template every SaaS page ships.
+
+   SCOPED TO `.letterhead`, which only MarketingShell carries. `.landing-page`
+   is also worn by the auth screens, the questionnaire and the /super sign-in,
+   and none of those were part of this change; a token redefined on the
+   shared class would have repainted all of them without anybody asking.
+
+   THE ALIASES ARE REDECLARED HERE, not only the channels. A custom property
+   that reads another resolves where it is DECLARED (the note on `:root, .dark`
+   above), so `--color-ink` on :root had already frozen to the root's channels
+   and would not follow a channel redefined on this element. */
+.landing-page.letterhead {
+  --color-ink-rgb: 246 247 249;
+  --color-ink-soft-rgb: 238 240 244;
+  --color-ink-card-rgb: 255 255 255;
+  --color-line-rgb: 214 219 228;
+  --color-line-soft-rgb: 230 233 239;
+  --color-fg-rgb: 14 17 28;
+  --color-fg-muted-rgb: 70 77 96;
+  --color-fg-dim-rgb: 104 110 128;
+  --color-iris-rgb: 84 62 230;
+  --color-iris-bright-rgb: 104 86 240;
+  --color-violet-rgb: 112 58 222;
+  /* A BUTTON IS FILLED WITH ITS OWN VIOLET, not `iris`: dark mode lightens
+     iris so ink reads on a dark ground, and white type on that lighter violet
+     measured under 3:1. White on either of these clears 4.5:1. */
+  --btn-rgb: 84 62 230;
+  /* Stamp ink sits ON the paper, so it multiplies into it like real ink. */
+  --stamp-blend: multiply;
+  --sheet-shadow: 0 1px 2px rgb(14 17 28 / 0.05), 0 18px 40px -22px rgb(14 17 28 / 0.22);
+  --sheet-border: transparent;
+
+  --color-ink: rgb(var(--color-ink-rgb));
+  --color-ink-soft: rgb(var(--color-ink-soft-rgb));
+  --color-ink-card: rgb(var(--color-ink-card-rgb));
+  --color-line: rgb(var(--color-line-rgb));
+  --color-line-soft: rgb(var(--color-line-soft-rgb));
+  --color-fg: rgb(var(--color-fg-rgb));
+  --color-fg-muted: rgb(var(--color-fg-muted-rgb));
+  --color-fg-dim: rgb(var(--color-fg-dim-rgb));
+  --color-iris: rgb(var(--color-iris-rgb));
+  --color-iris-bright: rgb(var(--color-iris-bright-rgb));
+  --color-violet: rgb(var(--color-violet-rgb));
+
+  --font-display: var(--f-readex), var(--f-sora), system-ui, sans-serif;
+  --font-ref: var(--f-geist-mono), ui-monospace, monospace;
+  /* The logo's own three colours, in the mark's order. */
+  --band: linear-gradient(90deg, #48caed 0 33.4%, #fe9e04 33.4% 66.7%, #ff3333 66.7% 100%);
+}
+/* NIGHT: carbon-blue ground, sheets one step lighter, and a hairline edge
+   instead of a shadow — a shadow does not read on a dark ground, and declaring
+   both is the ghost card. The stamp screens into the sheet instead of
+   multiplying, which is the same ink on a dark page. */
+.dark .landing-page.letterhead {
+  --color-ink-rgb: 10 12 21;
+  --color-ink-soft-rgb: 15 18 30;
+  --color-ink-card-rgb: 18 22 36;
+  --color-line-rgb: 40 46 66;
+  --color-line-soft-rgb: 27 32 48;
+  --color-fg-rgb: 236 238 246;
+  --color-fg-muted-rgb: 166 172 192;
+  --color-fg-dim-rgb: 122 129 152;
+  --color-iris-rgb: 146 132 255;
+  --color-iris-bright-rgb: 176 166 255;
+  --color-violet-rgb: 168 120 255;
+  --btn-rgb: 104 84 240;
+  --stamp-blend: screen;
+  --sheet-shadow: none;
+  --sheet-border: rgb(var(--color-line-rgb));
+}
+/* Arabic keeps Readex, which is the point of it; the body stays Noto Arabic. */
+.landing-page.letterhead[dir="rtl"],
+[dir="rtl"] .landing-page.letterhead {
+  --font-display: var(--f-readex), var(--f-tajawal), system-ui, sans-serif;
+}
+
+/* THE BROWSER'S OWN SURFACES carry the palette too — selection, focus,
+   scrollbar — the parts nobody draws and everybody sees. */
+.landing-page.letterhead ::selection {
+  background: rgb(var(--color-iris-rgb) / 0.28);
+  color: var(--color-fg);
+}
+.landing-page.letterhead :is(a, button, [role="slider"], [role="tab"]):focus-visible {
+  outline: 2px solid var(--color-iris);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+.landing-page.letterhead {
+  scrollbar-color: rgb(var(--color-line-rgb)) transparent;
+}
+
+/* Glass was the old world's card. On paper a card is a sheet. */
+.landing-page.letterhead .surface {
+  background: var(--color-ink-card);
+  border: 1px solid var(--sheet-border);
+  box-shadow: var(--sheet-shadow);
+  backdrop-filter: none;
+}
+
+/* ==================================================================
+   THE LETTERHEAD IN MOTION (27/09/2026).
+
+   ONE RULE MAKES ALL OF IT SAFE: nothing is hidden unless the document
+   says motion is on, and only a script can say so. The server's HTML
+   carries no `opacity:0` anywhere — a crawler that runs no JavaScript,
+   a visitor with it off, and anybody who asked for reduced motion all
+   get the settled page. `(marketing)/layout.js` sets `data-lh-motion`
+   on <html> before first paint (an ATTRIBUTE, not a class: React owns
+   <html>'s className and would report the difference on hydration) and
+   takes it away again after 2.5s if RevealObserver never arrived, so a
+   failed bundle cannot leave the page blank.
+
+   An element opts in with `data-reveal` (rise | rule | wipe | scale),
+   and RevealObserver marks it `data-in` as it enters the viewport —
+   again an attribute, because React rewrites className on re-render and
+   would un-reveal whatever changed state. `--i` staggers a list and
+   `--d` delays one element, both in the element's own style.
+================================================================== */
+.landing-page.letterhead {
+  --lh-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: no-preference) {
+  html[data-lh-motion] .letterhead [data-reveal] {
+    transition-property: opacity, transform, filter, clip-path;
+    transition-duration: 1000ms, 1000ms, 800ms, 1200ms;
+    transition-timing-function: var(--lh-ease);
+    transition-delay: calc(var(--i, 0) * 55ms + var(--d, 0ms));
+  }
+  html[data-lh-motion] .letterhead [data-reveal="rise"]:not([data-in]) {
+    opacity: 0;
+    transform: translate3d(0, 26px, 0);
+    filter: blur(8px);
+  }
+  html[data-lh-motion] .letterhead [data-reveal="scale"]:not([data-in]) {
+    opacity: 0;
+    transform: translate3d(0, 32px, 0) scale(0.965);
+    filter: blur(6px);
+  }
+  /* A ruled line draws itself from the reading edge. */
+  html[data-lh-motion] .letterhead [data-reveal="rule"] {
+    transform-origin: left center;
+    transition-duration: 1300ms;
+  }
+  html[data-lh-motion] .letterhead[dir="rtl"] [data-reveal="rule"] {
+    transform-origin: right center;
+  }
+  html[data-lh-motion] .letterhead [data-reveal="rule"]:not([data-in]) {
+    transform: scaleX(0);
+  }
+  /* A chart is uncovered left to right, the way its months run. */
+  html[data-lh-motion] .letterhead [data-reveal="wipe"]:not([data-in]) {
+    clip-path: inset(0 100% 0 0);
+  }
+  html[data-lh-motion] .letterhead[dir="rtl"] [data-reveal="wipe"]:not([data-in]) {
+    clip-path: inset(0 0 0 100%);
+  }
+  /* THE HERO ENTERS ON FIRST PAINT, NOT ON AN OBSERVER. It is on screen
+     before any script has loaded — waiting for RevealObserver left an empty
+     sheet for as long as the bundle took — so these are keyframes that run
+     the moment the boot script's attribute is there. `both` holds the
+     hidden frame through each element's delay. */
+  html[data-lh-motion] .letterhead [data-enter] {
+    animation: lh-enter-rise 1000ms var(--lh-ease) var(--d, 0ms) both;
+  }
+  html[data-lh-motion] .letterhead [data-enter="scale"] { animation-name: lh-enter-scale; }
+  html[data-lh-motion] .letterhead [data-enter="rule"] {
+    animation-name: lh-enter-rule;
+    animation-duration: 1300ms;
+    transform-origin: left center;
+  }
+  html[data-lh-motion] .letterhead[dir="rtl"] [data-enter="rule"] { transform-origin: right center; }
+
+  /* The seal on the closing panel turns, slowly enough to be noticed
+     rather than watched. */
+  .letterhead .lh-seal { animation: lh-seal-turn 90s linear infinite; }
+}
+@keyframes lh-enter-rise {
+  from { opacity: 0; transform: translate3d(0, 26px, 0); filter: blur(8px); }
+}
+@keyframes lh-enter-scale {
+  from { opacity: 0; transform: translate3d(0, 32px, 0) scale(0.965); filter: blur(6px); }
+}
+@keyframes lh-enter-rule {
+  from { transform: scaleX(0); }
+}
+@keyframes lh-seal-turn {
+  from { transform: rotate(-14deg); }
+  to { transform: rotate(346deg); }
+}
+
+/* THE SPOTLIGHT: a soft pool of the stamp colour under the cursor, fed
+   two custom properties by `spotlight()` (landing/lib/spotlight). Pure
+   paint on a pseudo-element, so moving the mouse re-renders nothing. */
+.lh-spot { position: relative; isolation: isolate; }
+.lh-spot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 500ms var(--lh-ease, ease-out);
+  background: radial-gradient(560px circle at var(--mx, 50%) var(--my, 50%), var(--spot, rgb(var(--color-iris-rgb) / 0.1)), transparent 46%);
+}
+.lh-spot:hover::after { opacity: 1; }
+@media (hover: none) { .lh-spot::after { display: none; } }
+
+@layer components {
+  .lh-sheet {
+    background: var(--color-ink-card);
+    border: 1px solid var(--sheet-border);
+    box-shadow: var(--sheet-shadow);
+    border-radius: 14px;
+  }
+  /* The letterhead's colour band: the logo's three colours as one rule. */
+  .lh-band {
+    height: 3px;
+    background: var(--band);
+  }
+  .lh-ref {
+    font-family: var(--font-ref);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+  }
+  /* A RUBBER STAMP, drawn: a border, a gap the colour of the sheet, and a
+     second border — the double edge every company stamp has. Tilted a few
+     degrees because nobody stamps square. */
+  .lh-stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    color: var(--color-iris);
+    border: 1.5px solid currentColor;
+    border-radius: 7px;
+    padding: 0.2em 0.6em;
+    box-shadow: inset 0 0 0 1.5px var(--color-ink-card), inset 0 0 0 2.75px currentColor;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    mix-blend-mode: var(--stamp-blend);
+    transform: rotate(-4deg);
+  }
+  [dir="rtl"] .lh-stamp {
+    text-transform: none;
+    letter-spacing: 0;
+    transform: rotate(4deg);
+  }
+  .lh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 9px;
+    padding: 0.8rem 1.35rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    background: rgb(var(--btn-rgb));
+    color: #fff;
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.18) inset, 0 8px 20px -10px rgb(var(--btn-rgb) / 0.9);
+    transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), background-color 160ms ease-out;
+  }
+  .lh-btn:hover { background: rgb(var(--btn-rgb) / 0.88); }
+  /* A PRESS IS FELT: 0.97 on the way down, ease-out, never ease-in. */
+  .lh-btn:active, .lh-btn-quiet:active { transform: scale(0.97); }
+  .lh-btn svg { transition: transform 220ms var(--lh-ease); }
+  .lh-btn:hover svg { transform: translateX(3px); }
+  [dir="rtl"] .lh-btn:hover svg { transform: translateX(-3px) scaleX(-1); }
+  .lh-btn-quiet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 9px;
+    padding: 0.8rem 1.35rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--color-fg);
+    border: 1px solid rgb(var(--color-line-rgb));
+    transition: border-color 160ms ease-out, background-color 160ms ease-out;
+  }
+  .lh-btn-quiet:hover {
+    border-color: rgb(var(--color-fg-dim-rgb));
+    background: rgb(var(--color-ink-soft-rgb));
+  }
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -834,30 +1129,6 @@ html.studio-chrome .bar-scroll::-webkit-scrollbar {
   /* A still, full-colour mark: the logo is the whole message. */
   .brand-loader,
   .brand-loader path { animation: none; }
-}
-
-/* THE DEPARTMENT MARQUEE. Two copies of the list translate by exactly -50%,
-   which lands the second copy where the first began ONLY because each copy
-   (DepartmentMarquee.tsx) carries its own trailing gap rather than the gap
-   sitting between the two copies — a gap on the shared track would make the
-   copies land half a gap short of a seam and the loop would visibly jump
-   once a cycle. Transform only, so it runs on the compositor and repaints
-   nothing.
-
-   RTL IS NOT A SEPARATE ANIMATION. The track's own direction reverses with the
-   document, so the same negative translation carries names the other way. */
-@keyframes marquee-scroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-.marquee-track {
-  animation: marquee-scroll 38s linear infinite;
-}
-[dir="rtl"] .marquee-track {
-  animation-direction: reverse;
-}
-@media (prefers-reduced-motion: reduce) {
-  .marquee-track { animation: none; }
 }
 
 /* Nova's speech bubble arriving (src/components/studio2/NovaBubble.jsx).

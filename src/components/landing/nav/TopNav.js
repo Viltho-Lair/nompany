@@ -1,16 +1,15 @@
 "use client";
 import Link from "next/link";
-import { motion, useMotionValueEvent, useScroll } from "motion/react";
+import { motion, useMotionValueEvent, useReducedMotion, useScroll, useSpring } from "motion/react";
+import { usePathname } from "next/navigation";
 import { chromeCopy } from "@/shared/marketing/chrome";
 import { useEffect, useState } from "react";
-import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
 import { initialsOf } from "@/lib/initials";
 import Skeleton from "@/components/Skeleton";
 import ThemeToggle from "@/components/ThemeToggle";
 import LangMenu from "@/components/LangMenu";
 import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import { LogoMark, Wordmark } from "../Logo";
-import { MagneticButton } from "../ui/MagneticButton";
 import { getDict } from "@/shared/i18n";
 /* THE NAV OF A REAL SITE, and no longer of a simulated router.
    ------------------------------------------------------------------
@@ -61,8 +60,14 @@ export function TopNav({ locale = "en" }) {
     short: LANGUAGE_SHORT[code],
     href: `/${code}`,
   }));
-    const { scrollY } = useScroll();
+    const { scrollY, scrollYProgress } = useScroll();
     const [condensed, setCondensed] = useState(false);
+    // OUT OF THE WAY WHILE READING, BACK THE MOMENT THEY TURN ROUND: the bar
+    // slides up on a downward scroll past the first screen and returns on any
+    // upward one. Never while a menu is open, and never under reduced motion.
+    const [tucked, setTucked] = useState(false);
+    const reduceMotion = useReducedMotion();
+    const progress = useSpring(scrollYProgress, { stiffness: 220, damping: 32, mass: 0.3 });
     // Three states, never two — `undefined` means "still asking", so the header
     // shows a skeleton instead of flashing "Log in" at someone who is already
     // signed in and then swapping it for their avatar.
@@ -113,56 +118,42 @@ export function TopNav({ locale = "en" }) {
     useMotionValueEvent(scrollY, "change", (v) => {
         const next = v > 24;
         setCondensed((prev) => (prev === next ? prev : next));
+        const prev = scrollY.getPrevious() ?? v;
+        const tuck = !reduceMotion && v > 640 && v > prev + 2 ? true : v < prev - 2 || v <= 640 ? false : null;
+        if (tuck !== null) setTucked((t) => (t === tuck ? t : tuck));
     });
     // THE NAV RENDERS WHERE IT BELONGS, and this took two goes to get right.
     //
     // It began as `initial={{ y: -70, opacity: 0 }}`, which shipped the site's
-    // entire navigation as `style="opacity:0"`. Dropping the opacity left
-    // `y: -70` — and that is not better, it is worse in a quieter way: the nav
-    // was then rendered seventy pixels ABOVE the viewport, so anything not
-    // running the animation had no navigation at all rather than invisible
-    // navigation. Measured in a browser with the animation frame frozen, the
-    // header sat at top: -70 with nothing on screen.
+    // entire navigation as `style="opacity:0"`, and then as `y: -70`, which
+    // rendered it seventy pixels above the viewport for anything not running
+    // the animation. It has no entrance at all now: what the server renders is
+    // what the page is.
     //
-    // `initial={false}` renders the settled state and animates nothing. A nav
-    // sliding down is a flourish; being able to reach the other pages is not,
-    // and the first is not worth risking the second. It is also the only state
-    // that matches the rule the rest of this surface follows — what the server
-    // renders is what the page is.
-    return (<motion.header initial={false} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8, delay: 0.15, ease: EASE_OUT_EXPO }} className="fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-4">
-      <motion.nav animate={{
-            backgroundColor: condensed
-                ? "color-mix(in oklab, var(--color-ink-soft) 82%, transparent)"
-                : "color-mix(in oklab, var(--color-ink-soft) 30%, transparent)",
-            borderColor: condensed ? "var(--color-line)" : "transparent",
-            paddingTop: condensed ? 8 : 12,
-            paddingBottom: condensed ? 8 : 12,
-        }} transition={{ duration: 0.4, ease: EASE_OUT_EXPO }} className="flex w-full max-w-6xl items-center gap-1.5 rounded-full border px-2.5 backdrop-blur-xl sm:gap-4 sm:px-5">
+    // THE LETTERHEAD STRIP (27/09/2026). The floating glass pill went with the
+    // dark-glow world. This is the head of the sheet: the logo's three-colour
+    // band across the very top, then one ruled row — transparent at the top of
+    // the page, paper-coloured with a hairline under it once the page scrolls.
+    // The page you are on is marked, which the pill never did.
+    const pathname = usePathname() || "";
+    const isHere = (href) => pathname === href || pathname.startsWith(`${href}/`);
+    const hide = tucked && !navOpen && !menuOpen;
+    return (<header className={`fixed inset-x-0 top-0 z-50 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${hide ? "-translate-y-full" : "translate-y-0"}`}>
+      <div className="lh-band" aria-hidden="true"/>
+      <nav className={`border-b transition-[background-color,border-color] duration-300 ${condensed ? "border-line bg-ink/95" : "border-transparent bg-transparent"}`}>
+        <div className={`mx-auto flex max-w-6xl items-center gap-2 px-4 transition-[padding] duration-300 sm:gap-3 sm:px-6 ${condensed ? "py-2.5" : "py-4"}`}>
         {/* THE LOGO IS A LINK, AND WAS A BUTTON THAT THREW. It called
-            onNavigate("overview") with no guard, so clicking the wordmark on
-            /platform, /pricing, /security or /about threw "onNavigate is not a
-            function". The view pills next to it had been given a guard; the
-            logo was missed — which is the argument the header comment makes for
-            deleting the props rather than guarding them, and the pills are gone
-            with them now.
-            A guard was the wrong fix anyway: home has an address, so the mark
-            that means "home" should be openable in a new tab and readable by a
-            crawler — the same argument PAGE_LINKS above already makes, and a
-            Link for the same reason it gives (the chrome survives the click). */}
-        <Link href={`/${locale}`} className="flex shrink-0 items-center gap-2.5 pr-1 sm:pr-2" aria-label={tr.nompanyHome}>
+            onNavigate("overview") with no guard on every page but home. Home
+            has an address, so the mark that means "home" is a Link: openable
+            in a new tab, readable by a crawler, and the chrome survives it. */}
+        <Link href={`/${locale}`} className="flex shrink-0 items-center gap-2.5 pe-1 sm:pe-3" aria-label={tr.nompanyHome}>
           <LogoMark size={26} priority/>
           <Wordmark className="hidden sm:block"/>
         </Link>
 
-        {/* REAL PAGES FIRST, then whatever is still an in-page view.
-            Platform and Pricing have addresses now, so they are links: a
-            <button> that swaps a client view cannot be opened in a new tab,
-            cannot be linked to from anywhere, and is invisible to a crawler —
-            which is why the price list reached no engine while it lived here. */}
-        {/* THE COLLAPSED MENU, next to the logo. Below `md` this is the whole
-            navigation; above it, the bar below is. Both render from PAGE_LINKS
-            and the same view list, so the two layouts cannot drift into
-            offering different destinations. */}
+        {/* THE COLLAPSED MENU, next to the logo. Below `lg` this is the whole
+            navigation; above it, the row below is. Both render from PAGE_LINKS,
+            so the two layouts cannot drift into offering different places. */}
         <div className="relative shrink-0 lg:hidden" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
@@ -170,50 +161,41 @@ export function TopNav({ locale = "en" }) {
             aria-haspopup="menu"
             aria-expanded={navOpen}
             aria-label={nav.menu}
-            className="grid h-9 w-9 place-items-center rounded-full border border-line text-fg-muted transition-colors hover:text-fg"
+            className="grid h-9 w-9 place-items-center rounded-lg border border-line text-fg-muted transition-colors hover:text-fg"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
             </svg>
           </button>
           {navOpen && (
-            <div role="menu" className="surface absolute start-0 z-50 mt-3 w-56 overflow-hidden rounded-2xl py-2">
+            <div role="menu" className="lh-sheet absolute start-0 z-50 mt-3 w-60 overflow-hidden py-2">
               {PAGE_LINKS.map((l) => (
                 <Link key={l.href} role="menuitem" href={l.href} onClick={closeMenus}
-                   className="block px-4 py-2.5 text-sm text-fg-muted transition-colors hover:bg-line/40 hover:text-fg">
+                   aria-current={isHere(l.href) ? "page" : undefined}
+                   className={`block px-4 py-2.5 text-sm transition-colors hover:bg-ink-soft ${isHere(l.href) ? "font-medium text-fg" : "text-fg-muted hover:text-fg"}`}>
                   {l.label}
                 </Link>
               ))}
-              {/* THE PRIMARY CALL TO ACTION FOLLOWS THE MENU DOWN. "Start free"
-                  is the only one this site has, and it lives in the bar above
-                  `lg` — so below that it needs somewhere to be, or the narrower
-                  the screen the harder the site is to act on. Shown to signed-out
-                  visitors only, the same rule the bar's copy of it follows. */}
+              {/* THE PRIMARY CALL TO ACTION FOLLOWS THE MENU DOWN, for
+                  signed-out visitors — the same rule the row's copy follows. */}
               {account === undefined || account ? null : (
                 <Link role="menuitem" href={`/api/intent?locale=${locale}`} onClick={closeMenus}
-                   className="mt-1 block border-t border-line px-4 pb-1 pt-3 text-sm font-medium text-fg transition-colors hover:bg-line/40">
+                   className="mt-1 block border-t border-line px-4 pb-1 pt-3 text-sm font-medium text-iris transition-colors hover:bg-ink-soft">
                   {tr.startFree}
                 </Link>
               )}
-              {/* THE LANGUAGES ARE ROWS, NOT A SECOND DROPDOWN.
-                  `LangMenu` opens a popup, and a popup inside this popup was
-                  clipped by the panel's own rounded corners — which is what
-                  "the language dropdown does not drop well" looks like. It is
-                  also the wrong shape for a phone: two destinations do not need
-                  a menu to choose between, and a nested one costs a second tap
-                  and a second thing to dismiss.
-
-                  Plain links, so each is a real destination that swaps the
-                  locale segment — the same hrefs the desktop picker uses. */}
+              {/* THE LANGUAGES ARE ROWS, NOT A SECOND DROPDOWN — a popup inside
+                  this popup was clipped by its corners, and two destinations do
+                  not need a menu to choose between. */}
               <div className="mt-1 border-t border-line pt-2">
-                <p className="px-4 pb-1 text-[11px] tracking-wider text-fg-dim uppercase">{tr.language}</p>
+                <p className="px-4 pb-1 text-[11px] text-fg-dim">{tr.language}</p>
                 {langOptions.map((o) => (
                   <a
                     key={o.code}
                     role="menuitem"
                     href={o.href}
                     aria-current={o.code === locale ? "true" : undefined}
-                    className={`block px-4 py-2.5 text-sm transition-colors hover:bg-line/40 ${o.code === locale ? "text-fg" : "text-fg-muted hover:text-fg"}`}
+                    className={`block px-4 py-2.5 text-sm transition-colors hover:bg-ink-soft ${o.code === locale ? "text-fg" : "text-fg-muted hover:text-fg"}`}
                   >
                     {o.label}
                   </a>
@@ -226,22 +208,28 @@ export function TopNav({ locale = "en" }) {
           )}
         </div>
 
-        <div className="ml-auto hidden items-center gap-1 rounded-full bg-ink/40 p-1 lg:flex">
-          {PAGE_LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="relative rounded-full px-2 py-1.5 text-xs font-medium text-fg-muted transition-colors duration-300 hover:text-fg sm:px-3.5 sm:text-sm"
-            >
-              {l.label}
-            </Link>
-          ))}
+        <div className="ms-auto hidden items-center gap-0.5 lg:flex">
+          {PAGE_LINKS.map((l) => {
+            const here = isHere(l.href);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={here ? "page" : undefined}
+                className={`relative rounded-md px-3 py-2 text-sm transition-colors duration-200 hover:text-fg ${here ? "font-medium text-fg" : "text-fg-muted"}`}
+              >
+                {l.label}
+                {here && <span aria-hidden="true" className="absolute inset-x-3 -bottom-px h-px bg-fg"/>}
+              </Link>
+            );
+          })}
         </div>
+
+        <span aria-hidden="true" className="mx-1 hidden h-5 w-px bg-line lg:block"/>
 
         {/* Light / dark / system. Writes the same `theme` cookie the account
             hub and studio read, so the choice follows the visitor across every
-            surface. Both of these move into the collapsed menu below `md` —
-            the language control was the one being pushed off the screen. */}
+            surface. Both of these move into the collapsed menu below `lg`. */}
         <div className="hidden shrink-0 text-fg-muted lg:block">
           <ThemeToggle labels={{ theme: tr.theme, light: tr.themeLight, dark: tr.themeDark, system: tr.themeSystem }} />
         </div>
@@ -253,6 +241,7 @@ export function TopNav({ locale = "en" }) {
         {/* Signed out → "Log in". Signed in → the person's own picture, opening
             a menu with Go to account / Sign out. While the answer is unknown, a
             skeleton in the same footprint so the header does not reflow. */}
+        <div className="ms-auto flex shrink-0 items-center gap-2 lg:ms-0">
         {account === undefined ? (
             <Skeleton className="h-9 w-9 shrink-0" rounded="rounded-full" bg="bg-line"/>
         ) : account ? (
@@ -260,21 +249,21 @@ export function TopNav({ locale = "en" }) {
               <button type="button" onClick={() => setMenuOpen((o) => !o)}
                 aria-haspopup="menu" aria-expanded={menuOpen}
                 aria-label={account.name || account.email || tr.yourAccount} title={account.name || account.email}
-                className="block rounded-full outline-none focus-visible:ring-2 focus-visible:ring-iris-bright focus-visible:ring-offset-2 focus-visible:ring-offset-ink">
+                className="block rounded-full">
                 {account.photo ? (
                     // A stored data URI, so next/image would only get in the way.
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={account.photo} alt="" className="h-9 w-9 rounded-full border border-line object-cover"/>
                 ) : (
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-r from-iris to-violet font-display text-xs font-semibold text-white">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-iris font-display text-xs font-semibold text-white">
                       {initialsOf(account.name || account.email)}
                     </span>
                 )}
               </button>
               {menuOpen && (
-                  <div role="menu" className="surface absolute end-0 z-50 mt-2 w-56 overflow-hidden rounded-xl py-1 text-left">
+                  <div role="menu" className="lh-sheet absolute end-0 z-50 mt-2 w-56 overflow-hidden py-1 text-start">
                     <p className="truncate px-4 py-2 text-xs text-fg-dim">{account.email}</p>
-                    <Link role="menuitem" href={`/${locale}/account`} onClick={closeMenus} className="block px-4 py-2.5 text-sm text-fg-muted transition-colors hover:bg-line/40 hover:text-fg">
+                    <Link role="menuitem" href={`/${locale}/account`} onClick={closeMenus} className="block px-4 py-2.5 text-sm text-fg-muted transition-colors hover:bg-ink-soft hover:text-fg">
                       {tr.goToAccount}
                     </Link>
                     <button role="menuitem" type="button"
@@ -282,36 +271,32 @@ export function TopNav({ locale = "en" }) {
                           await fetch("/api/identity/logout", { method: "POST" });
                           window.location.assign(`/${locale}`);
                       }}
-                      className="block w-full px-4 py-2.5 text-left text-sm text-rose-400 transition-colors hover:bg-rose-500/10">
+                      className="block w-full px-4 py-2.5 text-start text-sm text-rose-600 transition-colors hover:bg-rose-500/10 dark:text-rose-400">
                       {tr.signOut}
                     </button>
                   </div>
               )}
             </div>
         ) : (
-            <Link href={`/${locale}/login`} className="inline-flex shrink-0 items-center rounded-full border border-line px-3 py-2 text-xs font-medium text-fg-muted transition-colors duration-300 hover:border-iris/50 hover:text-fg focus-visible:ring-2 focus-visible:ring-iris-bright focus-visible:ring-offset-2 focus-visible:ring-offset-ink focus-visible:outline-none sm:px-4 sm:text-sm">
+            <Link href={`/${locale}/login`} className="inline-flex shrink-0 items-center rounded-md px-3 py-2 text-sm text-fg-muted transition-colors duration-200 hover:text-fg">
               {tr.logIn}
             </Link>
         )}
 
         {/* "Start free" follows the same rule as "Log in": both are for people
-            who are not signed in, so both give way to the avatar. */}
-        <div className="hidden shrink-0 lg:block">
-          {/* NO SKELETON IN THIS SLOT. It held a 104px pill, so an unresolved
-              header showed a circle AND a pill side by side — and for a signed-in
-              reader the pill then resolved to NOTHING, because "Start free" is
-              only for people who are not signed in. A placeholder that vanishes
-              is worse than no placeholder: it reserves space the page then takes
-              back, which is the reflow a skeleton exists to prevent.
-
-              The avatar slot above still holds its circle, and that is the one
-              that always resolves to something 36px wide. */}
-          {account === undefined ? null : account ? null : (
-              <MagneticButton variant="ghost" strength={8} className="px-5 py-2 text-xs" href={`/api/intent?locale=${locale}`}>
-                {tr.startFree}
-              </MagneticButton>
-          )}
+            who are not signed in, so both give way to the avatar. NO SKELETON
+            in this slot: a placeholder that resolves to nothing for a signed-in
+            reader reserves space the page then takes back. */}
+        {account === undefined || account ? null : (
+            <Link href={`/api/intent?locale=${locale}`} className="lh-btn hidden !px-4 !py-2 !text-sm lg:inline-flex">
+              {tr.startFree}
+            </Link>
+        )}
         </div>
-      </motion.nav>
-    </motion.header>);
+        </div>
+        {/* How far down the page the reader is: one hairline of stamp ink along
+            the bar's lower edge, sprung so it glides rather than ticks. */}
+        <motion.div aria-hidden="true" className={`h-px origin-left bg-iris transition-opacity duration-300 rtl:origin-right ${condensed ? "opacity-100" : "opacity-0"}`} style={{ scaleX: progress }}/>
+      </nav>
+    </header>);
 }

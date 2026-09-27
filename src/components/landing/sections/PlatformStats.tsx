@@ -69,7 +69,7 @@ export async function PlatformStats({ locale }: { locale: string }) {
        Both callers wrap it now, which is the rule the rest of the sections
        already follow. */
     <section className="border-t border-line/70 py-14 sm:py-16">
-      <h2 className="text-xs tracking-[0.16em] text-fg-dim uppercase">{tr.heading}</h2>
+      <h2 className="text-[13px] text-fg-dim">{tr.heading}</h2>
       <ul className="mt-8 grid gap-x-10 gap-y-6 sm:grid-cols-2">
         {slots.map((line) => (
           <li key={line} className="flex gap-3 text-fg-muted">

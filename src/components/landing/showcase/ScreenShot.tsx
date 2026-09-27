@@ -47,17 +47,17 @@ export function ScreenShot({
 }) {
   const common = { width: SCREEN_W, height: SCREEN_H, sizes, priority, loading: priority ? undefined : ("lazy" as const) };
   return (
+    /* THE FRAME IS A SHEET, NOT A MAC WINDOW (27/09/2026). The three traffic
+       lights said "a browser on somebody's Mac", which is decoration; the path
+       is the part that says something true, so it is what is left. */
     <figure
-      className={`surface overflow-hidden rounded-2xl shadow-2xl shadow-black/30 ${className}`}
+      className={`lh-sheet overflow-hidden ${className}`}
       dir="ltr"
     >
       {chrome && (
-        <div className="flex items-center gap-2 border-b border-line/70 px-4 py-2.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" aria-hidden="true" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" aria-hidden="true" />
-          <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" aria-hidden="true" />
-          <span className="ms-3 truncate rounded-md bg-white/5 px-3 py-1 font-mono text-[11px] text-fg-dim">
-            nompany.com/qimam{path}
+        <div className="flex items-center gap-3 border-b border-line px-4 py-2.5">
+          <span className="lh-ref truncate text-[11.5px] text-fg-dim">
+            nompany.com/qimam<span className="text-fg-muted">{path}</span>
           </span>
         </div>
       )}

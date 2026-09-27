@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AreaChart, BarChart, ChartFrame, PALETTE } from "@/components/charts";
 import { tourCopy } from "@/shared/marketing/tour";
+import { SectionHead } from "../sections/SectionHead";
 
 /* ==================================================================
    THE PRODUCT'S OWN CHARTS, LIVE ON THE PAGE.
@@ -49,12 +50,10 @@ export function LiveCharts({ locale }: { locale: string }) {
 
   return (
     <section className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
-      <p className="text-xs tracking-[0.16em] text-fg-dim uppercase">{tr.chartsEyebrow}</p>
-      <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">{tr.chartsTitle}</h2>
-      <p className="mt-4 max-w-2xl text-fg-muted">{tr.chartsLead}</p>
+      <SectionHead label={tr.chartsEyebrow} title={tr.chartsTitle} lead={tr.chartsLead} />
 
-      <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <div className="surface rounded-2xl p-6">
+      <div className="mt-12 grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div data-reveal="scale" className="lh-sheet p-6">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
             {series.map((s) => (
               <span key={s.name} className="inline-flex items-center gap-2 text-sm text-fg-muted">
@@ -62,7 +61,7 @@ export function LiveCharts({ locale }: { locale: string }) {
                 {s.name}
               </span>
             ))}
-            <div className="ms-auto inline-flex rounded-full bg-white/5 p-0.5" role="radiogroup" aria-label={tr.chartsTitle}>
+            <div className="ms-auto inline-flex rounded-lg border border-line p-0.5" role="radiogroup" aria-label={tr.chartsTitle}>
               {([6, 12] as const).map((n) => (
                 <button
                   key={n}
@@ -70,7 +69,7 @@ export function LiveCharts({ locale }: { locale: string }) {
                   role="radio"
                   aria-checked={months === n}
                   onClick={() => setMonths(n)}
-                  className={`rounded-full px-3 py-1 text-xs transition-colors ${months === n ? "bg-white/10 text-fg" : "text-fg-dim hover:text-fg"}`}
+                  className={`rounded-md px-3 py-1 text-xs transition-colors ${months === n ? "bg-ink-soft font-medium text-fg" : "text-fg-dim hover:text-fg"}`}
                 >
                   {n === 6 ? tr.periods.six : tr.periods.twelve}
                 </button>
@@ -89,15 +88,17 @@ export function LiveCharts({ locale }: { locale: string }) {
               {/* THE FRAME DRAWS THE AXES; the chart draws only the lines —
                   the same split every dashboard in the product uses. */}
               <ChartFrame labels={labels} height={260}>
+                <div data-reveal="wipe" style={{ "--d": "250ms" } as React.CSSProperties}>
                 <AreaChart series={series} height={260} rtl={rtl} showY={false} />
+                </div>
               </ChartFrame>
             </motion.div>
           </AnimatePresence>
         </div>
 
-        <div className="surface rounded-2xl p-6">
+        <div data-reveal="scale" style={{ "--d": "120ms" } as React.CSSProperties} className="lh-sheet p-6">
           <p className="text-sm text-fg-muted">{tr.chartPipeline}</p>
-          <div className="mt-5">
+          <div data-reveal="wipe" style={{ "--d": "420ms" } as React.CSSProperties} className="mt-5">
             <ChartFrame labels={tr.stages} height={260}>
               <BarChart series={[{ name: tr.chartPipeline, data: PIPELINE, color: PALETTE[1] }]} height={260} rtl={rtl} />
             </ChartFrame>

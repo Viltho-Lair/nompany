@@ -32,7 +32,21 @@ import { MarketingShell } from "@/components/landing/chrome/MarketingShell";
    layout's theme and the two navs, and the suite still holds it against the
    pages; what has changed is that being in this folder and being in that list
    are the same fact rather than two facts that have to agree. */
+/* THE MOTION BOOT, before first paint (27/09/2026). It marks <html> with
+   `data-lh-motion` so the letterhead's reveal-able elements start hidden
+   instead of flashing in settled and then vanishing on hydration — and takes
+   the mark away after 2.5s if RevealObserver never arrived, so a failed bundle
+   leaves a still page rather than a blank one. Nothing is set for somebody who
+   asked for reduced motion. An ATTRIBUTE and not a class: React owns <html>'s
+   className and would report the difference. See globals.css. */
+const MOTION_BOOT = "(function(){try{if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;var d=document.documentElement;d.setAttribute('data-lh-motion','');setTimeout(function(){if(!window.__lhReveal)d.removeAttribute('data-lh-motion')},2500)}catch(e){}})()";
+
 export default async function MarketingLayout({ children, params }) {
   const { locale } = await params;
-  return <MarketingShell locale={locale}>{children}</MarketingShell>;
+  return (
+    <>
+      <script dangerouslySetInnerHTML={{ __html: MOTION_BOOT }} />
+      <MarketingShell locale={locale}>{children}</MarketingShell>
+    </>
+  );
 }

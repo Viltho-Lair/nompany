@@ -74,10 +74,18 @@ export function SiteFooter({ locale: localeProp }) {
     },
   ];
 
+  // THE OTHER LANGUAGE'S SENTENCE SITS UNDER THE READER'S, the foot of a
+  // bilingual letterhead (27/09/2026). The same canonical sentence, never a
+  // second one written for this corner — companyCopy is the only source.
+  const other = locale === "ar" ? "en" : "ar";
+
   return (
-    <footer className="relative mt-24 border-t border-line/70">
-      <div className="mx-auto max-w-6xl px-6 py-16 lg:py-20">
-        <div className="grid gap-12 md:grid-cols-[minmax(0,1.3fr)_repeat(2,minmax(0,1fr))] lg:gap-16">
+    <footer className="relative mt-16">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="lh-band rounded-full" aria-hidden="true" />
+      </div>
+      <div className="mx-auto max-w-6xl px-6 pt-14 pb-12 lg:pt-16">
+        <div className="grid gap-12 md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))] lg:gap-16">
           {/* Identity. The canonical description, the same sentence every
               external profile will carry — not a second tagline written for
               this corner of this page. */}
@@ -89,20 +97,24 @@ export function SiteFooter({ locale: localeProp }) {
             <p className="mt-5 max-w-sm text-sm leading-relaxed text-fg-muted">
               {companyCopy(locale).description}
             </p>
-            <Link
-              href={`/api/intent?locale=${locale}`}
-              className="mt-7 inline-flex items-center rounded-full bg-gradient-to-br from-iris to-violet px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-iris/20 transition-transform hover:scale-[1.02]"
+            <p
+              lang={other}
+              dir={other === "ar" ? "rtl" : "ltr"}
+              className="mt-3 max-w-sm font-display text-[13px] leading-relaxed text-fg-dim"
             >
+              {companyCopy(other).description}
+            </p>
+            <Link href={`/api/intent?locale=${locale}`} className="lh-btn mt-7 !px-5 !py-2.5 !text-sm">
               {hero.ctaPrimary}
             </Link>
           </div>
 
           {groups.map((g) => (
             <nav key={g.title} className="min-w-0">
-              <p className="text-xs font-medium tracking-[0.14em] text-fg-dim uppercase">
+              <p className="border-b border-line pb-3 text-[13px] font-medium text-fg">
                 {g.title}
               </p>
-              <ul className="mt-5 space-y-3">
+              <ul className="mt-4 space-y-3">
                 {g.links.map((l) => (
                   <li key={l.href}>
                     <Link
@@ -118,7 +130,7 @@ export function SiteFooter({ locale: localeProp }) {
           ))}
         </div>
 
-        <div className="mt-14 border-t border-line/70 pt-7 text-xs text-fg-dim">
+        <div className="mt-14 border-t border-line pt-6 text-xs text-fg-dim">
           {/* NO LEGAL ENTITY, NO STATUS DOT, AND NO EMAIL ADDRESSES. The company
               is not incorporated anywhere, so there is no entity to name;
               nothing measures uptime, so there is no figure to imply with a
@@ -126,11 +138,9 @@ export function SiteFooter({ locale: localeProp }) {
               the contact page, listed under the desk each one reaches.
 
               THE ADDRESSES LEFT BECAUSE A BARE MAILTO ASKS THE READER TO ROUTE
-              THEIR OWN MESSAGE. Two addresses in a footer with no headings is a
-              decision handed to somebody who has no way to make it correctly,
-              on every page of the site. The contact form asks what the message
-              is about and routes it, which is the same question answered by the
-              side that knows the answer. */}
+              THEIR OWN MESSAGE. The contact form asks what the message is about
+              and routes it, which is the same question answered by the side
+              that knows the answer. */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <p>© {new Date().getFullYear()} nompany</p>
             {analyticsHost && (

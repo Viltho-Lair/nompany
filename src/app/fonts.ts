@@ -1,4 +1,4 @@
-import { Cabin, IBM_Plex_Sans, Inter, Noto_Sans_Arabic, Saira, Sora, Tajawal } from "next/font/google";
+import { Cabin, Geist_Mono, IBM_Plex_Sans, Inter, Noto_Sans_Arabic, Readex_Pro, Saira, Sora, Tajawal } from "next/font/google";
 
 /* THE SEVEN FAMILIES, SELF-HOSTED.
    ------------------------------------------------------------------
@@ -78,7 +78,25 @@ export const tajawal = Tajawal({
  *  ALL SEVEN, ALWAYS. See the note above: the root layout cannot tell an Arabic
  *  studio from an English one, so narrowing this by locale silently removes the
  *  Arabic faces from the surface that needs them most. */
+/* THE MARKETING SITE'S LETTERHEAD FACES (27/09/2026).
+   READEX PRO IS ONE DESIGN IN BOTH SCRIPTS — its Latin and its Arabic were
+   drawn together to sit on one line — which is the only reason it is here: the
+   public site sets both languages side by side, the way a Gulf company's
+   letterhead does, and two unrelated faces next to each other read as two
+   companies. Tajawal and Sora stay for everything else.
+   GEIST MONO SETS REFERENCE NUMBERS ONLY (Q-0001, PRJ-0001, a path in the
+   product) — data, not decoration. Neither is loaded until a rule asks for it. */
+export const readex = Readex_Pro({
+  subsets: ["latin", "arabic"], weight: ["300", "400", "500", "600", "700"],
+  display: "swap", variable: "--f-readex", preload: false,
+});
+export const geistMono = Geist_Mono({
+  subsets: ["latin"], weight: ["400", "500"],
+  display: "swap", variable: "--f-geist-mono", preload: false,
+});
+
 export const FONT_VARS = [
   saira.variable, plexSans.variable, sora.variable, inter.variable,
   cabin.variable, notoArabic.variable, tajawal.variable,
+  readex.variable, geistMono.variable,
 ].join(" ");

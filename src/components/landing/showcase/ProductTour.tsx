@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { tourCopy } from "@/shared/marketing/tour";
 import { ScreenShot } from "./ScreenShot";
+import { SectionHead } from "../sections/SectionHead";
 
 /* ==================================================================
    THE PRODUCT TOUR — the owner's three departments, each shown by its own
@@ -65,11 +66,11 @@ export function ProductTour({ locale }: { locale: string }) {
 
   return (
     <section ref={ref} id="tour" className="mx-auto max-w-6xl scroll-mt-24 px-6 py-20 lg:py-28" onPointerEnter={stop} onFocusCapture={stop}>
-      <p className="text-xs tracking-[0.16em] text-fg-dim uppercase">{tr.tourEyebrow}</p>
-      <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">{tr.tourTitle}</h2>
-      <p className="mt-4 max-w-2xl text-fg-muted">{tr.tourLead}</p>
+      <SectionHead label={tr.tourEyebrow} title={tr.tourTitle} lead={tr.tourLead} />
 
-      <div className="mt-10 flex flex-wrap items-center gap-2" role="tablist" aria-label={tr.tourTitle}>
+      {/* FOLDER DIVIDERS, not pills: the three departments are three tabs of
+          one file, and the open one sits on the ruled line below it. */}
+      <div className="mt-12 flex items-end gap-1 overflow-x-auto border-b border-line" role="tablist" aria-label={tr.tourTitle}>
         {TABS.map((t, i) => (
           <button
             key={t.key}
@@ -77,15 +78,25 @@ export function ProductTour({ locale }: { locale: string }) {
             role="tab"
             aria-selected={i === tab}
             onClick={() => { stop(); setTab(i); setStep(0); }}
-            className={`rounded-full px-4 py-2 text-sm transition-colors ${i === tab ? "bg-gradient-to-br from-iris to-violet text-white shadow-lg shadow-iris/25" : "surface text-fg-muted hover:text-fg"}`}
+            className={`relative -mb-px shrink-0 px-4 py-2.5 text-sm transition-colors duration-200 ${i === tab ? "font-medium text-fg" : "text-fg-muted hover:text-fg"}`}
           >
-            {tr.tabs[t.key]}
+            {/* THE OPEN FOLDER TAB SLIDES to whichever is chosen — one shared
+                element that moves, rather than three that switch on and off. */}
+            {i === tab && (
+              <motion.span
+                layoutId="tour-tab"
+                aria-hidden="true"
+                className="absolute inset-0 rounded-t-lg border border-line border-b-ink-card bg-ink-card"
+                transition={reduce ? { duration: 0 } : { type: "spring", bounce: 0.18, visualDuration: 0.42 }}
+              />
+            )}
+            <span className="relative">{tr.tabs[t.key]}</span>
           </button>
         ))}
         <button
           type="button"
           onClick={() => setPlaying((p) => !p)}
-          className="ms-auto hidden rounded-full px-3 py-2 text-xs text-fg-dim hover:text-fg sm:inline-flex"
+          className="ms-auto hidden shrink-0 px-3 py-2.5 text-xs text-fg-dim hover:text-fg sm:inline-flex"
           aria-pressed={!playing}
         >
           {playing && !reduce ? tr.pause : tr.play}
@@ -93,25 +104,36 @@ export function ProductTour({ locale }: { locale: string }) {
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,2fr)] lg:items-start">
-        <ol className="space-y-2" role="tabpanel">
+        <ol className="isolate border-t border-line" role="tabpanel">
           {TABS[tab].screens.map(([key], i) => {
             const s = tr.screens[key];
             const active = i === step;
             return (
-              <li key={key}>
+              <li key={key} className="border-b border-line">
                 <button
                   type="button"
                   onClick={() => { stop(); setStep(i); }}
                   aria-current={active ? "step" : undefined}
-                  className={`relative w-full overflow-hidden rounded-xl p-4 text-start transition-colors ${active ? "surface" : "hover:bg-white/[0.03]"}`}
+                  className={`relative grid w-full grid-cols-[1.75rem_minmax(0,1fr)] px-2 py-4 text-start transition-colors ${active ? "" : "hover:bg-ink-soft"}`}
                 >
-                  <span className={`block font-medium ${active ? "text-fg" : "text-fg-muted"}`}>{s.title}</span>
-                  <span className={`mt-1 block text-sm ${active ? "text-fg-muted" : "text-fg-dim"}`}>{s.body}</span>
+                  {active && (
+                    <motion.span
+                      layoutId="tour-step"
+                      aria-hidden="true"
+                      className="absolute inset-0 -z-10 bg-ink-card"
+                      transition={reduce ? { duration: 0 } : { type: "spring", bounce: 0.12, visualDuration: 0.4 }}
+                    />
+                  )}
+                  <span className={`lh-ref pt-0.5 text-[11px] ${active ? "text-iris" : "text-fg-dim"}`} dir="ltr">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="min-w-0">
+                    <span className={`block font-medium ${active ? "text-fg" : "text-fg-muted"}`}>{s.title}</span>
+                    <span className={`mt-1 block text-sm leading-relaxed ${active ? "text-fg-muted" : "text-fg-dim"}`}>{s.body}</span>
+                  </span>
                   {/* How long until the next screen — only while the tour plays. */}
                   {active && running && (
                     <motion.span
                       key={`${tab}-${step}`}
-                      className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-gradient-to-r from-iris to-violet rtl:origin-right"
+                      className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-iris rtl:origin-right"
                       initial={{ scaleX: 0 }}
                       animate={{ scaleX: 1 }}
                       transition={{ duration: STEP_MS / 1000, ease: "linear" }}
@@ -123,14 +145,14 @@ export function ProductTour({ locale }: { locale: string }) {
           })}
         </ol>
 
-        <div className="relative">
+        <div data-reveal="scale" style={{ "--d": "150ms" } as React.CSSProperties} className="relative">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={name}
-              initial={reduce ? false : { opacity: 0.001, y: 12, scale: 0.985 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduce ? undefined : { opacity: 0, y: -8, scale: 0.99 }}
-              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              initial={reduce ? false : { opacity: 0.001, y: 18, scale: 0.975, filter: "blur(10px)" }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+              exit={reduce ? undefined : { opacity: 0, y: -10, scale: 0.99, filter: "blur(6px)" }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             >
               <ScreenShot name={name} locale={locale} path={path} alt={`${tr.screens[name].title}. ${tr.screens[name].body}`} sizes="(min-width: 1024px) 700px, 100vw" />
             </motion.div>

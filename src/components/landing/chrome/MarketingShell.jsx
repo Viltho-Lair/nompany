@@ -3,11 +3,11 @@
 import { usePathname } from "next/navigation";
 import { dirFor } from "@/shared/locale";
 import { LandingLocaleProvider } from "@/components/landing/locale";
-import { AmbientBackground } from "@/components/landing/AmbientBackground";
 import { TopNav } from "@/components/landing/nav/TopNav";
 import { PointerProvider } from "@/components/landing/providers/PointerProvider";
 import { SiteFooter } from "./SiteFooter";
 import { AnalyticsConsent } from "./AnalyticsConsent";
+import { RevealObserver } from "./RevealObserver";
 
 /* ==================================================================
    ONE CHROME FOR EVERY PUBLIC PAGE.
@@ -34,7 +34,10 @@ export function MarketingShell({ locale = "en", children }) {
   const pathname = usePathname() || "";
   const isHome = pathname.replace(/\/$/, "") === `/${locale}`;
   return (
-    <div dir={dirFor(locale)} className="landing-page relative min-h-screen">
+    /* `letterhead` IS THE PUBLIC SITE'S WORLD (27/09/2026, globals.css): its
+       own palette, faces and sheets, scoped to this shell so the auth screens
+       and the questionnaire — which also wear `landing-page` — are untouched. */
+    <div dir={dirFor(locale)} className="landing-page letterhead relative min-h-screen">
       <LandingLocaleProvider locale={locale}>
         {/* THE CURSOR CONTEXT BELONGS TO THE CHROME, not to the home page.
             `usePointer` is deliberately safe to call outside its provider — it
@@ -48,7 +51,10 @@ export function MarketingShell({ locale = "en", children }) {
             provider moved to where the components that read it are. Every
             marketing route gets the drift the home page always had. */}
         <PointerProvider>
-          <AmbientBackground />
+          {/* NO AMBIENT LAYER. The drifting glow blobs and the perspective grid
+              were the dark-template world this site left on 27/09/2026; the
+              ground is plain paper (or carbon, at night) now. AuthShell still
+              draws them for the sign-in screens, which kept their look. */}
           <TopNav locale={locale} />
           {/* The nav is fixed, so the content needs its height back — except
               on the home page, where the hero sits under the nav by design.
@@ -62,6 +68,7 @@ export function MarketingShell({ locale = "en", children }) {
           {/* The ONLY place Google Analytics can load — marketing pages, after
               a yes. See shared/marketing/consent.ts. */}
           <AnalyticsConsent locale={locale} />
+          <RevealObserver />
         </PointerProvider>
       </LandingLocaleProvider>
     </div>
