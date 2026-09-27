@@ -1,7 +1,7 @@
 import { renderCard, size, contentType } from "@/lib/ogImage";
 
 export { size, contentType };
-export const alt = "nompany — run every department from one platform";
+export const alt = "nompany — run the whole company on one system";
 
 export default function OpengraphImage() {
   return renderCard();

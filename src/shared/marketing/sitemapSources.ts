@@ -1,8 +1,8 @@
 // WHICH SOURCE FILES DECIDE WHAT EACH PUBLIC PAGE SAYS.
 //
-// THE PATHS CARRY `(marketing)` AND THE URLS DO NOT. That is the route group:
+// THE PATHS CARRY `(site)` AND THE URLS DO NOT. That is the route group:
 // a parenthesised segment groups files without appearing in the address, so
-// `/platform` is served from `(marketing)/platform/page.js`. The keys here are
+// `/platform` is served from `(site)/platform/page.js`. The keys here are
 // URLs and the values are file paths, and they are deliberately not the same
 // shape — deriving one from the other would bake the group name into a URL.
 //
@@ -36,28 +36,61 @@ export const SITEMAP_SOURCES: Record<string, string[]> = {
     "src/shared/marketing/claims.ts",
   ],
   "/platform": [
-    "src/app/[locale]/(marketing)/platform/page.js",
+    "src/app/[locale]/(site)/platform/page.js",
+    "src/components/landing/site/pages/platform/PlatformBody.jsx",
     "src/shared/marketing/platform.ts",
     "src/shared/marketing/departments.ts",
   ],
-  "/pricing": ["src/app/[locale]/(marketing)/pricing/page.js"],
-  "/security": ["src/app/[locale]/(marketing)/security/page.js", "src/shared/marketing/security.ts"],
+  "/pricing": [
+    "src/app/[locale]/(site)/pricing/page.js",
+    "src/components/landing/pricing/PricingBoard.jsx",
+  ],
+  "/security": [
+    "src/app/[locale]/(site)/security/page.js",
+    "src/components/landing/site/pages/security/SecurityBody.jsx",
+    "src/shared/marketing/security.ts",
+  ],
   "/about": [
-    "src/app/[locale]/(marketing)/about/page.js",
+    "src/app/[locale]/(site)/about/page.js",
+    "src/components/landing/site/pages/about/AboutBody.jsx",
     "src/shared/marketing/about.ts",
     "src/shared/marketing/company.ts",
   ],
   "/contact": [
-    "src/app/[locale]/(marketing)/contact/page.js",
+    "src/app/[locale]/(site)/contact/page.js",
+    "src/components/landing/views/ContactView.js",
     "src/shared/marketing/contact.ts",
     "src/shared/marketing/enquiry.ts",
   ],
   "/customers": [
-    "src/app/[locale]/(marketing)/customers/page.js",
+    "src/app/[locale]/(site)/customers/page.js",
+    "src/components/landing/site/pages/customers/CustomersView.jsx",
     "src/shared/marketing/customers.ts",
     "src/shared/marketing/showcase.ts",
   ],
-  "/careers": ["src/app/[locale]/(marketing)/careers/page.js"],
-  "/terms": ["src/app/[locale]/terms/page.js", "src/lib/legalTerms.ts"],
-  "/privacy": ["src/app/[locale]/privacy/page.js", "src/lib/legalPrivacy.ts"],
+  "/careers": [
+    "src/app/[locale]/(site)/careers/page.js",
+    "src/components/landing/site/pages/careers/JobCard.jsx",
+  ],
+  // The index's STRUCTURE; its posts are rows, and each post is advertised in
+  // the sitemap with its own `updatedAt` (app/sitemap.js).
+  "/blog": [
+    "src/app/[locale]/(site)/blog/page.js",
+    "src/components/landing/site/pages/blog/BlogIndex.jsx",
+    "src/shared/marketing/blog.ts",
+  ],
+  "/terms": [
+    "src/app/[locale]/(site)/terms/page.js",
+    "src/components/landing/site/pages/legal/LegalPage.jsx",
+    "src/lib/legalTerms.ts",
+  ],
+  "/cookies": [
+    "src/app/[locale]/(site)/cookies/page.js",
+    "src/shared/marketing/cookies.ts",
+  ],
+  "/privacy": [
+    "src/app/[locale]/(site)/privacy/page.js",
+    "src/components/landing/site/pages/legal/LegalPage.jsx",
+    "src/lib/legalPrivacy.ts",
+  ],
 };

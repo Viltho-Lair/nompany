@@ -10,9 +10,12 @@ import { useDeviceHints } from "@/components/public/deviceHints";
 import { deviceEventReady } from "@/components/public/deviceIntel";
 import PasswordInput from "@/components/public/PasswordInput";
 import { PASSWORD_RULES, checkPassword, describeFailures } from "@/platform/auth/passwordPolicy";
+// The public site's dark-glass controls (27/09/2026): class strings only, so
+// every attribute below is this form's own.
+import { ERROR, FIELD, HINT, LABEL, LINK, PRIMARY, STEP, ruleClass, ruleDotClass } from "@/components/landing/site/pages/auth/ui";
 
-const input = "landing-field";
-const label = "landing-label";
+const input = FIELD;
+const label = LABEL;
 
 // Sign-up is OTP-first: the account is created, but no session exists until the
 // emailed code is entered — so an unproven address can never be signed in.
@@ -68,8 +71,10 @@ export default function SignupForm({ locale, dict, providers = [] }) {
 
   if (stage === "otp") {
     return (
-      <div className="space-y-4">
-        {notice && <p className="text-sm text-amber-600 dark:text-amber-400">{notice}</p>}
+      // Keyed, so the step to the code crossfades rather than the card's
+      // contents being reused in place.
+      <div key="otp" className={`${STEP} space-y-4`}>
+        {notice && <p className="text-[13px] leading-relaxed text-amber-200">{notice}</p>}
         <OtpStep
           email={form.email}
           submitLabel={tr.confirmEmail}
@@ -80,7 +85,7 @@ export default function SignupForm({ locale, dict, providers = [] }) {
   }
 
   return (
-    <div className="space-y-5">
+    <div key="details" className={`${STEP} space-y-5`}>
       <SocialButtons providers={providers} mode="signup" />
       <form onSubmit={onSubmit} className="space-y-4">
       <div>
@@ -90,7 +95,7 @@ export default function SignupForm({ locale, dict, providers = [] }) {
       <div>
         <label className={label} htmlFor="email">{t.emailLabel || "Email"}</label>
         <input id="email" type="email" className={input} value={form.email} onChange={set("email")} autoComplete="email" required />
-        <p className="mt-1 text-xs text-fg-muted">{tr.capitalsFineStoreMatch}</p>
+        <p className={`mt-2 ${HINT}`}>{tr.capitalsFineStoreMatch}</p>
       </div>
       <PasswordInput
         id="password"
@@ -101,13 +106,13 @@ export default function SignupForm({ locale, dict, providers = [] }) {
         onChange={set("password")}
         autoComplete="new-password"
       >
-        <ul className="mt-2 space-y-1">
+        <ul className="mt-2.5 space-y-1.5">
           {PASSWORD_RULES.map((rule) => {
             const met = rule.test(form.password);
             const idle = form.password.length === 0;
             return (
-              <li key={rule.key} className={`flex items-center gap-2 text-xs ${idle ? "text-fg-muted" : met ? "text-emerald-600 dark:text-emerald-400" : "text-fg-muted"}`}>
-                <span aria-hidden="true" className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-700 ${met ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-line text-fg-dim"}`}>
+              <li key={rule.key} className={ruleClass(met, idle)}>
+                <span aria-hidden="true" className={ruleDotClass(met)}>
                   {met ? "✓" : "•"}
                 </span>
                 {rule.label}
@@ -121,25 +126,27 @@ export default function SignupForm({ locale, dict, providers = [] }) {
           id="confirm"
           labelText={tr.confirmPassword}
           labelClassName={label}
-          className={`${input} ${mismatch ? "border-danger focus:border-danger focus:ring-danger/20" : ""}`}
+          // A mismatch is drawn from `aria-invalid` (FIELD's rose ring), which
+          // `ariaInvalid` below already sets.
+          className={input}
           value={form.confirm}
           onChange={set("confirm")}
           autoComplete="new-password"
           ariaInvalid={mismatch}
         />
-        {mismatch && <p className="mt-1 text-xs text-danger">{tr.twoPasswordsMatch}</p>}
+        {mismatch && <p className={`mt-2 ${ERROR}`}>{tr.twoPasswordsMatch}</p>}
       </div>
-      {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+      {error && <p className={ERROR} role="alert">{error}</p>}
       <button
         type="submit"
         disabled={loading || !canSubmit}
-        className="landing-submit"
+        className={`${PRIMARY} w-full`}
       >
         {loading ? tr.creating : (t.signupCta || "Create account")}
       </button>
-      <p className="pt-2 text-center text-sm text-fg-muted">
+      <p className={`pt-1 text-center ${HINT}`}>
         {t.haveAccount || "Already have an account?"}{" "}
-        <Link href={`/${locale}/login`} className="font-600 text-iris-bright hover:underline">
+        <Link href={`/${locale}/login`} className={LINK}>
           {t.loginLink || "Sign in"}
         </Link>
       </p>

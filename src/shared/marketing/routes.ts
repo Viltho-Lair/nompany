@@ -21,8 +21,10 @@
 // entry here, or an entry with no page behind it, fails rather than renders
 // wrong.
 
-/** Locale-relative paths whose page renders `MarketingShell`. */
-export const SHELL_PATHS = ["/platform", "/pricing", "/security", "/about", "/contact", "/customers"] as const;
+/** Locale-relative paths whose page lives in the `(site)` route group and so
+ *  renders inside SiteShell. (It was `MarketingShell` until 27/09/2026, when
+ *  every public page moved to the new design; terms and privacy joined then.) */
+export const SHELL_PATHS = ["/platform", "/pricing", "/security", "/about", "/contact", "/customers", "/terms", "/privacy", "/cookies"] as const;
 
 /**
  * Locale-relative prefixes whose whole family renders `MarketingShell`.
@@ -32,7 +34,7 @@ export const SHELL_PATHS = ["/platform", "/pricing", "/security", "/about", "/co
  * from a job board, often before they have seen anything else of the company,
  * so it is the worst one to leave wearing another site's chrome.
  */
-export const SHELL_PREFIXES = ["/careers"] as const;
+export const SHELL_PREFIXES = ["/careers", "/blog"] as const;
 
 /**
  * The auth screens. They do NOT render `MarketingShell` — they have their own

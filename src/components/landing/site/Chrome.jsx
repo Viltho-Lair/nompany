@@ -190,6 +190,7 @@ export function SiteNav() {
               options={langOptions}
               label={tr.language}
               align="end"
+              tone="site"
               triggerClass="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] text-white/60 transition-colors hover:text-white"
             />
           </div>

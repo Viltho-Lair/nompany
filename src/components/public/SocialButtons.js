@@ -1,6 +1,8 @@
 
 import { useAccountLocale } from "@/components/public/locale";
-import { accountDict } from "@/shared/account";// Google / Microsoft sign-in buttons. Plain links — the whole flow is a
+import { accountDict } from "@/shared/account";
+import { GHOST } from "@/components/landing/site/pages/auth/ui";
+// Google / Microsoft sign-in buttons. Plain links — the whole flow is a
 // server-side redirect, so there's nothing to hydrate or fetch.
 // Renders nothing when neither provider is configured.
 
@@ -29,14 +31,17 @@ export default function SocialButtons({ providers = [], mode = "login" }) {
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-2.5 sm:grid-cols-2">
+      {/* One column: the card is 440px at most, and "Continue with Microsoft"
+          does not fit a pill half that wide without wrapping. */}
+      <div className="grid gap-2.5">
         {providers.map((p) => {
           const Mark = MARKS[p];
           return (
             <a
               key={p}
               href={`/api/auth/oauth/${p}/start`}
-              className="landing-secondary"
+              // Glass pills, as the public site's secondary calls to action (27/09/2026).
+              className={`${GHOST} w-full px-4 text-[14px]`}
             >
               {Mark ? <Mark /> : null}
               {verb} with {LABELS[p] || p}
@@ -45,9 +50,9 @@ export default function SocialButtons({ providers = [], mode = "login" }) {
         })}
       </div>
       <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-line" />
-        <span className="text-xs font-600 uppercase tracking-wide text-fg-dim">or</span>
-        <span className="h-px flex-1 bg-line" />
+        <span className="h-px flex-1 bg-white/10" />
+        <span className="text-[12px] font-medium uppercase tracking-[0.14em] text-[#8f8f9c]">or</span>
+        <span className="h-px flex-1 bg-white/10" />
       </div>
     </div>
   );

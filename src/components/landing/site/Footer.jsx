@@ -9,6 +9,8 @@ import { ANALYTICS_HOSTS, consentCopy } from "@/shared/marketing/consent";
 import { chromeCopy } from "@/shared/marketing/chrome";
 import { heroCopy } from "@/shared/marketing/hero";
 import { homeCopy } from "@/shared/marketing/home";
+import { blogCopy } from "@/shared/marketing/blog";
+import { cookiesCopy } from "@/shared/marketing/cookies";
 import { Forward } from "./Chrome";
 import { useSite } from "./locale";
 import { ShaderField } from "./ShaderField";
@@ -55,9 +57,11 @@ export function CurtainFooter() {
     ],
     [
       { href: `/${locale}/about`, label: nav.about },
+      { href: `/${locale}/blog`, label: blogCopy(locale).title },
       { href: `/${locale}/careers`, label: nav.careers },
       { href: `/${locale}/terms`, label: nav.terms },
       { href: `/${locale}/privacy`, label: nav.privacy },
+      { href: `/${locale}/cookies`, label: cookiesCopy(locale).title },
     ],
   ];
 

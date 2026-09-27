@@ -136,6 +136,27 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
         "الشركات التي طلبت أن تذكر هنا. كل واحدة فعلت الإعداد بنفسها، ولم نضف أيا منها من عندنا.",
     },
   },
+  "/cookies": {
+    en: {
+      title: "Cookie policy",
+      description: "Which cookies nompany sets, why, and for how long: the ones the site needs, and analytics you can refuse.",
+    },
+    ar: {
+      title: "سياسة ملفات تعريف الارتباط",
+      description: "ما ملفات تعريف الارتباط التي تضعها نومباني، ولماذا، وإلى متى: ما يحتاجه الموقع، والتحليلات التي يمكنك رفضها.",
+    },
+  },
+  "/blog": {
+    en: {
+      title: "Blog",
+      description:
+        "News from nompany, what we have added to the product, and the events we have taken part in.",
+    },
+    ar: {
+      title: "المدونة",
+      description: "أخبار نومباني، وما أضفناه إلى المنتج، والفعاليات التي شاركنا فيها.",
+    },
+  },
   "/careers": {
     en: {
       title: "Careers",
@@ -216,7 +237,7 @@ export const OG_IMAGE_SIZE = { width: 1200, height: 630 };
 // the file convention contributed from the parent segment, image included.
 // Naming the image here is what survives that merge.
 export function shareImagesFor(locale: string) {
-  const alt = "nompany — run every department from one platform";
+  const alt = "nompany — run the whole company on one system";
   return {
     og: [{ url: urlFor(locale, "/opengraph-image"), ...OG_IMAGE_SIZE, alt, type: "image/png" }],
     twitter: [{ url: urlFor(locale, "/twitter-image"), ...OG_IMAGE_SIZE, alt }],
@@ -481,7 +502,38 @@ export function jobPostingLd(job: Record<string, string>, settings: unknown, loc
       },
     },
     industry: "Enterprise Software (ERP / SaaS)",
-    datePosted: new Date().toISOString().slice(0, 10),
+    // WHEN IT WAS POSTED, not when the page was read: "today" on every request
+    // told a crawler every opening was brand new, every day. Rows written
+    // before the console existed carry no date and keep the old answer.
+    datePosted: (job.createdAt || new Date().toISOString()).slice(0, 10),
+  };
+}
+
+// BlogPosting for one post on nompany's blog (27/09/2026). A post is in ONE
+// language, so its URL is its only address — no hreflang alternate — and
+// `inLanguage` says which. The image is the post's own cover when it has one.
+export function blogPostingLd(post: {
+  locale: string; slug: string; title: string; excerpt: string; cover: string;
+  publishedAt: string; updatedAt: string; author: string;
+}) {
+  const url = urlFor(post.locale, `/blog/${encodeURIComponent(post.slug)}`);
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.excerpt,
+    inLanguage: post.locale,
+    url,
+    mainEntityOfPage: url,
+    datePublished: post.publishedAt,
+    dateModified: post.updatedAt || post.publishedAt,
+    image: post.cover ? `${SITE_URL}${post.cover}` : `${SITE_URL}/brand/logo-full.png`,
+    author: { "@type": "Organization", name: "nompany", url: SITE_URL },
+    publisher: {
+      "@type": "Organization",
+      name: "nompany",
+      logo: { "@type": "ImageObject", url: `${SITE_URL}/brand/logo-full.png` },
+    },
   };
 }
 

@@ -2,6 +2,7 @@ import { locales } from "@/shared/i18n";
 import { urlFor, alternatesFor } from "@/lib/seo";
 import { listStudios } from "@/modules/main/studios";
 import { publicCompanies } from "@/shared/marketing/showcase";
+import { livePosts } from "@/lib/data/blog";
 import lastmod from "./sitemap-lastmod.json";
 
 /* THE SITEMAP, AND ITS DATES ARE DERIVED NOW.
@@ -75,6 +76,26 @@ export default async function sitemap() {
         alternates: { languages: alternatesFor(path) },
       });
     }
+  }
+
+  // EACH BLOG POST, at its one address, dated by its own last edit. A post is in
+  // one language, so it carries no alternates — pointing /en at an /ar post
+  // would tell a crawler they are translations, and they are not. Read like the
+  // customers gate above: a store that cannot be reached costs the posts, never
+  // the sitemap.
+  try {
+    for (const locale of locales) {
+      for (const post of await livePosts(locale)) {
+        entries.push({
+          url: urlFor(locale, `/blog/${encodeURIComponent(post.slug)}`),
+          lastModified: new Date(post.updatedAt || post.publishedAt),
+          changeFrequency: "monthly",
+          priority: 0.6,
+        });
+      }
+    }
+  } catch {
+    // No posts in the sitemap this time; the index page is still listed.
   }
   return entries;
 }

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { securityDict } from "@/shared/security";
+// The public site's dark glass (27/09/2026): class strings only.
+import { CHECKBOX, CODE_BOX, ERROR, HINT, PRIMARY, STEP_TITLE, TEXT_BUTTON } from "@/components/landing/site/pages/auth/ui";
 
 // THE AUTHENTICATOR STEP OF A SIGN-IN (platform/auth/twoFactor.ts): the app's
 // six digits, or a recovery code. It finishes the paused sign-in the HttpOnly
@@ -34,8 +36,8 @@ export default function TwoFactorStep({ onDone, onRestart }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <h2 className="font-display text-lg font-700 text-fg">{t.twoFactorStepTitle}</h2>
-        <p className="mt-1 text-sm text-fg-muted">{t.twoFactorStepBody}</p>
+        <h2 className={STEP_TITLE}>{t.twoFactorStepTitle}</h2>
+        <p className={`mt-2 ${HINT}`}>{t.twoFactorStepBody}</p>
       </div>
       <input
         value={code}
@@ -47,16 +49,16 @@ export default function TwoFactorStep({ onDone, onRestart }) {
         dir="ltr"
         aria-label={t.appCode}
         disabled={busy}
-        className="h-14 w-full rounded-xl border border-line bg-ink-soft/60 text-center font-display text-2xl font-700 tracking-[0.3em] text-fg focus:border-iris focus:outline-none focus:ring-2 focus:ring-iris/25"
+        className={`${CODE_BOX} tracking-[0.3em]`}
       />
-      <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
-        <input type="checkbox" checked={trust} onChange={(e) => setTrust(e.target.checked)} className="h-4 w-4 cursor-pointer accent-iris" />
+      <label className={`flex cursor-pointer items-center gap-2 ${HINT}`}>
+        <input type="checkbox" checked={trust} onChange={(e) => setTrust(e.target.checked)} className={CHECKBOX} />
         {t.trustDevice}
       </label>
-      {error && <p className="text-sm text-danger" role="alert">{error}</p>}
-      <div className="flex items-center justify-between gap-3">
-        <button type="submit" disabled={busy || !code.trim()} className="landing-submit w-auto">{busy ? t.unlocking : t.verify}</button>
-        <button type="button" onClick={onRestart} className="landing-link text-sm">{t.cancel}</button>
+      {error && <p className={ERROR} role="alert">{error}</p>}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button type="submit" disabled={busy || !code.trim()} className={PRIMARY}>{busy ? t.unlocking : t.verify}</button>
+        <button type="button" onClick={onRestart} className={`${TEXT_BUTTON} px-1 py-2`}>{t.cancel}</button>
       </div>
     </form>
   );

@@ -5,15 +5,18 @@ import { useAccountLocale } from "@/components/public/locale";
 import { accountDict, tooManyAttemptsIn } from "@/shared/account";
 import Link from "next/link";
 import { PASSWORD_RULES, checkPassword, describeFailures } from "@/platform/auth/passwordPolicy";
+import { ERROR, FIELD, HINT, LABEL, LINK, PRIMARY, STEP, STEP_TITLE, TEXT_BUTTON, ruleClass, ruleDotClass } from "@/components/landing/site/pages/auth/ui";
 
 // Password recovery in two stages on one page: ask for the address, then enter
 // the emailed code with a new password. Stage 2 keeps the email editable so the
 // code can be redeemed on a different device from the one that requested it.
 
-const input = "landing-field";
-const label = "landing-label";
-const primary =
-  "w-full landing-submit w-auto";
+// The public site's dark-glass controls (27/09/2026): class strings only, so
+// every attribute below is this flow's own. Each stage is KEYED so moving
+// between them crossfades rather than reusing the form in place.
+const input = FIELD;
+const label = LABEL;
+const primary = `${PRIMARY} w-full`;
 
 export default function ForgotFlow({ locale, initialEmail = "" }) {
   const tr = accountDict(useAccountLocale());
@@ -82,25 +85,25 @@ export default function ForgotFlow({ locale, initialEmail = "" }) {
 
   if (done) {
     return (
-      <div className="space-y-5 text-center">
-        <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-2xl text-emerald-600 dark:text-emerald-400">✓</div>
+      <div key="done" className={`${STEP} space-y-6 text-center`}>
+        <div className="mx-auto inline-flex size-12 items-center justify-center rounded-full bg-emerald-400/10 text-2xl text-emerald-300 ring-1 ring-inset ring-emerald-300/25">✓</div>
         <div>
-          <h2 className="font-display text-xl font-800 text-fg">{tr.passwordUpdated}</h2>
-          <p className="mt-2 text-sm text-fg-muted">
+          <h2 className={STEP_TITLE}>{tr.passwordUpdated}</h2>
+          <p className={`mt-2 ${HINT}`}>
             {tr.signedOutEverywhereSafety}
           </p>
         </div>
-        <Link href={`/${locale}/login`} className={`${primary} inline-block`}>{tr.goSign}</Link>
+        <Link href={`/${locale}/login`} className={primary}>{tr.goSign}</Link>
       </div>
     );
   }
 
   if (stage === "request") {
     return (
-      <form onSubmit={request} className="space-y-4">
+      <form key="request" onSubmit={request} className={`${STEP} space-y-5`}>
         <div>
-          <h2 className="font-display text-xl font-800 text-fg">{tr.resetPassword}</h2>
-          <p className="mt-2 text-sm text-fg-muted">
+          <h2 className={STEP_TITLE}>{tr.resetPassword}</h2>
+          <p className={`mt-2 ${HINT}`}>
             {tr.enterEmailSendCode}
           </p>
         </div>
@@ -108,12 +111,12 @@ export default function ForgotFlow({ locale, initialEmail = "" }) {
           <label className={label} htmlFor="email">{tr.email}</label>
           <input id="email" type="email" className={input} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
         </div>
-        {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+        {error && <p className={ERROR} role="alert">{error}</p>}
         <button type="submit" disabled={busy || !email} className={primary}>{busy ? tr.sending : tr.sendCode}</button>
-        <p className="pt-1 text-center text-sm text-fg-muted">
-          {tr.rememberedIt} <Link href={`/${locale}/login`} className="font-600 text-iris-bright hover:underline">{tr.sign}</Link>
+        <p className={`pt-1 text-center ${HINT}`}>
+          {tr.rememberedIt} <Link href={`/${locale}/login`} className={LINK}>{tr.sign}</Link>
         </p>
-        <button type="button" onClick={() => setStage("reset")} className="w-full text-center text-sm font-600 text-fg-muted hover:underline">
+        <button type="button" onClick={() => setStage("reset")} className={`${TEXT_BUTTON} w-full text-center`}>
           {tr.alreadyHaveCode}
         </button>
       </form>
@@ -121,11 +124,11 @@ export default function ForgotFlow({ locale, initialEmail = "" }) {
   }
 
   return (
-    <form onSubmit={reset} className="space-y-4">
+    <form key="reset" onSubmit={reset} className={`${STEP} space-y-5`}>
       <div>
-        <h2 className="font-display text-xl font-800 text-fg">{tr.enterCode}</h2>
-        <p className="mt-2 text-sm text-fg-muted">
-          {tr.ifAddress} <span className="font-600 break-all">{email || tr.thatAddress}</span> {tr.codeOnWayExpires}
+        <h2 className={STEP_TITLE}>{tr.enterCode}</h2>
+        <p className={`mt-2 ${HINT}`}>
+          {tr.ifAddress} <span className="break-all font-medium text-[#ececf1]">{email || tr.thatAddress}</span> {tr.codeOnWayExpires}
         </p>
       </div>
 
@@ -136,7 +139,7 @@ export default function ForgotFlow({ locale, initialEmail = "" }) {
       <div>
         <label className={label} htmlFor="code">6-digit code</label>
         <input
-          id="code" ref={codeRef} className={`${input} font-mono tracking-[0.3em]`} value={code}
+          id="code" ref={codeRef} dir="ltr" className={`${input} text-center font-mono tracking-[0.3em]`} value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           inputMode="numeric" autoComplete="one-time-code" placeholder="••••••" required
         />
@@ -144,12 +147,12 @@ export default function ForgotFlow({ locale, initialEmail = "" }) {
       <div>
         <label className={label} htmlFor="new-password">{tr.newPassword}</label>
         <input id="new-password" type="password" className={input} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required />
-        <ul className="mt-2 space-y-1">
+        <ul className="mt-2.5 space-y-1.5">
           {PASSWORD_RULES.map((rule) => {
             const met = rule.test(password);
             return (
-              <li key={rule.key} className={`flex items-center gap-2 text-xs ${met ? "text-emerald-600 dark:text-emerald-400" : "text-fg-muted"}`}>
-                <span aria-hidden="true" className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-700 ${met ? "bg-emerald-500/15" : "bg-line"}`}>
+              <li key={rule.key} className={ruleClass(met)}>
+                <span aria-hidden="true" className={ruleDotClass(met)}>
                   {met ? "✓" : "•"}
                 </span>
                 {rule.label}
@@ -162,15 +165,15 @@ export default function ForgotFlow({ locale, initialEmail = "" }) {
         <label className={label} htmlFor="confirm">{tr.confirmNewPassword}</label>
         <input
           id="confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)}
-          className={`${input} ${mismatch ? "border-danger focus:border-danger focus:ring-danger/20" : ""}`}
+          className={input}
           autoComplete="new-password" aria-invalid={mismatch || undefined} required
         />
-        {mismatch && <p className="mt-1 text-xs text-danger">{tr.twoPasswordsMatch}</p>}
+        {mismatch && <p className={`mt-2 ${ERROR}`}>{tr.twoPasswordsMatch}</p>}
       </div>
 
-      {error && <p className="text-sm text-danger" role="alert">{error}</p>}
+      {error && <p className={ERROR} role="alert">{error}</p>}
       <button type="submit" disabled={busy || !canReset} className={primary}>{busy ? tr.updating : tr.setNewPassword}</button>
-      <button type="button" onClick={() => { setStage("request"); setError(""); }} className="w-full text-center text-sm font-600 text-fg-muted hover:underline">
+      <button type="button" onClick={() => { setStage("request"); setError(""); }} className={`${TEXT_BUTTON} w-full text-center`}>
         {tr.sendCodeAgain}
       </button>
     </form>

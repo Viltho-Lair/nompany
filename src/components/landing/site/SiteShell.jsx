@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import { AnalyticsConsent } from "@/components/landing/chrome/AnalyticsConsent";
+import { LandingLocaleProvider } from "@/components/landing/locale";
 import { dirFor } from "@/shared/locale";
 import { Grain, INTRO_KEY, Intro, SiteNav, Thread } from "./Chrome";
 import { CurtainFooter } from "./Footer";
@@ -74,7 +75,13 @@ export function SiteShell({ locale, children }) {
         <AnimatePresence>{ready ? null : <Intro key="intro" onDone={finish} />}</AnimatePresence>
         <SiteNav />
         <Thread />
-        <main className="relative z-10 bg-[#07070a]">{children}</main>
+        {/* A <div>, not a <main>: [locale]/layout.js already gives every page the
+            one main landmark a document may have. The landing locale provider
+            is kept for the client components that read useLandingLocale (the
+            pricing board, the contact form); SiteProvider is the site's own. */}
+        <LandingLocaleProvider locale={locale}>
+          <div className="relative z-10 bg-[#07070a]">{children}</div>
+        </LandingLocaleProvider>
         <CurtainFooter />
         <Grain />
         <AnalyticsConsent locale={locale} />

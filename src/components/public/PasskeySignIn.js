@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { securityDict } from "@/shared/security";
+// The public site's glass pill (27/09/2026): class strings only.
+import { ERROR, GHOST } from "@/components/landing/site/pages/auth/ui";
 
 // "SIGN IN WITH A PASSKEY" (platform/auth/passkeys.ts). Nothing is typed: the
 // browser offers this site's passkeys, the person unlocks one, and the server
@@ -46,7 +48,7 @@ export default function PasskeySignIn({ onDone }) {
   return (
     <div className="space-y-2">
       <button type="button" onClick={signIn} disabled={busy}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-line text-sm font-600 text-fg transition-colors hover:border-fg-dim disabled:opacity-60">
+        className={`${GHOST} w-full px-4 text-[14px]`}>
         <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="9" cy="8" r="4" />
           <path d="M3 21v-1a6 6 0 0 1 9.5-4.9" />
@@ -55,7 +57,7 @@ export default function PasskeySignIn({ onDone }) {
         </svg>
         {t.passkeySignIn}
       </button>
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      {error && <p role="alert" className={ERROR}>{error}</p>}
     </div>
   );
 }

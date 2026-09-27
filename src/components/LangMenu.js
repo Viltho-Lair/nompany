@@ -49,7 +49,12 @@ export default function LangMenu({
   triggerClass = TRIGGER,
   align = "end", // "end" | "start" — which edge the dropdown aligns to
   direction = "down", // "down" | "up" — which way the dropdown opens
+  // "product" (the account hub and studios, light or dark) or "site" (the
+  // public site's dark glass and single accent, 27/09/2026). Only the panel
+  // differs; the behaviour, the cookie and the full-load anchors do not.
+  tone = "product",
 }) {
+  const site = tone === "site";
   const cur = options.find((o) => o.code === current) || options[0];
   const choose = (o) => { rememberLocale(o.code); o.onSelect?.(); };
   const panelPos =
@@ -71,10 +76,20 @@ export default function LangMenu({
       <div
         className={`invisible absolute z-50 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${edge} ${panelPos}`}
       >
-        <div className="min-w-[150px] overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-[#20202c]">
+        <div
+          className={
+            site
+              ? "min-w-[160px] overflow-hidden rounded-2xl bg-[#101018]/95 p-1 ring-1 ring-inset ring-white/10 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl"
+              : "min-w-[150px] overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-[#20202c]"
+          }
+        >
           {options.map((o) => {
             const active = o.code === current;
-            const cls = `flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-start text-sm font-600 normal-case tracking-normal transition-colors ${
+            const cls = site
+              ? `flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-start text-[14px] font-medium normal-case tracking-normal transition-colors ${
+                  active ? "bg-[#8b7cff]/15 text-[#c9c2ff]" : "text-white/70 hover:bg-white/[0.06] hover:text-white"
+                }`
+              : `flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-start text-sm font-600 normal-case tracking-normal transition-colors ${
               active
                 ? "bg-brand-500/10 text-brand-700 dark:bg-brand-500/20 dark:text-brand-300"
                 : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"

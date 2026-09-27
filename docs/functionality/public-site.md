@@ -1,8 +1,9 @@
 # The public site
 
 The pages anybody can open without signing in, at `/en/…` and `/ar/…`: home, platform,
-pricing, customers, security, about, contact, careers, terms and privacy. Being rebuilt in a
-new design on the owner's instruction (27/09/2026), one page at a time.
+pricing, customers, security, about, contact, careers, the blog, terms and privacy. Rebuilt
+in a new design on the owner's instruction (27/09/2026); every public page is in it, and the
+sign-in screens match it.
 
 ## How it is put together
 
@@ -10,8 +11,10 @@ new design on the owner's instruction (27/09/2026), one page at a time.
   inside `SiteShell` (`src/components/landing/site/`): a floating glass header, a thread of
   light down the page's starting edge drawn by the scroll, a curtain footer the page lifts off,
   film grain, and the analytics consent. The group is invisible in the address, so moving a
-  page into it changes no URL. Pages not yet moved still render inside `(marketing)`'s
-  `MarketingShell`.
+  page into it changes no URL. `(marketing)`, `MarketingShell`, `TopNav` and the old footer
+  are deleted; terms and privacy moved in from the account chrome. The sign-in, sign-up and
+  forgot-password screens stay outside the group (their own narrow frame, `AuthShell` →
+  `site/pages/auth/AuthScene`) but share the look: a subdued shader field, a glass card.
 - **Dark only.** The root layout gives every marketing path the dark theme whatever the
   `theme` cookie says; the site offers no switch. The account hub and the studio keep their
   own switch and that cookie.
@@ -48,9 +51,41 @@ figures), every department (read from `SECTION_DEFS`, never typed), and where it
 - **The intro** plays on the home page once a session (1.2s), and not at all under reduced
   motion.
 
+## The other pages
+
+Each page's body is in `src/components/landing/site/pages/<page>/`, over the same data,
+copy, metadata and JSON-LD it always had. Shared by all of them: `PageHero` (the opening
+title and lead) and `Reveal` (a server-rendered block that arrives out of focus). The sitemap
+hashes each page's component files as well as its page and copy (`sitemapSources.ts`).
+
+The blog is its own file: `blog.md`; careers openings and applications: `careers.md`.
+
+## Cookies and consent
+
+- **The banner** (`landing/chrome/AnalyticsConsent.jsx`): Accept all and Reject all at equal
+  weight, and Manage preferences, which opens a panel with two categories — Strictly necessary
+  (always on) and Analytics. No Marketing category: nothing sets one. The choice is one cookie,
+  `analytics_consent` (`granted`/`denied`), so earlier answers carry over; refusing deletes
+  Google's cookies. Cookie settings in the footer reopens the panel.
+- **Google Analytics** loads only after a yes, only on the live host, and only COUNTS the pages
+  §9 of the privacy policy names (`ANALYTICS_PATHS` in `shared/marketing/consent.ts`): on the
+  blog, terms, privacy and cookie pages Google's own per-page switch turns it off. Widening the
+  list means widening that sentence of the policy; the suite holds the two together.
+- **`/cookies`** lists every cookie the code sets, with purpose, lifetime and kind, in both
+  languages (`shared/marketing/cookies.ts`); the suite checks the table against the cookie
+  constants in `platform/auth` and `consent.ts`. `?consent-preview` shows the banner on any
+  host in development, without ever loading the tag.
+- **The 404** (`site/NotFoundView.jsx`, used by both not-found files) and **the share image**
+  (`lib/ogImage.tsx`: the hero's headline and registered claims) are in the site's design.
+
 ## Not built yet
 
-- Platform, pricing, customers, security, about, contact, careers, terms and privacy are
-  still in the previous design, so moving between them and the home page changes the chrome.
-- The sign-in, sign-up and forgot-password screens have not been restyled.
-- The blog (`/blog`, posts written in `/super`, one language per post, with a cover image).
+- The privacy policy's cookie table (§9) is missing `nc_pend`, `nc_intent` and `theme`, which
+  the cookie page lists; and if analytics should also count the blog, §9's page list needs
+  widening first. Both are the owner's legal text.
+- The share image is English in both languages (the image renderer has no Arabic font loaded).
+- Some sign-in strings are still English on `/ar`: the `/forgot` subtitle and metadata title,
+  the code step's "We sent a 6-digit code…", "Resend in Ns", "6-digit code", and the social
+  buttons' "Continue with Google" and "or".
+- The `globals.css` rules of the old design (`.letterhead`, `lh-*`, `.auth-panel`,
+  `.landing-link`) are unused and not yet removed.

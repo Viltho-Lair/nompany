@@ -15,14 +15,14 @@ routes that happen to carry contract text.
 | `src/lib/legalPrivacy.ts` | `PRIVACY_META` + `PRIVACY_SECTIONS` — ten sections |
 | `src/lib/legalGoogleData.ts` | `GOOGLE_DATA_BLOCKS` — the Google API Services disclosure, imported by **both** |
 | `src/lib/legalBlocks.ts` | `LegalBlock` / `LegalSection` / `LegalMeta` — the authoring vocabulary |
-| `src/components/LegalDocument.js` | The chrome: hero, sticky table of contents, sections, contact card |
+| `src/components/landing/site/pages/legal/LegalPage.jsx` (+ `LegalToc.jsx`) | The page in the site's design (27/09/2026): hero, a sticky contents list with a scroll-spy mark on wide screens and a fold-out one on phones, sections, contact card. The English text is set left to right on `/ar` too. (`LegalDocument.js` was the old renderer and is deleted.) |
 | `legal/terms-and-conditions.md`, `legal/privacy-policy.md` | The signable mirrors. Change both halves in one commit |
 
 **The legal body is English only**, in both locales — §20.7 of the Terms makes the English
 text authoritative, so translating it would create a second text able to disagree with the
 one that governs. What *is* localized is the chrome: hero, labels, the note box, the contact
 card, from `dict.terms` / `dict.privacy` in `src/shared/i18n.ts`. The two dictionary slices
-have the same shape because `LegalDocument` takes either as its `copy` — a key added to one
+have the same shape because `LegalPage` takes either as its `copy` — a key added to one
 belongs in the other.
 
 ## Why there are two documents and not one

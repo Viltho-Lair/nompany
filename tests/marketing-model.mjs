@@ -490,7 +490,9 @@ ok("the locale tree was actually walked", allPages.length > 3, `${allPages.lengt
 // `/platform`. Comparing the raw path against SHELL_PATHS would fail on every
 // entry, and "fixing" that by putting `(marketing)` into the route list would
 // bake a folder name into an address.
-const GROUP = "/(marketing)";
+// THE GROUP IS `(site)` NOW (27/09/2026): every public page moved into the
+// new design's route group, and `(marketing)` went with MarketingShell.
+const GROUP = "/(site)";
 const shellPages = allPages
   .filter((p) => p.rel.startsWith(GROUP + "/"))
   .map((p) => p.rel.slice(GROUP.length));
@@ -534,11 +536,12 @@ ok("...and the home page does, at / and at /en and /ar",
 // A TRAILING SLASH IS THE SAME PAGE. The regex this replaced allowed one, and
 // dropping that would have flipped the theme on a link somebody pasted.
 ok("...and a trailing slash does not change the answer", isMarketingPath("/en/about/"));
-// AND THE ACCOUNT SURFACE IS STILL THE ACCOUNT SURFACE. Terms and privacy are
-// in the sitemap beside the marketing pages and are NOT on the shell, so
-// listing them would break them in the mirror-image way.
-ok("...and terms and privacy stay on the account theme",
-  !isMarketingPath("/en/terms") && !isMarketingPath("/en/privacy"));
+// TERMS AND PRIVACY JOINED THE SITE (27/09/2026). They wore the account
+// chrome while the public site had one of its own; they are in the sitemap
+// beside the marketing pages and render in the (site) group now, so they take
+// the site's dark theme — listed, or they would be dark chrome on light tokens.
+ok("...and terms and privacy are on the site too",
+  isMarketingPath("/en/terms") && isMarketingPath("/ar/privacy"));
 ok("...and a studio path is never marketing", !isMarketingPath("/en/account"));
 
 
@@ -721,7 +724,7 @@ ok("the Arabic platform copy carries no diacritics",
 
 console.log("\n== the footers claim nothing that is not true");
 
-const landingFooter = readFileSync("src/components/landing/chrome/SiteFooter.jsx", "utf8");
+const landingFooter = readFileSync("src/components/landing/site/Footer.jsx", "utf8");
 const footerCode = stripComments(landingFooter);
 
 // A DUTCH LEGAL ENTITY, ON EVERY PAGE, for a company that is not incorporated
@@ -821,6 +824,8 @@ console.log("\n== no Arabic copy carries a diacritic");
 const COPY_MODULES = {
   hero: (m) => m.heroCopy,
   home: (m) => m.homeCopy,
+  blog: (m) => m.blogCopy,
+  cookies: (m) => m.cookiesCopy,
   platform: (m) => m.platformCopy,
   security: (m) => m.securityCopy,
   about: (m) => m.aboutCopy,
@@ -836,6 +841,38 @@ for (const [name, pick] of Object.entries(COPY_MODULES)) {
   ok(`${name} Arabic carries no diacritic`, !DIACRITICS.test(ar),
     (ar.match(DIACRITICS) || []).join(""));
   ok(`${name} spells the brand one way`, !/Nompany/.test(ar) && !/Nompany/.test(JSON.stringify(fn("en"))));
+}
+
+console.log("\n== the cookie policy and the analytics scope say what the code does");
+
+// EVERY COOKIE THE CODE SETS IS ON THE COOKIE PAGE. The names are read from
+// the constants that set them, so a cookie added in code without a row here
+// fails rather than leaving the policy saying less than the site does.
+{
+  const COOK = await import("@/shared/marketing/cookies");
+  const IDN = await import("@/platform/auth/identity");
+  const OA = await import("@/platform/auth/oauth");
+  const PI = await import("@/platform/auth/purchaseIntent");
+  const AC = await import("@/platform/auth/authConstants");
+  const CS = await import("@/shared/marketing/consent");
+  const set = [IDN.SESSION_COOKIE, IDN.OTP_COOKIE, IDN.DEVICE_COOKIE, IDN.PENDING_COOKIE, OA.OAUTH_STATE_COOKIE, PI.INTENT_COOKIE, AC.SUPER_COOKIE, CS.CONSENT_COOKIE, "lang", "theme"];
+  for (const locale of ["en", "ar"]) {
+    const names = COOK.cookiesCopy(locale).rows.map((r) => r.name);
+    const missing = set.filter((n) => !names.includes(n));
+    ok(`${locale} cookie policy lists every cookie the code sets`, missing.length === 0, missing.join(", "));
+    ok(`${locale} cookie policy lists Google's own`, names.some((n) => n.startsWith("_ga")));
+  }
+  // ANALYTICS RUNS ONLY WHERE THE PRIVACY POLICY SAYS. §9 names the pages in
+  // words; each page in ANALYTICS_PATHS must be one of them, and the blog,
+  // terms, privacy and cookie pages — inside the site shell but outside that
+  // sentence — must not be counted.
+  const PRIV = await import("@/lib/legalPrivacy");
+  const text = JSON.stringify(PRIV);
+  const WORD = { "": "home", "/platform": "platform", "/pricing": "pricing", "/security": "security", "/about": "about", "/contact": "contact", "/customers": "customers", "/careers": "careers" };
+  for (const p of CS.ANALYTICS_PATHS) ok(`analytics on "${p || "/"}" is named in the privacy policy`, Boolean(WORD[p]) && text.includes(WORD[p]));
+  ok("...and not on the blog, terms, privacy or cookie pages",
+    !["/en/blog", "/en/blog/x", "/en/terms", "/ar/privacy", "/en/cookies"].some((p) => CS.analyticsRunsOn(p)));
+  ok("...while a job posting counts as careers", CS.analyticsRunsOn("/ar/careers/job_1") && CS.analyticsRunsOn("/en"));
 }
 
 console.log("\n== an enquiry reaches the right mailbox");

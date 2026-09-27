@@ -64,6 +64,18 @@ export async function updateSiteRow(
   });
 }
 
+// REMOVE ONE ROW, under compare-and-set. Answers whether a row went, so a
+// caller can say "not found" rather than reporting a delete that did nothing.
+// Used by the console's careers screen (jobs and applications); a public form
+// never deletes.
+export async function deleteSiteRow(name: string, id: string) {
+  if (!COLLECTIONS.has(name)) throw new Error(`Unknown site collection: ${name}`);
+  return editArr(SITE.collection(name), (rows: Row[]) => {
+    const next = rows.filter((r) => r.id !== id);
+    return { next, result: next.length !== rows.length };
+  });
+}
+
 // Brand / contact / marketing copy for the public pages. Returns {} until the
 // owner console writes some — the pages fall back to lib/site.js + i18n.
 export async function getSiteSettings() {

@@ -63,6 +63,10 @@ export const ID = {
   role: () => makeId("rol"),
   media: () => makeId("med"),
   questionnaire: () => makeId("qst"),
+  // A post on nompany's own public blog (27/09/2026), in SITE.collection("blog").
+  post: () => makeId("pst"),
+  // A job opening on nompany's own careers page (27/09/2026), in SITE.collection("careers").
+  job: () => makeId("job"),
   package: () => makeId("pkg"),
   tier: () => makeId("tir"),
   priceRegion: () => makeId("rgn"),
@@ -1489,7 +1493,7 @@ export const RESERVED_SLUGS = new Set([
   "f",
   // the public site: built, retired, and reserved for later
   "about", "careers", "contact", "customers", "platform", "pricing", "privacy",
-  "security", "terms",
+  "security", "terms", "cookies",
   "clients", "features", "projects", "services", "vendors",
   "blog", "changelog", "docs", "help", "legal", "status", "support",
 ]);

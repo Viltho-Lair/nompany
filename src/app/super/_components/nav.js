@@ -79,6 +79,10 @@ export const CONSOLE_GROUPS = [
       { href: `${BASE}/calendar`, label: "Calendar", icon: "calendar" },
       { href: `${BASE}/broadcast`, label: "Broadcast", icon: "live" },
       { href: `${BASE}/questionnaires`, label: "Questionnaires", icon: "form" },
+      // nompany's own public blog (27/09/2026): posts written here, read at /<locale>/blog.
+      { href: `${BASE}/blog`, label: "Blog", icon: "book" },
+      // nompany's own openings and the applications to them (27/09/2026).
+      { href: `${BASE}/careers`, label: "Careers", icon: "briefcase" },
     ],
   },
 ];

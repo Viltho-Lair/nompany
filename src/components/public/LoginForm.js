@@ -13,13 +13,11 @@ import TillCashierSwitch from "@/components/security/TillCashierSwitch";
 import TwoFactorStep from "@/components/public/TwoFactorStep";
 import PasskeySignIn from "@/components/public/PasskeySignIn";
 import { securityDict, endedMessage } from "@/shared/security";
-// The landing's floating-label field — label lifts on focus, an iris→cyan
-// hairline draws under the active field, a mint tick confirms a valid one. It
-// lives in components/landing because it draws on `motion/react`; importing the
-// COMPONENT here is fine (the fence is on importing `motion/react` directly,
-// which this file does not — its own panel transition is the CSS keyframe
-// `.auth-panel` in globals.css, so the studio's motion rules are untouched).
-import { FloatingField } from "@/components/landing/ui/FloatingField";
+// The public site's dark-glass controls (27/09/2026). Class strings only — this
+// form keeps every attribute and handler of its own. The step crossfade is the
+// CSS keyframe `auth-step`, armed by the frame (site/pages/auth/AuthScene), so
+// nothing here imports `motion/react` and the studio's motion fence holds.
+import { CHECKBOX, FIELD, GHOST, HINT, LABEL, LINK, PRIMARY, STEP, TEXT_BUTTON } from "@/components/landing/site/pages/auth/ui";
 
 // The eye that reveals the password, sized to sit in the field's trailing
 // gutter. tabIndex -1 so a keyboard user tabbing out of the password lands on
@@ -33,7 +31,7 @@ function RevealEye({ shown, onToggle }) {
       onClick={onToggle}
       aria-label={shown ? tr.hidePassword : tr.showPassword}
       aria-pressed={shown}
-      className="flex h-9 w-9 items-center justify-center rounded-lg text-fg-dim transition-colors hover:text-fg"
+      className="flex h-10 w-10 items-center justify-center rounded-xl text-white/50 transition-colors duration-200 hover:text-white"
     >
       {shown ? (
         <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -61,10 +59,10 @@ function Alert({ kind, children }) {
   return (
     <div
       role="alert"
-      className={`auth-panel flex items-start gap-2.5 rounded-xl border px-3.5 py-3 text-sm ${
+      className={`${STEP} flex items-start gap-2.5 rounded-2xl px-4 py-3 text-[13.5px] leading-relaxed ring-1 ring-inset ${
         warn
-          ? "border-gold/40 bg-gold/10 text-gold"
-          : "border-rose-500/40 bg-rose-500/10 text-rose-300"
+          ? "bg-amber-400/[0.08] text-amber-200 ring-amber-300/25"
+          : "bg-rose-500/[0.08] text-rose-200 ring-rose-400/30"
       }`}
     >
       <svg viewBox="0 0 20 20" className="mt-px h-[18px] w-[18px] shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -203,7 +201,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
     const next = new URLSearchParams(window.location.search).get("next") || "";
     const safe = next.startsWith("/") && !next.startsWith("//") ? next : `/${locale}/account`;
     return (
-      <div key="locked" className="auth-panel flex justify-center">
+      <div key="locked" className={`${STEP} flex justify-center`}>
         <LockCover t={sec} locale={locale} inline onUnlocked={() => window.location.assign(safe)} />
       </div>
     );
@@ -211,7 +209,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
 
   if (stage === "totp") {
     return (
-      <div key="totp" className="auth-panel space-y-4">
+      <div key="totp" className={`${STEP} space-y-4`}>
         <TwoFactorStep
           onDone={() => window.location.assign(`/${locale}/questionnaire`)}
           onRestart={() => { setStage("credentials"); setLoading(false); }}
@@ -224,7 +222,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
     return (
       // `key` restarts the enter animation, so stepping to the code panel reads
       // as moving forward rather than the card's contents blinking over.
-      <div key="otp" className="auth-panel space-y-4">
+      <div key="otp" className={`${STEP} space-y-5`}>
         {notice && <Alert kind="wait">{notice}</Alert>}
         <OtpStep
           email={form.email}
@@ -234,7 +232,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         <button
           type="button"
           onClick={() => { setStage("credentials"); setLoading(false); }}
-          className="landing-link text-sm"
+          className={TEXT_BUTTON}
         >
           {tr.useDifferentAccount}
         </button>
@@ -244,7 +242,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
 
   if (tillMode) {
     return (
-      <div key="till" className="auth-panel space-y-5">
+      <div key="till" className={`${STEP} space-y-5`}>
         <TillCashierSwitch locale={locale}
           onDone={(slug) => window.location.assign(slug ? `/${slug}/pos-till` : `/${locale}/account`)}
           onCancel={() => setTillMode(false)} cancelLabel={sec.signInWithEmail}
@@ -254,40 +252,55 @@ export default function LoginForm({ locale, dict, providers = [] }) {
   }
 
   return (
-    <div key="credentials" className="auth-panel space-y-5">
+    <div key="credentials" className={`${STEP} space-y-5`}>
       <SocialButtons providers={providers} mode="login" />
       {/* A passkey is a whole sign-in: no password, no code. */}
       <PasskeySignIn onDone={() => window.location.assign(`/${locale}/questionnaire`)} />
       <form onSubmit={onSubmit} className="space-y-4">
-        <FloatingField
-          label={t.emailLabel || "Work email"}
-          type="email"
-          value={form.email}
-          onChange={(v) => setForm((f) => ({ ...f, email: v }))}
-          autoComplete="email"
-          required
-        />
-        <FloatingField
-          label={t.passwordLabel || "Password"}
-          type={showPw ? "text" : "password"}
-          value={form.password}
-          onChange={(v) => setForm((f) => ({ ...f, password: v }))}
-          autoComplete="current-password"
-          required
-          trailing={<RevealEye shown={showPw} onToggle={() => setShowPw((s) => !s)} />}
-        />
+        {/* Labels above their fields (they floated inside them until
+            27/09/2026). The ids only tie a label to its input; the request is
+            built from state, exactly as before. */}
+        <div>
+          <label className={LABEL} htmlFor="login-email">{t.emailLabel || "Work email"}</label>
+          <input
+            id="login-email"
+            type="email"
+            className={FIELD}
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            autoComplete="email"
+            required
+          />
+        </div>
+        <div>
+          <label className={LABEL} htmlFor="login-password">{t.passwordLabel || "Password"}</label>
+          <div className="relative">
+            <input
+              id="login-password"
+              type={showPw ? "text" : "password"}
+              className={`${FIELD} pe-12`}
+              value={form.password}
+              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              autoComplete="current-password"
+              required
+            />
+            <div className="absolute inset-y-0 end-1 flex items-center">
+              <RevealEye shown={showPw} onToggle={() => setShowPw((s) => !s)} />
+            </div>
+          </div>
+        </div>
 
-        <div className="flex items-center justify-between gap-3">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <label className={`flex cursor-pointer items-center gap-2 ${HINT}`}>
             <input
               type="checkbox"
               checked={form.remember}
               onChange={(e) => setForm((f) => ({ ...f, remember: e.target.checked }))}
-              className="h-4 w-4 cursor-pointer accent-iris"
+              className={CHECKBOX}
             />
             {t.rememberMe || "Keep me signed in"}
           </label>
-          <Link href={`/${locale}/forgot`} className="landing-link text-sm">
+          <Link href={`/${locale}/forgot`} className={`${LINK} text-[13px]`}>
             {t.forgotLink || "Forgot password?"}
           </Link>
         </div>
@@ -295,20 +308,20 @@ export default function LoginForm({ locale, dict, providers = [] }) {
         {error && <Alert kind={error.kind}>{error.message}</Alert>}
         {!error && notice && <Alert kind="wait">{notice}</Alert>}
 
-        <button type="submit" disabled={loading} className="landing-submit">
+        <button type="submit" disabled={loading} className={`${PRIMARY} w-full`}>
           {loading ? (t.loginLoading || "Signing in…") : (t.loginCta || "Sign in")}
         </button>
 
-        <p className="pt-1 text-center text-sm text-fg-muted">
+        <p className={`pt-1 text-center ${HINT}`}>
           {t.noAccount || "New to nompany?"}{" "}
-          <Link href={`/${locale}/signup`} className="landing-link">
+          <Link href={`/${locale}/signup`} className={LINK}>
             {t.signupLink || "Create an account"}
           </Link>
         </p>
       </form>
       {pairedStudio && (
         <button type="button" onClick={() => setTillMode(true)}
-          className="w-full rounded-full border border-slate-200 px-4 py-2.5 text-sm font-600 text-slate-700 transition-colors hover:border-slate-400 dark:border-white/15 dark:text-slate-200">
+          className={`${GHOST} w-full`}>
           {sec.useAsTill(pairedStudio)}
         </button>
       )}

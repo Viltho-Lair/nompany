@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useReducedMotion } from "motion/react";
+import { Check } from "lucide-react";
 import { useLandingLocale } from "@/components/landing/locale";
 import { landingDict } from "@/shared/landing";
-import { AnimatePresence, motion } from "motion/react";
 import { fmtCurrencyAmount } from "@/lib/pricing";
-import { EASE_OUT_EXPO, fadeUp, stagger, VIEWPORT } from "@/components/landing/lib/motion";
-import { MagneticButton } from "../ui/MagneticButton";
-import { SectionHeading } from "../ui/SectionHeading";
+import { Forward } from "@/components/landing/site/Chrome";
+import { CELL_IN, Cta, EASE, RISE_SMALL, SPRING, useInViewReveal } from "@/components/landing/site/primitives";
 
 /* ==================================================================
    Pricing — every card comes from Packages in /super.
@@ -41,6 +41,15 @@ import { SectionHeading } from "../ui/SectionHeading";
 
    Both languages come down together and the card picks by locale, so
    the Arabic site is not a second-class copy of the English one.
+
+   THE SITE'S DESIGN (27/09/2026). The board sits inside SiteShell and
+   draws with the home page's parts — the same glass cards, pills and
+   spotlight edge as the Bento, the same `Cta`. NOTHING IS HIDDEN BY
+   MOTION'S `initial`: every entrance is `useInViewReveal` (CSS hides
+   `[data-sm]` only once the boot script has armed motion), and the
+   price swap's `initial` is suppressed on first render by
+   `AnimatePresence initial={false}`, so the server HTML carries every
+   name and every figure at full opacity.
 ================================================================== */
 
 // The card's own words, keyed the way the card reads them. The dictionary is
@@ -71,6 +80,13 @@ const assurancesFor = (tr) => [
   { id: "free", title: tr.pvAs2Title, body: tr.pvAs2Body },
   { id: "yearly", title: tr.pvAs3Title, body: tr.pvAs3Body },
 ];
+
+// The home page's card, verbatim: a faint pane with an inset hairline.
+const PANE = "rounded-3xl bg-white/[0.025] ring-1 ring-inset ring-white/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]";
+// The recommended plan's light — the Bento pricing cell's accent, from the top.
+const POPULAR_TINT = "radial-gradient(120% 70% at 50% 0%, rgba(139,124,255,0.24), rgba(139,124,255,0) 62%)";
+const BAND_TINT = "radial-gradient(130% 120% at 0% 100%, rgba(139,124,255,0.42), rgba(76,60,190,0.14) 45%, rgba(139,124,255,0) 75%)";
+const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7cff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#07070a]";
 
 export function PricingBoard({ initial = null, locale = "en" }) {
   const tr = landingDict(useLandingLocale());
@@ -186,168 +202,117 @@ export function PricingBoard({ initial = null, locale = "en" }) {
   const ctaLabel = (plan) =>
     plan.type === "free" ? tr.startFree : plan.type === "premium" ? tr.contactSales : tr.pvGetStarted;
 
-  // EVERY CURRENCY, ONE TREATMENT. SAR used to be drawn here as a glyph while the
-  // other 165 showed their letters — one country's money given a courtesy no
-  // other gets, on the public pricing page of a product sold regionally and then
-  // globally. `components/Riyal` is deleted rather than left unused.
-  const Sym = ({ big = false }) => (
-    <span className={big ? "font-display text-lg font-600" : ""}>{currency}</span>
-  );
+  const eyebrow = useInViewReveal(0, RISE_SMALL);
+  const title = useInViewReveal(0.06);
+  const lead = useInViewReveal(0.12, RISE_SMALL);
+  const controls = useInViewReveal(0.18, RISE_SMALL, 0.1);
+  const tiersHead = useInViewReveal(0);
+  const band = useInViewReveal(0, CELL_IN, 0.2);
 
   return (
-    <section className="mx-auto max-w-7xl px-6 pb-24 pt-32 lg:pt-40">
-      {/* THE PAGE'S H1. This board is a route now, not a section of one,
-          so its heading is the document heading — it rendered with no h1 at
-          all until this was passed. */}
-      <SectionHeading as="h1" align="center" eyebrow={COPY.eyebrow} title={COPY.title} description={COPY.lead} />
+    <section className="relative px-6 pb-28 pt-36 md:px-10 md:pb-40 md:pt-44">
+      <div className="mx-auto max-w-[1280px]">
+        {/* THE PAGE'S H1. This board is a route now, not a section of one,
+            so its heading is the document heading — it rendered with no h1 at
+            all until this was passed. */}
+        <header className="max-w-[46rem]">
+          <motion.p
+            {...eyebrow}
+            className="inline-flex min-h-8 items-center rounded-full bg-white/[0.05] px-3.5 py-1.5 text-[13px] text-white/75 ring-1 ring-inset ring-white/10 backdrop-blur-md"
+          >
+            {COPY.eyebrow}
+          </motion.p>
+          <motion.h1
+            {...title}
+            className="mt-7 text-[2.6rem] font-medium leading-[1.05] tracking-[-0.035em] md:text-[4rem] rtl:leading-[1.25] rtl:tracking-normal"
+          >
+            {COPY.title}
+          </motion.h1>
+          <motion.p {...lead} className="mt-6 max-w-[56ch] text-[16px] leading-relaxed text-[#9d9dab] md:text-[17px]">
+            {COPY.lead}
+          </motion.p>
+        </header>
 
-      {/* Controls — whose prices these are + billing toggle. The sliding pill is a
-          shared layoutId, so it glides between states. */}
-      <motion.div
-        // Rise only — an entrance that starts at opacity 0 is written into the
-        // server-rendered style attribute and hides this row from anything that
-        // does not run JavaScript.
-        initial={{ y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.15, ease: EASE_OUT_EXPO }}
-        className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
-      >
-        {/* WHOSE PRICES THESE ARE, said rather than picked. A fallback list
-            (the visitor's region could not be priced today) says only its
-            currency, because naming a region the visitor is not in would be
-            the wrong claim. */}
-        <p className="text-xs text-fg-muted">
-          {live?.priced === "region" && !live?.region?.isDefault && regionName ? tr.pvPricesFor(regionName, currency) : tr.pvPricesFallback(currency)}
-        </p>
-        <div className="flex items-center gap-1 rounded-full border border-line bg-ink-soft/70 p-1">
-          {[
-            { id: "monthly", label: COPY.monthly },
-            { id: "yearly", label: COPY.yearly },
-          ].map((option) => {
-            const isActive = (option.id === "yearly") === yearly;
-            return (
-              <button
-                key={option.id}
-                onClick={() => setYearly(option.id === "yearly")}
-                className={`relative rounded-full px-4 py-2 text-xs font-500 transition-colors duration-300 sm:text-sm ${
-                  isActive ? "text-white" : "text-fg-muted hover:text-fg"
-                }`}
-              >
-                {isActive && (
-                  <motion.span
-                    layoutId="billing-pill"
-                    className="absolute inset-0 rounded-full bg-gradient-to-r from-iris to-violet"
-                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                  />
-                )}
-                <span className="relative z-10 inline-flex items-center gap-2">
-                  {option.label}
-                  {/* ONLY WHEN THERE IS A SAVING TO NAME. `discountPct` comes
-                      from the catalogue settings in /super, which default to
-                      zero — so this badge published "Save 0%" on both language
-                      versions of the pricing page: a nought dressed as an
-                      offer, and the same defect as the empty package card
-                      beside it. Nought off is not a discount, it is the absence
-                      of one, and the toggle says "Yearly" perfectly well alone.
-                      It was also hard-coded English on a bilingual site. */}
-                  {option.id === "yearly" && discountPct > 0 && (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[0.65rem] font-600 ${
-                        isActive ? "bg-white/20 text-white" : "bg-mint/15 text-mint"
-                      }`}
-                    >
-                      {tr.pvSave(discountPct)}
-                    </span>
-                  )}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </motion.div>
-
-      {/* Plans */}
-      <motion.div
-        variants={stagger(0.08, 0.1)}
-        initial="hidden"
-        animate="show"
-        className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
-      >
-        {loading && (
-          <p className="col-span-full py-12 text-center text-sm text-fg-dim">{tr.loadingPrices}</p>
-        )}
-        {!loading && cards.length === 0 && (
-          <p className="col-span-full py-12 text-center text-sm text-fg-dim">
-            {tr.pvNoPackages}
+        {/* Controls — whose prices these are + billing toggle. */}
+        <motion.div {...controls} className="mt-14 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {/* WHOSE PRICES THESE ARE, said rather than picked. A fallback list
+              (the visitor's region could not be priced today) says only its
+              currency, because naming a region the visitor is not in would be
+              the wrong claim. */}
+          <p className="text-[13px] text-white/55">
+            {live?.priced === "region" && !live?.region?.isDefault && regionName ? tr.pvPricesFor(regionName, currency) : tr.pvPricesFallback(currency)}
           </p>
-        )}
-        {cards.map((plan) => {
-          const bi = bandIdx[plan.key] ?? 0;
-          const band = plan.bands ? plan.bands[bi] : null;
-          // Every figure comes from /super. A compound package prices by its
-          // chosen category; free and premium show no number at all.
-          const bandMax = band ? band.upTo : plan.maxEmployees || 0;
-          const bandTotal = band ? (yearly ? band.yearly : band.monthly) : (yearly ? plan.yearly : plan.monthly);
+          <Segmented
+            pillId="billing-pill"
+            value={yearly ? "yearly" : "monthly"}
+            onChange={(id) => setYearly(id === "yearly")}
+            options={[
+              { id: "monthly", label: COPY.monthly },
+              {
+                id: "yearly",
+                label: COPY.yearly,
+                // ONLY WHEN THERE IS A SAVING TO NAME. `discountPct` comes from
+                // the catalogue settings in /super, which default to zero — so
+                // this badge published "Save 0%" on both language versions of
+                // the pricing page: a nought dressed as an offer. Nought off is
+                // not a discount, it is the absence of one, and the toggle says
+                // "Yearly" perfectly well alone.
+                badge: discountPct > 0 ? tr.pvSave(discountPct) : null,
+              },
+            ]}
+          />
+        </motion.div>
 
-          return (
-            <motion.article
-              key={plan.key}
-              variants={fadeUp}
-              whileHover={{ y: -8 }}
-              transition={{ duration: 0.35, ease: EASE_OUT_EXPO }}
-              className={`surface relative flex flex-col overflow-hidden rounded-2xl p-6 will-change-transform ${
-                plan.popular ? "ring-1 ring-iris/60" : ""
-              }`}
-            >
-              {plan.popular && (
-                <>
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 opacity-70"
-                    style={{
-                      background:
-                        "radial-gradient(90% 60% at 50% 0%, color-mix(in oklab, var(--color-iris) 18%, transparent), transparent 70%)",
-                    }}
-                  />
-                  <span className="absolute right-5 top-5 rounded-full bg-iris/20 px-2.5 py-1 text-[10px] uppercase tracking-wider text-iris-bright">
+        {/* Plans */}
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {loading && (
+            <p className="col-span-full py-12 text-center text-[14px] text-white/55">{tr.loadingPrices}</p>
+          )}
+          {!loading && cards.length === 0 && (
+            <p className={`${PANE} col-span-full px-6 py-14 text-center text-[15px] text-white/60`}>{tr.pvNoPackages}</p>
+          )}
+          {cards.map((plan, i) => {
+            const bi = bandIdx[plan.key] ?? 0;
+            const planBand = plan.bands ? plan.bands[bi] : null;
+            // Every figure comes from /super. A compound package prices by its
+            // chosen category; free and premium show no number at all.
+            const bandMax = planBand ? planBand.upTo : plan.maxEmployees || 0;
+            const bandTotal = planBand ? (yearly ? planBand.yearly : planBand.monthly) : (yearly ? plan.yearly : plan.monthly);
+
+            return (
+              <PlanCard key={plan.key} i={i} popular={plan.popular}>
+                {plan.popular && (
+                  <span className="absolute end-5 top-5 rounded-full bg-[#8b7cff]/15 px-2.5 py-1 text-[11px] font-medium text-[#c9c2ff] ring-1 ring-inset ring-[#8b7cff]/30">
                     {COPY.mostPopular}
                   </span>
-                </>
-              )}
+                )}
 
-              <div className="relative flex flex-1 flex-col">
-                <h3 className="font-display text-lg font-600">{plan.name}</h3>
-                <p className="mt-2 min-h-[2.5rem] text-sm text-fg-muted">{plan.tagline}</p>
+                <h2 className={`${plan.popular ? "pe-28" : ""} text-[1.2rem] font-medium tracking-[-0.02em] rtl:tracking-normal`}>{plan.name}</h2>
+                <p className="mt-2 min-h-[2.75rem] text-[14px] leading-relaxed text-[#9a9aa8]">{plan.tagline}</p>
 
-                {/* Price — swaps with a vertical slide when billing
-                    period or band changes. The fixed heights here and on the
-                    band switch below keep all four CTAs on one line. */}
+                {/* Price — crossfades out of focus when the billing period or
+                    band changes. The fixed heights here and on the band switch
+                    below keep every CTA on one line. */}
                 <div className="mt-6">
-                  <div className="flex h-11 items-baseline gap-1.5 overflow-hidden">
-                    <AnimatePresence mode="popLayout" initial={false}>
-                      <motion.span
-                        key={`${plan.key}-${yearly}-${bi}`}
-                        initial={{ y: 26, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -26, opacity: 0 }}
-                        transition={{ duration: 0.35, ease: EASE_OUT_EXPO }}
-                        className="flex items-baseline gap-1.5 font-display font-600 tabular-nums tracking-tight"
-                      >
-                        {plan.free ? (
-                          <span className="text-4xl">{COPY.freePrice}</span>
-                        ) : plan.invoicedMonthly ? (
-                          <span className="text-2xl">{COPY.invoicedMonthly}</span>
-                        ) : (
-                          <>
-                            <span className="text-4xl">{money(bandTotal)}</span>
-                            <Sym big />
-                          </>
-                        )}
-                      </motion.span>
-                    </AnimatePresence>
+                  <div className="flex h-12 items-baseline overflow-hidden">
+                    <PriceSwap swapKey={`${plan.key}-${yearly}-${bi}`}>
+                      {plan.free ? (
+                        <span className="text-[2.5rem] leading-none">{COPY.freePrice}</span>
+                      ) : plan.invoicedMonthly ? (
+                        <span className="text-[1.6rem] leading-none">{COPY.invoicedMonthly}</span>
+                      ) : (
+                        <>
+                          <span className="text-[2.5rem] leading-none">{money(bandTotal)}</span>
+                          {/* EVERY CURRENCY, ONE TREATMENT. SAR used to be drawn
+                              as a glyph while the other 165 showed their letters;
+                              `components/Riyal` is deleted rather than left unused. */}
+                          <span className="text-[15px] font-normal text-white/55">{currency}</span>
+                        </>
+                      )}
+                    </PriceSwap>
                   </div>
 
-                  <p className="mt-1 min-h-[3rem] text-xs text-fg-dim">
+                  <p className="mt-2 min-h-[2.5rem] text-[13px] leading-snug text-white/55">
                     {plan.free
                       ? COPY.freeNote(Number(plan.durationMonths) || 0)
                       : plan.invoicedMonthly
@@ -356,201 +321,297 @@ export function PricingBoard({ initial = null, locale = "en" }) {
                   </p>
                 </div>
 
-                {/* Headcount band switch (Small / Medium) */}
-                <div className="mt-4 min-h-[4.75rem]">
+                {/* Headcount band switch */}
+                <div className="mt-4 min-h-[5rem]">
                   {plan.bands && (
                     <>
-                      <span className="mb-1.5 block text-[0.65rem] uppercase tracking-[0.16em] text-fg-dim">
-                        {COPY.employees}
-                      </span>
-                      <div className="inline-flex rounded-full border border-line bg-ink/40 p-1">
-                        {plan.bands.map((b, i) => {
-                          const active = i === bi;
-                          return (
-                            <button
-                              key={b.label}
-                              type="button"
-                              aria-pressed={active}
-                              onClick={() => setBandIdx((s) => ({ ...s, [plan.key]: i }))}
-                              className={`relative rounded-full px-3 py-1.5 text-xs font-500 transition-colors duration-300 ${
-                                active ? "text-white" : "text-fg-muted hover:text-fg"
-                              }`}
-                            >
-                              {active && (
-                                <motion.span
-                                  layoutId={`band-pill-${plan.key}`}
-                                  className="absolute inset-0 rounded-full bg-gradient-to-r from-iris to-violet"
-                                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                                />
-                              )}
-                              <span className="relative z-10">{b.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {yearly && <p className="mt-2 text-xs text-mint">{COPY.billedYearly}</p>}
+                      <span className="mb-2 block text-[12px] text-white/55">{COPY.employees}</span>
+                      <Segmented
+                        size="sm"
+                        pillId={`band-pill-${plan.key}`}
+                        value={bi}
+                        onChange={(idx) => setBandIdx((s) => ({ ...s, [plan.key]: idx }))}
+                        options={plan.bands.map((b, idx) => ({ id: idx, key: b.label, label: b.label }))}
+                      />
+                      {yearly && <p className="mt-2 text-[12px] text-[#c9c2ff]">{COPY.billedYearly}</p>}
                     </>
                   )}
                 </div>
 
                 {/* Headcount badge, and the term beside it. */}
-                <span className="mt-5 flex w-fit flex-wrap items-center gap-2">
-                  <span className="inline-flex rounded-full bg-ink/50 px-3 py-1 text-xs text-fg-muted">{plan.users}</span>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  {plan.users ? (
+                    <span className="inline-flex rounded-full bg-white/[0.05] px-3 py-1 text-[12px] text-white/70 ring-1 ring-inset ring-white/10">{plan.users}</span>
+                  ) : null}
                   {plan.durationMonths > 0 && (
-                    <span className="inline-flex rounded-full bg-ink/50 px-3 py-1 text-xs text-fg-muted">
-                      {plan.durationMonths} {plan.durationMonths === 1 ? "month" : "months"}
+                    <span className="inline-flex rounded-full bg-white/[0.05] px-3 py-1 text-[12px] text-white/70 ring-1 ring-inset ring-white/10">
+                      {tr.pvMonths(plan.durationMonths)}
                     </span>
                   )}
-                </span>
+                </div>
 
                 <div className="mt-6">
                   {/* A REAL DESTINATION, and it took two commits to get one.
                       This button called `onNavigate("contact")` — a prop the
                       component does not take and never has, left behind when
                       the board stopped being an in-page view
-                      (`views/PricingView`) and became a route: inside the
-                      landing page's tab tree that function was in scope, and on
-                      `/[locale]/pricing` there is nothing to swap and nothing to
-                      call. So the premium plan's only call to action THREW when
-                      it was clicked, ESLint knew (`no-undef`), and lint:budget
-                      was failing on it.
-
-                      IT WENT TO `mailto:CONTACT.sales` FIRST, deliberately and
-                      temporarily: the contact FORM was still an in-page view
-                      with no address, so there was no URL to send anybody to,
-                      and a mailto that works beats a form you cannot link to.
-                      `views/views.js` set the release condition — contact
-                      becomes a route in the change that gives it a backend that
-                      actually sends. `/api/contact` sends, the route exists, so
-                      the stop is over and this is the destination it was
-                      standing in for. The mailbox is not lost: the form still
-                      routes by team size through `mailboxFor`, which is more
-                      than a hardcoded `sales` could do.
+                      (`views/PricingView`) and became a route. It then went to
+                      `mailto:CONTACT.sales`, deliberately and temporarily, until
+                      contact became a route with a backend that sends;
+                      `/api/contact` sends, so this is the destination it was
+                      standing in for. The form still routes by team size through
+                      `mailboxFor`, which is more than a hardcoded `sales` could do.
 
                       One button, two destinations. The premium card stays ghost
                       whether or not it is marked popular — "Contact sales" is
                       not the press this page is steering anybody towards. */}
-                  <MagneticButton
-                    variant={plan.cta !== "contact" && plan.popular ? "primary" : "ghost"}
-                    strength={10}
+                  <Cta
                     href={ctaHref(plan)}
-                    className="w-full justify-center px-5 py-3"
+                    variant={plan.cta !== "contact" && plan.popular ? "primary" : "ghost"}
+                    className="w-full justify-center"
                   >
                     {ctaLabel(plan)}
-                  </MagneticButton>
+                    <Forward size={15} />
+                  </Cta>
                 </div>
 
-                <p className="mt-7 text-[0.65rem] uppercase tracking-[0.16em] text-fg-dim">
-                  {COPY.featuresLabel}
-                </p>
+                <p className="mt-8 text-[12px] text-white/55">{COPY.featuresLabel}</p>
                 <ul className="mt-3 flex-1 space-y-3">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex gap-2.5 text-sm text-fg-muted">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="mt-0.5 shrink-0" aria-hidden>
-                        <circle cx="8" cy="8" r="7.2" stroke="var(--color-line)" />
-                        <path
-                          d="M5 8.2l2.1 2.1L11 6.4"
-                          stroke={plan.popular ? "var(--color-iris-bright)" : "var(--color-mint)"}
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
+                    <li key={feature} className="flex gap-2.5 text-[14px] leading-snug text-white/70">
+                      <span
+                        aria-hidden="true"
+                        className={`mt-px grid size-[18px] shrink-0 place-items-center rounded-full ring-1 ring-inset ${
+                          plan.popular ? "bg-[#8b7cff]/15 text-[#c9c2ff] ring-[#8b7cff]/30" : "bg-white/[0.04] text-white/60 ring-white/10"
+                        }`}
+                      >
+                        <Check size={11} strokeWidth={2.5} />
+                      </span>
                       {feature}
                     </li>
                   ))}
                 </ul>
-              </div>
-            </motion.article>
-          );
-        })}
-      </motion.div>
+              </PlanCard>
+            );
+          })}
+        </div>
 
+        {/* TAX IS ADDED ON TOP (the owner, 23/09/2026), so every figure above is
+            before it — said once, under the cards, with the rate /super holds. */}
+        {!loading && cards.length > 0 && live?.taxPercent > 0 && (
+          <p className="mt-5 text-center text-[13px] text-white/55">{tr.pvTaxNote(live.taxPercent)}</p>
+        )}
 
-      {/* TIERS, BOUGHT BESIDE A PACKAGE and priced per month (the owner,
-          23/09/2026), in the same region's currency as the cards above. The
-          monthly/yearly switch moves these too — one switch, one period, for
-          everything on the page. Services are listed by name because a count
-          cannot tell a buyer whether the one they need is in. */}
-      {!loading && (live?.tiers || []).length > 0 && (
-        <div className="mt-16">
-          <SectionHeading align="center" title={tr.pvTiersTitle} description={tr.pvTiersLead} />
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {live.tiers.map((tier) => {
-              const amount = yearly ? tier.yearly : tier.monthly;
-              return (
-                <article key={tier.id} className="surface flex flex-col rounded-2xl p-6">
-                  <h3 className="font-display text-lg font-600">{tier.name}</h3>
-                  <p className="mt-4 flex items-baseline gap-1.5 font-display font-600 tabular-nums">
-                    {tier.monthly > 0 ? (
-                      <>
-                        <span className="text-3xl">{money(amount)}</span>
-                        <Sym />
-                        <span className="text-sm font-400 text-fg-dim">{yearly ? tr.pvPerYear : tr.pvPerMonth}</span>
-                      </>
-                    ) : (
-                      <span className="text-2xl">{tr.pvTierIncluded}</span>
+        {/* TIERS, BOUGHT BESIDE A PACKAGE and priced per month (the owner,
+            23/09/2026), in the same region's currency as the cards above. The
+            monthly/yearly switch moves these too — one switch, one period, for
+            everything on the page. Services are listed by name because a count
+            cannot tell a buyer whether the one they need is in. */}
+        {!loading && (live?.tiers || []).length > 0 && (
+          <div className="mt-28 md:mt-36">
+            <motion.div {...tiersHead}>
+              <h2 className="text-[2rem] font-medium leading-[1.1] tracking-[-0.035em] md:text-[3rem] rtl:tracking-normal">{tr.pvTiersTitle}</h2>
+              <p className="mt-4 max-w-[52ch] text-[15px] leading-relaxed text-[#8f8f9c]">{tr.pvTiersLead}</p>
+            </motion.div>
+            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {live.tiers.map((tier, i) => {
+                const amount = yearly ? tier.yearly : tier.monthly;
+                return (
+                  <PlanCard key={tier.id} i={i}>
+                    <h3 className="text-[1.2rem] font-medium tracking-[-0.02em] rtl:tracking-normal">{tier.name}</h3>
+                    <div className="mt-5 flex h-10 items-baseline overflow-hidden">
+                      <PriceSwap swapKey={`${tier.id}-${yearly}`}>
+                        {tier.monthly > 0 ? (
+                          <>
+                            <span className="text-[2rem] leading-none">{money(amount)}</span>
+                            <span className="text-[14px] font-normal text-white/55">{currency}</span>
+                            <span className="text-[14px] font-normal text-white/55">{yearly ? tr.pvPerYear : tr.pvPerMonth}</span>
+                          </>
+                        ) : (
+                          <span className="text-[1.6rem] leading-none">{tr.pvTierIncluded}</span>
+                        )}
+                      </PriceSwap>
+                    </div>
+                    {tier.durationMonths > 0 && (
+                      <span className="mt-4 inline-flex w-fit rounded-full bg-white/[0.05] px-3 py-1 text-[12px] text-white/70 ring-1 ring-inset ring-white/10">
+                        {tr.pvMonths(tier.durationMonths)}
+                      </span>
                     )}
-                  </p>
-                  {tier.durationMonths > 0 && (
-                    <span className="mt-3 inline-flex w-fit rounded-full bg-ink/50 px-3 py-1 text-xs text-fg-muted">
-                      {tr.pvMonths(tier.durationMonths)}
-                    </span>
-                  )}
-                  {tier.services.length > 0 && (
-                    <ul className="mt-5 space-y-2">
-                      {tier.services.map((name) => (
-                        <li key={name} className="text-sm text-fg-muted">{name}</li>
-                      ))}
-                    </ul>
-                  )}
-                </article>
-              );
-            })}
+                    {tier.services.length > 0 && (
+                      <ul className="mt-6 space-y-2.5 border-t border-white/[0.07] pt-5">
+                        {tier.services.map((name) => (
+                          <li key={name} className="flex gap-2.5 text-[14px] leading-snug text-white/70">
+                            <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-[#8b7cff]/70" />
+                            {name}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </PlanCard>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* TAX IS ADDED ON TOP (the owner, 23/09/2026), so every figure above is
-          before it — said once, under the cards, with the rate /super holds. */}
-      {!loading && cards.length > 0 && live?.taxPercent > 0 && (
-        <p className="mt-6 text-center text-xs text-fg-dim">{tr.pvTaxNote(live.taxPercent)}</p>
-      )}
+        {/* Assurances — all three are statements the pricing model actually backs. */}
+        <ul className="mt-28 grid gap-4 md:mt-36 md:grid-cols-3">
+          {assurancesFor(tr).map((item, i) => (
+            <Assurance key={item.id} i={i} title={item.title} body={item.body} />
+          ))}
+        </ul>
 
-      {/* Assurances — all three are statements the pricing model actually backs. */}
-      <motion.div
-        variants={stagger(0.08)}
-        initial="hidden"
-        whileInView="show"
-        viewport={VIEWPORT}
-        className="mt-14 grid gap-5 sm:grid-cols-3"
-      >
-        {assurancesFor(tr).map((item) => (
-          <motion.div key={item.id} variants={fadeUp} className="rounded-2xl border border-line bg-ink-soft/50 p-6">
-            <h4 className="font-display text-sm font-600">{item.title}</h4>
-            <p className="mt-2 text-sm text-fg-muted">{item.body}</p>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* Closing band */}
-      <motion.div
-        // Rise only, for the reason above: this band carries a heading and
-        // three paragraphs, and they have to be in the HTML.
-        initial={{ y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={VIEWPORT}
-        transition={{ duration: 0.7, ease: EASE_OUT_EXPO }}
-        className="surface mt-14 flex flex-col gap-6 rounded-2xl p-8 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div className="max-w-xl">
-          <h3 className="font-display text-2xl font-600 tracking-tight">{COPY.bandTitle}</h3>
-          <p className="mt-2 text-sm text-fg-muted">{COPY.bandText}</p>
-        </div>
-        <MagneticButton href={`/api/intent?locale=${locale}`} strength={12}>
-          {COPY.ctaStart}
-        </MagneticButton>
-      </motion.div>
+        {/* Closing band — the Bento's pricing cell, turned round to point at signup. */}
+        <motion.div {...band} className={`relative isolate mt-4 overflow-hidden p-8 md:p-12 ${PANE}`}>
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10" style={{ background: BAND_TINT }} />
+          <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-[36rem]">
+              <h2 className="text-[2rem] font-medium leading-[1.08] tracking-[-0.035em] md:text-[2.75rem] rtl:leading-[1.3] rtl:tracking-normal">
+                {COPY.bandTitle}
+              </h2>
+              <p className="mt-4 text-[15px] leading-relaxed text-white/70">{COPY.bandText}</p>
+            </div>
+            <Cta href={`/api/intent?locale=${locale}`}>
+              {COPY.ctaStart}
+              <Forward />
+            </Cta>
+          </div>
+        </motion.div>
+      </div>
     </section>
+  );
+}
+
+/**
+ * A card that arrives out of focus in a short cascade, with the Bento's light
+ * following the cursor across it and lighting its edge. The recommended plan
+ * carries the accent's glow from the top and a stronger hairline.
+ */
+function PlanCard({ i, popular = false, children }) {
+  const reveal = useInViewReveal(Math.min(i, 5) * 0.08, CELL_IN, 0.15);
+  const mx = useMotionValue(-600);
+  const my = useMotionValue(-600);
+  const glow = useMotionTemplate`radial-gradient(420px circle at ${mx}px ${my}px, rgba(139,124,255,0.12), transparent 60%)`;
+  const edge = useMotionTemplate`radial-gradient(260px circle at ${mx}px ${my}px, rgba(214,208,255,0.6), transparent 70%)`;
+
+  function move(e) {
+    if (e.pointerType !== "mouse") return;
+    const r = e.currentTarget.getBoundingClientRect();
+    mx.set(e.clientX - r.left);
+    my.set(e.clientY - r.top);
+  }
+  function leave() {
+    mx.set(-600);
+    my.set(-600);
+  }
+
+  return (
+    <motion.article
+      {...reveal}
+      onPointerMove={move}
+      onPointerLeave={leave}
+      className={`relative isolate flex flex-col overflow-hidden rounded-3xl p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset md:p-7 ${
+        popular ? "bg-white/[0.04] ring-[#8b7cff]/35" : "bg-white/[0.025] ring-white/[0.07]"
+      }`}
+    >
+      {popular ? <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10" style={{ background: POPULAR_TINT }} /> : null}
+      <motion.div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10" style={{ background: glow }} />
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-3xl p-px"
+        style={{
+          background: edge,
+          WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+          WebkitMaskComposite: "xor",
+          maskComposite: "exclude",
+        }}
+      />
+      {children}
+    </motion.article>
+  );
+}
+
+/**
+ * A figure that changes in place: the old one lifts away out of focus while
+ * the new one settles. `initial={false}` on the presence means the first
+ * render — the server's — is the settled figure, never a hidden one.
+ */
+function PriceSwap({ swapKey, children }) {
+  const reduce = useReducedMotion();
+  return (
+    <AnimatePresence mode="popLayout" initial={false}>
+      <motion.span
+        key={swapKey}
+        initial={reduce ? false : { opacity: 0, y: 14, filter: "blur(6px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        exit={reduce ? undefined : { opacity: 0, y: -14, filter: "blur(6px)" }}
+        transition={{ duration: 0.32, ease: EASE }}
+        className="flex items-baseline gap-1.5 font-medium tabular-nums tracking-[-0.03em] rtl:tracking-normal"
+      >
+        {children}
+      </motion.span>
+    </AnimatePresence>
+  );
+}
+
+/**
+ * The site's segmented pill (as on the home page's charts), with the selected
+ * fill gliding between options on a spring. Buttons with `aria-pressed`, the
+ * same semantics the board had.
+ */
+function Segmented({ options, value, onChange, pillId, size = "md" }) {
+  const reduce = useReducedMotion();
+  const pad = size === "sm" ? "px-3 py-1.5 text-[12px]" : "px-4 py-2 text-[13px] sm:text-[14px]";
+  return (
+    <div className="inline-flex w-fit max-w-full flex-wrap items-center gap-0.5 rounded-full bg-white/[0.04] p-1 ring-1 ring-inset ring-white/10">
+      {options.map((o) => {
+        const active = o.id === value;
+        return (
+          <button
+            key={o.key ?? o.id}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(o.id)}
+            className={`relative rounded-full font-medium transition-colors duration-200 ${pad} ${FOCUS} ${
+              active ? "text-[#0b0b10]" : "text-white/65 hover:text-white"
+            }`}
+          >
+            {active && (
+              <motion.span
+                layoutId={pillId}
+                aria-hidden="true"
+                className="absolute inset-0 rounded-full bg-[#ececf1]"
+                transition={reduce ? { duration: 0 } : SPRING}
+              />
+            )}
+            <span className="relative z-10 inline-flex items-center gap-2">
+              {o.label}
+              {o.badge ? (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors duration-200 ${
+                    active ? "bg-[#0b0b10]/10 text-[#0b0b10]" : "bg-[#8b7cff]/15 text-[#c9c2ff]"
+                  }`}
+                >
+                  {o.badge}
+                </span>
+              ) : null}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function Assurance({ i, title, body }) {
+  const reveal = useInViewReveal(i * 0.08, CELL_IN, 0.3);
+  return (
+    <motion.li {...reveal} className={`p-7 ${PANE}`}>
+      <span aria-hidden="true" className="font-mono text-[12px] tabular-nums text-[#c9c2ff]" dir="ltr">
+        {String(i + 1).padStart(2, "0")}
+      </span>
+      <h3 className="mt-5 text-[1.15rem] font-medium tracking-[-0.02em] rtl:tracking-normal">{title}</h3>
+      <p className="mt-2 text-[14px] leading-relaxed text-[#9a9aa8]">{body}</p>
+    </motion.li>
   );
 }
