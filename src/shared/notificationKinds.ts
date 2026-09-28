@@ -43,6 +43,9 @@ export const NOTICE_KINDS: Readonly<Record<string, NoticeKind>> = {
 
   // Deals, leads and what Sales asks Engineering for.
   "rfq.raised": { category: "deals", icon: "rfp" },
+  "rfq.quoted": { category: "work", icon: "supplierQuotes" },
+  "rfq.awarded": { category: "work", icon: "procurement" },
+  "certificate.certified": { category: "work", icon: "subcontracts" },
   "quotation.assigned": { category: "deals", icon: "contract" },
   "lead.waiting": { category: "deals", icon: "ticket" },
   "leads.waiting": { category: "deals", icon: "ticket" },

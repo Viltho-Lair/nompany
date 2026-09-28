@@ -130,6 +130,12 @@ export const NOTIFY = {
   paymentBounced: "payment.bounced",
   // A till drawer closed short or over (modules/sales/pos).
   shiftVariance: "shift.variance",
+  // PROCUREMENT (28/09/2026). A first quote from a supplier and an award —
+  // told to whoever raised the RFQ (modules/procurement/rfq); a certified
+  // valuation — told to whoever wrote it (procurement/subcontracts).
+  rfqQuoted: "rfq.quoted",
+  rfqAwarded: "rfq.awarded",
+  certificateCertified: "certificate.certified",
   // TENDERS AND DEALS (28/09/2026). A tender handed to somebody to chase
   // (modules/tendering/tenders), and how it ended — told to its owner and to
   // whoever registered it; and one about to close (the daily cron).

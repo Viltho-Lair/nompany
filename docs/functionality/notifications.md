@@ -122,6 +122,15 @@ told they were taken off.
 - **Not built:** a payment run executing (Finance runs it and nobody else waits
   on it), and a budget going over.
 
+## Procurement
+
+- **`rfq.quoted`**: whoever raised the RFQ, when a supplier's first quote is
+  recorded. A corrected quote replaces a price they already saw, and is silent.
+- **`rfq.awarded`**: the same person, when a quote is chosen.
+- **`certificate.certified`**: whoever wrote a subcontract valuation, when it is
+  certified. Invariant 7 means they could not certify it themselves, so they
+  were always the one waiting.
+
 ## Who is told about their own money and time
 
 Addressed to the person the record is about, through `notifyEach` (one read of

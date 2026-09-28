@@ -10,6 +10,8 @@
 import { requirePermission } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
+import { notifyCollaboratorIds } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
 import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { bumpCounter } from "@/platform/db/store";
@@ -344,5 +346,18 @@ export async function certifyCertificate(ctx: ProcurementContext, id: string) {
     };
   });
   if (refused) return { error: refused };
-  return certificate ? { certificate } : { error: "notfound" };
+  if (!certificate) return { error: "notfound" };
+  // WHOEVER WROTE THE VALUATION HEARS IT WAS AGREED (28/09/2026) — they may
+  // not sign it (invariant 7), so they were the one person certain to be
+  // waiting on it, and nothing told them it had happened.
+  const facts = {
+    reference: String(subcontract?.reference || ""), title: String(subcontract?.title || ""),
+    number: String(current.number || ""),
+  };
+  await notifyCollaboratorIds(studio.id, [String(current.createdByCollaboratorId || "")], {
+    type: NOTIFY.certificateCertified, title: "A valuation was certified",
+    body: [facts.reference, facts.title, facts.number && `#${facts.number}`].filter(Boolean).join(" · "),
+    params: facts, href: "procurement-subcontracts", tone: "success",
+  }, [collaborator.id]);
+  return { certificate };
 }

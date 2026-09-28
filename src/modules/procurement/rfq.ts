@@ -9,6 +9,8 @@
 import { requirePermission } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
+import { notifyCollaboratorIds } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
 import { nextReference } from "@/modules/main/references";
 import { makeId } from "@/platform/db/keys";
 import { listCollaborators } from "@/platform/auth/collaborators";
@@ -332,10 +334,22 @@ export async function recordQuote(ctx: ProcurementContext, body: Record<string, 
     const updated = await Quotes.update({ studio, section: rfqSection }, existing.id, fields);
     return updated ? { quote: updated, replaced: true } : { error: "notfound" };
   }
-  return {
-    quote: await Quotes.create({ studio, section: rfqSection }, { ...fields, createdAt: at }),
-    replaced: false,
-  };
+  const quote = await Quotes.create({ studio, section: rfqSection }, { ...fields, createdAt: at });
+  // A NEW PRICE IS IN (28/09/2026) — whoever raised the RFQ is waiting on the
+  // suppliers, and was left checking the comparison by hand. Only a FIRST
+  // quote from a supplier; a corrected one replaces a price they already saw.
+  await tellRfqOwner(ctx, rfq, NOTIFY.rfqQuoted, "A supplier quoted", "primary");
+  return { quote, replaced: false };
+}
+
+// WHOEVER RAISED THE RFQ hears its prices arriving and its award — never the
+// person who recorded or awarded it.
+async function tellRfqOwner(ctx: ProcurementContext, rfq: { createdByCollaboratorId?: unknown; reference?: unknown; title?: unknown }, type: string, title: string, tone: string) {
+  const facts = { reference: String(rfq.reference || ""), title: String(rfq.title || "") };
+  await notifyCollaboratorIds(ctx.studio.id, [String(rfq.createdByCollaboratorId || "")], {
+    type, title, body: [facts.reference, facts.title].filter(Boolean).join(" · "), params: facts,
+    href: "procurement-rfq", tone,
+  }, [String(ctx.collaborator.id)]);
 }
 
 /**
@@ -396,5 +410,7 @@ export async function awardRfq(ctx: ProcurementContext, id: string, body: Record
     awardReason: reason,
     updatedAt: at,
   });
-  return updated ? { rfq: updated, quote: chosen } : { error: "notfound" };
+  if (!updated) return { error: "notfound" };
+  await tellRfqOwner(ctx, updated, NOTIFY.rfqAwarded, "An RFQ was awarded", "success");
+  return { rfq: updated, quote: chosen };
 }

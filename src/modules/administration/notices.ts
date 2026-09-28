@@ -355,6 +355,25 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     en: { title: "A drawer did not balance", body: "{till} · {difference}" },
     ar: { title: "الدرج غير مطابق", body: "{till} · {difference}" },
   },
+  // Procurement.
+  {
+    type: "rfq.quoted",
+    fields: ["reference", "title"],
+    en: { title: "A supplier quoted", body: "{reference} · {title}" },
+    ar: { title: "وصل عرض سعر من مورّد", body: "{reference} · {title}" },
+  },
+  {
+    type: "rfq.awarded",
+    fields: ["reference", "title"],
+    en: { title: "An RFQ was awarded", body: "{reference} · {title}" },
+    ar: { title: "تمت ترسية طلب عروض الأسعار", body: "{reference} · {title}" },
+  },
+  {
+    type: "certificate.certified",
+    fields: ["reference", "title", "number"],
+    en: { title: "A valuation was certified", body: "{reference} · {title} · #{number}" },
+    ar: { title: "تم اعتماد تقييم", body: "{reference} · {title} · #{number}" },
+  },
   // NO TEMPLATE FOR `system`, deliberately, and it is not an omission. A system
   // notice is whatever the producer needed to say — Quality writes
   // "`${document.code} needs you`" — so there is no fixed sentence to

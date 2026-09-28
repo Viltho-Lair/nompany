@@ -358,5 +358,17 @@ console.log("\n== money at the edges");
   ok("a drawer that did not balance is announced, not one that did", /if \(report\.difference\) \{[\s\S]*?NOTIFY\.shiftVariance/.test(pos));
 }
 
+console.log("\n== procurement");
+
+{
+  const src = readFileSync("src/modules/procurement/rfq.ts", "utf8");
+  // A CORRECTED price replaces one the owner already saw, so only a first quote rings.
+  ok("only a supplier's first quote is announced",
+    /if \(existing\) \{[\s\S]*?replaced: true[\s\S]*?\}\s*const quote = await Quotes\.create[\s\S]*?NOTIFY\.rfqQuoted/.test(src));
+  ok("an award is announced", /NOTIFY\.rfqAwarded/.test(src));
+  const sub = readFileSync("src/modules/procurement/subcontracts.ts", "utf8");
+  ok("a certified valuation tells whoever wrote it", /\[String\(current\.createdByCollaboratorId \|\| ""\)\][\s\S]*?NOTIFY\.certificateCertified/.test(sub));
+}
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nnotification inbox model: all passed\n");
 process.exit(fails ? 1 : 0);
