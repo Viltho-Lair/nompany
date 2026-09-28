@@ -12,6 +12,8 @@ import { appendHistory, planChanges, type PlanHistoryEntry } from "./planChanges
 import { PLAN, PLAN_TEMPLATE, ID } from "@/platform/db/keys";
 import { getSectionByKey, updateSection } from "@/platform/db/sections";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyNewlyAssigned, newlyAssigned } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
 
 export type PlanStatus = "on_track" | "at_risk" | "off_track" | "on_hold";
 
@@ -293,7 +295,49 @@ export async function savePlan(studioId: string, planId: string, plan: unknown, 
       }));
     } catch { /* the plan is saved; the note about it is not worth failing over */ }
   }
+
+  // "YOU WERE GIVEN WORK IN A PLAN" — one notice per person, naming their new
+  // tasks, rather than one per task: a planner saving a whole programme at once
+  // would otherwise ring somebody forty times in a second.
+  const given = tasksNewlyAssigned(
+    (existing as { tasks?: unknown }).tasks, (plan as { tasks?: unknown }).tasks, byCollaboratorId);
+  for (const [person, names] of given) {
+    const tasks = names.slice(0, 3).join(", ") + (names.length > 3 ? " …" : "");
+    await notifyNewlyAssigned(studioId, {
+      before: [], after: [person], actorId: byCollaboratorId, right: "projects.planner.view",
+      notice: {
+        type: NOTIFY.taskAssigned,
+        title: "You were given work in a plan",
+        body: [name, tasks].filter(Boolean).join(" · "),
+        params: { plan: name, tasks },
+        href: `projects-planner/${planId}`,
+        tone: "primary",
+      },
+    });
+  }
   return { ok: true };
+}
+
+/**
+ * WHO WAS JUST PUT ON WHICH TASKS, between the stored plan and the one being
+ * saved — pure. Person → the names of the tasks they were ADDED to. A task
+ * that is new counts all its assignees as added; somebody already on a task,
+ * or the person saving, is not.
+ */
+export function tasksNewlyAssigned(before: unknown, after: unknown, actorId = ""): Map<string, string[]> {
+  type T = { id?: unknown; name?: unknown; assigneeIds?: unknown };
+  const list = (v: unknown) => (Array.isArray(v) ? (v as T[]) : []).filter((t) => t && typeof t === "object");
+  const had = new Map(list(before).map((t) => [String(t.id), Array.isArray(t.assigneeIds) ? t.assigneeIds : []]));
+  const out = new Map<string, string[]>();
+  for (const t of list(after)) {
+    const now = Array.isArray(t.assigneeIds) ? t.assigneeIds : [];
+    for (const person of newlyAssigned(had.get(String(t.id)) || [], now, actorId)) {
+      const names = out.get(person) || [];
+      names.push(String(t.name || "").slice(0, 80) || "—");
+      out.set(person, names);
+    }
+  }
+  return out;
 }
 
 /**

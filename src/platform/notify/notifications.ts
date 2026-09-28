@@ -103,6 +103,13 @@ export const NOTIFY = {
   // Support answered a question this person sent from Nova's help desk
   // (/super → Nova → Questions, 26/09/2026). Addressed to the asker alone.
   novaAnswered: "nova.answered",
+  // PHASE 3 (28/09/2026) — what the product did and told nobody. Each is
+  // declared with a template (modules/administration/notices) and a kind
+  // (shared/notificationKinds); the test holds all three lists together.
+  // A field-service job put on this person's rota (modules/operations/jobs).
+  jobAssigned: "job.assigned",
+  // Planner tasks handed to this person, one notice per save (operations/planner).
+  taskAssigned: "task.assigned",
 };
 
 /** One stored notification, as this module writes it. */

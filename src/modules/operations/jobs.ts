@@ -13,6 +13,8 @@ import type { Section } from "@/platform/db/sections";
 import type { EngineRecord } from "@/platform/engine/schema";
 import { referencePickers } from "@/modules/procurement/pickers";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyNewlyAssigned } from "@/modules/people/holders";
+import { NOTIFY, type Notice } from "@/platform/notify/notifications";
 import type { Sla } from "@/modules/maintenance/schema";
 import type { Job } from "./jobSchema";
 import { JOB_KINDS, JOB_STATUSES } from "./jobSchema";
@@ -173,6 +175,24 @@ async function dealForJob(studioId: string, job: Pick<NewJob, "dealId" | "projec
  * raised by a plan and one typed by a dispatcher are the same record, attached
  * and contributed the same way.
  */
+// "A JOB WAS ASSIGNED TO YOU" — the crew hears about the work from the bell,
+// not by opening the board (28/09/2026). The time is the stored local
+// date-time, printed as data: it reads the same in both languages.
+const JOB_RIGHT = "fieldService.schedule.view";
+function jobNotice(job: { title?: string; scheduledStart?: string; location?: string }): Notice {
+  const when = String(job.scheduledStart || "").replace("T", " ").slice(0, 16);
+  const title = String(job.title || "");
+  const where = String(job.location || "");
+  return {
+    type: NOTIFY.jobAssigned,
+    title: "A job was assigned to you",
+    body: [title, when, where].filter(Boolean).join(" · "),
+    params: { title, when, where },
+    href: "field-service-schedule",
+    tone: "primary",
+  };
+}
+
 export async function insertJob(
   scope: { studio: { id: string }; section: Section },
   input: NewJob,
@@ -228,6 +248,16 @@ export async function insertJob(
     actor: actor.id,
     actorType: actor.type,
   });
+
+  // EVERY DOOR THAT RAISES A JOB tells its crew — the dispatch form and a PM
+  // plan falling due alike — except the migration, which carries work that was
+  // dispatched long ago and was already known about.
+  if (!input.migratedFromRecordId) {
+    await notifyNewlyAssigned(scope.studio.id, {
+      before: [], after: job.assignedToCollaboratorIds, actorId: actor.type === "collaborator" ? actor.id : "",
+      right: JOB_RIGHT, notice: jobNotice(job),
+    });
+  }
 
   return job;
 }
@@ -397,6 +427,14 @@ export async function updateJob(ctx: ScheduleContext, id: string, body: Record<s
   });
   if (!job) return { error: "notfound" };
   if (closed) return { error: "closed", status: closed };
+  // Only the people this edit ADDED hear about it; the crew already on the job
+  // was told when they were put on it.
+  if (patch.assignedToCollaboratorIds) {
+    await notifyNewlyAssigned(studio.id, {
+      before: current.assignedToCollaboratorIds, after: job.assignedToCollaboratorIds,
+      actorId: ctx.collaborator.id, right: JOB_RIGHT, notice: jobNotice(job),
+    });
+  }
   return { job };
 }
 

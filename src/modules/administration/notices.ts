@@ -227,6 +227,35 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     en: { title: "Permits expiring", body: "{detail}" },
     ar: { title: "تصاريح تقارب الانتهاء", body: "{detail}" },
   },
+  // THE TWO THAT SHIPPED WITHOUT ONE, and so reached an Arabic bell in
+  // English. `employment.changed` carries the move's English label as `move`
+  // (the lifecycle's vocabulary is not translated yet — the same limit
+  // `leave.requested`'s `{days}` has); the date is data.
+  {
+    type: "employment.changed",
+    fields: ["move", "date"],
+    en: { title: "Your employment changed", body: "{move} — {date}" },
+    ar: { title: "تغيّر وضعكم الوظيفي", body: "{move} — {date}" },
+  },
+  {
+    type: "nova.answered",
+    fields: ["reply"],
+    en: { title: "Support answered your question", body: "{reply}" },
+    ar: { title: "رد الدعم على سؤالك", body: "{reply}" },
+  },
+  // PHASE 3 (28/09/2026).
+  {
+    type: "job.assigned",
+    fields: ["title", "when", "where"],
+    en: { title: "A job was assigned to you", body: "{title} · {when} · {where}" },
+    ar: { title: "أُسندت إليكم مهمة ميدانية", body: "{title} · {when} · {where}" },
+  },
+  {
+    type: "task.assigned",
+    fields: ["plan", "tasks"],
+    en: { title: "You were given work in a plan", body: "{plan} · {tasks}" },
+    ar: { title: "أُسندت إليكم مهام في خطة", body: "{plan} · {tasks}" },
+  },
   // NO TEMPLATE FOR `system`, deliberately, and it is not an omission. A system
   // notice is whatever the producer needed to say — Quality writes
   // "`${document.code} needs you`" — so there is no fixed sentence to
@@ -269,6 +298,11 @@ export function fill(template: string, params: unknown): string {
     // Filling a gap leaves a double space and sometimes a space before a stop.
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([.,!?])/g, "$1")
+    // …AND A SEPARATOR WITH NOTHING ON ONE SIDE. "{title} · {when} · {where}"
+    // for a job with no site read "Pour slab · 29/09 09:00 · ". A run of
+    // separators becomes one, and none may lead or trail.
+    .replace(/(?:\s*[·—]\s*){2,}/g, " · ")
+    .replace(/^\s*[·—]\s*|\s*[·—]\s*$/g, "")
     .trim();
 }
 

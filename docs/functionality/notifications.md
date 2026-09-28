@@ -74,6 +74,20 @@ reads is their own (`docs/functionality/language.md`), and the server does not
 know it; the route serves the studio's overrides alongside the rows, and every
 shipped template is already in the client bundle because the module is pure.
 
+## Who is told they were given work
+
+**`modules/people/holders` `notifyNewlyAssigned`** is the one door (28/09/2026).
+It tells the people newly on a list, never the person who made the change,
+and never someone who does not hold the right to open the record. Nobody is
+told they were taken off.
+
+- **A field-service job** (`job.assigned`): its crew, when the job is
+  dispatched, raised by a PM plan, or re-crewed. A migrated job is not
+  announced. Right: `fieldService.schedule.view`.
+- **Planner tasks** (`task.assigned`): one notice per person per save, naming
+  up to three of their new tasks. Right: `projects.planner.view`, so a project
+  member who reaches the plan only through the project is not told.
+
 ## Who is told a signature is waiting
 
 **`approval.requested`** ("Waiting for your signature", the document's reference as the one

@@ -197,5 +197,72 @@ console.log("\n== the store never announces a notice to the studio");
     /inbox\?\.unread/.test(src) && !/setInterval\(load, 120000\)/.test(src));
 }
 
+// ============================================================================
+// PHASE 3 — coverage (28/09/2026).
+// ============================================================================
+
+const T = await import("@/modules/administration/notices");
+const H = await import("@/modules/people/holders");
+const PL = await import("@/modules/operations/planner");
+
+console.log("\n== every type has words in both languages");
+
+// A TYPE WITH NO TEMPLATE reaches an Arabic bell in English, whole: two did
+// (employment.changed, nova.answered) until this was asserted. `system` is the
+// one exception, by design — see the note in notices.ts.
+for (const t of declared) {
+  if (t === "system") continue;
+  ok(`${t} has a template`, T.TEMPLATE_TYPES.includes(t));
+}
+
+console.log("\n== an empty fact leaves no stray separator");
+
+ok("a missing last fact drops its separator",
+  T.fill("{title} · {when} · {where}", { title: "Pour slab", when: "2026-09-29 09:00" }) === "Pour slab · 2026-09-29 09:00");
+ok("a missing middle fact leaves one separator",
+  T.fill("{title} · {when} · {where}", { title: "Pour slab", where: "Plot 4" }) === "Pour slab · Plot 4");
+ok("a missing first fact leaves none leading", T.fill("{move} — {date}", { date: "2026-10-01" }) === "2026-10-01");
+ok("all facts present is untouched", T.fill("{a} · {b}", { a: "x", b: "y" }) === "x · y");
+
+console.log("\n== who is newly on a list");
+
+ok("someone added is told", H.newlyAssigned(["a"], ["a", "b"]).join() === "b");
+ok("someone already on it is not", H.newlyAssigned(["a", "b"], ["b", "a"]).length === 0);
+ok("the person making the change is not", H.newlyAssigned([], ["me", "b"], "me").join() === "b");
+ok("a duplicate is told once", H.newlyAssigned([], ["b", "b"]).join() === "b");
+ok("nothing before means everyone after", H.newlyAssigned(null, ["a", "b"]).join() === "a,b");
+
+const given = PL.tasksNewlyAssigned(
+  [{ id: "t1", name: "Formwork", assigneeIds: ["a"] }],
+  [
+    { id: "t1", name: "Formwork", assigneeIds: ["a", "b"] },
+    { id: "t2", name: "Pour slab", assigneeIds: ["b", "me"] },
+    { id: "t3", name: "Cure", assigneeIds: [] },
+  ],
+  "me",
+);
+ok("a planner save groups each person's new tasks", given.get("b")?.join() === "Formwork,Pour slab");
+ok("somebody already on a task hears nothing", !given.has("a"));
+ok("the person saving hears nothing", !given.has("me"));
+ok("a plan that is not a list of tasks is nobody's work", PL.tasksNewlyAssigned(null, "junk").size === 0);
+
+console.log("\n== every notice links inside the studio");
+
+// THE LIFECYCLE NOTICE LINKED TO /<slug>//<slug>/hr-lifecycle for its whole
+// life: `href` is studio-relative and the bell prefixes the slug, so a
+// producer that adds its own makes a dead link nothing reports.
+{
+  const files = execSync('git grep -l -e "notifyCollaborators(" -e "notifyHolders(" -e "notifyCollaboratorIds(" -e "notifyNewlyAssigned(" -- src', { encoding: "utf8" })
+    .split("\n").filter(Boolean);
+  const bad = [];
+  for (const file of files) {
+    const src = readFileSync(file, "utf8");
+    for (const m of src.matchAll(/href: [`"]\/(?!super)/g)) {
+      bad.push(`${file}:${src.slice(0, m.index).split("\n").length}`);
+    }
+  }
+  ok("no studio notice carries an absolute href", bad.length === 0, bad.join(", "));
+}
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nnotification inbox model: all passed\n");
 process.exit(fails ? 1 : 0);

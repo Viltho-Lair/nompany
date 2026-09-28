@@ -35,6 +35,8 @@ export const NOTICE_KINDS: Readonly<Record<string, NoticeKind>> = {
   "event.assigned": { category: "work", icon: "calendar" },
   "partner.assigned": { category: "work", icon: "team" },
   "stock.low": { category: "work", icon: "package" },
+  "job.assigned": { category: "work", icon: "techService" },
+  "task.assigned": { category: "work", icon: "tasks" },
 
   // Deals, leads and what Sales asks Engineering for.
   "rfq.raised": { category: "deals", icon: "rfp" },

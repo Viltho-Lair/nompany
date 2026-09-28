@@ -410,7 +410,9 @@ async function commitMove(
       type: NOTIFY.employmentChanged,
       title: MOVES[move].label,
       body: `${MOVES[move].label} — ${effectiveDate}`,
-      href: `/${ctx.studio.slug}/hr-lifecycle`,
+      // STUDIO-RELATIVE, like every notice: the bell prefixes the slug, so the
+      // `/${slug}/` this carried until 28/09/2026 linked to /<slug>//<slug>/….
+      href: "hr-lifecycle",
       params: { move: MOVES[move].label, date: effectiveDate },
     }, { userIdOf }).catch(() => { /* a notification must never fail the move that caused it */ });
   }

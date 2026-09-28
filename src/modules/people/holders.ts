@@ -59,6 +59,49 @@ export async function notifyCollaboratorIds(
 }
 
 /**
+ * WHO IS NEWLY ON A LIST — pure. The people in `after` who were not in
+ * `before`, less whoever made the change: they know, because they just did it.
+ * Somebody taken OFF a list is not told here; being relieved of work is not
+ * something the bell has been asked to announce.
+ */
+export function newlyAssigned(
+  before: readonly unknown[] | null | undefined,
+  after: readonly unknown[] | null | undefined,
+  actorId = "",
+): string[] {
+  const had = new Set((before || []).map(String));
+  return [...new Set((after || []).map(String))].filter((id) => id && !had.has(id) && id !== actorId);
+}
+
+/**
+ * TELL WHOEVER WAS JUST GIVEN THIS WORK — the one door every "assigned to you"
+ * notice goes through (28/09/2026). Before it, a job or a planner task could be
+ * handed to somebody and nothing told them; they found out by opening the
+ * board.
+ *
+ * GATED ON `right`: a person named on a record they may not open is told
+ * nothing, because the notice would link to a screen that refuses them and
+ * repeat what the record says to somebody the studio has not let read it.
+ */
+export async function notifyNewlyAssigned(
+  studioId: string,
+  { before, after, actorId = "", right, notice }: {
+    before: readonly unknown[] | null | undefined;
+    after: readonly unknown[] | null | undefined;
+    actorId?: string;
+    right: string;
+    notice: Notice;
+  },
+) {
+  try {
+    const added = new Set(newlyAssigned(before, after, actorId));
+    if (!added.size) return;
+    const holders = await collaboratorsHolding(studioId, right);
+    await tell(studioId, holders.filter((c) => added.has(String(c.id))), notice);
+  } catch { /* best-effort: the assignment is written; failing to announce it must not fail that */ }
+}
+
+/**
  * "Waiting for your signature", with the document's own reference as the one
  * fact. The reference is the studio's number (BIL-0004, REQ-0012, a quotation
  * number), so it reads the same in both languages; the sentence around it is
