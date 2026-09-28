@@ -94,6 +94,21 @@ told they were taken off.
   holding `engine.<type>.edit`, except whoever raised it. NCRs and HSE
   incidents announce, including the NCR a failed test's rule raises.
 
+## Tenders and deals
+
+- **`tender.assigned`**: a tender's owner when it is registered for them or
+  handed to them. Right: `tendering.tenders.view`.
+- **`tender.won` / `tender.lost`**: the owner and whoever registered it, only
+  when the write made the outcome, never to whoever pressed the button. Two
+  types rather than one with an outcome word, so the Arabic sentence has no
+  English in it.
+- **`tender.closing`**: an Identified or Preparing tender at 14, 7, 3, 1 and 0
+  days before its deadline (the daily cron). It goes to its owner; with no
+  owner who may still read it, to whoever may edit tenders.
+- **`deal.won` / `deal.lost`**: a deal's owner, when somebody else closes it.
+  Only closes: every stage move would be noise, and a stage name cannot be
+  translated inside a stored sentence.
+
 ## Who is told about their own money and time
 
 Addressed to the person the record is about, through `notifyEach` (one read of

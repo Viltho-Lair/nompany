@@ -1380,6 +1380,8 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
     return { error: "campaign" };
   }
 
+  // Where the deal stood before this edit, for the owner's notice below.
+  let fromStatus = "";
   // THE REFUSAL IS JUDGED ON WHAT THE PERSON SAW. One read, only when the stage
   // is actually moving — an edit that renames a ticket pays nothing for this.
   if (stageMove) {
@@ -1393,6 +1395,7 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
       needsQuotation && quotationsSection ? Quotations.find({ studio, section: quotationsSection }) : [],
     ]);
     if (!existing) return { error: "notfound" };
+    fromStatus = String(existing.status || "");
     const problem = stageProblem({
       from: existing.status,
       to: stageMove.to,
@@ -1425,6 +1428,23 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
     }) : {}),
   }));
   if (!ticket) return { error: "notfound" };
+
+  // A DEAL CLOSED BY SOMEBODY ELSE TELLS ITS OWNER (28/09/2026) — a manager
+  // closing a rep's deal, won or lost, used to leave the rep finding out from
+  // the board. Closes only: every intermediate move would be noise, and a
+  // stage name cannot be translated inside a stored sentence.
+  const owner = String(ticket.assignedToCollaboratorId || "");
+  if (stageMove && isClosed(stageMove.to) && fromStatus !== stageMove.to && owner && owner !== actor) {
+    const won = isWon(stageMove.to);
+    await notifyCollaboratorIds(studio.id, [owner], {
+      type: won ? NOTIFY.dealWon : NOTIFY.dealLost,
+      title: won ? "Your deal was won" : "Your deal was lost",
+      body: [ticket.ref, ticket.title].filter(Boolean).join(" · "),
+      params: { reference: String(ticket.ref || ""), title: String(ticket.title || "") },
+      href: "crm-sales-tickets/" + ticket.id,
+      tone: won ? "success" : "danger",
+    });
+  }
 
   // AND FOLD THE SITE BACK INTO THE CLIENT, the same way creating a ticket
   // does. Only create did it, so a site first named or corrected on an edit

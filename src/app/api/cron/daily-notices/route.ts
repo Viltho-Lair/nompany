@@ -14,7 +14,7 @@ import { identityDocumentLabel } from "@/shared/identityDocuments";
 import { raiseDuePmOrders, raiseDueContractOrders, raiseDueConditionOrders } from "@/modules/maintenance/pmRun";
 import {
   overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices,
-  dueWorkOrderNotices, dueCalibrationNotices, overdueLeadNotices, type WorkOrderNotice,
+  dueWorkOrderNotices, dueCalibrationNotices, overdueLeadNotices, closingTenderNotices,
 } from "@/modules/main/timeNotices";
 
 export const runtime = "nodejs";
@@ -41,6 +41,7 @@ const Permits = repo("permits");
 const WorkOrders = repo("workOrders");
 const EngineRecords = repo("engineRecords");
 const SalesTickets = repo("salesTickets");
+const Tenders = repo("tenders");
 
 async function run() {
 
@@ -136,9 +137,11 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
   const calibrationId = sectionId(calibrationKey);
   // SALES' TICKETS, for the leads waiting past their campaign's deadline.
   const ticketsId = sectionId("crm-sales-tickets");
+  // THE TENDER REGISTER, for the tenders about to close.
+  const tendersId = sectionId("tendering-register");
 
   // Read only the sections this studio actually has, all at once.
-  const [invoices, bills, permits, workOrders, calibrations, tickets] = await Promise.all([
+  const [invoices, bills, permits, workOrders, calibrations, tickets, tenders] = await Promise.all([
     cashId ? Invoices.find({ studio: { id: studioId }, section: { id: cashId } }) : Promise.resolve([]),
     payablesId ? Bills.find({ studio: { id: studioId }, section: { id: payablesId } }) : Promise.resolve([]),
     permitsId ? Permits.find({ studio: { id: studioId }, section: { id: permitsId } }) : Promise.resolve([]),
@@ -147,6 +150,7 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
       ? EngineRecords.find({ studio: { id: studioId }, section: { id: calibrationId } }, { where: { typeKey: "calibration" } })
       : Promise.resolve([]),
     ticketsId ? SalesTickets.find({ studio: { id: studioId }, section: { id: ticketsId } }) : Promise.resolve([]),
+    tendersId ? Tenders.find({ studio: { id: studioId }, section: { id: tendersId } }) : Promise.resolve([]),
   ]);
 
   const overdueDetail = (n: { reference?: string; name?: string; daysOverdue?: number }) =>
@@ -158,9 +162,9 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
   // word it. Employees ARE the collaborators — their identity document's expiry
   // sits on the collaborator row — so the HR scan reads no extra key.
   const jobs = [
-    { notices: overdueInvoiceNotices(invoices as never, todayISO, currency), key: "finance.receivables.view", also: "", type: NOTIFY.invoiceOverdue, title: "Overdue invoices", href: "finance/receivables", say: overdueDetail },
-    { notices: overdueBillNotices(bills as never, todayISO, currency), key: "finance.payables.view", also: "", type: NOTIFY.billOverdue, title: "Bills overdue", href: "finance/payables", say: overdueDetail },
-    { notices: expiringDocumentNotices(collaborators as never, todayDate), key: "hr.employees.view", also: "", type: NOTIFY.documentExpiring, title: "Documents expiring", href: "hr/employees", say: expiryDetail((n) => `${n.name}'s ${identityDocumentLabel(n.kind, "en", { inSentence: true })}`) },
+    { notices: overdueInvoiceNotices(invoices as never, todayISO, currency), key: "finance.receivables.view", also: "", type: NOTIFY.invoiceOverdue, title: "Overdue invoices", href: "finance-receivables", say: overdueDetail },
+    { notices: overdueBillNotices(bills as never, todayISO, currency), key: "finance.payables.view", also: "", type: NOTIFY.billOverdue, title: "Bills overdue", href: "finance-payables", say: overdueDetail },
+    { notices: expiringDocumentNotices(collaborators as never, todayDate), key: "hr.employees.view", also: "", type: NOTIFY.documentExpiring, title: "Documents expiring", href: "hr-employees", say: expiryDetail((n) => `${n.name}'s ${identityDocumentLabel(n.kind, "en", { inSentence: true })}`) },
     // PERMITS ARE QUALITY & HSE'S (tier 5). Heard by the permit right AND by
     // Tracking's, which held them until `grant-permits.mjs` has run — a notice
     // that went quiet the day its right moved would be the one nobody misses.
@@ -194,31 +198,55 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
   // An assignee is told only while they may still open work orders; an order
   // with nobody on it (or nobody left who may see it) goes to whoever may edit
   // work orders, because somebody has to put a name on it.
-  sent += await tellWorkOrders(studioId, dueWorkOrderNotices(workOrders as never, todayISO), collaborators, roles);
+  sent += await tellByPerson(studioId, dueWorkOrderNotices(workOrders as never, todayISO), collaborators, roles, {
+    view: "maintenance.orders.view", edit: "maintenance.orders.edit",
+    title: "Due work orders", type: NOTIFY.workOrderDue, href: "maintenance-orders",
+    say: (n) => `${n.reference || "A work order"} — ${n.name}, ${n.daysOverdue === 0 ? "due today" : `${n.daysOverdue} day${n.daysOverdue === 1 ? "" : "s"} overdue`}`,
+  });
+  // A TENDER ABOUT TO CLOSE is told to whoever owns it — the same shape as a
+  // work order, for the same reason: the person chasing it, not everybody who
+  // may read the register (28/09/2026).
+  sent += await tellByPerson(studioId, closingTenderNotices(tenders as never, todayISO), collaborators, roles, {
+    view: "tendering.tenders.view", edit: "tendering.tenders.edit",
+    title: "Tenders closing", type: NOTIFY.tenderClosing, href: "tendering-register",
+    say: (n) => `${n.reference || "A tender"} — ${n.name}, ${(n.daysLeft ?? 0) <= 0 ? "closes today" : `closes in ${n.daysLeft} day${n.daysLeft === 1 ? "" : "s"}`}`,
+  });
   return sent;
 }
 
-async function tellWorkOrders(
+type PersonNotice = { reference?: string; name?: string; daysOverdue?: number; daysLeft?: number; assignees: string[] };
+
+/**
+ * TOLD TO WHOEVER IS DOING IT, not to everybody holding a right — a technician
+ * hears about their own round, a bidder about their own tender, and a
+ * supervisor is not buzzed about forty records that each have somebody on them.
+ * So each person gets one entry for THEIR records, the same count-plus-example
+ * shape.
+ *
+ * An assignee is told only while they may still open the register; a record
+ * with nobody on it (or nobody left who may see it) goes to whoever may edit
+ * the register, because somebody has to put a name on it.
+ */
+async function tellByPerson<N extends PersonNotice>(
   studioId: string,
-  due: WorkOrderNotice[],
+  due: N[],
   collaborators: Awaited<ReturnType<typeof listCollaborators>>,
   roles: Awaited<ReturnType<typeof listRoles>>,
+  how: { view: string; edit: string; title: string; type: string; href: string; say: (n: N) => string },
 ): Promise<number> {
   if (!due.length) return 0;
-  const viewers = resolveHolders(collaborators, roles as never, "maintenance.orders.view" as never);
-  const editors = resolveHolders(collaborators, roles as never, "maintenance.orders.edit" as never);
+  const viewers = resolveHolders(collaborators, roles as never, how.view as never);
+  const editors = resolveHolders(collaborators, roles as never, how.edit as never);
   const canSee = new Set(viewers.recipientIds);
-  const byPerson = new Map<string, WorkOrderNotice[]>();
+  const byPerson = new Map<string, N[]>();
   for (const n of due) {
     const doing = n.assignees.filter((id) => canSee.has(id));
     for (const id of doing.length ? doing : editors.recipientIds) byPerson.set(id, [...(byPerson.get(id) || []), n]);
   }
-  const say = (n: { reference?: string; name?: string; daysOverdue?: number }) =>
-    `${n.reference || "A work order"} — ${n.name}, ${n.daysOverdue === 0 ? "due today" : `${n.daysOverdue} day${n.daysOverdue === 1 ? "" : "s"} overdue`}`;
   let sent = 0;
   for (const [id, notices] of byPerson) {
     const rows = await notifyCollaborators(studioId, [id],
-      build("Due work orders", notices, NOTIFY.workOrderDue, "maintenance-orders", say),
+      build(how.title, notices, how.type, how.href, how.say as never),
       { userIdOf: viewers.userIdOf });
     sent += rows.length;
   }

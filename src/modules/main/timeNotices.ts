@@ -21,6 +21,7 @@ import { expiringDocuments } from "@/modules/hr/hr";
 import { permitLive } from "@/modules/operations/permitModel";
 import { orderOpen } from "@/modules/maintenance/model";
 import { leadState, leadDueAt, daysLate } from "@/modules/sales/leads";
+import { tenderStage } from "@/modules/tendering/stages";
 
 // Overdue is chased harder early, then at widening intervals. Expiring is warned
 // about from a month out, tightening as the day nears (0 = expires today).
@@ -246,6 +247,45 @@ export function expiringPermitNotices(permits: PermitRow[], todayISO: string): E
       kind: String(p.type || "Permit"),
       date: p.validTo,
       daysLeft: days,
+    });
+  }
+  return out;
+}
+
+// ---- a tender about to close (28/09/2026) -----------------------------------
+// A register sorted by deadline still has to be LOOKED AT to be seen, and the
+// one tender nobody opened this week is the one that closes unbid. So a tender
+// still being worked — Identified or Preparing, never one already submitted or
+// decided — announces itself as its closing date approaches.
+export const TENDER_MILESTONES = [14, 7, 3, 1, 0];
+
+export type ClosingTenderNotice = {
+  recordId: string;
+  reference: string;
+  name: string;       // the tender's title
+  daysLeft: number;   // 0 = closes today
+  /** Who owns it — told first; the cron decides who else. */
+  assignees: string[];
+};
+
+type TenderRow = {
+  id?: string; ref?: string; title?: string; status?: string; submissionDeadline?: string;
+  assignedToCollaboratorId?: string;
+};
+
+/** Open tenders reaching a closing milestone today. Pure. */
+export function closingTenderNotices(tenders: TenderRow[], todayISO: string): ClosingTenderNotice[] {
+  const out: ClosingTenderNotice[] = [];
+  for (const t of tenders) {
+    if (!t.submissionDeadline || tenderStage(String(t.status || ""))?.kind !== "open") continue;
+    const days = daysBetween(todayISO, String(t.submissionDeadline).slice(0, 10));
+    if (days === null || !TENDER_MILESTONES.includes(days)) continue;
+    out.push({
+      recordId: String(t.id || ""),
+      reference: String(t.ref || ""),
+      name: String(t.title || "Tender"),
+      daysLeft: days,
+      assignees: t.assignedToCollaboratorId ? [String(t.assignedToCollaboratorId)] : [],
     });
   }
   return out;

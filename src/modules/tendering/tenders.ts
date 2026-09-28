@@ -14,6 +14,8 @@
 // later slice — see the functionality file).
 import { requirePermission } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyNewlyAssigned, notifyCollaboratorIds } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
 import { resolveValue, valuesFor } from "@/modules/administration/taxonomy";
 import { resolveClientFor } from "@/modules/sales/salesClients";
 import { seriesSetting } from "@/modules/administration/numbering";
@@ -275,6 +277,7 @@ export async function createTender(ctx: TenderingContext, body: Record<string, u
     createdAt: now(),
     updatedAt: now(),
   });
+  await announceTender(ctx, null, tender as Tender, "");
   return { tender };
 }
 
@@ -309,9 +312,16 @@ export async function editTender(ctx: TenderingContext, id: string, body: Record
   // The bid review's answer, carried into the write below so the move is judged
   // there a second time against the row as it then stands.
   let approved: boolean | undefined;
+  // THE TENDER AS IT WAS, for the notices after the write: who owned it and
+  // where it stood. Read only when this edit could change either.
+  let before: Tender | null = null;
+  if (!move && body?.assignedToCollaboratorId !== undefined) {
+    before = await Tenders.byId({ studio, section: registerSection }, id);
+  }
   if (move) {
     const existing = await Tenders.byId({ studio, section: registerSection }, id);
     if (!existing) return { error: "notfound" };
+    before = existing;
     // THE BID REVIEW IS ASKED ONLY WHEN A BID IS ABOUT TO GO OUT. Every other
     // move — Preparing, No Bid, Withdrawn, and the decisions that already
     // require having submitted — needs no plan, so it costs no read: resolving
@@ -373,7 +383,47 @@ export async function editTender(ctx: TenderingContext, id: string, body: Record
     }
     : patch);
   if (refused) return { error: refused };
-  return tender ? { tender } : { error: "notfound" };
+  if (!tender) return { error: "notfound" };
+  await announceTender(ctx, before, tender as Tender, move?.to || "");
+  return { tender };
+}
+
+// ---- who hears about a tender (28/09/2026) --------------------------------
+// A tender could be handed to somebody to chase, and won or lost, with nobody
+// told either. Its owner hears they own it; its owner and whoever registered it
+// hear how it ended. Never the person who did it.
+const TENDER_RIGHT = "tendering.tenders.view";
+const tenderFacts = (t: Tender) => ({
+  reference: String(t.ref || ""), title: String(t.title || ""), deadline: String(t.submissionDeadline || ""),
+});
+
+async function announceTender(ctx: TenderingContext, before: Tender | null, after: Tender, movedTo: string) {
+  const actor = String(ctx.collaborator?.id || "");
+  const facts = tenderFacts(after);
+  await notifyNewlyAssigned(ctx.studio.id, {
+    before: before ? [before.assignedToCollaboratorId] : [],
+    after: [after.assignedToCollaboratorId],
+    actorId: actor,
+    right: TENDER_RIGHT,
+    notice: {
+      type: NOTIFY.tenderAssigned, title: "A tender was assigned to you",
+      body: [facts.reference, facts.title, facts.deadline].filter(Boolean).join(" · "),
+      params: facts, href: "tendering-register", tone: "primary",
+    },
+  });
+  // AN OUTCOME ONLY WHEN THIS WRITE MADE IT — a second press of Won on a tender
+  // already won changed nothing and announces nothing.
+  if ((movedTo === "Won" || movedTo === "Lost") && before && before.status !== movedTo) {
+    await notifyCollaboratorIds(ctx.studio.id,
+      [String(after.assignedToCollaboratorId || ""), String(after.createdByCollaboratorId || "")], {
+        type: movedTo === "Won" ? NOTIFY.tenderWon : NOTIFY.tenderLost,
+        title: movedTo === "Won" ? "A tender was won" : "A tender was lost",
+        body: [facts.reference, facts.title].filter(Boolean).join(" · "),
+        params: { reference: facts.reference, title: facts.title },
+        href: "tendering-register",
+        tone: movedTo === "Won" ? "success" : "danger",
+      }, [actor]);
+  }
 }
 
 /**

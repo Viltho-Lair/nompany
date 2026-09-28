@@ -296,6 +296,45 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     en: { title: "Leave was booked for you", body: "{type} · {from} – {to}" },
     ar: { title: "حُجزت لكم إجازة", body: "{type} · {from} – {to}" },
   },
+  // Tenders and deals. Won and lost are separate TYPES rather than one with an
+  // `{outcome}`, because an outcome word inside the sentence would reach an
+  // Arabic bell in English — `leave.decided`'s `{outcome}` does exactly that.
+  {
+    type: "tender.assigned",
+    fields: ["reference", "title", "deadline"],
+    en: { title: "A tender was assigned to you", body: "{reference} · {title} · {deadline}" },
+    ar: { title: "أُسندت إليكم مناقصة", body: "{reference} · {title} · {deadline}" },
+  },
+  {
+    type: "tender.won",
+    fields: ["reference", "title"],
+    en: { title: "A tender was won", body: "{reference} · {title}" },
+    ar: { title: "تم الفوز بمناقصة", body: "{reference} · {title}" },
+  },
+  {
+    type: "tender.lost",
+    fields: ["reference", "title"],
+    en: { title: "A tender was lost", body: "{reference} · {title}" },
+    ar: { title: "خُسرت مناقصة", body: "{reference} · {title}" },
+  },
+  {
+    type: "tender.closing",
+    fields: ["detail"],
+    en: { title: "Tenders closing", body: "{detail}" },
+    ar: { title: "مناقصات تقترب من الإغلاق", body: "{detail}" },
+  },
+  {
+    type: "deal.won",
+    fields: ["reference", "title"],
+    en: { title: "Your deal was won", body: "{reference} · {title}" },
+    ar: { title: "تم الفوز بصفقتكم", body: "{reference} · {title}" },
+  },
+  {
+    type: "deal.lost",
+    fields: ["reference", "title"],
+    en: { title: "Your deal was lost", body: "{reference} · {title}" },
+    ar: { title: "خُسرت صفقتكم", body: "{reference} · {title}" },
+  },
   // NO TEMPLATE FOR `system`, deliberately, and it is not an omission. A system
   // notice is whatever the producer needed to say — Quality writes
   // "`${document.code} needs you`" — so there is no fixed sentence to

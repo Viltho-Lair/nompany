@@ -124,6 +124,16 @@ export const NOTIFY = {
   payPaid: "pay.paid",
   // Leave a manager booked for this person, decided on the spot (hr/hr).
   leaveBooked: "leave.booked",
+  // TENDERS AND DEALS (28/09/2026). A tender handed to somebody to chase
+  // (modules/tendering/tenders), and how it ended — told to its owner and to
+  // whoever registered it; and one about to close (the daily cron).
+  tenderAssigned: "tender.assigned",
+  tenderWon: "tender.won",
+  tenderLost: "tender.lost",
+  tenderClosing: "tender.closing",
+  // A deal closed by somebody other than its owner (modules/sales/sales).
+  dealWon: "deal.won",
+  dealLost: "deal.lost",
 };
 
 /** One stored notification, as this module writes it. */

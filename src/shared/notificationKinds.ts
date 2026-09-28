@@ -47,6 +47,11 @@ export const NOTICE_KINDS: Readonly<Record<string, NoticeKind>> = {
   "lead.waiting": { category: "deals", icon: "ticket" },
   "leads.waiting": { category: "deals", icon: "ticket" },
   "lead.assigned": { category: "deals", icon: "target" },
+  "tender.assigned": { category: "deals", icon: "tender" },
+  "tender.won": { category: "deals", icon: "award" },
+  "tender.lost": { category: "deals", icon: "tender" },
+  "deal.won": { category: "deals", icon: "award" },
+  "deal.lost": { category: "deals", icon: "ticket" },
 
   // Money owed, either way.
   "invoice.overdue": { category: "money", icon: "invoice" },
@@ -61,6 +66,7 @@ export const NOTICE_KINDS: Readonly<Record<string, NoticeKind>> = {
   "lead.overdue": { category: "deadlines", icon: "clock" },
   "workorder.due": { category: "deadlines", icon: "clock" },
   "calibration.due": { category: "deadlines", icon: "gears" },
+  "tender.closing": { category: "deadlines", icon: "clock" },
 
   // The studio's people, and this person's own standing in it.
   "join.requested": { category: "people", icon: "users" },

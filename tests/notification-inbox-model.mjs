@@ -310,5 +310,38 @@ for (const [file, type, extra] of [
   ok("payroll tells each person their own line", /notifyEach\(ctx\.studio\.id, \(updated\.lines \|\| \[\]\)\.map/.test(src));
 }
 
+console.log("\n== tenders and deals");
+
+{
+  const TN = await import("@/modules/main/timeNotices");
+  const t = (id, status, deadline, owner = "") => ({ id, ref: id.toUpperCase(), title: "Bid", status, submissionDeadline: deadline, assignedToCollaboratorId: owner });
+  const closing = TN.closingTenderNotices([
+    t("a", "Preparing", "2026-10-05", "p1"),   // 7 days out — a milestone
+    t("b", "Identified", "2026-09-28"),        // closes today
+    t("c", "Preparing", "2026-10-04"),         // 6 days — between milestones
+    t("d", "Submitted", "2026-10-05"),         // already in: nothing to chase
+    t("e", "Won", "2026-09-28"),
+  ], "2026-09-28");
+  ok("an open tender at a milestone is announced", closing.some((n) => n.recordId === "a" && n.daysLeft === 7));
+  ok("one closing today is announced", closing.some((n) => n.recordId === "b" && n.daysLeft === 0));
+  ok("between milestones it is quiet", !closing.some((n) => n.recordId === "c"));
+  ok("a submitted or decided tender is not chased", !closing.some((n) => n.recordId === "d" || n.recordId === "e"));
+  ok("its owner travels with it", closing.find((n) => n.recordId === "a")?.assignees.join() === "p1");
+}
+{
+  const src = readFileSync("src/modules/sales/sales.ts", "utf8");
+  ok("a deal's owner is told only when somebody ELSE closes it",
+    /isClosed\(stageMove\.to\) && fromStatus !== stageMove\.to && owner && owner !== actor/.test(src));
+  const tsrc = readFileSync("src/modules/tendering/tenders.ts", "utf8");
+  ok("a tender outcome is told only when this write made it", /before && before\.status !== movedTo/.test(tsrc));
+}
+{
+  // THE CRON LINKED THREE NOTICES TO `finance/receivables`-SHAPED PATHS, which
+  // are not addresses in the studio: a screen is its dashed section key.
+  const src = readFileSync("src/app/api/cron/daily-notices/route.ts", "utf8");
+  const slashed = [...src.matchAll(/href: "([^"]*\/[^"]*)"/g)].map((m) => m[1]);
+  ok("no cron notice links to a slashed path", slashed.length === 0, slashed.join(", "));
+}
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nnotification inbox model: all passed\n");
 process.exit(fails ? 1 : 0);
