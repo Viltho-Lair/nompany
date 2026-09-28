@@ -110,6 +110,11 @@ export const NOTIFY = {
   jobAssigned: "job.assigned",
   // Planner tasks handed to this person, one notice per save (operations/planner).
   taskAssigned: "task.assigned",
+  // A register's person field names somebody new (platform/engine/records).
+  recordAssigned: "record.assigned",
+  // A record raised in a register that announces — an incident, an NCR (the
+  // same file), by hand or by a rule.
+  recordRaised: "record.raised",
 };
 
 /** One stored notification, as this module writes it. */

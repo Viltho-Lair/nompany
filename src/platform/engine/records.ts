@@ -11,6 +11,8 @@ import { sectionName } from "@/shared/studio/sections";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyHolders, notifyNewlyAssigned } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
 import { transitionProblem, applyMove, coerceRecord, mergeRecord, recordProblem } from "./types";
 import { rulesFiredBy, newRecordValues, alreadyRaised, raisedEarlierByAnother } from "./rules";
 import { seedBuiltinTypes } from "./builtins";
@@ -351,6 +353,51 @@ async function resolveReferences(
 }
 
 /**
+ * WHAT A REGISTER TELLS PEOPLE, after a write has landed (28/09/2026).
+ *
+ * TWO THINGS, both declared on the TYPE rather than coded per register, so a
+ * studio's own register gets them the day it declares the field or the flag:
+ *
+ *   A PERSON FIELD (`collaborator`) naming somebody new tells them — the NCR's
+ *   owner, the incident's investigator. Gated on `engine.<type>.view`: a person
+ *   named on a register they may not read is told nothing.
+ *
+ *   `announce: true` on the type tells everyone who may EDIT the register that a
+ *   record was raised — an incident reported, an NCR raised by hand or by a rule
+ *   off a failed test. Not the person who raised it; they know.
+ *
+ * AFTER THE WRITE AND NEVER INSIDE A PATCH, for runRulesForMove's reason: a
+ * patch function may run more than once, and a notice would go once per run.
+ * Best-effort, like every notice — both helpers swallow their own failures.
+ */
+async function announceRecord(
+  ctx: EngineCallerContext, type: RecordType, record: Row, before: Record<string, unknown> | null,
+) {
+  const values = (record.values || {}) as Record<string, unknown>;
+  const reference = String(record.reference || "");
+  const title = titleOf(record);
+  const register = String(type.label || type.key);
+  const facts = { register, reference, title };
+  const body = [register, reference, title].filter(Boolean).join(" · ");
+  const href = String(type.sectionKey || engineSectionKey(type.key));
+
+  for (const f of (type.fields || []).filter((x) => x.kind === "collaborator")) {
+    await notifyNewlyAssigned(ctx.studio.id, {
+      before: before ? [before[f.key]] : [],
+      after: [values[f.key]],
+      actorId: ctx.collaborator.id,
+      right: `engine.${type.key}.view`,
+      notice: { type: NOTIFY.recordAssigned, title: "A record was assigned to you", body, params: facts, href, tone: "primary" },
+    });
+  }
+  if (!before && (type as { announce?: boolean }).announce) {
+    await notifyHolders(ctx.studio.id, `engine.${type.key}.edit`, {
+      type: NOTIFY.recordRaised, title: "A record was raised", body, params: facts, href, tone: "warning",
+    }, [ctx.collaborator.id]);
+  }
+}
+
+/**
  * A ROW IN ONE LINE, for the far end of a link.
  *
  * The FIRST text-ish value the row carries, because a record type is a studio's
@@ -402,9 +449,21 @@ export async function listRecords(ctx: EngineCallerContext, typeKey: string) {
   // ids to ask for at all.
   const references = await resolveReferences(ctx, type, rows);
 
+  // THE PEOPLE A PERSON FIELD MAY NAME, for its picker — sent only when the type
+  // has one. `collaborator` was a text box for a hand-typed id until 28/09/2026,
+  // which nobody could fill and nothing could notify. Names only, the same
+  // `alias` `createdByAlias` already shows every reader of this register.
+  const hasPersonField = (type.fields || []).some((f) => f.kind === "collaborator");
+  const pickable = hasPersonField
+    ? (people as { id?: unknown; alias?: unknown }[])
+      .map((c) => ({ id: String(c?.id ?? ""), name: String(c?.alias ?? "") }))
+      .filter((p) => p.id)
+    : undefined;
+
   return {
     type,
     references,
+    ...(pickable ? { people: pickable } : {}),
     records: [...rows]
       .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
       .map((r) => ({
@@ -444,24 +503,24 @@ export async function createRecord(
 
   const rows = await Records.find(scope, { where: { typeKey } });
   const at = now();
-  return {
-    record: await Records.create(scope, {
-      reference: await nextReference(ctx.studio.id, {
-        rows, field: "reference", prefix: prefixOf(typeKey),
-      }),
-      typeKey,
-      typeVersion: type.version,
-      // THE FIRST DECLARED STATUS. A record born outside the chain could never
-      // move, because every transition names a `from`.
-      status: (type.statuses || [])[0] || "",
-      // NOTHING IS STORED YET, so this is the declaration's own keys and no
-      // more — `mergeRecord` with an empty left-hand side is `coerceRecord`.
-      values,
-      createdByCollaboratorId: ctx.collaborator.id,
-      createdAt: at,
-      updatedAt: at,
+  const record = await Records.create(scope, {
+    reference: await nextReference(ctx.studio.id, {
+      rows, field: "reference", prefix: prefixOf(typeKey),
     }),
-  };
+    typeKey,
+    typeVersion: type.version,
+    // THE FIRST DECLARED STATUS. A record born outside the chain could never
+    // move, because every transition names a `from`.
+    status: (type.statuses || [])[0] || "",
+    // NOTHING IS STORED YET, so this is the declaration's own keys and no
+    // more — `mergeRecord` with an empty left-hand side is `coerceRecord`.
+    values,
+    createdByCollaboratorId: ctx.collaborator.id,
+    createdAt: at,
+    updatedAt: at,
+  });
+  await announceRecord(ctx, type, record as Row, null);
+  return { record };
 }
 
 export async function editRecord(
@@ -495,8 +554,7 @@ export async function editRecord(
   // disagreed" was. Same rule and same reason as `chase.ts`, which states it.
   const at = now();
 
-  return {
-    record: await Records.update(scope, id, (row) => ({
+  const record = await Records.update(scope, id, (row) => ({
       ...row,
       // MERGED ONTO WHAT IS STORED, not rebuilt from the declaration. A field
       // the type has since dropped survives the edit; `mergeRecord` carries the
@@ -513,8 +571,11 @@ export async function editRecord(
       // is what the version means: what it was written under.
       typeVersion: type.version,
       updatedAt: at,
-    })),
-  };
+    }));
+  // Told against the row as it was READ: somebody put on the record by this
+  // edit hears about it; somebody already on it does not.
+  if (record) await announceRecord(ctx, type, record as Row, (existing.values || {}) as Record<string, unknown>);
+  return { record };
 }
 
 /**
@@ -608,6 +669,10 @@ async function runRulesForMove(
       await Records.remove(targetScope, String(made.id));
       continue;
     }
+    // A RECORD A RULE RAISED IS ANNOUNCED LIKE ONE RAISED BY HAND — the failed
+    // test's NCR used to appear in the register with nobody told it was there.
+    // Only after the race check above, so a withdrawn duplicate rings nobody.
+    await announceRecord(ctx, targetType, made as Row, null);
     raised.push({ typeKey: targetKey, reference: String(made.reference || "") });
   }
   return { raised };

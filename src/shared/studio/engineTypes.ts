@@ -69,7 +69,7 @@ const FIELD_AR: Record<string, Words> = {
   ncr: {
     title: "العنوان", description: "ما الذي وُجد", severity: "الخطورة", raisedOn: "تاريخ الرصد",
     rootCause: "السبب الجذري", correctiveAction: "الإجراء التصحيحي", dueBy: "موعد الإجراء",
-    foundBy: "رُصد في الاختبار",
+    foundBy: "رُصد في الاختبار", owner: "المسؤول",
   },
   audit: {
     title: "العنوان", scope: "النطاق", auditor: "المدقق", standard: "المعيار",
@@ -77,7 +77,7 @@ const FIELD_AR: Record<string, Words> = {
   },
   incident: {
     title: "العنوان", happenedOn: "التاريخ", kind: "النوع", daysLost: "الأيام الضائعة",
-    description: "ما الذي حدث", immediateAction: "الإجراء الفوري",
+    description: "ما الذي حدث", immediateAction: "الإجراء الفوري", investigator: "المحقق",
   },
   toolbox: { topic: "الموضوع", heldOn: "تاريخ الانعقاد", presenter: "المقدِّم", attendees: "الحضور", notes: "ملاحظات" },
   equipment: {

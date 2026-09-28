@@ -78,8 +78,8 @@ export const BUILTIN_TYPES = [
     // not the `collaborator` kind. The question an RFI register answers is
     // "whose move is it" — ours, the client's, the consultant's — and that
     // survives the individual who happens to be handling it this week. It also
-    // renders as a real dropdown, where `collaborator` is an honest text box in
-    // phase 1 with no picker behind it.
+    // renders as a dropdown of parties. (`collaborator` was a text box when this
+    // was written; it is a picker of the studio's people since 28/09/2026.)
     key: "rfi",
     label: "RFIs",
     parentSectionKey: "engineering-docs",
@@ -180,6 +180,9 @@ export const BUILTIN_TYPES = [
       // typed. Optional, because an NCR is also raised by somebody walking
       // the site with no test record behind it.
       { key: "foundBy", label: "Found by test", kind: "reference", refType: "testreport" },
+      // WHO OWNS THE FIX (v3, 28/09/2026) — a person, so naming them tells them.
+      // An NCR everybody could see and nobody was told about was the gap.
+      { key: "owner", label: "Owner", kind: "collaborator" },
     ],
     columns: ["title", "severity", "dueBy"],
     statuses: ["Open", "Investigating", "Action agreed", "Verified", "Closed"],
@@ -190,7 +193,10 @@ export const BUILTIN_TYPES = [
       { from: "Verified", to: "Closed" },
       { from: "Investigating", to: "Closed" },
     ],
-    version: 2,
+    // v3: the owner field, and a raised NCR is announced to the register's
+    // editors — by hand or by the failed test's rule.
+    announce: true,
+    version: 3,
   },
   {
     key: "audit",
@@ -229,6 +235,8 @@ export const BUILTIN_TYPES = [
       { key: "daysLost", label: "Days lost", kind: "number" },
       { key: "description", label: "What happened", kind: "longtext", required: true },
       { key: "immediateAction", label: "Immediate action", kind: "longtext" },
+      // WHO INVESTIGATES (v2, 28/09/2026) — naming them tells them.
+      { key: "investigator", label: "Investigator", kind: "collaborator" },
     ],
     columns: ["title", "kind", "happenedOn"],
     statuses: ["Reported", "Investigating", "Closed"],
@@ -236,7 +244,10 @@ export const BUILTIN_TYPES = [
       { from: "Reported", to: "Investigating" },
       { from: "Investigating", to: "Closed" },
     ],
-    version: 1,
+    // v2: the investigator, and a reported incident is announced to everyone
+    // who may work the register — nobody learns of a site injury by browsing.
+    announce: true,
+    version: 2,
   },
   // PERMITS TO WORK (`permit`) ARE NO LONGER SEEDED — tier 5, the owner's "one
   // permit register". Quality & HSE's engine register had the workflow and no
@@ -924,6 +935,10 @@ function declarationHalf(decl: BuiltinDecl, { clearRules }: { clearRules: boolea
     ...("rules" in decl
       ? { rules: (decl as { rules: readonly object[] }).rules.map((r) => ({ ...r })) }
       : clearRules ? { rules: [] } : {}),
+    // WHETHER A NEW RECORD IS ANNOUNCED to the register's editors (records.ts,
+    // `announceRecord`). Declaration-owned like the rules: a version bump that
+    // turns it on must reach the studios already holding the type.
+    announce: Boolean((decl as { announce?: boolean }).announce),
     version: decl.version,
   };
 }

@@ -264,5 +264,30 @@ console.log("\n== every notice links inside the studio");
   ok("no studio notice carries an absolute href", bad.length === 0, bad.join(", "));
 }
 
+console.log("\n== the quality and safety registers tell people");
+
+{
+  const B = await import("@/platform/engine/builtins");
+  const decl = (k) => B.BUILTIN_TYPES.find((t) => t.key === k);
+  // A RULE-RAISED NCR appeared in the register with nobody told, and an HSE
+  // incident was found by whoever next browsed the register.
+  for (const [k, person] of [["ncr", "owner"], ["incident", "investigator"]]) {
+    ok(`${k} announces a new record`, decl(k)?.announce === true);
+    ok(`${k} names a person (${person}), so naming them tells them`,
+      decl(k)?.fields.some((f) => f.key === person && f.kind === "collaborator"));
+  }
+  const src = readFileSync("src/platform/engine/records.ts", "utf8");
+  ok("a create is announced", /const record = await Records\.create[\s\S]*?await announceRecord\(ctx, type, record as Row, null\)/.test(src));
+  ok("an edit is announced against the row as read",
+    /await announceRecord\(ctx, type, record as Row, \(existing\.values/.test(src));
+  // After the race check, so a withdrawn duplicate NCR rings nobody.
+  ok("a rule-raised record is announced, after the race check",
+    /raisedEarlierByAnother[\s\S]*?continue;\s*\}[\s\S]*?await announceRecord\(ctx, targetType, made as Row, null\)/.test(src));
+  ok("a person field is gated on the register's view right", /right: `engine\.\$\{type\.key\}\.view`/.test(src));
+  const bsrc = readFileSync("src/platform/engine/builtins.ts", "utf8");
+  // A version bump that turns announcing on must reach studios holding the type.
+  ok("reconciliation carries `announce`", /function declarationHalf[\s\S]*?announce: Boolean/.test(bsrc));
+}
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nnotification inbox model: all passed\n");
 process.exit(fails ? 1 : 0);

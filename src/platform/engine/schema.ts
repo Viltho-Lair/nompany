@@ -49,6 +49,13 @@ export const RecordTypeSchema = z.object({
     }),
   })).optional(),
   /**
+   * WHETHER A NEW RECORD IS ANNOUNCED to everyone who may edit the register
+   * (records.ts, `announceRecord`, 28/09/2026) — an incident reported, an NCR
+   * raised. OPTIONAL for the reason `rules` is: every type stored before it
+   * existed has none, and absent means no.
+   */
+  announce: z.boolean().optional(),
+  /**
    * `builtin` is seeded and may not be edited by a studio; `studio` is the
    * tenant's own. Phase 1 ships built-ins only.
    */

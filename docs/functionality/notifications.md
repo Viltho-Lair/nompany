@@ -87,6 +87,12 @@ told they were taken off.
 - **Planner tasks** (`task.assigned`): one notice per person per save, naming
   up to three of their new tasks. Right: `projects.planner.view`, so a project
   member who reaches the plan only through the project is not told.
+- **A register's person field** (`record.assigned`): whoever a `collaborator`
+  field newly names — an NCR's Owner, an incident's Investigator, or any person
+  field a studio's own register declares. Right: `engine.<type>.view`.
+- **A record raised in a register that announces** (`record.raised`): everyone
+  holding `engine.<type>.edit`, except whoever raised it. NCRs and HSE
+  incidents announce, including the NCR a failed test's rule raises.
 
 ## Who is told a signature is waiting
 

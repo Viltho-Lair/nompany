@@ -412,10 +412,15 @@ for a type whose records something else points at, and no per-type deletion poli
 phase 1 has no tenant declaration to validate. Named here so the gap is a seam rather than
 a discovery.
 
-**`collaborator` and `reference` fields render as plain text inputs.** Both kinds are
-declarable, validated and stored; the screen has no people picker and no record picker for
-them yet. An honest text box rather than an absent field, and it means nothing checks that
-a `reference` value names a record that exists.
+**Both link kinds have pickers now.** `reference` is a picker over the target register.
+`collaborator` became a picker over the studio's people on 28/09/2026: the register's read
+sends `people` (id and alias) when the type has such a field, and the list shows the name.
+**Naming somebody in one tells them** (`record.assigned`, gated on `engine.<type>.view`),
+and a type declaring **`announce: true`** tells everyone holding `engine.<type>.edit` when a
+record is raised, by hand or by a rule. NCRs (v3, Owner) and HSE incidents (v2,
+Investigator) do both. Still true: nothing checks at the write that a `collaborator` value
+names somebody in the studio; the picker offers only real people, and a notice goes only to
+a real holder of the right.
 
 **The reference prefix is the type key's first three letters.** `transmittal` mints
 `TRA-0001`. Two type keys sharing three leading letters — `transmittal` and `transfer` —

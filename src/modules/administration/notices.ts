@@ -256,6 +256,20 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     en: { title: "You were given work in a plan", body: "{plan} · {tasks}" },
     ar: { title: "أُسندت إليكم مهام في خطة", body: "{plan} · {tasks}" },
   },
+  // `{register}` is the register's own label — data the studio or the product
+  // named, like a section name, and not translated here.
+  {
+    type: "record.assigned",
+    fields: ["register", "reference", "title"],
+    en: { title: "A record was assigned to you", body: "{register} · {reference} · {title}" },
+    ar: { title: "أُسند إليكم سجل", body: "{register} · {reference} · {title}" },
+  },
+  {
+    type: "record.raised",
+    fields: ["register", "reference", "title"],
+    en: { title: "A record was raised", body: "{register} · {reference} · {title}" },
+    ar: { title: "تم تسجيل سجل جديد", body: "{register} · {reference} · {title}" },
+  },
   // NO TEMPLATE FOR `system`, deliberately, and it is not an omission. A system
   // notice is whatever the producer needed to say — Quality writes
   // "`${document.code} needs you`" — so there is no fixed sentence to

@@ -100,9 +100,10 @@ function refusal(tr, token) {
  * form control; a bare input beside one is visibly a different shape, and this
  * screen draws forms it has never seen, so it cannot rely on anybody noticing.
  *
- * `collaborator` STILL falls through to a text input and is named as such in the
- * functionality file: the picker it wants is real work and this screen does not
- * fake it.
+ * `collaborator` IS A PICKER OVER THE STUDIO'S PEOPLE since 28/09/2026. It was
+ * a text box for a hand-typed id, which nobody could fill in and which could not
+ * tell the person named. The register's read sends `people` when the type has
+ * such a field; without them it still degrades to the text box.
  *
  * `reference` NO LONGER DOES. It was declared as a field kind when the engine
  * shipped, `refType` named the type it points at, `typeProblem` refused a
@@ -113,7 +114,7 @@ function refusal(tr, token) {
  * `Field.onChange` HANDS OVER THE VALUE, not the event — for the input, the
  * textarea and the select alike — so every handler below takes `v`.
  */
-function controlFor(tr, w, field, value, onChange, refOptions) {
+function controlFor(tr, w, field, value, onChange, refOptions, people) {
   // `key` IS PASSED EXPLICITLY ON EACH ELEMENT, never through this spread.
   // React reads `key` off the JSX call rather than off props, so a spread
   // carrying one is a warning at runtime and nothing at build time.
@@ -179,8 +180,22 @@ function controlFor(tr, w, field, value, onChange, refOptions) {
         ]} />
     );
   }
-  // text and collaborator. The second is an honest text box rather than an
-  // absent field — see the note above.
+  if (field.kind === "collaborator" && people) {
+    // THE STUDIO'S PEOPLE, AS A PICKER (28/09/2026). The value is their
+    // collaborator id, which is what lets naming somebody here TELL them
+    // (records.ts, announceRecord). A stored value that names nobody still in
+    // the studio is offered as itself, so opening an old record never blanks it.
+    const known = people.some((p) => p.id === value);
+    return (
+      <Field key={field.key} {...common} as="select" value={value ?? ""} onChange={onChange}
+        options={[
+          ...(field.required ? [] : [{ value: "", label: "" }]),
+          ...(value && !known ? [{ value: String(value), label: String(value) }] : []),
+          ...people.map((p) => ({ value: p.id, label: p.name || p.id })),
+        ]} />
+    );
+  }
+  // text, and a collaborator field on a register whose read carried no people.
   return <Field key={field.key} {...common} type="text" value={value ?? ""} onChange={onChange} />;
 }
 
@@ -192,12 +207,15 @@ function controlFor(tr, w, field, value, onChange, refOptions) {
  * store's own answer rather than this screen's guess.
  */
 // `money` is the screen's (useMoney): a money field shows the studio's currency.
-function cell(tr, w, field, value, references, money) {
+function cell(tr, w, field, value, references, money, people) {
   if (field.kind === "boolean") return value ? tr.yes : tr.no;
   if (value === null || value === undefined || value === "") return "—";
   if (field.kind === "date") return fmtDate(value);
   if (field.kind === "money") return money(value);
   if (field.kind === "select") return w.word(value);
+  // A PERSON BY NAME. The id is what is stored; a name that no longer resolves
+  // (they left the studio) shows the id rather than a blank.
+  if (field.kind === "collaborator") return people?.find((p) => p.id === value)?.name || String(value);
   if (field.kind === "reference") {
     // THREE ANSWERS, AND THEY ARE DIFFERENT FACTS.
     //
@@ -468,7 +486,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
       const v = r.values?.[key];
       if (field.kind !== "boolean" && (v === null || v === undefined || v === "")) return "";
       if (field.kind === "number" || field.kind === "money") return v;
-      return cell(tr, w, field, v, data.references, money);
+      return cell(tr, w, field, v, data.references, money, data.people);
     };
     const body = shown.map((r) => cols.map((c) =>
       esc(c === "reference" ? r.reference : c === "status" ? w.word(r.status) : fieldCell(r, c))).join(","));
@@ -566,7 +584,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
                   <tr key={r.id}>
                     <td className="py-3 pe-4 font-mono text-xs text-slate-500 dark:text-slate-400">{r.reference}</td>
                     {columns.map((f) => (
-                      <td key={f.key} className="py-3 pe-4 text-[var(--geex-ink)]">{cell(tr, w, f, r.values?.[f.key], data.references, money)}</td>
+                      <td key={f.key} className="py-3 pe-4 text-[var(--geex-ink)]">{cell(tr, w, f, r.values?.[f.key], data.references, money, data.people)}</td>
                     ))}
                     <td className="py-3 pe-4">
                       {/* THE STATUS WORD IS THE TYPE'S OWN, so the pill is
@@ -626,7 +644,7 @@ export default function StudioRecords({ slug, typeKey, initial }) {
             {(type.fields || []).map((f) => controlFor(
               tr, w, f, form.values[f.key],
               (v) => setForm((prev) => ({ ...prev, values: { ...prev.values, [f.key]: v } })),
-              refOptions,
+              refOptions, data.people,
             ))}
             <div className="flex justify-end gap-2">
               <button type="button" className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
