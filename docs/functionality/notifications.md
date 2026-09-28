@@ -94,6 +94,26 @@ the screen.
 `effectivePermissions`; join requests, leave and the RFQ-raised notice used to each list the
 people and filter by hand, and now call it.
 
+## How a notice reaches an open tab
+
+A producer writes the row and rings the recipient's personal channel with its
+id. **It rings only when the caller passes `userIdOf`**, because rows are
+addressed to CollaboratorIDs and channels are keyed by UserID.
+`tests/notification-inbox-model.mjs` refuses any `notifyCollaborators` call
+without it. The stream route subscribes to that channel **before** it sends
+`ready`, holds what it hears until then, and forwards the row.
+
+**The bell re-reads its list on every `ready`**, and LiveProvider counts them.
+The personal channel has no replay, so the re-read covers anything sent while
+a connection did not exist. That includes the server's own recycle every four
+minutes, which goes live → live with no status change to react to. Until
+28/09/2026 the bell keyed on status, and a notice sent in that gap waited for a
+manual refresh.
+
+**The unread count sits in the tab's title** ("(3) …"), on the studio and the
+console alike, so somebody in another tab can see it. The merge and the count
+are `shared/notificationInbox`, one rule for both bells.
+
 ## Not built yet
 
 - **A formatted quantity carries the producer's language.** "3 days" is
@@ -113,6 +133,17 @@ people and filter by hand, and now call it.
   paper size.
 - **No per-person preferences.** A collaborator cannot mute a type, choose a
   digest, or opt out. Every holder of the right gets every notice.
+- **The whole studio shares 200 rows.** `MAX_PER_STUDIO` caps one document
+  holding every member's notices, so a busy studio pushes everybody's older
+  notices out. The bell shows 30 of them, and there is no page listing the
+  rest. Phase 2 in `docs/progress.md` moves them to one row per recipient.
+- **Most of the product notifies nobody.** Assigned jobs and planner tasks,
+  NCRs and incidents, paid claims and payroll, tender and deal moves, invoice
+  payments, POS variances and several expiry dates are all silent. Phase 3 in
+  `docs/progress.md` lists the order.
+- **No browser or phone push, and a hidden tab lets go of the stream** after a
+  minute. It catches up when shown again, and the title count only moves while
+  the tab stays connected.
 - **Nothing previews an override.** The screen shows the placeholders it may use
   and not what a filled sentence looks like.
 - **`people.changed` and `mention` have templates and no producer sending

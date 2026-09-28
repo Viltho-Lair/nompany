@@ -25,6 +25,38 @@ export const maxDuration = 300;
 // a request whose response has barely begun when the handler returns.
 export const GET = route({ auth: "super", name: "super/stream" }, async ({ request }) => {
   return sseResponse(request, async (conn) => {
+    // LISTEN FIRST, DELIVER AFTER `ready` — the studio stream's fix, 28/09/2026,
+    // for the same reason: a subscription starts from "now", so subscribing
+    // after the replay let anything published during it reach nobody, and the
+    // four-minute recycle opened that window on a schedule. Frames heard early
+    // are held until `ready` has gone out; one the replay already carried is
+    // dropped by id.
+    let flowing = false;
+    const held: Array<() => void> = [];
+    const replayed = new Set<string>();
+
+    // One channel carries both: platform events (what happened) and owner
+    // notifications (what someone should be told about it). They are told apart
+    // by `kind`, because every owner is entitled to both and splitting them
+    // across two channels would double the subscriptions for no gain.
+    const release = await subscribe(CH.super, (raw) => {
+      // Platform events and owner notifications share the channel and are told
+      // apart by `kind`; the bus hands over JSON and nothing more.
+      const e = (raw || {}) as { kind?: string; id?: string };
+      const send = () => {
+        if (!conn.open) return;
+        // A NOTIFICATION IS SENT WITHOUT A FRAME ID. Its `id` is `ntf_…`, not a
+        // log cursor, and a frame id becomes the browser's Last-Event-ID: one
+        // notice arriving made the next reconnect resume from a value
+        // `isCursor` rejects, so the replay was skipped and every event in the
+        // gap was lost.
+        if (e.kind === "notif") return conn.send("notif", e);
+        if (e.id && replayed.has(e.id)) return;
+        conn.send("change", e, e.id);
+      };
+      if (flowing) send(); else held.push(send);
+    });
+
     const since = resumeCursor(request);
     let cursor = since;
 
@@ -32,7 +64,10 @@ export const GET = route({ auth: "super", name: "super/stream" }, async ({ reque
       for (let page = 0; page < 10 && conn.open; page++) {
         const out = await readPlatformSince(cursor);
         cursor = out.cursor || cursor;
-        for (const e of out.events) conn.send("change", e, e.id);
+        for (const e of out.events) {
+          if (e.id) replayed.add(e.id);
+          conn.send("change", e, e.id);
+        }
         if (!out.truncated) break;
       }
     } else {
@@ -40,18 +75,8 @@ export const GET = route({ auth: "super", name: "super/stream" }, async ({ reque
     }
 
     conn.send("ready", { cursor }, cursor);
-    if (!conn.open) return null;
-
-    // One channel carries both: platform events (what happened) and owner
-    // notifications (what someone should be told about it). They are told apart
-    // by `kind`, because every owner is entitled to both and splitting them
-    // across two channels would double the subscriptions for no gain.
-    return subscribe(CH.super, (raw) => {
-      if (!conn.open) return;
-      // Platform events and owner notifications share the channel and are told
-      // apart by `kind`; the bus hands over JSON and nothing more.
-      const e = (raw || {}) as { kind?: string; id?: string };
-      conn.send(e.kind === "notif" ? "notif" : "change", e, e.id);
-    });
+    flowing = true;
+    for (const fn of held.splice(0)) fn();
+    return release;
   });
 });

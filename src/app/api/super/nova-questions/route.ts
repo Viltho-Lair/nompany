@@ -85,9 +85,14 @@ export const PATCH = route({ ...spec, body: true }, async (g) => {
       type: NOTIFY.novaAnswered,
       title: ar ? "رد الدعم على سؤالك" : "Support answered your question",
       body: reply.slice(0, 240),
+      // No studio screen shows a support reply, so there is nowhere to send
+      // the click; the answer itself is the body.
       href: "",
       tone: "success",
-    });
+    // THE DOORBELL NEEDS THE ASKER'S USER ID. Without it the row was written
+    // and nothing was rung, so the answer sat unseen until the asker happened
+    // to reload — the one producer that omitted it (28/09/2026).
+    }, { userIdOf: (id) => (id === existing.asker.collaboratorId ? existing.asker.userId || undefined : undefined) });
 
     const q = await updateHelpQuestion(id, (r) => ({
       ...r,

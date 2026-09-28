@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSuperLive } from "@/components/super/SuperLiveProvider";
+import { mergeNotices, unreadCount } from "@/shared/notificationInbox";
 
 // The console's notifications, from both places they come from.
 //
@@ -20,6 +21,7 @@ export default function useSuperNotifications() {
 
   const streamed = live?.notifications;
   const status = live?.status;
+  const connection = live?.connection;
 
   const load = useCallback(async () => {
     try {
@@ -34,23 +36,17 @@ export default function useSuperNotifications() {
   }, []);
 
   // Re-read whenever the stream (re)connects: a reconnect is precisely when
-  // something may have been missed.
+  // something may have been missed. Keyed on the CONNECTION COUNT, not on
+  // `status` — a routine recycle goes live -> live, which never re-ran this, so
+  // a notice sent while the connection was down waited for a manual refresh.
   useEffect(() => {
-    if (status === "live") load();
-  }, [status, load]);
+    if (connection) load();
+  }, [connection, load]);
 
   // Merge, newest first, without letting a notification carried by both sources
-  // appear twice.
-  const seen = new Set();
-  const notifications = [];
-  for (const n of [...(streamed || []), ...stored]) {
-    if (seen.has(n.id)) continue;
-    seen.add(n.id);
-    notifications.push(n);
-  }
-  notifications.sort((a, b) => String(b.at).localeCompare(String(a.at)));
-
-  const unread = notifications.filter((n) => !n.readAt).length;
+  // appear twice — the studio bell's rule, from the one place it is written.
+  const notifications = mergeNotices(streamed, stored);
+  const unread = unreadCount(notifications);
 
   const markAllRead = useCallback(async () => {
     const at = new Date().toISOString();

@@ -69,6 +69,12 @@ export default function LiveProvider({ slug, children }) {
   // happened, so the UI never cries wolf over an ordinary reconnect.
   const [status, setStatus] = useState("connecting");
   const [notifications, setNotifications] = useState([]);
+  // HOW MANY TIMES THE STREAM HAS SAID `ready`. `status` alone cannot tell the
+  // bell to re-read: an ordinary reconnect (the server recycles every four
+  // minutes) goes live -> live, React sees no change, and anything sent while
+  // the connection did not exist stayed invisible until a manual refresh. A
+  // counter changes on every connect, recycles included.
+  const [connection, setConnection] = useState(0);
 
   // Everything the connection needs lives in refs: none of it should re-render
   // a board, and none of it should restart the connection when it changes.
@@ -137,6 +143,7 @@ export default function LiveProvider({ slug, children }) {
           /* keep whatever cursor we had */
         }
         setStatus("live");
+        setConnection((c) => c + 1);
       });
 
       es.addEventListener("change", (m) => {
@@ -215,8 +222,8 @@ export default function LiveProvider({ slug, children }) {
   }, [slug, fire]);
 
   const value = useMemo(
-    () => ({ slug, status, subscribe, notifications, setNotifications }),
-    [slug, status, subscribe, notifications],
+    () => ({ slug, status, connection, subscribe, notifications, setNotifications }),
+    [slug, status, connection, subscribe, notifications],
   );
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;

@@ -12,6 +12,7 @@ import { initialsOf } from "@/lib/initials";
 import { ago } from "@/lib/format";
 import ThemeToggle from "@/components/ThemeToggle";
 import useSuperNotifications from "@/components/super/useSuperNotifications";
+import useUnreadTitle from "@/components/notifications/useUnreadTitle";
 
 /* THE HEADER'S RIGHT SIDE: search, theme, notifications, and the signed-in admin.
    ------------------------------------------------------------------
@@ -169,6 +170,9 @@ export default function ConsoleActions({ admin }) {
   }, [router]);
 
   const { notifications, unread, loaded, status, markAllRead } = useSuperNotifications();
+  // The header is mounted on every console page, so the count lives here and
+  // not in the hook — the Notifications page uses the hook too.
+  useUnreadTitle(unread);
 
   return (
     <>

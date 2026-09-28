@@ -7,6 +7,8 @@ import { useLive } from "@/components/studio2/LiveProvider";
 import { ago } from "@/lib/format";
 import { shellDict } from "@/shared/studio/shell";
 import { renderNotice } from "@/modules/administration/notices";
+import { mergeNotices, unreadCount } from "@/shared/notificationInbox";
+import useUnreadTitle from "@/components/notifications/useUnreadTitle";
 
 // The studio's bell.
 //
@@ -45,9 +47,14 @@ export default function NotificationBell({ slug, locale = "en" }) {
 
   const streamed = live?.notifications;
   const status = live?.status;
+  const connection = live?.connection;
 
-  // What was already waiting. Re-fetched when the stream (re)connects, because
-  // a reconnect is exactly the moment we may have missed something.
+  // What was already waiting. Re-fetched EVERY time the stream connects,
+  // because a reconnect is exactly the moment we may have missed something.
+  // It was keyed on `status === "live"`, and the server recycles the
+  // connection every four minutes by going live -> live — no change React
+  // could see — so a notice sent in that gap appeared only after a manual
+  // refresh. The connection count changes on every `ready`.
   const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/studios/${slug}/notifications`, { cache: "no-store" });
@@ -63,21 +70,14 @@ export default function NotificationBell({ slug, locale = "en" }) {
   }, [slug]);
 
   useEffect(() => {
-    if (status === "live") load();
-  }, [status, load]);
+    if (connection) load();
+  }, [connection, load]);
 
   // Merge the streamed arrivals into the fetched list, newest first, without
   // letting a notification appear twice when both sources carry it.
-  const merged = [];
-  const seen = new Set();
-  for (const n of [...(streamed || []), ...rows]) {
-    if (seen.has(n.id)) continue;
-    seen.add(n.id);
-    merged.push(n);
-  }
-  merged.sort((a, b) => String(b.at).localeCompare(String(a.at)));
-
-  const unread = merged.filter((n) => !n.readAt).length;
+  const merged = mergeNotices(streamed, rows);
+  const unread = unreadCount(merged);
+  useUnreadTitle(unread);
 
   // THE WORDS ARE CHOSEN HERE, not by whatever produced the row. Every
   // notification in this product was an English sentence written at the

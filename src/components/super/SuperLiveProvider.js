@@ -23,6 +23,10 @@ export function useSuperLive() {
 export default function SuperLiveProvider({ children }) {
   const [status, setStatus] = useState("connecting");
   const [notifications, setNotifications] = useState([]);
+  // Counts every `ready`, recycles included — see the same counter in the
+  // studio's LiveProvider: `status` goes live -> live on a reconnect, so it
+  // cannot tell a reader to re-read what was missed while disconnected.
+  const [connection, setConnection] = useState(0);
 
   const source = useRef(null);
   const cursor = useRef("");
@@ -65,6 +69,7 @@ export default function SuperLiveProvider({ children }) {
           /* keep the cursor we had */
         }
         setStatus("live");
+        setConnection((c) => c + 1);
       });
 
       es.addEventListener("change", (m) => {
@@ -137,8 +142,8 @@ export default function SuperLiveProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ status, subscribe, notifications, setNotifications }),
-    [status, subscribe, notifications],
+    () => ({ status, connection, subscribe, notifications, setNotifications }),
+    [status, connection, subscribe, notifications],
   );
 
   return <SuperLiveContext.Provider value={value}>{children}</SuperLiveContext.Provider>;

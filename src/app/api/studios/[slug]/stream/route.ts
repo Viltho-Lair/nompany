@@ -129,38 +129,29 @@ type WireEvent = {
   });
 
   return sseResponse(request, async (conn) => {
-    // ---- catch up before listening ----------------------------------------
-    // Done first so nothing that happened during the gap is missed, and so the
-    // client has a cursor even if this studio never emits again.
-    const since = resumeCursor(request);
-    let cursor = since;
-
-    if (isCursor(since)) {
-      // Drain rather than read once: a client returning after a long absence
-      // may be more than one page behind.
-      for (let page = 0; page < 10 && conn.open; page++) {
-        const out = await readSince(studio.id, cursor, visible);
-        cursor = out.cursor || cursor;
-        for (const e of out.events) conn.send("change", wire(e), e.id);
-        if (!out.truncated) break;
-        // More than the log will hand over at once — the client is further
-        // behind than the log is long, so what it missed is partly gone.
-        if (page === 9) conn.send("reset", { cursor });
-      }
-    } else {
-      // No usable cursor: start from "now" rather than replaying history the
-      // client never needed. Same rule the polling route used.
-      cursor = await latestId(studio.id);
-    }
-
-    // `ready` carries the position AND stamps it as the frame id. That second
-    // part matters more than it looks: Last-Event-ID is whatever id the browser
-    // saw last, so without this a connection that received no changes before
-    // being recycled would reconnect with no cursor and silently resume from
-    // "now" — losing anything that happened in between.
-    conn.send("ready", { cursor }, cursor);
-
-    if (!conn.open) return null;
+    // ---- listen FIRST, deliver after `ready` ------------------------------
+    // THE GAP THIS CLOSES, 28/09/2026. Both subscriptions used to be made
+    // AFTER replay and after `ready`, and a subscription starts from "now"
+    // (bus.ts): anything published while the replay ran and the subscriptions
+    // were being established reached nobody. For board events that was a delay
+    // (the next reconnect replayed them from the cursor); for NOTIFICATIONS it
+    // was a loss, because the personal channel has no replay at all — and the
+    // server recycles every connection every four minutes, so the window
+    // opened on a schedule. A notice sent into it appeared only after a manual
+    // refresh, which is exactly what people reported.
+    //
+    // So both channels are subscribed before anything is read, and whatever
+    // they hear is HELD until `ready` has gone out, then delivered in arrival
+    // order. Held rather than sent at once, because a live frame sent in the
+    // middle of the replay would move the client's Last-Event-ID ahead of
+    // entries it has not been given yet.
+    let flowing = false;
+    const held: Array<() => void> = [];
+    const deliver = (fn: () => void) => { if (flowing) fn(); else held.push(fn); };
+    // An event published after the subscription began and before the replay
+    // read it arrives BOTH ways. The replay's copy is the one kept, and the
+    // held copy is dropped by id, so no board refetches twice for one change.
+    const replayed = new Set<string>();
 
     // ---- notifications addressed to THIS person ----------------------------
     // A separate channel from the studio's, because the audience is different:
@@ -184,18 +175,17 @@ type WireEvent = {
       // ADDRESSED TO SOMEBODY ELSE, or already gone. listForCollaborator filters
       // by recipient, so a doorbell naming an id this person may not read simply
       // finds nothing — the fetch is the check, not a second one to remember.
-      if (row && conn.open) conn.send("notif", { kind: "notif", ...row });
+      if (row) deliver(() => { if (conn.open) conn.send("notif", { kind: "notif", ...row }); });
     });
 
-    // ---- then listen -------------------------------------------------------
     // Permission changes are handled BEFORE the event that announced them is
     // forwarded, and serialised through this chain so two of them arriving
     // together cannot interleave their re-reads.
     let pending = Promise.resolve();
 
-    const releaseEvents = await subscribe(CH.studio(studio.id), (raw) => {
-      const e = (raw || {}) as WireEvent;
+    const onEvent = (e: WireEvent) => {
       if (!conn.open) return;
+      if (e.id && replayed.has(e.id)) return;
 
       // A grant or membership change invalidates the authority this connection
       // was opened with — including, possibly, the caller's right to be here at
@@ -227,14 +217,72 @@ type WireEvent = {
       }
 
       if (visible(e)) conn.send("change", wire(e), e.id);
-    });
+    };
+
+    let releaseEvents: () => Promise<void>;
+    try {
+      releaseEvents = await subscribe(CH.studio(studio.id), (raw) => {
+        const e = (raw || {}) as WireEvent;
+        deliver(() => onEvent(e));
+      });
+    } catch (err) {
+      // The first subscription must not outlive a connection that failed to
+      // finish opening.
+      await releaseNotifs();
+      throw err;
+    }
 
     // Both subscriptions, released together. The bus refcounts per channel, so
     // this only really unsubscribes when the last connection on this instance
     // watching that channel has gone.
-    return async () => {
+    const release = async () => {
       await releaseNotifs();
       await releaseEvents();
     };
+
+    // ---- catch up ------------------------------------------------------------
+    // Done before anything live is delivered, so nothing that happened during
+    // the gap is missed, and so the client has a cursor even if this studio
+    // never emits again.
+    const since = resumeCursor(request);
+    let cursor = since;
+
+    if (isCursor(since)) {
+      // Drain rather than read once: a client returning after a long absence
+      // may be more than one page behind.
+      for (let page = 0; page < 10 && conn.open; page++) {
+        const out = await readSince(studio.id, cursor, visible);
+        cursor = out.cursor || cursor;
+        for (const e of out.events) {
+          if (e.id) replayed.add(e.id);
+          conn.send("change", wire(e), e.id);
+        }
+        if (!out.truncated) break;
+        // More than the log will hand over at once — the client is further
+        // behind than the log is long, so what it missed is partly gone.
+        if (page === 9) conn.send("reset", { cursor });
+      }
+    } else {
+      // No usable cursor: start from "now" rather than replaying history the
+      // client never needed. Same rule the polling route used.
+      cursor = await latestId(studio.id);
+    }
+
+    // `ready` carries the position AND stamps it as the frame id. That second
+    // part matters more than it looks: Last-Event-ID is whatever id the browser
+    // saw last, so without this a connection that received no changes before
+    // being recycled would reconnect with no cursor and silently resume from
+    // "now" — losing anything that happened in between.
+    //
+    // It is also the client's cue to re-read the bell (LiveProvider counts
+    // every `ready`), which is what covers anything that happened while this
+    // connection did not exist at all.
+    conn.send("ready", { cursor }, cursor);
+
+    // ---- then let the live frames through, in the order they arrived ------
+    flowing = true;
+    for (const fn of held.splice(0)) fn();
+
+    return release;
   });
 }

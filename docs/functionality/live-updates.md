@@ -86,6 +86,18 @@ children". It must be the dash and not a bare `startsWith`, or `engine-` would s
 `engineering-docs`. It widens nothing a reader may not hear: step 3 above has already decided,
 per event, whether this connection is told at all.
 
+## The stream listens before it replays
+
+Both stream routes (the studio's and `/super`'s) **subscribe first**, then
+replay from the cursor, then send `ready`, then release whatever they heard
+meanwhile, in arrival order. A frame the replay already carried is dropped by
+id. Until 28/09/2026 they subscribed after `ready`, and because a subscription
+starts from "now", anything published during the replay reached nobody. For
+board events that meant a four-minute delay. For notifications, which have no
+replay, it meant a loss. A notification frame carries **no SSE id**: its `ntf_`
+id is not a log cursor, and as Last-Event-ID it made the console's next
+reconnect skip its replay.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
