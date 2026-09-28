@@ -59,6 +59,27 @@ export async function notifyCollaboratorIds(
 }
 
 /**
+ * A DIFFERENT NOTICE FOR EACH PERSON — a payroll run tells every employee their
+ * own net pay, which is one sentence per person rather than one for all. One
+ * read of the people, however many notices; each still rings its own doorbell.
+ * No right is asked: every notice here is about the recipient's OWN record.
+ */
+export async function notifyEach(
+  studioId: string, notices: readonly { id: string; notice: Notice }[], except: readonly string[] = [],
+) {
+  try {
+    const skip = new Set(except.filter(Boolean));
+    const wanted = notices.filter((n) => n.id && !skip.has(n.id));
+    if (!wanted.length) return;
+    const people = new Map((await listCollaborators(studioId)).map((c) => [String(c.id), c]));
+    for (const { id, notice } of wanted) {
+      const person = people.get(id);
+      if (person) await tell(studioId, [person], notice);
+    }
+  } catch { /* best-effort, as above */ }
+}
+
+/**
  * WHO IS NEWLY ON A LIST — pure. The people in `after` who were not in
  * `before`, less whoever made the change: they know, because they just did it.
  * Somebody taken OFF a list is not told here; being relieved of work is not

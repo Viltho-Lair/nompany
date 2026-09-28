@@ -94,6 +94,21 @@ told they were taken off.
   holding `engine.<type>.edit`, except whoever raised it. NCRs and HSE
   incidents announce, including the NCR a failed test's rule raises.
 
+## Who is told about their own money and time
+
+Addressed to the person the record is about, through `notifyEach` (one read of
+the people, a different sentence each). No right is asked, because it is their
+own record, and whoever made the change is never told.
+
+- **`claim.paid`**: the claimant, when Finance pays the claim. The amount is
+  the cash part, after any advance took its share.
+- **`advance.given`**: the person handed an advance, with its reference.
+- **`pay.paid`**: every person on a payroll run marked Paid, each with their own
+  net in the run's currency. No link, because no screen shows a person their
+  own payslip yet.
+- **`leave.booked`**: the person whose leave a manager filed directly, which is
+  approved on the spot and so never rang an approval.
+
 ## Who is told a signature is waiting
 
 **`approval.requested`** ("Waiting for your signature", the document's reference as the one

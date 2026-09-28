@@ -15,6 +15,9 @@ import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { stampCurrency } from "@/platform/db/stampCurrency";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyEach } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
+import { moneyText } from "@/shared/money";
 import {
   payProblems, cleanPay, payslipFor, runTotals, runProblem,
   bankRows, PERIOD_RE, periodRange,
@@ -427,6 +430,23 @@ export async function moveRun(ctx: HrContext, id: string, next: RunStatus) {
     ...(next === "Paid" ? { paidAt: at } : {}),
   });
   if (!updated) return { error: "notfound" };
+  // EVERY PERSON ON THE RUN HEARS THEIR OWN PAY WENT (28/09/2026) — their net,
+  // in the run's own currency, and nobody else's. Only on the move to Paid,
+  // and never to whoever marked it paid (their own line included: they know).
+  if (next === "Paid") {
+    const currency = String(updated.currency || ctx.studio.currency || "");
+    await notifyEach(ctx.studio.id, (updated.lines || []).map((l) => ({
+      id: String(l.collaboratorId),
+      notice: {
+        type: NOTIFY.payPaid,
+        title: "Your pay was paid",
+        body: `${updated.period} · ${moneyText(l.net, currency)}`,
+        params: { period: String(updated.period), amount: moneyText(l.net, currency) },
+        href: "",
+        tone: "success",
+      },
+    })), [ctx.collaborator.id]);
+  }
   // PAYING IS A SECOND CHANCE AT THE BOOKS, not a second posting. The ledger
   // has no payroll PAYMENT entry — `postPayroll` is the only one, and it credits
   // Payroll Payable for Finance to clear when the bank moves the money — so

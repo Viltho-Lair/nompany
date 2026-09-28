@@ -270,6 +270,32 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     en: { title: "A record was raised", body: "{register} · {reference} · {title}" },
     ar: { title: "تم تسجيل سجل جديد", body: "{register} · {reference} · {title}" },
   },
+  // The reader's own money and time. `{amount}` arrives formatted with its
+  // currency code, and `{type}` is the studio's own leave type — both data.
+  {
+    type: "claim.paid",
+    fields: ["reference", "amount"],
+    en: { title: "Your expense claim was paid", body: "{reference} · {amount}" },
+    ar: { title: "تم صرف مطالبة المصروفات", body: "{reference} · {amount}" },
+  },
+  {
+    type: "advance.given",
+    fields: ["reference", "amount"],
+    en: { title: "You were given an advance", body: "{reference} · {amount}" },
+    ar: { title: "صُرفت لكم سلفة", body: "{reference} · {amount}" },
+  },
+  {
+    type: "pay.paid",
+    fields: ["period", "amount"],
+    en: { title: "Your pay was paid", body: "{period} · {amount}" },
+    ar: { title: "تم صرف راتبكم", body: "{period} · {amount}" },
+  },
+  {
+    type: "leave.booked",
+    fields: ["type", "from", "to"],
+    en: { title: "Leave was booked for you", body: "{type} · {from} – {to}" },
+    ar: { title: "حُجزت لكم إجازة", body: "{type} · {from} – {to}" },
+  },
   // NO TEMPLATE FOR `system`, deliberately, and it is not an omission. A system
   // notice is whatever the producer needed to say — Quality writes
   // "`${document.code} needs you`" — so there is no fixed sentence to

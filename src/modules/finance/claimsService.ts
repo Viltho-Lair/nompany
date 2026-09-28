@@ -15,6 +15,9 @@
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyEach } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
+import { moneyText } from "@/shared/money";
 import { nextReference } from "@/modules/main/references";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { autoPost } from "./posting";
@@ -323,6 +326,22 @@ export async function payClaim(ctx: FinanceContext, id: string, body: Record<str
     : {}));
   if (!updated || (updated as ClaimRecord).status !== "Paid") return { error: "status" };
   const posting = await autoPost(ctx, "claim-payment", id);
+  // THE CLAIMANT HEARS THEIR MONEY LEFT (28/09/2026) — they were told their
+  // claim was approved and then nothing, and learnt of the payment from the
+  // bank. What was paid is what they are owed in cash: the total less what an
+  // open advance already covered.
+  const claim = updated as ClaimRecord;
+  await notifyEach(ctx.studio.id, [{
+    id: String(claim.claimantCollaboratorId),
+    notice: {
+      type: NOTIFY.claimPaid,
+      title: "Your expense claim was paid",
+      body: [claim.reference, moneyText(claimPayable(claim), ctx.studio.currency)].filter(Boolean).join(" · "),
+      params: { reference: String(claim.reference || ""), amount: moneyText(claimPayable(claim), ctx.studio.currency) },
+      href: "finance-payables",
+      tone: "success",
+    },
+  }], [ctx.collaborator.id]);
   return { claim: updated, posting };
 }
 
@@ -350,6 +369,19 @@ export async function giveAdvance(ctx: FinanceContext, body: Record<string, unkn
     createdAt: new Date().toISOString(),
   });
   const posting = await autoPost(ctx, "advance", advance.id);
+  // Handed money they will have to account for — so they are told what, and
+  // under which reference their claims will be set against it.
+  await notifyEach(ctx.studio.id, [{
+    id: collaboratorId,
+    notice: {
+      type: NOTIFY.advanceGiven,
+      title: "You were given an advance",
+      body: [reference, moneyText(amount, ctx.studio.currency)].join(" · "),
+      params: { reference, amount: moneyText(amount, ctx.studio.currency) },
+      href: "finance-payables",
+      tone: "primary",
+    },
+  }]);
   return { advance, posting };
 }
 

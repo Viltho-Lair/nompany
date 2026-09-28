@@ -46,7 +46,8 @@ import { listDepartmentsIn } from "@/modules/administration/departments";
 import { TAXONOMIES, resolveValue } from "@/modules/administration/taxonomy";
 import { subtreeIds } from "@/shared/departments/tree";
 import { getProfilesByIds } from "@/platform/auth/users";
-import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
+import { NOTIFY } from "@/platform/notify/notifications";
+import { notifyEach } from "@/modules/people/holders";
 import { approvalPreflight, approvalRows, requestApproval } from "@/modules/approvals/approvals";
 import { approvalSummary } from "@/modules/approvals/reads";
 import type { Refusal } from "@/modules/approvals/effects";
@@ -834,6 +835,22 @@ export async function requestVacation(ctx: HrContext, body: Record<string, unkno
     requestedByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
+  // LEAVE BOOKED FOR SOMEBODY BY THEIR MANAGER is decided on the spot, so no
+  // approval ever rings — and the person whose time off it is used to find out
+  // from the calendar (28/09/2026). They are told what was booked, and when.
+  if (direct && vacation) {
+    await notifyEach(studio.id, [{
+      id: String(target),
+      notice: {
+        type: NOTIFY.leaveBooked,
+        title: "Leave was booked for you",
+        body: `${vacation.type} · ${from} – ${to}`,
+        params: { type: String(vacation.type || ""), from, to },
+        href: "hr-leave",
+        tone: "primary",
+      },
+    }]);
+  }
   // ASKED ON THE APPROVALS PAGE, which rings the people who may answer it — the
   // leave bell this used to ring by hand is that page's now.
   if (vacation?.status === "Pending") {

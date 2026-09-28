@@ -24,6 +24,7 @@ export const NOTICE_KINDS: Readonly<Record<string, NoticeKind>> = {
   "approval.decided": { category: "approvals", icon: "checkDouble" },
   "leave.requested": { category: "approvals", icon: "calendar" },
   "leave.decided": { category: "approvals", icon: "calendar" },
+  "leave.booked": { category: "people", icon: "calendar" },
 
   // Work handed to this person.
   "project.assigned": { category: "work", icon: "projects" },
@@ -50,6 +51,9 @@ export const NOTICE_KINDS: Readonly<Record<string, NoticeKind>> = {
   // Money owed, either way.
   "invoice.overdue": { category: "money", icon: "invoice" },
   "bill.overdue": { category: "money", icon: "wallet" },
+  "claim.paid": { category: "money", icon: "cash" },
+  "advance.given": { category: "money", icon: "cash" },
+  "pay.paid": { category: "money", icon: "money" },
 
   // A date about to pass.
   "document.expiring": { category: "deadlines", icon: "file" },

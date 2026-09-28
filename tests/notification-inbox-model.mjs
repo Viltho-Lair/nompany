@@ -289,5 +289,26 @@ console.log("\n== the quality and safety registers tell people");
   ok("reconciliation carries `announce`", /function declarationHalf[\s\S]*?announce: Boolean/.test(bsrc));
 }
 
+console.log("\n== people hear about their own money and time");
+
+// Each was a write that changed somebody's pocket or calendar and told them
+// nothing: a claim paid, an advance handed over, a payroll run paid, leave a
+// manager booked for them.
+for (const [file, type, extra] of [
+  ["src/modules/finance/claimsService.ts", "claimPaid", /claimPayable\(claim\)/],
+  ["src/modules/finance/claimsService.ts", "advanceGiven", null],
+  ["src/modules/hr/payrollService.ts", "payPaid", /if \(next === "Paid"\)[\s\S]*?l\.net/],
+  ["src/modules/hr/hr.ts", "leaveBooked", /if \(direct && vacation\)/],
+]) {
+  const src = readFileSync(file, "utf8");
+  ok(`${file} sends NOTIFY.${type}`, new RegExp(`type: NOTIFY\\.${type}`).test(src));
+  if (extra) ok(`${file}: ${type} is sent from the right place`, extra.test(src));
+}
+{
+  // A person paid is told THEIR OWN net: one notice per line, not one for all.
+  const src = readFileSync("src/modules/hr/payrollService.ts", "utf8");
+  ok("payroll tells each person their own line", /notifyEach\(ctx\.studio\.id, \(updated\.lines \|\| \[\]\)\.map/.test(src));
+}
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nnotification inbox model: all passed\n");
 process.exit(fails ? 1 : 0);

@@ -115,6 +115,15 @@ export const NOTIFY = {
   // A record raised in a register that announces — an incident, an NCR (the
   // same file), by hand or by a rule.
   recordRaised: "record.raised",
+  // THE READER'S OWN MONEY AND TIME (28/09/2026).
+  // An expense claim paid out (modules/finance/claimsService).
+  claimPaid: "claim.paid",
+  // A staff advance handed over (the same file).
+  advanceGiven: "advance.given",
+  // A payroll run marked Paid — each person their own net (hr/payrollService).
+  payPaid: "pay.paid",
+  // Leave a manager booked for this person, decided on the spot (hr/hr).
+  leaveBooked: "leave.booked",
 };
 
 /** One stored notification, as this module writes it. */
