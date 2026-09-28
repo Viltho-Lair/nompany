@@ -284,6 +284,12 @@ console.log("\n== the quality and safety registers tell people");
   ok("a rule-raised record is announced, after the race check",
     /raisedEarlierByAnother[\s\S]*?continue;\s*\}[\s\S]*?await announceRecord\(ctx, targetType, made as Row, null\)/.test(src));
   ok("a person field is gated on the register's view right", /right: `engine\.\$\{type\.key\}\.view`/.test(src));
+  // THE ROUTE REBUILDS THE RESPONSE, so a field listRecords returns and the
+  // route does not name never reaches the screen — `people` was dropped on the
+  // first day the picker shipped, exactly as `references` once was, and the
+  // picker fell back to a text box. Found by opening the screen.
+  const route = readFileSync("src/app/api/studios/[slug]/records/[typeKey]/route.ts", "utf8");
+  ok("the records route passes the picker's people through", /people: result\.people/.test(route));
   const bsrc = readFileSync("src/platform/engine/builtins.ts", "utf8");
   // A version bump that turns announcing on must reach studios holding the type.
   ok("reconciliation carries `announce`", /function declarationHalf[\s\S]*?announce: Boolean/.test(bsrc));

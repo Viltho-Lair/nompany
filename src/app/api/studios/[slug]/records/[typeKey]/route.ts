@@ -41,6 +41,10 @@ export const GET = route<EngineContext>({ ...spec, body: false }, async (engine)
     // It was computed and then dropped here, so every link column — the machine
     // on a maintenance job, the test behind an NCR — drew a raw record id.
     references: result.references,
+    // THE PEOPLE A PERSON FIELD MAY NAME — absent unless the type has one. It
+    // was dropped here the same way `references` once was, and the picker fell
+    // back to a text box on the very first screen it shipped to (28/09/2026).
+    ...("people" in result && result.people ? { people: result.people } : {}),
     canCreate: result.canCreate,
     canEdit: result.canEdit,
     canDelete: result.canDelete,
