@@ -279,10 +279,15 @@ are `shared/notificationInbox`, one rule for both bells.
   whoever is on duty, with no page, category or archive.
 - **Grouping joins identical notices only.** Five different items falling low
   are five rows, not "5 items low": that needs a plural sentence per type.
-- **Most of the product notifies nobody.** Assigned jobs and planner tasks,
-  NCRs and incidents, paid claims and payroll, tender and deal moves, invoice
-  payments, POS variances and several expiry dates are all silent. Phase 3 in
-  `docs/progress.md` lists the order.
+- **Still silent after Phase 3 (28/09/2026):** a payment run executing, a
+  budget going over, an asset allocated to a person, a permit to work issued, a
+  site report or inspection submitted, a project milestone or closure, a sales
+  order moving, a marketing form submission that raises no lead, and a change to
+  somebody's own roles. Contracts carry no end date, so a contract expiring
+  cannot be announced. Audits and RFIs have no person field.
+- **The time-driven notices' `{detail}` is English**, whatever the reader's
+  language ("closes in 7 days"). A formatted count inside a sentence needs a
+  pluralising template per language.
 - **No browser or phone push, and a hidden tab lets go of the stream** after a
   minute. It catches up when shown again, and the title count only moves while
   the tab stays connected.
