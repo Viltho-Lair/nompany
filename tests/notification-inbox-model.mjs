@@ -343,5 +343,20 @@ console.log("\n== tenders and deals");
   ok("no cron notice links to a slashed path", slashed.length === 0, slashed.join(", "));
 }
 
+console.log("\n== money at the edges");
+
+{
+  const src = readFileSync("src/modules/finance/finance.ts", "utf8");
+  // PAID IN FULL BY THIS PAYMENT, not "an invoice with nothing outstanding":
+  // a part payment on an already-settled invoice cannot happen, but a second
+  // call reading a paid invoice must not ring again.
+  ok("an invoice is announced paid only by the payment that settled it",
+    /if \(totals\.outstanding > 0 && after\.outstanding <= 0\)/.test(src));
+  ok("a bounce is announced", /if \(bounced\) await tellProjectManager/.test(src));
+  ok("the manager is told only with the billing right", /notifyIdsHolding\(ctx\.studio\.id, \[manager\], "projects\.billing\.view"/.test(src));
+  const pos = readFileSync("src/modules/sales/pos.ts", "utf8");
+  ok("a drawer that did not balance is announced, not one that did", /if \(report\.difference\) \{[\s\S]*?NOTIFY\.shiftVariance/.test(pos));
+}
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nnotification inbox model: all passed\n");
 process.exit(fails ? 1 : 0);

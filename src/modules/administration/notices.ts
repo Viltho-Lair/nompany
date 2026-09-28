@@ -335,6 +335,26 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     en: { title: "Your deal was lost", body: "{reference} · {title}" },
     ar: { title: "خُسرت صفقتكم", body: "{reference} · {title}" },
   },
+  // Money at the edges. `{client}` and `{till}` are the studio's own names;
+  // `{difference}` arrives signed and formatted with its currency.
+  {
+    type: "invoice.paid",
+    fields: ["reference", "client"],
+    en: { title: "An invoice was paid in full", body: "{reference} · {client}" },
+    ar: { title: "سُدّدت فاتورة بالكامل", body: "{reference} · {client}" },
+  },
+  {
+    type: "payment.bounced",
+    fields: ["reference", "client"],
+    en: { title: "A payment bounced", body: "{reference} · {client}" },
+    ar: { title: "ارتدّ أحد المدفوعات", body: "{reference} · {client}" },
+  },
+  {
+    type: "shift.variance",
+    fields: ["till", "difference"],
+    en: { title: "A drawer did not balance", body: "{till} · {difference}" },
+    ar: { title: "الدرج غير مطابق", body: "{till} · {difference}" },
+  },
   // NO TEMPLATE FOR `system`, deliberately, and it is not an omission. A system
   // notice is whatever the producer needed to say — Quality writes
   // "`${document.code} needs you`" — so there is no fixed sentence to

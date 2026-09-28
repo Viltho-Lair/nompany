@@ -124,6 +124,12 @@ export const NOTIFY = {
   payPaid: "pay.paid",
   // Leave a manager booked for this person, decided on the spot (hr/hr).
   leaveBooked: "leave.booked",
+  // MONEY AT THE EDGES (28/09/2026). An invoice paid in full, or a payment
+  // against it bounced — told to its project's manager (modules/finance/finance).
+  invoicePaid: "invoice.paid",
+  paymentBounced: "payment.bounced",
+  // A till drawer closed short or over (modules/sales/pos).
+  shiftVariance: "shift.variance",
   // TENDERS AND DEALS (28/09/2026). A tender handed to somebody to chase
   // (modules/tendering/tenders), and how it ended — told to its owner and to
   // whoever registered it; and one about to close (the daily cron).

@@ -109,6 +109,19 @@ told they were taken off.
   Only closes: every stage move would be noise, and a stage name cannot be
   translated inside a stored sentence.
 
+## Money at the edges
+
+- **`invoice.paid`**: the manager of the invoice's project, when a payment
+  settles it in full. Right: `projects.billing.view`. An invoice on no project
+  tells nobody: Finance recorded the payment and knows.
+- **`payment.bounced`**: the same manager, when a cheque payment is marked
+  bounced.
+- **`shift.variance`**: everyone holding `pos.shifts.view`, when a drawer is
+  closed short or over, except the cashier who counted it. A balanced drawer
+  is silent.
+- **Not built:** a payment run executing (Finance runs it and nobody else waits
+  on it), and a budget going over.
+
 ## Who is told about their own money and time
 
 Addressed to the person the record is about, through `notifyEach` (one read of

@@ -59,6 +59,9 @@ export const NOTICE_KINDS: Readonly<Record<string, NoticeKind>> = {
   "claim.paid": { category: "money", icon: "cash" },
   "advance.given": { category: "money", icon: "cash" },
   "pay.paid": { category: "money", icon: "money" },
+  "invoice.paid": { category: "money", icon: "invoice" },
+  "payment.bounced": { category: "money", icon: "alert" },
+  "shift.variance": { category: "money", icon: "cash" },
 
   // A date about to pass.
   "document.expiring": { category: "deadlines", icon: "file" },

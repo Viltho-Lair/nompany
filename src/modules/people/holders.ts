@@ -59,6 +59,23 @@ export async function notifyCollaboratorIds(
 }
 
 /**
+ * TELL THESE PEOPLE, BUT ONLY THOSE WHO MAY OPEN IT — a project's manager
+ * hearing its invoice was paid, when they hold the right that shows billing.
+ * `notifyCollaboratorIds` asks no right because its callers name people the
+ * record is ABOUT; this is for people a record merely CONCERNS.
+ */
+export async function notifyIdsHolding(
+  studioId: string, ids: readonly string[], right: string, notice: Notice, except: readonly string[] = [],
+) {
+  try {
+    const skip = new Set(except.filter(Boolean));
+    const wanted = new Set(ids.filter((id) => id && !skip.has(id)));
+    if (!wanted.size) return;
+    await tell(studioId, (await collaboratorsHolding(studioId, right)).filter((c) => wanted.has(String(c.id))), notice);
+  } catch { /* best-effort, as above */ }
+}
+
+/**
  * A DIFFERENT NOTICE FOR EACH PERSON — a payroll run tells every employee their
  * own net pay, which is one sentence per person rather than one for all. One
  * read of the people, however many notices; each still rings its own doorbell.

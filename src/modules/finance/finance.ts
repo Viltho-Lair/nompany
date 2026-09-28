@@ -35,6 +35,8 @@ import { moneyAccountProblem, paymentSource } from "./ledger";
 import { moduleContext } from "../context";
 
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { notifyIdsHolding } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
 import { traverseIn } from "@/platform/relations";
 import { nextReference } from "@/modules/main/references";
 import type { Invoice, InvoiceView, Expense, InvoiceLine, Payment, FinanceContext } from "./types";
@@ -601,7 +603,34 @@ export async function recordPayment(
   // kept out of Accounts Receivable — or the receivable stays open by exactly
   // that tax for ever, owed by somebody who is not allowed to pay it.
   const withholding = await settleWithholding(ctx, updated);
+  // PAID IN FULL BY THIS PAYMENT — the project's manager hears the job's money
+  // came in, which until now they learnt by opening the billing tab.
+  if (totals.outstanding > 0 && after.outstanding <= 0) {
+    await tellProjectManager(ctx, updated as Invoice, NOTIFY.invoicePaid, "An invoice was paid in full", "success");
+  }
   return { invoice: { ...updated, ...after, status: statusFor(updated, after) }, posting, ...(withholding ? { withholding } : {}) };
+}
+
+/**
+ * A PROJECT'S MANAGER HEARS WHAT HAPPENED TO ITS MONEY (28/09/2026) — an
+ * invoice on their job paid in full, or a payment against it bounced. Finance
+ * records both, so telling Finance would tell the person who just did it; the
+ * manager is the one whose job is short. Only if they hold `projects.billing.view`,
+ * the right that shows a project's billing — a manager watching spend alone is
+ * not shown the client's payments here either.
+ */
+async function tellProjectManager(ctx: FinanceContext, invoice: Invoice, type: string, title: string, tone: string) {
+  try {
+    if (!invoice.projectId) return;
+    const project = (await projectRows({ studio: ctx.studio })).find((p) => p.id === invoice.projectId);
+    const manager = String((project as { managerCollaboratorId?: unknown } | undefined)?.managerCollaboratorId || "");
+    if (!manager) return;
+    const facts = { reference: String(invoice.reference || ""), client: String(invoice.clientName || "") };
+    await notifyIdsHolding(ctx.studio.id, [manager], "projects.billing.view", {
+      type, title, body: [facts.reference, facts.client].filter(Boolean).join(" · "), params: facts,
+      href: `projects-list/${invoice.projectId}/billing`, tone,
+    }, [String(ctx.collaborator?.id || "")]);
+  } catch { /* the payment is recorded; failing to announce it must not fail that */ }
 }
 
 /**
@@ -620,6 +649,8 @@ export async function setPaymentBounced(ctx: FinanceContext, invoiceId: string, 
     ? await autoReverse(ctx, "payment", paymentSource(invoiceId, paymentId), "Cheque bounced")
     : await autoPost(ctx, "payment", invoiceId, paymentId);
   await settleWithholding(ctx, updated);
+  // Money the job was counting on is not there after all.
+  if (bounced) await tellProjectManager(ctx, updated as Invoice, NOTIFY.paymentBounced, "A payment bounced", "danger");
   return posting;
 }
 

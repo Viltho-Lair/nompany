@@ -32,7 +32,9 @@ import { alertIfLow, reorderList, STOCK_ALERT_RIGHT } from "@/modules/inventory/
 import type { Item, Movement } from "@/modules/inventory/types";
 import { studioVatRate } from "@/shared/vat";
 import { documentTaxMethod, studioTaxProfile } from "@/shared/compliance/rules";
-import { roundMoney } from "@/shared/money";
+import { roundMoney, moneyText } from "@/shared/money";
+import { notifyHolders } from "@/modules/people/holders";
+import { NOTIFY } from "@/platform/notify/notifications";
 import {
   cleanPosLines, cleanPayments, posTotals, settle, shiftReport, unitsOf,
   cleanDiscount, priceBasket, discountPercentOf, saleFigures,
@@ -620,6 +622,20 @@ export async function closeShift(ctx: PosContext, id: string, body: Record<strin
   // other document, and the reason the answer is on the response rather than in
   // a log: a silent log is how "the books are complete" becomes untrue quietly.
   const posted = await postShiftToLedger(ctx, closed.id);
+  // A DRAWER THAT DID NOT BALANCE is told to whoever reads the shift history
+  // (28/09/2026): a short or over drawer found at month end is weeks too late
+  // to ask the cashier about it. Not the cashier who counted it; they know.
+  if (report.difference) {
+    const drawer = moneyText(report.difference, ctx.studio.currency);
+    await notifyHolders(ctx.studio.id, "pos.shifts.view", {
+      type: NOTIFY.shiftVariance,
+      title: "A drawer did not balance",
+      body: [till.name, drawer].filter(Boolean).join(" · "),
+      params: { till: String(till.name || ""), difference: drawer },
+      href: "pos-shifts",
+      tone: "warning",
+    }, [ctx.collaborator.id]);
+  }
   return { shift: closed, report, ledger: posted };
 }
 
