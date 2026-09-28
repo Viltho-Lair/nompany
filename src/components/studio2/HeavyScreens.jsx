@@ -326,3 +326,10 @@ export const StudioEngagements = nextDynamic(
   { loading: () => <ScreenSkeleton /> },
 );
 
+
+// The notification centre (/<slug>/notifications) — reached from the bell's
+// "See all", so it rides its own chunk like every other screen here.
+export const StudioNotifications = nextDynamic(
+  () => import("@/components/notifications/StudioNotifications"),
+  { loading: () => <ScreenSkeleton /> },
+);

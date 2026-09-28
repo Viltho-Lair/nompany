@@ -99,6 +99,23 @@ CREATE SEQUENCE IF NOT EXISTS collection_rows_seq;
 CREATE INDEX IF NOT EXISTS collection_rows_read
   ON collection_rows (tenant_id, section_id, collection, seq DESC);
 
+-- ONE PERSON'S NOTIFICATIONS, NEWEST FIRST (28/09/2026). The bell reads the
+-- newest thirty of one recipient's rows on every page load, and a studio's
+-- collection holds ninety days of everybody's; without this, that read walks
+-- the whole studio's notices newest-first until it has found thirty of theirs.
+-- PARTIAL, so it costs nothing on any other collection. The planner matches
+-- the expression and the predicate because pg sends one-shot (unnamed)
+-- statements, which are planned with the bound values — `payload ->> $4` with
+-- $4 = 'recipientId' is this expression by the time it is planned.
+--
+-- ON A LIVE DATABASE, apply this ONE statement on its own, as
+-- `CREATE INDEX CONCURRENTLY IF NOT EXISTS ...`, rather than re-running this
+-- file: CONCURRENTLY does not block writers while it builds, and cannot run
+-- inside the transaction this file is applied in.
+CREATE INDEX IF NOT EXISTS collection_rows_notifications
+  ON collection_rows (tenant_id, section_id, (payload ->> 'recipientId'), seq DESC)
+  WHERE collection = 'notifications';
+
 -- ROW-LEVEL SECURITY, DEFENCE IN DEPTH ONLY. Access is still resolved once in
 -- effectivePermissions (invariant 3) — this policy grants nothing and denies
 -- nothing on its own terms. It exists so that a query which forgets its

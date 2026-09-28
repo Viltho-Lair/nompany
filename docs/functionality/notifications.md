@@ -94,6 +94,49 @@ the screen.
 `effectivePermissions`; join requests, leave and the RFQ-raised notice used to each list the
 people and filter by hand, and now call it.
 
+## Where notices are kept, and for how long
+
+**One row per recipient** in the `notifications` collection, filed under
+`administration-members` (28/09/2026). Before that, a whole studio's notices
+were one array under `s:<id>:notifications`, capped at **200 for all its members
+together**, and every read and "mark read" rewrote the whole list.
+
+- **Kept 90 days** (the owner). `store-upkeep` purges older rows each night,
+  studio by studio, by an explicit id list.
+- **The words are sealed**: `title`, `body` and `params`, because a notice
+  repeats a deal's reference and title, which are sealed on the deal. What
+  finds a row stays clear: recipient, type, time, `readAt`, `state`, the link.
+- **Postgres pages, counts and marks them.** The bell reads the newest thirty
+  (`readColPage`), the badge is a `count(*)` (`countWhere`), and "mark all read"
+  is one UPDATE (`setFieldWhere`), not one compare-and-set per row. The index
+  `collection_rows_notifications` serves the read.
+- **Writes are never announced on the studio stream.** The recipient's own
+  doorbell is the signal. An event under the members section would reload
+  every board filed there, for everybody.
+- **The old array is still READ, never written.** Every row in it is older
+  than every row in the collection, so a page reads the collection and runs on
+  into the array. Its rows fall out of the 90-day window by themselves.
+- **Removing a person removes their rows** (`cascadeDeleteCollaborator`), from
+  both stores.
+
+## The notification centre
+
+`/<slug>/notifications`, reached from the bell's "See all". It has **no right of
+its own**: a person's notices are addressed to them, so membership is the gate,
+and the route reads by the caller's own collaborator id.
+
+- **Views:** Inbox, Unread, Archived. Archiving also marks the notice read.
+- **Categories:** Approvals, Assigned to me, Sales, Money, Deadlines, People,
+  System. Each type declares its category and icon in
+  `shared/notificationKinds`, and the test holds that table against `NOTIFY` in
+  both directions.
+- **Repeats collapse.** Neighbouring notices with the same type, link, words
+  and facts, within a day, show as one row with a count. Opening it reads all
+  of them.
+- **One inbox per tab** (`components/notifications/InboxProvider`). The bell,
+  the page, the tab title and Nova's dot read the same first page and the same
+  count. Nova used to poll the whole list every two minutes to count it itself.
+
 ## How a notice reaches an open tab
 
 A producer writes the row and rings the recipient's personal channel with its
@@ -133,10 +176,14 @@ are `shared/notificationInbox`, one rule for both bells.
   paper size.
 - **No per-person preferences.** A collaborator cannot mute a type, choose a
   digest, or opt out. Every holder of the right gets every notice.
-- **The whole studio shares 200 rows.** `MAX_PER_STUDIO` caps one document
-  holding every member's notices, so a busy studio pushes everybody's older
-  notices out. The bell shows 30 of them, and there is no page listing the
-  rest. Phase 2 in `docs/progress.md` moves them to one row per recipient.
+- **The index is in `pgSchema.sql` but must be applied to the live database
+  by hand.** It is one `CREATE INDEX CONCURRENTLY` statement; the file's comment
+  says why not to re-run the whole file. Until then the bell's read walks the
+  studio's notices newest-first, which is correct but slower.
+- **The console's own list (`/super`) is unchanged**: one array of 200 for
+  whoever is on duty, with no page, category or archive.
+- **Grouping joins identical notices only.** Five different items falling low
+  are five rows, not "5 items low": that needs a plural sentence per type.
 - **Most of the product notifies nobody.** Assigned jobs and planner tasks,
   NCRs and incidents, paid claims and payroll, tender and deal moves, invoice
   payments, POS variances and several expiry dates are all silent. Phase 3 in

@@ -78,7 +78,9 @@ for (const file of ["src/app/api/studios/[slug]/stream/route.ts", "src/app/api/s
 
 console.log("\n== the bells re-read on every connect (defect 2)");
 
-for (const file of ["src/components/studio2/NotificationBell.js", "src/components/super/useSuperNotifications.js"]) {
+// The studio bell reads the inbox now (components/notifications/InboxProvider),
+// which is where the studio's reload lives.
+for (const file of ["src/components/notifications/InboxProvider.js", "src/components/super/useSuperNotifications.js"]) {
   const src = readFileSync(file, "utf8");
   ok(`${file}: keyed on the connection count`, /if \(connection\) load\(\);\s*\}, \[connection, load\]\)/.test(src));
   ok(`${file}: not on status`, !/if \(status === "live"\) load\(\)/.test(src));
@@ -114,6 +116,86 @@ for (const file of callers) {
   }
 }
 ok("the scan found the producers at all", calls >= 8, `(${calls} calls)`);
+
+// ============================================================================
+// PHASE 2 — one row per recipient, kinds, grouping (28/09/2026).
+// ============================================================================
+
+const K = await import("@/shared/notificationKinds");
+const N = await import("@/platform/notify/notifications");
+const C = await import("@/platform/db/sealCipher");
+const KEYS = await import("@/platform/db/keys");
+
+console.log("\n== every type has a kind, every kind a type");
+
+// A TYPE WITH NO KIND wears the fallback bell and hides under System, which is
+// how a new notice ships half-declared. A KIND WITH NO TYPE is a category
+// filter matching a string nothing writes.
+const declared = new Set(Object.values(N.NOTIFY));
+for (const t of declared) ok(`${t} has a kind`, Boolean(K.NOTICE_KINDS[t]));
+for (const t of Object.keys(K.NOTICE_KINDS)) ok(`kind ${t} is a real type`, declared.has(t));
+ok("every kind names a real category",
+  Object.values(K.NOTICE_KINDS).every((k) => K.NOTICE_CATEGORIES.includes(k.category)));
+ok("an undeclared type reads as a system notice, not a throw", K.kindOf("nope").category === "system");
+ok("typesIn answers a category with its types", K.typesIn("money").includes("invoice.overdue"));
+
+console.log("\n== where the rows live, and what is sealed");
+
+ok("notifications are filed under the members section",
+  KEYS.SECTION_COLLECTIONS["administration-members"]?.includes("notifications"));
+ok("that section is a system section, so no studio can switch it off",
+  KEYS.isSystemSection("administration-members"));
+// A NOTICE REPEATS WHAT IT IS ABOUT — a deal's ref and title, sealed on the
+// deal. The words are sealed; what finds a row is not, or the bell's read
+// could not be narrowed in Postgres at all.
+for (const f of ["title", "body", "params"]) ok(`notifications.${f} is sealed`, C.isSealedField("notifications", f));
+for (const f of ["recipientId", "type", "at", "readAt", "state", "href", "id"]) {
+  ok(`notifications.${f} stays clear`, !C.isSealedField("notifications", f));
+}
+ok("ninety days, the owner's number", N.KEEP_DAYS === 90);
+
+console.log("\n== repeats collapse into one row");
+
+const rep = (id, at, extra = {}) => ({ id, at, readAt: "", type: "stock.low", href: "inventory", title: "Low", params: { item: "Cement" }, ...extra });
+const g1 = I.groupNotices([
+  rep("r3", "2026-09-28T12:00:00Z"),
+  rep("r2", "2026-09-28T09:00:00Z", { readAt: "2026-09-28T09:05:00Z" }),
+  rep("r1", "2026-09-28T08:00:00Z"),
+]);
+ok("three identical neighbours are one row", g1.length === 1 && g1[0].count === 3);
+ok("the group carries every id, so reading it reads all of them", g1[0].ids.join() === "r3,r2,r1");
+ok("the group is unread if any copy is", g1[0].anyUnread === true);
+ok("different words are different notices",
+  I.groupNotices([rep("a", "2026-09-28T12:00:00Z"), rep("b", "2026-09-28T11:00:00Z", { body: "other" })]).length === 2);
+ok("different facts are different notices",
+  I.groupNotices([rep("a", "2026-09-28T12:00:00Z"), rep("b", "2026-09-28T11:00:00Z", { params: { item: "Steel" } })]).length === 2);
+ok("more than a day apart are two notices",
+  I.groupNotices([rep("a", "2026-09-28T12:00:00Z"), rep("b", "2026-09-26T11:00:00Z")]).length === 2);
+ok("only neighbours join, so time order is kept",
+  I.groupNotices([rep("a", "2026-09-28T12:00:00Z"), rep("x", "2026-09-28T11:00:00Z", { type: "system" }), rep("b", "2026-09-28T10:00:00Z")]).length === 3);
+
+console.log("\n== the store never announces a notice to the studio");
+
+{
+  const src = readFileSync("src/platform/notify/notifications.ts", "utf8");
+  // An announced write under the members section would reload every board
+  // filed there, for everybody, on every notice anybody gets.
+  ok("rows are written with announce: false", /addRows<NotificationRow>\([\s\S]*?\{ announce: false \}/.test(src));
+  ok("purges are not announced either", /deleteRows\(studioId, sec, COLLECTION, ids, \{ announce: false \}\)/.test(src));
+  ok("the old array is no longer written by a notice", !/editArr\(S\.notifications\(studioId\), \(current\)/.test(src));
+}
+{
+  const src = readFileSync("src/platform/db/cascade.ts", "utf8");
+  ok("removing a person removes their notification rows, by explicit ids",
+    /readColWhere\(studioId, members\.id, "notifications", \{ recipientId: \[collaboratorId\] \}\)/.test(src)
+    && /deleteRows\(studioId, members\.id, "notifications", ids/.test(src));
+}
+{
+  const src = readFileSync("src/components/studio2/NovaLauncher.jsx", "utf8");
+  // Nova's dot polled the whole list every two minutes to count it itself.
+  ok("Nova reads the inbox's count rather than polling its own",
+    /inbox\?\.unread/.test(src) && !/setInterval\(load, 120000\)/.test(src));
+}
 
 console.log(fails ? `\n${fails} FAILED\n` : "\nnotification inbox model: all passed\n");
 process.exit(fails ? 1 : 0);

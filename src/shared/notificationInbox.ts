@@ -29,6 +29,41 @@ export function mergeNotices<T extends InboxRow>(streamed: readonly T[] | null |
 
 export const unreadCount = (rows: readonly InboxRow[]) => rows.filter((n) => !n.readAt).length;
 
+/** A row as the bell draws it: one notice, or several identical ones. */
+export type Grouped<T> = T & { count: number; ids: string[]; anyUnread: boolean };
+
+type Groupable = InboxRow & { type?: unknown; href?: unknown; title?: unknown; body?: unknown; params?: unknown };
+
+const DAY_MS = 86_400_000;
+const sameNotice = (a: Groupable, b: Groupable) =>
+  a.type === b.type && a.href === b.href && a.title === b.title && a.body === b.body
+  && JSON.stringify(a.params ?? null) === JSON.stringify(b.params ?? null);
+
+/**
+ * REPEATS COLLAPSE INTO ONE ROW. The same notice about the same thing — a
+ * stock item falling low again, a lead nudged twice — arriving several times in
+ * a day was several identical rows pushing everything else down the bell. Two
+ * rows are one notice when their type, link, words and facts all agree and
+ * they arrived within a day of the newest of them; only NEIGHBOURS are joined,
+ * so the list stays in time order. The group carries every id it stands for,
+ * so reading it reads all of them.
+ */
+export function groupNotices<T extends Groupable>(rows: readonly T[]): Grouped<T>[] {
+  const out: Grouped<T>[] = [];
+  for (const n of rows) {
+    const last = out[out.length - 1];
+    const close = last && Math.abs(Date.parse(String(last.at ?? "")) - Date.parse(String(n.at ?? ""))) <= DAY_MS;
+    if (last && close && sameNotice(last, n)) {
+      last.count += 1;
+      last.ids.push(n.id);
+      if (!n.readAt) last.anyUnread = true;
+      continue;
+    }
+    out.push({ ...n, count: 1, ids: [n.id], anyUnread: !n.readAt });
+  }
+  return out;
+}
+
 // "(3) " at the very front of the title. Anchored and exact, so a studio or
 // page whose own name starts with a bracket is never trimmed.
 const PREFIX = /^\(\d+\+?\) /;

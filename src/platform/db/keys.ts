@@ -1471,6 +1471,17 @@ export const SECTION_COLLECTIONS = {
   // reaped too. That decision was made for an earlier one-store survivor and it
   // is what makes a runtime section safe to store rows under at all.
   "administration-settings": ["recordTypes"],
+  // NOTIFICATIONS, ONE ROW PER RECIPIENT (28/09/2026). They were one array per
+  // studio under `s:<id>:notifications`, capped at 200 for EVERY member
+  // together, so a busy studio pushed everybody's older notices out and every
+  // read and every "mark read" rewrote the whole studio's list.
+  //
+  // UNDER `administration-members` because a notice is addressed to a member
+  // and belongs to no department; it is a system section, so no studio can
+  // switch it off. Nothing here is a board: the writes are never announced on
+  // the studio stream (the recipient's own doorbell is the signal), and no
+  // screen watches this key.
+  "administration-members": ["notifications"],
   // Every approval, of every type, whatever section its record is filed under —
   // the record links back through `source`, and the approval lives here so one
   // page can list them all. Each type's steps are the settings sub-section's.

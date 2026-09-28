@@ -472,6 +472,68 @@ export async function readColWhere<T extends Row = Row>(
   return openAll(s, n, same("readColWhere", a, await P.pgReadColWhere<T>(s, sec, n, match)) as T[]);
 }
 
+// ---- narrowed pages, counts and constant writes -----------------------------
+// FOR A COLLECTION READ ON EVERY PAGE LOAD. The reads above hand back every
+// matching row and the repository sorts and slices in memory, which is right
+// for a register and wrong for something that grows by the hour and is read
+// by the header of every screen (a person's notifications). Postgres does the
+// ordering, limiting and counting here; the other backends reproduce the same
+// answer from the whole narrowed collection, so parity still compares like
+// with like through the primitives it already checks.
+
+/** Newest first, at most `limit`, older than the row `after` names. */
+export async function readColPage<T extends Row = Row>(
+  s: string, sec: string, n: string, whole: Record<string, readonly string[]>,
+  page: { limit: number; after?: string },
+): Promise<T[]> {
+  const match = unsealedMatch(n, whole);
+  if (DB_BACKEND === "postgres") return openAll(s, n, await P.pgReadColPage<T>(s, sec, n, match, page));
+  const rows = await readColWhere<T>(s, sec, n, match);
+  const start = page.after ? rows.findIndex((r) => r.id === page.after) + 1 : 0;
+  // A cursor naming a row that has gone matches nothing, as the SQL does.
+  if (page.after && start === 0) return [];
+  return rows.slice(start, start + Math.max(1, page.limit));
+}
+
+export async function countWhere(s: string, sec: string, n: string, whole: Record<string, readonly string[]>): Promise<number> {
+  const match = unsealedMatch(n, whole);
+  if (DB_BACKEND === "postgres") return P.pgCountWhere(s, sec, n, match);
+  return (await readColWhere(s, sec, n, match)).length;
+}
+
+/**
+ * ONE TEXT FIELD SET ON EVERY MATCHING ROW, announced to nobody. A SEALED
+ * field is refused, because the constant would be written in the clear where
+ * a token belongs — and so is a sealed field in the match, which Postgres
+ * could only compare against tokens and would silently match nothing.
+ */
+export async function setFieldWhere(
+  s: string, sec: string, n: string, match: Record<string, readonly string[]>, field: string, value: string,
+): Promise<number> {
+  for (const f of [field, ...Object.keys(match)]) {
+    if (isSealedField(n, f)) throw new Error(`setFieldWhere: ${n}.${f} is sealed`);
+  }
+  if (DB_BACKEND === "postgres") return P.pgSetFieldWhere(s, sec, n, match, field, value);
+  const rows = await readColWhere(s, sec, n, match);
+  let changed = 0;
+  for (const r of rows) {
+    if (await updateRow(s, sec, n, r.id as string, { [field]: value }, { announce: false })) changed += 1;
+  }
+  return changed;
+}
+
+/** Ids of rows whose text `field` sorts before `before`, at most `limit`. */
+export async function idsBefore(
+  s: string, sec: string, n: string, field: string, before: string, limit: number,
+): Promise<string[]> {
+  if (isSealedField(n, field)) throw new Error(`idsBefore: ${n}.${field} is sealed`);
+  if (DB_BACKEND === "postgres") return P.pgIdsBefore(s, sec, n, field, before, limit);
+  return (await readCol(s, sec, n))
+    .filter((r) => String(r[field] ?? "") < before)
+    .slice(0, limit)
+    .map((r) => r.id as string);
+}
+
 export async function addRow<T extends Row = Row>(s: string, sec: string, n: string, plain: Row): Promise<T> {
   const [item] = await sealAll(s, n, [withId(n, plain)]);
   if (DB_BACKEND === "postgres") return (await openOne(s, n, await P.pgAddRow<T>(s, sec, n, item))) as T;
@@ -490,10 +552,16 @@ export async function addRow<T extends Row = Row>(s: string, sec: string, n: str
   return (await openOne(s, n, same("addRow", a, b) as T)) as T;
 }
 
-export async function addRows<T extends Row = Row>(s: string, sec: string, n: string, plain: readonly Row[]): Promise<T[]> {
+export async function addRows<T extends Row = Row>(
+  s: string, sec: string, n: string, plain: readonly Row[],
+  // `announce: false` for a collection no board watches — a notification is
+  // addressed to one person and rings their own channel; announcing it on the
+  // studio stream would reload every board filed under the same section.
+  opts: { announce?: boolean } = {},
+): Promise<T[]> {
   const items = await sealAll(s, n, plain.map((it) => withId(n, it)));
-  if (DB_BACKEND === "postgres") return openAll(s, n, await P.pgAddRows<T>(s, sec, n, items));
-  const a = await R.redisAddRows<T>(s, sec, n, items);
+  if (DB_BACKEND === "postgres") return openAll(s, n, await P.pgAddRows<T>(s, sec, n, items, opts));
+  const a = await R.redisAddRows<T>(s, sec, n, items, opts);
   if (DB_BACKEND !== "parity") return openAll(s, n, a);
   // Same reasoning as addRow, per row in the batch — each id came from Redis,
   // seeded into the Postgres call rather than left to mint its own — and the
@@ -567,9 +635,13 @@ export async function updateRows<T extends Row = Row>(
 }
 
 /** Many rows by an explicit id list — see pgDeleteRows. Returns how many went. */
-export async function deleteRows(s: string, sec: string, n: string, ids: readonly string[]): Promise<number> {
-  if (DB_BACKEND === "postgres") return P.pgDeleteRows(s, sec, n, ids);
-  const a = await R.redisDeleteRows(s, sec, n, ids);
+export async function deleteRows(
+  s: string, sec: string, n: string, ids: readonly string[],
+  // `announce: false` for a collection no board watches — see addRows.
+  opts: { announce?: boolean } = {},
+): Promise<number> {
+  if (DB_BACKEND === "postgres") return P.pgDeleteRows(s, sec, n, ids, opts);
+  const a = await R.redisDeleteRows(s, sec, n, ids, opts);
   if (DB_BACKEND !== "parity") return a;
   // announce: false — see addRow above.
   const b = await second("deleteRows", () => P.pgDeleteRows(s, sec, n, ids, { announce: false }));

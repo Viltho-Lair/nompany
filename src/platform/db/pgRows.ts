@@ -113,13 +113,7 @@ export async function pgReadColWhere<T2 extends Row = Row>(
   studioId: string, sectionId: string, name: string, match: Record<string, readonly string[]>,
 ): Promise<T2[]> {
   const params: unknown[] = [studioId, sectionId, name];
-  const clauses: string[] = [];
-  for (const [field, values] of Object.entries(match)) {
-    params.push(field, values);
-    // ::text on the key: an untyped parameter after ->> is ambiguous between a
-    // text key and an array index, and Postgres refuses to guess.
-    clauses.push(`(${TBL.cols.payload} ->> $${params.length - 1}::text) = ANY($${params.length}::text[])`);
-  }
+  const clauses = matchClauses(params, match);
   const { rows } = await withTenant(studioId, (q) =>
     q<{ payload: T2 }>(
       `SELECT ${TBL.cols.payload} FROM ${T}
@@ -129,6 +123,126 @@ export async function pgReadColWhere<T2 extends Row = Row>(
       params,
     ));
   return rows.map((r) => r.payload);
+}
+
+// THE `payload ->> field = ANY(values)` CLAUSES, one per field, appended to
+// `params`. Field names are bind parameters like the values, so nothing a
+// caller passes is ever SQL text. `::text` on the key: an untyped parameter
+// after ->> is ambiguous between a text key and an array index, and Postgres
+// refuses to guess.
+function matchClauses(params: unknown[], match: Record<string, readonly string[]>): string[] {
+  const clauses: string[] = [];
+  for (const [field, values] of Object.entries(match)) {
+    params.push(field, values);
+    clauses.push(`(${TBL.cols.payload} ->> $${params.length - 1}::text) = ANY($${params.length}::text[])`);
+  }
+  return clauses;
+}
+
+const inCollection = `${TBL.cols.tenant} = $1 AND ${TBL.cols.section} = $2 AND ${TBL.cols.collection} = $3`;
+
+/**
+ * ONE PAGE of a narrowed collection, newest first, with ORDER and LIMIT in
+ * Postgres — the reads above hand back EVERY matching row, which is right for
+ * a register somebody pages through on screen and wrong for a collection that
+ * grows by the hour and is read on every page load (a person's notifications:
+ * ninety days of them, of which the bell wants thirty).
+ *
+ * THE CURSOR IS A ROW ID, as `repo.page`'s is — "everything older than this
+ * row" — resolved to its `seq` in the same statement. A cursor naming a row
+ * that has since been deleted matches nothing and ends the list; the caller
+ * starts again from the top rather than being handed rows it has seen.
+ *
+ * NOT CACHED, for pgReadColWhere's reason.
+ */
+export async function pgReadColPage<T2 extends Row = Row>(
+  studioId: string, sectionId: string, name: string, match: Record<string, readonly string[]>,
+  { limit, after = "" }: { limit: number; after?: string },
+): Promise<T2[]> {
+  const params: unknown[] = [studioId, sectionId, name];
+  const clauses = matchClauses(params, match);
+  if (after) {
+    params.push(after);
+    clauses.push(`${TBL.cols.seq} < (SELECT ${TBL.cols.seq} FROM ${T} WHERE ${inCollection} AND ${TBL.cols.id} = $${params.length})`);
+  }
+  params.push(Math.max(1, Math.min(500, Math.floor(limit) || 1)));
+  const { rows } = await withTenant(studioId, (q) =>
+    q<{ payload: T2 }>(
+      `SELECT ${TBL.cols.payload} FROM ${T}
+        WHERE ${inCollection} ${clauses.map((c) => `AND ${c}`).join(" ")}
+        ORDER BY ${TBL.cols.seq} DESC
+        LIMIT $${params.length}`,
+      params,
+    ));
+  return rows.map((r) => r.payload);
+}
+
+/** How many rows of a narrowed collection there are, counted in Postgres. */
+export async function pgCountWhere(
+  studioId: string, sectionId: string, name: string, match: Record<string, readonly string[]>,
+): Promise<number> {
+  const params: unknown[] = [studioId, sectionId, name];
+  const clauses = matchClauses(params, match);
+  const { rows } = await withTenant(studioId, (q) =>
+    q<{ n: string }>(
+      `SELECT count(*)::text AS n FROM ${T} WHERE ${inCollection} ${clauses.map((c) => `AND ${c}`).join(" ")}`,
+      params,
+    ));
+  return Number(rows[0]?.n || 0);
+}
+
+/**
+ * SET ONE TEXT FIELD ON EVERY MATCHING ROW, in one statement. Returns how many
+ * changed.
+ *
+ * WHY NOT `updateRows`: that is one compare-and-set round trip per row, which
+ * is right when each row's new value depends on its old one and wrong for
+ * "mark my 300 notifications read", where it is 300 round trips through the
+ * gateway to write the same constant. Setting a constant cannot lose an update
+ * — there is no read to go stale between — so the per-row CAS buys nothing
+ * here. `row_version` still moves, so a CAS writer racing this one retries.
+ *
+ * THE jsonb ROUND TRIP REORDERS THE ROW'S KEYS, which is why `payload` is
+ * `json` everywhere else. Only callers whose rows nobody compares as text may
+ * use it; sections.ts refuses a sealed field outright, because a constant
+ * written into one would be plaintext where a token belongs.
+ */
+export async function pgSetFieldWhere(
+  studioId: string, sectionId: string, name: string, match: Record<string, readonly string[]>,
+  field: string, value: string,
+): Promise<number> {
+  const params: unknown[] = [studioId, sectionId, name];
+  const clauses = matchClauses(params, match);
+  params.push(field, value);
+  const { rowCount } = await withTenant(studioId, (q) =>
+    q(
+      `UPDATE ${T}
+          SET ${TBL.cols.payload} = (${TBL.cols.payload}::jsonb || jsonb_build_object($${params.length - 1}::text, $${params.length}::text))::json,
+              ${TBL.cols.version} = ${TBL.cols.version} + 1, ${TBL.cols.updatedAt} = now()
+        WHERE ${inCollection} ${clauses.map((c) => `AND ${c}`).join(" ")}`,
+      params,
+    ));
+  if (rowCount) invalidate(cacheKey(studioId, sectionId, name));
+  return rowCount || 0;
+}
+
+/**
+ * THE IDS of rows whose text field sorts before `before` — an ISO date, in
+ * practice, so "written more than ninety days ago". Ids and nothing else,
+ * because the only caller deletes them and a deletion takes an explicit list
+ * (invariant 17): this answers "which", pgDeleteRows does the removing.
+ */
+export async function pgIdsBefore(
+  studioId: string, sectionId: string, name: string, field: string, before: string, limit: number,
+): Promise<string[]> {
+  const { rows } = await withTenant(studioId, (q) =>
+    q<{ id: string }>(
+      `SELECT ${TBL.cols.id} AS id FROM ${T}
+        WHERE ${inCollection} AND (${TBL.cols.payload} ->> $4::text) < $5
+        LIMIT $6`,
+      [studioId, sectionId, name, field, before, Math.max(1, Math.floor(limit) || 1)],
+    ));
+  return rows.map((r) => r.id);
 }
 
 // PgWriteOpts.announce, DEFAULT TRUE. Every write below fires two side

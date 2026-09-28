@@ -57,7 +57,7 @@ import { REG, U, S, SEC, IX, ENG, Q, KEY_PREFIX } from "./keys";
 import { readArr, editArr, delKeys, delPrefix, release, getIndex, sRem, sMembers, scanPrefix, claim, zRem } from "./store";
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { readEngagement, readEngagementView, detachRecord, isEngagementLocked, SLOT_TYPE } from "./engagement";
-import { listSections, deleteRow, DB_BACKEND } from "./sections";
+import { listSections, deleteRow, deleteRows, readColWhere, DB_BACKEND } from "./sections";
 import { pgDeleteAllForSection, pgDeleteAllForTenant } from "./pgRows";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 import { hashToken } from "@/platform/auth/passwords";
@@ -110,6 +110,17 @@ export async function cascadeDeleteCollaborator(studioId: string, collaboratorId
   await editArr(S.notifications(studioId), (notifs) => ({
     next: notifs.filter((n) => n.recipientId !== collaboratorId),
   }));
+  // AND THE ROWS, since notifications became one row per recipient
+  // (28/09/2026) filed under `administration-members`. By an explicit id list
+  // read back first (invariant 17), never a predicate; the lookup is the same
+  // one keys.ts names, so a studio that never planted the section has nothing
+  // filed there to reap.
+  const members = (await listSections(studioId)).find((s) => s.key === "administration-members");
+  if (members) {
+    const mine = await readColWhere(studioId, members.id, "notifications", { recipientId: [collaboratorId] });
+    const ids = mine.filter((n) => n.recipientId === collaboratorId).map((n) => String(n.id));
+    if (ids.length) await deleteRows(studioId, members.id, "notifications", ids, { announce: false });
+  }
 
   // back-pointer, then the row itself
   await sRem(IX.collab(row.userId), studioId);

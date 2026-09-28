@@ -32,6 +32,7 @@ import { Icon } from "@/components/studio2/icons";
 import StudioChat from "@/components/studio2/StudioChat";
 import RateNompany from "@/components/studio2/RateNompany";
 import LiveProvider from "@/components/studio2/LiveProvider";
+import InboxProvider from "@/components/notifications/InboxProvider";
 import NotificationBell from "@/components/studio2/NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
 import SessionLock from "@/components/security/SessionLock";
@@ -468,7 +469,10 @@ export default function StudioFrame({
   // reached by a literal key match; answered from the shared derivation this
   // time, so the page and the shell cannot disagree about it.
   const activeKey = activeKeyProp
-    ?? (isSettingsPath(segments) ? SETTINGS_KEY : resolveActiveKey(requestedKey(segments), sections));
+    ?? (isSettingsPath(segments) ? SETTINGS_KEY
+      // The notification centre is not a section; without this it lit Main.
+      : requestedKey(segments) === "notifications" ? "notifications"
+      : resolveActiveKey(requestedKey(segments), sections));
   // The shell's own words. Imported rather than passed down as a prop: it is a
   // few hundred bytes, it is needed on literally every studio render, and a
   // prop would put it in the RSC payload of every navigation instead. See the
@@ -665,6 +669,7 @@ export default function StudioFrame({
   const activeLabel =
     (activeSection && sectionName(activeSection.key, activeSection.name, locale)) ||
     admin.find((i) => i.key === activeKey)?.label ||
+    (activeKey === "notifications" ? tr.notifications : "") ||
     studio.name;
 
   // EVERY section is a link to its own dashboard — a parent that owns
@@ -965,9 +970,11 @@ export default function StudioFrame({
     return (
       <StudioLocaleProvider locale={locale}>
         <LiveProvider slug={studio.slug}>
+          <InboxProvider slug={studio.slug}>
           <div lang={locale} dir={dirFor(locale)} className="min-h-screen">
             <Rtl on={dirFor(locale) === "rtl"}>{children}</Rtl>
           </div>
+          </InboxProvider>
         </LiveProvider>
       </StudioLocaleProvider>
     );
@@ -985,6 +992,9 @@ export default function StudioFrame({
     // for why threading it would have been the wrong shape.
     <StudioLocaleProvider locale={locale}>
     <LiveProvider slug={studio.slug}>
+    {/* One inbox per tab: the bell, the notification page and Nova's dot read
+        the same first page and the same count (components/notifications). */}
+    <InboxProvider slug={studio.slug}>
     {/* LANG AND DIR SIT HERE, NOT ON <html>.
         A studio's language is the tenant's, resolved from the studio record —
         and the root layout never reads that record, because it never touches
@@ -1209,6 +1219,7 @@ export default function StudioFrame({
       )}
     </Rtl>
     </div>
+    </InboxProvider>
     </LiveProvider>
     </StudioLocaleProvider>
   );

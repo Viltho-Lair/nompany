@@ -1,7 +1,10 @@
 import { cronJob } from "@/platform/http/cron";
 import { purgeExpired } from "@/platform/db/pgStore";
 import { pgQuery } from "@/platform/db/pg";
-import { TBL } from "@/platform/db/keys";
+import { TBL, REG } from "@/platform/db/keys";
+import { readArr } from "@/platform/db/store";
+import { log } from "@/platform/http/observability";
+import { purgeExpired as purgeNotices, KEEP_DAYS as NOTICE_DAYS } from "@/platform/notify/notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,6 +61,10 @@ const MAX_PER_RUN = 20_000;
 // will never be written to again, which per-channel trimming cannot reach.
 const EVENT_HORIZON_DAYS = 7;
 
+// Per studio, per night. A studio further behind than this is caught up over
+// the following nights rather than in one long statement.
+const NOTICE_BATCH = 2000;
+
 async function upkeep() {
 
   const expiredDocumentsRemoved = await purgeExpired(MAX_PER_RUN);
@@ -73,6 +80,23 @@ async function upkeep() {
      )`,
   );
 
+  // NOTIFICATIONS OLDER THAN NINETY DAYS (the owner, 28/09/2026), studio by
+  // studio — `collection_rows` is under row-level security, so there is no
+  // statement that reaches every tenant at once, and there should not be.
+  // Each studio deletes a bounded batch by explicit ids; one that fails costs
+  // its own purge for a night and never the run.
+  let noticesRemoved = 0;
+  let noticesHitCap = false;
+  for (const s of await readArr<{ id: string }>(REG.studios)) {
+    try {
+      const n = await purgeNotices(String(s.id), NOTICE_BATCH);
+      noticesRemoved += n;
+      if (n >= NOTICE_BATCH) noticesHitCap = true;
+    } catch (e) {
+      log.error("store-upkeep: notification purge failed", { studioId: s.id, error: (e as Error).message });
+    }
+  }
+
   // Reported so a run that hit the cap is visible: a count equal to the cap
   // means there is more to do and the next run will take it, which is worth
   // seeing before it becomes a backlog nobody noticed.
@@ -80,8 +104,10 @@ async function upkeep() {
     ok: true,
     expiredDocumentsRemoved,
     eventsTrimmed: trimmed.rowCount,
-    hitCap: expiredDocumentsRemoved >= MAX_PER_RUN || trimmed.rowCount >= MAX_PER_RUN,
+    noticesRemoved,
+    hitCap: expiredDocumentsRemoved >= MAX_PER_RUN || trimmed.rowCount >= MAX_PER_RUN || noticesHitCap,
     eventHorizonDays: EVENT_HORIZON_DAYS,
+    noticeDays: NOTICE_DAYS,
   });
 }
 

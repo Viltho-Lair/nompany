@@ -69,6 +69,8 @@ export const STUDIO_LEVEL: readonly StudioLevelSpec[] = [
   { via: S.collaborators, table: "Collaborator" },
   { via: S.sections, table: "Section" },
   { via: S.roles, table: "Role" },
+  // The OLD per-studio array. Rows written since 28/09/2026 are a collection
+  // (COLLECTION_TABLE.notifications) and land in the same table.
   { via: S.notifications, table: "Notification" },
 ];
 
@@ -202,6 +204,8 @@ export const COLLECTION_TABLE: Readonly<Record<string, string>> = {
   shifts: "Shift",
   trackingPositions: "TrackingPosition",
   approvals: "Approval",
+  // One row per recipient, 28/09/2026 — see platform/notify/notifications.
+  notifications: "Notification",
   // The register's document collection. Its own table rather than
   // QualityDocument's: the retired builder's rows carry `sections` and no
   // `content`, and a shared table would mix two shapes under one name.

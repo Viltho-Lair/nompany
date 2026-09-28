@@ -54,7 +54,7 @@ export async function redisAddRow<T extends Row = Row>(
 // naming one row out of two hundred would be a detail nobody could use and a
 // lie to anyone who later tried.
 export async function redisAddRows<T extends Row = Row>(
-  studioId: string, sectionId: string, name: string, items: readonly Row[],
+  studioId: string, sectionId: string, name: string, items: readonly Row[], opts: { announce?: boolean } = {},
 ): Promise<T[]> {
   if (!items.length) return [];
   const created = await editArr<T, T[]>(SEC.col(studioId, sectionId, name), (rows) => {
@@ -66,10 +66,14 @@ export async function redisAddRows<T extends Row = Row>(
     // the rows keep the order they arrived in among themselves.
     return { next: [...batch, ...rows], result: batch };
   });
-  await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name });
-  // BY THE SIZE OF THE BATCH. One write, so this fires once — a bare bump would
-  // count two hundred rows as one and leave the nightly reconcile to find it.
-  void bumpMainAgg(studioId, sectionId, name, created.length); // best-effort, never awaited (§3)
+  // `announce: false` is for a collection nobody watches as a board — see
+  // PgWriteOpts in pgRows.ts, whose flag this mirrors.
+  if (opts.announce !== false) {
+    await emit(studioId, { type: TYPE.rowCreated, sectionId, collection: name });
+    // BY THE SIZE OF THE BATCH. One write, so this fires once — a bare bump would
+    // count two hundred rows as one and leave the nightly reconcile to find it.
+    void bumpMainAgg(studioId, sectionId, name, created.length); // best-effort, never awaited (§3)
+  }
   return created;
 }
 
@@ -110,7 +114,7 @@ export async function redisDeleteRow(
 // Many rows by an explicit id list, one compare-and-set and one event — see
 // pgDeleteRows for why the list is the whole scope and why the event names no row.
 export async function redisDeleteRows(
-  studioId: string, sectionId: string, name: string, rowIds: readonly string[],
+  studioId: string, sectionId: string, name: string, rowIds: readonly string[], opts: { announce?: boolean } = {},
 ): Promise<number> {
   const drop = new Set(rowIds.filter((id) => typeof id === "string" && id !== ""));
   if (!drop.size) return 0;
@@ -119,6 +123,6 @@ export async function redisDeleteRows(
     const gone = rows.length - next.length;
     return gone ? { next, result: gone } : { result: 0 };
   });
-  if (removed) await emit(studioId, { type: TYPE.rowDeleted, sectionId, collection: name });
+  if (removed && opts.announce !== false) await emit(studioId, { type: TYPE.rowDeleted, sectionId, collection: name });
   return removed;
 }

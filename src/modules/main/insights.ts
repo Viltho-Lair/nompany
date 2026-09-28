@@ -27,7 +27,7 @@
 import { can } from "@/platform/access";
 import type { PermissionKey } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { listForCollaborator } from "@/platform/notify/notifications";
+import { unreadCount } from "@/platform/notify/notifications";
 import { balances } from "@/modules/inventory/inventory";
 import { permitState } from "@/modules/operations/operations";
 import { permitLive } from "@/modules/operations/permitModel";
@@ -386,7 +386,7 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
   const meId = String(ctx.collaborator.id);
 
   const [approvals, quotations, rfqs, tickets, projects, items, movements,
-    invoices, bills, permits, people, notifications] = await Promise.all([
+    invoices, bills, permits, people, unread] = await Promise.all([
     readIfVisible<Approval>(ctx, "approvals", null, "approvals"),
     readIfVisible<QuotationRow>(ctx, "crm-sales-quotations", "crm-sales", "quotations", "quotations-register"),
     readIfVisible<RfqRow>(ctx, "engineering-docs-rfq", "engineering-docs", "rfqs", "quotations-rfq"),
@@ -404,7 +404,7 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
     ctx.seen("hr-employees", "hr") && can(ctx.access, "hr.employees.view")
       ? listCollaborators(ctx.studio.id) : null,
     // Always: these are the caller's OWN, addressed to their CollaboratorID.
-    listForCollaborator(String(ctx.studio.id), meId),
+    unreadCount(String(ctx.studio.id), meId),
   ]);
 
   const out: Insight[] = [];
@@ -422,7 +422,7 @@ export async function studioInsights(ctx: MainContext): Promise<Insight[]> {
   // LEAVE WAITING ON SOMEBODY is the Approvals bubble above since 19/09/2026 —
   // a request is an approval, and one bubble per waiting thing is the rule.
 
-  const unread = notifications.filter((n) => !n.readAt).length;
+  // Counted in Postgres (unreadCount), not by reading the rows.
   if (unread > 0) {
     out.push(make("notifications.unread", "info", "main", null, String(unread), { n: unread }));
   }

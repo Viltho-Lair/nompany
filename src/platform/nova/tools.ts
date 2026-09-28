@@ -311,7 +311,7 @@ const TOOL_IMPLS: Record<string, ToolImpl> = {
     run: async (user, slug) => {
       const ctx = await studioContext(user as { id?: unknown }, slug);
       if ("error" in ctx) return { error: ctx.error };
-      return capped(await listForCollaborator(String(ctx.studio.id), String(ctx.collaborator.id)));
+      return capped((await listForCollaborator(String(ctx.studio.id), String(ctx.collaborator.id), { limit: 50 })).rows);
     },
   },
 };

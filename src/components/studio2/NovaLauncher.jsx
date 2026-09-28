@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useInbox } from "@/components/notifications/InboxProvider";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { miscDict } from "@/shared/studio/misc";
 import NovaHead from "@/components/studio2/NovaHead";
@@ -41,9 +42,9 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
-  const [attention, setAttention] = useState(0);
   const [pending, setPending] = useState(null);   // an action awaiting the user's Confirm
   const [announce, setAnnounce] = useState("");    // the settled answer, announced once to screen readers
+  const inbox = useInbox();
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   const panelRef = useRef(null);
@@ -60,20 +61,11 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
   const flow = useHelpFlow({ help, setMessages, view, askModel: (q) => send(q, { echo: false }) });
 
   // FEEDBACK BY DEFAULT. Even with the chat shut, Nova wears a badge for what is
-  // waiting on this person — their unread notifications, the same ones the bell
-  // holds — so the head is a live nudge, not just a launcher. Refreshed on open
-  // and every couple of minutes while the shell is up.
-  useEffect(() => {
-    if (!enabled) return undefined;
-    let live = true;
-    const load = () => fetch(`/api/studios/${slug}/notifications`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (live && d) setAttention((d.notifications || []).filter((n) => !n.readAt).length); })
-      .catch(() => {});
-    load();
-    const t = setInterval(load, 120000);
-    return () => { live = false; clearInterval(t); };
-  }, [enabled, slug, open]);
+  // waiting on this person — their unread notifications, THE BELL'S OWN COUNT,
+  // read from the inbox every surface shares. It fetched the whole list every
+  // two minutes and counted it itself, a second answer to the bell's question
+  // that lagged it by up to two minutes; now it moves the moment the bell does.
+  const attention = enabled ? (inbox?.unread || 0) : 0;
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;

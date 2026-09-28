@@ -1,21 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/studio2/icons";
 import { useLive } from "@/components/studio2/LiveProvider";
-import { ago } from "@/lib/format";
+import { useInbox } from "@/components/notifications/InboxProvider";
+import NoticeRow from "@/components/notifications/NoticeRow";
 import { shellDict } from "@/shared/studio/shell";
-import { renderNotice } from "@/modules/administration/notices";
-import { mergeNotices, unreadCount } from "@/shared/notificationInbox";
-import useUnreadTitle from "@/components/notifications/useUnreadTitle";
+import { inboxDict } from "@/shared/studio/inbox";
+import { groupNotices } from "@/shared/notificationInbox";
 
 // The studio's bell.
 //
-// Two sources, on purpose. The REST call answers "what was already waiting when
-// I arrived" — a fresh page load has streamed nothing yet, and an unread count
-// built only from what arrived since the tab opened would reset on every
-// reload. The stream then adds whatever comes in while the tab stays open.
+// WHAT IT SHOWS IS THE INBOX'S (components/notifications/InboxProvider): the
+// first page, the count, the reads. The bell used to fetch and count on its
+// own, and so did Nova's dot, on a timer — two answers to one question. The
+// full history is the notification page, one link away.
 //
 // It also shows the CONNECTION. There is no polling fallback behind this any
 // more, so if the stream cannot be established — a proxy that will not pass
@@ -24,68 +24,24 @@ import useUnreadTitle from "@/components/notifications/useUnreadTitle";
 // it was current. The dot next to the bell is small, but it is the difference
 // between "nothing is happening" and "you are not being told what happens".
 
-const TONE = {
-  primary: "bg-brand-500/10 text-brand-600 dark:text-brand-400",
-  success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  danger: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-};
+// How many rows the dropdown draws. The page holds the rest.
+const SHOWN = 15;
 
 export default function NotificationBell({ slug, locale = "en" }) {
   // The bell is part of the header, so it reads from the shell's dictionary
   // rather than owning one — it is the same chrome, in the same language.
   const tr = shellDict(locale);
+  const ti = inboxDict(locale);
   const live = useLive();
+  const inbox = useInbox();
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState([]);
-  // THE STUDIO'S OWN WORDING, served with the list. Null until the first
-  // load, which is the same as "no overrides" — `renderNotice` falls back
-  // to the shipped template, so the bell is never blank while it waits.
-  const [templates, setTemplates] = useState(null);
-  const [loaded, setLoaded] = useState(false);
   const panel = useRef(null);
 
-  const streamed = live?.notifications;
   const status = live?.status;
-  const connection = live?.connection;
-
-  // What was already waiting. Re-fetched EVERY time the stream connects,
-  // because a reconnect is exactly the moment we may have missed something.
-  // It was keyed on `status === "live"`, and the server recycles the
-  // connection every four minutes by going live -> live — no change React
-  // could see — so a notice sent in that gap appeared only after a manual
-  // refresh. The connection count changes on every `ready`.
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/studios/${slug}/notifications`, { cache: "no-store" });
-      if (!res.ok) return;
-      const out = await res.json();
-      setRows(Array.isArray(out.notifications) ? out.notifications : []);
-      setTemplates(out.noticeTemplates || null);
-      setLoaded(true);
-    } catch {
-      // Offline or navigating away. The bell keeps whatever it had; the next
-      // reconnect tries again.
-    }
-  }, [slug]);
-
-  useEffect(() => {
-    if (connection) load();
-  }, [connection, load]);
-
-  // Merge the streamed arrivals into the fetched list, newest first, without
-  // letting a notification appear twice when both sources carry it.
-  const merged = mergeNotices(streamed, rows);
-  const unread = unreadCount(merged);
-  useUnreadTitle(unread);
-
-  // THE WORDS ARE CHOSEN HERE, not by whatever produced the row. Every
-  // notification in this product was an English sentence written at the
-  // producer and stored finished, so an Arabic studio's bell was entirely
-  // English. `renderNotice` is pure and falls back to the stored sentence
-  // for rows written before this and for `system` notices, which have no
-  // fixed sentence to translate.
-  const words = (n) => renderNotice(n, locale, templates);
+  const unread = inbox?.unread || 0;
+  // REPEATS COLLAPSE (shared/notificationInbox): the same notice arriving
+  // several times in a day is one row with a count, not a wall of copies.
+  const groups = groupNotices(inbox?.rows || []).slice(0, SHOWN);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -95,38 +51,6 @@ export default function NotificationBell({ slug, locale = "en" }) {
     window.addEventListener("keydown", onKey);
     return () => { window.removeEventListener("click", close); window.removeEventListener("keydown", onKey); };
   }, [open]);
-
-  // MARK READ, OPTIMISTICALLY, for one notification or for all of them.
-  //
-  // `ids` empty means "all mine" — the same contract the PATCH route has always
-  // had. It took a list from the first day and nothing ever passed one, so
-  // clicking a notification opened it and left it unread: the bell rendered a
-  // dot beside something the person had plainly just read, and the only way to
-  // clear it was the button that clears everything.
-  //
-  // Optimistic because the count is the whole point of the thing. It goes down
-  // on the click rather than after a round trip, and the load() at the end
-  // reconciles whatever the server actually did.
-  const markRead = useCallback(async (ids) => {
-    const at = new Date().toISOString();
-    const wanted = ids?.length ? new Set(ids) : null;
-    const applied = (prev) => prev.map((n) => (
-      n.readAt || (wanted && !wanted.has(n.id)) ? n : { ...n, readAt: at }
-    ));
-
-    setRows(applied);
-    live?.setNotifications?.(applied);
-    try {
-      await fetch(`/api/studios/${slug}/notifications`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(ids?.length ? { ids } : {}),
-      });
-    } catch {
-      // The optimistic state stands; the next load() reconciles it.
-    }
-    load();
-  }, [slug, live, load]);
 
   return (
     <div className="relative" ref={panel} onClick={(e) => e.stopPropagation()}>
@@ -157,14 +81,14 @@ export default function NotificationBell({ slug, locale = "en" }) {
       {open && (
         <div
           role="menu"
-          className="absolute end-0 z-50 mt-2 w-80 overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex"
+          className="absolute end-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex"
         >
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-white/5">
             <span className="text-sm font-700 text-slate-900 dark:text-white">{tr.notifications}</span>
             {unread > 0 && (
               <button
                 type="button"
-                onClick={() => unread && markRead([])}
+                onClick={() => inbox?.markRead([])}
                 className="text-xs font-600 text-brand-600 hover:underline dark:text-brand-400"
               >
                 {tr.markAllRead}
@@ -179,64 +103,37 @@ export default function NotificationBell({ slug, locale = "en" }) {
           )}
 
           <ul className="max-h-96 overflow-y-auto">
-            {merged.length === 0 ? (
+            {groups.length === 0 ? (
               <li className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
-                {loaded ? tr.nothingYet : tr.loading}
+                {inbox?.loaded ? tr.nothingYet : tr.loading}
               </li>
             ) : (
-              merged.slice(0, 30).map((n) => {
-                const body = (
-                  <>
-                    <span
-                      className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${TONE[n.tone] || TONE.primary}`}
-                    >
-                      <Icon name="bell" className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-600 text-slate-800 dark:text-slate-100">{words(n).title}</span>
-                      {words(n).body && (
-                        <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{words(n).body}</span>
-                      )}
-                      <span className="mt-1 block text-[11px] text-slate-400 dark:text-slate-500">{ago(n.at)}</span>
-                    </span>
-                    {!n.readAt && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-500" />}
-                  </>
-                );
-                const cls = `flex w-full gap-3 px-4 py-3 text-start hover:bg-slate-50 dark:hover:bg-white/5 ${
-                  n.readAt ? "" : "bg-brand-500/[.04]"
-                }`;
-                // READING ONE IS WHAT MARKS IT READ. Both branches do it: a
-                // notification with nowhere to go is still one you have now
-                // seen, and leaving it unread means the count outlives the
-                // thing it was counting.
-                const read = () => { if (!n.readAt) markRead([n.id]); };
-
-                // Stored hrefs are studio-relative, so the address is built here
-                // from the slug this tab is actually on — a studio that gets
-                // renamed does not strand its own old notifications.
-                return (
-                  <li key={n.id}>
-                    {n.href ? (
-                      <Link
-                        href={`/${slug}/${n.href}`}
-                        className={cls}
-                        onClick={() => { read(); setOpen(false); }}
-                      >
-                        {body}
-                      </Link>
-                    ) : (
-                      // A BUTTON, NOT A DIV. It does something now — it clears
-                      // itself — so it has to be reachable from the keyboard
-                      // like every other control in this list.
-                      <button type="button" className={cls} onClick={read}>
-                        {body}
-                      </button>
-                    )}
-                  </li>
-                );
-              })
+              groups.map((g) => (
+                <li key={g.id}>
+                  <NoticeRow
+                    slug={slug}
+                    locale={locale}
+                    notice={g}
+                    templates={inbox?.templates}
+                    onOpen={() => {
+                      // READING ONE IS WHAT MARKS IT READ — every copy it
+                      // stands for, since the group is one notice to the reader.
+                      if (g.anyUnread) inbox?.markRead(g.ids);
+                      setOpen(false);
+                    }}
+                  />
+                </li>
+              ))
             )}
           </ul>
+
+          <Link
+            href={`/${slug}/notifications`}
+            onClick={() => setOpen(false)}
+            className="block border-t border-slate-100 px-4 py-2.5 text-center text-xs font-600 text-brand-600 hover:bg-slate-50 dark:border-white/5 dark:text-brand-400 dark:hover:bg-white/5"
+          >
+            {ti.seeAll}
+          </Link>
         </div>
       )}
     </div>

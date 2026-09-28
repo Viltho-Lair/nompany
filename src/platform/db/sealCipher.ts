@@ -102,6 +102,13 @@ const BY_COLLECTION: Record<string, Set<string>> = {
   // member of the public (21/09/2026). `evidence` is the studio's own wording
   // and is left clear, so a ledger can be read without opening every row.
   marketingConsents: new Set(["value"]),
+  // A NOTIFICATION REPEATS WHAT IT IS ABOUT (28/09/2026): "A lead was assigned
+  // to you · T-0042 · Acme head office fit-out" is the deal's ref and title,
+  // both sealed on the deal. Kept as a plain array for its first year, which
+  // put the client's words in the clear beside a sealed original. The WORDS
+  // and the FACTS are sealed; what finds a row — recipient, type, time, read
+  // state, the link — stays clear.
+  notifications: new Set(["title", "body", "params"]),
 };
 
 export function isSealedField(collection: string, field: string): boolean {

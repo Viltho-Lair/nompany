@@ -1014,7 +1014,9 @@ function gitGrepLines(execFileSync, file, patterns) {
 // "print" is `/<slug>/print/<kind>/<id>` — a customer document printed through
 // its layout (tier 4). Like Engagements it rides a RECORD's right rather than a
 // section's, and isFullScreenPath (shared/studioRoute) names it the same way.
-const NON_SECTION_TARGETS = ["people", "access", "documentation", "engagements", "settings", "print"];
+// `notifications` is the notification centre (28/09/2026), reached from the
+// bell — not a section, like Engagements.
+const NON_SECTION_TARGETS = ["people", "access", "documentation", "engagements", "settings", "print", "notifications"];
 const isKnownRouteTarget = (key) => ALL_SECTION_KEYS.includes(key) || NON_SECTION_TARGETS.includes(key);
 
 // COMPOUND_ROOTS IS A SECOND LIST THAT MUST AGREE WITH SECTION_DEFS, and its own

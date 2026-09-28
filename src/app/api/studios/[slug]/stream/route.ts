@@ -6,7 +6,7 @@ import { listRoles } from "@/modules/people/roles";
 import { listSections, parentKeyMap } from "@/platform/db/sections";
 import { readSince, latestId, isCursor, SCOPE, TYPE } from "@/platform/realtime/events";
 import { subscribe, CH } from "@/platform/realtime/bus";
-import { listForCollaborator } from "@/platform/notify/notifications";
+import { findForCollaborator } from "@/platform/notify/notifications";
 import { sseResponse, resumeCursor } from "@/lib/sse";
 import { log } from "@/platform/http/observability";
 
@@ -170,9 +170,8 @@ type WireEvent = {
       // studio, and its notifications belong on that connection, not this one.
       if (n?.kind !== "notif" || (n.studioId && n.studioId !== studio.id)) return;
 
-      const mine = await listForCollaborator(studio.id, collaborator.id);
-      const row = mine.find((x) => x.id === n.id);
-      // ADDRESSED TO SOMEBODY ELSE, or already gone. listForCollaborator filters
+      const row = await findForCollaborator(studio.id, collaborator.id, String(n.id || ""));
+      // ADDRESSED TO SOMEBODY ELSE, or already gone. findForCollaborator matches
       // by recipient, so a doorbell naming an id this person may not read simply
       // finds nothing — the fetch is the check, not a second one to remember.
       if (row) deliver(() => { if (conn.open) conn.send("notif", { kind: "notif", ...row }); });

@@ -213,7 +213,7 @@ import {
   StudioPurchaseOrders, StudioPermits, StudioPlantAllocation, StudioProduction, StudioSales,
   StudioTicketProfile, StudioSheetViewer, SalesQuotationViewer, StudioTechnical,
   StudioProjects, StudioHr, StudioInventory, StudioFinance, StudioApprovals,
-  StudioOperations, StudioMain, StudioEngagements,
+  StudioOperations, StudioMain, StudioEngagements, StudioNotifications,
 } from "@/components/studio2/HeavyScreens";
 
 const StudioDocs = nextDynamic(() => import("@/components/studio2/StudioDocs"));
@@ -438,6 +438,14 @@ async function renderStudio(params) {
   }
   if (requested === "quotations-live" && sections.some((s) => s.key === "quotations-live")) {
     return <StudioTechnicalLive studio={{ name: studio.name, slug: studio.slug }} />;
+  }
+
+  // THE NOTIFICATION CENTRE IS NOT A SECTION EITHER, and has no right of its
+  // own: a person's notifications are addressed to them alone, so membership —
+  // already established to render this page — is the whole gate, and the route
+  // behind it reads by the caller's own collaborator id.
+  if (requested === "notifications") {
+    return <StudioNotifications slug={studio.slug} />;
   }
 
   // ENGAGEMENTS IS NOT A SECTION, deliberately. Making it one would give Main a
