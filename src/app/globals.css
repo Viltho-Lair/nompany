@@ -882,18 +882,22 @@ html.studio-chrome .MuiDataGrid-root {
   --DataGrid-t-cell-background-pinned: var(--geex-surface);
 }
 
-/* THE STUDIO AND THE ACCOUNT HUB SET THE SITE'S FACES (27/09/2026): Geist for
-   Latin, Readex Pro for Arabic — the pair the public site sets — so signing in
-   does not change typeface under somebody's cursor. Cabin was the studio's
-   until then. .font-display is overridden too, so nothing in either escapes to
-   Saira. `.app-type` is the account hub's hook: it has no studio-chrome class
-   and must not take the studio's three-size clamp below. */
+/* THE STUDIO AND THE ACCOUNT HUB SET ROBOTO AND NOTO KUFI ARABIC (the owner,
+   28/09/2026) — see the note on `roboto` in app/fonts.ts. For one day they
+   set the public site's Geist and Readex Pro, so signing in did not change
+   typeface; clients found Readex too big and too thick to work in, so the
+   working surfaces have working faces and the public site keeps its own. The
+   two stay one pair, so going from the account hub into a studio still changes
+   nothing under the cursor. Cabin was the studio's before either.
+   .font-display is overridden too, so nothing in either escapes to Saira.
+   `.app-type` is the account hub's hook: it has no studio-chrome class and
+   must not take the studio's three-size clamp below. */
 html.studio-chrome,
 html.studio-chrome body,
 html.studio-chrome .font-display,
 .app-type,
 .app-type .font-display {
-  font-family: var(--f-geist), var(--f-readex), system-ui, sans-serif;
+  font-family: var(--f-roboto), var(--f-noto-kufi), system-ui, sans-serif;
 }
 /* Arabic (RTL) Studio uses the display family per design spec.
 
@@ -917,7 +921,7 @@ html.studio-chrome [dir="rtl"] .font-display,
 [dir="rtl"] .app-type,
 .app-type[dir="rtl"],
 [dir="rtl"] .app-type .font-display {
-  font-family: var(--f-readex), var(--font-display), system-ui, sans-serif;
+  font-family: var(--f-noto-kufi), var(--f-roboto), system-ui, sans-serif;
 }
 
 /* Studio type scale — the ONLY three font sizes allowed in the Studio
@@ -931,13 +935,15 @@ html.studio-chrome [dir="rtl"] .font-display,
 html.studio-chrome body {
   font-size: 0.875rem; /* default "normal" for elements with no size utility */
 }
-/* Title — 1.75rem */
+/* Title — 1.25rem. It was 1.75rem (28px) until 28/09/2026, when the owner
+   passed on the clients' complaint that the studio's type was too big: a
+   screen title does not need to shout inside a sidebar layout. */
 html.studio-chrome [class*="text-4xl"],
 html.studio-chrome [class*="text-3xl"],
 html.studio-chrome [class*="text-2xl"],
 html.studio-chrome [class*="text-xl"] {
-  font-size: 1.75rem !important;
-  line-height: 1.25 !important;
+  font-size: 1.25rem !important;
+  line-height: 1.35 !important;
 }
 /* Heading — 1rem */
 html.studio-chrome [class*="text-lg"],
@@ -950,6 +956,28 @@ html.studio-chrome [class*="text-sm"],
 html.studio-chrome [class*="text-xs"] {
   font-size: 0.875rem !important;
   line-height: 1.5 !important;
+}
+
+/* THE STUDIO'S WEIGHTS, CLAMPED (the owner, 28/09/2026: too thick). Screens
+   ask for 600, 700 and 800 about a thousand times between them; rewriting each
+   call site would be a thousand edits and the next screen would bring 800 back.
+   So, like the size buckets above, the weights collapse here: bold and heavier
+   become semibold (600), semibold becomes medium (500). Reading text stays 400.
+   `b`/`strong` and headings are included — the browser's own "bolder" is 700.
+   Scoped to the studio; the public site's type is untouched. */
+html.studio-chrome .font-800,
+html.studio-chrome .font-700,
+html.studio-chrome .font-bold,
+html.studio-chrome .font-extrabold,
+html.studio-chrome .font-black,
+html.studio-chrome b,
+html.studio-chrome strong,
+html.studio-chrome :is(h1, h2, h3, h4) {
+  font-weight: 600 !important;
+}
+html.studio-chrome .font-600,
+html.studio-chrome .font-semibold {
+  font-weight: 500 !important;
 }
 
 /* Scrollbars inside the Studio panel only (class toggled by StudioShell).

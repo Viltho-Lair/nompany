@@ -1,4 +1,4 @@
-import { Cabin, Geist, Geist_Mono, IBM_Plex_Sans, Inter, Noto_Sans_Arabic, Readex_Pro, Saira, Sora, Tajawal } from "next/font/google";
+import { Cabin, Geist, Geist_Mono, IBM_Plex_Sans, Inter, Noto_Kufi_Arabic, Noto_Sans_Arabic, Readex_Pro, Roboto, Saira, Sora, Tajawal } from "next/font/google";
 
 /* THE SEVEN FAMILIES, SELF-HOSTED.
    ------------------------------------------------------------------
@@ -105,8 +105,27 @@ export const geist = Geist({
   display: "swap", variable: "--f-geist", preload: false,
 });
 
+/* THE STUDIO'S WORKING FACES (the owner, 28/09/2026): Roboto for Latin, Noto
+   Kufi Arabic for Arabic. Clients found Geist and Readex Pro too big and too
+   thick to work in all day — Readex is a display face, set at 600–800 — and the
+   owner asked for "something practical for both Arabic and English", in a
+   business style. Chosen from nine pairs rendered side by side on Windows: the
+   Kufi reads formal and geometric, Roboto is the plainest of workhorses, and
+   both render the same on every device, which a system font would not. The
+   public site keeps Geist and Readex. Only the weights the studio's clamp can
+   produce (globals.css) are loaded. */
+export const roboto = Roboto({
+  subsets: ["latin"], weight: ["400", "500", "600"],
+  display: "swap", variable: "--f-roboto", preload: false,
+});
+export const notoKufi = Noto_Kufi_Arabic({
+  subsets: ["arabic"], weight: ["400", "500", "600"],
+  display: "swap", variable: "--f-noto-kufi", preload: false,
+});
+
 export const FONT_VARS = [
   saira.variable, plexSans.variable, sora.variable, inter.variable,
   cabin.variable, notoArabic.variable, tajawal.variable,
   readex.variable, geistMono.variable, geist.variable,
+  roboto.variable, notoKufi.variable,
 ].join(" ");

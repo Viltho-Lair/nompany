@@ -73,9 +73,11 @@ export function printSlip(target) {
     const lang = slip.closest("[lang]")?.getAttribute("lang") || document.documentElement.lang || "en";
     // The page's own stylesheets (Tailwind, the fonts), so the slip is set
     // exactly as it is on screen; its <html> classes carry the font variables.
+    // The <base> pins their relative addresses to this site, rather than
+    // trusting a blank frame to inherit it.
     const sheets = [...document.querySelectorAll('link[rel="stylesheet"], style')].map((n) => n.outerHTML).join("");
     doc.open();
-    doc.write(`<!doctype html><html dir="${dir}" lang="${lang}" class="${document.documentElement.className.replace(/\bdark\b/g, "")}"><head><meta charset="utf-8">${sheets}<style>${SLIP_PAGE_CSS}</style></head><body>${slip.outerHTML}</body></html>`);
+    doc.write(`<!doctype html><html dir="${dir}" lang="${lang}" class="${document.documentElement.className.replace(/\bdark\b/g, "")}"><head><meta charset="utf-8"><base href="${location.origin}/">${sheets}<style>${SLIP_PAGE_CSS}</style></head><body>${slip.outerHTML}</body></html>`);
     doc.close();
 
     let finished = false;
