@@ -131,6 +131,29 @@ told they were taken off.
   certified. Invariant 7 means they could not certify it themselves, so they
   were always the one waiting.
 
+## The daily notices
+
+`/api/cron/daily-notices` runs once a day. **Each studio is swept on its own
+day** (Studio settings' time zone, `shared/timezone`); a studio with no zone
+keeps the UTC day. Studios are swept **four at a time**, not one after another,
+so the run fits its 300-second ceiling as the tenant count grows. The same day
+drives the preventive-maintenance raises that ride this run.
+
+Besides overdue invoices and bills, expiring IDs and permits, due work orders,
+calibrations and overdue leads, it now tells:
+
+- **`record.expiring`**: whoever may edit the register, as a certificate's
+  expiry, a vehicle's insurance or inspection, or an installed unit's warranty
+  reaches 30, 14, 7, 3, 1 or 0 days. A withdrawn certificate and a sold vehicle
+  are skipped. The dates are a table (`ENGINE_EXPIRIES` in
+  `modules/main/timeNotices`), so the next dated register is one line.
+- **`supplier.document.expiring`**: whoever may edit suppliers, as a supplier's
+  licence, insurance or other document reaches the same milestones.
+- **`tender.closing`**: see Tenders and deals.
+
+Every link is a studio address: `finance-receivables`, not `finance/receivables`,
+which three of these notices used until 28/09/2026.
+
 ## Who is told about their own money and time
 
 Addressed to the person the record is about, through `notifyEach` (one read of

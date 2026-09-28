@@ -290,3 +290,75 @@ export function closingTenderNotices(tenders: TenderRow[], todayISO: string): Cl
   }
   return out;
 }
+
+// ---- dates the registers hold and nothing watched (28/09/2026) ------------
+// A certificate's expiry, a vehicle's insurance and inspection, an installed
+// unit's warranty: each register stored the date, drew it in a column, and
+// told nobody as it came. DECLARED HERE as a table rather than coded per
+// register, so the next dated register is one line.
+//
+// `closed` are the statuses at which the date no longer matters: a withdrawn
+// certificate or a sold vehicle is not going to be renewed.
+export const ENGINE_EXPIRIES = [
+  { typeKey: "certification", field: "expiresOn", nameField: "title", what: "expires", closed: ["Withdrawn"] },
+  { typeKey: "vehicle", field: "insuranceEndsOn", nameField: "plate", what: "insurance ends", closed: ["Sold"] },
+  { typeKey: "vehicle", field: "inspectionEndsOn", nameField: "plate", what: "inspection ends", closed: ["Sold"] },
+  { typeKey: "installed", field: "warrantyEndsOn", nameField: "description", what: "warranty ends", closed: [] },
+] as const;
+
+type EngineRow = { id?: string; reference?: string; typeKey?: string; status?: string; values?: Record<string, unknown> };
+
+/**
+ * Engine records of one type whose declared dates cross an expiry milestone
+ * today — one notice per date, so a vehicle whose insurance AND inspection end
+ * this week is two lines, each saying which. Pure.
+ */
+export function engineExpiryNotices(typeKey: string, records: EngineRow[], todayISO: string): ExpiringNotice[] {
+  const out: ExpiringNotice[] = [];
+  for (const spec of ENGINE_EXPIRIES.filter((s) => s.typeKey === typeKey)) {
+    for (const r of records) {
+      if (r.typeKey !== typeKey || (spec.closed as readonly string[]).includes(String(r.status || ""))) continue;
+      const date = String(r.values?.[spec.field] || "").slice(0, 10);
+      if (!date) continue;
+      const days = daysBetween(todayISO, date);
+      if (days === null || !EXPIRING_MILESTONES.includes(days)) continue;
+      out.push({
+        recordId: String(r.id || ""),
+        reference: String(r.reference || ""),
+        name: String(r.values?.[spec.nameField] || r.reference || ""),
+        kind: spec.what,
+        date,
+        daysLeft: days,
+      });
+    }
+  }
+  return out;
+}
+
+type VendorRow = { id?: string; name?: string; documents?: { kind?: string; reference?: string; expiresAt?: string }[] };
+
+/**
+ * A supplier's documents — trade licence, insurance, a quality certificate —
+ * crossing an expiry milestone today. Buying from a supplier whose licence
+ * lapsed last week is the failure this exists to prevent. Pure.
+ */
+export function supplierDocumentNotices(vendors: VendorRow[], todayISO: string): ExpiringNotice[] {
+  const out: ExpiringNotice[] = [];
+  for (const v of vendors) {
+    for (const d of Array.isArray(v.documents) ? v.documents : []) {
+      const date = String(d?.expiresAt || "").slice(0, 10);
+      if (!date) continue;
+      const days = daysBetween(todayISO, date);
+      if (days === null || !EXPIRING_MILESTONES.includes(days)) continue;
+      out.push({
+        recordId: String(v.id || ""),
+        reference: String(d?.reference || ""),
+        name: String(v.name || ""),
+        kind: String(d?.kind || "Document"),
+        date,
+        daysLeft: days,
+      });
+    }
+  }
+  return out;
+}

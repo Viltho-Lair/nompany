@@ -370,5 +370,34 @@ console.log("\n== procurement");
   ok("a certified valuation tells whoever wrote it", /\[String\(current\.createdByCollaboratorId \|\| ""\)\][\s\S]*?NOTIFY\.certificateCertified/.test(sub));
 }
 
+console.log("\n== dates the registers hold, on the studio's own day");
+
+{
+  const TN = await import("@/modules/main/timeNotices");
+  const v = (id, status, values) => ({ id, reference: id.toUpperCase(), typeKey: "vehicle", status, values });
+  const due = TN.engineExpiryNotices("vehicle", [
+    v("a", "In service", { plate: "AB-1", insuranceEndsOn: "2026-10-05", inspectionEndsOn: "2026-10-05" }),
+    v("b", "Sold", { plate: "CD-2", insuranceEndsOn: "2026-10-05" }),
+    v("c", "In service", { plate: "EF-3", insuranceEndsOn: "2026-10-06" }),
+  ], "2026-09-28");
+  ok("a vehicle's two dates on one day are two notices", due.filter((n) => n.recordId === "a").length === 2);
+  ok("each says which date it is", due.some((n) => n.kind === "insurance ends") && due.some((n) => n.kind === "inspection ends"));
+  ok("it is named by its plate", due.find((n) => n.recordId === "a")?.name === "AB-1");
+  ok("a sold vehicle is not chased", !due.some((n) => n.recordId === "b"));
+  ok("between milestones it is quiet", !due.some((n) => n.recordId === "c"));
+  ok("another type's records are ignored", TN.engineExpiryNotices("certification", [v("a", "In service", { expiresOn: "2026-10-05" })], "2026-09-28").length === 0);
+
+  const docs = TN.supplierDocumentNotices([
+    { id: "s1", name: "Acme Steel", documents: [{ kind: "Trade licence", expiresAt: "2026-10-28" }, { kind: "Insurance", expiresAt: "2026-11-01" }] },
+    { id: "s2", name: "No docs" },
+  ], "2026-09-28");
+  ok("a supplier document at a milestone is announced", docs.length === 1 && docs[0].kind === "Trade licence" && docs[0].daysLeft === 30);
+
+  const src = readFileSync("src/app/api/cron/daily-notices/route.ts", "utf8");
+  // THE STUDIO'S DAY, not UTC's: the owner's rule for anything that asks which day it is.
+  ok("each studio is swept on its own day", /dayIn\(new Date\(\), studioTimezone\(s\)\)/.test(src));
+  ok("studios are swept a few at a time, not one after another", /STUDIOS_AT_ONCE/.test(src) && /Promise\.all\(studios\.slice/.test(src));
+}
+
 console.log(fails ? `\n${fails} FAILED\n` : "\nnotification inbox model: all passed\n");
 process.exit(fails ? 1 : 0);

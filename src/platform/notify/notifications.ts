@@ -136,6 +136,10 @@ export const NOTIFY = {
   rfqQuoted: "rfq.quoted",
   rfqAwarded: "rfq.awarded",
   certificateCertified: "certificate.certified",
+  // DATES THE REGISTERS HOLD (28/09/2026, the daily cron): a certificate, a
+  // vehicle's insurance or inspection, a warranty — and a supplier's documents.
+  recordExpiring: "record.expiring",
+  supplierDocumentExpiring: "supplier.document.expiring",
   // TENDERS AND DEALS (28/09/2026). A tender handed to somebody to chase
   // (modules/tendering/tenders), and how it ended — told to its owner and to
   // whoever registered it; and one about to close (the daily cron).

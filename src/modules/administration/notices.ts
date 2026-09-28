@@ -374,6 +374,20 @@ export const NOTICE_TEMPLATES: readonly NoticeTemplate[] = Object.freeze([
     en: { title: "A valuation was certified", body: "{reference} · {title} · #{number}" },
     ar: { title: "تم اعتماد تقييم", body: "{reference} · {title} · #{number}" },
   },
+  // Dates the registers hold, from the daily cron — `{detail}` as the other
+  // time-driven notices carry it.
+  {
+    type: "record.expiring",
+    fields: ["detail"],
+    en: { title: "Dates coming up", body: "{detail}" },
+    ar: { title: "مواعيد تقترب", body: "{detail}" },
+  },
+  {
+    type: "supplier.document.expiring",
+    fields: ["detail"],
+    en: { title: "Supplier documents expiring", body: "{detail}" },
+    ar: { title: "مستندات موردين تقارب الانتهاء", body: "{detail}" },
+  },
   // NO TEMPLATE FOR `system`, deliberately, and it is not an omission. A system
   // notice is whatever the producer needed to say — Quality writes
   // "`${document.code} needs you`" — so there is no fixed sentence to

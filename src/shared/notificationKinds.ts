@@ -73,6 +73,8 @@ export const NOTICE_KINDS: Readonly<Record<string, NoticeKind>> = {
   "workorder.due": { category: "deadlines", icon: "clock" },
   "calibration.due": { category: "deadlines", icon: "gears" },
   "tender.closing": { category: "deadlines", icon: "clock" },
+  "record.expiring": { category: "deadlines", icon: "calendar" },
+  "supplier.document.expiring": { category: "deadlines", icon: "vendors" },
 
   // The studio's people, and this person's own standing in it.
   "join.requested": { category: "people", icon: "users" },

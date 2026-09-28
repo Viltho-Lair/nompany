@@ -8,6 +8,7 @@ import { listCollaborators } from "@/platform/auth/collaborators";
 import { listRoles } from "@/modules/people/roles";
 import { resolveHolders } from "@/lib/studios";
 import { notifyCollaborators, NOTIFY } from "@/platform/notify/notifications";
+import { dayIn, studioTimezone } from "@/shared/timezone";
 import { raiseDuePlanJobs } from "@/modules/operations/planJobs";
 import { engineSectionKey } from "@/platform/access";
 import { identityDocumentLabel } from "@/shared/identityDocuments";
@@ -15,6 +16,7 @@ import { raiseDuePmOrders, raiseDueContractOrders, raiseDueConditionOrders } fro
 import {
   overdueInvoiceNotices, overdueBillNotices, expiringDocumentNotices, expiringPermitNotices,
   dueWorkOrderNotices, dueCalibrationNotices, overdueLeadNotices, closingTenderNotices,
+  engineExpiryNotices, supplierDocumentNotices, ENGINE_EXPIRIES,
 } from "@/modules/main/timeNotices";
 
 export const runtime = "nodejs";
@@ -42,72 +44,76 @@ const WorkOrders = repo("workOrders");
 const EngineRecords = repo("engineRecords");
 const SalesTickets = repo("salesTickets");
 const Tenders = repo("tenders");
+const Vendors = repo("inventoryVendors");
+
+// HOW MANY STUDIOS ARE SWEPT AT ONCE (28/09/2026). The run went studio by
+// studio, one after another, inside one invocation with a 300-second ceiling —
+// fine for tens of studios, and the day there are enough of them the tail of
+// the list silently gets nothing. A few at a time finishes the same work in a
+// fraction of the wall clock without asking the pool for a connection per
+// studio at once.
+const STUDIOS_AT_ONCE = 4;
+
+type Counts = { sent: number; scanned: number; planJobs: number; pmOrders: number; contractOrders: number; conditionOrders: number };
 
 async function run() {
+  const studios = await readArr<{ id: string; slug?: string; currency?: string; timezone?: string }>(REG.studios);
 
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const total: Counts = { sent: 0, scanned: 0, planJobs: 0, pmOrders: 0, contractOrders: 0, conditionOrders: 0 };
+  for (let i = 0; i < studios.length; i += STUDIOS_AT_ONCE) {
+    const batch = await Promise.all(studios.slice(i, i + STUDIOS_AT_ONCE).map(forStudio));
+    for (const c of batch) for (const k of Object.keys(total) as (keyof Counts)[]) total[k] += c[k];
+  }
+  return Response.json({ ok: true, studios: studios.length, ...total });
+}
+
+/**
+ * ONE STUDIO, ON ITS OWN CALENDAR. "Today" is the STUDIO's day (shared/timezone,
+ * Studio settings) — the owner's rule that a nightly job asks the studio which
+ * day it is, rather than keeping a UTC answer of its own that disagrees for
+ * every studio east or west of Greenwich for part of each day. A studio that
+ * has not set a zone keeps the UTC day it always had.
+ */
+async function forStudio(s: { id: string; currency?: string; timezone?: string }): Promise<Counts> {
+  const c: Counts = { sent: 0, scanned: 0, planJobs: 0, pmOrders: 0, contractOrders: 0, conditionOrders: 0 };
+  const todayISO = dayIn(new Date(), studioTimezone(s)) || new Date().toISOString().slice(0, 10);
   const todayDate = new Date(`${todayISO}T00:00:00Z`);
-  const studios = await readArr<{ id: string; slug?: string; currency?: string }>(REG.studios);
-
-  let sent = 0;
-  let scanned = 0;
-  let planJobs = 0;
-  let pmOrders = 0;
-  let contractOrders = 0;
-  let conditionOrders = 0;
-  for (const s of studios) {
+  const id = String(s.id);
+  try {
+    c.sent += await noticesForStudio(id, todayISO, todayDate, s.currency);
+    c.scanned += 1;
+  } catch (err) {
+    // A studio that fails to scan costs its own notices for a day, never the
+    // run — tomorrow's pass covers it, and the milestones it missed by a day
+    // are the exception, not the rule.
+    log.error("daily-notices: studio scan failed", {
+      studioId: s.id, error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  // PM PLANS FALL DUE ON THE SAME DAILY CLOCK (tier 5), so they ride this run
+  // rather than a cron of their own — a new schedule is a Vercel limit to
+  // re-learn, and one of those once refused a whole deployment. Each in its own
+  // try: a plan that cannot be raised must not cost the studio its notices.
+  // MAINTENANCE'S PREVENTIVE PLANS and SERVICE CONTRACTS' VISITS likewise, and
+  // CONDITION PLANS as the RECOVERY pass — their reading is normally judged the
+  // moment it is recorded, and that route swallows a failed run deliberately so
+  // the reading is never lost; this is what picks the breach up afterwards.
+  const steps: [keyof Counts, string, () => Promise<number>][] = [
+    ["planJobs", "PM plan jobs", () => raiseDuePlanJobs(id, todayISO)],
+    ["pmOrders", "preventive plan orders", () => raiseDuePmOrders(id, todayISO)],
+    ["contractOrders", "service contract visits", () => raiseDueContractOrders(id, todayISO)],
+    ["conditionOrders", "condition orders", () => raiseDueConditionOrders(id, todayISO)],
+  ];
+  for (const [key, what, step] of steps) {
     try {
-      sent += await noticesForStudio(String(s.id), todayISO, todayDate, s.currency);
-      scanned += 1;
+      c[key] += await step();
     } catch (err) {
-      // A studio that fails to scan costs its own notices for a day, never the
-      // run — tomorrow's pass covers it, and the milestones it missed by a day
-      // are the exception, not the rule.
-      log.error("daily-notices: studio scan failed", {
-        studioId: s.id, error: err instanceof Error ? err.message : String(err),
-      });
-    }
-    // PM PLANS FALL DUE ON THE SAME DAILY CLOCK (tier 5), so they ride this run
-    // rather than a cron of their own — a new schedule is a Vercel limit to
-    // re-learn, and one of those once refused a whole deployment. Its own try:
-    // a plan that cannot be raised must not cost the studio its notices.
-    try {
-      planJobs += await raiseDuePlanJobs(String(s.id), todayISO);
-    } catch (err) {
-      log.error("daily-notices: PM plan jobs failed", {
-        studioId: s.id, error: err instanceof Error ? err.message : String(err),
-      });
-    }
-    // MAINTENANCE'S PREVENTIVE PLANS, on the same clock and in their own try,
-    // for the same reason as the line above.
-    try {
-      pmOrders += await raiseDuePmOrders(String(s.id), todayISO);
-    } catch (err) {
-      log.error("daily-notices: preventive plan orders failed", {
-        studioId: s.id, error: err instanceof Error ? err.message : String(err),
-      });
-    }
-    // SERVICE CONTRACTS' VISITS, in their own try for the same reason again.
-    try {
-      contractOrders += await raiseDueContractOrders(String(s.id), todayISO);
-    } catch (err) {
-      log.error("daily-notices: service contract visits failed", {
-        studioId: s.id, error: err instanceof Error ? err.message : String(err),
-      });
-    }
-    // CONDITION PLANS, whose reading is normally judged the moment it is
-    // recorded (the conditions route). This is the RECOVERY pass: that route
-    // swallows a failed run deliberately so the reading is never lost, and this
-    // is what picks the breach up afterwards. Its own try, as above.
-    try {
-      conditionOrders += await raiseDueConditionOrders(String(s.id), todayISO);
-    } catch (err) {
-      log.error("daily-notices: condition orders failed", {
+      log.error(`daily-notices: ${what} failed`, {
         studioId: s.id, error: err instanceof Error ? err.message : String(err),
       });
     }
   }
-  return Response.json({ ok: true, studios: studios.length, scanned, sent, planJobs, pmOrders, contractOrders, conditionOrders });
+  return c;
 }
 
 // One studio: read what it has, work out what crosses a line today, and tell the
@@ -153,6 +159,21 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
     tendersId ? Tenders.find({ studio: { id: studioId }, section: { id: tendersId } }) : Promise.resolve([]),
   ]);
 
+  // THE DATED REGISTERS (timeNotices' ENGINE_EXPIRIES) and the suppliers'
+  // documents — dates each screen drew in a column and nothing watched.
+  const dated = [...new Set(ENGINE_EXPIRIES.map((e) => e.typeKey))];
+  const suppliersId = sectionId("procurement-suppliers");
+  const [engineByType, vendors] = await Promise.all([
+    Promise.all(dated.map(async (typeKey) => {
+      const sec = sectionId(engineSectionKey(typeKey));
+      const rows = sec
+        ? await EngineRecords.find({ studio: { id: studioId }, section: { id: sec } }, { where: { typeKey } })
+        : [];
+      return { typeKey, rows };
+    })),
+    suppliersId ? Vendors.find({ studio: { id: studioId }, section: { id: suppliersId } }) : Promise.resolve([]),
+  ]);
+
   const overdueDetail = (n: { reference?: string; name?: string; daysOverdue?: number }) =>
     `${n.reference || "An item"}${n.name && n.name !== "—" ? ` — ${n.name}` : ""}, ${n.daysOverdue} day${n.daysOverdue === 1 ? "" : "s"} overdue`;
   const expiryDetail = (label: (n: { name?: string; kind?: string }) => string) => (n: { name?: string; kind?: string; daysLeft?: number }) =>
@@ -177,6 +198,17 @@ async function noticesForStudio(studioId: string, todayISO: string, todayDate: D
     // (modules/sales/leads): they are the one who can put a name on it or move it.
     { notices: overdueLeadNotices(tickets as never, new Date().toISOString(), todayISO), key: "crmSales.tickets.assign", also: "", type: NOTIFY.leadOverdue, title: "Leads waiting too long", href: "crm-sales-tickets", say: (n: { reference?: string; name?: string; daysOverdue?: number }) => `${n.reference || "A lead"}${n.name && n.name !== "—" ? ` — ${n.name}` : ""}, ${(n.daysOverdue ?? 0) <= 0 ? "past its deadline today" : `${n.daysOverdue} day${n.daysOverdue === 1 ? "" : "s"} past its deadline`}` },
     { notices: dueCalibrationNotices(calibrations as never, todayISO), key: "engine.calibration.edit", also: "", type: NOTIFY.calibrationDue, title: "Due calibrations", href: calibrationKey, say: (n: { name?: string; daysLeft?: number }) => `${n.name} ${(n.daysLeft ?? 0) <= 0 ? "is due for calibration today" : `is due for calibration in ${n.daysLeft} day${n.daysLeft === 1 ? "" : "s"}`}` },
+    // ONE JOB PER DATED REGISTER, told to whoever may EDIT it — the person who
+    // can record the renewal, as calibration is (28/09/2026).
+    ...engineByType.map(({ typeKey, rows }) => ({
+      notices: engineExpiryNotices(typeKey, rows as never, todayISO),
+      key: `engine.${typeKey}.edit`, also: "", type: NOTIFY.recordExpiring, title: "Dates coming up",
+      href: engineSectionKey(typeKey),
+      say: (n: { name?: string; kind?: string; daysLeft?: number }) =>
+        `${n.name} — ${n.kind} ${(n.daysLeft ?? 0) <= 0 ? "today" : `in ${n.daysLeft} day${n.daysLeft === 1 ? "" : "s"}`}`,
+    })),
+    // A SUPPLIER'S DOCUMENTS, told to whoever keeps the supplier register.
+    { notices: supplierDocumentNotices(vendors as never, todayISO), key: "procurement.suppliers.edit", also: "", type: NOTIFY.supplierDocumentExpiring, title: "Supplier documents expiring", href: "procurement-suppliers", say: expiryDetail((n) => `${n.name}'s ${n.kind}`) },
   ];
 
   let sent = 0;
