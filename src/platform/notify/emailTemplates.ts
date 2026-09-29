@@ -25,7 +25,9 @@ function esc(value: unknown): string {
 }
 
 // Shared responsive shell. `bodyHtml` is trusted, already-escaped markup.
-function layout({ title, bodyHtml, preheader = "" }: { title: string; bodyHtml: string; preheader?: string }) {
+// `footer` defaults to the security line every account email carried; a
+// notification email says instead why it was sent and where to stop it.
+function layout({ title, bodyHtml, preheader = "", footer = "" }: { title: string; bodyHtml: string; preheader?: string; footer?: string }) {
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -52,7 +54,7 @@ function layout({ title, bodyHtml, preheader = "" }: { title: string; bodyHtml: 
             <tr>
               <td style="padding:18px 28px;border-top:1px solid ${BRAND.border};">
                 <p style="margin:0;font-size:12px;color:${BRAND.muted};line-height:1.5;">
-                  This is an automated security message from ${esc(BRAND.name)}. If this wasn't you, change your password right away.
+                  ${footer || `This is an automated security message from ${esc(BRAND.name)}. If this wasn't you, change your password right away.`}
                 </p>
               </td>
             </tr>
@@ -339,4 +341,59 @@ export function billingNoticeEmail({ locale = "en", subject, lines, cta = "", ur
     </div>`;
   const text = `${subject}\n\n${lines.join("\n\n")}${url ? `\n\n${cta}: ${url}` : ""}`;
   return { subject, html: layout({ title: subject, bodyHtml, preheader: lines[0] || "" }), text };
+}
+
+// ---- studio notifications by email (29/09/2026) -----------------------------
+// A NOTICE THE PERSON ASKED TO RECEIVE BY EMAIL, in their own language, and the
+// daily summary of what they have not read. The words are the bell's own —
+// rendered by the caller through `renderNotice`, the studio's wording and all —
+// so an email and the bell cannot say two different things about one notice.
+// The footer says why it came and where to stop it, which is the difference
+// between a notification and spam.
+
+type NoticeLine = { title: string; body?: string; url?: string; studio?: string };
+
+const noticeFooter = (ar: boolean, settingsUrl: string) => (ar
+  ? `تصلك هذه الرسالة لأنك اخترت تلقي الإشعارات بالبريد. <a href="${esc(settingsUrl)}" style="color:${BRAND.muted};">غيّر ذلك من صفحة حسابك</a>.`
+  : `You get this because you chose to receive notifications by email. <a href="${esc(settingsUrl)}" style="color:${BRAND.muted};">Change that on your account page</a>.`);
+
+/** One notice, as it arrived. */
+export function noticeEmail({ locale = "en", notice, settingsUrl }: { locale?: string; notice: NoticeLine; settingsUrl: string }) {
+  const ar = locale === "ar";
+  const subject = notice.studio ? `${notice.title} · ${notice.studio}` : notice.title;
+  const cta = ar ? "افتح" : "Open";
+  const dir = ar ? ' dir="rtl" style="text-align:right;"' : "";
+  const bodyHtml = `
+    <div${dir}>
+      <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">${esc(notice.title)}</h1>
+      ${notice.body ? `<p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:${BRAND.text};">${esc(notice.body)}</p>` : ""}
+      ${notice.studio ? `<p style="margin:0 0 14px;font-size:13px;color:${BRAND.muted};">${esc(notice.studio)}</p>` : ""}
+      ${notice.url ? `<p style="margin:18px 0 0;"><a href="${esc(notice.url)}" style="display:inline-block;background:${BRAND.color};color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;">${esc(cta)}</a></p>` : ""}
+    </div>`;
+  const text = [notice.title, notice.body || "", notice.studio || "", notice.url ? `${cta}: ${notice.url}` : ""].filter(Boolean).join("\n\n");
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: notice.body || "", footer: noticeFooter(ar, settingsUrl) }), text };
+}
+
+/** What the person has not read since the last summary, grouped by studio. */
+export function digestEmail({ locale = "en", lines, total, settingsUrl }: { locale?: string; lines: NoticeLine[]; total: number; settingsUrl: string }) {
+  const ar = locale === "ar";
+  const subject = ar ? `ملخص إشعاراتك: ${total}` : `Your notifications: ${total} unread`;
+  const dir = ar ? ' dir="rtl" style="text-align:right;"' : "";
+  const byStudio = new Map<string, NoticeLine[]>();
+  for (const l of lines) byStudio.set(l.studio || "", [...(byStudio.get(l.studio || "") || []), l]);
+  const more = total - lines.length;
+  const bodyHtml = `
+    <div${dir}>
+      <h1 style="margin:0 0 16px;font-size:20px;color:${BRAND.text};">${esc(subject)}</h1>
+      ${[...byStudio].map(([studio, items]) => `
+        ${studio ? `<p style="margin:16px 0 6px;font-size:13px;font-weight:700;color:${BRAND.muted};">${esc(studio)}</p>` : ""}
+        ${items.map((l) => `
+          <p style="margin:0 0 10px;font-size:14px;line-height:1.5;">
+            ${l.url ? `<a href="${esc(l.url)}" style="color:${BRAND.color};text-decoration:none;font-weight:600;">${esc(l.title)}</a>` : `<strong>${esc(l.title)}</strong>`}
+            ${l.body ? `<br /><span style="color:${BRAND.muted};">${esc(l.body)}</span>` : ""}
+          </p>`).join("")}`).join("")}
+      ${more > 0 ? `<p style="margin:16px 0 0;font-size:13px;color:${BRAND.muted};">${ar ? `و${more} غيرها في جرس الإشعارات.` : `And ${more} more in the bell.`}</p>` : ""}
+    </div>`;
+  const text = [subject, ...lines.map((l) => `${l.studio ? `[${l.studio}] ` : ""}${l.title}${l.body ? ` — ${l.body}` : ""}${l.url ? `\n${l.url}` : ""}`)].join("\n\n");
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: lines[0]?.title || "", footer: noticeFooter(ar, settingsUrl) }), text };
 }

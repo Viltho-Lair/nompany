@@ -48,6 +48,7 @@ import {
 } from "@/platform/db/sections";
 import { publish, CH } from "@/platform/realtime/bus";
 import { log } from "@/platform/http/observability";
+import { later, deliverBeyondBell } from "./deliver";
 
 /** The collection, and the section it is filed under (keys.ts). */
 const COLLECTION = "notifications";
@@ -278,6 +279,10 @@ export async function notifyCollaborators(
         }) : null;
       }).filter(Boolean),
     );
+
+    // AND BEYOND THE BELL — email and push, for whoever asked (deliver.ts),
+    // after the response rather than before it.
+    await later(() => deliverBeyondBell(studioId, rows as never, opts.userIdOf));
 
     return rows;
   } catch (e) {

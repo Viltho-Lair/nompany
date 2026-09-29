@@ -251,6 +251,15 @@ export const U = {
   // dies with the user via the u:<id>:* prefix; like u:<id>:sessions it is not
   // (yet) in the SQL export mapping.
   activity: (userId: string) => `${P}u:${userId}:activity`,
+  // WHERE THIS PERSON'S NOTIFICATIONS GO BEYOND THE BELL — email mode, per
+  // category channels, quiet hours (shared/notificationPrefs, 29/09/2026). The
+  // person's, chosen on /account, so under the USER; dies with them.
+  notifyPrefs: (userId: string) => `${P}u:${userId}:notifyPrefs`,
+  // THE PHONES AND COMPUTERS THIS PERSON TURNED WEB PUSH ON FOR — one entry per
+  // browser subscription (platform/notify/push). Its own key rather than a
+  // field of the prefs: a dead device is pruned by the sender, which must not
+  // contend with somebody saving their settings.
+  pushDevices: (userId: string) => `${P}u:${userId}:pushDevices`,
   // A CONNECTED CALENDAR ACCOUNT, one per provider. Keyed under the USER and not
   // under a studio because the Google or Microsoft account is the person's, not
   // the tenant's — they connect once and it works in every studio they belong
