@@ -39,7 +39,8 @@ import { repo } from "@/platform/db/repo";
 import { ID, SECTION_DEFS } from "@/platform/db/keys";
 import { NO_SCREEN_YET } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
-import { departmentsForField, UNIVERSAL_DEPARTMENTS } from "@/shared/departments/starters";
+import { UNIVERSAL_DEPARTMENTS, type DepartmentSeed } from "@/shared/departments/starters";
+import { startersForStudio } from "@/lib/data/industries";
 import { wouldCycle, depthOf, MAX_DEPARTMENT_DEPTH } from "@/shared/departments/tree";
 import { starterRolesFor, permissionsForLibraryRole, scopesForLibraryRole } from "@/modules/people/roleLibrary";
 import { studioTypesForGrants } from "@/platform/engine/records";
@@ -128,7 +129,7 @@ const cleanSectionKeys = (v: unknown): string[] => {
  */
 async function seedDepartments(
   scope: { studio: StudioRef; section: Section },
-  field: string,
+  seeds: readonly DepartmentSeed[],
   existing: readonly Department[],
 ): Promise<Department[]> {
   // A STUDIO WITH NO FIELD OF WORK STILL GETS A CHART, and this fallback is the
@@ -143,7 +144,8 @@ async function seedDepartments(
   // were factored out of the starters in the first place. The operating line
   // still waits until the studio says what it does, and the screen then offers
   // it as an addition.
-  const seeds = departmentsForField(field);
+  // `seeds` is the studio's starter chart — its industry profile's, or its
+  // field of work's (lib/data/industries, startersForStudio).
   const chart = seeds.length ? seeds : UNIVERSAL_DEPARTMENTS.map((d) => ({ ...d }));
   if (!chart.length) return [];
 
@@ -208,7 +210,9 @@ async function seedDepartments(
   const engineTypes = await studioTypesForGrants(scope.studio.id);
 
   for (const department of created) {
-    const entries = starterRolesFor(field, String(department.code || ""));
+    // Roles still follow the FIELD OF WORK: the role library is keyed by it,
+    // and the industry profile decides the chart, not who works in it.
+    const entries = starterRolesFor(str((scope.studio as { fieldOfWork?: unknown }).fieldOfWork, 200), String(department.code || ""));
     if (!entries.length) continue;
     await createRoles(scope.studio.id, entries.map((e) => ({
       name: e.name,
@@ -286,7 +290,7 @@ export async function departmentsState(
     return { departments: [], awaitingMigration: true };
   }
 
-  const seeded = await seedDepartments({ studio, section }, str(studio.fieldOfWork, 200), rows);
+  const seeded = await seedDepartments({ studio, section }, await startersForStudio(studio), rows);
   if (!seeded.length) return { departments: [], awaitingMigration: false };
   return { departments: sorted(await Departments.find({ studio, section })), awaitingMigration: false };
 }
@@ -342,9 +346,9 @@ export async function departmentsAsStored(
  * trades. So the screen offers the names, the studio presses the button, and
  * nothing is ever removed or renamed on its behalf.
  */
-export function missingStarters(field: string, existing: readonly Department[]): string[] {
+export function missingStarters(seeds: readonly DepartmentSeed[], existing: readonly Department[]): string[] {
   const held = new Set(existing.map((d) => String(d.code || "").toUpperCase()));
-  return departmentsForField(field)
+  return seeds
     .filter((s) => !held.has(s.code.toUpperCase()))
     .map((s) => s.name);
 }
@@ -363,7 +367,7 @@ export async function addMissingStarters(ctx: MasterContext) {
     const people = await listCollaborators(studio.id);
     if (people.some((c) => String(c.departmentId || ""))) return { error: "awaiting-migration" };
   }
-  const added = await seedDepartments({ studio, section }, str(studio.fieldOfWork, 200), existing);
+  const added = await seedDepartments({ studio, section }, await startersForStudio(studio), existing);
   return { added: added.length, departments: sorted(await Departments.find({ studio, section })) };
 }
 

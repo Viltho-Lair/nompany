@@ -1,4 +1,6 @@
-import { FIELDS_OF_WORK, OTHER_FIELD } from "./fieldsOfWork";
+import { FIELDS_OF_WORK } from "./fieldsOfWork";
+import { departmentsForField, departmentSeedProblems, type DepartmentSeed } from "./departments/starters";
+import { withNeeds } from "./tradeSections";
 
 // WHAT A COMPANY SAYS IT DOES, IN TWO LEVELS — the owner, 29/09/2026: "i want
 // mine to be organized like this way", pointing at Salesforce's industries.
@@ -6,44 +8,75 @@ import { FIELDS_OF_WORK, OTHER_FIELD } from "./fieldsOfWork";
 // specialisms a company actually names itself by: a studio picks a SPECIALISM
 // ("MEP & specialist contractors"), never an industry alone.
 //
-// THE 25 FIELDS OF WORK ARE NOT REPLACED; THEY BECOME THE TEMPLATES. Everything
-// that sets a studio up for its trade — the service-action matrix, the starter
-// org charts, the role library, the flow templates, the sections a trade starts
-// with — is keyed by a `FIELD_ACTION_MATRIX` name, and ~25 places read it from
-// `studio.fieldOfWork`. Each specialism names the one field whose setup fits it
-// (`field`), and saving a specialism writes BOTH: `industry` is the key the
-// studio chose, `fieldOfWork` is its template. Every reader of `fieldOfWork`
-// keeps working untouched, and a specialism can be given a setup of its own
-// later by pointing `field` somewhere new — without a migration.
+// AND THE CONSOLE OWNS IT — the owner, the same day: "i need to control these
+// industries, set in-active industries, and each industry will have its own
+// profile, what sections and departments does it offer". This file is the
+// BUILT-IN list and the rules; /super stores rows that replace a built-in or
+// add a new industry (lib/data/industries), and a row taken away falls back to
+// what is here — the same shape the ERP settings' trades already have.
 //
-// A STUDIO STORES THE KEY, NEVER THE NAME. `fieldOfWork` stores an English
-// display string, which is how two lists of the same twenty-five trades came to
-// spell four of them differently (see platform/engagement/industries.ts). Keys
-// here are published — the marketing site's industry pages are addressed by
-// the industry key — so, like a section key, one is never renamed.
+// AN INDUSTRY'S PROFILE IS WHAT A NEW STUDIO IN IT STARTS WITH: the sections
+// switched on at creation (pre-filled on the create screen, where the owner
+// can still say yes or no to each) and the org chart seeded into its empty
+// department register. It is a SEED: a studio's own switches and departments
+// are its own from the first minute, and nothing re-applies a profile to a
+// studio that exists — editing one in /super changes the next studio, never
+// the last.
 //
-// The words are in both languages here rather than in a copy module because
-// the list IS the data: the create screen, Studio settings, the alert and the
-// public site all read this one array.
+// THE 25 FIELDS OF WORK REMAIN THE TEMPLATES for what a profile does not
+// decide — the service-action pool, the role library and the deal flow — all
+// keyed by `studio.fieldOfWork`. Each specialism names its field, and saving a
+// specialism writes both `industry` (the key chosen) and `fieldOfWork`.
+//
+// A STUDIO STORES THE KEY, NEVER THE NAME, and keys are published (the
+// website's industry pages are addressed by them), so a key is never renamed
+// — the console creates keys and does not edit them.
+//
+// SERVER-SIDE ONLY. A client component never imports this file: the pickers
+// are handed the RESOLVED list (built-ins plus the console's rows) by the
+// server, and use shared/industryPick to draw it. Importing this into a client
+// would ship every built-in org chart to the browser and still show a list
+// that ignores the console.
 
 export type Specialism = {
   key: string;
   en: string;
   ar: string;
-  /** The field of work whose setup this specialism starts from. */
+  /** The field of work whose service actions, roles and deal flow it starts from. */
   field: string;
+  /** Offered to new studios. A studio that already chose it keeps it either way. */
+  active: boolean;
+};
+
+export type IndustryProfile = {
+  /** Root section keys a new studio starts with switched on. */
+  sections: string[];
+  /** The org chart seeded into a new studio's department register. */
+  departments: DepartmentSeed[];
 };
 
 export type Industry = {
   key: string;
   en: string;
   ar: string;
+  /** One sentence for the website's industry page, per language. */
+  lead: { en: string; ar: string };
+  /** Offered to new studios and shown on the website. */
+  active: boolean;
+  /** Refuses every change in /super until somebody unlocks it on purpose. */
+  locked: boolean;
+  profile: IndustryProfile;
   specialisms: Specialism[];
+  /** True when this key ships in the code; false for one the console added. */
+  builtIn: boolean;
 };
 
-const s = (key: string, en: string, ar: string, field: string): Specialism => ({ key, en, ar, field });
+type BuiltInSpecialism = Omit<Specialism, "active">;
+type BuiltIn = { key: string; en: string; ar: string; specialisms: BuiltInSpecialism[] };
 
-export const INDUSTRY_CATALOGUE: Industry[] = [
+const s = (key: string, en: string, ar: string, field: string): BuiltInSpecialism => ({ key, en, ar, field });
+
+const BUILT_IN: BuiltIn[] = [
   {
     key: "construction-real-estate", en: "Construction & Real Estate", ar: "البناء والعقارات",
     specialisms: [
@@ -194,83 +227,189 @@ export const INDUSTRY_CATALOGUE: Industry[] = [
   },
 ];
 
-/** "Something else", with the company's own words — it seeds nothing. */
-export const OTHER_INDUSTRY = "other";
+// The website's sentence per industry. EVERY NOUN IN ONE NAMES SOMETHING THE
+// PRODUCT DOES TODAY — a department or a register that exists.
+const LEADS_EN: Record<string, string> = {
+    "construction-real-estate": "From the tender to the handover: bills of quantities, project budgets and costs, procurement and subcontractors, and the site, on one record.",
+    manufacturing: "Production planned against orders and stock, work orders on the shop floor, quality checks and the cost of what you make, beside sales, purchasing and finance.",
+    "energy-utilities": "Projects and field crews, permits to work and inspections, and assets with their maintenance, for companies that build, run and service plant.",
+    "trading-distribution": "Quotations and sales orders, purchasing from suppliers, stock across warehouses, deliveries and invoices, in one flow from order to payment.",
+    "retail-ecommerce": "Tills and receipts, promotions, stock across branches, customers and what they buy, and the books that close behind them.",
+    hospitality: "Point of sale, purchasing and stock for kitchens and outlets, staff shifts and payroll, and the accounts.",
+    "transport-logistics": "Fleet and drivers, deliveries and dispatch, warehouses and stock, and the invoices that follow each job.",
+    healthcare: "Staff, schedules and payroll, supplies and medicines in stock, equipment and its maintenance, and the finance behind them.",
+    "professional-services": "Clients and proposals, projects and their costs, billing by milestone, and the people who deliver the work.",
+    technology: "Deals and quotations, projects and installations in the field, hardware in stock, and support and maintenance contracts.",
+    "financial-services": "Clients and relationships, approvals that need a second signature, people and payroll, and the accounts, with VAT and zakat where your country requires them.",
+    education: "Staff, contracts and payroll, purchasing and assets, and the accounts.",
+    "media-events": "Proposals and projects, suppliers and equipment, and billing for every job.",
+    "facility-field-services": "Maintenance contracts and planned work, field jobs dispatched to crews, spare parts in stock, and the invoices that follow.",
+    agriculture: "Production and stock, purchasing and sales, fleet and equipment, and the people and accounts behind them.",
+    "public-nonprofit": "Budgets and approvals, purchasing through requisitions, people and payroll, and accounts that can be audited.",
+};
+const LEADS_AR: Record<string, string> = {
+    "construction-real-estate": "من المناقصة إلى التسليم: جداول الكميات، وموازنات المشاريع وتكاليفها، والمشتريات ومقاولو الباطن، والموقع، في سجل واحد.",
+    manufacturing: "إنتاج يخطط وفق الطلبات والمخزون، وأوامر عمل في أرض المصنع، وفحوص الجودة، وتكلفة ما تصنعه، إلى جانب المبيعات والمشتريات والمالية.",
+    "energy-utilities": "المشاريع والفرق الميدانية، وتصاريح العمل والفحوص، والأصول وصيانتها، للشركات التي تنشئ المنشآت وتشغلها وتخدمها.",
+    "trading-distribution": "عروض الأسعار وأوامر البيع، والشراء من الموردين، والمخزون في المستودعات، والتوصيل والفواتير، في مسار واحد من الطلب إلى الدفع.",
+    "retail-ecommerce": "نقاط البيع والإيصالات، والعروض الترويجية، والمخزون في الفروع، والعملاء وما يشترونه، والحسابات التي تقفل خلفها.",
+    hospitality: "نقاط البيع، والمشتريات والمخزون للمطابخ والمنافذ، وورديات الموظفين ورواتبهم، والحسابات.",
+    "transport-logistics": "الأسطول والسائقون، والتوصيل والتوزيع، والمستودعات والمخزون، والفواتير التي تتبع كل مهمة.",
+    healthcare: "الموظفون وجداولهم ورواتبهم، والمستلزمات والأدوية في المخزون، والأجهزة وصيانتها، والمالية خلفها.",
+    "professional-services": "العملاء والعروض، والمشاريع وتكاليفها، والفوترة حسب المراحل، والأشخاص الذين ينجزون العمل.",
+    technology: "الصفقات وعروض الأسعار، والمشاريع والتركيبات في الميدان، والأجهزة في المخزون، وعقود الدعم والصيانة.",
+    "financial-services": "العملاء والعلاقات، والموافقات التي تحتاج توقيعا ثانيا، والموظفون والرواتب، والحسابات، مع ضريبة القيمة المضافة والزكاة حيث يلزم بلدك بها.",
+    education: "الموظفون وعقودهم ورواتبهم، والمشتريات والأصول، والحسابات.",
+    "media-events": "العروض والمشاريع، والموردون والمعدات، والفوترة لكل عمل.",
+    "facility-field-services": "عقود الصيانة والأعمال المخططة، والمهام الميدانية الموزعة على الفرق، وقطع الغيار في المخزون، والفواتير التي تتبعها.",
+    agriculture: "الإنتاج والمخزون، والمشتريات والمبيعات، والأسطول والمعدات، والأشخاص والحسابات خلفها.",
+    "public-nonprofit": "الموازنات والموافقات، والشراء عبر طلبات الشراء، والموظفون والرواتب، وحسابات قابلة للتدقيق.",
+};
 
-const BY_KEY = new Map<string, { industry: Industry; specialism: Specialism }>();
-for (const industry of INDUSTRY_CATALOGUE) {
-  for (const specialism of industry.specialisms) BY_KEY.set(specialism.key, { industry, specialism });
+// THE SECTIONS EACH BUILT-IN INDUSTRY STARTS WITH, before the back office every
+// company has (`BACK_OFFICE`). CHOSEN, NOT COMPUTED — and computing was tried
+// first: unioning the old trade gating across an industry's specialisms
+// switched on 10 to 18 of the 18 departments everywhere, so a bank "started
+// with" Point of Sale and a restaurant with Tendering. These are the few a
+// company of the kind leans on first; the console edits them.
+const FOCUS: Record<string, readonly string[]> = {
+  "construction-real-estate": ["tendering", "projects", "engineering-docs", "procurement", "assets", "quality-hse", "finance"],
+  manufacturing: ["manufacturing", "inventory", "procurement", "quality-hse", "maintenance", "crm-sales", "finance"],
+  "energy-utilities": ["projects", "field-service", "assets", "maintenance", "quality-hse", "procurement", "finance"],
+  "trading-distribution": ["crm-sales", "quotations", "procurement", "inventory", "logistics", "finance"],
+  "retail-ecommerce": ["pos", "inventory", "crm-sales", "marketing", "finance"],
+  hospitality: ["pos", "inventory", "procurement", "hr", "finance"],
+  "transport-logistics": ["logistics", "inventory", "field-service", "maintenance", "finance"],
+  healthcare: ["hr", "inventory", "procurement", "assets", "maintenance", "quality-hse", "finance"],
+  "professional-services": ["crm-sales", "quotations", "projects", "hr", "finance"],
+  technology: ["crm-sales", "quotations", "projects", "field-service", "inventory", "maintenance", "finance"],
+  "financial-services": ["crm-sales", "marketing", "hr", "finance", "reports"],
+  education: ["hr", "procurement", "assets", "finance", "reports"],
+  "media-events": ["crm-sales", "quotations", "projects", "procurement", "logistics", "finance"],
+  "facility-field-services": ["maintenance", "field-service", "inventory", "hr", "finance"],
+  agriculture: ["inventory", "procurement", "crm-sales", "logistics", "assets", "finance"],
+  "public-nonprofit": ["finance", "procurement", "hr", "assets", "reports"],
+};
+
+/** The part of every company: selling, people, money and the reports on them. */
+export const BACK_OFFICE = ["crm-sales", "hr", "finance", "reports"] as const;
+
+/** The field most of an industry's specialisms start from — its org chart's source. */
+function primaryField(b: BuiltIn): string {
+  const counts = new Map<string, number>();
+  for (const sp of b.specialisms) counts.set(sp.field, (counts.get(sp.field) || 0) + 1);
+  let best = b.specialisms[0]?.field || "";
+  for (const sp of b.specialisms) if ((counts.get(sp.field) || 0) > (counts.get(best) || 0)) best = sp.field;
+  return best;
 }
 
-export const SPECIALISM_KEYS = [...BY_KEY.keys()];
-
-export function isIndustryKey(key: unknown): boolean {
-  return key === OTHER_INDUSTRY || BY_KEY.has(String(key));
+function builtInIndustry(b: BuiltIn): Industry {
+  return {
+    key: b.key, en: b.en, ar: b.ar,
+    lead: { en: LEADS_EN[b.key] || "", ar: LEADS_AR[b.key] || "" },
+    active: true,
+    locked: false,
+    profile: {
+      sections: [...withNeeds([...(FOCUS[b.key] || []), ...BACK_OFFICE])],
+      departments: departmentsForField(primaryField(b)),
+    },
+    specialisms: b.specialisms.map((sp) => ({ ...sp, active: true })),
+    builtIn: true,
+  };
 }
 
-/** The specialism and the industry it sits in, or null. */
-export function specialismOf(key: unknown) {
-  return BY_KEY.get(String(key)) || null;
+/** The built-in list, fully formed. A fresh copy every call — callers edit it. */
+export function builtInIndustries(): Industry[] {
+  return BUILT_IN.map(builtInIndustry);
 }
 
-/** The field of work a chosen industry key sets the studio up from. */
-export function fieldForIndustry(key: unknown): string {
-  if (key === OTHER_INDUSTRY) return OTHER_FIELD;
-  return BY_KEY.get(String(key))?.specialism.field || "";
-}
+export const BUILT_IN_KEYS: ReadonlySet<string> = new Set(BUILT_IN.map((b) => b.key));
 
-/** A specialism's name in a language, or "" for an unknown key. */
-export function industryLabel(key: unknown, locale: string): string {
-  const hit = BY_KEY.get(String(key));
-  if (!hit) return "";
-  return locale === "ar" ? hit.specialism.ar : hit.specialism.en;
+// ---- cleaning and checking what the console sends --------------------------
+
+const KEY_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const text = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+const strings = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean) : []);
+
+/** A key from an English name: "Oil & Gas" → "oil-gas". The console mints keys; nobody types one. */
+export function keyFromName(name: string): string {
+  return name.toLowerCase().replace(/&/g, " ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 }
 
 /**
- * STILL ON THE OLD LIST: the studio chose a field of work before the catalogue
- * existed and has not picked a specialism since. What the alert asks about.
- * A studio that chose nothing at all ("I'll set this up later") is not asked —
- * it skipped the question on purpose and Settings still offers it.
+ * ONE INDUSTRY, AS STORED — a whitelist, run on the way in AND on the way out,
+ * because a stored row is whatever was written by whichever version wrote it.
  */
-export function needsIndustry(studio: object): boolean {
-  const { fieldOfWork, industry } = studio as { fieldOfWork?: unknown; industry?: unknown };
-  return Boolean(String(fieldOfWork || "").trim()) && !isIndustryKey(industry);
+export function cleanIndustry(raw: unknown, builtIn: boolean): Industry {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const lead = (r.lead && typeof r.lead === "object" ? r.lead : {}) as Record<string, unknown>;
+  const profile = (r.profile && typeof r.profile === "object" ? r.profile : {}) as Record<string, unknown>;
+  const specialisms = Array.isArray(r.specialisms) ? r.specialisms : [];
+  const departments = Array.isArray(profile.departments) ? profile.departments : [];
+  return {
+    key: text(r.key, 60),
+    en: text(r.en, 80),
+    ar: text(r.ar, 80),
+    lead: { en: text(lead.en, 300), ar: text(lead.ar, 300) },
+    active: r.active !== false,
+    locked: r.locked === true,
+    profile: {
+      sections: [...new Set(strings(profile.sections))],
+      departments: departments.map((d) => {
+        const x = (d && typeof d === "object" ? d : {}) as Record<string, unknown>;
+        return { name: text(x.name, 80), code: text(x.code, 12).toUpperCase(), parent: text(x.parent, 12).toUpperCase(), sectionKeys: [...new Set(strings(x.sectionKeys))] };
+      }),
+    },
+    specialisms: specialisms.map((sp) => {
+      const x = (sp && typeof sp === "object" ? sp : {}) as Record<string, unknown>;
+      return { key: text(x.key, 60), en: text(x.en, 120), ar: text(x.ar, 120), field: text(x.field, 120), active: x.active !== false };
+    }),
+    builtIn,
+  };
 }
 
 /**
- * The specialism to OFFER a studio still on an old field: the first one that
- * starts from the same template, so accepting the suggestion changes nothing
- * about how the studio is set up. Offered, never applied — the owner's rule:
- * "current studios will need to update their fields".
+ * WHAT IS WRONG WITH ONE INDUSTRY, as a list of codes the console translates.
+ * `rootKeys` are the sections a profile may switch on (the product's root
+ * departments); `allSectionKeys` is every section a department may point at,
+ * Administration included; `others` is the rest of the
+ * catalogue, because a specialism key must be unique across ALL industries — a
+ * studio stores the specialism alone, and two industries sharing one would
+ * make which industry a studio is in a coin toss.
  */
-export function suggestedIndustry(field: unknown): string {
-  const f = String(field || "");
-  if (f === OTHER_FIELD) return OTHER_INDUSTRY;
-  for (const industry of INDUSTRY_CATALOGUE) {
-    const hit = industry.specialisms.find((sp) => sp.field === f);
-    if (hit) return hit.key;
+export function industryProblems(
+  ind: Industry,
+  rootKeys: readonly string[],
+  allSectionKeys: readonly string[],
+  others: readonly Industry[],
+): string[] {
+  const out: string[] = [];
+  if (!KEY_RE.test(ind.key)) out.push("key");
+  if (!ind.en || !ind.ar) out.push("name");
+  if (!ind.specialisms.length) out.push("no-specialisms");
+  const taken = new Set(others.filter((o) => o.key !== ind.key).flatMap((o) => o.specialisms.map((sp) => sp.key)));
+  const seen = new Set<string>();
+  for (const sp of ind.specialisms) {
+    if (!KEY_RE.test(sp.key)) out.push(`specialism-key:${sp.key}`);
+    else if (seen.has(sp.key) || taken.has(sp.key) || sp.key === ind.key) out.push(`specialism-taken:${sp.key}`);
+    seen.add(sp.key);
+    if (!sp.en || !sp.ar) out.push(`specialism-name:${sp.key}`);
+    if (!FIELDS_OF_WORK.includes(sp.field)) out.push(`specialism-field:${sp.key}`);
   }
-  return "";
+  if (!ind.profile.sections.length) out.push("no-sections");
+  for (const k of ind.profile.sections) if (!rootKeys.includes(k)) out.push(`section:${k}`);
+  if (!ind.profile.departments.length) out.push("no-departments");
+  for (const p of departmentSeedProblems(allSectionKeys, { [ind.key]: ind.profile.departments })) out.push(`department:${p}`);
+  return [...new Set(out)];
 }
 
 /**
- * The picker's rows: every specialism under its industry's heading, then
- * "Other". `group` is what SelectMenu draws as a heading and searches as well,
- * so typing "construction" finds all seven.
+ * THE CATALOGUE: built-ins in their order, each replaced by the console's row
+ * of the same key when there is one, then the industries the console added.
  */
-export function industryOptions(locale: string, otherLabel: string) {
-  const ar = locale === "ar";
-  return [
-    ...INDUSTRY_CATALOGUE.flatMap((industry) =>
-      industry.specialisms.map((sp) => ({ value: sp.key, label: ar ? sp.ar : sp.en, group: ar ? industry.ar : industry.en })),
-    ),
-    { value: OTHER_INDUSTRY, label: otherLabel },
-  ];
-}
-
-// Every template the catalogue names must be a real field of work, or a
-// specialism would set a studio up from nothing. Checked in the model test too;
-// asserted here so a typo fails on import rather than at a studio's creation.
-for (const sp of BY_KEY.values()) {
-  if (!FIELDS_OF_WORK.includes(sp.specialism.field)) throw new Error(`industry catalogue: unknown field "${sp.specialism.field}" on ${sp.specialism.key}`);
+export function mergeIndustries(stored: readonly unknown[]): Industry[] {
+  const rows = stored.map((r) => cleanIndustry(r, false)).filter((r) => r.key);
+  const byKey = new Map(rows.map((r) => [r.key, r]));
+  const merged = builtInIndustries().map((b) => (byKey.has(b.key) ? { ...(byKey.get(b.key) as Industry), builtIn: true } : b));
+  return [...merged, ...rows.filter((r) => !BUILT_IN_KEYS.has(r.key))];
 }

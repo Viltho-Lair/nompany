@@ -4,7 +4,8 @@ import { studioContext } from "@/lib/studios";
 import { requirePermission } from "@/platform/access";
 import { updateStudio } from "@/modules/main/studios";
 import { FIELDS_OF_WORK, SERVICE_ACTIONS, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfWork";
-import { fieldForIndustry, isIndustryKey, needsIndustry, suggestedIndustry } from "@/shared/industryCatalogue";
+import { fieldForIndustry, isChoosable, needsIndustry, pickCatalogue, suggestedIndustry } from "@/shared/industryPick";
+import { readIndustries } from "@/lib/data/industries";
 import { nextPool, cleanNextActive, serviceActionUsage } from "@/modules/studioServiceActions";
 import type { User } from "@/platform/auth/users";
 
@@ -26,6 +27,7 @@ async function payload(user: User, slug: string) {
   if (context.error) return { context, body: null };
   const { studio } = context;
   const canManage = !requirePermission(context.access, "administration.settings.edit");
+  const industries = await readIndustries();
   return {
     context,
     body: {
@@ -33,9 +35,12 @@ async function payload(user: User, slug: string) {
       fieldOfWorkOther: String(studio.fieldOfWorkOther ?? ""),
       // The specialism the studio chose, and — while it is still on the old
       // list — the one that starts from its current setup, to offer first.
-      industry: isIndustryKey(studio.industry) ? String(studio.industry) : "",
+      industry: String(studio.industry || ""),
       needsIndustry: needsIndustry(studio),
-      suggestedIndustry: needsIndustry(studio) ? suggestedIndustry(studio.fieldOfWork) : "",
+      suggestedIndustry: needsIndustry(studio) ? suggestedIndustry(industries, studio.fieldOfWork) : "",
+      // The console's list, resolved here (lib/data/industries): what the
+      // picker offers, and what an answer is checked against.
+      industries: pickCatalogue(industries),
       serviceActions: arr(studio.serviceActions),
       retiredServiceActions: arr(studio.retiredServiceActions),
       // usage is manager-only: it exists so the manage-side edit alerts can warn
@@ -89,8 +94,11 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     // already has — every studio answering the "choose your new industry" alert
     // with the suggestion does exactly this — nothing else moves: the pool is
     // not re-seeded, so a studio's own edits to it survive the answer.
-    if (!isIndustryKey(raw.industry)) return Response.json({ error: "field" }, { status: 400 });
-    const field = fieldForIndustry(raw.industry);
+    // An industry the console switched off is not offered — but the studio's
+    // own current answer may be saved again (with a new "Other" label, say).
+    const industries = await readIndustries();
+    if (!isChoosable(industries, raw.industry, String(studio.industry || ""))) return Response.json({ error: "field" }, { status: 400 });
+    const field = fieldForIndustry(industries, raw.industry);
     patch.industry = String(raw.industry);
     patch.fieldOfWorkOther = field === OTHER_FIELD ? String(raw.fieldOfWorkOther ?? studio.fieldOfWorkOther ?? "").slice(0, 80) : "";
     if (field !== String(studio.fieldOfWork ?? "")) {

@@ -31,9 +31,11 @@ import { startingPlan } from "@/lib/data/catalog";
 import { loadCatalogues, costsNothing } from "@/lib/plans";
 import { startSubscription } from "@/lib/data/subscriptions";
 import { FIELDS_OF_WORK, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfWork";
-import { fieldForIndustry, isIndustryKey } from "@/shared/industryCatalogue";
+import type { Industry } from "@/shared/industryCatalogue";
+import { fieldForIndustry, isChoosable, pickCatalogue, specialismOf } from "@/shared/industryPick";
+import { readIndustries } from "@/lib/data/industries";
 import {
-  rootSectionsForTrade, sectionEnabledForTrade, tradeSuggestion, resolveSectionChoice, NEVER_GATED_KEYS, SECTION_NEEDS,
+  rootSectionsForTrade, sectionEnabledForTrade, tradeSuggestion, resolveSectionChoice, withNeeds, NEVER_GATED_KEYS, SECTION_NEEDS,
   type TradeSuggestion, type SetupCatalogue, type SectionChoiceInput,
 } from "@/shared/tradeSections";
 import { sectionName } from "@/shared/studio/sections";
@@ -203,7 +205,15 @@ export function studioSetupCatalogue(): SetupCatalogue {
  * matrix does not know) suggests EVERY department, which is what such a studio
  * got before this screen existed; the owner narrows it from there.
  */
-export function studioSetupScreen(locale: string) {
+/**
+ * THE SECTIONS AN INDUSTRY'S PROFILE STARTS A STUDIO WITH, as roots — the
+ * profile's own, plus what never switches off, plus whatever those need.
+ */
+export function industryRoots(industry: Industry): Set<string> {
+  return withNeeds([...NEVER_GATED_KEYS, ...industry.profile.sections]);
+}
+
+export function studioSetupScreen(locale: string, industries: readonly Industry[] = []) {
   const catalogue = studioSetupCatalogue();
   const nameOf = (key: string) => {
     const def = SECTION_DEFS.find((d) => d.key === key)
@@ -222,6 +232,16 @@ export function studioSetupScreen(locale: string) {
       needs: [...(SECTION_NEEDS[key] || [])],
     })),
     suggested: Object.fromEntries([...FIELDS_OF_WORK, OTHER_FIELD, ""].map((f) => [f, suggest(f)])),
+    // WHAT EACH SPECIALISM PRE-FILLS: its INDUSTRY'S profile (the console's
+    // answer, /super → Industries), keyed by the specialism a picker returns.
+    suggestedByIndustry: Object.fromEntries(industries.flatMap((ind) => {
+      const roots = industryRoots(ind);
+      const on = catalogue.roots.filter((k) => roots.has(k));
+      return ind.specialisms.map((sp) => [sp.key, on]);
+    })),
+    // The pickers' list, resolved here so the browser never carries the
+    // built-in catalogue and always sees what the console decided.
+    industries: pickCatalogue(industries),
   };
 }
 
@@ -264,8 +284,12 @@ export async function createStudio(
   // somebody else's sections, service actions and org chart into a company that
   // never said what it does.
   const chosenIndustry = String(industry || "").trim();
-  if (chosenIndustry && !isIndustryKey(chosenIndustry)) return { error: "field-invalid" };
-  const trade = chosenIndustry ? fieldForIndustry(chosenIndustry) : String(fieldOfWork || "").trim();
+  // Read only when a specialism was chosen: an industry the console switched
+  // off is refused for a NEW studio, which is what switching it off means.
+  const industries = chosenIndustry ? await readIndustries() : [];
+  if (chosenIndustry && !isChoosable(industries, chosenIndustry)) return { error: "field-invalid" };
+  const profiled = chosenIndustry ? (specialismOf(industries, chosenIndustry) as { industry: Industry } | null)?.industry || null : null;
+  const trade = chosenIndustry ? fieldForIndustry(industries, chosenIndustry) : String(fieldOfWork || "").trim();
   if (trade && trade !== OTHER_FIELD && !FIELDS_OF_WORK.includes(trade)) {
     return { error: "field-invalid" };
   }
@@ -331,7 +355,7 @@ export async function createStudio(
       // must not offer it back. Blank when the trade gates nothing.
       // An owner who chose their departments has already answered what the
       // trade would ask, so the offer is marked as answered for that trade too.
-      sectionsTrade: choice || tradeRootsFor(trade) ? trade : "",
+      sectionsTrade: choice || profiled || tradeRootsFor(trade) ? trade : "",
     };
 
     // Seed the fixed section list. Parents get a SectionID, sub-sections get
@@ -359,7 +383,9 @@ export async function createStudio(
     // pre-filled answer on the screen; what the owner left ticked is what the
     // studio is. A part switched off inside a department that is on stays off,
     // and is one switch away in Studio settings.
-    const onRoots = choice ? choice.roots : tradeRootsFor(trade);
+    // Without an answer from the screen, the INDUSTRY'S PROFILE decides where
+    // there is one, and the old trade gating only for a studio without one.
+    const onRoots = choice ? choice.roots : profiled ? industryRoots(profiled) : tradeRootsFor(trade);
     const offChildren = choice ? choice.offChildren : new Set<string>();
     const gate = (key: string, rootKey: string) => {
       if (offChildren.has(key)) return false;

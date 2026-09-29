@@ -15,6 +15,7 @@
 // — which is most of the point of it living under administration.master.
 import { route, refused } from "@/platform/http/route";
 import { masterContext } from "@/modules/administration/master";
+import { startersForStudio } from "@/lib/data/industries";
 import {
   departmentsState, createDepartment, editDepartment, removeDepartment,
   addMissingStarters, missingStarters, assignableSectionKeys,
@@ -38,7 +39,7 @@ export const GET = route({ ...spec, body: false }, async (master) => {
     // WHAT THE STANDARD CHART WOULD ADD, offered and never applied. A studio
     // that changed its field of work sees the names it is missing and decides;
     // re-seeding on its behalf would destroy an org chart it had edited.
-    missing: missingStarters(String(master.studio.fieldOfWork || ""), departments),
+    missing: missingStarters(await startersForStudio(master.studio), departments),
     // The sections a department may say it works in — top-level, with a screen,
     // AND NAMED. Served rather than derived on the client for two reasons: the
     // picker cannot offer a key the writer would silently drop, and a section's

@@ -137,6 +137,14 @@ export const REG = {
   // so adding one was a release. A studio still keeps its OWN row for a trade
   // it works differently (`S.industries`), which wins over this.
   erpIndustries: `${P}g:erpIndustries`,
+  // WHAT A COMPANY SAYS IT DOES — the sixteen industries, their specialisms
+  // and each industry's profile (29/09/2026, the owner: "i need to control
+  // these industries, set in-active industries, and each industry will have its
+  // own profile"). The console's rows only: each replaces the built-in of the
+  // same key (shared/industryCatalogue) or adds a new industry, and taking one
+  // away falls back to the code. Platform-level: an industry is something
+  // nompany offers, not something one studio owns.
+  industryCatalogue: `${P}g:industryCatalogue`,
   // WHAT A DEAL IS MEASURED ON — one row per KPI, keyed to a service action
   // (20/09/2026, the owner: service actions were a label and nothing else).
   // Platform-level, beside the trades: a target for "Installation" is what

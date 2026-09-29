@@ -3,7 +3,7 @@ import { urlFor, alternatesFor } from "@/lib/seo";
 import { listStudios } from "@/modules/main/studios";
 import { publicCompanies } from "@/shared/marketing/showcase";
 import { livePosts } from "@/lib/data/blog";
-import { INDUSTRY_CATALOGUE } from "@/shared/industryCatalogue";
+import { liveIndustries } from "@/lib/industryPages";
 import lastmod from "./sitemap-lastmod.json";
 
 /* THE SITEMAP, AND ITS DATES ARE DERIVED NOW.
@@ -86,7 +86,14 @@ export default async function sitemap() {
   // the sitemap.
   // ONE PAGE PER INDUSTRY, dated with the index: the same sources decide what
   // both say (shared/marketing/sitemapSources, "/industries").
-  for (const ind of INDUSTRY_CATALOGUE) {
+  // Only the industries the console has switched on, as the pages themselves.
+  let industries = [];
+  try {
+    industries = await liveIndustries();
+  } catch {
+    industries = [];
+  }
+  for (const ind of industries) {
     const path = `/industries/${ind.key}`;
     for (const locale of locales) {
       entries.push({

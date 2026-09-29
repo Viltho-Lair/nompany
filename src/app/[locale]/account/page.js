@@ -4,6 +4,7 @@ import { getDict } from "@/shared/i18n";
 import { currentUser, currentSession, needsQuestionnaire } from "@/platform/auth/identity";
 import AccountHome from "@/components/public/AccountHome";
 import { studioSetupScreen, getStudioById } from "@/modules/main/studios";
+import { readIndustries } from "@/lib/data/industries";
 import { listCatalog } from "@/lib/data/catalog";
 import { INTENT_COOKIE, openIntent, intentOnSale } from "@/platform/auth/purchaseIntent";
 
@@ -43,7 +44,9 @@ export default async function AccountPage({ params, searchParams }) {
   // than in the browser: they come from the same catalogue the create route
   // checks against, and the trade rules behind the suggestions reach the stage
   // registry, which has no business in the account page's bundle.
-  const setup = studioSetupScreen(locale);
+  // The industries as the console left them (/super → Industries), so the
+  // create screen offers exactly what a new studio may choose.
+  const setup = studioSetupScreen(locale, await readIndustries());
   // THE PACKAGE CHOSEN ON THE PRICING PAGE, if it is still on sale — the signed
   // cookie (platform/auth/purchaseIntent), checked against the catalogue as it
   // is now. Handed to studio creation to pre-select its Plan step; it opens

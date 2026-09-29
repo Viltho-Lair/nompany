@@ -32,7 +32,7 @@ export default async function IndustriesPage({ params }) {
         ])}
       />
       <PageHero title={tr.title} lead={tr.lead} />
-      <IndustriesGrid industries={industryCards(locale)} locale={locale} explore={tr.explore} />
+      <IndustriesGrid industries={await industryCards(locale)} locale={locale} explore={tr.explore} />
     </>
   );
 }

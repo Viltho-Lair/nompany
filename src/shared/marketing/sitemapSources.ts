@@ -51,6 +51,7 @@ export const SITEMAP_SOURCES: Record<string, string[]> = {
     "src/components/landing/site/pages/industries/IndustryViews.jsx",
     "src/shared/marketing/industries.ts",
     "src/shared/industryCatalogue.ts",
+    "src/lib/industryPages.ts",
   ],
   "/security": [
     "src/app/[locale]/(site)/security/page.js",

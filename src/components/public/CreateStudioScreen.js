@@ -6,7 +6,7 @@ import { accountDict } from "@/shared/account";
 import { Icon } from "@/components/studio2/icons";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { OTHER_FIELD } from "@/shared/fieldsOfWork";
-import { OTHER_INDUSTRY, fieldForIndustry, industryLabel, industryOptions } from "@/shared/industryCatalogue";
+import { OTHER_INDUSTRY, fieldForIndustry, industryLabel, industryOptions } from "@/shared/industryPick";
 import { withNeeds } from "@/shared/tradeSections";
 import { COUNTRIES, codeOfCountry } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
@@ -66,7 +66,14 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   const t = tr.setup;
   const departments = useMemo(() => setup?.departments || [], [setup]);
   const nameOf = useMemo(() => new Map(departments.map((d) => [d.key, d.name])), [departments]);
-  const suggestedFor = (f) => setup?.suggested?.[f] || setup?.suggested?.[""] || departments.map((d) => d.key);
+  const industries = setup?.industries || [];
+  // WHAT A SPECIALISM PRE-FILLS: its industry's profile, set in /super, where
+  // there is one; the old field-of-work answer otherwise. Only PRE-FILLS — the
+  // owner says yes or no to every department on the next step, and can switch
+  // any of them on later in Studio settings.
+  const suggestedFor = (key) => setup?.suggestedByIndustry?.[key]
+    || setup?.suggested?.[fieldForIndustry(industries, key)]
+    || setup?.suggested?.[""] || departments.map((d) => d.key);
 
   const [step, setStepRaw] = useState(0);
   // The whole screen slides in once, on arrival. After that only the step body
@@ -85,7 +92,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   // work everything below keys on is its template, derived rather than stored
   // twice, so the two can never disagree (shared/industryCatalogue).
   const [industry, setIndustry] = useState("");
-  const field = fieldForIndustry(industry);
+  const field = fieldForIndustry(industries, industry);
   const [fieldOther, setFieldOther] = useState("");
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
@@ -173,7 +180,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   const neededBy = (key) => departments
     .filter((d) => yes.has(d.key) && (d.needs || []).includes(key))
     .map((d) => d.name);
-  const suggested = suggestedFor(field);
+  const suggested = suggestedFor(industry);
   const matchesSuggestion = suggested.length === yes.size && suggested.every((k) => yes.has(k)) && offParts.size === 0;
 
   // THE ANSWERS FOLLOW THE FIELD UNTIL THE OWNER TOUCHES THEM. Changing the
@@ -181,17 +188,17 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   // already made it their own, in which case the reset link offers it instead
   // of overwriting their work.
   function enterDepartments() {
-    if (!edited && filledFor !== field) {
-      setYes(new Set(suggestedFor(field)));
+    if (!edited && filledFor !== industry) {
+      setYes(new Set(suggestedFor(industry)));
       setOffParts(new Set());
-      setFilledFor(field);
+      setFilledFor(industry);
     }
     setStep(DEPARTMENTS);
   }
   function resetToSuggested() {
-    setYes(new Set(suggestedFor(field)));
+    setYes(new Set(suggestedFor(industry)));
     setOffParts(new Set());
-    setFilledFor(field);
+    setFilledFor(industry);
     setEdited(false);
   }
   function answer(key, value) {
@@ -332,7 +339,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
                 searchPlaceholder={tr.fieldOfWorkSearch}
                 options={[
                   { value: "", label: tr.fieldOfWorkSkip },
-                  ...industryOptions(locale, tr.fieldOfWorkOtherOption),
+                  ...industryOptions(industries, locale, tr.fieldOfWorkOtherOption),
                 ]}
               />
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.fieldOfWorkHint}</p>
@@ -400,7 +407,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
             <p className={SUB}>{t.departmentsLead}</p>
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-brand-500/5 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300">
               <span className="min-w-0 flex-1">
-                {field && field !== OTHER_FIELD ? t.suggestedFor(industryLabel(industry, locale)) : t.suggestedNone}
+                {field && field !== OTHER_FIELD ? t.suggestedFor(industryLabel(industries, industry, locale)) : t.suggestedNone}
               </span>
               {!matchesSuggestion && (
                 <button type="button" onClick={resetToSuggested}

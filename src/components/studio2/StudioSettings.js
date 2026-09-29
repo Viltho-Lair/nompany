@@ -16,7 +16,7 @@ import { fmtDate } from "@/lib/format";
 import { Field } from "@/components/fields/Field";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
-import { OTHER_INDUSTRY, fieldForIndustry, industryLabel, industryOptions } from "@/shared/industryCatalogue";
+import { OTHER_INDUSTRY, fieldForIndustry, industryLabel, industryOptions } from "@/shared/industryPick";
 import { useStudioLocale } from "@/components/studio2/locale";
 import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
 import SettingsFold from "@/components/studio2/SettingsFold";
@@ -893,7 +893,7 @@ function ServiceActions({ slug, onTradeSaved }) {
   // pool, which is what the confirm dialog exists to show first.
   function requestIndustryChange(industry) {
     if (!data || !industry || (industry === data.industry && !data.needsIndustry)) return;
-    const next = fieldForIndustry(industry);
+    const next = fieldForIndustry(data.industries, industry);
     if (next === data.fieldOfWork && industry !== OTHER_INDUSTRY) { put({ industry }); return; }
     requestFieldChange(next, industry);
   }
@@ -958,7 +958,7 @@ function ServiceActions({ slug, onTradeSaved }) {
           <p className="mt-1">{tr.industryUpdateBody(data.fieldOfWork === OTHER_FIELD ? (data.fieldOfWorkOther || OTHER_FIELD) : data.fieldOfWork)}</p>
           {data.canManage && data.suggestedIndustry && data.suggestedIndustry !== OTHER_INDUSTRY && (
             <button className={`${BTN} mt-3`} disabled={busy} onClick={() => requestIndustryChange(data.suggestedIndustry)}>
-              {tr.industryUseSuggestion(industryLabel(data.suggestedIndustry, locale))}
+              {tr.industryUseSuggestion(industryLabel(data.industries, data.suggestedIndustry, locale))}
             </button>
           )}
         </div>
@@ -971,7 +971,7 @@ function ServiceActions({ slug, onTradeSaved }) {
           value={data.industry || ""}
           onChange={requestIndustryChange}
           disabled={!data.canManage || busy}
-          options={industryOptions(locale, tr.industryOther)}
+          options={industryOptions(data.industries, locale, tr.industryOther, data.industry)}
           inputProps={{ searchPlaceholder: tr.industrySearch }}
         />
       </div>
@@ -1033,7 +1033,7 @@ function ServiceActions({ slug, onTradeSaved }) {
         <ConfirmFieldChange
           from={data.fieldOfWork}
           to={confirmField.next}
-          toLabel={confirmField.industry === OTHER_INDUSTRY ? tr.industryOther : industryLabel(confirmField.industry, locale)}
+          toLabel={confirmField.industry === OTHER_INDUSTRY ? tr.industryOther : industryLabel(data.industries, confirmField.industry, locale)}
           added={confirmField.added}
           leaving={confirmField.leaving}
           busy={busy}

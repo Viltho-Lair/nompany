@@ -1,42 +1,78 @@
 # Industries
 
-What a company says it does, in two levels, the owner's decision on 29/09/2026 ("organized
-like this way", pointing at Salesforce's industries). Sixteen industries, each with the
-specialisms a company names itself by: 68 in all. A studio picks a **specialism** ("MEP &
-specialist contractors"), never an industry alone. The list replaced a flat list of 25
+What a company says it does, in two levels, and what that starts its studio with. The owner
+decided on 29/09/2026 to have it "organized like this way", pointing at Salesforce's industries,
+and added the same day: *"i need to control these industries, set in-active industries, and
+each industry will have its own profile, what sections and departments does it offer ...
+locking ... so no changes done on it unintentionally."*
+
+Sixteen built-in industries hold 68 specialisms between them. A studio picks a **specialism**
+("MEP & specialist contractors"), never an industry alone. The list replaced a flat list of 25
 statistical categories that had no place for general trading, facility management, MEP
 contractors, clinics, pharmacies, restaurants or manpower supply.
 
-`src/shared/industryCatalogue.ts` is the list, pure, in both languages. It is read by the
-create-studio screen, Studio settings, the studio-wide alert and the public site.
-`tests/industry-catalogue-model.mjs` holds it.
+## Where it lives
 
-## The 25 fields of work are the templates
+| File | Holds |
+|---|---|
+| `src/shared/industryCatalogue.ts` | The built-in list and its rules: types, profiles, validation (`industryProblems`), the merge (`mergeIndustries`). **Server-side only** |
+| `src/shared/industryPick.ts` | Choosing: options, labels, the alert, the suggestion. Pure; takes the list as an argument, so the browser never carries the built-ins |
+| `src/lib/data/industries.ts` | The READ: built-ins with the console's rows laid over them, and `startersForStudio` |
+| `src/lib/data/industryAdmin.ts` | The console's WRITES: save, add, lock, revert |
+| `/super → Industries` (`components/super/IndustriesConsole.js`, `/api/super/industries`) | The screen |
 
-Everything that sets a studio up for its trade is keyed by a field-of-work name
-(`FIELD_ACTION_MATRIX`): the service-action pool, the starter org chart, the role library,
-the deal flow and the sections a trade starts with. About 25 places read it from
-`studio.fieldOfWork`. **None of them changed.** Each specialism names the one field whose
-setup fits it (`field`), and saving a specialism writes both:
+Storage is one document, `REG.industryCatalogue`, holding the console's rows only. A row
+replaces the built-in of the same key or adds a new industry. **Taking a row away returns the
+code's version**, the same shape the ERP settings' trades already had.
 
-- `industry`: the specialism's key, which is what the studio chose.
-- `fieldOfWork`: that specialism's template, derived and never typed.
+## What an industry is
 
-`createStudio` and the Studio settings route (`settings/service-actions`) are the two doors
-that write it. Both derive the field from the specialism, so the two cannot disagree. Every
-field is reachable through at least one specialism (asserted), so no setup went dead. Giving
-a specialism its own setup later is a matter of pointing its `field` somewhere new.
+- **Names**, English and Arabic, and **a sentence** for its website page.
+- **Active.** When off, the industry is not offered to new studios and not shown on the
+  website: it leaves the list and the sitemap, and its page is a 404. **A studio that already
+  chose it keeps working**, and may save its own answer again.
+- **Specialisms**, each with a name in both languages, its own active switch, and the
+  **setup template**: the field of work its service actions, role library and deal flow start
+  from. A saved specialism is switched off, never removed, because studios hold its key.
+- **The profile**:
+  - **sections**: the departments a new studio starts with. They are **pre-filled** on the
+    create screen, and the owner can still say yes to any other there or switch more on later
+    in Studio settings (the owner, 29/09/2026: "but still user can select more if he wants").
+  - **departments**: the org chart seeded into a new studio's empty department register.
+- **Locked.** Every change is refused (`locked`, 409) until somebody unlocks it with its own
+  call and its own confirmation. The lock is checked inside the compare-and-set, so a lock set
+  a second earlier in another tab wins. Locking a built-in the console never changed stores the
+  code's version, locked, so it also holds still against a later release.
 
-**Keys are published and never renamed.** A studio stores the key, not the English name (the
-old field stored its display string, which is how two copies of the list came to spell four
-trades differently). The website's industry pages are addressed by the industry key.
+**A PROFILE IS A SEED.** Editing one changes the next studio created, never one that exists.
+Its switches and org chart are its own from the first minute.
 
-"Something else" (`other`) stays, with the company's own words, and seeds nothing.
+**Keys are published and never renamed.** A key is minted from the English name when the
+industry or specialism is added, and cannot be edited afterwards. The website addresses an
+industry by its key, and a studio stores its specialism's key. There is **no delete**: an
+added industry is switched off, and a built-in may be reverted.
+
+## Who reads it
+
+- **Creating a studio** (`createStudio`) refuses a specialism that is switched off. It writes
+  `industry` and the specialism's template to `fieldOfWork`. Its sections come from the
+  owner's answers on the create screen, which the profile pre-filled (`suggestedByIndustry`),
+  or from the profile itself when a caller sends none. Only a studio with no industry falls
+  back to the old field-of-work gating.
+- **The department register** seeds from `startersForStudio`: the industry's profile when the
+  studio has one, its field of work's chart otherwise. Master data's "add what is missing"
+  offers the same. Roles per department still follow the field of work (the role library is
+  keyed by it).
+- **Studio settings** offers the console's list and refuses a switched-off specialism, except
+  the studio's own current answer.
+- **The website** (`lib/industryPages`, through the public minute cache) shows the active
+  industries. **The departments on an industry's page ARE its profile's sections**, so the page
+  and a new studio cannot disagree. Computing them from the old trade gating was tried first;
+  it listed 10 to 18 of the 18 departments everywhere, so a bank "started with" Point of Sale.
 
 ## Existing studios: the alert
-
 The owner's rule: "current studios will need to update their fields". Nothing is migrated.
-A studio that has an old field and no specialism (`needsIndustry`) keeps working exactly as
+A studio that has an old field and no specialism (`needsIndustry`, which counts any stored key as an answer so the layout never reads the catalogue) keeps working exactly as
 before and sees, above every screen, *"Choose your industry from the new list"*, linking to
 Studio settings → Service actions (`#industry`). That section opens itself and offers the
 specialism with the **same setup** as the studio's current field (`suggestedIndustry`).
@@ -60,28 +96,17 @@ still count options only. A search matches a row's group too, so typing "health"
 four healthcare specialisms under their heading. A grouped list keeps its order while
 filtering. Every existing dropdown carries no group and is unchanged.
 
-## On the website
-
-`/{en,ar}/industries` lists the sixteen with their specialisms. `/{en,ar}/industries/<key>` is one
-industry: its sentence, who it is for, the departments at the heart of it, and a way in. An
-unknown key is a 404. They are in the top menu, the footer and the sitemap (one entry per
-industry, dated with the index), and `industries` is a reserved studio address.
-
-The words are `shared/marketing/industries.ts`. **The departments on each page are chosen
-(`FOCUS`), not computed, and computing them was tried first.** Unioning the create-studio
-suggestion across an industry's specialisms listed 10 to 18 of the 18 departments everywhere.
-A bank "started with" Point of Sale and a restaurant with Tendering, because trade gating
-switches very little off. `FOCUS` names the few a company of that kind leans on first, by
-section key. The names come from the product (`liveDepartments`), and the test refuses a key
-that is not a live department.
-
 ## Not built yet
 
-- **Trade gating barely narrows anything.** The create-studio suggestion switches on 12 to 18
-  of 18 departments for every specialism (see above). That is a product question about
-  `tradeSections`, not about this list.
-- **Specialisms share their field's setup.** "Pharmacies" gets the retail org chart and
-  "Clinics" the healthcare one. Nothing is tailored per specialism yet.
+- **Studios created before the profiles keep the old gating's sections.** Nothing re-applies a
+  profile to an existing studio, by design; the Sections panel is where one switches off what it
+  does not use.
+- **The profile is per industry, not per specialism.** A pharma company under Healthcare gets
+  Healthcare's sections and org chart. Service actions, roles and the deal flow do follow the
+  specialism's template.
+- **No before-and-after.** Every console write is in the audit log (who, and which call), but
+  not what the industry looked like before it, so a mistaken save cannot be undone from the log;
+  the lock is the guard against one.
 - **The registration questionnaire and the company profile still ask their own industry**
   from `src/lib/industries.ts`, a third list with its own wording. It should be folded into
   this one so a company is not asked the same thing two ways.

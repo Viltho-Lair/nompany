@@ -11,7 +11,7 @@ import { studioShell } from "./_shell";
 import { subscriptionDict } from "@/shared/studio/subscription";
 import { billingDict } from "@/shared/studio/billing";
 import { settingsDict } from "@/shared/studio/settings";
-import { needsIndustry } from "@/shared/industryCatalogue";
+import { needsIndustry } from "@/shared/industryPick";
 
 // THE STUDIO'S SHELL, RESOLVED ONCE AND THEN LEFT ALONE.
 //
