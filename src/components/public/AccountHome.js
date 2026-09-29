@@ -95,6 +95,9 @@ const navFor = (tr, locale) => [
 // something before it drives `setView`.
 const VIEW_KEYS = ["overview", "studios", "billing", "collabs", "personal", "calendars", "notifications", "security"];
 
+// How many studios of each kind the avatar menu lists before "View all".
+const MENU_STUDIOS = 8;
+
 const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
 export default function AccountHome({ locale, chrome, setup, intent = null, openCreate = false, till = null }) {
@@ -223,11 +226,34 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
             {menuOpen && (
               <div role="menu" className="absolute end-0 z-30 mt-3 w-56 overflow-hidden rounded-2xl bg-white/95 py-1 shadow-geex ring-1 ring-inset ring-slate-900/[0.06] backdrop-blur-xl dark:bg-[#101018]/95 dark:ring-white/10">
                 <p className="truncate px-4 py-2 text-xs text-slate-500 dark:text-slate-400">{identity?.user?.email}</p>
-                {owned[0] && (
-                  <a role="menuitem" href={`/${owned[0].slug}`} className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
-                    Go to {owned[0].name}
-                  </a>
-                )}
+                {/* EVERY STUDIO, not the first one (29/09/2026). This linked to
+                    `owned[0]` alone — written when a person could own one — so
+                    somebody with three studios and two memberships could reach
+                    one of five from here. Owned first, then the ones others let
+                    them into, each under its own heading; past eight the rest
+                    are one "View all" away rather than a menu taller than the
+                    screen. */}
+                {[
+                  { key: "owned", title: tr.myStudios, list: owned },
+                  { key: "collabs", title: tr.myCollaborations, list: collabs },
+                ].filter((g) => g.list.length).map((g) => (
+                  <div key={g.key} className="border-t border-slate-900/[0.06] py-1 dark:border-white/10">
+                    <p className="px-4 pb-1 pt-1.5 text-[11px] font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{g.title}</p>
+                    {g.list.slice(0, MENU_STUDIOS).map((s) => (
+                      <a key={s.id} role="menuitem" href={`/${s.slug}`} className="block truncate px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5">
+                        {s.name}
+                      </a>
+                    ))}
+                    {g.list.length > MENU_STUDIOS && (
+                      <button role="menuitem" type="button"
+                        onClick={() => { setMenuOpen(false); setCreating(false); setView(g.key === "owned" ? "studios" : "collabs"); }}
+                        className="block w-full px-4 py-2 text-start text-sm font-600 text-brand-700 hover:bg-slate-50 dark:text-brand-300 dark:hover:bg-white/5">
+                        {tr.viewAll} ({g.list.length})
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <div className="border-t border-slate-900/[0.06] dark:border-white/10" />
                 <button role="menuitem" type="button" onClick={signOut}
                   className="block w-full px-4 py-2.5 text-start text-sm text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10">
                   {tr.signOut}
@@ -252,7 +278,7 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
         {/* fixed rail */}
         <nav className={cn(RAIL_W, "lg:flex lg:shrink-0 lg:flex-col")}>
           <div className="lg:flex-1">
-            <ul data-tour="account-nav" className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+            <ul data-tour="account-nav" className="scrollbar-none flex gap-1 overflow-x-auto overflow-y-hidden pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
               {navFor(tr, locale).map((item) => {
                 const on = view === item.key;
                 return (
@@ -379,7 +405,12 @@ function StudioStrip({ action, studios, onViewAll }) {
   const tr = accountDict(useAccountLocale());
   const shown = studios.slice(0, 4);
   return (
-    <div className="mt-2 flex items-start gap-3 overflow-x-auto">
+    // WRAPS, NEVER SCROLLS (29/09/2026). `overflow-x-auto` also made the strip
+    // scroll VERTICALLY once a tile ran taller than the row (CSS turns the other
+    // axis to auto), which the Arabic font's taller line did: every strip grew its
+    // own scrollbar. Six tiles at most, so a second row is the honest shape on a
+    // narrow screen.
+    <div className="mt-2 flex flex-wrap items-start gap-3">
       {action}
       {shown.map((s) => <StudioCard key={s.id} studio={s} compact />)}
       {studios.length > 4 && (

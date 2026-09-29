@@ -1850,3 +1850,14 @@ html.dark { color-scheme: dark; }
   -moz-appearance: textfield;
   appearance: textfield;
 }
+
+/* A STRIP THAT SCROLLS WITHOUT DRAWING A SCROLLBAR (29/09/2026). The account
+   page's section tabs slide sideways on a phone; the system scrollbar under
+   them — with Windows' arrow buttons — read as a broken layout rather than a
+   row you can swipe. Scrolling by touch, trackpad and wheel is unchanged. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
