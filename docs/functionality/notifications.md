@@ -319,10 +319,11 @@ are `shared/notificationInbox`, one rule for both bells.
   paper size.
 - **Preferences choose channels, not whether a notice exists.** Every notice
   still lands in the bell; nobody can mute a type there.
-- **The index is in `pgSchema.sql` but must be applied to the live database
-  by hand.** It is one `CREATE INDEX CONCURRENTLY` statement; the file's comment
-  says why not to re-run the whole file. Until then the bell's read walks the
-  studio's notices newest-first, which is correct but slower.
+- **`pgSchemaQuery` refuses `CREATE INDEX CONCURRENTLY`**: its guard admits
+  only the shapes `pgSchema.sql` uses. The notifications index went onto the
+  live database on 29/09/2026 as the plain statement, which built in about
+  100 ms over roughly 12,600 rows, briefly holding writes. On a much larger table
+  that pause would matter, and the guard would need to learn the concurrent form.
 - **The console's own list (`/super`) is unchanged**: one array of 200 for
   whoever is on duty, with no page, category or archive.
 - **Grouping joins identical notices only.** Five different items falling low
