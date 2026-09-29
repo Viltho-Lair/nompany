@@ -1,6 +1,6 @@
 import { route } from "@/platform/http/route";
 import { readIndustries } from "@/lib/data/industries";
-import { addIndustry, profileSectionKeys, readIndustryRows } from "@/lib/data/industryAdmin";
+import { addIndustry, byOf, profileSectionKeys, readIndustryRows } from "@/lib/data/industryAdmin";
 import { FIELDS_OF_WORK } from "@/shared/fieldsOfWork";
 import { SECTION_DEFS } from "@/platform/db/keys";
 import { sectionName } from "@/shared/studio/sections";
@@ -38,8 +38,8 @@ export const GET = route(spec, async () => {
   };
 });
 
-export const POST = route({ ...spec, body: true }, async ({ body }) => {
-  const out = await addIndustry(body);
+export const POST = route({ ...spec, body: true }, async ({ body, admin }) => {
+  const out = await addIndustry(body, byOf(admin));
   if ("error" in out) return out;
   return { ok: true, industries: out.industries };
 });

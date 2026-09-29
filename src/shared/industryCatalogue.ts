@@ -413,3 +413,76 @@ export function mergeIndustries(stored: readonly unknown[]): Industry[] {
   const merged = builtInIndustries().map((b) => (byKey.has(b.key) ? { ...(byKey.get(b.key) as Industry), builtIn: true } : b));
   return [...merged, ...rows.filter((r) => !BUILT_IN_KEYS.has(r.key))];
 }
+
+// ---- what a change did, in words -------------------------------------------
+
+/**
+ * WHAT CHANGED BETWEEN TWO VERSIONS OF ONE INDUSTRY, as short sentences for
+ * the console's history. Section keys are given as keys; the screen names
+ * them. Empty when nothing a person would notice moved.
+ */
+export function describeChange(before: Industry | null, after: Industry | null): string[] {
+  if (!before && after) return ["Added"];
+  if (!before || !after) return [];
+  const out: string[] = [];
+  if (before.en !== after.en) out.push(`Name: “${before.en}” → “${after.en}”`);
+  if (before.ar !== after.ar) out.push(`Arabic name: “${before.ar}” → “${after.ar}”`);
+  if (before.lead.en !== after.lead.en || before.lead.ar !== after.lead.ar) out.push("Website sentence edited");
+  if (before.active !== after.active) out.push(after.active ? "Switched on" : "Switched off");
+  if (before.locked !== after.locked) out.push(after.locked ? "Locked" : "Unlocked");
+
+  const on = after.profile.sections.filter((k) => !before.profile.sections.includes(k));
+  const off = before.profile.sections.filter((k) => !after.profile.sections.includes(k));
+  if (on.length) out.push(`Sections added: ${on.join(", ")}`);
+  if (off.length) out.push(`Sections removed: ${off.join(", ")}`);
+
+  const code = (d: DepartmentSeed) => d.code;
+  const was = new Map(before.profile.departments.map((d) => [code(d), d]));
+  const now = new Map(after.profile.departments.map((d) => [code(d), d]));
+  const addedD = after.profile.departments.filter((d) => !was.has(code(d))).map((d) => d.name);
+  const removedD = before.profile.departments.filter((d) => !now.has(code(d))).map((d) => d.name);
+  const editedD = after.profile.departments.filter((d) => {
+    const b = was.get(code(d));
+    return b && JSON.stringify(b) !== JSON.stringify(d);
+  }).map((d) => d.name);
+  if (addedD.length) out.push(`Departments added: ${addedD.join(", ")}`);
+  if (removedD.length) out.push(`Departments removed: ${removedD.join(", ")}`);
+  if (editedD.length) out.push(`Departments edited: ${editedD.join(", ")}`);
+
+  const sb = new Map(before.specialisms.map((sp) => [sp.key, sp]));
+  const sa = new Map(after.specialisms.map((sp) => [sp.key, sp]));
+  const addedS = after.specialisms.filter((sp) => !sb.has(sp.key)).map((sp) => sp.en);
+  const goneS = before.specialisms.filter((sp) => !sa.has(sp.key)).map((sp) => sp.en);
+  const flipped = after.specialisms.filter((sp) => sb.has(sp.key) && sb.get(sp.key)?.active !== sp.active)
+    .map((sp) => `${sp.en} ${sp.active ? "on" : "off"}`);
+  const editedS = after.specialisms.filter((sp) => {
+    const b = sb.get(sp.key);
+    return b && (b.en !== sp.en || b.ar !== sp.ar || b.field !== sp.field);
+  }).map((sp) => sp.en);
+  if (addedS.length) out.push(`Specialisms added: ${addedS.join(", ")}`);
+  if (goneS.length) out.push(`Specialisms dropped: ${goneS.join(", ")}`);
+  if (flipped.length) out.push(`Specialisms switched: ${flipped.join(", ")}`);
+  if (editedS.length) out.push(`Specialisms edited: ${editedS.join(", ")}`);
+  return out;
+}
+
+/**
+ * RESTORING AN OLDER VERSION NEVER DROPS A SPECIALISM THAT EXISTS NOW. Studios
+ * store specialism keys, so one added after the version being restored may
+ * already be somebody's answer: it is kept, switched off, instead of vanishing
+ * from under them. The restored version arrives unlocked — a lock is a guard on
+ * the industry, not part of what it says.
+ */
+export function restoredVersion(version: Industry, current: Industry): Industry {
+  const kept = new Set(version.specialisms.map((sp) => sp.key));
+  return {
+    ...version,
+    key: current.key,
+    builtIn: current.builtIn,
+    locked: false,
+    specialisms: [
+      ...version.specialisms,
+      ...current.specialisms.filter((sp) => !kept.has(sp.key)).map((sp) => ({ ...sp, active: false })),
+    ],
+  };
+}

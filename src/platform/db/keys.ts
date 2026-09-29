@@ -65,6 +65,8 @@ export const ID = {
   questionnaire: () => makeId("qst"),
   // A post on nompany's own public blog (27/09/2026), in SITE.collection("blog").
   post: () => makeId("pst"),
+  // One saved change to an industry in the console (29/09/2026), in INDUSTRY.history.
+  industryChange: () => makeId("ich"),
   // A job opening on nompany's own careers page (27/09/2026), in SITE.collection("careers").
   job: () => makeId("job"),
   package: () => makeId("pkg"),
@@ -404,6 +406,14 @@ export const MEDIA = {
 // "every key builder is namespaced" assertion — that walks the groups in this
 // file and cannot see a key built anywhere else. Same escape route lib/media
 // took, and the same consequence: a test run writing into the live site.
+// ONE INDUSTRY'S HISTORY (29/09/2026, the owner: "per created industry a version
+// history is reasonable, with a restore button"). A key per industry rather
+// than one list for all: every console save appends to it, and one document
+// holding every industry's every version would be read whole on each of them.
+export const INDUSTRY = {
+  history: (key: string) => `${P}g:industryHistory:${key}`,
+};
+
 export const SITE = {
   collection: (name: string) => `${P}g:site:${name}`,
   settings: `${P}g:site:settings`,

@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Badge, Button, Card, CardBody, CardHead, Table } from "@/app/super/_components/ui";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { useReload } from "@/components/studio2/useReload";
+import { fmtDateTime } from "@/lib/format";
 
 // THE INDUSTRIES A COMPANY PICKS FROM — the owner, 29/09/2026: "i need to
 // control these industries, set in-active industries, and each industry will
@@ -22,6 +23,9 @@ import { useReload } from "@/components/studio2/useReload";
 //                  pre-filled: the owner may add any other at creation or later
 //   Departments    the org chart seeded into a new studio's department register
 //   Locked         every change refused until somebody unlocks it on purpose
+//   History        every change, who made it and when, with the version from
+//                  before it — and Restore to put that version back (itself a
+//                  change, so a restore can be undone the same way)
 //
 // A PROFILE IS A SEED. Editing one changes the next studio created, never one
 // that exists — their switches and org charts are their own.
@@ -68,12 +72,14 @@ const refusal = (out) => ({
   name: "The industry needs an English name.",
   notfound: "That industry no longer exists. Reload the page.",
   "not-built-in": "Only a built-in industry can go back to the code's version.",
+  "nothing-before": "That change added the industry — there is no earlier version to restore.",
 }[out.error] || (out.error === "invalid" ? "" : out.error || "That did not save."));
 
 export default function IndustriesConsole() {
   const [data, setData] = useState(null);
   const [draft, setDraft] = useState(null); // { mode: "add" | "edit", industry }
   const [confirmUnlock, setConfirmUnlock] = useState("");
+  const [history, setHistory] = useState(null); // { key, name, entries | null }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [problems, setProblems] = useState([]);
@@ -108,6 +114,19 @@ export default function IndustriesConsole() {
   const { industries = [], options = { sections: [], departmentSections: [], fields: [] } } = data;
   const sectionName = (k) => [...options.sections, ...options.departmentSections].find((s) => s.key === k)?.name || k;
 
+  const openHistory = async (i) => {
+    setHistory({ key: i.key, name: i.en, entries: null });
+    const res = await fetch(`/api/super/industries/${encodeURIComponent(i.key)}/history`, { cache: "no-store" });
+    const out = await res.json().catch(() => ({}));
+    setHistory({ key: i.key, name: i.en, entries: res.ok ? out.entries || [] : [] });
+  };
+  const restore = async (entryId) => {
+    const key = history.key;
+    if (await send(`/api/super/industries/${encodeURIComponent(key)}/history`, "POST", { entryId })) {
+      await openHistory(industries.find((i) => i.key === key) || { key, en: history.name });
+    }
+  };
+
   const save = async () => {
     const ind = draft.industry;
     const ok = draft.mode === "add"
@@ -129,6 +148,17 @@ export default function IndustriesConsole() {
           <ul className="mb-4 list-disc space-y-1 ps-5 text-sm text-rose-600 dark:text-rose-400">
             {problems.map((p, i) => <li key={i}>{p}</li>)}
           </ul>
+        )}
+
+        {history && (
+          <History
+            history={history}
+            locked={Boolean(industries.find((i) => i.key === history.key)?.locked)}
+            sectionName={sectionName}
+            busy={busy}
+            onRestore={restore}
+            onClose={() => setHistory(null)}
+          />
         )}
 
         {draft && (
@@ -162,6 +192,7 @@ export default function IndustriesConsole() {
                   </div>
                 </td>
                 <td className="whitespace-nowrap text-end">
+                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => openHistory(i)}>History</Button>
                   {i.locked ? (
                     confirmUnlock === i.key ? (
                       <>
@@ -305,6 +336,64 @@ function Editor({ draft, setDraft, options, busy, onSave, onCancel }) {
         <Button disabled={busy || !ind.en.trim()} onClick={onSave}>{busy ? "Saving…" : "Save"}</Button>
         <Button variant="ghost" disabled={busy} onClick={onCancel}>Cancel</Button>
       </div>
+    </div>
+  );
+}
+
+const ACTION = {
+  added: "Added", saved: "Saved", locked: "Locked", unlocked: "Unlocked",
+  reverted: "Reverted to the built-in version", restored: "Restored an earlier version",
+};
+
+/**
+ * ONE INDUSTRY'S VERSIONS, newest first. Each row is a change; Restore puts back
+ * the industry as it was BEFORE that change — undoing it and everything after.
+ * A restore is itself a change, so the list grows and it can be undone too.
+ */
+function History({ history, locked, sectionName, busy, onRestore, onClose }) {
+  const [asking, setAsking] = useState("");
+  // Section keys read as their names; everything else is already words.
+  const words = (line) => line.replace(/^(Sections (?:added|removed): )(.*)$/, (_, head, keys) => head + keys.split(", ").map(sectionName).join(", "));
+
+  return (
+    <div className="mb-6 rounded-xl border border-[var(--ad-border)] p-4">
+      <div className="mb-3 flex items-center gap-3">
+        <p className="text-sm font-600">History — {history.name}</p>
+        {locked && <Badge tone="warning">Locked — unlock to restore</Badge>}
+        <Button size="sm" variant="ghost" className="ms-auto" onClick={onClose}>Close</Button>
+      </div>
+      {history.entries === null ? (
+        <p className={muted}>Loading…</p>
+      ) : history.entries.length === 0 ? (
+        <p className={muted}>No changes yet. This industry is exactly as it ships.</p>
+      ) : (
+        <ol className="space-y-3">
+          {history.entries.map((e) => (
+            <li key={e.id} className="rounded-lg border border-[var(--ad-border)] p-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="text-sm font-500">{ACTION[e.action] || e.action}</span>
+                <span className="text-xs text-[var(--ad-muted-foreground)]">{fmtDateTime(e.at)} · {e.by || "—"}</span>
+                <span className="ms-auto">
+                  {!e.restorable ? null : asking === e.id ? (
+                    <>
+                      <span className="me-2 text-xs text-[var(--ad-muted-foreground)]">Put back the version from before this change?</span>
+                      <Button size="sm" variant="destructive" disabled={busy || locked} onClick={async () => { await onRestore(e.id); setAsking(""); }}>Restore</Button>
+                      <Button size="sm" variant="ghost" disabled={busy} onClick={() => setAsking("")}>Cancel</Button>
+                    </>
+                  ) : (
+                    <Button size="sm" variant="outline" disabled={busy || locked} onClick={() => setAsking(e.id)}>Restore…</Button>
+                  )}
+                </span>
+              </div>
+              {e.changes.length > 0 && (
+                <ul className="mt-2 list-disc space-y-0.5 ps-5 text-xs text-[var(--ad-muted-foreground)]">
+                  {e.changes.map((c, i) => <li key={i}>{words(c)}</li>)}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

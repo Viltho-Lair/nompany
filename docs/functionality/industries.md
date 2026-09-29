@@ -44,6 +44,31 @@ code's version**, the same shape the ERP settings' trades already had.
   a second earlier in another tab wins. Locking a built-in the console never changed stores the
   code's version, locked, so it also holds still against a later release.
 
+## History and restore
+
+The owner, 29/09/2026: "per created industry a version history is reasonable, with a restore
+button." Every change to an industry appends to **that industry's own history**
+(`INDUSTRY.history(key)`): the industry as it was **before**, who changed it (the console
+admin's email) and when. This covers every change: added, saved, locked, unlocked, reverted and
+restored. /super → Industries → **History** lists them newest first, each described in words
+(`describeChange`: names, sentence, on/off, lock, sections added or removed, departments and
+specialisms added, removed or edited).
+
+**Restore puts back the version from before a change**, undoing that change and everything after
+it. It is refused while the industry is locked and is checked like any save. A version that no
+longer passes (a section since removed from the product, say) is refused by name rather than
+written. **A restore is itself a change**, so it appears in the history and can be undone the same
+way. Two rules (`restoredVersion`):
+
+- A specialism added after the restored version is **kept, switched off**, never dropped, because
+  it may already be a studio's answer.
+- The restored version arrives **unlocked**. The lock guards the industry and is not part of what
+  it says.
+
+The history is written **after** the change, as a second document. A crash between the two loses
+one entry, never the change. A refused change records nothing. Each industry keeps its last
+**50** versions.
+
 **A PROFILE IS A SEED.** Editing one changes the next studio created, never one that exists.
 Its switches and org chart are its own from the first minute.
 
@@ -104,9 +129,7 @@ filtering. Every existing dropdown carries no group and is unchanged.
 - **The profile is per industry, not per specialism.** A pharma company under Healthcare gets
   Healthcare's sections and org chart. Service actions, roles and the deal flow do follow the
   specialism's template.
-- **No before-and-after.** Every console write is in the audit log (who, and which call), but
-  not what the industry looked like before it, so a mistaken save cannot be undone from the log;
-  the lock is the guard against one.
+- **History is capped at 50 versions per industry.** Older ones fall off; nothing warns first.
 - **The registration questionnaire and the company profile still ask their own industry**
   from `src/lib/industries.ts`, a third list with its own wording. It should be folded into
   this one so a company is not asked the same thing two ways.

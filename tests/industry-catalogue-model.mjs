@@ -113,5 +113,26 @@ ok("the create screen is handed the console's list, not the code's", setup.indus
 const rows = P.industryOptions(cat, "en", "Something else");
 ok("every picker row carries its industry as the heading", rows.slice(0, -1).every((r) => r.group));
 
+console.log("\n== history: what a change did, and putting a version back");
+
+const v1 = built.find((i) => i.key === "healthcare");
+const v2 = { ...v1, active: false, profile: { ...v1.profile, sections: [...v1.profile.sections, "pos"] },
+  specialisms: [...v1.specialisms.map((s) => (s.key === "clinics" ? { ...s, en: "Clinics" } : s)), { key: "dental", en: "Dental", ar: "طب الأسنان", field: "Healthcare & Social Services", active: true }] };
+const said = C.describeChange(v1, v2);
+ok("a change is said in words: switched off", said.includes("Switched off"));
+ok("...a section added, by key", said.includes("Sections added: pos"));
+ok("...a specialism added and one renamed", said.includes("Specialisms added: Dental") && said.includes("Specialisms edited: Clinics"));
+ok("nothing moved says nothing", C.describeChange(v1, structuredClone(v1)).length === 0);
+ok("an industry that did not exist before was added", C.describeChange(null, v1)[0] === "Added");
+
+// Putting v1 back while v2 is live: the specialism added in v2 may already be
+// a studio's answer, so it stays — switched off — and the lock is not restored.
+const back = C.restoredVersion({ ...v1, locked: true }, v2);
+ok("restoring keeps a specialism added since, switched off",
+  back.specialisms.some((s) => s.key === "dental" && s.active === false));
+ok("...puts the old names and switches back", back.active === true && back.specialisms.find((s) => s.key === "clinics").en === v1.specialisms.find((s) => s.key === "clinics").en);
+ok("...and arrives unlocked", back.locked === false);
+ok("...and still passes the console's checks", C.industryProblems(back, roots, K.ALL_SECTION_KEYS, built).length === 0);
+
 console.log(fails ? `\nindustry catalogue: ${fails} FAILED` : "\nindustry catalogue: all passed");
 process.exit(fails ? 1 : 0);
