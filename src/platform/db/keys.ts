@@ -1526,7 +1526,7 @@ export const RESERVED_SLUGS = new Set([
   "f",
   // the public site: built, retired, and reserved for later
   "about", "careers", "contact", "customers", "platform", "pricing", "privacy",
-  "security", "terms", "cookies",
+  "security", "terms", "cookies", "industries",
   "clients", "features", "projects", "services", "vendors",
   "blog", "changelog", "docs", "help", "legal", "status", "support",
 ]);

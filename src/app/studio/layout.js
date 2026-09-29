@@ -10,6 +10,8 @@ import { withRequest } from "@/platform/http/observability";
 import { studioShell } from "./_shell";
 import { subscriptionDict } from "@/shared/studio/subscription";
 import { billingDict } from "@/shared/studio/billing";
+import { settingsDict } from "@/shared/studio/settings";
+import { needsIndustry } from "@/shared/industryCatalogue";
 
 // THE STUDIO'S SHELL, RESOLVED ONCE AND THEN LEFT ALONE.
 //
@@ -117,6 +119,7 @@ async function renderShell(children) {
           cannot be reused here. */}
       <StudioTracker />
       <BillingBanner billing={billing} locale={locale} slug={studio.slug} owner={collaborator.role === "owner"} />
+      {needsIndustry(studio) && can(access, "administration.settings.edit") && <IndustryBanner locale={locale} slug={studio.slug} />}
       {children}
     </StudioFrame>
     </StudioCurrencyProvider>
@@ -161,6 +164,25 @@ const billingHref = (locale, slug) => `/${locale}/account?view=billing&studio=${
 
 // Standard's free months are worth a warning only near their end.
 const TRIAL_WARNING_DAYS = 14;
+
+/**
+ * "CHOOSE YOUR INDUSTRY FROM THE NEW LIST" (29/09/2026). The owner: "current
+ * studios will need to update their fields, an alert to change the current to
+ * the new industry." Nothing is migrated for them — a studio on one of the old
+ * twenty-five fields keeps working exactly as before, and this line stays above
+ * every screen until somebody who may change Studio settings picks a
+ * specialism there. Only they see it: a member who cannot act on it would be
+ * nagged about somebody else's decision.
+ */
+function IndustryBanner({ locale, slug }) {
+  const t = settingsDict(locale);
+  return (
+    <div role="status" className="mx-4 mt-4 flex flex-wrap items-center gap-3 rounded-geex border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-100">
+      <span className="min-w-0 flex-1">{t.industryUpdateTitle}. {t.industryUpdateShort}</span>
+      <Link href={`/${slug}/administration-settings#industry`} className="shrink-0 font-display font-700 underline underline-offset-2">{t.industryUpdateLink}</Link>
+    </div>
+  );
+}
 
 /**
  * THE LINE ABOVE EVERY SCREEN while something about the subscription needs

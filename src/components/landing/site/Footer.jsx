@@ -10,6 +10,7 @@ import { chromeCopy } from "@/shared/marketing/chrome";
 import { heroCopy } from "@/shared/marketing/hero";
 import { homeCopy } from "@/shared/marketing/home";
 import { blogCopy } from "@/shared/marketing/blog";
+import { industriesCopy } from "@/shared/marketing/industries";
 import { cookiesCopy } from "@/shared/marketing/cookies";
 import { Forward } from "./Chrome";
 import { useSite } from "./locale";
@@ -51,6 +52,7 @@ export function CurtainFooter() {
   const groups = [
     [
       { href: `/${locale}/platform`, label: nav.platform },
+      { href: `/${locale}/industries`, label: industriesCopy(locale).title },
       { href: `/${locale}/pricing`, label: nav.pricing },
       { href: `/${locale}/security`, label: nav.security },
       { href: `/${locale}/contact`, label: nav.contact },

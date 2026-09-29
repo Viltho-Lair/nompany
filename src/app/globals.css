@@ -1565,6 +1565,11 @@ html.dark { color-scheme: dark; }
 .menu-search:focus { border-color: #8b7cff; box-shadow: 0 0 0 2px rgb(139 124 255 / 0.2); }
 .menu-list { overflow-y: auto; padding-block: 0.25rem; }
 .menu-empty { padding: 1.5rem 0.875rem; text-align: center; font-size: 0.875rem; color: var(--menu-muted); }
+/* A group heading inside a list (the industry above its specialisms). Not an
+   option: role=presentation, never highlighted, never chosen. */
+.menu-group { padding: 0.75rem 0.875rem 0.25rem; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--menu-muted); }
+.menu-group:first-child { padding-top: 0.375rem; }
+[dir="rtl"] .menu-group, .menu-panel[dir="rtl"] .menu-group { letter-spacing: normal; }
 .menu-row {
   display: flex;
   width: 100%;

@@ -5,7 +5,8 @@ import { useAccountLocale } from "@/components/public/locale";
 import { accountDict } from "@/shared/account";
 import { Icon } from "@/components/studio2/icons";
 import SelectMenu from "@/components/fields/SelectMenu";
-import { FIELDS_OF_WORK, OTHER_FIELD } from "@/shared/fieldsOfWork";
+import { OTHER_FIELD } from "@/shared/fieldsOfWork";
+import { OTHER_INDUSTRY, fieldForIndustry, industryLabel, industryOptions } from "@/shared/industryCatalogue";
 import { withNeeds } from "@/shared/tradeSections";
 import { COUNTRIES, codeOfCountry } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
@@ -80,7 +81,11 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   const [slug, setSlug] = useState("");
   const [touchedSlug, setTouchedSlug] = useState(false);
   const [status, setStatus] = useState(null);
-  const [field, setField] = useState("");
+  // The owner picks a SPECIALISM from the industry catalogue; the field of
+  // work everything below keys on is its template, derived rather than stored
+  // twice, so the two can never disagree (shared/industryCatalogue).
+  const [industry, setIndustry] = useState("");
+  const field = fieldForIndustry(industry);
   const [fieldOther, setFieldOther] = useState("");
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
@@ -213,8 +218,8 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name, slug: effectiveSlug,
-        fieldOfWork: field,
-        fieldOfWorkOther: field === OTHER_FIELD ? fieldOther : "",
+        industry,
+        fieldOfWorkOther: industry === OTHER_INDUSTRY ? fieldOther : "",
         country, city,
         erps: [...erps],
         erpOther: erps.has(ERP_OTHER) ? erpOther : "",
@@ -321,18 +326,18 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
               {/* SelectMenu, never a native <select> — see AccountHome's note. */}
               <SelectMenu
                 className={INPUT}
-                value={field}
-                onChange={setField}
+                value={industry}
+                onChange={setIndustry}
                 placeholder={tr.fieldOfWorkSkip}
+                searchPlaceholder={tr.fieldOfWorkSearch}
                 options={[
                   { value: "", label: tr.fieldOfWorkSkip },
-                  ...FIELDS_OF_WORK.map((f) => ({ value: f, label: f })),
-                  { value: OTHER_FIELD, label: OTHER_FIELD },
+                  ...industryOptions(locale, tr.fieldOfWorkOtherOption),
                 ]}
               />
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.fieldOfWorkHint}</p>
             </div>
-            {field === OTHER_FIELD && (
+            {industry === OTHER_INDUSTRY && (
               <div>
                 <label className={LABEL} htmlFor="studio-field-other">{tr.fieldOfWorkOtherLabel}</label>
                 <input id="studio-field-other" className={INPUT} value={fieldOther} maxLength={80}
@@ -395,7 +400,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
             <p className={SUB}>{t.departmentsLead}</p>
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-brand-500/5 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300">
               <span className="min-w-0 flex-1">
-                {field && field !== OTHER_FIELD ? t.suggestedFor(field) : t.suggestedNone}
+                {field && field !== OTHER_FIELD ? t.suggestedFor(industryLabel(industry, locale)) : t.suggestedNone}
               </span>
               {!matchesSuggestion && (
                 <button type="button" onClick={resetToSuggested}

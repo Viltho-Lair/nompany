@@ -80,6 +80,18 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
         "سعر واحد لكل موظف شهريا. مجاني لأول 3 أشهر للفرق من واحد إلى أربعة، وخطط مدفوعة من خمسة أفراد فأكثر. كل خطة تحمل المنتج كاملا.",
     },
   },
+  "/industries": {
+    en: {
+      title: "Industries — one ERP, set up for how your company works",
+      description:
+        "Sixteen industries and the specialisms inside them, from contracting and manufacturing to trading, retail, healthcare and professional services. Pick yours and your studio starts with the departments that fit it.",
+    },
+    ar: {
+      title: "المجالات — نظام واحد مهيأ لطريقة عمل شركتك",
+      description:
+        "ستة عشر مجالا والتخصصات داخلها، من المقاولات والتصنيع إلى التجارة والتجزئة والرعاية الصحية والخدمات المهنية. اختر مجالك ليبدأ الاستوديو بالأقسام التي تناسبه.",
+    },
+  },
   "/security": {
     en: {
       title: "Security — what protects your data",

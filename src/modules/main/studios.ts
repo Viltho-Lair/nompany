@@ -31,6 +31,7 @@ import { startingPlan } from "@/lib/data/catalog";
 import { loadCatalogues, costsNothing } from "@/lib/plans";
 import { startSubscription } from "@/lib/data/subscriptions";
 import { FIELDS_OF_WORK, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfWork";
+import { fieldForIndustry, isIndustryKey } from "@/shared/industryCatalogue";
 import {
   rootSectionsForTrade, sectionEnabledForTrade, tradeSuggestion, resolveSectionChoice, NEVER_GATED_KEYS, SECTION_NEEDS,
   type TradeSuggestion, type SetupCatalogue, type SectionChoiceInput,
@@ -225,13 +226,19 @@ export function studioSetupScreen(locale: string) {
 }
 
 export async function createStudio(
-  { ownerUserId, name, slug, ownerAlias = "", fieldOfWork = "", fieldOfWorkOther = "", sections }:
+  { ownerUserId, name, slug, ownerAlias = "", fieldOfWork = "", fieldOfWorkOther = "", industry = "", sections }:
   {
     ownerUserId?: string; name?: string; slug?: string; ownerAlias?: string;
     /** The trade, as a `FIELD_ACTION_MATRIX` key. "" is allowed and means not said yet. */
     fieldOfWork?: string;
     /** Free text, and only when the trade is `Other`. */
     fieldOfWorkOther?: string;
+    /**
+     * The specialism chosen from the industry catalogue (shared/industryCatalogue).
+     * When given it DECIDES the trade: `fieldOfWork` is its template, so the two
+     * can never disagree. Absent means an older caller that sent a trade alone.
+     */
+    industry?: string;
     /**
      * The departments the owner chose on the create screen. Absent means the
      * caller asked nothing (an older client, a script), and the trade decides
@@ -256,7 +263,9 @@ export async function createStudio(
   // section on, nothing seeded from a trade. Picking one for them would seed
   // somebody else's sections, service actions and org chart into a company that
   // never said what it does.
-  const trade = String(fieldOfWork || "").trim();
+  const chosenIndustry = String(industry || "").trim();
+  if (chosenIndustry && !isIndustryKey(chosenIndustry)) return { error: "field-invalid" };
+  const trade = chosenIndustry ? fieldForIndustry(chosenIndustry) : String(fieldOfWork || "").trim();
   if (trade && trade !== OTHER_FIELD && !FIELDS_OF_WORK.includes(trade)) {
     return { error: "field-invalid" };
   }
@@ -316,6 +325,7 @@ export async function createStudio(
       // nothing, which is what the matrix says about them.
       fieldOfWork: trade,
       fieldOfWorkOther: tradeOther,
+      industry: chosenIndustry,
       serviceActions: actionsForField(trade),
       // THE SECTIONS BELOW ARE ALREADY THIS TRADE'S ANSWER, so Studio settings
       // must not offer it back. Blank when the trade gates nothing.

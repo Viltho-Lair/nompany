@@ -62,6 +62,8 @@ type Strings = {
   fieldOfWorkHint: string;
   fieldOfWorkSkip: string;
   fieldOfWorkOtherLabel: string;
+  fieldOfWorkOtherOption: string;
+  fieldOfWorkSearch: string;
   pickFieldFromList: string;
   confirmEmail: string;
   confirmEmailAddressFirst: string;
@@ -355,6 +357,8 @@ const en: Strings = {
   fieldOfWorkHint: "Sets up the studio for your trade — which departments you get, what your teams do, and which sections are switched on. You can change all of it later.",
   fieldOfWorkSkip: "I'll set this up later",
   fieldOfWorkOtherLabel: "Tell us what you do",
+  fieldOfWorkOtherOption: "Something else",
+  fieldOfWorkSearch: "Search industries",
   pickFieldFromList: "Pick a field of work from the list.",
   confirmEmail: "Confirm email",
   confirmEmailAddressFirst: "Confirm your email address first.",
@@ -646,6 +650,8 @@ const ar: Strings = {
   fieldOfWorkHint: "يهيئ الاستوديو لمجال عملك — الأقسام التي تحصل عليها، وما تقوم به فرقك، وأي الأقسام تكون مفعلة. يمكنك تغيير ذلك كله لاحقا.",
   fieldOfWorkSkip: "سأحدد ذلك لاحقا",
   fieldOfWorkOtherLabel: "أخبرنا بما تعمل به",
+  fieldOfWorkOtherOption: "مجال آخر",
+  fieldOfWorkSearch: "ابحث في المجالات",
   pickFieldFromList: "اختر مجال عمل من القائمة.",
   confirmEmail: "تأكيد البريد",
   confirmEmailAddressFirst: "أكد بريدك الإلكتروني أولا.",

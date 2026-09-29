@@ -30,6 +30,9 @@ export async function POST(request: Request) {
     // Optional: a studio may decline, and gets every section on and nothing
     // seeded from a trade — the behaviour every studio had before this.
     fieldOfWork: body.fieldOfWork, fieldOfWorkOther: body.fieldOfWorkOther,
+    // The specialism from the industry catalogue; when sent it decides the
+    // trade above (shared/industryCatalogue).
+    industry: body.industry,
     // WHICH DEPARTMENTS THE COMPANY RUNS, answered on the create screen:
     // { roots: [...], offChildren: [...] }. Optional — a caller that sends
     // nothing gets the trade's answer, the behaviour before the screen asked.

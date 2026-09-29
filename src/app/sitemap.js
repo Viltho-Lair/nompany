@@ -3,6 +3,7 @@ import { urlFor, alternatesFor } from "@/lib/seo";
 import { listStudios } from "@/modules/main/studios";
 import { publicCompanies } from "@/shared/marketing/showcase";
 import { livePosts } from "@/lib/data/blog";
+import { INDUSTRY_CATALOGUE } from "@/shared/industryCatalogue";
 import lastmod from "./sitemap-lastmod.json";
 
 /* THE SITEMAP, AND ITS DATES ARE DERIVED NOW.
@@ -83,6 +84,21 @@ export default async function sitemap() {
   // would tell a crawler they are translations, and they are not. Read like the
   // customers gate above: a store that cannot be reached costs the posts, never
   // the sitemap.
+  // ONE PAGE PER INDUSTRY, dated with the index: the same sources decide what
+  // both say (shared/marketing/sitemapSources, "/industries").
+  for (const ind of INDUSTRY_CATALOGUE) {
+    const path = `/industries/${ind.key}`;
+    for (const locale of locales) {
+      entries.push({
+        url: urlFor(locale, path),
+        lastModified: new Date(`${lastmod["/industries"].date}T00:00:00Z`),
+        changeFrequency: "monthly",
+        priority: 0.7,
+        alternates: { languages: alternatesFor(path) },
+      });
+    }
+  }
+
   try {
     for (const locale of locales) {
       for (const post of await livePosts(locale)) {

@@ -45,6 +45,13 @@ export const SITEMAP_SOURCES: Record<string, string[]> = {
     "src/app/[locale]/(site)/pricing/page.js",
     "src/components/landing/pricing/PricingBoard.jsx",
   ],
+  "/industries": [
+    "src/app/[locale]/(site)/industries/page.js",
+    "src/app/[locale]/(site)/industries/[key]/page.js",
+    "src/components/landing/site/pages/industries/IndustryViews.jsx",
+    "src/shared/marketing/industries.ts",
+    "src/shared/industryCatalogue.ts",
+  ],
   "/security": [
     "src/app/[locale]/(site)/security/page.js",
     "src/components/landing/site/pages/security/SecurityBody.jsx",

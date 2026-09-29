@@ -49,8 +49,8 @@ import type { StudioRow } from "@/modules/main/studios";
 // because a copy of a cap is a copy free to disagree with the one that holds.
 export async function createStudioForUser(
   user: { id?: unknown },
-  { name, slug, fieldOfWork, fieldOfWorkOther, sections, company }:
-  { name?: unknown; slug?: unknown; fieldOfWork?: unknown; fieldOfWorkOther?: unknown; sections?: unknown; company?: CompanyInput },
+  { name, slug, fieldOfWork, fieldOfWorkOther, industry, sections, company }:
+  { name?: unknown; slug?: unknown; fieldOfWork?: unknown; fieldOfWorkOther?: unknown; industry?: unknown; sections?: unknown; company?: CompanyInput },
 ) {
   const cleanName = String(name || "").trim();
   if (!cleanName) return { error: "name" };
@@ -83,6 +83,7 @@ export async function createStudioForUser(
     ownerUserId: String(user.id), name: cleanName, slug: wanted, ownerAlias,
     fieldOfWork: String(fieldOfWork || ""),
     fieldOfWorkOther: String(fieldOfWorkOther || ""),
+    industry: String(industry || ""),
     // Passed through as sent, for the same reason as the trade: createStudio
     // holds the one list of departments that may be chosen.
     sections: sections === undefined ? undefined : (sections as { roots?: unknown; offChildren?: unknown }),

@@ -16,6 +16,8 @@ import { fmtDate } from "@/lib/format";
 import { Field } from "@/components/fields/Field";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
+import { OTHER_INDUSTRY, fieldForIndustry, industryLabel, industryOptions } from "@/shared/industryCatalogue";
+import { useStudioLocale } from "@/components/studio2/locale";
 import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
 import SettingsFold from "@/components/studio2/SettingsFold";
 import SigningPinSetting from "@/components/security/SigningPinSetting";
@@ -78,6 +80,7 @@ const hoursSummary = (h, words) => {
 };
 
 const BANNER_BAD = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
+const BANNER_WARN = "rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200";
 
 // `initial` is the /settings body the studio page answered in its own render,
 // read into the same state the loader fills, so the screen paints with the
@@ -822,6 +825,8 @@ function LegalInfo({ rows, canManage, onSave }) {
 // `save` here would 400 on every change (see the route's own comment).
 function ServiceActions({ slug, onTradeSaved }) {
   const tr = useT();
+  const locale = useStudioLocale();
+  const router = useRouter();
   const [data, setData] = useState(null); // GET body: fieldOfWork, serviceActions, usage, options, canManage…
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -844,6 +849,16 @@ function ServiceActions({ slug, onTradeSaved }) {
 
   useReload(load);
 
+  // THE STUDIO-WIDE ALERT LINKS HERE (`#industry`). The section loads its own
+  // data after the page has painted, so the browser's own jump to the anchor
+  // finds nothing yet; this makes it once the section exists.
+  const jumped = useRef(false);
+  useEffect(() => {
+    if (!data || jumped.current || typeof window === "undefined" || window.location.hash !== "#industry") return;
+    jumped.current = true;
+    document.getElementById("industry")?.scrollIntoView({ block: "start" });
+  }, [data]);
+
   // One writer for both kinds of edit, so a saved pool is always re-read from
   // the server rather than assumed — `nextPool` decides retire-vs-drop, this
   // component does not guess it.
@@ -861,27 +876,42 @@ function ServiceActions({ slug, onTradeSaved }) {
     // page's own settings read, which this component does not share. Without
     // this the offer appeared only after a full reload — which is exactly how a
     // trade change came to read as "the matrix did nothing".
-    if (patch.fieldOfWork !== undefined) onTradeSaved?.();
+    if (patch.fieldOfWork !== undefined || patch.industry !== undefined) onTradeSaved?.();
+    // The "choose your industry" line above every screen is drawn by the
+    // server layout, so it stays until the layout is asked again.
+    if (patch.industry !== undefined) router.refresh();
     return true;
   }
 
   // Nothing writes yet — the confirm dialog shows what would change first, using
   // the matrix constant locally (no round trip needed to preview it) and `usage`
   // already on hand from the GET.
-  function requestFieldChange(next) {
-    if (!data || !next || next === data.fieldOfWork) return;
+  // A SPECIALISM IS CHOSEN, not a field of work. When it starts from the
+  // template the studio already has, nothing about the setup moves, so it saves
+  // at once — that is how a studio answering "choose your new industry" with
+  // the suggestion is done in one click. A different template re-seeds the
+  // pool, which is what the confirm dialog exists to show first.
+  function requestIndustryChange(industry) {
+    if (!data || !industry || (industry === data.industry && !data.needsIndustry)) return;
+    const next = fieldForIndustry(industry);
+    if (next === data.fieldOfWork && industry !== OTHER_INDUSTRY) { put({ industry }); return; }
+    requestFieldChange(next, industry);
+  }
+
+  function requestFieldChange(next, industry) {
+    if (!data || !next) return;
     const nextActive = actionsForField(next);
     const added = nextActive.filter((a) => !data.serviceActions.includes(a));
     const leaving = data.serviceActions
       .filter((a) => !nextActive.includes(a))
       .map((a) => ({ action: a, count: data.usage[a] || 0 }));
-    setConfirmField({ next, added, leaving });
+    setConfirmField({ next, industry, added, leaving });
   }
 
   async function confirmFieldChange(otherLabel) {
     if (!confirmField) return;
     const ok = await put({
-      fieldOfWork: confirmField.next,
+      industry: confirmField.industry,
       fieldOfWorkOther: confirmField.next === OTHER_FIELD ? otherLabel : "",
     });
     if (ok) setConfirmField(null);
@@ -917,23 +947,36 @@ function ServiceActions({ slug, onTradeSaved }) {
   if (!data) return <p className={`${BANNER_BAD} mt-8`}>{tr.actionsLoadFailed}</p>;
 
   return (
-    <SettingsFold heading={tr.actionsHeading} attention={!!error}
+    <SettingsFold id="industry" heading={tr.actionsHeading} attention={!!error || data.needsIndustry}
       lead={<>{tr.actionsLead}{!data.canManage && tr.actionsAdminOnly}</>}>
 
       {error && <p className={`${BANNER_BAD} mt-3`}>{error}</p>}
+
+      {data.needsIndustry && (
+        <div className={`${BANNER_WARN} mt-4`} role="status">
+          <p className="font-600">{tr.industryUpdateTitle}</p>
+          <p className="mt-1">{tr.industryUpdateBody(data.fieldOfWork === OTHER_FIELD ? (data.fieldOfWorkOther || OTHER_FIELD) : data.fieldOfWork)}</p>
+          {data.canManage && data.suggestedIndustry && data.suggestedIndustry !== OTHER_INDUSTRY && (
+            <button className={`${BTN} mt-3`} disabled={busy} onClick={() => requestIndustryChange(data.suggestedIndustry)}>
+              {tr.industryUseSuggestion(industryLabel(data.suggestedIndustry, locale))}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="mt-4">
         <Field
           as="select"
           label={tr.industry}
-          value={data.fieldOfWork || ""}
-          onChange={requestFieldChange}
+          value={data.industry || ""}
+          onChange={requestIndustryChange}
           disabled={!data.canManage || busy}
-          options={[...data.options.fields, OTHER_FIELD]}
+          options={industryOptions(locale, tr.industryOther)}
+          inputProps={{ searchPlaceholder: tr.industrySearch }}
         />
       </div>
 
-      {data.fieldOfWork === OTHER_FIELD && (
+      {data.industry === OTHER_INDUSTRY && (
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <Field
             className="min-w-[220px] flex-1"
@@ -943,7 +986,7 @@ function ServiceActions({ slug, onTradeSaved }) {
             disabled={!data.canManage || busy}
           />
           {data.canManage && otherDraft !== (data.fieldOfWorkOther || "") && (
-            <button className={BTN_GHOST} disabled={busy} onClick={() => put({ fieldOfWork: OTHER_FIELD, fieldOfWorkOther: otherDraft })}>
+            <button className={BTN_GHOST} disabled={busy} onClick={() => put({ industry: OTHER_INDUSTRY, fieldOfWorkOther: otherDraft })}>
               {busy ? tr.saving : tr.saveLabel}
             </button>
           )}
@@ -990,6 +1033,7 @@ function ServiceActions({ slug, onTradeSaved }) {
         <ConfirmFieldChange
           from={data.fieldOfWork}
           to={confirmField.next}
+          toLabel={confirmField.industry === OTHER_INDUSTRY ? tr.industryOther : industryLabel(confirmField.industry, locale)}
           added={confirmField.added}
           leaving={confirmField.leaving}
           busy={busy}
@@ -1014,7 +1058,7 @@ function ServiceActions({ slug, onTradeSaved }) {
 // Shown BEFORE a field-of-work change is sent — the pool reseeds from the new
 // field's matrix row, so whoever picks it should see what that means before it
 // happens rather than discover it afterwards.
-function ConfirmFieldChange({ to, added, leaving, busy, onClose, onConfirm }) {
+function ConfirmFieldChange({ to, toLabel, added, leaving, busy, onClose, onConfirm }) {
   const tr = useT();
   const [otherLabel, setOtherLabel] = useState("");
   const panelRef = useRef(null);
@@ -1032,8 +1076,8 @@ function ConfirmFieldChange({ to, added, leaving, busy, onClose, onConfirm }) {
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
       <div ref={panelRef} className="relative w-full max-w-[480px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
         <div className="px-6 pt-6">
-          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{tr.switchTo(to)}</h3>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{tr.reseedsFrom(to)}</p>
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{tr.switchTo(toLabel || to)}</h3>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{tr.reseedsFrom(toLabel || to)}</p>
           {added.length > 0 && (
             <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
               <strong className="text-slate-900 dark:text-white">{tr.adds}</strong> {added.join("، ")}

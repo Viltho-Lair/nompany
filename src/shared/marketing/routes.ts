@@ -34,7 +34,7 @@ export const SHELL_PATHS = ["/platform", "/pricing", "/security", "/about", "/co
  * from a job board, often before they have seen anything else of the company,
  * so it is the worst one to leave wearing another site's chrome.
  */
-export const SHELL_PREFIXES = ["/careers", "/blog"] as const;
+export const SHELL_PREFIXES = ["/careers", "/blog", "/industries"] as const;
 
 /**
  * The auth screens. They do NOT render `MarketingShell` — they have their own

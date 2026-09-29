@@ -29,6 +29,7 @@ export default function SettingsFold({
   tone = "default",
   defaultOpen = false,
   attention = false,
+  id,
   children,
 }) {
   const ref = useRef(null);
@@ -39,6 +40,7 @@ export default function SettingsFold({
   return (
     <details
       ref={ref}
+      id={id}
       open={defaultOpen || undefined}
       className={`group mt-8 rounded-geex border p-5 ${danger ? "border-rose-200 dark:border-rose-500/30" : "border-slate-200/70 dark:border-white/10"}`}
     >

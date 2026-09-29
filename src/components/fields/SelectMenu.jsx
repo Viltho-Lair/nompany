@@ -71,7 +71,7 @@ function normalise(options) {
   return options.map((o) =>
     typeof o === "string" || typeof o === "number"
       ? { value: String(o), label: String(o) }
-      : { value: String(o.value ?? ""), label: String(o.label ?? o.value ?? ""), disabled: !!o.disabled },
+      : { value: String(o.value ?? ""), label: String(o.label ?? o.value ?? ""), disabled: !!o.disabled, group: o.group ? String(o.group) : "" },
   );
 }
 
@@ -82,13 +82,23 @@ function rankFilter(rows, query) {
   const q = query.trim().toLowerCase();
   if (!q) return rows;
   const rank = (r) => {
-    const s = r.label.toLowerCase();
-    if (s.startsWith(q)) return 0;
-    if (s.split(/[\s\-/(,]+/).some((w) => w.startsWith(q))) return 1;
-    if (s.includes(q)) return 2;
-    return 3;
+    // A row's GROUP is searched too, one rank lower than its own words — typing
+    // "construction" should find all seven construction specialisms, and a row
+    // whose own name matches should still come first.
+    const own = rankText(r.label.toLowerCase(), q);
+    return r.group ? Math.min(own, rankText(r.group.toLowerCase(), q) + 1) : own;
   };
-  return rows.filter((r) => rank(r) < 3).sort((a, b) => rank(a) - rank(b));
+  const hits = rows.filter((r) => rank(r) < 3);
+  // A GROUPED list keeps its order: re-ranking would scatter one heading's
+  // rows among another's and draw the same heading twice.
+  return rows.some((r) => r.group) ? hits : hits.sort((a, b) => rank(a) - rank(b));
+}
+
+function rankText(s, q) {
+  if (s.startsWith(q)) return 0;
+  if (s.split(/[\s\-/(,]+/).some((w) => w.startsWith(q))) return 1;
+  if (s.includes(q)) return 2;
+  return 3;
 }
 
 export default function SelectMenu({
@@ -353,7 +363,12 @@ export default function SelectMenu({
             )}
             {shown.map((r, i) => {
               const isSelected = r.value === String(value ?? "");
-              return (
+              // A heading where the group changes — drawn beside the rows, not
+              // as one, so the keyboard and the ids keep counting options only.
+              const heading = r.group && r.group !== shown[i - 1]?.group
+                ? <li key={`g-${r.group}-${i}`} role="presentation" className="menu-group">{r.group}</li>
+                : null;
+              return [heading, (
                 <li key={`${r.value}-${i}`} id={`${listId}-${i}`} data-i={i} role="option" aria-selected={isSelected} aria-disabled={r.disabled || undefined}>
                   <button
                     type="button"
@@ -380,7 +395,7 @@ export default function SelectMenu({
                     )}
                   </button>
                 </li>
-              );
+              )];
             })}
           </ul>
         </div>,

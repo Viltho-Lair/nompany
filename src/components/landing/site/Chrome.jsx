@@ -20,6 +20,7 @@ import { initialsOf } from "@/lib/initials";
 import { getDict } from "@/shared/i18n";
 import { LANGUAGE_NAMES, LANGUAGE_SHORT, locales } from "@/shared/locale";
 import { blogCopy } from "@/shared/marketing/blog";
+import { industriesCopy } from "@/shared/marketing/industries";
 import { chromeCopy } from "@/shared/marketing/chrome";
 import { useSite } from "./locale";
 import { Cta, EASE, SPRING } from "./primitives";
@@ -116,6 +117,7 @@ export function SiteNav() {
 
   const links = [
     { href: `/${locale}/platform`, label: nav.platform },
+    { href: `/${locale}/industries`, label: industriesCopy(locale).title },
     { href: `/${locale}/pricing`, label: nav.pricing },
     { href: `/${locale}/security`, label: nav.security },
     { href: `/${locale}/about`, label: nav.about },

@@ -158,6 +158,13 @@ type Strings = {
   actionsAdminOnly: string;
   actionsLoadFailed: string;
   industry: string;
+  industryOther: string;
+  industrySearch: string;
+  industryUpdateTitle: string;
+  industryUpdateBody: (old: string) => string;
+  industryUseSuggestion: (name: string) => string;
+  industryUpdateShort: string;
+  industryUpdateLink: string;
   ownLabel: string;
   saveLabel: string;
   standardActions: string;
@@ -434,6 +441,13 @@ const en: Strings = {
   actionsAdminOnly: " Only an admin can change this.",
   actionsLoadFailed: "We couldn't load service actions.",
   industry: "Type of industry",
+  industryOther: "Something else",
+  industrySearch: "Search industries",
+  industryUpdateTitle: "Choose your industry from the new list",
+  industryUpdateBody: (old) => `Industries are now grouped the way companies describe themselves, with a specialism inside each. Your studio is still on the old category “${old}”. Pick the specialism that fits you best — choosing one set up like your current category changes nothing else.`,
+  industryUseSuggestion: (name) => `Use “${name}”`,
+  industryUpdateShort: "Industries are now grouped with a specialism inside each, and your studio is still on the old list.",
+  industryUpdateLink: "Choose your industry",
   ownLabel: "Field of work (your own label)",
   saveLabel: "Save label",
   standardActions: "Standard actions",
@@ -717,6 +731,13 @@ const ar: Strings = {
   actionsAdminOnly: " لا يمكن تغيير هذا إلا لمسؤول.",
   actionsLoadFailed: "تعذر تحميل إجراءات الخدمة.",
   industry: "نوع النشاط",
+  industryOther: "مجال آخر",
+  industrySearch: "ابحث في المجالات",
+  industryUpdateTitle: "اختر مجالك من القائمة الجديدة",
+  industryUpdateBody: (old) => `أصبحت المجالات مصنفة كما تصف الشركات نفسها، وفي كل مجال تخصصات. ما زال الاستوديو على التصنيف القديم «${old}». اختر التخصص الأقرب إليك — واختيار تخصص مهيأ مثل تصنيفك الحالي لا يغير شيئا آخر.`,
+  industryUseSuggestion: (name) => `اعتمد «${name}»`,
+  industryUpdateShort: "أصبحت المجالات مصنفة وفي كل منها تخصصات، وما زال الاستوديو على القائمة القديمة.",
+  industryUpdateLink: "اختر مجالك",
   ownLabel: "مجال العمل (تسميتك الخاصة)",
   saveLabel: "حفظ التسمية",
   standardActions: "الإجراءات القياسية",

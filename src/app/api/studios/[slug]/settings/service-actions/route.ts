@@ -4,6 +4,7 @@ import { studioContext } from "@/lib/studios";
 import { requirePermission } from "@/platform/access";
 import { updateStudio } from "@/modules/main/studios";
 import { FIELDS_OF_WORK, SERVICE_ACTIONS, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfWork";
+import { fieldForIndustry, isIndustryKey, needsIndustry, suggestedIndustry } from "@/shared/industryCatalogue";
 import { nextPool, cleanNextActive, serviceActionUsage } from "@/modules/studioServiceActions";
 import type { User } from "@/platform/auth/users";
 
@@ -30,6 +31,11 @@ async function payload(user: User, slug: string) {
     body: {
       fieldOfWork: String(studio.fieldOfWork ?? ""),
       fieldOfWorkOther: String(studio.fieldOfWorkOther ?? ""),
+      // The specialism the studio chose, and — while it is still on the old
+      // list — the one that starts from its current setup, to offer first.
+      industry: isIndustryKey(studio.industry) ? String(studio.industry) : "",
+      needsIndustry: needsIndustry(studio),
+      suggestedIndustry: needsIndustry(studio) ? suggestedIndustry(studio.fieldOfWork) : "",
       serviceActions: arr(studio.serviceActions),
       retiredServiceActions: arr(studio.retiredServiceActions),
       // usage is manager-only: it exists so the manage-side edit alerts can warn
@@ -77,7 +83,23 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
 
   const patch: Record<string, unknown> = {};
 
-  if ("fieldOfWork" in raw) {
+  if ("industry" in raw) {
+    // A SPECIALISM FROM THE CATALOGUE. It writes the industry and, through its
+    // template, the field of work. When the template is the field the studio
+    // already has — every studio answering the "choose your new industry" alert
+    // with the suggestion does exactly this — nothing else moves: the pool is
+    // not re-seeded, so a studio's own edits to it survive the answer.
+    if (!isIndustryKey(raw.industry)) return Response.json({ error: "field" }, { status: 400 });
+    const field = fieldForIndustry(raw.industry);
+    patch.industry = String(raw.industry);
+    patch.fieldOfWorkOther = field === OTHER_FIELD ? String(raw.fieldOfWorkOther ?? studio.fieldOfWorkOther ?? "").slice(0, 80) : "";
+    if (field !== String(studio.fieldOfWork ?? "")) {
+      patch.fieldOfWork = field;
+      const seeded = nextPool({ prevActive, prevRetired, nextActive: actionsForField(field), referenced });
+      patch.serviceActions = seeded.serviceActions;
+      patch.retiredServiceActions = seeded.retiredServiceActions;
+    }
+  } else if ("fieldOfWork" in raw) {
     // Setting or changing the field RE-SEEDS the standard pool from its matrix
     // row (empty for "Other"); a referenced action the new field drops is
     // retired, not deleted, so an in-use item never loses its scope silently.
