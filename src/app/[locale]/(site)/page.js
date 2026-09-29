@@ -4,6 +4,8 @@ import JsonLd from "@/components/JsonLd";
 import { platformStatLines } from "@/components/landing/sections/PlatformStats";
 import { HomePage } from "@/components/landing/site/HomePage";
 import { liveDepartments } from "@/shared/marketing/departments";
+import { livePostCards } from "@/lib/data/blog";
+import { blogCopy } from "@/shared/marketing/blog";
 
 // The public home page, in the new design (27/09/2026). It lives in the
 // `(site)` group, whose layout mounts the new chrome once; the address is
@@ -11,7 +13,7 @@ import { liveDepartments } from "@/shared/marketing/departments";
 //
 // NO `force-dynamic`: every read goes through the minute cache in
 // lib/data/publicLanding (the pricing for the schema, the featured companies,
-// the nightly platform figures). It still renders dynamically — the root layout
+// the nightly platform figures, the newest blog posts). It still renders dynamically — the root layout
 // reads a cookie — but it does not opt out of the data cache while doing so.
 
 export async function generateMetadata({ params }) {
@@ -21,11 +23,15 @@ export async function generateMetadata({ params }) {
 
 export default async function Home({ params }) {
   const { locale } = await params;
-  const [pricing, companies, stats] = await Promise.all([
+  const [pricing, companies, stats, posts] = await Promise.all([
     landingPricing(),
     featuredCompanies(),
     platformStatLines(locale),
+    // The three newest in the reader's language. A failed read hides the strip
+    // rather than the home page: the blog is the least of what this page is for.
+    livePostCards(locale, 3).catch(() => []),
   ]);
+  const { minutes: _minutes, ...blogTr } = blogCopy(locale);
 
   // Every department, named in the reader's language and in the other one,
   // read from the software itself. Joined by key so the two lists cannot pair
@@ -44,6 +50,8 @@ export default async function Home({ params }) {
         departments={departments}
         stats={stats}
         companies={companies.map((c) => ({ name: c.name, logo: c.logo || "", sector: c.sector || "" }))}
+        posts={posts}
+        blogTr={blogTr}
       />
     </>
   );

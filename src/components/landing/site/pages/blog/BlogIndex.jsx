@@ -65,12 +65,12 @@ export function BlogIndex({ posts, tr }) {
               <p className="rounded-3xl bg-white/[0.025] p-10 text-white/60 ring-1 ring-inset ring-white/[0.07]">{tr.emptyCategory}</p>
             ) : (
               <>
-                <Card post={lead} tr={tr} locale={locale} i={0} wide />
+                <PostCard post={lead} tr={tr} locale={locale} i={0} wide />
                 {rest.length ? (
                   <ul className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {rest.map((p, k) => (
                       <li key={p.id}>
-                        <Card post={p} tr={tr} locale={locale} i={k + 1} />
+                        <PostCard post={p} tr={tr} locale={locale} i={k + 1} />
                       </li>
                     ))}
                   </ul>
@@ -84,7 +84,11 @@ export function BlogIndex({ posts, tr }) {
   );
 }
 
-function Card({ post, tr, locale, i, wide = false }) {
+/**
+ * One post as a card. Exported for the home page's "From the blog", which sits
+ * under its own h2 and so asks for an h3 (`Heading`).
+ */
+export function PostCard({ post, tr, locale, i, wide = false, Heading = "h2" }) {
   const reveal = useInViewReveal(Math.min(i, 5) * 0.07, CELL_IN, 0.2);
   const mx = useMotionValue(-600);
   const my = useMotionValue(-600);
@@ -131,11 +135,11 @@ function Card({ post, tr, locale, i, wide = false }) {
           <time dateTime={post.publishedAt}>{post.date}</time>
           <span>{post.readTime}</span>
         </p>
-        <h2 className={`mt-4 font-medium leading-snug tracking-[-0.02em] rtl:tracking-normal ${wide ? "text-[1.8rem] md:text-[2.4rem] md:leading-[1.1]" : "text-[1.3rem]"}`}>
+        <Heading className={`mt-4 font-medium leading-snug tracking-[-0.02em] rtl:tracking-normal ${wide ? "text-[1.8rem] md:text-[2.4rem] md:leading-[1.1]" : "text-[1.3rem]"}`}>
           <Link href={href} className="after:absolute after:inset-0 after:z-20 focus-visible:outline-none">
             {post.title}
           </Link>
-        </h2>
+        </Heading>
         <p className={`mt-3 leading-relaxed text-white/60 ${wide ? "text-[16px]" : "line-clamp-3 text-[15px]"}`}>{post.excerpt}</p>
         <span className="mt-6 inline-flex items-center gap-2 text-[14px] text-[#c9c2ff] group-hover:text-white">
           {tr.read}

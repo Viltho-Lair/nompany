@@ -16,6 +16,8 @@ type BlogStrings = {
   minutes: (n: number) => string;
   back: string;
   more: string;
+  /** The home page's strip of the newest posts. */
+  latestTitle: string;
   filterLabel: string;
 };
 
@@ -30,6 +32,7 @@ const en: BlogStrings = {
   minutes: (n) => `${n} min read`,
   back: "All posts",
   more: "More from the blog",
+  latestTitle: "From the blog",
   filterLabel: "Show posts about",
 };
 
@@ -48,6 +51,7 @@ const ar: BlogStrings = {
     n === 1 ? "قراءة دقيقة واحدة" : n === 2 ? "قراءة دقيقتين" : n <= 10 ? `قراءة ${n} دقائق` : `قراءة ${n} دقيقة`,
   back: "كل التدوينات",
   more: "المزيد من المدونة",
+  latestTitle: "من المدونة",
   filterLabel: "اعرض التدوينات عن",
 };
 

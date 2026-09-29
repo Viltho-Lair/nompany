@@ -2,10 +2,8 @@ import { notFound } from "next/navigation";
 import JsonLd from "@/components/JsonLd";
 import { PageHero } from "@/components/landing/site/PageHero";
 import { BlogIndex } from "@/components/landing/site/pages/blog/BlogIndex";
-import { livePosts } from "@/lib/data/blog";
-import { fmtDate } from "@/lib/format";
+import { livePostCards } from "@/lib/data/blog";
 import { breadcrumbLd, buildMetadata, urlFor } from "@/lib/seo";
-import { readingMinutes } from "@/shared/blog";
 import { getDict, isLocale } from "@/shared/i18n";
 import { blogCopy } from "@/shared/marketing/blog";
 
@@ -24,20 +22,7 @@ export default async function BlogPage({ params }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const tr = blogCopy(locale);
-  const posts = (await livePosts(locale)).map((p) => ({
-    id: p.id,
-    slug: p.slug,
-    title: p.title,
-    excerpt: p.excerpt,
-    category: p.category,
-    cover: p.cover,
-    coverAlt: p.coverAlt,
-    publishedAt: p.publishedAt,
-    date: fmtDate(p.publishedAt),
-    // Resolved here: the phrase is a function of the count (Arabic agrees
-    // with its number), and a function cannot cross to a client component.
-    readTime: tr.minutes(readingMinutes(p.blocks)),
-  }));
+  const posts = await livePostCards(locale);
   const { minutes: _minutes, ...strings } = tr;
   const dict = getDict(locale);
 

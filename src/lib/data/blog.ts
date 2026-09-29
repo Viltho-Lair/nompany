@@ -12,7 +12,9 @@
 import { editArr, readArr } from "@/platform/db/store";
 import type { Row } from "@/platform/db/store";
 import { ID, SITE } from "@/platform/db/keys";
-import { byPublished, cleanPost, isLive, publishProblem, type BlogPost } from "@/shared/blog";
+import { byPublished, cleanPost, isLive, publishProblem, readingMinutes, type BlogPost } from "@/shared/blog";
+import { blogCopy } from "@/shared/marketing/blog";
+import { fmtDate } from "@/lib/format";
 import { publicCached } from "./publicSettings";
 
 const KEY = SITE.collection("blog");
@@ -108,4 +110,28 @@ export async function livePosts(locale: string): Promise<BlogPost[]> {
 export async function livePost(locale: string, slug: string): Promise<BlogPost | null> {
   const want = decodeURIComponent(slug).normalize("NFKC").toLowerCase();
   return (await livePosts(locale)).find((p) => p.slug === want) || null;
+}
+
+/**
+ * The live posts in one language as the site's cards draw them, newest first —
+ * `limit` of them, or all. Shared by the blog's list and the home page's
+ * "From the blog", so the two cannot phrase a date or a reading time
+ * differently. Everything is resolved here, on the server: the reading-time
+ * phrase is a function of the count (Arabic agrees with its number), and a
+ * function cannot cross to a client component.
+ */
+export async function livePostCards(locale: string, limit = Infinity) {
+  const tr = blogCopy(locale);
+  return (await livePosts(locale)).slice(0, limit).map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    title: p.title,
+    excerpt: p.excerpt,
+    category: p.category,
+    cover: p.cover,
+    coverAlt: p.coverAlt,
+    publishedAt: p.publishedAt,
+    date: fmtDate(p.publishedAt),
+    readTime: tr.minutes(readingMinutes(p.blocks)),
+  }));
 }

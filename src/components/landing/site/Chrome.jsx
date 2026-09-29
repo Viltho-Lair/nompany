@@ -19,6 +19,7 @@ import { useAccount } from "@/components/landing/nav/useAccount";
 import { initialsOf } from "@/lib/initials";
 import { getDict } from "@/shared/i18n";
 import { LANGUAGE_NAMES, LANGUAGE_SHORT, locales } from "@/shared/locale";
+import { blogCopy } from "@/shared/marketing/blog";
 import { chromeCopy } from "@/shared/marketing/chrome";
 import { useSite } from "./locale";
 import { Cta, EASE, SPRING } from "./primitives";
@@ -118,6 +119,7 @@ export function SiteNav() {
     { href: `/${locale}/pricing`, label: nav.pricing },
     { href: `/${locale}/security`, label: nav.security },
     { href: `/${locale}/about`, label: nav.about },
+    { href: `/${locale}/blog`, label: blogCopy(locale).title },
     { href: `/${locale}/contact`, label: nav.contact },
   ];
   const langOptions = locales.map((code) => ({

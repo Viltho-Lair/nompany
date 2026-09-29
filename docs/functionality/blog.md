@@ -50,7 +50,14 @@ post is in the server HTML). A post: category, date, reading time (Arabic agrees
 number), title, summary, the cover, the body at a reading measure, and up to three more posts.
 SEO: metadata from the post (title, summary, cover as the share image, `article` times),
 BlogPosting and breadcrumb JSON-LD, and each live post in the sitemap dated by its last edit.
-A draft, a scheduled post and a slug nobody wrote all answer 404. The footer links to the blog.
+A draft, a scheduled post and a slug nobody wrote all answer 404.
+
+**Where a reader finds it** (29/09/2026): Blog is in the top menu and the footer, and the home
+page shows the three newest posts in the reader's language under "From the blog", with the
+blog's own card (`LatestPosts`, reading `livePostCards`, which the blog list shares). The strip
+is absent — not an empty box — when that language has no live post, and a failed read hides the
+strip rather than the home page. Until then the only way in was the footer, so a published post
+looked, from the home page, as if it did not exist.
 
 Tests: `tests/blog-model.mjs`.
 
@@ -59,4 +66,6 @@ Tests: `tests/blog-model.mjs`.
 - Deleting a post leaves its cover and images in media storage (another post may use them).
 - No preview of a draft on the site itself; the console shows the fields, not the page.
 - No tags, search, pagination or RSS feed; the list shows every live post.
+- A publish does not clear the public cache: a post shows within a minute or two (the first
+  load after the minute can still serve the old list), not on the next load.
 - No per-post author name on the page; posts are signed by nompany.
