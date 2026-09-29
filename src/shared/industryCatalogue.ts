@@ -42,8 +42,17 @@ export type Specialism = {
   key: string;
   en: string;
   ar: string;
-  /** The field of work whose service actions, roles and deal flow it starts from. */
+  /** The field of work whose service actions and roles it starts from. */
   field: string;
+  /**
+   * THE DEAL FLOW a new deal in a studio of this specialism starts on — a flow
+   * template id. "" INHERITS: the flow its field of work starts on in the trade
+   * map (the code's, with whatever the console set there before 29/09/2026),
+   * which is what every studio got before this field existed. Moved here from
+   * ERP settings' trade table on the owner's instruction (29/09/2026), so one
+   * page says everything about an industry.
+   */
+  flow: string;
   /** Offered to new studios. A studio that already chose it keeps it either way. */
   active: boolean;
 };
@@ -71,7 +80,7 @@ export type Industry = {
   builtIn: boolean;
 };
 
-type BuiltInSpecialism = Omit<Specialism, "active">;
+type BuiltInSpecialism = Omit<Specialism, "active" | "flow">;
 type BuiltIn = { key: string; en: string; ar: string; specialisms: BuiltInSpecialism[] };
 
 const s = (key: string, en: string, ar: string, field: string): BuiltInSpecialism => ({ key, en, ar, field });
@@ -313,7 +322,7 @@ function builtInIndustry(b: BuiltIn): Industry {
       sections: [...withNeeds([...(FOCUS[b.key] || []), ...BACK_OFFICE])],
       departments: departmentsForField(primaryField(b)),
     },
-    specialisms: b.specialisms.map((sp) => ({ ...sp, active: true })),
+    specialisms: b.specialisms.map((sp) => ({ ...sp, flow: "", active: true })),
     builtIn: true,
   };
 }
@@ -362,7 +371,7 @@ export function cleanIndustry(raw: unknown, builtIn: boolean): Industry {
     },
     specialisms: specialisms.map((sp) => {
       const x = (sp && typeof sp === "object" ? sp : {}) as Record<string, unknown>;
-      return { key: text(x.key, 60), en: text(x.en, 120), ar: text(x.ar, 120), field: text(x.field, 120), active: x.active !== false };
+      return { key: text(x.key, 60), en: text(x.en, 120), ar: text(x.ar, 120), field: text(x.field, 120), flow: text(x.flow, 8), active: x.active !== false };
     }),
     builtIn,
   };
@@ -372,7 +381,9 @@ export function cleanIndustry(raw: unknown, builtIn: boolean): Industry {
  * WHAT IS WRONG WITH ONE INDUSTRY, as a list of codes the console translates.
  * `rootKeys` are the sections a profile may switch on (the product's root
  * departments); `allSectionKeys` is every section a department may point at,
- * Administration included; `others` is the rest of the
+ * Administration included; `flowIds` are the deal flows a specialism may start
+ * on (the built-in templates — this list seeds every studio, so it may only
+ * name a flow every studio has); `others` is the rest of the
  * catalogue, because a specialism key must be unique across ALL industries — a
  * studio stores the specialism alone, and two industries sharing one would
  * make which industry a studio is in a coin toss.
@@ -381,6 +392,7 @@ export function industryProblems(
   ind: Industry,
   rootKeys: readonly string[],
   allSectionKeys: readonly string[],
+  flowIds: readonly string[],
   others: readonly Industry[],
 ): string[] {
   const out: string[] = [];
@@ -395,6 +407,7 @@ export function industryProblems(
     seen.add(sp.key);
     if (!sp.en || !sp.ar) out.push(`specialism-name:${sp.key}`);
     if (!FIELDS_OF_WORK.includes(sp.field)) out.push(`specialism-field:${sp.key}`);
+    if (sp.flow && !flowIds.includes(sp.flow)) out.push(`specialism-flow:${sp.key}`);
   }
   if (!ind.profile.sections.length) out.push("no-sections");
   for (const k of ind.profile.sections) if (!rootKeys.includes(k)) out.push(`section:${k}`);
@@ -457,7 +470,7 @@ export function describeChange(before: Industry | null, after: Industry | null):
     .map((sp) => `${sp.en} ${sp.active ? "on" : "off"}`);
   const editedS = after.specialisms.filter((sp) => {
     const b = sb.get(sp.key);
-    return b && (b.en !== sp.en || b.ar !== sp.ar || b.field !== sp.field);
+    return b && (b.en !== sp.en || b.ar !== sp.ar || b.field !== sp.field || b.flow !== sp.flow);
   }).map((sp) => sp.en);
   if (addedS.length) out.push(`Specialisms added: ${addedS.join(", ")}`);
   if (goneS.length) out.push(`Specialisms dropped: ${goneS.join(", ")}`);

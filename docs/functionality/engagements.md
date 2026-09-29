@@ -248,9 +248,12 @@ to live once; 7 engagements proven.
 Every studio's Settings listed all twenty-five trades and all seven flows, so the product's
 catalogue read as that studio's own configuration.
 
-- **`/super` → ERP settings owns the trades** (`REG.erpIndustries`). The code's twenty-five are
-  the seed underneath: a console row replaces one, a reverted row falls back to it, and a trade
-  the code never had disappears when it is reverted. Adding a trade stopped being a release.
+- **The trades table left ERP settings on 29/09/2026.** Which flow a deal starts on is set per
+  SPECIALISM in `/super` → Industries (`docs/functionality/industries.md`). A studio's trade
+  flow now resolves in this order: the studio's own row for its trade, then its specialism's flow,
+  then the trade map. The trade map is the code's twenty-five plus what the console stored in
+  `REG.erpIndustries` before the move; it is still read and no longer written. Nothing moved for
+  any studio: a specialism with no flow inherits the trade map's answer.
 - **A studio's Settings shows its working set** — its own field of work's trade, any trade or
   flow live deals are already walking, and anything the studio itself edited or cloned, with
   the flows those trades start on and also run. What is left out is COUNTED on the screen

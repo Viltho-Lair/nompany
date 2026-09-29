@@ -24,6 +24,7 @@ import type { FlowTemplate } from "../engagement/templates";
 import { INDUSTRIES, industryProblems } from "../engagement/industries";
 import type { IndustryEntry } from "../engagement/industries";
 import { STAGE_REGISTRY } from "../engagement/registry";
+import { mergeIndustries } from "@/shared/industryCatalogue";
 
 const stageTypes = () => Object.keys(STAGE_REGISTRY);
 
@@ -150,29 +151,12 @@ export async function listPlatformIndustries(): Promise<IndustryEntry[]> {
   ).map(({ id: _id, ...rest }) => rest as IndustryEntry);
 }
 
-/**
- * ADD OR CHANGE ONE FOR THE WHOLE PRODUCT.
- *
- * REFUSED THE SAME WAY A STUDIO'S IS, against the BUILT-IN templates: this list
- * is the seed every studio reads, so it may only name a flow every studio has.
- * A studio pointing its own copy at its own clone is the layer below.
- */
-export async function writePlatformIndustry(entry: IndustryEntry): Promise<{ error: string } | { ok: true }> {
-  const problems = industryProblems(FLOW_TEMPLATES.map((t) => t.id), [entry]);
-  if (problems.length) return { error: problems[0] };
-  await editArr<IndustryEntry>(REG.erpIndustries, (rows) => {
-    const without = rows.filter((r) => r.key !== entry.key);
-    return { next: [...without, entry], result: undefined };
-  });
-  return { ok: true };
-}
-
-/** Take the console's row away again — the code's own answer returns with it. */
-export async function dropPlatformIndustry(key: string): Promise<void> {
-  await editArr<IndustryEntry>(REG.erpIndustries, (rows) => ({
-    next: rows.filter((r) => r.key !== key), result: undefined,
-  }));
-}
+// THE CONSOLE NO LONGER WRITES THIS LIST (29/09/2026). ERP settings' trade
+// table was retired when the owner moved "which flow a deal starts on" onto the
+// industry catalogue, per specialism (/super → Industries). What the console
+// stored here before that still applies — it is the INHERITED answer a
+// specialism with no flow of its own falls back to (defaultTemplateForTrade),
+// so retiring the table changed no studio's flow.
 
 export async function getIndustry(studioId: string, key: string): Promise<IndustryEntry | null> {
   return (await listIndustries(studioId)).find((i) => i.key === key) || null;
@@ -243,10 +227,32 @@ export async function defaultTemplateForStudio(studioId: string, industryKey: st
  * which is the same join `dealSpineFor` already uses at creation to decide the
  * studio's departments. One studio, one trade, one flow its work starts on.
  */
+//
+// AND THE STUDIO'S SPECIALISM NOW HAS ITS OWN ANSWER (29/09/2026). The owner
+// moved "which flow a deal starts on" out of ERP settings' trade table and onto
+// the industry catalogue (/super → Industries), per SPECIALISM — property
+// management and general contracting sit in one industry and walk different
+// flows. The order, most local first:
+//
+//   1. the studio's OWN row for its trade (Studio settings) — a studio that
+//      works its trade differently keeps saying so, as before;
+//   2. its specialism's flow, when the console set one;
+//   3. the trade map for its field (the code's, and whatever the console
+//      stored there before the move) — which is what every studio got until
+//      now, so nothing moves for a studio until somebody sets step 2.
 export async function defaultTemplateForTrade(studioId: string): Promise<string> {
-  const studios = await readArr<{ id: string; fieldOfWork?: string }>(REG.studios);
-  const field = String(studios.find((s) => s.id === studioId)?.fieldOfWork || "");
+  const studios = await readArr<{ id: string; fieldOfWork?: string; industry?: string }>(REG.studios);
+  const studio = studios.find((s) => s.id === studioId);
+  const field = String(studio?.fieldOfWork || "");
   if (!field) return "";
+  const own = (await readArr<IndustryEntry>(S.industries(studioId))).find((i) => i.field === field);
+  if (own?.primary) return own.primary;
+  const specialism = String(studio?.industry || "");
+  if (specialism) {
+    const catalogue = mergeIndustries(await readArr(REG.industryCatalogue));
+    const flow = catalogue.flatMap((i) => i.specialisms).find((sp) => sp.key === specialism)?.flow;
+    if (flow) return flow;
+  }
   const match = (await listIndustries(studioId)).find((i) => i.field === field);
   return match?.primary || "";
 }

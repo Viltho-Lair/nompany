@@ -138,6 +138,8 @@ export const REG = {
   // and it was a hardcoded list in `platform/engagement/industries` until now,
   // so adding one was a release. A studio still keeps its OWN row for a trade
   // it works differently (`S.industries`), which wins over this.
+  // NO LONGER WRITTEN (29/09/2026): the table moved to /super → Industries.
+  // Still READ, as the flow a specialism with none of its own inherits.
   erpIndustries: `${P}g:erpIndustries`,
   // WHAT A COMPANY SAYS IT DOES — the sixteen industries, their specialisms
   // and each industry's profile (29/09/2026, the owner: "i need to control

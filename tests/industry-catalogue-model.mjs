@@ -21,6 +21,8 @@ const F = await import("@/shared/fieldsOfWork");
 const K = await import("@/platform/db/keys");
 const M = await import("@/modules/main/studios");
 const IC = await import("@/shared/marketing/industries");
+const T = await import("@/platform/engagement/templates");
+const FLOWS = T.FLOW_TEMPLATES.map((t) => t.id);
 
 let fails = 0;
 const ok = (label, cond, extra = "") => {
@@ -35,7 +37,7 @@ const roots = M.studioSetupCatalogue().roots;
 console.log("\n== every built-in industry is valid as the console would check it");
 
 for (const ind of built) {
-  const problems = C.industryProblems(ind, roots, K.ALL_SECTION_KEYS, built);
+  const problems = C.industryProblems(ind, roots, K.ALL_SECTION_KEYS, FLOWS, built);
   ok(`${ind.key} passes the console's own checks`, problems.length === 0, problems.join("; "));
 }
 const used = new Set(specs.map((s) => s.field));
@@ -77,11 +79,11 @@ ok("...and keeps its lock", merged[0].locked === true);
 ok("an added industry comes after the built-ins, marked as added", merged.at(-1).key === "fitness" && !merged.at(-1).builtIn);
 ok("a stored row is cleaned on the way out", C.mergeIndustries([{ key: "x", en: 5, specialisms: "no" }]).at(-1).specialisms.length === 0);
 ok("a specialism key already used by another industry is refused",
-  C.industryProblems({ ...added, specialisms: [{ ...added.specialisms[0], key: "clinics" }] }, roots, K.ALL_SECTION_KEYS, merged).some((p) => p.startsWith("specialism-taken")));
+  C.industryProblems({ ...added, specialisms: [{ ...added.specialisms[0], key: "clinics" }] }, roots, K.ALL_SECTION_KEYS, FLOWS, merged).some((p) => p.startsWith("specialism-taken")));
 ok("a profile naming a section that is not a department is refused",
-  C.industryProblems({ ...added, profile: { ...added.profile, sections: ["nope"] } }, roots, K.ALL_SECTION_KEYS, merged).includes("section:nope"));
+  C.industryProblems({ ...added, profile: { ...added.profile, sections: ["nope"] } }, roots, K.ALL_SECTION_KEYS, FLOWS, merged).includes("section:nope"));
 ok("an org chart with a dangling parent is refused",
-  C.industryProblems({ ...added, profile: { ...added.profile, departments: [{ name: "A", code: "A", parent: "Z", sectionKeys: [] }] } }, roots, K.ALL_SECTION_KEYS, merged).some((p) => p.startsWith("department:")));
+  C.industryProblems({ ...added, profile: { ...added.profile, departments: [{ name: "A", code: "A", parent: "Z", sectionKeys: [] }] } }, roots, K.ALL_SECTION_KEYS, FLOWS, merged).some((p) => p.startsWith("department:")));
 
 console.log("\n== picking, and what switching off means");
 
@@ -113,6 +115,18 @@ ok("the create screen is handed the console's list, not the code's", setup.indus
 const rows = P.industryOptions(cat, "en", "Something else");
 ok("every picker row carries its industry as the heading", rows.slice(0, -1).every((r) => r.group));
 
+console.log("\n== the deal flow a specialism starts on");
+
+ok("every built-in specialism inherits its template's flow until the console sets one", specs.every((sp) => sp.flow === ""));
+ok("a specialism may name a real flow",
+  C.industryProblems({ ...added, specialisms: [{ ...added.specialisms[0], flow: FLOWS[0] }] }, roots, K.ALL_SECTION_KEYS, FLOWS, merged).length === 0);
+ok("...and is refused one that does not exist",
+  C.industryProblems({ ...added, specialisms: [{ ...added.specialisms[0], flow: "ZZ" }] }, roots, K.ALL_SECTION_KEYS, FLOWS, merged).includes("specialism-flow:gyms"));
+ok("a flow set on a specialism survives the console's merge",
+  C.mergeIndustries([{ ...added, specialisms: [{ ...added.specialisms[0], flow: "G" }] }]).at(-1).specialisms[0].flow === "G");
+ok("changing a specialism's flow is said as an edit",
+  C.describeChange(C.cleanIndustry(added, false), C.cleanIndustry({ ...added, specialisms: [{ ...added.specialisms[0], flow: "G" }] }, false)).includes("Specialisms edited: Gyms"));
+
 console.log("\n== history: what a change did, and putting a version back");
 
 const v1 = built.find((i) => i.key === "healthcare");
@@ -132,7 +146,7 @@ ok("restoring keeps a specialism added since, switched off",
   back.specialisms.some((s) => s.key === "dental" && s.active === false));
 ok("...puts the old names and switches back", back.active === true && back.specialisms.find((s) => s.key === "clinics").en === v1.specialisms.find((s) => s.key === "clinics").en);
 ok("...and arrives unlocked", back.locked === false);
-ok("...and still passes the console's checks", C.industryProblems(back, roots, K.ALL_SECTION_KEYS, built).length === 0);
+ok("...and still passes the console's checks", C.industryProblems(back, roots, K.ALL_SECTION_KEYS, FLOWS, built).length === 0);
 
 console.log(fails ? `\nindustry catalogue: ${fails} FAILED` : "\nindustry catalogue: all passed");
 process.exit(fails ? 1 : 0);

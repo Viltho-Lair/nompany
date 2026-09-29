@@ -23,7 +23,7 @@ contractors, clinics, pharmacies, restaurants or manpower supply.
 
 Storage is one document, `REG.industryCatalogue`, holding the console's rows only. A row
 replaces the built-in of the same key or adds a new industry. **Taking a row away returns the
-code's version**, the same shape the ERP settings' trades already had.
+code's version**, the shape ERP settings' trades table had before it was retired (below).
 
 ## What an industry is
 
@@ -43,6 +43,35 @@ code's version**, the same shape the ERP settings' trades already had.
   call and its own confirmation. The lock is checked inside the compare-and-set, so a lock set
   a second earlier in another tab wins. Locking a built-in the console never changed stores the
   code's version, locked, so it also holds still against a later release.
+
+## The deal flow, per specialism
+
+The owner, 29/09/2026, chose to move "which deal flow a studio's work starts on" out of
+ERP settings' trades table and into this page, so that one page says everything about an
+industry. Each specialism has **Deals start on**, a flow template (Contracting / Project,
+Make-to-Order, Trading, Field Service, Professional Services, Logistics Job File, Recurring
+Contract).
+
+It is set per specialism rather than per industry because one industry holds different kinds of
+work: general contracting runs projects, and property management runs recurring contracts.
+
+**Left empty, it inherits.** An empty flow takes its template's flow from the trade map: the
+code's twenty-five, plus what the console stored there before the move (`REG.erpIndustries`,
+still read and no longer written). The editor names that inherited flow. So the move changed
+**no studio's flow**, and nothing changes until somebody sets one here.
+
+`defaultTemplateForTrade` (`platform/db/flows`) resolves a studio's flow in this order:
+
+1. the studio's own row for its trade (Studio settings), which is unchanged;
+2. its specialism's flow, when set;
+3. the trade map.
+
+A deal's own flow, and its client's industry, still come before all three (`freezeTemplate`).
+
+**"Also common" did not move.** That second flow only ever decided which sections a new studio
+started with, and the profile's sections decide that now, so a per-specialism copy would be a
+setting nothing reads. **The trades table, its route (`/api/super/erp-industries`) and its write
+functions are deleted.** ERP settings keeps the KPIs.
 
 ## History and restore
 

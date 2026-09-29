@@ -22,6 +22,7 @@ import {
   BUILT_IN_KEYS, cleanIndustry, describeChange, industryProblems, keyFromName, mergeIndustries, restoredVersion, type Industry,
 } from "@/shared/industryCatalogue";
 import { studioSetupCatalogue } from "@/modules/main/studios";
+import { FLOW_TEMPLATES } from "@/platform/engagement/templates";
 
 const KEY = REG.industryCatalogue;
 
@@ -74,7 +75,7 @@ async function write(key: string, action: Action, by: string, change: (current: 
 }
 
 function checked(ind: Industry, all: Industry[]): Industry | { error: string; problems: string[] } {
-  const problems = industryProblems(ind, profileSectionKeys(), ALL_SECTION_KEYS, all);
+  const problems = industryProblems(ind, profileSectionKeys(), ALL_SECTION_KEYS, FLOW_TEMPLATES.map((t) => t.id), all);
   return problems.length ? { error: "invalid", problems } : ind;
 }
 

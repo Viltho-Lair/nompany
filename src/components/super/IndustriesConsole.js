@@ -17,8 +17,9 @@ import { fmtDateTime } from "@/lib/format";
 //   Active         off: not offered to NEW studios and not on the website; a
 //                  studio that already chose it keeps working exactly as before
 //   Specialisms    what a company actually picks. Each starts from one of the
-//                  25 setup templates (service actions, roles, deal flow). A
-//                  saved one is switched off, never removed — studios hold it
+//                  25 setup templates (service actions, roles) and names the
+//                  deal flow its deals start on — or inherits its template's.
+//                  A saved one is switched off, never removed — studios hold it
 //   Sections       the departments a new studio starts with switched on. Only
 //                  pre-filled: the owner may add any other at creation or later
 //   Departments    the org chart seeded into a new studio's department register
@@ -43,7 +44,7 @@ const blankIndustry = () => ({
     { name: "Human Resources", code: "HR", parent: "", sectionKeys: ["hr"] },
     { name: "Administration", code: "ADM", parent: "", sectionKeys: ["administration"] },
   ] },
-  specialisms: [{ key: "", en: "", ar: "", field: "", active: true }],
+  specialisms: [{ key: "", en: "", ar: "", field: "", flow: "", active: true }],
   builtIn: false,
 });
 
@@ -59,6 +60,7 @@ function explain(problem) {
     "specialism-taken": `Specialism “${what}” already exists — in this industry or another. Names must be unique across all industries.`,
     "specialism-name": `Specialism “${what}” needs a name in English and in Arabic.`,
     "specialism-field": `Specialism “${what}” needs a setup template.`,
+    "specialism-flow": `Specialism “${what}” starts on a deal flow that does not exist.`,
     "no-sections": "Choose at least one section a new studio starts with.",
     section: `“${what}” is not a department a studio can switch on.`,
     "no-departments": "Add at least one department to the org chart.",
@@ -111,7 +113,7 @@ export default function IndustriesConsole() {
   if (error && !data) return <p className={muted}>{error}</p>;
   if (!data) return <p className={muted}>Loading…</p>;
 
-  const { industries = [], options = { sections: [], departmentSections: [], fields: [] } } = data;
+  const { industries = [], options = { sections: [], departmentSections: [], fields: [], flows: [], inherited: {} } } = data;
   const sectionName = (k) => [...options.sections, ...options.departmentSections].find((s) => s.key === k)?.name || k;
 
   const openHistory = async (i) => {
@@ -238,6 +240,12 @@ function Editor({ draft, setDraft, options, busy, onSave, onCancel }) {
   const setDept = (i, patch) => setProfile({ departments: ind.profile.departments.map((d, j) => (j === i ? { ...d, ...patch } : d)) });
   const toggle = (list, k) => (list.includes(k) ? list.filter((x) => x !== k) : [...list, k]);
   const fieldOptions = [{ value: "", label: "— choose a template —" }, ...options.fields.map((f) => ({ value: f, label: f }))];
+  const flowName = (id) => options.flows.find((f) => f.id === id)?.name || "";
+  // "" inherits the template's flow, named so nobody has to look it up.
+  const flowOptions = (field) => [
+    { value: "", label: field && options.inherited[field] ? `Inherit: ${flowName(options.inherited[field])}` : "Inherit from the template" },
+    ...options.flows.map((f) => ({ value: f.id, label: f.name })),
+  ];
   const codes = ind.profile.departments.map((d) => d.code).filter(Boolean);
 
   return (
@@ -270,25 +278,30 @@ function Editor({ draft, setDraft, options, busy, onSave, onCancel }) {
 
       <section>
         <p className="text-sm font-600">Specialisms</p>
-        <p className={`${muted} mb-3`}>What a company actually picks. A saved specialism is switched off rather than removed: studios may hold it.</p>
+        <p className={`${muted} mb-3`}>What a company actually picks: its name, the setup template its service actions and roles come from, and the deal flow its deals start on. A saved specialism is switched off rather than removed: studios may hold it.</p>
         <div className="space-y-2">
           {ind.specialisms.map((s, i) => (
-            <div key={i} className="grid items-center gap-2 sm:grid-cols-[1fr_1fr_1.2fr_auto_auto]">
-              <input className={input} placeholder="English" value={s.en} disabled={busy} onChange={(e) => setSpec(i, { en: e.target.value })} />
-              <input className={input} placeholder="العربية" dir="rtl" lang="ar" value={s.ar} disabled={busy} onChange={(e) => setSpec(i, { ar: e.target.value })} />
-              <SelectMenu className={input} value={s.field} options={fieldOptions} onChange={(v) => setSpec(i, { field: v })} aria-label="Setup template" />
-              <label className="flex items-center gap-1.5 text-xs">
-                <input type="checkbox" checked={s.active} disabled={busy} onChange={(e) => setSpec(i, { active: e.target.checked })} />
-                Active
-              </label>
-              {saved.has(s.key)
-                ? <span className="w-16" />
-                : <Button size="sm" variant="ghost" disabled={busy} onClick={() => set({ specialisms: ind.specialisms.filter((_, j) => j !== i) })}>Remove</Button>}
+            <div key={i} className="space-y-2 rounded-lg border border-[var(--ad-border)] p-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input className={input} placeholder="English" value={s.en} disabled={busy} onChange={(e) => setSpec(i, { en: e.target.value })} />
+                <input className={input} placeholder="العربية" dir="rtl" lang="ar" value={s.ar} disabled={busy} onChange={(e) => setSpec(i, { ar: e.target.value })} />
+              </div>
+              <div className="grid items-center gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
+                <SelectMenu className={input} value={s.field} options={fieldOptions} onChange={(v) => setSpec(i, { field: v })} aria-label="Setup template" />
+                <SelectMenu className={input} value={s.flow || ""} options={flowOptions(s.field)} onChange={(v) => setSpec(i, { flow: v })} aria-label="Deals start on" />
+                <label className="flex items-center gap-1.5 text-xs">
+                  <input type="checkbox" checked={s.active} disabled={busy} onChange={(e) => setSpec(i, { active: e.target.checked })} />
+                  Active
+                </label>
+                {saved.has(s.key)
+                  ? <span className="w-16" />
+                  : <Button size="sm" variant="ghost" disabled={busy} onClick={() => set({ specialisms: ind.specialisms.filter((_, j) => j !== i) })}>Remove</Button>}
+              </div>
             </div>
           ))}
         </div>
         <Button size="sm" variant="outline" className="mt-3" disabled={busy}
-          onClick={() => set({ specialisms: [...ind.specialisms, { key: "", en: "", ar: "", field: "", active: true }] })}>Add a specialism</Button>
+          onClick={() => set({ specialisms: [...ind.specialisms, { key: "", en: "", ar: "", field: "", flow: "", active: true }] })}>Add a specialism</Button>
       </section>
 
       <section>

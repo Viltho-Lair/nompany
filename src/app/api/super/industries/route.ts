@@ -4,6 +4,8 @@ import { addIndustry, byOf, profileSectionKeys, readIndustryRows } from "@/lib/d
 import { FIELDS_OF_WORK } from "@/shared/fieldsOfWork";
 import { SECTION_DEFS } from "@/platform/db/keys";
 import { sectionName } from "@/shared/studio/sections";
+import { FLOW_TEMPLATES } from "@/platform/engagement/templates";
+import { listPlatformIndustries } from "@/platform/db/flows";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +23,7 @@ const nameOf = (key: string) => {
 };
 
 export const GET = route(spec, async () => {
-  const [industries, rows] = await Promise.all([readIndustries(), readIndustryRows()]);
+  const [industries, rows, trades] = await Promise.all([readIndustries(), readIndustryRows(), listPlatformIndustries()]);
   const changed = new Set(rows.map((r) => String(r.key)));
   return {
     industries: industries.map((i) => ({ ...i, customised: changed.has(i.key) })),
@@ -34,6 +36,11 @@ export const GET = route(spec, async () => {
       // shape every built-in chart uses.
       departmentSections: SECTION_DEFS.map((d) => ({ key: d.key, name: nameOf(d.key) })),
       fields: FIELDS_OF_WORK,
+      // The deal flows a specialism may start on, and what one with no flow of
+      // its own inherits from its field of work (the trade map, which ERP
+      // settings used to edit), so the editor can say "Inherit: …" by name.
+      flows: FLOW_TEMPLATES.map((t) => ({ id: t.id, name: t.name })),
+      inherited: Object.fromEntries(trades.filter((t) => t.field).map((t) => [t.field, t.primary])),
     },
   };
 });
