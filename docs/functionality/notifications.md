@@ -232,6 +232,50 @@ and the route reads by the caller's own collaborator id.
   the page, the tab title and Nova's dot read the same first page and the same
   count. Nova used to poll the whole list every two minutes to count it itself.
 
+## Beyond the bell: email and push
+
+**Each person chooses on `/account` → Notifications** (29/09/2026). The
+settings are the person's (`u:<id>:notifyPrefs`), apply in every studio they
+belong to, and can only narrow what they receive. The bell always shows
+everything. The rules are `shared/notificationPrefs`.
+
+- **Email: Off, Every notification, or Daily summary.** Off by default for
+  everybody (the owner, 29/09/2026), so nobody gets email until they choose it.
+- **Per category**, whether email and push carry it.
+- **Quiet hours** hold push on the person's own clock (the browser's time
+  zone, saved with the settings). Email is not held.
+- **A language** for email and push, English or Arabic.
+
+**Delivery runs after the response** (`platform/notify/deliver`, via Next's
+`after()`): the bell is written, the doorbell rung, and only then are email and
+push sent, so no request waits on Resend or a push service. Email uses the
+bell's own words through `renderNotice`, including the studio's wording, and its
+footer links to the settings.
+
+**The daily summary** is `/api/cron/notice-digest`, at 07:00 UTC, an hour after
+`daily-notices`. It sends one email per person across all their studios,
+listing unread notices since the last summary (at most 20 lines, then "and N
+more"). Nothing unread means no email. The window moves only when the email
+actually went.
+
+**Web Push** (`platform/notify/push`, `public/sw.js`):
+
+- **The key is derived** from `NOMPANY_DATA_KEY` ("web-push/vapid"), so there
+  is nothing new to store. A device subscribed under another key is re-subscribed
+  quietly the next time the settings page opens.
+- **The push is empty.** It passes through Apple's, Google's or Mozilla's
+  servers, so it carries no words. The worker wakes and asks
+  `/api/account/push/latest` on the person's own session what to show, in the
+  device's language, and sets the app-icon count where the platform allows.
+- **Only vendors' push services are accepted** as endpoints (HTTPS, a fixed host
+  list). The server fetches whatever a browser registered, and anything else
+  would be a request-forgery hole.
+- **A dead device is pruned** when its service answers 404 or 410. At most ten
+  devices per person, listed on /account without their endpoints, and removable.
+- **iPhone and iPad** receive push only from a Home Screen app; the page says how
+  to add it instead of offering a button that cannot work.
+- **The worker has no `fetch` handler.** It never caches or intercepts a page.
+
 ## How a notice reaches an open tab
 
 A producer writes the row and rings the recipient's personal channel with its
@@ -263,14 +307,18 @@ are `shared/notificationInbox`, one rule for both bells.
 - **The cron's four notices lose their count from the title.** The English title
   switches between "Overdue invoice" and "3 overdue invoices"; the template is
   the fixed plural. The count is still on screen — the body says "(+2 more)".
-- **No email.** These are bell-only. `platform/notify/emailTemplates.ts` is a
-  separate, English-only set for platform events (sign-in, verification, invite)
-  that no studio can edit.
+- **Email is sent only where `EMAILS_ENABLED` is "true"**, the product's
+  kill switch. Instant email and the digest were built and run against the
+  sandbox with sending suppressed; no notification email has been delivered to
+  a real inbox yet.
+- **The daily digest goes at 07:00 UTC for everybody**, not at each person's
+  own morning. The window is right (since the last digest); the hour is not
+  personal.
 - **No print formats.** A quotation or an invoice prints through the browser's
   own print stylesheet; there is no per-studio header, footer, terms block or
   paper size.
-- **No per-person preferences.** A collaborator cannot mute a type, choose a
-  digest, or opt out. Every holder of the right gets every notice.
+- **Preferences choose channels, not whether a notice exists.** Every notice
+  still lands in the bell; nobody can mute a type there.
 - **The index is in `pgSchema.sql` but must be applied to the live database
   by hand.** It is one `CREATE INDEX CONCURRENTLY` statement; the file's comment
   says why not to re-run the whole file. Until then the bell's read walks the
@@ -288,9 +336,13 @@ are `shared/notificationInbox`, one rule for both bells.
 - **The time-driven notices' `{detail}` is English**, whatever the reader's
   language ("closes in 7 days"). A formatted count inside a sentence needs a
   pluralising template per language.
-- **No browser or phone push, and a hidden tab lets go of the stream** after a
-  minute. It catches up when shown again, and the title count only moves while
-  the tab stays connected.
+- **Push has not been received on a real device yet.** The key, the signed
+  token, the device list, the endpoint allow-list and the worker's "what to
+  show" endpoint were checked in the sandbox; the browser pane blocks
+  notification permission, so subscribing and receiving were not exercised.
+- **A hidden tab lets go of the stream** after a minute. It catches up when
+  shown again, and the tab-title count only moves while the tab stays
+  connected. Push is what reaches a person with the tab closed.
 - **Nothing previews an override.** The screen shows the placeholders it may use
   and not what a filled sentence looks like.
 - **`people.changed` and `mention` have templates and no producer sending

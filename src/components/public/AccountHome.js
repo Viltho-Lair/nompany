@@ -36,6 +36,8 @@ const Walkthrough = dynamic(() => import("@/components/walkthrough/Walkthrough")
 import { useWalkthrough, postWalkthrough } from "@/components/walkthrough/useWalkthrough";
 import { walkthroughDict, TOURS } from "@/shared/walkthrough";
 import SecuritySessions from "@/components/public/SecuritySessions";
+import NotificationSettings from "@/components/public/NotificationSettings";
+import { notificationSettingsDict } from "@/shared/notificationSettings";
 import SecurityLock from "@/components/public/SecurityLock";
 import SecurityTwoFactor from "@/components/public/SecurityTwoFactor";
 import SecurityPasskeys from "@/components/public/SecurityPasskeys";
@@ -81,6 +83,9 @@ const navFor = (tr, locale) => [
   { key: "collabs", label: tr.myCollaborations, icon: "team", tone: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
   { key: "personal", label: tr.personalInfo, icon: "person", tone: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
   { key: "calendars", label: tr.calendars, icon: "calendar", tone: "text-sky-600 dark:text-sky-400", bg: "bg-sky-500/10" },
+  // WHERE A PERSON'S NOTIFICATIONS GO BEYOND THE BELL (29/09/2026) — email,
+  // push, quiet hours. The person's own, so here and not in any studio.
+  { key: "notifications", label: notificationSettingsDict(locale).nav, icon: "bell", tone: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-500/10" },
   { key: "security", label: tr.security, icon: "shield", tone: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10" },
 ];
 
@@ -88,7 +93,7 @@ const navFor = (tr, locale) => [
 // through a browser redirect (never a fetch) and needs to say which tab to
 // reopen via `?view=`, so an arbitrary query value must be checked against
 // something before it drives `setView`.
-const VIEW_KEYS = ["overview", "studios", "billing", "collabs", "personal", "calendars", "security"];
+const VIEW_KEYS = ["overview", "studios", "billing", "collabs", "personal", "calendars", "notifications", "security"];
 
 const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
@@ -296,6 +301,7 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
               {view === "collabs" && <StudioGrid title={tr.myCollaborations} note={tr.studiosOthersGave} studios={collabs} empty={tr.notCollaborating} />}
               {view === "personal" && <PersonalInfo identity={identity} onSaved={load} onStartTour={startTour} />}
               {view === "calendars" && <Calendars locale={locale} outcome={calendarOutcome} />}
+              {view === "notifications" && <NotificationSettings />}
               {view === "security" && <Security devices={devices} onChanged={load} locale={locale} user={identity?.user} />}
             </>
           )}
