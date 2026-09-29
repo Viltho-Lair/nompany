@@ -693,7 +693,7 @@ function JoinStudio({ onChanged, onClose }) {
     setBusy(false);
     if (res.ok) {
       setCode("");
-      setMsg({ tone: "good", text: `Request sent to ${data.studio?.name || "the studio"}. You'll get access once they approve.` });
+      setMsg({ tone: "good", text: tr.joinRequestSent(data.studio?.name || "") });
       onChanged();
       return;
     }
@@ -1102,7 +1102,7 @@ function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
 
         <PasswordInput
           id="new-password"
-          labelText="New password"
+          labelText={tr.newPassword}
           labelClassName={LABEL}
           className={INPUT}
           value={next}
@@ -1131,7 +1131,7 @@ function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
                   >
                     {met ? "✓" : "•"}
                   </span>
-                  {rule.label}
+                  {tr.passwordRules[rule.key] || rule.label}
                 </li>
               );
             })}
@@ -1140,7 +1140,7 @@ function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
 
         <PasswordInput
           id="confirm-password"
-          labelText="Confirm new password"
+          labelText={tr.confirmNewPassword}
           labelClassName={LABEL}
           className={cn(INPUT, mismatch && "border-rose-400 focus:border-rose-400 focus:ring-rose-400/20")}
           value={confirm}
@@ -1206,10 +1206,10 @@ function Security({ devices, onChanged, locale, user }) {
             <Icon name="lock" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
           </span>
           <div className="flex min-w-0 flex-col justify-center">
-            <span className={ROW_LABEL}>{providerName || "Email and password"}</span>
+            <span className={ROW_LABEL}>{providerName || tr.emailAndPassword}</span>
             <span className={ROW_VALUE}>
               {providerName
-                ? `You sign in with ${providerName}, which also verified your email.`
+                ? tr.signsInWith(providerName)
                 : tr.changingSignsOutEverywhere}
             </span>
           </div>

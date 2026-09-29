@@ -111,7 +111,7 @@ export default function PhoneInput({ value, onChange, autoFocus = false, error =
           onClick={() => setOpen((o) => !o)}
           aria-haspopup="listbox"
           aria-expanded={open}
-          aria-label={country ? `Country code: ${country.name} (${country.dial})` : "Country code: none chosen"}
+          aria-label={country ? tr.countryCode(country.name, country.dial) : tr.countryCodeNone}
           className={`flex shrink-0 items-center gap-1.5 border-e px-3 text-sm transition-colors ${
             error
               ? "border-rose-300 text-rose-900 hover:bg-rose-100/50 dark:border-rose-500/40 dark:text-white"

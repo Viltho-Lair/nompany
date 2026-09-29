@@ -115,7 +115,7 @@ export default function SignupForm({ locale, dict, providers = [] }) {
                 <span aria-hidden="true" className={ruleDotClass(met)}>
                   {met ? "✓" : "•"}
                 </span>
-                {rule.label}
+                {tr.passwordRules[rule.key] || rule.label}
               </li>
             );
           })}

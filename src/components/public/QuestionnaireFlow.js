@@ -497,7 +497,7 @@ function Question({ question, answers, set, labels }) {
           value={value || ""}
           disabled={Boolean(blocked)}
           options={options}
-          placeholder={blocked ? `Choose a ${question.dependsOn} first` : (question.placeholder || "")}
+          placeholder={blocked ? labels.answerAboveFirst : (question.placeholder || "")}
           inputClassName={FIELD}
           paperClassName="mt-1 card !p-0 overflow-hidden"
           onChange={(v) => set({ [key]: v, ...Object.fromEntries((question.resets || []).map((k) => [k, ""])) })}

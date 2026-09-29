@@ -83,6 +83,9 @@ export const SITEMAP_SOURCES: Record<string, string[]> = {
     "src/app/[locale]/(site)/terms/page.js",
     "src/components/landing/site/pages/legal/LegalPage.jsx",
     "src/lib/legalTerms.ts",
+    "src/lib/legalTermsAr.ts",
+    "src/lib/legalGoogleData.ts",
+    "src/lib/legalGoogleDataAr.ts",
   ],
   "/cookies": [
     "src/app/[locale]/(site)/cookies/page.js",
@@ -92,5 +95,8 @@ export const SITEMAP_SOURCES: Record<string, string[]> = {
     "src/app/[locale]/(site)/privacy/page.js",
     "src/components/landing/site/pages/legal/LegalPage.jsx",
     "src/lib/legalPrivacy.ts",
+    "src/lib/legalPrivacyAr.ts",
+    "src/lib/legalGoogleData.ts",
+    "src/lib/legalGoogleDataAr.ts",
   ],
 };

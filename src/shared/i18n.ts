@@ -122,6 +122,7 @@ const dictionaries = {
       search: "Search",
       whichOne: "Which one?",
       noMatches: "Nothing matches",
+      answerAboveFirst: "Answer the question above first",
     },
     auth: {
       emailLabel: "Work email",
@@ -193,7 +194,7 @@ const dictionaries = {
       goToAccount: "Go to your account",
       // Forgot / reset password
       forgotTitle: "Reset your password",
-      forgotSubtitle: "Enter your email and we'll send you a reset link.",
+      forgotSubtitle: "It happens. We'll get you back in.",
       forgotCta: "Send reset link",
       forgotSent: "If an account exists for that email, a reset link is on its way.",
       resetTitle: "Choose a new password",
@@ -333,6 +334,7 @@ const dictionaries = {
       search: "بحث",
       whichOne: "أيها؟",
       noMatches: "لا شيء يطابق",
+      answerAboveFirst: "أجب عن السؤال السابق أولا",
     },
     auth: {
       emailLabel: "بريد العمل",
@@ -404,7 +406,7 @@ const dictionaries = {
       goToAccount: "الذهاب إلى حسابك",
       // نسيت / إعادة تعيين كلمة المرور
       forgotTitle: "إعادة تعيين كلمة المرور",
-      forgotSubtitle: "أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين.",
+      forgotSubtitle: "يحدث هذا. سنعيدك إلى حسابك.",
       forgotCta: "إرسال رابط إعادة التعيين",
       forgotSent: "إن وجد حساب لهذا البريد، فإن رابط إعادة التعيين في طريقه إليك.",
       resetTitle: "اختر كلمة مرور جديدة",

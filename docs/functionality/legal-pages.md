@@ -14,13 +14,22 @@ routes that happen to carry contract text.
 | `src/lib/legalTerms.ts` | `TERMS_META` + `TERMS_SECTIONS` — twenty sections and two annexes |
 | `src/lib/legalPrivacy.ts` | `PRIVACY_META` + `PRIVACY_SECTIONS` — ten sections |
 | `src/lib/legalGoogleData.ts` | `GOOGLE_DATA_BLOCKS` — the Google API Services disclosure, imported by **both** |
+| `src/lib/legalTermsAr.ts`, `legalPrivacyAr.ts`, `legalGoogleDataAr.ts` | The Arabic translations — same sections, same ids, same blocks, asserted by `tests/marketing-model.mjs` |
 | `src/lib/legalBlocks.ts` | `LegalBlock` / `LegalSection` / `LegalMeta` — the authoring vocabulary |
-| `src/components/landing/site/pages/legal/LegalPage.jsx` (+ `LegalToc.jsx`) | The page in the site's design (27/09/2026): hero, a sticky contents list with a scroll-spy mark on wide screens and a fold-out one on phones, sections, contact card. The English text is set left to right on `/ar` too. (`LegalDocument.js` was the old renderer and is deleted.) |
+| `src/components/landing/site/pages/legal/LegalPage.jsx` (+ `LegalToc.jsx`) | The page in the site's design (27/09/2026): hero, a sticky contents list with a scroll-spy mark on wide screens and a fold-out one on phones, sections, contact card. The body carries its own `lang`/`dir`, so the Arabic reads right to left and the English left to right. (`LegalDocument.js` was the old renderer and is deleted.) |
 | `legal/terms-and-conditions.md`, `legal/privacy-policy.md` | The signable mirrors. Change both halves in one commit |
 
-**The legal body is English only**, in both locales — §20.7 of the Terms makes the English
-text authoritative, so translating it would create a second text able to disagree with the
-one that governs. What *is* localized is the chrome: hero, labels, the note box, the contact
+**The legal body is translated, and the English still governs** — the owner, 29/09/2026.
+It was English only until then, on the argument that a translation is a second text able to
+disagree with the one that governs; but §20.7 has always said the Terms are "published in
+English and Arabic", so the English-only page was the thing contradicting the text, and an
+Arabic-only reader was agreeing to a contract they could not read. `/ar/terms` and
+`/ar/privacy` render the `…_AR` sections; `/en` is unchanged, and the note box above the
+body still says the English prevails. **Change the English and the Arabic in the same
+commit** — the model test fails on a section, block, bullet or table row present in one and
+not the other, and on an Arabic section title left in English; it cannot tell whether the
+words still say the same thing, so a clause edited in English only is the failure left to
+people. The chrome is localized as before: hero, labels, the note box, the contact
 card, from `dict.terms` / `dict.privacy` in `src/shared/i18n.ts`. The two dictionary slices
 have the same shape because `LegalPage` takes either as its `copy` — a key added to one
 belongs in the other.
@@ -111,8 +120,10 @@ running it when nothing changed is free.
 - **No change notice.** §17 and §10.1 both promise thirty days' notice by email or in-app
   notice for a material change. There is no mechanism that sends it — no version watcher, no
   notification producer, nothing in the outbox. Today it would be sent by hand.
-- **No Arabic legal body.** Deliberate (see above), but it means an Arabic-only reader gets
-  Arabic chrome around English contract text.
+- **The Arabic has not been reviewed by a lawyer.** It is a faithful machine-assisted
+  translation checked for structure, not a certified one. The English prevails (§20.7), which
+  limits the risk, but an Arabic-speaking counsel should read it before anybody relies on it.
+- **There is no Arabic signable mirror.** `legal/*.md` are English only.
 - **The referenced documents do not all exist.** §1.5 incorporates an Order Form, a DPA, an
   SLA, an Acceptable Use Policy and the Privacy Policy. Only the Privacy Policy is a real
   page; the DPA is summarised in Annex A and "executed separately", and the SLA and AUP have

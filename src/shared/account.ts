@@ -68,6 +68,13 @@ type Strings = {
   confirmDisconnectCalendar: (providerName: string) => string;
   confirmNewPassword: string;
   confirmPassword: string;
+  countryCode: (name: string, dial: string) => string;
+  countryCodeNone: string;
+  passwordRules: Record<string, string>;
+  emailAndPassword: string;
+  joinRequestSent: (studio: string) => string;
+  resendIn: (seconds: number) => string;
+  signsInWith: (providerName: string) => string;
   connectGoogleCalendar: string;
   connectMicrosoftCalendar: string;
   continueWith: string;
@@ -354,6 +361,13 @@ const en: Strings = {
   confirmDisconnectCalendar: (providerName: string) => `Disconnect ${providerName}? This revokes nompany's access to your calendar.`,
   confirmNewPassword: "Confirm new password",
   confirmPassword: "Confirm password",
+  countryCode: (name: string, dial: string) => `Country code: ${name} (${dial})`,
+  countryCodeNone: "Country code: none chosen",
+  passwordRules: { length: "At least 8 characters", upper: "One uppercase letter", symbol: "One symbol" },
+  emailAndPassword: "Email and password",
+  joinRequestSent: (studio: string) => `Request sent to ${studio || "the studio"}. You'll get access once they approve.`,
+  resendIn: (seconds: number) => `Resend in ${seconds}s`,
+  signsInWith: (providerName: string) => `You sign in with ${providerName}, which also verified your email.`,
   connectGoogleCalendar: "Connect Google Calendar",
   connectMicrosoftCalendar: "Connect Microsoft Calendar",
   continueWith: "Continue",
@@ -638,6 +652,13 @@ const ar: Strings = {
   confirmDisconnectCalendar: (providerName: string) => `فصل ${providerName}؟ هذا يلغي وصول nompany إلى تقويمك.`,
   confirmNewPassword: "تأكيد كلمة المرور الجديدة",
   confirmPassword: "تأكيد كلمة المرور",
+  countryCode: (name: string, dial: string) => `رمز الدولة: ${name} (${dial})`,
+  countryCodeNone: "رمز الدولة: لم يختر بعد",
+  passwordRules: { length: "8 أحرف على الأقل", upper: "حرف كبير واحد (A-Z)", symbol: "رمز واحد" },
+  emailAndPassword: "البريد الإلكتروني وكلمة المرور",
+  joinRequestSent: (studio: string) => `أرسل الطلب إلى ${studio || "الاستوديو"}. ستحصل على الوصول بعد موافقتهم.`,
+  resendIn: (seconds: number) => `إعادة الإرسال بعد ${seconds} ث`,
+  signsInWith: (providerName: string) => `تسجل الدخول عبر ${providerName}، وقد تحقق أيضا من بريدك الإلكتروني.`,
   connectGoogleCalendar: "اربط تقويم Google",
   connectMicrosoftCalendar: "اربط تقويم Microsoft",
   continueWith: "المتابعة",

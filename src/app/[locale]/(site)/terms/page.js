@@ -3,6 +3,7 @@ import { breadcrumbLd, urlFor, buildMetadata } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 import { LegalPage } from "@/components/landing/site/pages/legal/LegalPage";
 import { TERMS_META, TERMS_SECTIONS } from "@/lib/legalTerms";
+import { TERMS_SECTIONS_AR } from "@/lib/legalTermsAr";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,9 @@ export async function generateMetadata({ params }) {
 export default async function TermsPage({ params }) {
   const { locale } = await params;
   const dict = getDict(locale);
+  // Arabic readers get the Arabic translation; the English text still prevails
+  // (§20.7), and the note above the body says so.
+  const ar = locale === "ar";
 
   const breadcrumb = breadcrumbLd([
     { name: dict.nav.home, url: urlFor(locale, "") },
@@ -29,7 +33,8 @@ export default async function TermsPage({ params }) {
       <JsonLd data={breadcrumb} />
       <LegalPage
         meta={TERMS_META}
-        sections={TERMS_SECTIONS}
+        sections={ar ? TERMS_SECTIONS_AR : TERMS_SECTIONS}
+        lang={ar ? "ar" : "en"}
         copy={dict.terms}
         crossLink={{ href: `/${locale}/privacy`, label: dict.terms.privacyLink }}
       />

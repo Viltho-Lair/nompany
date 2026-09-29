@@ -155,7 +155,7 @@ export default function ForgotFlow({ locale, initialEmail = "" }) {
                 <span aria-hidden="true" className={ruleDotClass(met)}>
                   {met ? "✓" : "•"}
                 </span>
-                {rule.label}
+                {tr.passwordRules[rule.key] || rule.label}
               </li>
             );
           })}

@@ -14,12 +14,16 @@ import { Reveal } from "../../Reveal";
    documents is in the server HTML; the two client pieces (the reveal and the
    contents' "you are here" mark) wrap it and add nothing a crawler needs.
 
-   THE BODY IS ENGLISH ON BOTH LOCALES and is marked so (`dir="ltr"
-   lang="en"`): the English text is the authoritative one and is not
-   translated (docs/functionality/legal-pages.md). The CHROME around it — the
-   hero, the note, the contact card — is the reader's language and follows the
-   page's direction. Before, an Arabic page set the English clauses right to
-   left, which moves full stops and brackets to the wrong end of a line. */
+   THE BODY IS IN THE READER'S LANGUAGE AND IS MARKED SO (`lang`/`dir` on
+   the body itself). It was English on both locales until 29/09/2026, when the
+   owner asked for the documents in Arabic: §20.7 had said all along that they
+   are "published in English and Arabic", with the English prevailing, and only
+   the English existed. The Arabic is a translation of it
+   (lib/legalTermsAr.ts, legalPrivacyAr.ts) and the note above the body still
+   says which text governs. The lang/dir stay on the body rather than being
+   left to the page because a body in one language inside chrome in another is
+   exactly how an Arabic page once set English clauses right to left, moving
+   full stops and brackets to the wrong end of a line. */
 
 function Paragraph({ block }) {
   return (
@@ -33,7 +37,7 @@ function Paragraph({ block }) {
 function Block({ block }) {
   if (block.type === "p") return <Paragraph block={block} />;
   if (block.type === "h3")
-    return <h3 className="pt-4 text-[1.1rem] font-medium leading-snug tracking-[-0.015em] text-[#ececf1]">{block.text}</h3>;
+    return <h3 className="pt-4 text-[1.1rem] font-medium leading-snug tracking-[-0.015em] text-[#ececf1] rtl:tracking-normal">{block.text}</h3>;
   if (block.type === "ul")
     return (
       <ul className="space-y-3">
@@ -54,7 +58,7 @@ function Block({ block }) {
           <thead>
             <tr className="bg-white/[0.03]">
               {block.head.map((h, i) => (
-                <th key={i} scope="col" className="px-4 py-3 text-start text-[12px] font-medium uppercase tracking-[0.08em] text-white/55">
+                <th key={i} scope="col" className="px-4 py-3 text-start text-[12px] font-medium uppercase tracking-[0.08em] text-white/55 rtl:tracking-normal">
                   {h}
                 </th>
               ))}
@@ -84,8 +88,9 @@ function Block({ block }) {
  * @param copy      dict.terms or dict.privacy — the two slices share a shape.
  * @param crossLink { href, label } — the sibling document. The two cite each
  *                  other's clauses by number, so a reader of one needs the other.
+ * @param lang      "en" | "ar" — the language `sections` is written in.
  */
-export function LegalPage({ meta, sections, copy, crossLink }) {
+export function LegalPage({ meta, sections, copy, crossLink, lang = "en" }) {
   const toc = sections.map((s) => ({ id: s.id, title: s.title }));
   const stamps = [
     [copy.versionLabel, meta.version],
@@ -156,7 +161,7 @@ export function LegalPage({ meta, sections, copy, crossLink }) {
               ) : null}
             </p>
 
-            <div dir="ltr" lang="en" className="mt-14">
+            <div dir={lang === "ar" ? "rtl" : "ltr"} lang={lang} className="mt-14">
               {sections.map((s) => (
                 <section
                   key={s.id}
@@ -164,7 +169,7 @@ export function LegalPage({ meta, sections, copy, crossLink }) {
                   aria-labelledby={`${s.id}-title`}
                   className="scroll-mt-28 border-t border-white/[0.06] py-12 first:border-t-0 first:pt-0"
                 >
-                  <h2 id={`${s.id}-title`} className="text-[1.5rem] font-medium leading-tight tracking-[-0.025em] text-[#ececf1] md:text-[1.75rem]">
+                  <h2 id={`${s.id}-title`} className="text-[1.5rem] font-medium leading-tight tracking-[-0.025em] text-[#ececf1] md:text-[1.75rem] rtl:tracking-normal">
                     {s.title}
                   </h2>
                   <div className="mt-6 space-y-5">

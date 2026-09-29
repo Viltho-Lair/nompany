@@ -874,12 +874,43 @@ console.log("\n== the cookie policy and the analytics scope say what the code do
     !["/en/terms", "/ar/privacy", "/en/cookies"].some((p) => CS.analyticsRunsOn(p)));
   ok("...while a job posting counts as careers, and a post as the blog",
     CS.analyticsRunsOn("/ar/careers/job_1") && CS.analyticsRunsOn("/en/blog") && CS.analyticsRunsOn("/ar/blog/x") && CS.analyticsRunsOn("/en"));
-  // THE POLICY'S TABLE NAMES WHAT THE COOKIE PAGE NAMES. Its rows are English
-  // on both locales; every cookie on the cookie page must be a row there too.
+  // THE POLICY'S TABLE NAMES WHAT THE COOKIE PAGE NAMES, in both languages:
+  // every cookie on the cookie page must be a row there too.
   {
     const COOKIE_NAMES = (await import("@/shared/marketing/cookies")).cookiesCopy("en").rows.map((r) => r.name);
     const missingFromPolicy = COOKIE_NAMES.filter((n) => !text.includes(n));
     ok("the privacy policy's cookie table names every cookie on the cookie page", missingFromPolicy.length === 0, missingFromPolicy.join(", "));
+    const PRIV_AR = await import("@/lib/legalPrivacyAr");
+    const textAr = JSON.stringify(PRIV_AR);
+    const missingFromAr = COOKIE_NAMES.filter((n) => !textAr.includes(n));
+    ok("...and so does its Arabic translation", missingFromAr.length === 0, missingFromAr.join(", "));
+  }
+  // THE ARABIC TERMS AND POLICY ARE THE ENGLISH, CLAUSE FOR CLAUSE (29/09/2026).
+  // A translation that drops a bullet or a table row reads as complete to an
+  // Arabic reader and says less than the text that governs; an id that differs
+  // breaks a published anchor on one locale only. So the shape is asserted,
+  // section by section and block by block — what the words say is a
+  // translator's job, but that there are the same number of them is not.
+  {
+    const shape = (sections) => sections.map((s) => [s.id, s.blocks.map((b) =>
+      b.type === "p" ? `p${b.lead ? "+lead" : ""}`
+      : b.type === "ul" ? `ul${b.items.length}`
+      : b.type === "table" ? `table${b.head.length}x${b.rows.map((r) => r.length).join(",")}`
+      : b.type).join(" ")]);
+    const pairs = [
+      ["terms", (await import("@/lib/legalTerms")).TERMS_SECTIONS, (await import("@/lib/legalTermsAr")).TERMS_SECTIONS_AR],
+      ["privacy policy", PRIV.PRIVACY_SECTIONS, (await import("@/lib/legalPrivacyAr")).PRIVACY_SECTIONS_AR],
+    ];
+    for (const [name, en, ar] of pairs) {
+      const a = shape(en), b = shape(ar);
+      const differ = a.map(([id, s], i) => (b[i]?.[0] === id && b[i]?.[1] === s ? null : id)).filter(Boolean);
+      ok(`the Arabic ${name} has the English's sections and blocks, in order`, a.length === b.length && differ.length === 0,
+        `${a.length} vs ${b.length}; differs at ${differ.join(", ")}`);
+      const untranslated = ar.filter((s) => !/[؀-ۿ]/.test(s.title)).map((s) => s.id);
+      ok(`...and every one of its section titles is in Arabic`, untranslated.length === 0, untranslated.join(", "));
+      const marks = JSON.stringify(ar).match(new RegExp(DIACRITICS.source, "g")) || [];
+      ok(`...and it carries no diacritic, like the rest of the site's Arabic`, marks.length === 0, `${marks.length} found`);
+    }
   }
 }
 

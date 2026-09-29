@@ -203,8 +203,8 @@ language it was written in, so every counted phrase is a function in the diction
   English-only.** They are rendered per-locale, so the Arabic site is served with English
   metadata — a discoverability bug rather than a reading one. Unowned: it was assigned to
   the `seo-improver` agent, and the agent team was deleted on 06/09/2026.
-- **Reference lists are English-only**: `lib/cities.ts`, `lib/industries.ts`,
-  `lib/legalTerms.ts`, the questionnaire's own elements, and the pricing labels. Some of
+- **Reference lists are English-only**: `lib/cities.ts`, `lib/industries.ts`, the
+  questionnaire's own elements, and the pricing labels. Some of
   those are catalogue data a studio picks from rather than copy, and at least two of them
   (industries, cities) should arguably be driven from Studio settings instead of shipped —
   which is a product question, not a translation one.

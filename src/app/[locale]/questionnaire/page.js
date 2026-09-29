@@ -10,7 +10,10 @@ import QuestionnaireFlow from "@/components/public/QuestionnaireFlow";
 import { getDict } from "@/shared/i18n";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Set up your account", robots: { index: false, follow: false } };
+export async function generateMetadata({ params }) {
+  const { locale } = await params;
+  return { title: getDict(locale).questionnaire.title, robots: { index: false, follow: false } };
+}
 
 // The one-time survey between finishing registration and reaching the account.
 // It is a GATE: everyone lands here after verifying, and anyone who has already

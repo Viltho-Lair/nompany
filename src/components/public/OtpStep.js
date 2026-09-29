@@ -174,7 +174,7 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
           disabled={busy || cooldown > 0}
           className={`${TEXT_BUTTON} px-1 py-2 tabular-nums`}
         >
-          {cooldown > 0 ? `Resend in ${cooldown}s` : tr.sendNewCode}
+          {cooldown > 0 ? tr.resendIn(cooldown) : tr.sendNewCode}
         </button>
       </div>
     </div>
