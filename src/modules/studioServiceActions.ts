@@ -3,12 +3,11 @@
 // and so this logic is unit-testable without a request.
 
 import { SERVICE_ACTIONS } from "@/shared/fieldsOfWork";
-import { itemScopesForStudio } from "@/modules/inventory/inventory";
 import { ticketServiceActionsForStudio } from "@/modules/sales/sales";
-// Membership only — NOT inventoryContext. See serviceActionUsage below: the
+// Membership only — NOT salesContext. See serviceActionUsage below: the
 // caller here already proved studio.settings.edit at its own route, and that
-// right does not imply inventory.items.view, so gating this read on the
-// caller's inventory grant would make the retire-vs-drop decision only as
+// right does not imply crmSales.tickets.view, so gating this read on the
+// caller's sales grant would make the retire-vs-drop decision only as
 // complete as whatever permissions happened to be missing.
 import { studioContext } from "@/lib/studios";
 // Same import the rest of the codebase uses for this shape (see
@@ -56,38 +55,31 @@ export function nextPool(input: {
   return { serviceActions: active, retiredServiceActions: retired };
 }
 
-// How many registered items list each action in their scope. One inventory read;
-// lives on the dedicated endpoint, never on the settings route's wave.
+// How many records name each action. One sales read; lives on the dedicated
+// endpoint, never on the settings route's wave.
 //
-// DELIBERATELY NOT `inventoryContext`. That resolver gates on the CALLER's
-// inventory-view permission, but this function feeds a retire-vs-drop decision
-// guarded upstream by studio.settings.edit — a role can hold that without
-// holding any inventory.* right at all. Gating this read the same way meant an
-// admin with exactly that combination could remove a still-referenced action
-// and have it silently DROPPED (neither active nor retired) rather than
-// retired, because the "referenced" set came back empty on a forbidden read.
-// `itemScopesForStudio` reads by studio id alone — membership + settings
-// authority is already proven by the caller's own route guard, and this needs
-// no second permission to be complete.
+// DELIBERATELY NOT A MODULE CONTEXT. `salesContext` gates on the CALLER's own
+// sales permission, but this function feeds a retire-vs-drop decision guarded
+// upstream by studio.settings.edit — a role can hold that without holding any
+// sales right at all. Gating this read the same way would let an admin with
+// exactly that combination remove a still-referenced action and have it
+// silently DROPPED (neither active nor retired) rather than retired, because
+// the "referenced" set came back empty on a forbidden read.
+// `ticketServiceActionsForStudio` reads by studio id alone — membership +
+// settings authority is already proven by the caller's own route guard, and
+// this needs no second permission to be complete.
 export async function serviceActionUsage(user: User, slug: string): Promise<Record<string, number>> {
   const context = await studioContext(user, slug);
   if (context.error) return {};
-  // EVERY REFERRER, NOT JUST INVENTORY. The retire-vs-drop guarantee holds only
-  // while this query knows every place an action can be named: an action this
-  // misses is reported unreferenced, and nextPool DROPS an unreferenced action
-  // rather than retiring it. Tickets became a referrer when services moved from
-  // the Sales catalogue to Studio Settings -> Service Actions; until this counted
-  // them, removing an action named by a ticket and by no registered item deleted
-  // it outright, and cleanServiceIds then discarded it from the ticket on its
-  // next edit. Silent loss of a ticket's scope, from a settings screen.
-  //
-  // Read in parallel — two independent collection reads, one wave, not two.
-  const [scopes, ticketActions] = await Promise.all([
-    itemScopesForStudio(context.studio.id),
-    ticketServiceActionsForStudio(context.studio.id),
-  ]);
+  // EVERY REFERRER. The retire-vs-drop guarantee holds only while this query
+  // knows every place an action can be named: an action this misses is reported
+  // unreferenced, and nextPool DROPS an unreferenced action rather than
+  // retiring it, after which cleanServiceIds discards it from the ticket on its
+  // next edit. TICKETS ARE THE ONLY REFERRER TODAY — a registered item's Scope
+  // was the other and was removed on 02/10/2026. Anything that starts naming a
+  // service action joins this read in the same commit.
   const counts: Record<string, number> = {};
-  for (const scope of [...scopes, ...ticketActions]) for (const a of scope) {
+  for (const actions of await ticketServiceActionsForStudio(context.studio.id)) for (const a of actions) {
     counts[a] = (counts[a] ?? 0) + 1;
   }
   return counts;

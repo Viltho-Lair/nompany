@@ -824,8 +824,8 @@ export const general: HelpModule = {
       open: "administration-settings",
       q: { en: "How do I change the studio's field of work?", ar: "كيف أغيّر مجال عمل الاستوديو؟" },
       a: {
-        en: "In Studio settings, under Service actions, change the type of industry and confirm. This re-seeds the service actions from the new trade; actions items still use are kept as retired rather than removed. Your sections are not switched off: the Sections panel shows a checklist of what the new trade uses, and nothing moves until you press Apply. The Departments tab makes a similar offer.",
-        ar: "من إعدادات الاستوديو، تحت إجراءات الخدمة، غيّر نوع الصناعة وأكّد. يعيد ذلك تعبئة إجراءات الخدمة من المجال الجديد؛ وتبقى الإجراءات التي ما زالت أصناف تستخدمها كإجراءات متقاعدة بدلا من حذفها. ولا تُوقف أقسامك: إذ تعرض لوحة الأقسام قائمة بما يستخدمه المجال الجديد، ولا يتغير شيء حتى تضغط تطبيق. ويقدم تبويب الإدارات عرضا مشابها.",
+        en: "In Studio settings, under Service actions, change the type of industry and confirm. This re-seeds the service actions from the new trade; actions deals still use are kept as retired rather than removed. Your sections are not switched off: the Sections panel shows a checklist of what the new trade uses, and nothing moves until you press Apply. The Departments tab makes a similar offer.",
+        ar: "من إعدادات الاستوديو، تحت إجراءات الخدمة، غيّر نوع الصناعة وأكّد. يعيد ذلك تعبئة إجراءات الخدمة من المجال الجديد؛ وتبقى الإجراءات التي ما زالت صفقات تستخدمها كإجراءات متقاعدة بدلا من حذفها. ولا تُوقف أقسامك: إذ تعرض لوحة الأقسام قائمة بما يستخدمه المجال الجديد، ولا يتغير شيء حتى تضغط تطبيق. ويقدم تبويب الإدارات عرضا مشابها.",
       },
       keywords: ["field of work", "industry", "trade", "service actions", "مجال العمل", "الصناعة", "النشاط", "إجراءات الخدمة"],
       related: ["start.field-of-work", "start.switch-sections"],

@@ -45,3 +45,14 @@ packs-export/
 # `npm start` and inside the image build — a committed copy would be a second
 # source of truth for code that already lives in src/.
 services/pg-gateway/dist/
+
+# Personal design/animation tooling installed into this checkout — third-party
+# skills, their lock file, the Motion subagent and the Motion MCP servers. Kept
+# local so no other session or contributor is made to load or connect to them.
+.claude/skills/
+.claude/agents/
+skills-lock.json
+.mcp.json
+
+# Item scopes exported by scripts/migrate/remove-item-scope.mjs before it clears them.
+scope-export/

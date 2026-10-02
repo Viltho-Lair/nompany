@@ -437,7 +437,7 @@ const en: Strings = {
 
   actionsHeading: "Service actions",
   actionsLead:
-    "Seeded from the studio's field of work — the things this company does to finish a job. An item's Scope is chosen from this list, and a project's requirement weights are set against it.",
+    "Seeded from the studio's field of work — the things this company does to finish a job. A deal's services are chosen from this list, and a project's requirement weights are set against it.",
   actionsAdminOnly: " Only an admin can change this.",
   actionsLoadFailed: "We couldn't load service actions.",
   industry: "Type of industry",
@@ -451,7 +451,7 @@ const en: Strings = {
   ownLabel: "Field of work (your own label)",
   saveLabel: "Save label",
   standardActions: "Standard actions",
-  referencedBy: (n) => (n === 1 ? "1 item references this" : `${n} items reference this`),
+  referencedBy: (n) => (n === 1 ? "1 deal references this" : `${n} deals reference this`),
   retiredStill: "Retired, still valid on records that already use them: ",
   changeFieldAria: "Change field of work",
   switchTo: (to) => `Switch to ${to}?`,
@@ -459,13 +459,13 @@ const en: Strings = {
   adds: "Adds:",
   leavesPool: "Leaves the pool:",
   retiredWithCount: (n) =>
-    n === 1 ? " (retired — 1 item still uses it)" : ` (retired — ${n} items still use it)`,
+    n === 1 ? " (retired — 1 deal still uses it)" : ` (retired — ${n} deals still use it)`,
   unusedRemoved: " (unused, removed)",
   confirm: "Confirm",
   retireAria: "Retire service action",
   retireTitle: (action) => `Retire “${action}”?`,
   retireBody: (n) =>
-    `${n === 1 ? "1 item still references" : `${n} items still reference`} it — they keep it, it's just no longer offered for new work. Re-add any time.`,
+    `${n === 1 ? "1 deal still references" : `${n} deals still reference`} it — they keep it, it's just no longer offered for new work. Re-add any time.`,
   retire: "Retire",
 
   favHeading: "Favourite currencies",
@@ -727,7 +727,7 @@ const ar: Strings = {
 
   actionsHeading: "إجراءات الخدمة",
   actionsLead:
-    "مبنية على مجال عمل الاستوديو — الأعمال التي تؤديها هذه الشركة لإنجاز المهمة. يختار نطاق أي صنف من هذه القائمة، وتوزن متطلبات المشاريع عليها.",
+    "مبنية على مجال عمل الاستوديو — الأعمال التي تؤديها هذه الشركة لإنجاز المهمة. تختار خدمات أي صفقة من هذه القائمة، وتوزن متطلبات المشاريع عليها.",
   actionsAdminOnly: " لا يمكن تغيير هذا إلا لمسؤول.",
   actionsLoadFailed: "تعذر تحميل إجراءات الخدمة.",
   industry: "نوع النشاط",
@@ -742,10 +742,10 @@ const ar: Strings = {
   saveLabel: "حفظ التسمية",
   standardActions: "الإجراءات القياسية",
   referencedBy: (n) => {
-    if (n === 1) return "صنف واحد يشير إلى هذا";
-    if (n === 2) return "صنفان يشيران إلى هذا";
-    if (n <= 10) return `${n} أصناف تشير إلى هذا`;
-    return `${n} صنفا تشير إلى هذا`;
+    if (n === 1) return "صفقة واحدة تشير إلى هذا";
+    if (n === 2) return "صفقتان تشيران إلى هذا";
+    if (n <= 10) return `${n} صفقات تشير إلى هذا`;
+    return `${n} صفقة تشير إلى هذا`;
   },
   retiredStill: "متقاعدة، ولا تزال صالحة على السجلات التي تستخدمها بالفعل: ",
   changeFieldAria: "تغيير مجال العمل",
@@ -754,10 +754,10 @@ const ar: Strings = {
   adds: "يضيف:",
   leavesPool: "يخرج من المجموعة:",
   retiredWithCount: (n) => {
-    if (n === 1) return " (متقاعد — لا يزال صنف واحد يستخدمه)";
-    if (n === 2) return " (متقاعد — لا يزال صنفان يستخدمانه)";
-    if (n <= 10) return ` (متقاعد — لا تزال ${n} أصناف تستخدمه)`;
-    return ` (متقاعد — لا يزال ${n} صنفا يستخدمه)`;
+    if (n === 1) return " (متقاعد — لا تزال صفقة واحدة تستخدمه)";
+    if (n === 2) return " (متقاعد — لا تزال صفقتان تستخدمانه)";
+    if (n <= 10) return ` (متقاعد — لا تزال ${n} صفقات تستخدمه)`;
+    return ` (متقاعد — لا تزال ${n} صفقة تستخدمه)`;
   },
   unusedRemoved: " (غير مستخدم، أزيل)",
   confirm: "تأكيد",
@@ -765,10 +765,10 @@ const ar: Strings = {
   retireTitle: (action) => `تقاعد ”${action}“؟`,
   retireBody: (n) => {
     const who =
-      n === 1 ? "لا يزال صنف واحد يشير إليه"
-      : n === 2 ? "لا يزال صنفان يشيران إليه"
-      : n <= 10 ? `لا تزال ${n} أصناف تشير إليه`
-      : `لا يزال ${n} صنفا يشير إليه`;
+      n === 1 ? "لا تزال صفقة واحدة تشير إليه"
+      : n === 2 ? "لا تزال صفقتان تشيران إليه"
+      : n <= 10 ? `لا تزال ${n} صفقات تشير إليه`
+      : `لا تزال ${n} صفقة تشير إليه`;
     return `${who} — تحتفظ به، لكنه لم يعد يعرض للأعمال الجديدة. يمكن إعادته في أي وقت.`;
   },
   retire: "تقاعد",

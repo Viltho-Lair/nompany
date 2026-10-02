@@ -214,9 +214,7 @@ export async function saveSalesSettings(ctx: SalesContext, body: Record<string, 
 // A ticket's services USED TO be chosen from a Sales-owned catalogue
 // (`salesServices`, a collection under sales-settings). That catalogue is
 // gone: what a studio sells is now named once, in Studio Settings → Service
-// Actions (`studio.serviceActions`), and Inventory and Projects already read
-// it the same way — see `cleanScope` in modules/inventory/inventory.ts, which
-// this mirrors. A ticket stores the ACTION NAMES themselves in `serviceIds`
+// Actions (`studio.serviceActions`). A ticket stores the ACTION NAMES themselves in `serviceIds`
 // (the field name survives the catalogue it used to point into, because
 // renaming it would touch every screen and every golden for no behavioural
 // gain — the values are what changed, not the shape).
@@ -225,8 +223,7 @@ export async function saveSalesSettings(ctx: SalesContext, body: Record<string, 
 // retired action is one removed from the pool but still in use here, so a
 // ticket that already named it keeps naming it rather than silently losing a
 // service the moment somebody edits the pool elsewhere. Only a name that is
-// neither — never one of theirs — is dropped, the same rule `cleanScope`
-// applies to an item's scope.
+// neither — never one of theirs — is dropped.
 function cleanServiceIds(raw: unknown, studio: Record<string, unknown>) {
   const known = new Set([
     ...(Array.isArray(studio?.serviceActions) ? studio.serviceActions as unknown[] : []),
@@ -1017,8 +1014,7 @@ export async function submitTicketPo(ctx: SalesContext, body: Record<string, unk
 // record without disturbing any other contact/location already on file.
 // EVERY SERVICE ACTION A TICKET STILL NAMES, by studio id alone.
 //
-// The twin of inventory's `itemScopesForStudio`, and it exists for exactly the
-// same reason that one refuses to go through `inventoryContext`: this feeds the
+// It deliberately does not go through `salesContext`: this feeds the
 // retire-vs-drop decision in studioServiceActions.serviceActionUsage, which is
 // guarded upstream by studio.settings.edit — a right a role can hold without
 // holding sales.tickets.view. Resolving through `salesContext` would return an

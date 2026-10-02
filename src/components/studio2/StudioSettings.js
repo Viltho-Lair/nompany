@@ -817,7 +817,7 @@ function LegalInfo({ rows, canManage, onSave }) {
 // SERVICE ACTIONS — the things this company DOES to finish a job (Delivery,
 // Installation, Programming, Building, Assembling, …). Seeded from the studio's
 // field of work against the market's fixed 25-field × 20-action matrix
-// (`@/shared/fieldsOfWork`), not freely typed: an inventory item's Scope is
+// (`@/shared/fieldsOfWork`), not freely typed: a deal's services are
 // chosen from the pool this section edits, and a project's requirement weights
 // are keyed to it. This section owns a fetch/save cycle onto the DEDICATED
 // `.../settings/service-actions` route — the general settings PUT stopped
@@ -919,7 +919,7 @@ function ServiceActions({ slug, onTradeSaved }) {
 
   function toggleAction(action, checked, count) {
     // Unticking something already relied on asks first — the pool drops it,
-    // but an item that already scoped it keeps working either way; the studio
+    // but a deal that already names it keeps working either way; the studio
     // just stops being offered it for NEW work, and should know that going in.
     if (checked && count > 0) { setConfirmRetire({ action, count }); return; }
     const next = checked ? data.serviceActions.filter((a) => a !== action) : [...data.serviceActions, action];

@@ -87,7 +87,7 @@ import { resolveHolders } from "@/lib/studios";
 import { NOVA_CAPABILITIES, capabilityEnabled, enabledCapabilities } from "@/lib/nova/capabilities";
 import { getNovaConfig, saveNovaConfig } from "@/lib/data/novaConfig";
 import { buildToolset } from "@/platform/nova/tools";
-import { inventoryContext, createItem, editItem, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
+import { inventoryContext, createItem, editItem, listItems, createVendor, createOrder, editOrder, receiveOrder, adjustStock, listProjectSheets, saveSheetLine } from "@/modules/inventory/inventory";
 import {
   hrContext, requestVacation, decideVacation, listVacations,
   listDepartments, listHrRoles, createHrRole, editHrRole, removeHrRole,
@@ -5291,23 +5291,19 @@ console.log("== service-action pool: remove is retire, not delete");
 }
 
 // ============================================================================
-console.log("== inventory scope carries a retired action, it does not drop it");
+console.log("== a registered item has no scope: not stored, not served");
 {
+  // SCOPE WAS REMOVED FROM THE ITEM (02/10/2026). A caller that still sends one
+  // — a stale screen, an old integration — must not get it written, or the
+  // field comes back by the side door and nothing counts it any more.
   await updateStudio(studio.id, { serviceActions: ["Installation", "Training"], retiredServiceActions: [] });
   const ic = await inventoryContext(owner, slug);
-  const item = await createItem(ic, { name: `Scoped ${rand()}`, unit: "pcs", scope: ["Installation", "Training"] });
-  ok("an item scopes to two live actions", (item.item?.scope || []).length === 2, JSON.stringify(item));
-
-  // Training is removed from the pool but retired because this item still uses it.
-  await updateStudio(studio.id, { serviceActions: ["Installation"], retiredServiceActions: ["Training"] });
-  const ic2 = await inventoryContext(owner, slug);
-  const again = await editItem(ic2, item.item.id, { name: item.item.name, unit: "pcs", scope: ["Installation", "Training"] });
-  ok("re-saving keeps the retired action in scope", (again.item?.scope || []).includes("Training"), JSON.stringify(again));
-
-  // A truly unknown action (neither active nor retired) is still filtered out.
-  const ic3 = await inventoryContext(owner, slug);
-  const filtered = await editItem(ic3, item.item.id, { name: item.item.name, unit: "pcs", scope: ["Installation", "Nonsense"] });
-  ok("an unknown action is still dropped", !(filtered.item?.scope || []).includes("Nonsense"), JSON.stringify(filtered));
+  const item = await createItem(ic, { name: `Unscoped ${rand()}`, unit: "pcs", scope: ["Installation"] });
+  ok("creating an item ignores a scope it is sent", item.item && !("scope" in item.item), JSON.stringify(item));
+  const again = await editItem(ic, item.item.id, { name: item.item.name, scope: ["Training"] });
+  ok("...and so does editing one", again.item && again.item.scope === undefined, JSON.stringify(again));
+  const listed = (await listItems(ic)).find((i) => i.id === item.item.id);
+  ok("...and the list does not serve one", listed && !("scope" in listed), JSON.stringify(listed));
 }
 
 // ============================================================================
@@ -5323,15 +5319,18 @@ console.log("== service-actions endpoint: a field seeds the pool, removal retire
   ok("the chosen field is echoed back", afterSeed.fieldOfWork === "Manufacturing");
   ok("the endpoint offers all 25 fields", afterSeed.options.fields.length === 25);
 
-  // An item scoped to one action; removing that action retires it (carry).
-  const ic = await inventoryContext(owner, slug);
-  await createItem(ic, { name: `Ep ${rand()}`, unit: "pcs", scope: ["Installation"] });
+  // A deal naming one action; removing that action retires it (carry).
+  const epTicket = await createTicket(await salesContext(owner, slug), {
+    title: `Ep ${rand()}`, clientName: "Acme", deadline: "2031-12-01",
+    industry: "Technology", serviceIds: ["Installation"],
+  });
+  ok("a ticket names Installation", (epTicket.ticket?.serviceIds || []).includes("Installation"), JSON.stringify(epTicket.error));
   const withoutInstall = afterSeed.serviceActions.filter((a) => a !== "Installation");
   const edit = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: withoutInstall }), { params: params(slug) });
   ok("editing the pool is accepted", edit.status === 200, String(edit.status));
   const afterEdit = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
   ok("the removed-but-used action is retired", afterEdit.retiredServiceActions.includes("Installation"));
-  ok("...and usage reports the item count", afterEdit.usage["Installation"] >= 1, JSON.stringify(afterEdit.usage));
+  ok("...and usage reports the count", afterEdit.usage["Installation"] >= 1, JSON.stringify(afterEdit.usage));
 
   // "Other" seeds nothing.
   await SVC_ACTIONS.PUT(jsonReq({ fieldOfWork: "Other", fieldOfWorkOther: "Bespoke" }), { params: params(slug) });
@@ -5343,9 +5342,9 @@ console.log("== service-actions endpoint: a field seeds the pool, removal retire
   // just no roleId, so no grant reaches studio.settings.edit) cannot edit.
   await signInAs(nobody.user.id);
   // usage is manager-only: it exists to warn the manage-side edit alerts
-  // ("N items use this action"), which a view-only member never sees, so the
-  // route must not hand a viewer per-action inventory counts, and must not
-  // even do the inventory read to produce them.
+  // ("N deals use this action"), which a view-only member never sees, so the
+  // route must not hand a viewer per-action counts, and must not even do the
+  // read to produce them.
   const nobodyGet = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
   ok("a member without settings.edit gets no usage counts",
     Object.keys(nobodyGet.usage || {}).length === 0 && nobodyGet.canManage === false, JSON.stringify(nobodyGet));
@@ -5368,68 +5367,65 @@ console.log("== service-actions endpoint: a field seeds the pool, removal retire
 }
 
 // ============================================================================
-console.log("== service-actions: settings.edit without inventory view must never drop a referenced action");
+console.log("== service-actions: settings.edit without sales view must never drop a referenced action");
 {
-  // FINDING B (final-review). serviceActionUsage used to read inventory through
-  // inventoryContext(user, slug), which is gated on the CALLER's
-  // inventory.items.view — but the route that decides retire-vs-drop gates only
-  // on studio.settings.edit, and a role can hold that WITHOUT any inventory
-  // right. Under that combination the usage read came back `{}` (forbidden),
-  // "referenced" was empty, and a still-referenced action was DROPPED instead
-  // of retired — landing in neither serviceActions nor retiredServiceActions,
-  // so inventory's cleanScope no longer recognised it and the next item edit
-  // silently stripped it from scope. This proves the carry now holds even when
-  // the acting collaborator cannot see Inventory at all.
+  // FINDING B (final-review). serviceActionUsage once read its referrers through
+  // a module context gated on the CALLER's own view right — but the route that
+  // decides retire-vs-drop gates only on studio.settings.edit, and a role can
+  // hold that WITHOUT any other right. Under that combination the usage read
+  // came back `{}` (forbidden), "referenced" was empty, and a still-referenced
+  // action was DROPPED instead of retired — landing in neither serviceActions
+  // nor retiredServiceActions, so the next edit of the record naming it
+  // silently stripped it. The referrer was a registered item's scope when this
+  // was found; that field is gone (02/10/2026) and a TICKET is the referrer
+  // now, read the same ungated way. This proves the carry holds even when the
+  // acting collaborator cannot see Sales at all.
   await signInAs(owner.id);
   await updateStudio(studio.id, { serviceActions: ["Installation", "Training"], retiredServiceActions: [] });
-  const ic = await inventoryContext(owner, slug);
-  const scoped = await createItem(ic, { name: `Gap ${rand()}`, unit: "pcs", scope: ["Training"] });
-  ok("an item scopes to Training before the gap is exercised",
-    (scoped.item?.scope || []).includes("Training"), JSON.stringify(scoped));
+  const gapTicket = await createTicket(await salesContext(owner, slug), {
+    title: `Gap ${rand()}`, clientName: "Acme", deadline: "2031-12-01",
+    industry: "Technology", serviceIds: ["Training"],
+  });
+  ok("a ticket names Training before the gap is exercised",
+    (gapTicket.ticket?.serviceIds || []).includes("Training"), JSON.stringify(gapTicket.error));
 
-  // A role holding ONLY studio.settings.edit — no inventory.* permission at all,
-  // so inventoryContext(user, slug) for this person resolves { error: "forbidden" }.
+  // A role holding ONLY studio.settings.edit — no sales permission at all,
+  // so salesContext(user, slug) for this person resolves { error: "forbidden" }.
   const settingsOnly = await createRole(studio.id, {
     name: `SettingsOnly ${rand()}`, permissions: ["administration.settings.edit"],
   });
   const gap = await person("GapAdmin", null);
   await updateCollaborator(studio.id, gap.collaborator.id, { roleIds: [settingsOnly.id] });
   const gapCtx = await studioContext(gap.user, slug);
-  ok("the fixture role really does hold administration.settings.edit but not inventory view",
-    gapCtx.access.has("administration.settings.edit") && !gapCtx.access.has("inventory.items.view"),
+  ok("the fixture role really does hold administration.settings.edit but not sales view",
+    gapCtx.access.has("administration.settings.edit") && !gapCtx.access.has("crmSales.tickets.view"),
     JSON.stringify([...gapCtx.access]));
 
   await signInAs(gap.user.id);
   const before = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
   // THE FIX, asserted directly: `usage` is complete for this caller even though
-  // they hold no inventory.* right at all — serviceActionUsage no longer routes
-  // through the caller's own inventory grant, so there is nothing left to be
-  // incomplete about. Before the fix this came back `{}` (inventoryContext's
-  // own forbidden refusal), which is the exact hole the removal below exploited.
-  ok("this caller's usage read is COMPLETE despite holding no inventory permission",
-    before.usage?.Training === 1, JSON.stringify(before.usage));
+  // they hold no sales right at all — serviceActionUsage does not route through
+  // the caller's own grant, so there is nothing left to be incomplete about.
+  // Before the fix this came back `{}` (the module context's own forbidden
+  // refusal), which is the exact hole the removal below exploited.
+  ok("this caller's usage read is COMPLETE despite holding no sales permission",
+    before.usage?.Training >= 1, JSON.stringify(before.usage));
 
   const withoutTraining = (before.serviceActions || []).filter((a) => a !== "Training");
   const put = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: withoutTraining }), { params: params(slug) });
   ok("the settings-only admin's removal is accepted", put.status === 200, String(put.status));
   const after = await put.json();
-  ok("Training is RETIRED, not dropped, though this caller cannot see inventory",
+  ok("Training is RETIRED, not dropped, though this caller cannot see sales",
     (after.retiredServiceActions || []).includes("Training"), JSON.stringify(after));
   ok("...and it left the active pool", !(after.serviceActions || []).includes("Training"), JSON.stringify(after));
-
-  // The carry actually protected the row: the item keeps its scope on a later edit.
   await signInAs(owner.id);
-  const ic2 = await inventoryContext(owner, slug);
-  const resaved = await editItem(ic2, scoped.item.id, { name: scoped.item.name, unit: "pcs", scope: ["Training"] });
-  ok("the item's scope still carries Training after the permission gap",
-    (resaved.item?.scope || []).includes("Training"), JSON.stringify(resaved));
 }
 
 // ============================================================================
 console.log("== service-actions: an action a TICKET names must retire, not drop");
 {
   // THE REFERRER THE USAGE QUERY DID NOT KNOW ABOUT. serviceActionUsage counted
-  // inventory item scopes ONLY. That was complete right up until services moved
+  // inventory item scopes ONLY (a field since removed, 02/10/2026). That was complete right up until services moved
   // from the Sales-owned catalogue to Studio Settings -> Service Actions, at which
   // point a TICKET became a referrer too — and an action this query misses is
   // reported unreferenced, so nextPool DROPS it instead of retiring it. It then
@@ -5473,7 +5469,7 @@ console.log("== the flow editor: a studio owns its flows, and a refusal says why
   // THE WARNING THIS SCREEN OWES ANYBODY ABOUT TO CHANGE A FLOW. Editing a
   // template changes what every deal on it shows, which stages it still invites
   // and what may attach to it — and the editor had no idea any of them existed.
-  // Service Actions next door has warned "N items use this action" since the day
+  // Service Actions next door has warned "N deals use this action" since the day
   // removing one could silently drop a ticket's scope.
   //
   // Counted from the engagement ROOTS rather than from ENG.hasStage: that index

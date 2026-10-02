@@ -44,8 +44,8 @@ async function payload(user: User, slug: string) {
       serviceActions: arr(studio.serviceActions),
       retiredServiceActions: arr(studio.retiredServiceActions),
       // usage is manager-only: it exists so the manage-side edit alerts can warn
-      // "N items use this action", and a view-only member never sees those alerts.
-      // Skipping the inventory read for them is also a hop saved on every GET a
+      // "N records use this action", and a view-only member never sees those alerts.
+      // Skipping the read for them is also a hop saved on every GET a
       // non-manager makes — the same read a manager pays for on both GET and PUT.
       usage: canManage ? await serviceActionUsage(user, slug) : {},
       options: { fields: [...FIELDS_OF_WORK], actions: [...SERVICE_ACTIONS] },
@@ -110,7 +110,7 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
   } else if ("fieldOfWork" in raw) {
     // Setting or changing the field RE-SEEDS the standard pool from its matrix
     // row (empty for "Other"); a referenced action the new field drops is
-    // retired, not deleted, so an in-use item never loses its scope silently.
+    // retired, not deleted, so a deal that names it never loses it silently.
     if (!isField(raw.fieldOfWork)) return Response.json({ error: "field" }, { status: 400 });
     patch.fieldOfWork = String(raw.fieldOfWork);
     patch.fieldOfWorkOther = String(raw.fieldOfWork) === OTHER_FIELD ? String(raw.fieldOfWorkOther ?? "").slice(0, 80) : "";
