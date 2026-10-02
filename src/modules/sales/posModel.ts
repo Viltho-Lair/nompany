@@ -22,7 +22,17 @@ export const SHIFT_STATUSES = ["Open", "Closed"] as const;
 export type PosLine = {
   itemId: string;
   description: string;
-  /** How many of the item's own unit were sold. */
+  /**
+   * THE SUBCATEGORY IT WAS SOLD AS (02/10/2026) — a slice out of a box — or
+   * absent for the item sold whole. See modules/inventory/categoryPrices.
+   */
+  sizeId?: string;
+  /**
+   * How many of the item's stock unit ONE of what was sold takes. Written by
+   * the SERVER from the item, never read from a request: 1 when absent.
+   */
+  unitQty?: number;
+  /** How many were sold — of the item, or of the subcategory named above. */
   count: number;
   /** The price of ONE of what was sold, as the shelf shows it. */
   price: number;
@@ -70,8 +80,9 @@ export type PosTotals = {
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
-/** Units of the item a line takes off the shelf — its count, in the item's unit. */
-export const unitsOf = (l: Pick<PosLine, "count">) => Math.round(num(l.count) * 1000) / 1000;
+/** Units of the item a line takes off the shelf: how many were sold, times what one of them holds. */
+export const unitsOf = (l: Pick<PosLine, "count" | "unitQty">) =>
+  Math.round(num(l.count) * (num(l.unitQty) > 0 ? num(l.unitQty) : 1) * 1000) / 1000;
 
 /** A discount as stored, or null when there is none worth keeping. */
 export function cleanDiscount(raw: unknown): PosDiscount | null {
@@ -92,6 +103,7 @@ export function cleanPosLines(list: unknown): PosLine[] {
       return {
         itemId: str(l.itemId, 60),
         description: str(l.description, 200),
+        ...(str(l.sizeId, 60) ? { sizeId: str(l.sizeId, 60) } : {}),
         count: Math.round(num(l.count) * 1000) / 1000,
         price: roundSum(Math.max(0, num(l.price))),
         ...taxCategoryField(l.taxCategory),

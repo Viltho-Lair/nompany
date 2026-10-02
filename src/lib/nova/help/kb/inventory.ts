@@ -394,7 +394,7 @@ export const inventory: HelpModule = {
     // Currency, required select defaulting to Studio; Sell price with margin
     // hint; Reorder level; Tax, required, default Standard; Barcode; Shipping
     // and Customs charges, required only for a foreign currency; Image, 500 KB;
-    // Scope checkboxes; Notes) and ItemSchema in src/modules/inventory/schema.ts
+    // Notes) and ItemSchema in src/modules/inventory/schema.ts
     // (name capped at 160 by createItem, SKU 40, model 80, notes 1000); the
     // refusals are createItem's and editItem's in src/modules/inventory/
     // inventory.ts and barcodeProblems' in ./barcodes.ts.
@@ -416,12 +416,12 @@ export const inventory: HelpModule = {
           "Category: from Item categories in Master data, or none",
           "Unit cost, with its Currency: blank currency means your studio's own",
           "Sell price: in your studio's currency; the margin it implies shows beneath",
+          "Sell price and Quantity for each subcategory (optional): one pair per subcategory of the chosen category",
           "Reorder level: the quantity at which you are warned",
           "Tax (required): Standard, Zero-rated or Exempt; it starts at Standard",
           "Barcode: what a scanner reads for one unit",
           "Shipping charges and Customs charges (required for a foreign currency)",
           "Image: an image file up to 500 KB",
-          "Scope: which of your studio's service actions the item needs once it lands",
           "Notes: up to 1000 characters",
         ],
         ar: [
@@ -434,12 +434,12 @@ export const inventory: HelpModule = {
           "الفئة: من فئات الأصناف في البيانات الأساسية، أو «بلا»",
           "تكلفة الوحدة مع العملة: العملة الفارغة تعني عملة الاستوديو",
           "سعر البيع: بعملة الاستوديو؛ ويظهر تحته الهامش الناتج",
+          "سعر البيع والكمية لكل فئة فرعية (اختياري): خانتان لكل فئة فرعية من الفئة المختارة",
           "حد إعادة الطلب: الكمية التي تُنبَّه عندها",
           "الضريبة (مطلوبة): قياسي أو نسبة صفرية أو معفى؛ وتبدأ بقياسي",
           "الباركود: ما يقرؤه الماسح لوحدة واحدة",
           "رسوم الشحن والرسوم الجمركية (مطلوبة للعملة الأجنبية)",
           "الصورة: ملف صورة حتى 500 كيلوبايت",
-          "النطاق: إجراءات الخدمة في الاستوديو التي يحتاجها الصنف بعد وصوله",
           "ملاحظات: حتى 1000 حرف",
         ],
       },
@@ -591,16 +591,6 @@ export const inventory: HelpModule = {
       },
       keywords: ["vendor", "supplier", "item type", "lead time", "المورد", "نوع الصنف", "مدة التوريد", "الموردون"],
       related: ["inventory-items.fields"],
-    },
-    {
-      id: "inventory-items.scope", topic: "dept.inventory-items", kind: "settings", open: "administration-settings",
-      q: { en: "What is an item's Scope, and where is its list set?", ar: "ما «النطاق» في الصنف، وأين تُضبط قائمته؟" },
-      a: {
-        en: "Scope says which of your studio's service actions an item needs once it lands, such as installation or programming. The checkboxes are your studio's own service actions, kept in Studio settings; if there are none, the form says so. Scope is a label for the people who plan the work and moves no stock.",
-        ar: "يبيّن النطاق أي إجراءات الخدمة في الاستوديو يحتاجها الصنف بعد وصوله، مثل التركيب أو البرمجة. ومربعات الاختيار هي إجراءات الخدمة الخاصة بالاستوديو، المحفوظة في إعدادات الاستوديو؛ وإن لم يكن منها شيء ذكر النموذج ذلك. والنطاق تسمية لمن يخططون العمل ولا يحرك أي مخزون.",
-      },
-      keywords: ["scope", "service actions", "installation", "programming", "النطاق", "إجراءات الخدمة", "تركيب", "برمجة"],
-      related: ["admin.settings.field-of-work"],
     },
     {
       id: "inventory-items.refused", topic: "dept.inventory-items", kind: "troubleshoot", open: "inventory-items",

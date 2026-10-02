@@ -293,10 +293,163 @@ for (const locale of ["en", "ar"]) {
   const raw = W.writeXlsx(I.itemTemplate(D.itemImportDict("en").templateWords, tenv));
   const text = new TextDecoder().decode(raw);
   // Barcodes typed into a General column come back as 6.2516E+12 — the 18/09/2026 incident.
-  ok("code columns are formatted as Text before anybody types", /<col min="1" max="1"[^>]*style="2"/.test(text) && /<col min="7" max="7"[^>]*style="2"/.test(text));
+  ok("code columns are formatted as Text before anybody types", /<col min="1" max="1"[^>]*style="2"/.test(text) && /<col min="8" max="8"[^>]*style="2"/.test(text));
   ok("the unit column is a strict dropdown of the lists sheet", /errorStyle="stop" sqref="C2:C5000"><formula1>'Lists'!\$A\$2:\$A\$4</.test(text));
   ok("the supplier column only warns, since new suppliers can be added", /errorStyle="information" sqref="D2:D5000"/.test(text));
   ok("column letters run past Z", W.columnName(0) === "A" && W.columnName(25) === "Z" && W.columnName(26) === "AA");
+}
+
+// ---- the studio's own category, and a price per subcategory ------------------
+// THE DEFECT: a "Category" column filled the item TYPE (the supplier's line), so
+// an imported item was never filed on the studio's own shelf and no offer on a
+// category could reach it.
+{
+  console.log("\n== a Category column files the item on the studio's own shelf");
+  const C = await import("@/modules/inventory/categoryPrices");
+  const cats = [
+    { id: "box", name: "Box with Slice", nameAr: "صندوق بشرائح" },
+    { id: "slice", name: "Slice", parentId: "box" },
+    { id: "whole", name: "Whole Box" },
+    { id: "other", name: "Other" },
+    { id: "slice2", name: "Slice", parentId: "other" },
+  ];
+  const e = env({ categories: cats, items: [] });
+  const g = I.guessItemMapping(["Name", "Category", "Product Category"]);
+  ok("Category is the studio's category; Product Category is still the item type", g.category === 1 && g.itemType === 2);
+  ok("a category is matched by name, without regard to case", one({ name: "A", category: "whole box" }, {}, e).create[0]?.categoryId === "whole");
+  ok("...and by its Arabic name", one({ name: "A", category: "صندوق بشرائح" }, {}, e).create[0]?.categoryId === "box");
+  ok("a path names a category inside another", one({ name: "A", category: "Box with Slice / Slice" }, {}, e).create[0]?.categoryId === "slice");
+  ok("a name two subcategories share is not guessed", C.resolveCategory("Slice", cats) === null);
+  const unknown = one({ name: "A", category: "Sweets" }, {}, e);
+  ok("a category the studio lacks imports the item unfiled, and says so",
+    unknown.create.length === 1 && unknown.create[0].categoryId === "" && unknown.unknownCategories[0] === "Sweets"
+    && unknown.warnings[0]?.kind === "category-unknown");
+  ok("an item under a category with subcategories is counted for pricing by hand",
+    one({ name: "A", category: "Box with Slice" }, {}, e).toPrice === 1 && one({ name: "A", category: "Whole Box" }, {}, e).toPrice === 0);
+
+  ok("the subcategories of a category are everything beneath it", C.subcategoriesOf(cats, "box").map((c) => c.id).join() === "slice");
+  // A SUBCATEGORY ADDED LATER is a slot on every item already filed above it,
+  // because the slots are read from the register and not stored on the item.
+  ok("a subcategory added later is offered without touching the item",
+    C.subcategoriesOf([...cats, { id: "half", name: "Half", parentId: "box" }], "box").length === 2);
+  const kept = C.cleanCategoryPrices({ slice: "1200", slice2: 5, whole: 9, junk: 1 }, cats, "box");
+  ok("only prices beneath the item's own category are kept", JSON.stringify(kept) === JSON.stringify({ slice: 1200 }));
+  ok("a blank or a nought is unpriced, not stored", Object.keys(C.cleanCategoryPrices({ slice: "" }, cats, "box")).length === 0
+    && Object.keys(C.cleanCategoryPrices({ slice: 0 }, cats, "box")).length === 0);
+  ok("re-filing the item drops what no longer sits beneath it", Object.keys(C.cleanCategoryPrices({ slice: 1200 }, cats, "whole")).length === 0);
+  // HOW MANY OF A SUBCATEGORY ONE ITEM HOLDS — kept beside the price, under the same containment.
+  ok("a quantity is kept per subcategory, and only beneath the item's category",
+    JSON.stringify(C.cleanCategoryQuantities({ slice: "20", whole: 3 }, cats, "box")) === JSON.stringify({ slice: 20 }));
+  ok("a blank quantity is unknown, not nought", Object.keys(C.cleanCategoryQuantities({ slice: "" }, cats, "box")).length === 0);
+
+  // STOCK IS COUNTED IN PIECES: the whole item takes what it holds, a subcategory its share.
+  const tree = [...cats, { id: "strip", name: "Strip", parentId: "box" }];
+  const boxed = { categoryId: "box", categoryPrices: { slice: 1200 }, categoryQuantities: { slice: 20, strip: 4 } };
+  ok("the item sold whole takes its largest quantity off stock", C.piecesPerItem(boxed, tree) === 20);
+  ok("an item with no quantities takes one, as it always did", C.piecesPerItem({ categoryId: "box" }, tree) === 1);
+  const sizes = C.sellingSizes(boxed, tree);
+  ok("the smallest subcategory takes one piece, at its own price",
+    sizes.find((z) => z.id === "slice").units === 1 && sizes.find((z) => z.id === "slice").price === 1200);
+  ok("one in between takes its share, and is unpriced until somebody prices it",
+    sizes.find((z) => z.id === "strip").units === 5 && sizes.find((z) => z.id === "strip").price === null);
+  // A price with no quantity says what to charge and not what leaves the shelf.
+  ok("a subcategory with a price and no quantity is not sold as such",
+    C.sellingSizes({ categoryId: "box", categoryPrices: { slice: 1200 } }, tree).length === 0);
+}
+
+// ---- sealed boxes and loose pieces (modules/inventory/sealedLoose) ------------
+// THE DEFECT: one on-hand figure cannot tell a sealed box and seventeen loose
+// pieces from thirty-seven loose ones, so "a box" was sold whenever twenty
+// pieces remained — sealed or not.
+{
+  console.log("\n== sealed boxes and loose pieces");
+  const S = await import("@/modules/inventory/sealedLoose");
+  const at = (n) => `2026-10-02T10:00:${String(n).padStart(2, "0")}Z`;
+  const inn = (qty, n) => ({ kind: "in", qty, at: at(n) });
+  const out = (qty, n, loose) => ({ kind: "out", qty, at: at(n), ...(loose === undefined ? {} : { loose }) });
+  const same = (x, sealed, loose) => x.sealed === sealed && x.loose === loose;
+
+  ok("stock coming in arrives as whole boxes", same(S.splitOf([inn(100, 1)], 20), 5, 0));
+  ok("what does not fill a box is loose", same(S.splitOf([inn(47, 1)], 20), 2, 7));
+  // The till's own movements say what they did: a box sold leaves the loose pieces alone.
+  ok("a box sold takes a sealed box", same(S.splitOf([inn(60, 1), out(20, 2, 0)], 20), 2, 0));
+  ok("a piece sold with none loose opens a box", same(S.splitOf([inn(60, 1), out(3, 2, 17)], 20), 2, 17));
+  ok("...and the next comes off the loose ones", same(S.splitOf([inn(60, 1), out(3, 2, 17), out(5, 3, -5)], 20), 2, 12));
+  ok("a movement that does not say leaves as whole boxes first", same(S.splitOf([inn(60, 1), out(23, 2)], 20), 1, 17));
+  ok("the order they happened in is what counts, not the order they are read in",
+    same(S.splitOf([out(3, 2, 17), inn(60, 1)], 20), 2, 17));
+  ok("the split always adds up to the ledger, whatever a movement claimed",
+    same(S.splitOf([inn(60, 1), out(3, 2, 500)], 20), 0, 57));
+  ok("an item with no boxes is all loose", same(S.splitOf([inn(7, 1)], 1), 0, 7));
+
+  const have = { sealed: 1, loose: 17 };
+  const box = S.saleSplit(have, 20, 1, 0);
+  ok("a box is sold from a sealed box", box.ok && box.loose === 0 && box.opened === 0);
+  // 37 pieces is enough pieces for a box twice over by count — and one sealed box.
+  ok("twenty loose pieces are not a box", S.saleSplit({ sealed: 0, loose: 25 }, 20, 1, 0).ok === false);
+  ok("a second box is refused when one is sealed", S.saleSplit(have, 20, 2, 0).ok === false);
+  const few = S.saleSplit(have, 20, 0, 5);
+  ok("pieces come off the loose ones first", few.ok && few.loose === -5 && few.opened === 0);
+  const many = S.saleSplit(have, 20, 0, 20);
+  ok("...and open a box only when they run out", many.ok && many.loose === 0 && many.opened === 1);
+
+  // TAKEN OFF BY HAND: the person says which stock, because the rule for a
+  // silent movement would read twenty damaged LOOSE pieces as a sealed box gone.
+  const dmg = S.adjustSplit({ sealed: 1, loose: 24 }, 20, "loose", -20);
+  ok("damaged loose pieces come off the loose pieces", dmg.ok && dmg.qty === -20 && dmg.loose === -20);
+  const crushed = S.adjustSplit({ sealed: 1, loose: 24 }, 20, "sealed", -1);
+  ok("a damaged box is counted in boxes and leaves the loose pieces alone", crushed.ok && crushed.qty === -20 && crushed.loose === 0);
+  ok("more loose pieces than there are is refused", S.adjustSplit({ sealed: 3, loose: 2 }, 20, "loose", -5).problem === "no-loose");
+  ok("more sealed boxes than there are is refused", S.adjustSplit({ sealed: 1, loose: 50 }, 20, "sealed", -2).problem === "no-sealed");
+  ok("half a sealed box is not a thing", S.adjustSplit({ sealed: 1, loose: 0 }, 20, "sealed", -0.5).problem === "not-whole");
+  const opened = S.adjustSplit({ sealed: 1, loose: 4 }, 20, "open", 1);
+  ok("opening a box moves nothing off the shelf", opened.ok && opened.qty === 0 && opened.loose === 20);
+  ok("...and the ledger then reads it that way",
+    same(S.splitOf([inn(24, 1), { kind: "adjust", qty: 0, loose: 20, at: at(2) }], 20), 0, 24));
+}
+
+// ---- what was written off (modules/inventory/writeOffs) -----------------------
+// THE DEFECT: every write-off was in the ledger and nothing added them up, so a
+// studio could not say what it loses to expiry or damage.
+{
+  console.log("\n== what was written off");
+  const W = await import("@/modules/inventory/writeOffs");
+  const items = [{ id: "a", name: "Chocolate", sku: "A", unit: "pcs", unitCost: 10 }, { id: "b", name: "Label", unit: "roll" }];
+  const mv = (over) => ({ itemId: "a", kind: "adjust", at: `${over.day}T09:00:00Z`, ...over });
+  const moves = [
+    mv({ id: "1", qty: -4, day: "2026-10-01", cause: "damaged", unitCost: 8 }),
+    mv({ id: "2", qty: -20, day: "2026-10-02", cause: "expired" }),
+    mv({ id: "3", qty: -1, day: "2026-09-30", cause: "damaged", unitCost: 8 }),
+    mv({ id: "4", qty: 5, day: "2026-10-02", cause: "count" }),
+    mv({ id: "5", qty: -3, day: "2026-10-02", kind: "out" }),
+    mv({ id: "6", qty: -2, day: "2026-10-02", itemId: "b", cause: "nonsense" }),
+  ];
+  const r = W.writeOffReport(moves, items, { from: "2026-10-01", to: "2026-10-31" });
+  ok("only adjustments that took stock away are write-offs — not a sale, not an adjustment up", r.entries === 3);
+  ok("the period is cut by the studio's own day, both ends in", !r.rows.some((x) => x.id === "3"));
+  // A repricing since must not restate a loss already booked.
+  ok("a write-off is worth the cost it carried that day", r.rows.find((x) => x.id === "1").value === 32);
+  ok("one with no cost of its own is valued at today's, and counted as an estimate",
+    r.rows.find((x) => x.id === "2").value === 200 && r.estimated === 1);
+  ok("an item nobody costed is unvalued, never nought", r.rows.find((x) => x.id === "6").value === null && r.unvalued === 1);
+  ok("the total leaves the unvalued out", r.total === 232);
+  ok("reasons are totalled, largest first", r.byCause[0].cause === "expired" && r.byCause[0].value === 200);
+  ok("a reason that is none of the named ones is Other", r.byCause.some((c) => c.cause === "" && c.entries === 1));
+  ok("items are totalled in their own unit", r.byItem[0].itemId === "a" && r.byItem[0].units === 24);
+  ok("no bounds is every write-off", W.writeOffReport(moves, items, { from: "", to: "" }).entries === 4);
+
+  ok("this month runs from the first to today", JSON.stringify(W.periodDays("month", "2026-10-02")) === JSON.stringify({ from: "2026-10-01", to: "2026-10-02" }));
+  ok("last month is the whole of it", JSON.stringify(W.periodDays("last-month", "2026-03-15")) === JSON.stringify({ from: "2026-02-01", to: "2026-02-28" }));
+  ok("...and January's last month is December of the year before",
+    JSON.stringify(W.periodDays("last-month", "2026-01-10")) === JSON.stringify({ from: "2025-12-01", to: "2025-12-31" }));
+
+  const same2 = (x, from, to) => x && x.from === from && x.to === to;
+  ok("days somebody chose are used as given", same2(W.customDays("2026-09-10", "2026-09-20"), "2026-09-10", "2026-09-20"));
+  // An empty report for a backwards range reads as "nothing was written off".
+  ok("ends typed the wrong way round are swapped", same2(W.customDays("2026-09-20", "2026-09-10"), "2026-09-10", "2026-09-20"));
+  ok("either end may be left open", same2(W.customDays("2026-09-10", ""), "2026-09-10", ""));
+  ok("a day that is not on the calendar is no day", same2(W.customDays("2026-02-31", "2026-03-05"), "", "2026-03-05"));
+  ok("no days chosen is no custom period", W.customDays("", "nonsense") === null);
 }
 
 // ---- the SKU a blank item is given (modules/inventory/sku) -------------------

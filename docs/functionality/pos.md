@@ -340,6 +340,16 @@ basket with the server's own function, and refreshes when anybody else sells on 
 `tests/pos-model.mjs` covers the arithmetic; `tests/barcode-model.mjs` the scan and the batch
 picking.
 
+## An item sold as its subcategories (02/10/2026)
+
+An item whose category has a subcategory with a quantity (`master-data.md`, Item
+categories) is picked at the till two ways: by its own name, sold whole at its Sell price,
+and as "Name — Subcategory" at that subcategory's price. Each is its own basket row. A
+receipt line stores `sizeId` (the subcategory) and `unitQty` (what one of it takes off
+stock), and `units` is count × `unitQty` as it was when packs existed — so a return, which
+works in `units`, puts back pieces. A barcode is still the item sold whole. A subcategory
+removed or left without a quantity after a basket was built is refused as `size`.
+
 ## The day's trading reaches the books (22/09/2026)
 
 **One entry per shift, written when the drawer is counted.** A shop rings up hundreds of sales a

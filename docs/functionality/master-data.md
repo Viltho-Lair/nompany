@@ -204,8 +204,101 @@ line is frequently not a category, and two spellings of one category would arriv
 LEVEL (tree.ts), so deleting a middle row would quietly promote its whole subtree. Deleting a
 leaf re-files nothing: the items keep the id and stop resolving it.
 
+**An item may carry a price per subcategory (02/10/2026, the owner).** An item is filed under
+one category and its Sell price is the price for that category. When the category has
+subcategories, the item form shows one more Sell price box for each of them, optional, stored
+on the item as `categoryPrices` keyed by the subcategory's id
+(`modules/inventory/categoryPrices.ts`, pure). **The boxes are read from the register, not
+stored on the item**, so a subcategory added later appears on every item already filed above
+it with nothing re-saved. Only prices beneath the item's own category are kept: re-filing an
+item drops the rest. A blank is unpriced and is not stored.
+
+**And a quantity beside each price** (`categoryQuantities`, same key): how many of that
+subcategory one of the item holds — a box of twenty slices says 20 against Slice. Optional,
+kept apart from the price so either may be known without the other, three decimal places.
+
+**STOCK IS THEN COUNTED IN PIECES — the owner, 02/10/2026.** An item with a subcategory
+quantity is counted in the smallest thing it is sold as: on-hand, reorder level, what is
+received and Unit cost are all per PIECE, so every figure is a whole number whatever the box
+size. The till offers the item and, beneath it, each subcategory that has a quantity
+("Chocolate — Slice") at its own price. Sold whole at the Sell price it takes the largest
+quantity off stock (20); a subcategory holding q per item takes 20 / q (one for the
+smallest). `piecesPerItem` and `sellingSizes` are the two functions, pure, and the server
+reads the multiple from the item — a request names a subcategory, never a quantity. **A
+subcategory with a price and no quantity is not offered**: what it would take off the shelf
+is unknown, and guessing one would sell a slice and remove a box. The item form's margin
+compares the Sell price with the cost of that many pieces, and says how many a whole sale
+takes. This is per item; an item with no quantities is sold and counted as it always was.
+
+**Re-filing such an item is asked about first.** Changing the category of an item that
+carries subcategory prices or quantities resets them, so the form shows a warning that says
+the stock count stays as it is and what one sale will take afterwards, with "Change and
+reset" and "Keep the category". The server refuses the move without that confirmation
+(`category-reset`), and an import never moves such an item: a file cannot be asked.
+
+**SEALED BOXES AND LOOSE PIECES ARE COUNTED APART (the owner, 02/10/2026).** One on-hand
+figure cannot tell a sealed box and seventeen loose pieces from thirty-seven loose ones, and
+the difference is whether a box can be sold. `modules/inventory/sealedLoose.ts` (pure)
+splits the count, **read from the ledger and never stored beside it**: a movement may say
+how it changed the loose pieces (`loose`, signed), and the split is the item's movements
+folded in the order they happened.
+
+- **The till says what it sold.** A box takes a SEALED box and is refused (`no-sealed`) when
+  none is left, however many loose pieces there are. A piece comes off the loose ones first
+  and opens a sealed box only when they run out.
+- **Every other movement is read by one rule**, so receipts, adjustments, delivery notes and
+  returns needed no change: stock coming in arrives as whole boxes with the remainder loose;
+  stock going out leaves as whole boxes with the remainder from the loose pieces.
+- **The split always adds up to the on-hand.** A quantity changed on the item, or history
+  from before it was counted this way, moves the difference into the loose pieces.
+- The Items and Stock screens show it under the count: "1 sealed · 17 loose".
+
+**Taking stock off by hand says what and why (02/10/2026).** The Stock screen's Adjust
+dialog asks what is being done — Remove from stock, Add to stock, or Open a sealed box —
+and a Reason: Damaged, Expired, Lost or stolen, Stock count, Other, with a free note. The
+quantity is typed as a plain number; nobody types a minus. For an item counted in pieces
+it also asks WHICH stock: loose pieces (counted in pieces) or sealed boxes (counted in
+boxes), and `adjustSplit` works out what the ledger moves by. Removing more loose pieces
+than there are is refused (`no-loose`), as is more sealed boxes than there are
+(`no-sealed`). Opening a box moves nought on the ledger and its pieces become loose. The
+reason is kept on the movement as `cause`. An adjustment above the studio's limit carries
+its reason and its loose-or-sealed choice on the request, so the movement written when it
+is approved is the one that was asked for.
+
+**What was written off is a tab on the Stock screen (02/10/2026).** "Written off" totals
+every adjustment that took stock away, for a period cut in the studio's own days: value
+and count, by reason, by item, and each write-off with who recorded it. A sale, a delivery
+note and a part issued are not write-offs. `modules/inventory/writeOffs.ts` (pure) decides
+what counts; `/inventory/write-offs` serves it on `inventory.stock.view`, no new key.
+**A write-off is valued at the cost a unit carried that day**, kept on the movement, so a
+later repricing restates nothing. One recorded before that is valued at the item's cost
+today and counted as an estimate; an item with no cost is unvalued and left out of the
+total, never counted as nought. Both are said on the screen.
+
+**Any dates, and an Excel file.** Beside the four named periods, Custom takes a From and a
+To day (either may be left open; ends typed the wrong way round are swapped, never answered
+with an empty report). **Export to Excel** writes a workbook of three sheets — Summary with
+the totals by reason, By item, and every write-off — built in the browser by
+`shared/xlsxWrite` from a second read that asks for EVERY row (`rows=all`), so the file adds
+up to its own total. Money is written as numbers; an unvalued write-off is an empty cell.
+
 ## Not built yet
 
+- **Only the till sells by subcategory.** Quotations, sales orders and delivery notes still
+  sell the item at its one Sell price and take ONE of its stock unit — which, for an item
+  counted in pieces, is one piece at the whole item's price. Do not put such an item on those
+  documents until they learn the same arithmetic.
+- **Receiving is in pieces too.** A purchase order or an adjustment for an item counted in
+  pieces is entered as pieces (five boxes of twenty is 100); nothing converts a box count.
+- **The write-off report's screen lists the newest 300.** The totals and the Excel export
+  cover every write-off in the period.
+- **Write-offs are not posted to the books.** The report is Inventory's own; Finance is not
+  told what was lost.
+- **Sealed and loose are per item, not per batch or bin.** A sale still takes its pieces
+  from the earliest-expiring batch; which batch the sealed boxes are in is not known.
+- **Changing an item's quantity re-reads its history at the new size**, so the split after
+  such a change is the on-hand divided afresh rather than what was physically sealed.
+- **No import column for a subcategory's price or quantity** (`item-import.md`).
 - **A place inside a place.** There is no `parentId` on a location, so a site, its buildings
   and its rooms are unrelated rows. Maintenance needs it before an asset can be filed to a
   room; the departments register's `subtreeIds` is the shape to reuse.

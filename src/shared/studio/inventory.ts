@@ -160,6 +160,23 @@ type Strings = CommonStrings & {
   mCharges: string;
   mDerivedStatus: string;
   mDidntSave: string;
+  mCategoryReset: string;
+  sealedLoose: (sealed: number, loose: number) => string;
+  adjWhat: string;
+  adjAdd: string;
+  adjRemove: string;
+  adjOpen: string;
+  adjPart: string;
+  adjLoose: string;
+  adjSealed: string;
+  adjBoxes: string;
+  adjCause: string;
+  adjCauses: Record<string, string>;
+  adjNote: string;
+  adjBecomes: (onHand: number, unit: string, sealed: number, loose: number) => string;
+  mNoSealed: (have: number) => string;
+  mNoLoose: (have: number) => string;
+  mNotWhole: string;
   mDuplicate: string;
   mDuplicateSku: string;
   mEmptyFile: string;
@@ -186,7 +203,6 @@ type Strings = CommonStrings & {
   noFileChosen: string;
   noItemsMatchSearch: string;
   noPurchaseOrdersYet: string;
-  noServiceActionsYet: string;
   noStockMovementsYet: string;
   noStockMovementsYet2: string;
   noStockValueYet: string;
@@ -252,7 +268,6 @@ type Strings = CommonStrings & {
   saveSerials: string;
   saveVendor: string;
   saving: string;
-  scope: string;
   search: string;
   sections: string;
   serial: string;
@@ -352,7 +367,7 @@ const en: Strings = {
   mMissing: "Something the request needs is missing — refresh and try again.",
   mReadOnlyLogistics: "You have view-only access to shipments.",
   adjustTitle: (name) => `Adjust stock — ${name}`,
-  adjustDescription: (onHand, unit) => `On hand: ${onHand} ${unit}. A positive number adds, a negative one removes.`,
+  adjustDescription: (onHand, unit) => `On hand: ${onHand} ${unit}. Choose whether you are adding or removing, and say why.`,
   serialsTitle: (name) => `Serial numbers — ${name}`,
   moreSerials: (n) => `+${n} more`,
   serialMismatchTitle: (serials, onHand) => `${serials} serials recorded against ${onHand} on hand`,
@@ -486,6 +501,23 @@ Here is my vendor list:`,
   mCharges: "An item priced in another currency needs its shipping and customs charges.",
   mDerivedStatus: "Received status follows the goods — record what arrived instead.",
   mDidntSave: "That didn't save.",
+  sealedLoose: (sealed, loose) => `${sealed} sealed · ${loose} loose`,
+  adjWhat: "What are you doing?",
+  adjAdd: "Add to stock",
+  adjRemove: "Remove from stock",
+  adjOpen: "Open a sealed box",
+  adjPart: "Which stock",
+  adjLoose: "Loose pieces",
+  adjSealed: "Sealed boxes",
+  adjBoxes: "Boxes",
+  adjCause: "Reason",
+  adjCauses: { "": "Other", count: "Stock count", damaged: "Damaged", expired: "Expired", lost: "Lost or stolen" },
+  adjNote: "Note",
+  adjBecomes: (onHand, unit, sealed, loose) => `On hand would become ${onHand} ${unit}: ${sealed} sealed · ${loose} loose.`,
+  mNoSealed: (have) => `There are only ${have} sealed boxes.`,
+  mNoLoose: (have) => `There are only ${have} loose pieces. Open a box first, or remove a sealed box.`,
+  mNotWhole: "Enter a whole number of boxes.",
+  mCategoryReset: "Changing this item's category resets its subcategory prices and quantities. Change the category again and confirm it.",
   mDuplicate: "That name is already in use.",
   mDuplicateSku: "That SKU is already in use.",
   mEmptyFile: "No vendors could be read from that file — check it has a Name column.",
@@ -512,7 +544,6 @@ Here is my vendor list:`,
   noFileChosen: "No file chosen",
   noItemsMatchSearch: "No items match that search.",
   noPurchaseOrdersYet: "No purchase orders yet.",
-  noServiceActionsYet: "No service actions yet — add them in Studio Settings.",
   noStockMovementsYet: "No stock movements yet",
   noStockMovementsYet2: "No stock movements yet.",
   noStockValueYet: "No stock value yet.",
@@ -579,7 +610,6 @@ Here is my vendor list:`,
   saveSerials: "Save serials",
   saveVendor: "Save vendor",
   saving: "Saving…",
-  scope: "Scope",
   search: "Search",
   sections: "Sections",
   serial: "Serial(s)",
@@ -695,7 +725,7 @@ const ar: Strings = {
   mMissing: "ينقص الطلب شيء يحتاجه — حدث الصفحة وحاول مجددا.",
   mReadOnlyLogistics: "لديك صلاحية عرض فقط على الشحنات.",
   adjustTitle: (name) => `تسوية المخزون — ${name}`,
-  adjustDescription: (onHand, unit) => `المتوفر: ${onHand} ${unit}. الرقم الموجب يضيف والسالب ينقص.`,
+  adjustDescription: (onHand, unit) => `المتوفر: ${onHand} ${unit}. اختر الإضافة أو الإزالة واذكر السبب.`,
   serialsTitle: (name) => `الأرقام التسلسلية — ${name}`,
   moreSerials: (n) => `+${n} أخرى`,
   serialMismatchTitle: (serials, onHand) => `${serials} رقما تسلسليا مسجلا مقابل ${onHand} متوفر`,
@@ -856,6 +886,23 @@ Name,Contact Name,Email,Phone,Item Types
   mCharges: "الصنف المسعر بعملة أخرى يحتاج إلى رسوم شحنه وجماركه.",
   mDerivedStatus: "حالة الاستلام تتبع البضائع — سجل ما وصل بدلا من ذلك.",
   mDidntSave: "لم يحفظ ذلك.",
+  sealedLoose: (sealed, loose) => `${sealed} مغلق · ${loose} مفرد`,
+  adjWhat: "ماذا تفعل؟",
+  adjAdd: "إضافة إلى المخزون",
+  adjRemove: "إزالة من المخزون",
+  adjOpen: "فتح صندوق مغلق",
+  adjPart: "أي مخزون",
+  adjLoose: "قطع مفردة",
+  adjSealed: "صناديق مغلقة",
+  adjBoxes: "صناديق",
+  adjCause: "السبب",
+  adjCauses: { "": "أخرى", count: "جرد", damaged: "تالف", expired: "منتهي الصلاحية", lost: "مفقود أو مسروق" },
+  adjNote: "ملاحظة",
+  adjBecomes: (onHand, unit, sealed, loose) => `سيصبح المتوفر ${onHand} ${unit}: ${sealed} مغلق · ${loose} مفرد.`,
+  mNoSealed: (have) => `لا يوجد سوى ${have} صناديق مغلقة.`,
+  mNoLoose: (have) => `لا يوجد سوى ${have} قطع مفردة. افتح صندوقا أولا، أو أزل صندوقا مغلقا.`,
+  mNotWhole: "أدخل عددا صحيحا من الصناديق.",
+  mCategoryReset: "تغيير فئة هذا الصنف يصفّر أسعار وكميات فئاته الفرعية. غيّر الفئة من جديد وأكّد ذلك.",
   mDuplicate: "هذا الاسم مستخدم بالفعل.",
   mDuplicateSku: "رمز الصنف هذا مستخدم بالفعل.",
   mEmptyFile: "تعذرت قراءة أي مورد من هذا الملف — تأكد من وجود عمود Name فيه.",
@@ -882,7 +929,6 @@ Name,Contact Name,Email,Phone,Item Types
   noFileChosen: "لم يختر ملف",
   noItemsMatchSearch: "لا توجد أصناف تطابق هذا البحث.",
   noPurchaseOrdersYet: "لا توجد أوامر شراء بعد.",
-  noServiceActionsYet: "لا توجد إجراءات خدمة بعد — أضفها من إعدادات الاستوديو.",
   noStockMovementsYet: "لا توجد حركات مخزون بعد",
   noStockMovementsYet2: "لا توجد حركات مخزون بعد.",
   noStockValueYet: "لا توجد قيمة مخزون بعد.",
@@ -949,7 +995,6 @@ Name,Contact Name,Email,Phone,Item Types
   saveSerials: "حفظ الأرقام التسلسلية",
   saveVendor: "حفظ المورد",
   saving: "جار الحفظ…",
-  scope: "النطاق",
   search: "بحث",
   sections: "الأقسام",
   serial: "الرقم/الأرقام التسلسلية",

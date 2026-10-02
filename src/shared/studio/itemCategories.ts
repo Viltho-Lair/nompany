@@ -28,6 +28,14 @@ type Strings = {
   noSuggestions: string;
   category: string;
   noCategory: string;
+  subPrice: (name: string) => string;
+  subPriceHint: string;
+  subQty: string;
+  piecesNote: (n: number, unit: string) => string;
+  resetTitle: string;
+  resetLead: (onHand: number, pieces: number, unit: string) => string;
+  resetYes: string;
+  resetNo: string;
   refusal: (code: string, extra?: Record<string, unknown>) => string;
 };
 
@@ -53,6 +61,14 @@ const en: Strings = {
   noSuggestions: "Nothing left to suggest.",
   category: "Category",
   noCategory: "— none —",
+  subPrice: (name) => `Sell price · ${name}`,
+  subPriceHint: "Optional. The price when it is sold as this subcategory, and how many of it one of this item holds. The sell price above is the category's own.",
+  subQty: "Quantity",
+  resetTitle: "Changing the category resets this item's subcategory prices and quantities.",
+  resetLead: (onHand, pieces, unit) => `Stock is not changed: it stays at ${onHand} ${unit}.${pieces > 1 ? ` Until now one of this item sold at its sell price took ${pieces} ${unit} off stock; after the change it takes 1, until you enter quantities for the new category. Check the sell price as well: it was the price of ${pieces} ${unit}.` : ""}`,
+  resetYes: "Change and reset",
+  resetNo: "Keep the category",
+  piecesNote: (n, unit) => `Stock is counted in pieces: one of this item sold at the sell price above takes ${n} ${unit} off stock. Unit cost, reorder level and stock received are per piece.`,
   refusal: (code, x = {}) => {
     switch (code) {
       case "duplicate": return "A category in the same place already has that name.";
@@ -91,6 +107,14 @@ const ar: Strings = {
   noSuggestions: "لم يبق ما يقترح.",
   category: "الفئة",
   noCategory: "— بلا —",
+  subPrice: (name) => `سعر البيع · ${name}`,
+  subPriceHint: "اختياري. السعر عند بيعه ضمن هذه الفئة الفرعية، وكم منها يحتوي الصنف الواحد. وسعر البيع أعلاه هو سعر الفئة نفسها.",
+  subQty: "الكمية",
+  resetTitle: "تغيير الفئة يصفّر أسعار وكميات الفئات الفرعية لهذا الصنف.",
+  resetLead: (onHand, pieces, unit) => `المخزون لا يتغير: يبقى ${onHand} ${unit}.${pieces > 1 ? ` حتى الآن كان بيع واحد من هذا الصنف بسعر البيع يخصم ${pieces} ${unit} من المخزون، وبعد التغيير يخصم 1 إلى أن تدخل كميات للفئة الجديدة. وراجع سعر البيع أيضا: كان سعر ${pieces} ${unit}.` : ""}`,
+  resetYes: "غيّر وصفّر",
+  resetNo: "أبق الفئة",
+  piecesNote: (n, unit) => `المخزون يُعد بالقطعة: بيع واحد من هذا الصنف بسعر البيع أعلاه يخصم ${n} ${unit} من المخزون. وتكلفة الوحدة وحد إعادة الطلب والكميات المستلمة كلها بالقطعة.`,
   refusal: (code, x = {}) => {
     switch (code) {
       case "duplicate": return "توجد فئة بهذا الاسم في الموضع نفسه.";

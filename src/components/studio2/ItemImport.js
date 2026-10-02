@@ -11,6 +11,7 @@ import { writeXlsx } from "@/shared/xlsxWrite";
 import {
   ITEM_FIELDS, IMPORT_BATCH,
   guessItemMapping, looksLikeItemHeader, itemRows, planItemImport, refusedRowsCsv, itemTemplate, templateGuide,
+  categoryPathNames,
 } from "@/modules/inventory/itemImport";
 
 // IMPORTING REGISTERED ITEMS — a materials list from Odoo or a spreadsheet.
@@ -57,7 +58,7 @@ function download(name, body, type = "text/csv;charset=utf-8") {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export default function ItemImport({ slug, items, vendors, units, studioCurrency, onChanged, onBusy, onClose }) {
+export default function ItemImport({ slug, items, vendors, units, categories = [], studioCurrency, onChanged, onBusy, onClose }) {
   const locale = useStudioLocale();
   const tr = itemImportDict(locale);
   const fileRef = useRef(null);
@@ -89,12 +90,16 @@ export default function ItemImport({ slug, items, vendors, units, studioCurrency
   // THE TEMPLATE IS THIS STUDIO'S: its units in the Unit dropdown, its
   // suppliers in the Supplier one, its currency named in the guide — so what a
   // client fills in is what this import will accept.
-  const templateEnv = { units, studioCurrency, vendorNames: vendors.map((v) => v.name) };
+  const templateEnv = { units, studioCurrency, vendorNames: vendors.map((v) => v.name), categoryNames: categoryPathNames(categories) };
   const downloadTemplate = () => download(tr.templateFile,
     writeXlsx(itemTemplate(tr.templateWords, templateEnv, { rtl: locale === "ar" })), XLSX_TYPE);
   const env = useMemo(() => ({
-    units, studioCurrency, vendorNames: vendors.map((v) => v.name), items,
-  }), [units, studioCurrency, vendors, items]);
+    units, studioCurrency, vendorNames: vendors.map((v) => v.name), items, categories,
+  }), [units, studioCurrency, vendors, items, categories]);
+  const categoryName = (id) => {
+    const c = categories.find((x) => x.id === id);
+    return c ? (locale === "ar" && c.nameAr ? c.nameAr : c.name) : "";
+  };
   const plan = useMemo(
     () => planItemImport(read.rows, env, { update, createVendors }),
     [read.rows, env, update, createVendors],
@@ -379,6 +384,12 @@ export default function ItemImport({ slug, items, vendors, units, studioCurrency
             {plan.unknownUnits.length > 0 && (
               <li className="text-xs text-amber-700 dark:text-amber-300">{tr.unknownUnits(plan.unknownUnits.slice(0, 8).join(", "))}</li>
             )}
+            {plan.unknownCategories.length > 0 && (
+              <li className="text-xs text-amber-700 dark:text-amber-300">
+                {tr.unknownCategories(plan.unknownCategories.slice(0, 8).join(", ") + (plan.unknownCategories.length > 8 ? "…" : ""))}
+              </li>
+            )}
+            {plan.toPrice > 0 && <li className="text-xs text-slate-500 dark:text-slate-400">{tr.toPrice(plan.toPrice)}</li>}
           </ul>
 
           {plan.likelySwap && (
@@ -411,8 +422,8 @@ export default function ItemImport({ slug, items, vendors, units, studioCurrency
               <table className="mt-1 w-full min-w-[640px] text-xs">
                 <thead>
                   <tr className="text-slate-500 dark:text-slate-400">
-                    {[labels.sku, labels.name, labels.unit, labels.vendor, labels.itemType, labels.unitCost, labels.sellPrice].map((h, i) => (
-                      <th key={h} className={`py-1 pe-2 font-600 ${i >= 5 ? "text-end" : "text-start"}`}>{h}</th>
+                    {[labels.sku, labels.name, labels.unit, labels.vendor, labels.itemType, labels.category, labels.unitCost, labels.sellPrice].map((h, i) => (
+                      <th key={h} className={`py-1 pe-2 font-600 ${i >= 6 ? "text-end" : "text-start"}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -424,6 +435,7 @@ export default function ItemImport({ slug, items, vendors, units, studioCurrency
                       <td className="py-1 pe-2 text-slate-500">{p.unit}</td>
                       <td className="py-1 pe-2 text-slate-500">{p.vendorName || "—"}</td>
                       <td className="py-1 pe-2 text-slate-500">{p.itemType || "—"}</td>
+                      <td dir="auto" className="py-1 pe-2 text-start text-slate-500">{categoryName(p.categoryId) || "—"}</td>
                       <td className="num py-1 pe-2 text-end">{p.unitCost || "—"}</td>
                       <td className="num py-1 pe-2 text-end">{p.sellPrice || "—"}</td>
                     </tr>

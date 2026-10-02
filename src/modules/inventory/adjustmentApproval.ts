@@ -94,7 +94,11 @@ const titleOf = (row: Pick<Adjustment, "qty" | "reason">, itemName: string) =>
  */
 export async function raiseAdjustment(
   ctx: InventoryContext,
-  input: { itemId: string; itemName: string; qty: number; reason: string; unitCost: number; value: number },
+  input: {
+    itemId: string; itemName: string; qty: number; reason: string; unitCost: number; value: number;
+    /** Why, and what it does to the loose pieces — carried to the movement (./sealedLoose). */
+    cause?: string; loose?: number;
+  },
 ) {
   const row = await Adjustments.create(scope(ctx), {
     itemId: input.itemId,
@@ -102,6 +106,8 @@ export async function raiseAdjustment(
     reason: input.reason,
     unitCost: input.unitCost,
     value: input.value,
+    ...(input.cause ? { cause: input.cause } : {}),
+    ...(input.loose !== undefined ? { loose: input.loose } : {}),
     status: "Pending",
     createdByCollaboratorId: ctx.collaborator.id,
     createdAt: new Date().toISOString(),

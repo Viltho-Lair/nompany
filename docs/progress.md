@@ -1753,6 +1753,7 @@ Rows follow section H: deleted, deferred and dropped rows are removed, and the h
 | **The notifications plan (phase 5)** | ⬜ LATER (the owner, 28/09/2026) | Comments on records, @mentions that notify the person named, and watching a record to hear about its changes. `NOTIFY.mention` and its template already exist and nothing sends them. |
 | **The Terms and the Privacy Policy are published in Arabic too, and the public site has no English left on `/ar`** | 🟡 BUILT (29/09/2026) — tsc, eslint and `marketing-model` (the Arabic has the English's sections, blocks, bullets and table rows, every title in Arabic, every cookie named); not opened in the sandbox, not reviewed by a lawyer | The owner: the legal pages are translated. §20.7 already said the Terms are "published in English and Arabic" with the English prevailing — only the English existed. `/ar/terms` and `/ar/privacy` render `legalTermsAr.ts` / `legalPrivacyAr.ts` / `legalGoogleDataAr.ts`, set right to left; the note box still says the English governs. Found by the same audit and fixed: the forgot-password subtitle, the account page's password labels, sign-in method, join-request message, the code screen's resend countdown, the phone field's country label, the password rules, a questionnaire placeholder and two tab titles were English on `/ar`. **Still English on `/ar` when /super or the careers screen has no Arabic typed in:** package names, taglines and features, and job postings — data, not code. |
 | **A company picks its industry from sixteen industries and their specialisms, each industry is a profile controlled in /super, and the site has Industries pages** | 🟡 BUILT (29/09/2026) — `industry-catalogue-model` (every built-in passes the console's own checks), marketing, restructure, studio-setup, departments, roles and blog tests; tsc, lint. Opened in the sandbox: the studio alert and one-click answer; /super → Industries — lock refusing edit and revert, unlock, an empty profile refused by name, a duplicate refused, an industry switched off (gone from the site, 404, refused for a new studio, kept for a studio holding it), an industry added (its page live, offered in both pickers, its profile pre-filling the create screen, its org chart offered to Master data), revert. Not run: `npm test`, the build | The owner, like Salesforce's industries, then: "control these industries, set in-active industries, each industry will have its own profile, what sections and departments does it offer ... locking". 16 built-in industries, 68 specialisms (`shared/industryCatalogue.ts`); the console stores rows over them (`REG.industryCatalogue`), revert returns the code's. A profile is the sections a new studio starts with (pre-filled — the owner can add any other) and its seeded org chart; it never touches an existing studio. The 25 fields remain templates for service actions and roles. **Each specialism now carries the deal flow its deals start on** (29/09/2026, inheriting its template's when empty, so no studio moved); ERP settings' trades table, its route and write functions are deleted. **Every change keeps the version before it, with Restore.** Existing studios are not migrated: an alert asks them to choose. `docs/functionality/industries.md`. |
+| **An item carries a price and a quantity per subcategory, is counted in pieces with sealed boxes apart from loose ones, and what is written off is reported** | 🟡 BUILT (02/10/2026) — `item-import-model` (categories, subcategory prices and quantities, sealed/loose, adjustments, write-offs, periods), `pos-model`, `help-model`, restructure; tsc strict, lint. Opened in the sandbox: the item form (subcategory price and quantity, the re-filing warning), the import dialog to its preview, the till (item and subcategory as two rows), sales moving stock by 20 and by 1, a box refused with none sealed, Adjust (remove/add/open a box, with a reason), the Written off tab with custom dates, and its Excel export read back in the browser. Not run: `npm test`, the build; the export was not opened in Excel | The owner: a category's price is the item's Sell price and each subcategory gets its own, typed on the item; "a box have 20 pieces of chocolate inside, to maintain stock levels"; "count stock in pieces"; "track sealed boxes and loose pieces separately"; then damaged/expired removal and a report. `modules/inventory/categoryPrices.ts`, `sealedLoose.ts`, `writeOffs.ts` (all pure). The import's **Category column now files the item under the studio's own category** (it filled the supplier's Type). Only the till sells by subcategory; quotations and orders do not. **This returns part of what packs were (removed 17/09/2026)**, keyed to the category register instead of a pack list. `docs/functionality/master-data.md`, `item-import.md`, `pos.md`. |
 
 **How the API-only routes were found**, because the method is the reusable part: sweep every
 `src/app/api/studios/[slug]/**/route.ts` off disk and ask which component fetches each path.
@@ -2297,6 +2298,99 @@ Order of evaluation at the till: base price → locks → promotions (exclusive 
 or compound by priority) → coupons and manual discount → locks again → spread over the lines →
 tax per line → tenders (gift card, loyalty, rounding). The receipt stores every step's result
 so a return replays it and never re-prices.
+
+## Open study: planned deals, studio process templates and KPIs (29/09/2026)
+
+**Status: STUDY, nothing built.** The owner, on why KPIs per service action do not work:
+"each company has different kinds of KPIs for different kinds of process/projects/deals ...
+We have a project planner, but not a deal planner ... a planned deal tracks the progress of KPIs
+and updates it depending wherever it is implemented ... If it might require root changes in the
+code i need to know it before implementation to begin a bigger study on this matter."
+
+### Why a plan and a KPI cannot meet today
+
+Three pieces exist and none knows the others.
+
+- **Flow templates** know the route (ticket → quotation → job → delivery → invoice). Studios
+  already clone and edit them. A step counts as "reached" when ONE record of its type exists,
+  with no time, weight or completeness.
+- **KPIs** (`platform/kpi`) are nompany-wide, keyed to a service action and copied onto the deal.
+  Their clock is "days since the KPI started", never "since the previous step".
+- **The project planner** knows time: tasks, dependencies, critical path. But its
+  `percentComplete` is TYPED, it is bound to no record, it exists for projects only, and it has
+  an edit log (`plan-history.md`) but **no baseline**.
+
+### What already holds a deal: the engagement
+
+An **engagement is the deal** (`engagements.md`). Its root holds the client context, the flow it
+walks (`templateId`) and its KPI copy (`kpis`). Its **membership sets** hold every record built
+on it (tickets, RFQs, quotations, contracts, projects, sheets, deliveries, invoices, payments),
+with a reverse index from each record to its deal. Records stay filed in their own departments;
+the engagement points at them. A project is a member of its deal, and its planner plan belongs
+to the project. **So the engagement is where a deal plan must live**: it is the only thing that
+already knows every record that could count as evidence.
+
+### What it would take (root changes, named before any code)
+
+1. **The engagement carries a plan instance and a timeline**: when each step was reached and
+   completed. Today nothing records WHEN a stage arrived. This changes the stored shape of every
+   deal.
+2. **Each record type gets a completion rule**, not just "exists": delivered quantities against
+   the job sheet, invoiced against value, paid against invoiced, inspection passed, a project
+   plan's roll-up. This is cross-module work (Sales, Inventory, Projects, Quality, Finance).
+3. **Progress is kept on write, from the event stream**, and stored on the deal. Computing it on
+   read means opening every record of every step on every list, which `kpis.md` already rejected.
+4. **KPIs move to the studio and attach to steps**. The platform list is empty, so there is
+   nothing to migrate.
+5. **Flow templates grow into studio process templates** (steps, durations, dependencies,
+   weights, evidence, KPIs) without breaking the deals already walking them.
+6. **Plans get a baseline**: the plan as approved, frozen, beside the current plan and the actual
+   timeline.
+
+### Questions the study must answer
+
+1. **What does an engagement have to do with this?** Proposed: it holds the plan instance, the
+   timeline and the progress. Does anything about a deal's plan live outside it?
+2. **What holds the deal, and what holds everything built on it?** Today the engagement root and
+   its membership sets. Does a deal plan also hold records that are not in the deal (a purchase
+   made for several deals, a shared crew)?
+3. **Who assigns the KPIs?** Proposed: the studio defines them on a process template's steps; a
+   deal copies them when its template is chosen; somebody with the right may add or adjust one on
+   a single deal, and that is recorded.
+4. **How are KPIs linked to steps?** Proposed: a KPI belongs to a step (or the whole plan) and
+   reads only that step's evidence and timeline: its duration against plan, completion %, a
+   count, first-time pass, or money.
+5. **How is the planner linked to KPIs?** Option A: the deal plan IS a planner plan (one engine,
+   two owners: deal and project), with tasks optionally bound to evidence so their % is counted
+   rather than typed, and KPIs attached to tasks. Option B: a simpler step list on the deal, where
+   one step can follow a project's planner roll-up.
+6. **How does a planner tell the initial plan from the actual one?** Proposed: three lines per
+   step. The **baseline** is frozen when the plan is approved. The **current plan** is re-planned
+   as things move. The **actual** comes from evidence timestamps. Who approves a baseline, and may
+   it be re-baselined, by whom and with what record?
+7. **How are so many things linked, and how does a user with authority link them?** Proposed,
+   three levels:
+   - **Design:** a studio admin binds step ↔ record type ↔ completion rule ↔ KPIs once, in the
+     template.
+   - **Automatic:** a record created from within a deal attaches to it and to its step.
+   - **By hand:** a person with the right links or unlinks a record to a deal step, audited.
+
+   Which rights: design templates, adjust a deal's plan, approve a baseline, link records?
+8. **What decides a deal's template?** Chosen at creation, suggested by rules (value, service
+   actions, client type), or both.
+9. **Where must progress appear?** The deal page only, or lists, dashboards, Reports & BI and
+   alerts when a step slips.
+10. **Does nompany ship starter process templates per industry**, seeded through the industry
+    profile like sections and org charts?
+
+### Proposed order, if the study says yes
+
+1. Timestamp when each step is reached, from now on. Small, and history lost without it cannot
+   be recovered.
+2. Completion rules for 4–5 record types, plus a progress projection updated from events.
+3. Studio process templates on top of flow templates.
+4. Studio KPIs on steps; plan vs actual; baseline.
+5. Comparison per template in Reports & BI; industry-seeded starter templates.
 
 ## Open decisions
 

@@ -62,13 +62,6 @@ export const VendorSchema = z.object({
  * A REGISTERED ITEM — the catalogue entry, not a quantity. How many there are
  * is the movement ledger's answer, never a field here, which is why nothing on
  * this record can be edited into a stock level.
- *
- * `scope` is which of the STUDIO's own service actions this item needs once it
- * lands — chosen from `studio.serviceActions`, not a fixed pair. A studio with
- * no service actions defined has no scope to choose from, and an item saved
- * before this field existed simply reads as an empty scope until re-saved: it
- * is not migrated, because there is nothing correct to migrate a bare boolean
- * into once the vocabulary is studio-defined.
  */
 export const ItemSchema = z.object({
   id: z.string(),
@@ -91,8 +84,16 @@ export const ItemSchema = z.object({
    * resolving — see modules/administration/itemCategories.
    */
   categoryId: z.string().max(60).optional(),
+  /**
+   * A PRICE PER SUBCATEGORY of `categoryId` (02/10/2026), keyed by the
+   * subcategory's id. `sellPrice` is the price for the category itself; these
+   * are typed by hand on the item form and are optional. Only ids beneath the
+   * item's own category are kept — see ./categoryPrices.
+   */
+  categoryPrices: z.record(z.string(), z.number()).optional(),
+  /** HOW MANY of each subcategory one of this item holds, keyed the same way. Optional. */
+  categoryQuantities: z.record(z.string(), z.number()).optional(),
   deliveryWeeks: z.number(),
-  scope: z.array(z.string()).optional(),
   createdAt: z.string().optional(),
 
   // ---- added by an edit or a costing, never by the create ------------------
@@ -189,6 +190,14 @@ export const MovementSchema = z.object({
    * valuation still reads its costs from receipts, not from here.
    */
   unitCost: z.number().optional(),
+  /**
+   * HOW THIS MOVEMENT CHANGED THE LOOSE PIECES of an item counted in pieces
+   * (signed). Written by the till, which knows whether a box or a piece was
+   * sold; absent everywhere else and read by one rule — see ./sealedLoose.
+   */
+  loose: z.number().optional(),
+  /** WHY an adjustment was made — damaged, expired, lost, a count — when somebody said (./sealedLoose). */
+  cause: z.string().optional(),
   byCollaboratorId: z.string(),
   at: z.string(),
 });

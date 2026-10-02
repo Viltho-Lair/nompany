@@ -278,12 +278,15 @@ export default function StudioPos({ slug }) {
 
   const addHit = (hit, item) => {
     setBasket((rows) => {
-      const key = hit.itemId;
+      // ONE ROW PER WAY OF SELLING IT: a box and a slice of the same item are
+      // two rows, at two prices, taking different amounts off stock.
+      const key = `${hit.itemId}|${hit.sizeId || ""}`;
       const at = rows.findIndex((r) => r.key === key);
       if (at >= 0) return rows.map((r, i) => (i === at ? { ...r, count: num(r.count) + 1 } : r));
       return [...rows, {
         key, itemId: hit.itemId,
-        description: item.name, count: 1,
+        ...(hit.sizeId ? { sizeId: hit.sizeId } : {}),
+        description: hit.description || item.name, count: 1,
         price: hit.price ?? 0, unpriced: hit.price === null,
         listPrice: hit.price ?? 0,
         taxCategory: item.taxCategory,
@@ -345,6 +348,7 @@ export default function StudioPos({ slug }) {
       shiftId: shift.id,
       lines: basket.map((b) => ({
         itemId: b.itemId, count: num(b.count), price: num(b.price),
+        ...(b.sizeId ? { sizeId: b.sizeId } : {}),
         ...(cleanDiscount(b.discount) ? { discount: cleanDiscount(b.discount) } : {}),
       })),
       ...(cleanDiscount(basketOff) ? { discount: cleanDiscount(basketOff) } : {}),
@@ -714,20 +718,36 @@ function exactItem(items, q) {
 }
 
 function ScanBox({ tr, items, onHit, disabled }) {
+  const locale = useStudioLocale();
   const [text, setText] = useState("");
   const [miss, setMiss] = useState("");
   const ref = useRef(null);
   useEffect(() => { ref.current?.focus(); }, []);
 
+  // WHAT CAN BE PICKED: every item, and under each the subcategories it is also
+  // sold as ("Chocolate — Slice"), each at its own price. A subcategory row is
+  // the item with a `sizeId`; a barcode still means the item sold whole.
+  const options = useMemo(() => items.flatMap((i) => [
+    i,
+    ...(i.sizes || []).map((z) => ({
+      ...i, sizeId: z.id, barcode: "",
+      name: `${i.name} — ${locale === "ar" && z.nameAr ? z.nameAr : z.name}`,
+      sellPrice: z.price > 0 ? z.price : 0,
+    })),
+  ]), [items, locale]);
+
   const addItem = (item) => {
-    onHit({ itemId: item.id, price: item.sellPrice > 0 ? item.sellPrice : null }, item);
+    onHit({
+      itemId: item.id, price: item.sellPrice > 0 ? item.sellPrice : null,
+      ...(item.sizeId ? { sizeId: item.sizeId, description: item.name } : {}),
+    }, item);
     setText(""); setMiss("");
     ref.current?.focus();
   };
 
   const matching = (q) => {
     const v = String(q || "").trim().toLowerCase();
-    if (!v) return items;
+    if (!v) return options;
     const rank = (i) => {
       const name = i.name.toLowerCase();
       if (String(i.barcode || "").toLowerCase() === v || String(i.sku || "").toLowerCase() === v) return 0;
@@ -736,7 +756,7 @@ function ScanBox({ tr, items, onHit, disabled }) {
       if (name.includes(v) || String(i.sku || "").toLowerCase().includes(v)) return 3;
       return 9;
     };
-    return items.filter((i) => rank(i) < 9).sort((x, y) => rank(x) - rank(y) || x.name.localeCompare(y.name));
+    return options.filter((i) => rank(i) < 9).sort((x, y) => rank(x) - rank(y) || x.name.localeCompare(y.name));
   };
 
   // Re-armed on every keystroke; Enter and a pick both clear `text`, which
@@ -778,7 +798,7 @@ function ScanBox({ tr, items, onHit, disabled }) {
       <Autocomplete
         freeSolo
         disabled={disabled}
-        options={items}
+        options={options}
         inputValue={text}
         value={null}
         onInputChange={(_, next, reason) => { if (reason !== "reset") setText(next || ""); }}

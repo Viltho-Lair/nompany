@@ -298,6 +298,8 @@ const en: Strings = {
       case "underpaid": return "The payments do not cover the total.";
       case "overpaid-card": return "A card or transfer cannot be for more than is due — only cash gives change.";
       case "unpriced": return `${String(x.name || "An item")} has no price. Somebody with the right to change prices has to type one.`;
+      case "size": return `${String(x.name || "That item")} is no longer sold that way. Take the line off and add it again.`;
+      case "no-sealed": return `Not enough sealed ${String(x.name || "boxes")}: ${x.have ?? 0} sealed, ${x.needed ?? 0} needed. The rest of the stock is loose pieces.`;
       case "phone": return "That is not a phone number.";
       case "no-clients": return "This studio keeps no client register, so a customer's number cannot be recorded.";
       case "customers-unavailable": return "Customers cannot be registered right now. Leave the number blank to sell.";
@@ -477,6 +479,8 @@ const ar: Strings = {
       case "underpaid": return "المدفوع لا يغطي الإجمالي.";
       case "overpaid-card": return "لا تكون البطاقة أو التحويل بأكثر من المستحق — النقد وحده يعطي باقيا.";
       case "unpriced": return `${String(x.name || "صنف")} بلا سعر، ويجب أن يكتب سعره من يملك صلاحية تغيير الأسعار.`;
+      case "size": return `${String(x.name || "هذا الصنف")} لم يعد يباع بهذه الصورة. احذف السطر وأضفه من جديد.`;
+      case "no-sealed": return `لا يكفي المغلق من ${String(x.name || "الصنف")}: المغلق ${x.have ?? 0} والمطلوب ${x.needed ?? 0}. وبقية المخزون قطع مفردة.`;
       case "phone": return "هذا ليس رقم هاتف.";
       case "no-clients": return "لا يحفظ هذا الاستوديو سجلا للعملاء، فلا يمكن تسجيل رقم العميل.";
       case "customers-unavailable": return "لا يمكن تسجيل العملاء الآن. اترك الرقم فارغا لإتمام البيع.";

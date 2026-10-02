@@ -7,6 +7,7 @@ import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import { inventoryDict } from "@/shared/studio/inventory";
 import { itemCategoriesDict } from "@/shared/studio/itemCategories";
 import { orderedTree } from "@/shared/departments/tree";
+import { subcategoriesOf, piecesPerItem } from "@/modules/inventory/categoryPrices";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import nextDynamic from "next/dynamic";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
@@ -47,6 +48,9 @@ const BatchesPanel = nextDynamic(() => import("@/components/studio2/BatchesPanel
 // same real lazy boundary for the same reason: nobody lands on it.
 const ValuationPanel = nextDynamic(() => import("@/components/studio2/ValuationPanel"),
   { loading: () => <ScreenSkeleton /> });
+// WHAT WAS WRITTEN OFF — the same kind of tab, behind the same boundary.
+const WriteOffsPanel = nextDynamic(() => import("@/components/studio2/WriteOffsPanel"),
+  { loading: () => <ScreenSkeleton /> });
 // THE ITEM IMPORT DIALOG, with its .xlsx reader, its rules and its words —
 // fetched when somebody presses Import items, never on the way to the list.
 const ItemImport = nextDynamic(() => import("@/components/studio2/ItemImport"),
@@ -54,6 +58,7 @@ const ItemImport = nextDynamic(() => import("@/components/studio2/ItemImport"),
 import { binsDict } from "@/shared/studio/bins";
 import { batchesDict } from "@/shared/studio/batches";
 import { valuationDict } from "@/shared/studio/valuation";
+import { writeOffsDict } from "@/shared/studio/writeOffs";
 import { useMoney } from "@/components/studio2/studioCurrency";
 
 // INVENTORY — what the studio buys, holds, and issues to its projects.
@@ -146,7 +151,7 @@ export default function StudioInventory({ slug, view = "inventory", initial }) {
   const wrap = (children) => <div className="space-y-6">{banner}{children}</div>;
 
   if (view === "inventory-items") {
-    return wrap(<Items slug={slug} items={items} vendors={vendors} units={vocabulary.units} categories={categories} serviceActions={vocabulary.serviceActions || []}
+    return wrap(<Items slug={slug} items={items} vendors={vendors} units={vocabulary.units} categories={categories}
       studioCurrency={studioCurrency} canManage={canManageItems} busy={busy} send={send} reload={load} />);
   }
   if (view === "inventory-stock") {
@@ -236,11 +241,15 @@ function message(out, tr, view = "") {
   if (out.error === "charges") return tr.mCharges;
   if (out.error === "project") return tr.mProject;
   if (out.error === "nothing") return tr.mNothing;
+  if (out.error === "category-reset") return tr.mCategoryReset;
+  if (out.error === "no-sealed") return tr.mNoSealed(num(out.have));
+  if (out.error === "no-loose") return tr.mNoLoose(num(out.have));
+  if (out.error === "not-whole") return tr.mNotWhole;
   return tr.mDidntSave;
 }
 
 // ---- registered items (the catalogue) --------------------------------------
-function Items({ slug, items, vendors, units, categories = [], serviceActions, studioCurrency, canManage, busy, send, reload }) {
+function Items({ slug, items, vendors, units, categories = [], studioCurrency, canManage, busy, send, reload }) {
   const money = useMoney();
   const tr = inventoryDict(useStudioLocale());
   const [query, setQuery] = useState("");
@@ -298,7 +307,7 @@ function Items({ slug, items, vendors, units, categories = [], serviceActions, s
         <Dialog title={form.row ? `Edit ${form.row.name}` : tr.addItem}
           description={tr.catalogueEntryWhatThing}
           onClose={closeForm}>
-          <ItemForm row={form.row} vendors={vendors} units={units} categories={categories} serviceActions={serviceActions} studioCurrency={studioCurrency} busy={busy} onCancel={closeForm}
+          <ItemForm row={form.row} vendors={vendors} units={units} categories={categories} studioCurrency={studioCurrency} busy={busy} onCancel={closeForm}
             onSave={async (v) => { if (await send("items", form.row ? "PUT" : "POST", form.row ? { ...v, id: form.row.id } : v)) setForm(null); }} />
         </Dialog>
       )}
@@ -307,7 +316,7 @@ function Items({ slug, items, vendors, units, categories = [], serviceActions, s
         // CLOSING IS REFUSED WHILE A BATCH IS IN FLIGHT — Escape and the
         // backdrop included. Nothing would be lost, but the count would be.
         <Dialog title={tr.importItems} onClose={() => { if (!importBusy) setImporting(false); }} width="max-w-[960px]">
-          <ItemImport slug={slug} items={items} vendors={vendors} units={units} studioCurrency={studioCurrency}
+          <ItemImport slug={slug} items={items} vendors={vendors} units={units} categories={categories} studioCurrency={studioCurrency}
             onChanged={reload} onBusy={setImportBusy} onClose={() => setImporting(false)} />
         </Dialog>
       )}
@@ -346,7 +355,7 @@ function Items({ slug, items, vendors, units, categories = [], serviceActions, s
           <section className={panel}>
             {/* A Data Grid now — sortable, paged — reproducing the catalogue table
                 column for column: SKU + name + model, vendor, type (with the lead
-                time), the Installation/Programming scope badges, unit cost and
+                time), unit cost and
                 on-hand both tabular via `.num`, and the same Edit/Delete actions
                 gated on `canManage`. The "No items match that search" case is the
                 grid's own no-rows overlay. Nothing was dropped. */}
@@ -390,26 +399,6 @@ function Items({ slug, items, vendors, units, categories = [], serviceActions, s
                   ),
                 },
                 {
-                  field: "scope", headerName: tr.scope, minWidth: 170, flex: 1, sortable: false,
-                  // ONE LINE, ALWAYS. The row is a fixed 52px, so a wrapping badge
-                  // list grows taller than the row and the overflow is clipped —
-                  // that is what "bulky and not visible" looked like. A service
-                  // action is a phrase, not a word ("Programming & Configuration"),
-                  // so only the first is drawn and the rest collapse into a +N;
-                  // two side by side left both of them truncated to nothing
-                  // legible. The cell carries the whole list as its title.
-                  renderCell: ({ row }) => {
-                    const scope = row.scope || [];
-                    if (scope.length === 0) return <span className="text-slate-400">—</span>;
-                    return (
-                      <span className="flex min-w-0 items-center gap-1.5" title={scope.join(", ")}>
-                        <span className="truncate rounded bg-brand-500/10 px-1.5 text-[11px] font-600 leading-5 text-brand-700 dark:text-brand-300">{scope[0]}</span>
-                        {scope.length > 1 && <span className="shrink-0 text-[11px] font-600 text-slate-400">+{scope.length - 1}</span>}
-                      </span>
-                    );
-                  },
-                },
-                {
                   field: "unitCost", headerName: tr.unitCost, type: "number", minWidth: 110, flex: 0.7,
                   align: "right", headerAlign: "right",
                   renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{row.unitCost > 0 ? money(row.unitCost, row.currency) : "—"}</span>,
@@ -442,6 +431,10 @@ function Items({ slug, items, vendors, units, categories = [], serviceActions, s
                   renderCell: ({ row }) => (
                     <span className="font-600 text-slate-900 dark:text-white">
                       <span className="num">{num(row.onHand)}</span> <span className="text-xs font-400 text-slate-400">{row.unit}</span>
+                      {/* SEALED BOXES AND LOOSE PIECES, for an item counted in pieces. */}
+                      {row.piecesPer > 1 && (
+                        <span className="ms-2 text-xs font-400 text-slate-400">{tr.sealedLoose(num(row.sealed), num(row.loose))}</span>
+                      )}
                     </span>
                   ),
                 },
@@ -521,7 +514,7 @@ function ItemImage({ value, onChange }) {
   );
 }
 
-function ItemForm({ row, vendors, units, categories = [], serviceActions = [], studioCurrency = "", busy, onSave, onCancel }) {
+function ItemForm({ row, vendors, units, categories = [], studioCurrency = "", busy, onSave, onCancel }) {
   const locale = useStudioLocale();
   const tr = inventoryDict(locale);
   const catTr = itemCategoriesDict(locale);
@@ -531,7 +524,10 @@ function ItemForm({ row, vendors, units, categories = [], serviceActions = [], s
     unit: row?.unit || units[0], vendorId: row?.vendorId || "",
     itemType: row?.itemType || "", deliveryWeeks: row?.deliveryWeeks ?? "",
     categoryId: row?.categoryId || "",
-    scope: Array.isArray(row?.scope) ? row.scope : [],
+    // A price per subcategory of the chosen category, keyed by its id.
+    categoryPrices: { ...(row?.categoryPrices || {}) },
+    // ...and how many of each one of this item holds.
+    categoryQuantities: { ...(row?.categoryQuantities || {}) },
     reorderLevel: row?.reorderLevel || "", unitCost: row?.unitCost || "", notes: row?.notes || "",
     sellPrice: row?.sellPrice || "",
     taxCategory: row?.taxCategory || "standard",
@@ -544,8 +540,13 @@ function ItemForm({ row, vendors, units, categories = [], serviceActions = [], s
   // the mistake this catches and it is invisible otherwise — two numbers in
   // different boxes do not compare themselves. Null when there is no cost to
   // compare against, which is an unknown margin rather than a margin of 100%.
-  const margin = marginPct(f.sellPrice, f.unitCost);
-  const sellHint = margin == null ? undefined : tr.marginIs(margin);
+  // COUNTED IN PIECES when a subcategory carries a quantity: the cost is one
+  // PIECE's and the sell price is the whole item's, so the margin compares the
+  // price with what that many pieces cost (modules/inventory/categoryPrices).
+  const pieces = piecesPerItem(f, categories);
+  const margin = marginPct(f.sellPrice, Number(f.unitCost) > 0 ? Number(f.unitCost) * pieces : f.unitCost);
+  const sellHint = [margin == null ? "" : tr.marginIs(margin), pieces > 1 ? catTr.piecesNote(pieces, f.unit) : ""]
+    .filter(Boolean).join(" · ") || undefined;
   const vendor = vendors.find((v) => v.id === f.vendorId);
   const types = Array.isArray(vendor?.itemTypes) ? vendor.itemTypes : [];
   // INDENTED BY DEPTH, the same shape the register's own screen draws.
@@ -553,6 +554,31 @@ function ItemForm({ row, vendors, units, categories = [], serviceActions = [], s
     value: c.id,
     label: `${"\u00a0\u00a0".repeat(Math.max(0, Number(c.depth) || 0))}${locale === "ar" && c.nameAr ? c.nameAr : c.name}`,
   }));
+
+  // ONE PRICE SLOT PER SUBCATEGORY, read from the REGISTER each time — so a
+  // subcategory added in Master data tomorrow appears on every item filed
+  // under its category with nothing re-saved (modules/inventory/categoryPrices).
+  const subcategories = subcategoriesOf(categories, f.categoryId);
+  // RE-FILING RESETS THE SUBCATEGORY PRICES AND QUANTITIES, AND IS ASKED ABOUT
+  // FIRST (the owner, 02/10/2026). The quantities decide what a sale takes off
+  // stock, so the person is told what stays (the count) and what changes (what
+  // one sale takes) before anything is cleared. The server refuses the move
+  // without `categoryReset`, so this question cannot be skipped.
+  const [pendingCategory, setPendingCategory] = useState(null);
+  const filled = (o) => Object.values(o || {}).some((v) => String(v ?? "").trim() !== "" && Number(v) > 0);
+  // What is typed now, or what is STORED and not yet agreed to: blanking the
+  // boxes by hand first is not a way round being asked.
+  const carries = filled(f.categoryPrices) || filled(f.categoryQuantities)
+    || (!f.categoryReset && (filled(row?.categoryPrices) || filled(row?.categoryQuantities)));
+  function pickCategory(v) {
+    if (v === f.categoryId) return;
+    if (carries) { setPendingCategory(v); return; }
+    setF((s) => ({ ...s, categoryId: v }));
+  }
+  function acceptReset() {
+    setF((s) => ({ ...s, categoryId: pendingCategory, categoryPrices: {}, categoryQuantities: {}, categoryReset: true }));
+    setPendingCategory(null);
+  }
 
   // BOUGHT IN SOMEBODY ELSE'S MONEY: it has to be shipped in and cleared, and
   // neither of those is free. Blank means the studio's own currency, so it is
@@ -596,10 +622,20 @@ function ItemForm({ row, vendors, units, categories = [], serviceActions = [], s
             register, which is an honest empty rather than a free-text box that
             would grow a second, unjoined vocabulary. */}
         <Field label={catTr.category} as="select" value={f.categoryId}
-          onChange={(v) => setF((s) => ({ ...s, categoryId: v }))}
+          onChange={pickCategory}
           disabled={categoryOptions.length === 0}
           options={[{ value: "", label: catTr.noCategory }, ...categoryOptions]}
           hint={categoryOptions.length === 0 ? catTr.empty : undefined} />
+        {pendingCategory !== null && (
+          <div role="alert" className="space-y-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:col-span-2 dark:bg-amber-500/10 dark:text-amber-200">
+            <p className="font-600">{catTr.resetTitle}</p>
+            <p>{catTr.resetLead(Number(row?.onHand) || 0, pieces, f.unit)}</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={btn} onClick={acceptReset}>{catTr.resetYes}</button>
+              <button type="button" className={btnGhost} onClick={() => setPendingCategory(null)}>{catTr.resetNo}</button>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-[1fr,7.5rem] gap-3">
           <Field label={tr.unitCost} type="number" min="0" value={f.unitCost} onChange={(v) => setF((s) => ({ ...s, unitCost: v }))} inputProps={{ step: "any" }} />
           {/* What that cost is IN. Blank means the studio's own currency, so an
@@ -616,6 +652,20 @@ function ItemForm({ row, vendors, units, categories = [], serviceActions = [], s
         <Field currency label={tr.sellPrice} type="number" min="0" value={f.sellPrice}
           onChange={(v) => setF((s) => ({ ...s, sellPrice: v }))} inputProps={{ step: "any" }}
           hint={sellHint} />
+        {/* PRICE AND QUANTITY TOGETHER, per subcategory — the shape Unit cost
+            and its Currency take just above. */}
+        {subcategories.map((c, i) => (
+          <div key={c.id} className="grid grid-cols-[1fr,7.5rem] gap-3">
+            <Field currency type="number" min="0" inputProps={{ step: "any" }}
+              label={catTr.subPrice(locale === "ar" && c.nameAr ? c.nameAr : c.name)}
+              value={f.categoryPrices[c.id] ?? ""}
+              onChange={(v) => setF((s) => ({ ...s, categoryPrices: { ...s.categoryPrices, [c.id]: v } }))}
+              hint={i === 0 ? catTr.subPriceHint : undefined} />
+            <Field type="number" min="0" inputProps={{ step: "any" }} label={catTr.subQty}
+              value={f.categoryQuantities[c.id] ?? ""}
+              onChange={(v) => setF((s) => ({ ...s, categoryQuantities: { ...s.categoryQuantities, [c.id]: v } }))} />
+          </div>
+        ))}
         <Field label={tr.reorderLevel} type="number" min="0" value={f.reorderLevel} onChange={(v) => setF((s) => ({ ...s, reorderLevel: v }))} />
         {/* WHAT THE ITEM IS FOR TAX. Copied onto a quotation line with the
             price, so changing it here moves no quotation already written. */}
@@ -636,27 +686,6 @@ function ItemForm({ row, vendors, units, categories = [], serviceActions = [], s
           </>
         )}
         <ItemImage value={f.image} onChange={(v) => setF((st) => ({ ...st, image: v }))} />
-      </div>
-
-      <div className="mt-4">
-        <label className={label}>{tr.scope} <span className="font-400 normal-case text-slate-400">(which service actions does this need once it lands?)</span></label>
-        {serviceActions.length === 0 ? (
-          <p className="text-xs text-slate-400">{tr.noServiceActionsYet}</p>
-        ) : (
-          <div className="flex flex-wrap gap-3">
-            {serviceActions.map((action) => (
-              <label key={action} className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 text-sm font-600 text-slate-700 dark:border-white/15 dark:text-slate-200">
-                <input type="checkbox" checked={f.scope.includes(action)}
-                  onChange={(e) => setF((s) => ({
-                    ...s,
-                    scope: e.target.checked ? [...s.scope, action] : s.scope.filter((a) => a !== action),
-                  }))}
-                  className="h-4 w-4 accent-brand-600" />
-                {action}
-              </label>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="mt-4"><Field label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((s) => ({ ...s, notes: v }))} inputProps={{ rows: 2 }} /></div>
@@ -698,7 +727,7 @@ function Stock({ slug, items, movements, canManage, canAdjust, canEditSerials, b
     <>
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
-          {[["onhand", tr.onHandTab], ["movements", tr.movementsTab], ["bins", binsDict(locale).tab], ["batches", batchesDict(locale).tab], ["value", valuationDict(locale).tab]].map(([k, text]) => (
+          {[["onhand", tr.onHandTab], ["movements", tr.movementsTab], ["bins", binsDict(locale).tab], ["batches", batchesDict(locale).tab], ["value", valuationDict(locale).tab], ["writeoffs", writeOffsDict(locale).tab]].map(([k, text]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
               className={`rounded-full px-4 py-1.5 text-sm font-600 transition-colors ${tab === k ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`}>
               {text}
@@ -757,6 +786,10 @@ function Stock({ slug, items, movements, canManage, canAdjust, canEditSerials, b
         // the studio's accounting policy rather than a view option, so the
         // answer carries which one it used and whether that is the policy.
         <ValuationPanel slug={slug} locale={locale} currency={currency} />
+      ) : tab === "writeoffs" ? (
+        // WHAT WAS WRITTEN OFF, by reason and by item — its own fetch and its
+        // own route, for the reason the valuation above has them.
+        <WriteOffsPanel slug={slug} locale={locale} currency={currency} />
       ) : items.length === 0 ? (
         <Empty title={tr.nothingStockYet} body={tr.registerItemsFirstThen} />
       ) : (
@@ -802,6 +835,9 @@ function Stock({ slug, items, movements, canManage, canAdjust, canEditSerials, b
                       </td>
                       <td className={`${td} ps-2 text-end font-600 text-slate-900 dark:text-white`}>
                         {num(i.onHand)} <span className="text-xs font-400 text-slate-400">{i.unit}</span>
+                        {i.piecesPer > 1 && (
+                          <span className="block text-xs font-400 text-slate-400">{tr.sealedLoose(num(i.sealed), num(i.loose))}</span>
+                        )}
                       </td>
                       <td className={`${td} ps-2 text-end text-slate-500 dark:text-slate-400`}>{i.reorderLevel > 0 ? num(i.reorderLevel) : "—"}</td>
                       <td className={`${td} text-end`}>
@@ -866,24 +902,59 @@ function PendingAdjustments({ slug, items }) {
   );
 }
 
+// ADD, REMOVE, OR OPEN A BOX — and WHY (the owner, 02/10/2026). The quantity is
+// typed as a plain number and the act chosen beside it, so nobody has to know
+// that taking stock off means typing a minus. For an item counted in pieces the
+// person also says WHICH stock: loose pieces, or sealed boxes (counted in
+// boxes) — modules/inventory/sealedLoose works out what the ledger moves by.
 function AdjustForm({ item, busy, onSave, onCancel }) {
   const tr = inventoryDict(useStudioLocale());
+  const boxed = Number(item.piecesPer) > 1;
+  const per = boxed ? Number(item.piecesPer) : 1;
+  const [act, setAct] = useState("remove");
+  const [part, setPart] = useState("loose");
+  const [cause, setCause] = useState("damaged");
   const [qty, setQty] = useState("");
-  const [reason, setReason] = useState("");
-  const after = Number(item.onHand) + (Number(qty) || 0);
+  const [note, setNote] = useState("");
+  const n = Math.abs(Number(qty) || 0);
+  const open = boxed && act === "open";
+  const inBoxes = open || (boxed && part === "sealed");
+  const signedQty = open ? n : act === "add" ? n : -n;
+  // What the count would read afterwards, by the server's own arithmetic.
+  const pieces = open ? 0 : signedQty * (inBoxes ? per : 1);
+  const after = Number(item.onHand) + pieces;
+  const sealedAfter = Number(item.sealed || 0) + (open ? -n : inBoxes ? signedQty : 0);
+  const looseAfter = Number(item.loose || 0) + (open ? n * per : inBoxes ? 0 : signedQty);
+  const bad = after < 0 || (boxed && (sealedAfter < 0 || looseAfter < 0));
+  // The words a person reads on the movement: the reason, then their own note.
+  const reason = [open ? tr.adjOpen : tr.adjCauses[cause], note.trim()].filter(Boolean).join(": ");
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={tr.quantity} required type="number" value={qty} onChange={(v) => setQty(v)} />
-        <Field label={tr.reason} value={reason} onChange={(v) => setReason(v)} hint={tr.eGStockTake} />
+        <Field label={tr.adjWhat} as="select" required value={act} onChange={setAct}
+          options={[{ value: "remove", label: tr.adjRemove }, { value: "add", label: tr.adjAdd },
+            ...(boxed ? [{ value: "open", label: tr.adjOpen }] : [])]} />
+        {boxed && !open && (
+          <Field label={tr.adjPart} as="select" required value={part} onChange={setPart}
+            options={[{ value: "loose", label: tr.adjLoose }, { value: "sealed", label: tr.adjSealed }]} />
+        )}
+        <Field label={inBoxes ? tr.adjBoxes : tr.quantity} required type="number" min="0" value={qty} onChange={(v) => setQty(v)} />
+        {!open && (
+          <Field label={tr.adjCause} as="select" required value={cause} onChange={setCause}
+            options={["damaged", "expired", "lost", "count", ""].map((c) => ({ value: c, label: tr.adjCauses[c] }))} />
+        )}
+        <Field label={tr.adjNote} value={note} onChange={(v) => setNote(v)} hint={tr.eGStockTake} />
       </div>
-      {qty !== "" && (
-        <p className={`mt-3 text-sm ${after < 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
-          {after < 0 ? tr.wouldTakeHandBelow : <>{tr.handWouldBecome} <span className="font-600">{num(after)} {item.unit}</span>.</>}
+      {qty !== "" && n > 0 && (
+        <p className={`mt-3 text-sm ${bad ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
+          {bad ? tr.wouldTakeHandBelow
+            : boxed ? tr.adjBecomes(num(after), item.unit, num(sealedAfter), num(looseAfter))
+              : <>{tr.handWouldBecome} <span className="font-600">{num(after)} {item.unit}</span>.</>}
         </p>
       )}
       <div className="mt-5 flex gap-3">
-        <button className={btn} disabled={busy || qty === "" || Number(qty) === 0} onClick={() => onSave({ qty, reason })}>
+        <button className={btn} disabled={busy || !(n > 0) || bad}
+          onClick={() => onSave({ qty: signedQty, reason, ...(open ? {} : { cause }), ...(boxed ? { part: open ? "open" : part } : {}) })}>
           {busy ? tr.saving : tr.recordAdjustment}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>

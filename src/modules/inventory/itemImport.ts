@@ -23,15 +23,22 @@
 //     Cost and sales price are the dangerous pair — swapped, every item is
 //     quoted at cost — so a file where most priced rows sell below cost is
 //     flagged as a likely swap and has to be confirmed.
+//
+// A CATEGORY COLUMN FILES THE ITEM ON THE STUDIO'S OWN SHELF (02/10/2026) when
+// what it says is one of the studio's Item categories. It is NOT the item
+// type: that is the supplier's line, and Odoo's "Product Category" still fills
+// it. A category the studio does not have is a WARNING, never a refusal — the
+// item is imported unfiled, and the dialog names what did not match.
 
 import { fold } from "@/shared/csv";
 import { parseNumber } from "@/modules/tendering/boqImport";
 import { isKnownCurrency } from "@/shared/currencies";
 import { barcodeProblems, cleanBarcode } from "./barcodes";
 import { columnName, type XlsxSheet, type XlsxValidation } from "@/shared/xlsxWrite";
+import { resolveCategory, subcategoriesOf, type CategoryNode } from "./categoryPrices";
 
 export const ITEM_FIELDS = [
-  "sku", "name", "unit", "vendor", "itemType", "modelNumber", "barcode",
+  "sku", "name", "unit", "vendor", "itemType", "category", "modelNumber", "barcode",
   "unitCost", "sellPrice", "currency", "shippingCharges", "customsCharges",
   "reorderLevel", "deliveryWeeks", "leadDays", "notes",
 ] as const;
@@ -51,8 +58,11 @@ export const ITEM_ALIASES: Record<ItemField, string[]> = {
   unit: ["Unit", "Unit of Measure", "UoM", "Units", "uom_id", "uom_id/name", "الوحدة", "وحدة القياس"],
   vendor: ["Vendor", "Supplier", "Vendors", "Vendors/Vendor", "Vendor Name", "Supplier Name",
     "seller_ids/partner_id", "seller_ids/partner_id/name", "المورد", "اسم المورد"],
-  itemType: ["Item Type", "Product Category", "Category", "categ_id", "categ_id/name",
-    "نوع الصنف", "الفئة", "فئة المنتج", "التصنيف"],
+  itemType: ["Item Type", "Product Category", "categ_id", "categ_id/name",
+    "نوع الصنف", "فئة المنتج"],
+  // THE STUDIO'S OWN CATEGORY, not the supplier's line above. "Category" and
+  // its Arabic were aliases of the item type until 02/10/2026.
+  category: ["Category", "Item Category", "Studio Category", "الفئة", "فئة الصنف", "التصنيف"],
   modelNumber: ["Model", "Model Number", "Part Number", "MPN", "Vendor Product Code", "Vendors/Vendor Product Code",
     "seller_ids/product_code", "رقم الموديل", "رقم القطعة"],
   barcode: ["Barcode", "EAN", "UPC", "barcode", "الباركود"],
@@ -77,7 +87,7 @@ export const ITEM_ALIASES: Record<ItemField, string[]> = {
  * two numbers that disagree.
  */
 export const TEMPLATE_FIELDS = [
-  "sku", "name", "unit", "vendor", "itemType", "modelNumber", "barcode",
+  "sku", "name", "unit", "vendor", "itemType", "category", "modelNumber", "barcode",
   "unitCost", "sellPrice", "currency", "shippingCharges", "customsCharges",
   "reorderLevel", "deliveryWeeks", "notes",
 ] as const satisfies readonly ItemField[];
@@ -107,9 +117,27 @@ export type TemplateWords = {
   notes: string[];
   unitsHeading: string;
   suppliersHeading: string;
+  categoriesHeading: string;
 };
 
-export type TemplateEnv = { units: readonly string[]; studioCurrency: string; vendorNames: readonly string[] };
+export type TemplateEnv = {
+  units: readonly string[]; studioCurrency: string; vendorNames: readonly string[];
+  /** The studio's Item categories, each written as its path ("Box with Slice / Slice"). */
+  categoryNames?: readonly string[];
+};
+
+/** Every category as the path a file may write it by, sorted. */
+export function categoryPathNames(categories: readonly CategoryNode[]): string[] {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  const pathOf = (c: CategoryNode): string => {
+    const names: string[] = [];
+    const seen = new Set<string>();
+    let cursor: CategoryNode | undefined = c;
+    while (cursor && !seen.has(cursor.id)) { seen.add(cursor.id); names.unshift(cursor.name); cursor = byId.get(cursor.parentId || ""); }
+    return names.join(" / ");
+  };
+  return categories.map(pathOf).sort((a, b) => a.localeCompare(b));
+}
 
 /** Rows the template prepares: its dropdowns reach this far. */
 const TEMPLATE_ROWS = 5000;
@@ -123,7 +151,10 @@ export function templateGuide(words: TemplateWords, env: TemplateEnv) {
     required: TEMPLATE_REQUIRED.includes(field),
     what: words.guide[field].what(ctx),
     // A unit example is one the studio actually counts in, or the example would be refused.
-    example: field === "unit" ? (env.units[0] || words.guide.unit.example) : words.guide[field].example,
+    example: field === "unit" ? (env.units[0] || words.guide.unit.example)
+      // A category example is one of the studio's own, or none: an invented one would match nothing.
+      : field === "category" ? (env.categoryNames?.[0] || "")
+      : words.guide[field].example,
   }));
 }
 
@@ -154,6 +185,12 @@ export function itemTemplate(words: TemplateWords, env: TemplateEnv, opts: { rtl
   if (vendors.length) {
     validations.push({ range: `${col("vendor")}2:${col("vendor")}${TEMPLATE_ROWS}`, source: `${lists}!$B$2:$B$${vendors.length + 1}`, strictness: "information" });
   }
+  // OFFERED, AND ONLY WARNS: a category not on the list imports the item
+  // unfiled rather than refusing it, so the sheet must not refuse it either.
+  const categories = [...(env.categoryNames || [])];
+  if (categories.length) {
+    validations.push({ range: `${col("category")}2:${col("category")}${TEMPLATE_ROWS}`, source: `${lists}!$C$2:$C$${categories.length + 1}`, strictness: "information" });
+  }
   const guide = templateGuide(words, env);
   return [
     {
@@ -162,7 +199,7 @@ export function itemTemplate(words: TemplateWords, env: TemplateEnv, opts: { rtl
       rtl,
       rows: [TEMPLATE_FIELDS.map((f) => words.headings[f])],
       columns: TEMPLATE_FIELDS.map((f) => ({
-        width: f === "name" || f === "notes" ? 32 : f === "vendor" || f === "itemType" ? 22 : 15,
+        width: f === "name" || f === "notes" ? 32 : f === "vendor" || f === "itemType" || f === "category" ? 22 : 15,
         text: TEMPLATE_TEXT_FIELDS.includes(f),
       })),
       validations,
@@ -184,10 +221,11 @@ export function itemTemplate(words: TemplateWords, env: TemplateEnv, opts: { rtl
       header: true,
       rtl,
       rows: [
-        [words.unitsHeading, words.suppliersHeading],
-        ...Array.from({ length: Math.max(units.length, vendors.length) }, (_, i) => [units[i] ?? "", vendors[i] ?? ""]),
+        [words.unitsHeading, words.suppliersHeading, words.categoriesHeading],
+        ...Array.from({ length: Math.max(units.length, vendors.length, categories.length) },
+          (_, i) => [units[i] ?? "", vendors[i] ?? "", categories[i] ?? ""]),
       ],
-      columns: [{ width: 16, text: true }, { width: 32, text: true }],
+      columns: [{ width: 16, text: true }, { width: 32, text: true }, { width: 36, text: true }],
     },
   ];
 }
@@ -257,7 +295,12 @@ export type ImportRefusal = {
   detail?: string;
 };
 
-export type ImportWarning = { line: number; kind: "price-below-cost" | "numeric-name" };
+export type ImportWarning = {
+  line: number;
+  kind: "price-below-cost" | "numeric-name" | "category-unknown";
+  /** What the file wrote, for a category the studio does not have. */
+  detail?: string;
+};
 
 /** An item as it will be written, before ids and bookkeeping are added. */
 export type PlannedItem = {
@@ -267,6 +310,8 @@ export type PlannedItem = {
   unit: string;
   vendorName: string;
   itemType: string;
+  /** The studio's category the file named, or "" — for none, and for one the studio lacks. */
+  categoryId: string;
   modelNumber: string;
   barcode: string;
   unitCost: number;
@@ -301,6 +346,8 @@ export type ImportEnv = {
   /** Supplier names already on the studio's list. */
   vendorNames: readonly string[];
   items: readonly ExistingItem[];
+  /** The studio's Item categories. Absent or empty: no row can be filed. */
+  categories?: readonly CategoryNode[];
 };
 
 export type ImportOptions = {
@@ -393,6 +440,15 @@ export function planItemImport(rows: readonly ItemImportRow[], env: ImportEnv, o
   const warnings: ImportWarning[] = [];
   const newVendors = new Map<string, { name: string; types: Set<string> }>();
   const unknownUnits = new Set<string>();
+  const unknownCategories = new Set<string>();
+  const categories = env.categories || [];
+  // Asked once per category, not once per row.
+  const hasSubs = new Map<string, boolean>();
+  const subsUnder = (id: string) => {
+    if (!hasSubs.has(id)) hasSubs.set(id, subcategoriesOf(categories, id).length > 0);
+    return hasSubs.get(id) as boolean;
+  };
+  let toPrice = 0;
 
   const known = new Set(env.vendorNames.map((v) => v.trim().toLowerCase()));
   const bySku = new Map(env.items.map((i) => [String(i.sku || "").toUpperCase(), i]));
@@ -494,10 +550,21 @@ export function planItemImport(rows: readonly ItemImportRow[], env: ImportEnv, o
       newVendors.set(key, entry);
     }
 
+    // FILED WHEN THE STUDIO HAS THE CATEGORY, imported unfiled when it does
+    // not — and said, so nobody finds out from an offer that matched nothing.
+    const writtenCategory = String(row.category ?? "").trim();
+    const resolved = resolveCategory(writtenCategory, categories);
+    if (resolved === null) {
+      unknownCategories.add(writtenCategory);
+      warnings.push({ line, kind: "category-unknown", detail: writtenCategory });
+    }
+    const categoryId = resolved || "";
+    if (categoryId && subsUnder(categoryId)) toPrice += 1;
+
     const weeks = nums.deliveryWeeks != null ? Math.round(nums.deliveryWeeks)
       : nums.leadDays != null ? Math.ceil(nums.leadDays / 7) : "";
     const planned: PlannedItem = {
-      line, sku, name, unit, vendorName, itemType,
+      line, sku, name, unit, vendorName, itemType, categoryId,
       modelNumber: String(row.modelNumber ?? "").trim().slice(0, 80),
       barcode,
       unitCost: nums.unitCost ? round3(nums.unitCost) : 0,
@@ -535,6 +602,11 @@ export function planItemImport(rows: readonly ItemImportRow[], env: ImportEnv, o
     create, update, refused, warnings, likelySwap,
     newVendors: [...newVendors.values()].map((v) => ({ name: v.name, itemTypes: [...v.types] })),
     unknownUnits: [...unknownUnits],
+    unknownCategories: [...unknownCategories],
+    // ITEMS FILED UNDER A CATEGORY THAT HAS SUBCATEGORIES: each may carry a
+    // price per subcategory, typed on the item afterwards (./categoryPrices).
+    // The file brings the category's own price only.
+    toPrice,
   };
 }
 

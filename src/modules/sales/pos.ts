@@ -51,6 +51,8 @@ import {
   priceWithPromotions, recordRedemptions, claimCoupons, releaseCoupons, livePromotions,
   categoriesFor, categoryPathsFor,
 } from "./posPromotions";
+import { piecesPerItem, sellingSizes } from "@/modules/inventory/categoryPrices";
+import { splitOf, saleSplit } from "@/modules/inventory/sealedLoose";
 import { promotionValidAt, daysUntilEnd, type AppliedPromotion } from "./posPromotionsModel";
 import { studioTimezone, stampIn } from "@/shared/timezone";
 import { refundsByShift } from "./posReturns";
@@ -294,6 +296,10 @@ export async function posView(ctx: PosContext) {
       id: i.id, name: i.name, sku: i.sku, unit: i.unit,
       barcode: i.barcode || "",
       sellPrice: Number(i.sellPrice) || 0,
+      // THE SUBCATEGORIES IT IS ALSO SOLD AS, each with its own price and what
+      // it takes off stock (modules/inventory/categoryPrices). Absent for an
+      // item sold one way.
+      ...(sellingSizes(i, categories).length ? { sizes: sellingSizes(i, categories) } : {}),
       ...(i.taxCategory ? { taxCategory: i.taxCategory } : {}),
       // WHAT AN OFFER MATCHES ON (22/09/2026). Still not the cost: a type and a
       // vendor id are what the engine calls a category and a brand until items
@@ -690,10 +696,11 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
   const ids = [...new Set(asked.map((l) => l.itemId))];
   const itemScope = { studio: ctx.studio, section: ctx.itemsSection };
   const stockScope = { studio: ctx.studio, section: ctx.stockSection };
-  const [items, movements, batches] = await Promise.all([
+  const [items, movements, batches, categories] = await Promise.all([
     Items.find(itemScope, { where: { id: ids } }),
     Stock.find(stockScope, { where: { itemId: ids } }),
     Batches.find(stockScope, { where: { itemId: ids } }),
+    categoriesFor(ctx),
   ]);
   const byId = new Map(items.map((i) => [i.id, i]));
   const mayReprice = can(ctx.access, "crmSales.pos.discount");
@@ -705,12 +712,20 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
   for (const l of asked) {
     const item = byId.get(l.itemId);
     if (!item) return { error: "item" as const, itemId: l.itemId };
-    const listed = Number(item.sellPrice) > 0 ? Number(item.sellPrice) : null;
+    // SOLD WHOLE, OR AS ONE OF ITS SUBCATEGORIES. Which it is decides the price
+    // AND what leaves the shelf, and both are read from the item here — a
+    // request names a subcategory, never a quantity.
+    const size = l.sizeId ? sellingSizes(item, categories).find((z) => z.id === l.sizeId) : undefined;
+    if (l.sizeId && !size) return { error: "size" as const, itemId: item.id, name: item.name };
+    const listed = size ? size.price : Number(item.sellPrice) > 0 ? Number(item.sellPrice) : null;
     const price = mayReprice && l.price > 0 ? l.price : listed;
     if (price === null) return { error: "unpriced" as const, itemId: item.id, name: item.name };
+    const unitQty = size ? size.units : piecesPerItem(item, categories);
     lines.push({
       itemId: item.id,
-      description: item.name,
+      description: size ? `${item.name} — ${size.name}` : item.name,
+      ...(size ? { sizeId: size.id } : {}),
+      ...(unitQty !== 1 ? { unitQty } : {}),
       count: l.count,
       price,
       ...(listed !== null ? { listPrice: listed } : {}),
@@ -834,6 +849,25 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
     picked.set(itemId, pick);
   }
 
+  // A BOX NEEDS A SEALED BOX (modules/inventory/sealedLoose). Enough pieces is
+  // not enough: twenty loose ones are not a box. What each item's loose pieces
+  // change by is worked out here and written on its movements below, so the
+  // ledger can say afterwards how many boxes are still sealed.
+  const looseBy = new Map<string, number>();
+  for (const itemId of need.keys()) {
+    const item = byId.get(itemId);
+    const per = item ? piecesPerItem(item, categories) : 1;
+    if (!(per > 1)) continue;
+    const mine = lines.filter((l) => l.itemId === itemId);
+    const boxes = mine.filter((l) => !l.sizeId).reduce((sum, l) => sum + l.count, 0);
+    const pieces = mine.filter((l) => l.sizeId).reduce((sum, l) => sum + unitsOf(l), 0);
+    const split = saleSplit(splitOf(movements.filter((m) => m.itemId === itemId), per), per, boxes, pieces);
+    if (!split.ok) {
+      return { error: "no-sealed" as const, itemId, name: item?.name || "", have: split.sealed, needed: boxes };
+    }
+    looseBy.set(itemId, split.loose);
+  }
+
   const totals = posTotals(lines, terms);
   const settled = settle(totals.total, payments, terms.currency);
   if (settled.problem) return { error: settled.problem, total: totals.total, paid: settled.paid };
@@ -927,8 +961,15 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
       ...(Number.isFinite(unitCost) && unitCost > 0 ? { unitCost } : {}),
       byCollaboratorId: ctx.collaborator.id, at,
     };
+    const from = moves.length;
     for (const p of pick.picks) moves.push({ ...base, qty: p.qty, batchId: p.batchId });
     if (pick.fromUntracked > 0) moves.push({ ...base, qty: pick.fromUntracked });
+    // EVERY MOVEMENT OF A PIECE-COUNTED ITEM SAYS WHAT IT DID TO THE LOOSE
+    // PIECES: the first carries the sale's whole change and the rest carry
+    // nought, so none of them is read by the rule for a movement that is silent.
+    if (looseBy.has(itemId)) {
+      for (let k = from; k < moves.length; k++) moves[k].loose = k === from ? looseBy.get(itemId) : 0;
+    }
   }
   if (moves.length) await Stock.createMany(stockScope, moves);
   // THE USES THIS SALE MADE, written after it: the caps count these rows, and

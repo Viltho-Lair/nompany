@@ -42,16 +42,17 @@ the dialog's own chunk.
 **Download template** gives the client an Excel workbook (`items-template.xlsx`) laid out
 the way this import reads it, in the reader's language (Arabic sheets run right to left):
 
-- **Items**: the fifteen column headings and nothing else. No example row, because an example
+- **Items**: the sixteen column headings and nothing else. No example row, because an example
   left in by accident is an item registered in somebody's studio. Every heading is an alias of
   its field, so a filled template is matched with nobody touching a column (asserted for both
   languages).
 - **Guide**: one row per column: whether it is required (only Name, for a new item), what to
   write, and an example. The examples are valid against the studio: the unit is one it counts
   in, and a row made of them imports cleanly (asserted).
-- **Lists**: the studio's own units and suppliers. The Unit column is a dropdown of them that
-  refuses anything else, because the import refuses anything else; the Supplier column offers
-  them and only warns, because the import can add new suppliers.
+- **Lists**: the studio's own units, suppliers and item categories. The Unit column is a
+  dropdown of them that refuses anything else, because the import refuses anything else; the
+  Supplier column offers them and only warns, because the import can add new suppliers; the
+  Category column offers them and only warns, because an unknown category does not refuse the row.
 
 **SKU, Model Number and Barcode are formatted as Text before anybody types in them.** That is
 the one thing a CSV cannot say and the reason the template is a workbook: typed into a CSV
@@ -75,6 +76,20 @@ change. A header row is detected when two of its cells name a field, and can be 
 
 **Odoo's "Product Type" is not the item type.** It says storable, consumable or service.
 The item type is Odoo's *category*, and "All / Saleable / Cables" means "Cables".
+
+**"Category" is the studio's own category, not the item type (2026-10-02).** A column headed
+Category (or الفئة) is matched against the studio's Item categories (Master data), by name in
+either language, or by a path for a category inside another ("Box with Slice / Slice"). A
+match files the item under it. **A category the studio does not have is a warning, not a
+refusal**: the item is imported with no category and the dialog names what did not match. A
+name two subcategories share is not guessed. Odoo's "Product Category" and `categ_id` still
+fill the item type. Until this date "Category" filled the item type too, so no imported item
+was ever filed under a category.
+
+**Subcategory prices are not imported.** The file's Sales Price is the price for the item's
+category. When that category has subcategories, each may carry its own price, typed on the
+item form afterwards and optional (`master-data.md`, Item categories); the dialog counts the
+items this applies to.
 
 **An Odoo continuation row**, with a product's second supplier on a row of its own and the
 product columns blank, is folded into the product above rather than refused as a nameless
@@ -197,7 +212,10 @@ Ordinary item rows, the same fields in the same order as `createItem` writes, pl
 
 ## Not built yet
 
-- **The template's lists are a snapshot.** A unit or supplier added after it was downloaded
+- **No column for a subcategory's price or quantity.** They are typed on the item, one item at a time.
+- **A category the file names is never added to the register.** Suppliers can be added while
+  importing; categories cannot.
+- **The template's lists are a snapshot.** A unit, supplier or category added after it was downloaded
   is not in its dropdowns; download it again. Currency has no dropdown.
 - **No template for updating prices only.** The full template works for that (leave the
   other columns empty), but there is no SKU-and-price variant.

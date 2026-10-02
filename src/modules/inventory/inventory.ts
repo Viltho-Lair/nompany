@@ -74,6 +74,10 @@ import { barcodeProblems, cleanBarcode, type Barcoded } from "./barcodes";
 import {
   ITEM_FIELDS, IMPORT_BATCH, planItemImport, type ImportRefusal, type ItemField, type ItemImportRow,
 } from "./itemImport";
+import { cleanCategoryPrices, cleanCategoryQuantities, piecesPerItem } from "./categoryPrices";
+import { writeOffReport, isWriteOff, periodDays, customDays, WRITE_OFF_PERIODS, type WriteOffPeriod } from "./writeOffs";
+import { splitOf, adjustSplit, ADJUST_CAUSES, ADJUST_PARTS, type AdjustPart } from "./sealedLoose";
+import { listItemCategories } from "@/modules/administration/itemCategories";
 
 // "TODAY" IS THE STUDIO'S, NOT THE SERVER'S (shared/timezone, the owner,
 // 22/09/2026). The server runs on UTC, so a receipt booked at 01:00 in Riyadh
@@ -174,26 +178,6 @@ function cleanItemTypes(list: unknown) {
     const key = t.type.toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
-    return true;
-  });
-}
-
-// Which of the STUDIO's own service actions this item needs once it lands.
-// Kept only if it is one of theirs — a studio that renames or removes an
-// action does not leave a stray string sitting on an old item — de-duplicated
-// and order-preserved, the same shape as `cleanSerials`.
-function cleanScope(raw: unknown, studio: Record<string, unknown>) {
-  // Active AND retired: a retired action is one removed from the pool but still
-  // in use here, so a stored scope that names it is carried, never filtered away.
-  // Only an action that is neither — truly unknown — is dropped.
-  const known = new Set([
-    ...(Array.isArray(studio?.serviceActions) ? studio.serviceActions as unknown[] : []),
-    ...(Array.isArray(studio?.retiredServiceActions) ? studio.retiredServiceActions as unknown[] : []),
-  ].map((a) => str(a, 80)));
-  const seen = new Set<string>();
-  return (Array.isArray(raw) ? raw : []).slice(0, 40).map((s) => str(s, 80)).filter((s) => {
-    if (!s || !known.has(s) || seen.has(s)) return false;
-    seen.add(s);
     return true;
   });
 }
@@ -413,35 +397,20 @@ async function reservedSerials({ studio, sheetsSection }: Pick<InventoryContext,
   return out;
 }
 
-// Every registered item's scope, for one studio, with NO permission gate of its
-// own — see the caller in studioServiceActions.ts for why. The service-action
-// pool transition runs behind studio.settings.edit, a right that says nothing
-// about inventory.items.view; reading through inventoryContext there would make
-// the retire-vs-drop decision only as complete as the CALLER's own inventory
-// grant, and an incomplete read used to be read as "nothing is referenced" and
-// silently DROP an in-use action instead of retiring it. The caller here has
-// already resolved membership + settings authority through its own route guard,
-// so this only needs the studio id — never a second identity to prove itself
-// with, and never a key this repo call could name outside that one studio.
-export async function itemScopesForStudio(studioId: string): Promise<string[][]> {
-  // Same child-falls-back-to-parent resolution `ownerOf` already does for
-  // cross-section reads below (see `projectRows`) — reused rather than
-  // restated, so the sub-section fallback rule lives in one place.
-  const itemsSection = await ownerOf(studioId, "inventory-items", "inventory");
-  if (!itemsSection) return [];
-  const items = await Items.find({ studio: { id: studioId }, section: itemsSection });
-  // Same default as listItems: an item saved before `scope` existed carries no
-  // field at all, and reads as an empty scope rather than a guess.
-  return items.map((i) => (Array.isArray(i.scope) ? i.scope : []));
+// ADMINISTRATION'S CATEGORY REGISTER, borrowed the way the list route borrows
+// it for the item form's picker. No Master data section, no categories.
+async function categoriesOf(ctx: Pick<InventoryContext, "studio" | "masterSection">) {
+  return ctx.masterSection ? listItemCategories({ studio: ctx.studio, section: ctx.masterSection }) : [];
 }
 
 export async function listItems(ctx: InventoryContext) {
   const { studio, itemsSection, vendorsSection, stockSection } = ctx;
-  const [items, vendors, movements, reserved] = await Promise.all([
+  const [items, vendors, movements, reserved, categories] = await Promise.all([
     Items.find({ studio, section: itemsSection }),
     Vendors.find({ studio, section: vendorsSection }),
     Stock.find({ studio, section: stockSection }),
     reservedSerials(ctx),
+    categoriesOf(ctx),
   ]);
   const vendorName = Object.fromEntries(vendors.map((v) => [v.id, v.name]));
   const onHand = balances(movements);
@@ -451,14 +420,17 @@ export async function listItems(ctx: InventoryContext) {
     .map((i) => {
       const serials = Array.isArray(i.serials) ? i.serials : [];
       const held = onHand[i.id] || 0;
+      // SEALED BOXES AND LOOSE PIECES, for an item counted in pieces
+      // (./sealedLoose). Read from the item's own movements; absent for an
+      // item sold one way, which has no boxes to be sealed.
+      const per = piecesPerItem(i, categories);
+      const split = per > 1 ? splitOf(movements.filter((m) => m.itemId === i.id), per) : null;
+      // SCOPE IS GONE (02/10/2026) and is not served: a row written before the
+      // removal still stores one until it is next saved — see editItem.
+      const { scope: _scope, ...row } = i as typeof i & { scope?: unknown };
       return {
-        ...i,
+        ...row,
         serials,
-        // EMPTY BY DEFAULT: an item saved before `scope` existed carries no
-        // field at all, and it reads as an empty scope rather than any
-        // guess at what its old needsInstallation/needsProgramming meant —
-        // see the doc comment on ItemSchema.
-        scope: Array.isArray(i.scope) ? i.scope : [],
         // RESERVED: allocated to a project sheet, so still physically on the
         // shelf but no longer available to anybody else. It is not a state
         // stored on the item — it is derived from what the sheets have taken,
@@ -466,6 +438,7 @@ export async function listItems(ctx: InventoryContext) {
         reservedSerials: serials.filter((sn) => reserved.has(sn)),
         vendorName: vendorName[i.vendorId] || "",
         onHand: held,
+        ...(split ? { piecesPer: per, sealed: split.sealed, loose: split.loose } : {}),
         // "Below reorder level" is derived, so it can never be a stale flag.
         low: (i.reorderLevel || 0) > 0 && held <= (i.reorderLevel || 0),
         // On-hand is the LEDGER's answer; the serial list is a record of which
@@ -507,6 +480,12 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
   const codeProblems = barcodeProblems({ barcode: body?.barcode }, { items: rows as Barcoded[] });
   if (codeProblems.length) return { error: "barcode", problems: codeProblems };
   const barcode = cleanBarcode(body?.barcode);
+  // A PRICE PER SUBCATEGORY of the chosen category (./categoryPrices). The
+  // register is read only when the form sent some.
+  const categoryId = str(body?.categoryId, 60);
+  const subcategoryData = categoryId && (body?.categoryPrices || body?.categoryQuantities) ? await categoriesOf(ctx) : [];
+  const categoryPrices = cleanCategoryPrices(body?.categoryPrices, subcategoryData, categoryId);
+  const categoryQuantities = cleanCategoryQuantities(body?.categoryQuantities, subcategoryData, categoryId);
 
   const item = await Items.create({ studio, section: itemsSection }, {
     sku, name,
@@ -520,11 +499,10 @@ export async function createItem(ctx: InventoryContext, body: Record<string, unk
     // Picked from the vendor's own list of what it supplies; the estimate comes
     // with it rather than being typed again per item.
     itemType: str(body?.itemType, 80),
-    ...(str(body?.categoryId, 60) ? { categoryId: str(body.categoryId, 60) } : {}),
+    ...(categoryId ? { categoryId } : {}),
+    ...(Object.keys(categoryPrices).length ? { categoryPrices } : {}),
+    ...(Object.keys(categoryQuantities).length ? { categoryQuantities } : {}),
     deliveryWeeks: weeks(body?.deliveryWeeks),
-    // Scope: which of the studio's own service actions does this thing need
-    // once it lands? Chosen from studio.serviceActions, not a fixed pair.
-    scope: cleanScope(body?.scope, studio),
     // Serials for a serial-tracked item. On-hand still comes from the LEDGER —
     // this records WHICH units are held, not how many.
     serials: cleanSerials(body?.serials),
@@ -585,8 +563,29 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
   if (body?.modelNumber !== undefined) patch.modelNumber = str(body.modelNumber, 80);
   if (body?.itemType !== undefined) patch.itemType = str(body.itemType, 80);
   if (body?.categoryId !== undefined) patch.categoryId = str(body.categoryId, 60);
+  // THE SUBCATEGORY PRICES AND QUANTITIES FOLLOW THE CATEGORY THE ITEM ENDS UP
+  // IN: re-filing an item drops what no longer sits beneath it, and either sent
+  // alone is judged against the category it already has (./categoryPrices).
+  if (body?.categoryId !== undefined || body?.categoryPrices !== undefined || body?.categoryQuantities !== undefined) {
+    const [rows, categories] = await Promise.all([Items.find({ studio, section: itemsSection }), categoriesOf(ctx)]);
+    const current = rows.find((r) => r.id === id);
+    if (!current) return { error: "notfound" };
+    const categoryId = body?.categoryId !== undefined ? str(body.categoryId, 60) : String(current.categoryId || "");
+    // RE-FILING AN ITEM THAT CARRIES SUBCATEGORY PRICES OR QUANTITIES RESETS
+    // THEM, AND SOMEBODY HAS TO HAVE SAID YES (the owner, 02/10/2026). The
+    // quantities are what a sale takes off stock, so losing them silently
+    // changes what every later sale does to the count. The form asks first and
+    // sends `categoryReset`; anything else is refused rather than obeyed.
+    const carries = Object.keys(current.categoryPrices || {}).length + Object.keys(current.categoryQuantities || {}).length > 0;
+    if (carries && categoryId !== String(current.categoryId || "") && body?.categoryReset !== true) {
+      return { error: "category-reset" };
+    }
+    const prices = cleanCategoryPrices(body?.categoryPrices ?? current.categoryPrices, categories, categoryId);
+    patch.categoryPrices = Object.keys(prices).length ? prices : undefined;
+    const quantities = cleanCategoryQuantities(body?.categoryQuantities ?? current.categoryQuantities, categories, categoryId);
+    patch.categoryQuantities = Object.keys(quantities).length ? quantities : undefined;
+  }
   if (body?.deliveryWeeks !== undefined) patch.deliveryWeeks = weeks(body.deliveryWeeks);
-  if (body?.scope !== undefined) patch.scope = cleanScope(body.scope, studio);
   if (body?.serials !== undefined) patch.serials = cleanSerials(body.serials);
   if (body?.notes !== undefined) patch.notes = str(body.notes, 1000);
   if (body?.reorderLevel !== undefined) patch.reorderLevel = qty(body.reorderLevel) > 0 ? qty(body.reorderLevel) : 0;
@@ -597,7 +596,8 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
   if (body?.taxCategory !== undefined) patch.taxCategory = taxCategoryField(body.taxCategory).taxCategory;
   if (body?.excludedFromPromotions !== undefined) patch.excludedFromPromotions = body.excludedFromPromotions === true;
   // A CODE IS JUDGED AGAINST EVERY OTHER ITEM. Saving an item also drops any
-  // packs it still carries from before they were removed (17/09/2026).
+  // packs it still carries from before they were removed (17/09/2026), and
+  // any scope from before THAT was removed (02/10/2026).
   if (body?.barcode !== undefined) {
     const rows = await Items.find({ studio, section: itemsSection });
     if (!rows.some((i) => i.id === id)) return { error: "notfound" };
@@ -606,6 +606,7 @@ export async function editItem(ctx: InventoryContext, id: string, body: Record<s
     patch.barcode = cleanBarcode(body.barcode) || undefined;
   }
   patch.packs = undefined;
+  patch.scope = undefined;
   // The currency and its two charges are decided together: what the charges
   // must be follows the currency the item ENDS UP with, not the one this
   // request happened to mention. An edit that touches none of the three — a
@@ -747,9 +748,10 @@ export async function importItems(ctx: InventoryContext, body: Record<string, un
   const importId = given || mintImportId();
 
   const { studio, itemsSection, vendorsSection } = ctx;
-  const [items, vendors] = await Promise.all([
+  const [items, vendors, categories] = await Promise.all([
     Items.find({ studio, section: itemsSection }),
     Vendors.find({ studio, section: vendorsSection }),
+    categoriesOf(ctx),
   ]);
 
   const rows = list.map(importRowOf);
@@ -775,6 +777,7 @@ export async function importItems(ctx: InventoryContext, body: Record<string, un
     // With the supplier's NAME, as listItems hands the screen — the preview and
     // this batch must recognise a SKU-less row by the same two things.
     items: items.map((i) => ({ ...i, vendorName: vendors.find((v) => v.id === i.vendorId)?.name || "" })),
+    categories,
   }, opts);
 
   const at = new Date().toISOString();
@@ -805,8 +808,10 @@ export async function importItems(ctx: InventoryContext, body: Record<string, un
   // same shape; the two import fields come last.
   const created = await Items.createMany({ studio, section: itemsSection }, plan.create.map((p) => ({
     sku: p.sku || nextFree(), name: p.name, modelNumber: p.modelNumber, unit: p.unit,
-    vendorId: vendorOf(p.vendorName), itemType: p.itemType, deliveryWeeks: p.deliveryWeeks,
-    scope: [], serials: [], reorderLevel: p.reorderLevel, unitCost: p.unitCost, sellPrice: p.sellPrice,
+    vendorId: vendorOf(p.vendorName), itemType: p.itemType,
+    ...(p.categoryId ? { categoryId: p.categoryId } : {}),
+    deliveryWeeks: p.deliveryWeeks,
+    serials: [], reorderLevel: p.reorderLevel, unitCost: p.unitCost, sellPrice: p.sellPrice,
     ...(p.barcode ? { barcode: p.barcode } : {}),
     currency: p.currency, shippingCharges: p.shippingCharges, customsCharges: p.customsCharges,
     image: "", notes: p.notes, createdAt: at, importId, importLine: p.line,
@@ -827,6 +832,16 @@ export async function importItems(ctx: InventoryContext, body: Record<string, un
         if (has("unit")) patch.unit = q.unit;
         if (has("vendor")) patch.vendorId = vendorOf(q.vendorName);
         if (has("itemType")) patch.itemType = q.itemType;
+        // ONLY A CATEGORY THE STUDIO HAS. One the file names and the register
+        // lacks leaves the item where it is filed (the plan warns of it), and
+        // a move takes away the subcategory prices it no longer sits above.
+        // AND NEVER AN ITEM CARRYING SUBCATEGORY PRICES OR QUANTITIES: moving
+        // it would reset them, and a file cannot be asked whether it meant to
+        // (see editItem). Such an item is re-filed on its own form.
+        const carries = Object.keys(current.categoryPrices || {}).length + Object.keys(current.categoryQuantities || {}).length > 0;
+        if (has("category") && q.categoryId && q.categoryId !== current.categoryId && !carries) {
+          patch.categoryId = q.categoryId;
+        }
         if (has("modelNumber")) patch.modelNumber = q.modelNumber;
         if (has("barcode")) patch.barcode = q.barcode;
         if (has("unitCost")) patch.unitCost = q.unitCost;
@@ -978,7 +993,7 @@ export async function listMovements(
 // exactly one way for a balance to move.
 async function record(
   ctx: InventoryContext,
-  { itemId, kind, quantity, reason, sourceType = "", sourceId = "", unitCost }: {
+  { itemId, kind, quantity, reason, sourceType = "", sourceId = "", unitCost, loose, cause }: {
     itemId: string;
     kind: string;
     quantity: number;
@@ -987,6 +1002,9 @@ async function record(
     sourceId?: string;
     /** Only where the movement is charged to something — see MovementSchema. */
     unitCost?: number;
+    /** What it did to the loose pieces, and why it was made — see ./sealedLoose. */
+    loose?: number;
+    cause?: string;
   },
 ) {
   const { studio, stockSection, collaborator } = ctx;
@@ -998,6 +1016,8 @@ async function record(
     reason: str(reason, 300),
     sourceType, sourceId,
     ...(unitCost !== undefined && Number.isFinite(unitCost) ? { unitCost } : {}),
+    ...(loose !== undefined && Number.isFinite(loose) ? { loose } : {}),
+    ...(cause ? { cause } : {}),
     byCollaboratorId: collaborator.id,
     at: new Date().toISOString(),
   });
@@ -1026,7 +1046,37 @@ export async function adjustStock(ctx: InventoryContext, body: Record<string, un
   const items = await Items.find({ studio, section: itemsSection });
   if (!items.some((i) => i.id === itemId)) return { error: "item" };
 
-  const amount = qty(body?.qty);
+  // WHY, WHEN SOMEBODY SAID: damaged, expired, lost, a count. Kept on the
+  // movement so a write-off can be told from a correction afterwards.
+  const cause = (ADJUST_CAUSES as readonly string[]).includes(String(body?.cause)) ? String(body.cause) : "";
+
+  // AN ITEM COUNTED IN PIECES SAYS WHICH PART IS MEANT — loose pieces, sealed
+  // boxes, or a box opened on the shelf (./sealedLoose). The quantity is then
+  // pieces for the loose part and BOXES for the sealed one, and what the ledger
+  // moves by is worked out here rather than typed.
+  const target = items.find((i) => i.id === itemId);
+  const per = target ? piecesPerItem(target, await categoriesOf(ctx)) : 1;
+  const part = per > 1 && (ADJUST_PARTS as readonly string[]).includes(String(body?.part)) ? String(body.part) as AdjustPart : null;
+  let amount = qty(body?.qty);
+  let loose: number | undefined;
+  if (part) {
+    const mine = await Stock.find({ studio, section: stockSection }, { where: { itemId } });
+    const split = adjustSplit(splitOf(mine, per), per, part, Number(body?.qty));
+    if (!split.ok) return { error: split.problem, have: split.have };
+    loose = split.loose;
+    amount = split.qty;
+    // A BOX OPENED moves nothing off the shelf: nought on the ledger, and the
+    // loose pieces gain what the box held. Nothing to approve and nothing to
+    // lock — the total does not change.
+    if (part === "open") {
+      return {
+        movement: await record(ctx, {
+          itemId, kind: "adjust", quantity: 0, loose, cause,
+          reason: str(body?.reason, 300) || "Box opened", sourceType: "adjustment",
+        }),
+      };
+    }
+  }
   if (!amount) return { error: "qty" };
 
   // A negative adjustment can't take an item below zero — you cannot have less
@@ -1062,6 +1112,10 @@ export async function adjustStock(ctx: InventoryContext, body: Record<string, un
     const raised = await raiseAdjustment(ctx, {
       itemId, itemName, qty: amount, unitCost, value,
       reason: str(body?.reason, 300) || "Manual adjustment",
+      // WHY, AND WHICH STOCK, travel with the request, so the movement written
+      // when somebody says yes is the one that was asked for.
+      ...(cause ? { cause } : {}),
+      ...(loose !== undefined ? { loose } : {}),
     });
     // NO `movement` IN THE ANSWER, deliberately: a caller that ignored the
     // status and read `movement` would find nothing rather than something that
@@ -1073,6 +1127,12 @@ export async function adjustStock(ctx: InventoryContext, body: Record<string, un
     itemId, kind: "adjust", quantity: amount,
     reason: str(body?.reason, 300) || "Manual adjustment",
     sourceType: "adjustment",
+    loose, cause,
+    // WHAT A UNIT COST THE DAY IT WAS WRITTEN OFF, so the write-off report
+    // (./writeOffs) is not restated by a later repricing. Only on the way OUT:
+    // valuation reads a cost on the way in, and an adjustment upward has no
+    // receipt behind it to have set one.
+    ...(amount < 0 && unitCost > 0 ? { unitCost } : {}),
   });
   // ADDING NEEDS NO LEASE — nothing goes below nought by gaining stock. A
   // write-off does: the check above was against a balance another writer may
@@ -1181,14 +1241,61 @@ export async function stockMovements(ctx: InventoryContext) {
  * section goes through. `ctx.collaborator` is whoever gave the last yes.
  */
 export async function applyApprovedAdjustment(ctx: InventoryContext, row: Record<string, unknown>) {
+  const quantity = Number(row.qty) || 0;
+  const unitCost = Number(row.unitCost);
+  const loose = Number(row.loose);
   return record(ctx, {
     itemId: String(row.itemId ?? ""),
     kind: "adjust",
-    quantity: Number(row.qty) || 0,
+    quantity,
     reason: String(row.reason || "Approved adjustment"),
     sourceType: "adjustment",
     sourceId: String(row.id ?? ""),
+    // What the request carried: why, which stock, and — for a write-off — what
+    // a unit cost the day it was asked for (see adjustStock).
+    ...(row.cause ? { cause: String(row.cause) } : {}),
+    ...(row.loose !== undefined && Number.isFinite(loose) ? { loose } : {}),
+    ...(quantity < 0 && Number.isFinite(unitCost) && unitCost > 0 ? { unitCost } : {}),
   });
+}
+
+/**
+ * WHAT WAS WRITTEN OFF in a period — see ./writeOffs for what counts and what
+ * it is valued at. The period is cut in the STUDIO's own days (shared/timezone):
+ * a write-off at 01:00 in Riyadh belongs to that day, not to London's.
+ *
+ * THE ROWS ARE CAPPED, the totals are not: every write-off in the period is in
+ * the figures, and the newest are listed. An EXPORT asks for every row
+ * (`rows: "all"`), because a spreadsheet that stops at three hundred is a
+ * report that silently disagrees with its own total.
+ *
+ * DAYS SOMEBODY CHOSE WIN over a named period, and the answer says "custom".
+ */
+const WRITE_OFF_ROWS = 300;
+const WRITE_OFF_EXPORT_ROWS = 50000;
+export async function writeOffs(
+  ctx: InventoryContext,
+  asked: { period?: unknown; from?: unknown; to?: unknown; rows?: unknown },
+) {
+  const { studio, stockSection, itemsSection } = ctx;
+  const named = (WRITE_OFF_PERIODS as readonly unknown[]).includes(asked.period) ? asked.period as WriteOffPeriod : "month";
+  const chosen = customDays(asked.from, asked.to);
+  const period = chosen ? "custom" : named;
+  const timezone = studioTimezone(studio as { timezone?: unknown });
+  const [movements, items, people] = await Promise.all([
+    Stock.find({ studio, section: stockSection }),
+    Items.find({ studio, section: itemsSection }),
+    listCollaborators(studio.id),
+  ]);
+  const report = writeOffReport(
+    movements.filter(isWriteOff).map((m) => ({ ...m, day: dayIn(m.at, timezone) })),
+    items,
+    chosen || periodDays(named, dayIn(new Date(), timezone)),
+    (n) => roundMoney(n, studio.currency),
+  );
+  const alias = Object.fromEntries(people.map((c) => [c.id, c.alias || ""]));
+  const rows = report.rows.slice(0, asked.rows === "all" ? WRITE_OFF_EXPORT_ROWS : WRITE_OFF_ROWS).map((r) => ({ ...r, byAlias: alias[r.byCollaboratorId] || "" }));
+  return { period, ...report, rows, shown: rows.length };
 }
 
 // ---- purchase orders -------------------------------------------------------

@@ -42,6 +42,8 @@ type Strings = {
   cannot: (n: number) => string;
   extraVendors: (n: number) => string;
   unknownUnits: (list: string) => string;
+  unknownCategories: (list: string) => string;
+  toPrice: (n: number) => string;
   belowCost: (n: number) => string;
   swap: string;
   swapOk: string;
@@ -102,7 +104,7 @@ const en: Strings = {
   guideLead: "One item per row, one field per column. Only Name is required for a new item; any column may be left out. The template has these columns already, formatted and ready to fill.",
   templateWords: {
     headings: {
-      sku: "SKU", name: "Name", unit: "Unit", vendor: "Supplier", itemType: "Item Type",
+      sku: "SKU", name: "Name", unit: "Unit", vendor: "Supplier", itemType: "Item Type", category: "Category",
       modelNumber: "Model Number", barcode: "Barcode", unitCost: "Cost", sellPrice: "Sales Price",
       currency: "Currency", shippingCharges: "Shipping Charges", customsCharges: "Customs Charges",
       reorderLevel: "Reorder Level", deliveryWeeks: "Delivery Weeks", notes: "Notes",
@@ -113,6 +115,7 @@ const en: Strings = {
       unit: { what: (c) => `One of your units: ${c.units}. Blank means the first of them.`, example: "pcs" },
       vendor: { what: () => "The supplier's name as it is on your Suppliers list. A supplier not on the list can be added while importing.", example: "Gulf AV Supply" },
       itemType: { what: () => "The kind of item, in your own words. \"All / Saleable / Cables\" is read as \"Cables\".", example: "Cables" },
+      category: { what: () => "One of your Item categories (Master data), by its name. A category inside another may be written as a path: \"Box / Piece\". One you do not have leaves the item without a category. When the category has subcategories, each can be given its own price on the item afterwards.", example: "" },
       modelNumber: { what: () => "The manufacturer's model or part number.", example: "C6-305" },
       barcode: { what: () => "EAN, UPC or your own code. It must not belong to another item.", example: "6291000000017" },
       unitCost: { what: (c) => `What one unit costs you, in the Currency column's money (${c.currency || "your studio's currency"} when that is blank). A number only.`, example: "180" },
@@ -135,10 +138,11 @@ const en: Strings = {
       "Columns you do not need may be left empty or deleted.",
       "SKU, Model Number and Barcode are formatted as Text, so Excel keeps every digit. Keep them that way when pasting.",
       "Numbers are plain numbers: no currency symbols or units in the Cost and Price columns.",
-      "The Lists sheet holds your units and suppliers; the Unit and Supplier columns offer them as a dropdown.",
+      "The Lists sheet holds your units, suppliers and item categories; the Unit, Supplier and Category columns offer them as a dropdown.",
     ],
     unitsHeading: "Units",
     suppliersHeading: "Suppliers",
+    categoriesHeading: "Item categories",
   },
   reading: "Reading the file…",
   unreadable: "This file could not be read. Attach an .xlsx or .csv file.",
@@ -150,7 +154,7 @@ const en: Strings = {
   notInFile: "Not in the file",
   columnN: (n) => `Column ${n}`,
   fields: {
-    sku: "SKU", name: "Name", unit: "Unit", vendor: "Supplier", itemType: "Item type",
+    sku: "SKU", name: "Name", unit: "Unit", vendor: "Supplier", itemType: "Item type", category: "Category",
     modelNumber: "Model number", barcode: "Barcode", unitCost: "Cost", sellPrice: "Sales price",
     currency: "Currency", shippingCharges: "Shipping charges", customsCharges: "Customs charges",
     reorderLevel: "Reorder level", deliveryWeeks: "Delivery (weeks)", leadDays: "Lead time (days)", notes: "Notes",
@@ -165,6 +169,8 @@ const en: Strings = {
   cannot: (n) => `${rows(n)} can't be imported`,
   extraVendors: (n) => `${suppliers(n)} after the first on a product ${n === 1 ? "was" : "were"} left out — an item holds one supplier for now.`,
   unknownUnits: (list) => `Units not on your list: ${list}. Add them under Settings → Units, or change them in the file.`,
+  unknownCategories: (list) => `Categories not in your Item categories: ${list}. Those items are imported without a category.`,
+  toPrice: (n) => `${items(n)} ${n === 1 ? "is" : "are"} in a category that has subcategories. The file sets the category's own price; a price for each subcategory can be typed on the item afterwards.`,
   belowCost: (n) => `${rows(n)} ${n === 1 ? "sells" : "sell"} below cost`,
   swap: "Most prices in this file are below cost. Cost and Sales price may be the wrong way round — check those two columns above.",
   swapOk: "The prices are right as they are",
@@ -224,7 +230,7 @@ const ar: Strings = {
   guideLead: "صنف واحد في كل صف، وحقل واحد في كل عمود. الاسم وحده مطلوب للصنف الجديد، ويمكن ترك أي عمود. القالب يحمل هذه الأعمدة جاهزة ومنسقة للتعبئة.",
   templateWords: {
     headings: {
-      sku: "رمز الصنف", name: "اسم الصنف", unit: "الوحدة", vendor: "المورد", itemType: "نوع الصنف",
+      sku: "رمز الصنف", name: "اسم الصنف", unit: "الوحدة", vendor: "المورد", itemType: "نوع الصنف", category: "الفئة",
       modelNumber: "رقم الموديل", barcode: "الباركود", unitCost: "سعر التكلفة", sellPrice: "سعر البيع",
       currency: "العملة", shippingCharges: "رسوم الشحن", customsCharges: "رسوم الجمارك",
       reorderLevel: "حد إعادة الطلب", deliveryWeeks: "مدة التوريد بالأسابيع", notes: "ملاحظات",
@@ -235,6 +241,7 @@ const ar: Strings = {
       unit: { what: (c) => `إحدى وحداتك: ${c.units}. الفارغ يعني أولها.`, example: "pcs" },
       vendor: { what: () => "اسم المورد كما هو في قائمة الموردين. يمكن إضافة مورد غير موجود أثناء الاستيراد.", example: "Gulf AV Supply" },
       itemType: { what: () => "نوع الصنف بكلماتك. \"All / Saleable / Cables\" تُقرأ \"Cables\".", example: "كابلات" },
+      category: { what: () => "إحدى فئات الأصناف لديك (البيانات الرئيسية) باسمها. الفئة التي بداخل أخرى تُكتب كمسار: \"صندوق / قطعة\". الفئة غير الموجودة تترك الصنف بلا فئة. وإذا كانت للفئة فئات فرعية فيمكن إعطاء كل منها سعرًا على الصنف لاحقًا.", example: "" },
       modelNumber: { what: () => "رقم الموديل أو القطعة من المصنّع.", example: "C6-305" },
       barcode: { what: () => "EAN أو UPC أو رمزك الخاص، ولا يجوز أن يكون لصنف آخر.", example: "6291000000017" },
       unitCost: { what: (c) => `تكلفة الوحدة عليك بعملة عمود العملة (${c.currency || "عملة الاستوديو"} إن كان فارغًا). رقم فقط.`, example: "180" },
@@ -257,10 +264,11 @@ const ar: Strings = {
       "يمكن ترك الأعمدة التي لا تحتاجها فارغة أو حذفها.",
       "رمز الصنف ورقم الموديل والباركود منسقة كنص كي يحفظ Excel كل الأرقام. حافظ على ذلك عند اللصق.",
       "الأرقام أرقام فقط: بلا رموز عملة أو وحدات في أعمدة التكلفة والسعر.",
-      "ورقة القوائم تحمل وحداتك ومورديك، ويعرضها عمودا الوحدة والمورد كقائمة منسدلة.",
+      "ورقة القوائم تحمل وحداتك ومورديك وفئات أصنافك، وتعرضها أعمدة الوحدة والمورد والفئة كقائمة منسدلة.",
     ],
     unitsHeading: "الوحدات",
     suppliersHeading: "الموردون",
+    categoriesHeading: "فئات الأصناف",
   },
   reading: "جارٍ قراءة الملف…",
   unreadable: "تعذرت قراءة هذا الملف. أرفق ملف ‎.xlsx أو ‎.csv.",
@@ -272,7 +280,7 @@ const ar: Strings = {
   notInFile: "غير موجود في الملف",
   columnN: (n) => `العمود ${n}`,
   fields: {
-    sku: "رمز الصنف", name: "الاسم", unit: "الوحدة", vendor: "المورد", itemType: "نوع الصنف",
+    sku: "رمز الصنف", name: "الاسم", unit: "الوحدة", vendor: "المورد", itemType: "نوع الصنف", category: "الفئة",
     modelNumber: "رقم الموديل", barcode: "الباركود", unitCost: "التكلفة", sellPrice: "سعر البيع",
     currency: "العملة", shippingCharges: "رسوم الشحن", customsCharges: "رسوم الجمارك",
     reorderLevel: "حد إعادة الطلب", deliveryWeeks: "التوريد (بالأسابيع)", leadDays: "مدة التوريد (بالأيام)", notes: "ملاحظات",
@@ -287,6 +295,8 @@ const ar: Strings = {
   cannot: (n) => `${arRows(n)} لا يمكن استيرادها`,
   extraVendors: (n) => `تُرك ${arVendors(n)} بعد المورد الأول للمنتج — يحمل الصنف موردًا واحدًا حاليًا.`,
   unknownUnits: (list) => `وحدات ليست في قائمتك: ${list}. أضفها من الإعدادات ← الوحدات، أو غيّرها في الملف.`,
+  unknownCategories: (list) => `فئات ليست ضمن فئات الأصناف لديك: ${list}. تُستورد هذه الأصناف بلا فئة.`,
+  toPrice: (n) => `${arItems(n)} ضمن فئة لها فئات فرعية. الملف يحدد سعر الفئة نفسها، ويمكن كتابة سعر لكل فئة فرعية على الصنف لاحقًا.`,
   belowCost: (n) => `${arRows(n)} بسعر بيع أقل من التكلفة`,
   swap: "معظم الأسعار في هذا الملف أقل من التكلفة. قد يكون عمودا التكلفة وسعر البيع معكوسين — تحقق منهما أعلاه.",
   swapOk: "الأسعار صحيحة كما هي",

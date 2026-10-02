@@ -35,6 +35,14 @@ ok("a line needs an item and a count", cleaned.length === 2, j(cleaned));
 ok("a pack sent by an old screen is dropped", !("packName" in cleaned[1]) && !("packQty" in cleaned[1]));
 ok("the tax category is kept", cleaned[1].taxCategory === "zero");
 ok("a line takes its count in units, whatever a pack once said", P.unitsOf({ count: 3, packQty: 20 }) === 3);
+// SOLD BY SUBCATEGORY (02/10/2026): stock is counted in pieces, so a whole box
+// takes what it holds and a slice takes one. The multiple is the SERVER's, read
+// from the item — a request that sends its own is not believed.
+ok("a line sold whole takes what one of the item holds", P.unitsOf({ count: 2, unitQty: 20 }) === 40);
+ok("a line with no multiple takes its count", P.unitsOf({ count: 2 }) === 2);
+ok("a request cannot name its own multiple, only which subcategory",
+  !("unitQty" in P.cleanPosLines([{ itemId: "a", count: 1, unitQty: 0.001, sizeId: "slice" }])[0])
+  && P.cleanPosLines([{ itemId: "a", count: 1, unitQty: 0.001, sizeId: "slice" }])[0].sizeId === "slice");
 
 console.log("\n== prices that include tax");
 const inc = P.posTotals([line(11.5)], { vatRate: 15, currency: "SAR", pricesIncludeTax: true });
