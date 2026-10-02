@@ -369,12 +369,16 @@ function Items({ slug, items, vendors, units, categories = [], studioCurrency, c
               ariaLabel={tr.registeredItems}
               emptyLabel={tr.noItemsMatchSearch}
               emptyIcon="package"
+              // THE TEXT COLUMNS FLEX AND THE FIGURES DO NOT. With every column
+              // flexing, a wide screen handed the spare width to the money
+              // columns too, so each right-aligned figure sat at the far edge
+              // of a wide empty cell, a long way from the one beside it.
               columns={[
                 {
                   // THE NAME TRUNCATES WITH AN ELLIPSIS and carries itself as a
                   // title. Without it a long name ran into the cell edge and was
                   // cut mid-letter ("L-Arg", "Shar"), which reads as a broken row.
-                  field: "name", headerName: tr.item, minWidth: 220, flex: 2,
+                  field: "name", headerName: tr.item, minWidth: 240, flex: 2,
                   renderCell: ({ row }) => (
                     <span className="min-w-0 truncate" title={[row.sku, row.name, row.modelNumber].filter(Boolean).join(" · ")}>
                       <span className="num text-xs text-slate-400">{row.sku}</span>
@@ -384,11 +388,11 @@ function Items({ slug, items, vendors, units, categories = [], studioCurrency, c
                   ),
                 },
                 {
-                  field: "vendorName", headerName: tr.vendor, minWidth: 130, flex: 0.9,
+                  field: "vendorName", headerName: tr.vendor, minWidth: 140, flex: 1,
                   renderCell: ({ row }) => <span className="truncate text-slate-600 dark:text-slate-300" title={row.vendorName || undefined}>{row.vendorName || "—"}</span>,
                 },
                 {
-                  field: "itemType", headerName: tr.type, minWidth: 120, flex: 0.8,
+                  field: "itemType", headerName: tr.type, minWidth: 120, flex: 0.7,
                   renderCell: ({ row }) => (
                     <span className="text-slate-600 dark:text-slate-300">
                       {row.itemType || "—"}
@@ -399,7 +403,7 @@ function Items({ slug, items, vendors, units, categories = [], studioCurrency, c
                   ),
                 },
                 {
-                  field: "unitCost", headerName: tr.unitCost, type: "number", minWidth: 110, flex: 0.7,
+                  field: "unitCost", headerName: tr.unitCost, type: "number", width: 130,
                   align: "right", headerAlign: "right",
                   renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{row.unitCost > 0 ? money(row.unitCost, row.currency) : "—"}</span>,
                 },
@@ -408,7 +412,7 @@ function Items({ slug, items, vendors, units, categories = [], studioCurrency, c
                   // margin is shown rather than left to be worked out: it is
                   // the number somebody scanning this list is actually after,
                   // and it is the one that reveals an item priced below cost.
-                  field: "sellPrice", headerName: tr.sellPrice, type: "number", minWidth: 130, flex: 0.8,
+                  field: "sellPrice", headerName: tr.sellPrice, type: "number", width: 160,
                   align: "right", headerAlign: "right",
                   renderCell: ({ row }) => {
                     const m = marginPct(row.sellPrice, row.unitCost);
@@ -426,7 +430,7 @@ function Items({ slug, items, vendors, units, categories = [], studioCurrency, c
                   },
                 },
                 {
-                  field: "onHand", headerName: tr.hand, type: "number", minWidth: 110, flex: 0.7,
+                  field: "onHand", headerName: tr.hand, type: "number", minWidth: 120, flex: 0.5,
                   align: "right", headerAlign: "right",
                   renderCell: ({ row }) => (
                     <span className="font-600 text-slate-900 dark:text-white">
@@ -439,7 +443,7 @@ function Items({ slug, items, vendors, units, categories = [], studioCurrency, c
                   ),
                 },
                 {
-                  field: "actions", headerName: "", minWidth: 160, flex: 0.8, sortable: false,
+                  field: "actions", headerName: "", width: 170, sortable: false,
                   align: "right", headerAlign: "right",
                   renderCell: ({ row }) => (canManage ? (
                     <span className="inline-flex items-center gap-2">
