@@ -1,60 +1,62 @@
-// THE KPI DECLARATIONS — stored rows, read by the deal that copies them.
+// THE KPI MEASURES — the list /super keeps of what a studio can be measured on.
 //
-// PLATFORM-LEVEL, LIKE THE TRADES BESIDE THEM. A target for "Installation" is
-// what nompany means by the word, so it is declared once in /super rather than
-// twenty-five times; a studio inherits it by naming the action on a ticket. The
-// trades took the same road on 20/09/2026 and for the same reason: adding one
-// had to be a row rather than a release.
+// A MEASURE IS A KPI WITH NO NUMBER (modules/main/workKpis): "work orders done
+// by their due date", "first delivery within … days of the project". The owner,
+// 03/10/2026: /super keeps the list, each studio types its own numbers (stored
+// on the studio record as `kpiTargets`, dated, with a per-flow override), and
+// nompany never invents a target for a company.
 //
-// THERE ARE NO SEEDS, DELIBERATELY. The list starts empty and the owner fills
-// it. Shipping a plausible-looking "commissioned within 30 days" for twenty
-// actions would be inventing twenty numbers nobody agreed to, on screens that
-// present them as the company's own targets — the product would be judging
-// every studio's work against figures this repo made up.
+// BUILT-INS IN THE CODE, THE CONSOLE'S ROWS OVER THEM — the industries'
+// pattern. A stored row replaces its built-in by id (rewording it, or switching
+// it off), and a row with a new id is added. A built-in is never deleted, only
+// switched off, because studios hold targets keyed by its id.
+//
+// IT REPLACED THE DEAL KPI DECLARATIONS (`REG.erpKpis`, 20/09/2026), which named
+// a service action and were COPIED onto each deal. Service actions were removed
+// on 03/10/2026; the copy is replaced by dated targets, which keep the same
+// promise — a changed target never re-judges work already under way — without
+// writing to every deal. Live held no declarations when it was replaced.
 //
 // VALIDATED ON WRITE, NOT ON READ — `flows.ts` argues this at length for
-// templates and the argument is identical: a KPI naming a stage the registry
-// does not have measures nothing, silently, for ever.
+// templates and the argument is identical: a measure naming a step a kind of
+// work does not have measures nothing, silently, for ever.
 import { REG } from "./keys";
 import { readArr, editArr } from "./store";
 import { STAGE_REGISTRY } from "../engagement/registry";
-import { kpiProblems } from "../kpi/model";
-import type { KpiDefinition } from "../kpi/model";
+import { measureProblems, mergeMeasures, type WorkMeasure } from "@/modules/main/workKpis";
 
-/** Every KPI the product knows. Empty until somebody declares one. */
-export async function listPlatformKpis(): Promise<KpiDefinition[]> {
-  return readArr<KpiDefinition>(REG.erpKpis);
+/** Every measure, the console's rows over the built-ins. */
+export async function readMeasures(): Promise<WorkMeasure[]> {
+  return mergeMeasures(await readArr<WorkMeasure>(REG.kpiMeasures));
 }
 
 /**
- * Declare or replace one KPI, refusing anything that could not be measured.
- *
- * Checked against the WHOLE list, the way a flow template is: `declared twice`
- * is a property of the list rather than of the row, and a row is only ever
- * wrong in the company it keeps.
+ * Add or replace one measure, refusing anything that could not be measured —
+ * checked against the WHOLE list, because a share is only wrong in the company
+ * it keeps (its `of` must be there).
  */
-export async function writePlatformKpi(def: KpiDefinition): Promise<void> {
-  if (!def?.id) throw new Error("kpi: an id is required");
-  const others = (await listPlatformKpis()).filter((k) => k.id !== def.id);
-  const problems = kpiProblems(Object.keys(STAGE_REGISTRY), [...others, def]);
-  if (problems.length) throw new Error(`kpi-refused: ${problems.join("; ")}`);
-
-  await editArr<KpiDefinition, void>(REG.erpKpis, (rows) => {
-    const next = rows.some((r) => r.id === def.id)
-      ? rows.map((r) => (r.id === def.id ? def : r))
-      : [...rows, def];
-    return { next, result: undefined };
-  });
+export async function writeMeasure(m: WorkMeasure): Promise<void> {
+  if (!m?.id) throw new Error("measure: an id is required");
+  const others = (await readMeasures()).filter((x) => x.id !== m.id);
+  const problems = measureProblems([...others, m], Object.keys(STAGE_REGISTRY));
+  if (problems.length) throw new Error(`measure-refused: ${problems.join("; ")}`);
+  await editArr<WorkMeasure, void>(REG.kpiMeasures, (rows) => ({
+    next: rows.some((r) => r.id === m.id) ? rows.map((r) => (r.id === m.id ? m : r)) : [...rows, m],
+    result: undefined,
+  }));
 }
 
 /**
- * Withdraw a KPI. DEALS ALREADY CARRYING IT KEEP MEASURING IT — they hold a
- * copy, and re-judging work that is under way because somebody tidied a list is
- * exactly what the copy exists to prevent. What stops is new deals taking it on.
+ * Remove a measure the console added. A BUILT-IN cannot be removed, only
+ * switched off; removing a console row that rewords a built-in reverts it.
+ * Targets studios set for it stay stored and simply stop being read.
  */
-export async function dropPlatformKpi(id: string): Promise<void> {
-  await editArr<KpiDefinition, void>(REG.erpKpis, (rows) => ({
+export async function dropMeasure(id: string): Promise<{ error?: string }> {
+  const others = (await readMeasures()).filter((x) => x.id !== id);
+  if (others.some((x) => x.of === id && x.active)) return { error: "in-use" };
+  await editArr<WorkMeasure, void>(REG.kpiMeasures, (rows) => ({
     next: rows.filter((r) => r.id !== id),
     result: undefined,
   }));
+  return {};
 }

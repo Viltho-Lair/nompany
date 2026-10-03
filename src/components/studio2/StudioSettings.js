@@ -405,6 +405,9 @@ export default function StudioSettings({ slug, locale = "en", initial }) {
           settings PUT does not write the trade. */}
       <IndustrySetting slug={slug} onTradeSaved={load} />
 
+      {/* KPI TARGETS — the studio's own numbers for the measures /super lists. */}
+      <KpiTargets slug={slug} />
+
       {/* THE DEAL FLOWS (Law 2). Its own fetch/save cycle against the flows
           route, for the same reason IndustrySetting has one: the general
           settings PUT does not accept templates, and a refused flow carries a
@@ -940,6 +943,168 @@ function IndustrySetting({ slug, onTradeSaved }) {
             </button>
           )}
         </div>
+      )}
+    </SettingsFold>
+  );
+}
+
+// KPI TARGETS — the owner, 03/10/2026: /super lists what can be measured, and a
+// studio types its own numbers here. One row per measure the studio's kinds of
+// work cover; blank is "not measured". Each row can be given a different number
+// for a deal flow (a fit-out and a supply-only order need different delivery
+// times in one company). Its own fetch/save cycle onto `.../settings/kpis`.
+//
+// A SAVE IS A NEW DATED VERSION on the server, never an edit: work that opened
+// before the change keeps being judged by the number it opened under.
+//
+// A SHARE IS TYPED AS A PERCENTAGE and stored as a fraction: "90" here is 0.9
+// there, because a person thinks in percent and the arithmetic in fractions.
+function KpiTargets({ slug }) {
+  const tr = useT();
+  const locale = useStudioLocale();
+  const [data, setData] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const [open, setOpen] = useState("");
+  const [drafts, setDrafts] = useState({});
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/settings/kpis`, { cache: "no-store" });
+    if (!res.ok) { setFailed(true); return; }
+    setData(await res.json());
+  }, [slug]);
+  useReload(load);
+
+  const words = (w) => (w ? (locale === "ar" ? w.ar : w.en) : "");
+  const shown = (m, n) => (n === null || n === undefined ? "" : m.asks === "share" ? String(Math.round(n * 100)) : String(n));
+  const stored = (m, text) => {
+    if (String(text).trim() === "") return null;
+    const n = Number(text);
+    return m.asks === "share" ? n / 100 : n;
+  };
+  const unit = (m) => (m.asks === "days" ? tr.kpiDays
+    : m.asks === "avgDays" ? `${tr.kpiDaysAtMost} · ${tr.kpiPer(m.per)}`
+      : m.asks === "share" ? `${tr.kpiPercent} · ${tr.kpiPer(m.per)}`
+        : m.per ? tr.kpiPer(m.per) : "");
+  const keyOf = (m, flowId = "") => `${m.id}:${flowId}`;
+
+  async function put(body) {
+    setBusy(`${body.measureId}:${body.flowId || ""}`); setError("");
+    const res = await fetch(`/api/studios/${slug}/settings/kpis`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    setBusy("");
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) { setError(out.error === "target" ? tr.kpiBad : tr.saveFailed); return false; }
+    setData(out);
+    setDrafts({});
+    return true;
+  }
+
+  if (failed) return <p className={`${BANNER_BAD} mt-8`}>{tr.kpiLoadFailed}</p>;
+  if (!data) {
+    return (
+      <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10" aria-busy="true">
+        <div className="skel skel-text w-40" />
+        <div className="skel skel-text mt-3 w-2/3" />
+      </section>
+    );
+  }
+
+  // One number input, with its own draft so typing does not save on every key.
+  // RENDER FUNCTIONS, NOT COMPONENTS: a component declared inside this one is a
+  // new type on every render, so React would remount the input on each
+  // keystroke and the box would lose focus mid-number.
+  const numberCell = (m, flowId, value) => {
+    const k = keyOf(m, flowId);
+    const draft = drafts[k] ?? shown(m, value);
+    const changed = draft !== shown(m, value);
+    return (
+      <span className="flex items-center gap-2">
+        <input
+          className="w-24 rounded-lg border border-slate-200 bg-[var(--geex-inset)] px-2.5 py-1.5 text-sm tabular-nums dark:border-white/15"
+          inputMode="decimal" value={draft} placeholder={tr.kpiOff} disabled={!data.canManage || busy === k}
+          aria-label={words(m.name)}
+          onChange={(e) => setDrafts((d) => ({ ...d, [k]: e.target.value }))}
+        />
+        <span className="text-xs text-slate-500 dark:text-slate-400">{unit(m)}</span>
+        {data.canManage && changed && (
+          <button className={BTN_GHOST} disabled={busy === k}
+            onClick={() => put({ measureId: m.id, ...(flowId ? { flowId } : {}), value: stored(m, draft) })}>
+            {busy === k ? tr.saving : tr.save}
+          </button>
+        )}
+      </span>
+    );
+  };
+
+  // On-time measures have no number: they are on or off.
+  const toggle = (m, flowId, value) => (
+    <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+      <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={value === 1}
+        disabled={!data.canManage || busy === keyOf(m, flowId)}
+        onChange={(e) => put({ measureId: m.id, ...(flowId ? { flowId } : {}), value: e.target.checked ? 1 : null })} />
+      {tr.kpiMeasureOn}
+    </label>
+  );
+
+  const cell = (m, flowId, value) => (m.asks === null ? toggle(m, flowId, value) : numberCell(m, flowId, value));
+
+  return (
+    <SettingsFold id="kpis" heading={tr.kpiHeading} attention={!!error} lead={tr.kpiLead}>
+      {error && <p className={`${BANNER_BAD} mt-3`}>{error}</p>}
+      {data.measures.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{tr.kpiNone}</p>
+      ) : (
+        <ul className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
+          {data.measures.map((m) => (
+            <li key={m.id} className="py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block text-sm font-600 text-slate-900 dark:text-white">{words(m.name)}</span>
+                  {m.since && <span className="block text-xs text-slate-400">{tr.kpiSince(fmtDate(m.since))}</span>}
+                </span>
+                {cell(m, "", m.value)}
+              </div>
+              {/* THE PER-FLOW OVERRIDE, folded: most studios never need it. A
+                  flow's own number wins over the studio-wide one for deals on
+                  that flow; only deals have flows. */}
+              {m.workType === "deal" && data.flows.length > 0 && (
+                <div className="mt-2">
+                  <button className="text-xs font-600 text-brand-600 hover:underline dark:text-brand-300"
+                    aria-expanded={open === m.id} onClick={() => setOpen((o) => (o === m.id ? "" : m.id))}>
+                    {tr.kpiByFlow}{Object.keys(m.byFlow || {}).length ? ` (${Object.keys(m.byFlow).length})` : ""}
+                  </button>
+                  {open === m.id && (
+                    <ul className="mt-2 space-y-2 ps-4">
+                      {data.flows.map((flow) => {
+                        const has = Object.prototype.hasOwnProperty.call(m.byFlow || {}, flow.id);
+                        return (
+                          <li key={flow.id} className="flex flex-wrap items-center justify-between gap-3">
+                            <span className="text-sm text-slate-700 dark:text-slate-200">{flow.name}</span>
+                            <span className="flex flex-wrap items-center gap-3">
+                              {has
+                                ? cell(m, flow.id, m.byFlow[flow.id])
+                                : <span className="text-xs text-slate-400">{tr.kpiStudioWide}</span>}
+                              {data.canManage && (has ? (
+                                <button className="text-xs text-slate-500 hover:underline" disabled={!!busy}
+                                  onClick={() => put({ measureId: m.id, flowId: flow.id, clear: true })}>{tr.kpiUseStudioWide}</button>
+                              ) : (
+                                <button className="text-xs text-brand-600 hover:underline dark:text-brand-300" disabled={!!busy}
+                                  onClick={() => put({ measureId: m.id, flowId: flow.id, value: m.value })}>{tr.kpiByFlow}</button>
+                              ))}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </SettingsFold>
   );

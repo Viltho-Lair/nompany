@@ -11,9 +11,6 @@ import { templateById } from "../engagement/templates";
 // SIBLINGS IMPORT EACH OTHER RELATIVELY (CLAUDE.md) — `flows` is this folder's
 // own, and it is where a studio's stored templates and industries live.
 import { defaultTemplateForStudio, defaultTemplateForTrade, industryKeyOf, listFlowTemplates } from "./flows";
-import { listPlatformKpis } from "./kpis";
-import { kpisForDeal, mergeKpis } from "../kpi/model";
-import type { StoredKpi } from "../kpi/model";
 import { attachmentProblem, canSitUnassigned, promotionProblem } from "../engagement/membership";
 import { record as recordAudit } from "@/platform/http/audit";
 import type { DealContext, ContextProvenance, ContextSource, ContributionResult } from "../engagement/context";
@@ -28,17 +25,10 @@ export type Engagement = {
    * reasons nobody performed.
    */
   templateId?: string;
-  /**
-   * WHAT THIS DEAL IS MEASURED ON — a COPY of the KPI declarations, taken when
-   * the work started (see `freezeKpis`). Stored
-   * rather than re-derived for the reason the template beside it is: a target
-   * edited in /super must not re-judge work already under way, and a target
-   * withdrawn must not make a deal's history unreadable.
-   *
-   * Absent on every deal opened before 20/09/2026, which reads as "nothing is
-   * being measured here" — the honest answer, and not the same as nought.
-   */
-  kpis?: StoredKpi[];
+  // `kpis` — a COPY of the KPI declarations taken when the deal opened — is
+  // gone (03/10/2026). A deal's KPIs are matched on read now, by kind of work,
+  // by its flow and by the studio's target in force when it opened
+  // (modules/main/workKpis), which keeps the copy's promise without the copy.
   /**
    * WHAT RANK SET EACH FACT — bookkeeping for the contribution rule, kept
    * beside the context rather than inside it so a reader of `context.site` does
@@ -544,10 +534,6 @@ export async function applyDescriptor(studioId: string, d: EngagementDescriptor)
   await setJSON(ENG.root(studioId, engId), {
     id: engId, studioId, ref: d.ref, context,
     ...(existing?.templateId ? { templateId: existing.templateId } : {}),
-    // CARRIED FOR THE SAME REASON templateId IS, and it is the same bug if it
-    // is forgotten: a re-apply that dropped the KPIs would leave a deal being
-    // judged on nothing, with no event saying its targets had gone.
-    ...(existing?.kpis?.length ? { kpis: existing.kpis } : {}),
     ...(Object.keys(provenance).length ? { provenance } : {}),
     singletons: d.singletons, createdAt: existing?.createdAt || nowISO(), updatedAt: nowISO(),
   });
@@ -686,44 +672,7 @@ async function applyAsDeal(
   await setDealAlias(studioId, derived, dealId);
   await applyDescriptor(studioId, { ...d, engId: dealId });
   await freezeTemplate(studioId, dealId);
-  // AFTER the root exists, never before: freezeKpis edits the root in place
-  // (invariant 8), so a write ahead of the apply would have nothing to edit and
-  // the deal would open measured on nothing.
-  await freezeKpis(studioId, dealId);
   return dealId;
-}
-
-/**
- * WHAT THIS DEAL IS MEASURED ON, DECIDED WHEN THE WORK STARTS.
- *
- * The deal copies every KPI declaration. (It copied those its service actions
- * named, plus the universal ones, until service actions were removed on
- * 03/10/2026.) COPIED rather than looked up on read, which is the
- * rule the BOQ rate and the frozen template already follow: a target edited in
- * /super must not silently re-judge work that has been under way for a month,
- * and a target withdrawn must not erase what a finished deal was judged on.
- *
- * ADDITIVE AND IDEMPOTENT. A deal that already carries a KPI keeps it — with
- * its own `startedAt`, so a second call does not restart a clock somebody has
- * been working to.
- *
- * BEST-EFFORT, exactly like `freezeTemplate` beside it: the records are the
- * authority, and a failure here must never fail the ticket that was just
- * created. A deal with no KPIs says so on screen.
- */
-async function freezeKpis(studioId: string, dealId: string): Promise<void> {
-  try {
-    const defs = await listPlatformKpis();
-    if (!defs.length) return;
-    const incoming = kpisForDeal(defs, nowISO());
-    if (!incoming.length) return;
-    await editJSON<Engagement, void>(ENG.root(studioId, dealId), (current) => {
-      if (!current) return { result: undefined };
-      const next = mergeKpis(current.kpis || [], incoming);
-      if (next.length === (current.kpis || []).length) return { result: undefined };
-      return { next: { ...current, kpis: next, updatedAt: nowISO() }, result: undefined };
-    });
-  } catch { /* the deal stands; it is simply not measured */ }
 }
 
 /**

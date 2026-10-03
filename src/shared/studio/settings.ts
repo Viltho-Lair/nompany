@@ -158,6 +158,23 @@ type Strings = {
   actionsLead: string;
   actionsAdminOnly: string;
   actionsLoadFailed: string;
+  // KPI targets (modules/main/workKpis).
+  kpiHeading: string;
+  kpiLead: string;
+  kpiNone: string;
+  kpiLoadFailed: string;
+  kpiOff: string;
+  kpiMeasureOn: string;
+  kpiDays: string;
+  kpiPercent: string;
+  kpiDaysAtMost: string;
+  kpiPer: (per: string) => string;
+  kpiSince: (date: string) => string;
+  kpiByFlow: string;
+  kpiStudioWide: string;
+  kpiNotMeasured: string;
+  kpiUseStudioWide: string;
+  kpiBad: string;
   industry: string;
   industryOther: string;
   industrySearch: string;
@@ -428,6 +445,22 @@ const en: Strings = {
   actionsLead: "What your company does. It decides which departments are suggested and the flow a new deal starts on.",
   actionsAdminOnly: " Only an admin can change this.",
   actionsLoadFailed: "We couldn't load your industry.",
+  kpiHeading: "KPI targets",
+  kpiLead: "Your own targets for the measures nompany offers. Leave one blank to not measure it. A deal flow can have its own number. Changing a target never re-judges work that started before the change.",
+  kpiNone: "Nothing to measure yet: none of the kinds of work these measures cover is switched on.",
+  kpiLoadFailed: "We couldn't load your KPI targets.",
+  kpiOff: "Not measured",
+  kpiMeasureOn: "Measure it",
+  kpiDays: "days",
+  kpiPercent: "%",
+  kpiDaysAtMost: "days at most",
+  kpiPer: (per) => ({ day: "a day", week: "a week", month: "a month" } as Record<string, string>)[per] || per,
+  kpiSince: (date) => `Since ${date}`,
+  kpiByFlow: "Different for a deal flow",
+  kpiStudioWide: "Studio-wide",
+  kpiNotMeasured: "Not measured on this flow",
+  kpiUseStudioWide: "Use the studio-wide number",
+  kpiBad: "That number doesn't fit this measure.",
   industry: "Type of industry",
   industryOther: "Something else",
   industrySearch: "Search industries",
@@ -703,6 +736,22 @@ const ar: Strings = {
   actionsLead: "ما تعمل فيه شركتك. يحدد الأقسام المقترحة والمسار الذي تبدأ به كل صفقة جديدة.",
   actionsAdminOnly: " لا يمكن تغيير هذا إلا لمسؤول.",
   actionsLoadFailed: "تعذّر تحميل مجال العمل.",
+  kpiHeading: "أهداف مؤشرات الأداء",
+  kpiLead: "أهدافك الخاصة للمقاييس التي يوفرها nompany. اترك المقياس فارغًا كي لا يُقاس. ويمكن أن يكون لمسار الصفقة رقمه الخاص. وتغيير الهدف لا يعيد تقييم عمل بدأ قبل التغيير.",
+  kpiNone: "لا شيء لقياسه بعد: لا يوجد قسم مفعّل من أنواع العمل التي تغطيها هذه المقاييس.",
+  kpiLoadFailed: "تعذّر تحميل أهداف مؤشرات الأداء.",
+  kpiOff: "غير مُقاس",
+  kpiMeasureOn: "قِسْه",
+  kpiDays: "يومًا",
+  kpiPercent: "٪",
+  kpiDaysAtMost: "يومًا حدًا أقصى",
+  kpiPer: (per) => ({ day: "يوميًا", week: "أسبوعيًا", month: "شهريًا" } as Record<string, string>)[per] || per,
+  kpiSince: (date) => `منذ ${date}`,
+  kpiByFlow: "رقم مختلف لمسار صفقة",
+  kpiStudioWide: "على مستوى الاستوديو",
+  kpiNotMeasured: "غير مُقاس في هذا المسار",
+  kpiUseStudioWide: "استخدم رقم الاستوديو",
+  kpiBad: "هذا الرقم لا يناسب هذا المقياس.",
   industry: "نوع النشاط",
   industryOther: "مجال آخر",
   industrySearch: "ابحث في المجالات",

@@ -156,12 +156,12 @@ export const REG = {
   // allowed to preview them. Read through a short in-process cache on the
   // section read every request makes (platform/db/releaseLocks).
   sectionLocks: `${P}g:sectionLocks`,
-  // WHAT A DEAL IS MEASURED ON — one row per KPI, keyed to a service action
-  // (20/09/2026, the owner: service actions were a label and nothing else).
-  // Platform-level, beside the trades.
-  // A deal COPIES what it is given when the work starts (see freezeKpis), so
-  // editing a row here never re-judges work already under way.
-  erpKpis: `${P}g:erpKpis`,
+  // WHAT A STUDIO CAN BE MEASURED ON — the console's KPI measures over the
+  // built-ins (platform/db/kpis). A measure has no number; a studio's targets
+  // live on its own record. It replaced `erpKpis` (deal KPI declarations keyed
+  // to a service action) on 03/10/2026, when service actions were removed;
+  // live held no declarations under that key.
+  kpiMeasures: `${P}g:kpiMeasures`,
   // What people think of nompany. One field per user, so a rating is inherently
   // unique to them and re-rating replaces rather than accumulates. Platform-
   // level because the opinion is about the product, not about a studio.

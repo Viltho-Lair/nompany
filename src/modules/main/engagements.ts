@@ -20,8 +20,8 @@ import { getSectionByKey } from "@/platform/db/sections";
 import { repo } from "@/platform/db/repo";
 import { listFlowTemplates, defaultTemplateForStudio, pickTemplate, industryKeyOf } from "@/platform/db/flows";
 import { flowProgress, nextActionFor, stagesRunning } from "@/platform/engagement/progress";
-import { measureKpi } from "@/platform/kpi/model";
-import type { KpiReading, StoredKpi } from "@/platform/kpi/model";
+import { readMeasures } from "@/platform/db/kpis";
+import { factsFromDeal, judgeItem, kpisInForce, type KpiOutcome, type MeasureWords, type StudioKpiTargets } from "./workKpis";
 import type { FlowProgress, FlowStep, StageInfo } from "@/platform/engagement/progress";
 import type { Refusal } from "@/platform/access";
 
@@ -108,6 +108,8 @@ export type StageCard = {
    */
   offTemplate: boolean;
   ref?: string; summary?: string; href?: string;
+  /** When this stage's first record was made — what a KPI timing it reads. */
+  firstAt?: string;
 };
 
 // A deal's status is not stored (Law 5, and the storage spec removed the column
@@ -211,37 +213,67 @@ export async function dealTemplate(
   return pickTemplate(templates, known, primary);
 }
 
+/** One KPI as the deal page draws it. */
+export type DealKpi = {
+  id: string;
+  name: MeasureWords;
+  outcome: KpiOutcome;
+  /** The deadline, or "" while the clock has not started. */
+  dueAt: string;
+  /** Whole days to the deadline — negative once it has passed; null with no deadline. */
+  daysLeft: number | null;
+  days: number;
+  step: string;
+  from: string;
+};
+
 /**
- * WHAT THIS DEAL IS BEING MEASURED ON, AS THIS READER MAY SEE IT.
+ * WHAT THIS DEAL IS BEING MEASURED ON, AS THIS READER MAY SEE IT — matched on
+ * READ (03/10/2026): every active per-item measure for a deal that the studio
+ * has a target for, in force when the deal OPENED, on the deal's own flow (a
+ * flow's override over the studio-wide number). Nothing is stored on the deal;
+ * the dated target is what keeps a changed number from re-judging it.
  *
- * Counted off the stages the deal already carries — there is no KPI field on
- * any record and nothing to key in, which is the rule `platform/kpi/model`
- * exists to hold.
+ * TIMED OFF THE DEAL'S OWN RECORDS: each stage's first record, read with the
+ * stage cards (`firstAt`), and the deal's own opening.
  *
- * A KPI WHOSE RECORDS THE READER MAY NOT OPEN IS ABSENT, not zeroed and not
- * greyed. `visible` is the same set the cards and the status walk are filtered
- * by — rights AND the studio's own switches — and it is load-bearing in both
- * directions here: a count is evidence of records existing, so reporting "0 of
- * 3 site visits" to somebody refused site visits tells them exactly what the
- * refusal is for. A target on a department the studio does not run is a target
- * for work nobody there does, and hiding it is the same rule every widget
- * follows.
- *
- * A KPI NAMING A STAGE THIS PRODUCT NO LONGER HAS IS SHOWN AS `unknown` rather
- * than dropped: the deal is genuinely carrying a target nothing can count, and
- * a silently shorter list is how that stays invisible for ever.
+ * A KPI IS ABSENT where its flow does not run its step — a delivery target on a
+ * deal whose flow has no delivery is not missed, it is not this deal's — and
+ * where the reader may not see the records of its step or its starting step:
+ * the same rule every block on this page follows, rights AND the studio's
+ * switches.
  */
-function readKpis(
-  kpis: readonly StoredKpi[],
-  view: { singletons: Record<string, string | null>; members: Record<string, string[]> },
+async function readDealKpis(
+  ctx: EngagementCtx,
+  dealId: string,
+  root: { createdAt?: unknown },
+  flowId: string,
+  running: readonly string[],
+  firstAt: Readonly<Record<string, string>>,
   visible: ReadonlySet<string>,
-  asOf: string,
-): KpiReading[] {
-  const out: KpiReading[] = [];
-  for (const kpi of kpis) {
-    const known = Boolean(STAGE_REGISTRY[kpi.stage]);
-    if (known && !visible.has(kpi.stage)) continue;
-    out.push(measureKpi(kpi, known ? idsFor(view, kpi.stage).length : null, asOf));
+): Promise<DealKpi[]> {
+  const targets = ((ctx.studio as { kpiTargets?: unknown }).kpiTargets || {}) as StudioKpiTargets;
+  if (!Object.keys(targets).length) return [];
+  const facts = factsFromDeal(dealId, firstAt, running);
+  const opened = String(root.createdAt || facts.openedAt || "");
+  if (!opened) return [];
+  const measured = { ...facts, openedAt: opened };
+  const asOf = new Date().toISOString();
+  const out: DealKpi[] = [];
+  for (const kpi of kpisInForce(await readMeasures(), targets, "deal", flowId, opened)) {
+    if (kpi.kind !== "reach") continue;
+    const step = String(kpi.step || "");
+    const from = String(kpi.from || "");
+    if (!running.includes(step) || (from && !running.includes(from))) continue;
+    if (!visible.has(step) || (from && !visible.has(from))) continue;
+    const judged = judgeItem(kpi, measured, asOf);
+    if (!judged) continue;
+    const due = Date.parse(judged.dueAt);
+    out.push({
+      id: kpi.id, name: kpi.name, outcome: judged.outcome, dueAt: judged.dueAt,
+      daysLeft: Number.isFinite(due) ? Math.ceil((due - Date.parse(asOf)) / 86_400_000) : null,
+      days: Number(kpi.days || 0), step, from,
+    });
   }
   return out;
 }
@@ -282,9 +314,14 @@ async function summarise(
   );
   const row = rows[rows.length - 1] as Record<string, unknown> | undefined;
   if (!row) return {};
+  // WHEN THE STAGE FIRST ARRIVED — its earliest record — which is what a KPI
+  // timing this stage reads (readDealKpis). Read here because these rows are
+  // already in hand.
+  const firstAt = (rows as Record<string, unknown>[]).map((r) => String(r.createdAt || "")).filter(Boolean).sort()[0] || "";
   return {
     ref: String(row.ref || row.number || row.reference || row.id || ""),
     summary: String(row.status || row.stage || ""),
+    ...(firstAt ? { firstAt } : {}),
   };
 }
 
@@ -354,7 +391,7 @@ export async function listEngagements(
 export async function engagementBlock(
   ctx: EngagementCtx,
   engId: string,
-): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; statusType: string; templateId: string; templateName: string; locked: boolean; cards: StageCard[]; progress: FlowProgress | null; nextAction: { step: FlowStep & { sectionName: string }; actionable: boolean } | null; kpis: KpiReading[] } } | Refusal | { error: "notfound" | "forbidden" }> {
+): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; statusType: string; templateId: string; templateName: string; locked: boolean; cards: StageCard[]; progress: FlowProgress | null; nextAction: { step: FlowStep & { sectionName: string }; actionable: boolean } | null; kpis: DealKpi[] } } | Refusal | { error: "notfound" | "forbidden" }> {
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
@@ -511,7 +548,11 @@ export async function engagementBlock(
       // resolved here and passed down, so one read reports every KPI against
       // the same instant — two of them measured milliseconds apart could
       // otherwise disagree about which day it is.
-      kpis: readKpis(root.kpis || [], view, visible, new Date().toISOString()),
+      kpis: await readDealKpis(
+        ctx, dealId, root, String(template?.id || ""), running,
+        Object.fromEntries(cards.filter((c) => c.firstAt).map((c) => [c.type, String(c.firstAt)])),
+        visible,
+      ),
     },
   };
 }

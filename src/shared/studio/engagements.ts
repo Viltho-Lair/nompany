@@ -50,9 +50,9 @@ type Strings = CommonStrings & {
   kpiMet: string;
   kpiMissed: string;
   kpiRunning: string;
-  kpiNotStarted: string;
+  /** A KPI timed from a step the deal has not reached yet — its clock has not started. */
+  kpiWaiting: string;
   kpiUnknown: string;
-  kpiOf: (count: number, target: number) => string;
   kpiDueIn: (days: number) => string;
   kpiOverdue: (days: number) => string;
   iUnderstandDeleted: (what: string) => string;
@@ -137,9 +137,8 @@ const en: Strings = {
   kpiMet: "Met",
   kpiMissed: "Missed",
   kpiRunning: "Under way",
-  kpiNotStarted: "Not started",
+  kpiWaiting: "Waiting to start",
   kpiUnknown: "Cannot be counted",
-  kpiOf: (count: number, target: number) => `${count} of ${target}`,
   kpiDueIn: (days: number) => (days === 0 ? "due today" : days === 1 ? "1 day left" : `${days} days left`),
   kpiOverdue: (days: number) => (days === 1 ? "1 day over" : `${days} days over`),
   iUnderstandDeleted: (what: string) => `I understand ${what} will be permanently deleted, and that this cannot be undone.`,
@@ -233,9 +232,8 @@ const ar: Strings = {
   kpiMet: "تحقق",
   kpiMissed: "لم يتحقق",
   kpiRunning: "جار",
-  kpiNotStarted: "لم يبدأ",
+  kpiWaiting: "بانتظار البدء",
   kpiUnknown: "لا يمكن احتسابه",
-  kpiOf: (count: number, target: number) => `${count} من ${target}`,
   kpiDueIn: (days: number) => (days === 0 ? "مستحق اليوم" : days === 1 ? "بقي يوم واحد" : `بقي ${days} يوما`),
   kpiOverdue: (days: number) => (days === 1 ? "تأخر يوما واحدا" : `تأخر ${days} يوما`),
   iUnderstandDeleted: (what: string) => `أفهم أن ${what} ستحذف نهائيا، وأن هذا لا يمكن التراجع عنه.`,

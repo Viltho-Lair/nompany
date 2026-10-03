@@ -56,8 +56,8 @@ register(new URL("../../tests/loader.mjs", import.meta.url), { data: { root } })
 
 const { listStudios, updateStudio } = await import("@/modules/main/studios");
 const { sectionsAsStored, collectionsForKey, readCol, updateRow } = await import("@/platform/db/sections");
-const { REG, ENG } = await import("@/platform/db/keys");
-const { readArr, editArr, editJSON, getJSON, zRange } = await import("@/platform/db/store");
+const { ENG } = await import("@/platform/db/keys");
+const { editJSON, getJSON, zRange } = await import("@/platform/db/store");
 
 // The row fields to clear, per collection. A field's PRESENCE is what counts:
 // createTicket wrote `serviceIds` on every ticket and createItem `scope: []` on
@@ -69,7 +69,6 @@ const ROW_FIELDS = {
   inventoryItems: ["scope"],
 };
 const STUDIO_FIELDS = ["serviceActions", "retiredServiceActions"];
-const KPI_FIELDS = ["action"];
 const DEAL_KPI_FIELDS = ["action", "source"];
 
 const has = (obj, fields) => fields.filter((k) => obj && Object.prototype.hasOwnProperty.call(obj, k));
@@ -94,9 +93,9 @@ async function scan() {
       if (carried.length) found.deals.push({ studio, dealId, values: carried.map((k) => ({ id: k.id, ...pick(k, DEAL_KPI_FIELDS) })) });
     }
   }
-  for (const def of await readArr(REG.erpKpis)) {
-    if (has(def, KPI_FIELDS).length) found.kpis.push({ id: def.id, values: pick(def, KPI_FIELDS) });
-  }
+  // THE KPI DECLARATIONS (REG.erpKpis) WENT on 03/10/2026, the same day this
+  // ran against live and found none; their key no longer exists, so they are
+  // not scanned. `found.kpis` stays empty.
   return { studios, found };
 }
 
@@ -150,14 +149,6 @@ for (const x of found.rows) {
   const out = await updateRow(x.studio.id, x.section.id, x.collection, x.row.id,
     () => Object.fromEntries(fields.map((k) => [k, undefined])));
   if (out) cleared += 1;
-}
-if (found.kpis.length) {
-  const ids = new Set(found.kpis.map((k) => k.id));
-  await editArr(REG.erpKpis, (rows) => ({
-    next: rows.map((r) => (ids.has(r.id) ? strip(r, KPI_FIELDS) : r)),
-    result: undefined,
-  }));
-  cleared += found.kpis.length;
 }
 for (const x of found.deals) {
   await editJSON(ENG.root(x.studio.id, x.dealId), (current) => {
