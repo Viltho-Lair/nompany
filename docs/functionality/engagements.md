@@ -288,7 +288,9 @@ A deal's stage used to count as done the moment one record of it existed — a d
 
 A stage is **done** when every record that was not called off is done, **under way** otherwise
 (with a share: money-weighted for invoices and bills, by count for the rest), and **called off**
-when every record of it was. The deal page shows it as a badge on each stage card.
+when every record of it was. The deal page shows it as a badge on each stage card. Opened in the sandbox 04/10/2026: a deal with a converted RFQ and two
+unapproved quotations read "RFQ · Done" and "Quotation · Under way · 0%"; an unsigned contract read
+under way and approved timesheets and change orders done.
 
 ## Not built yet
 

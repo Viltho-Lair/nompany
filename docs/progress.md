@@ -2476,6 +2476,11 @@ by design (`engagements.md`).
    The first-run checklist inside the studio (KPI targets and the rest) is not built.
 4. **Foundations for progress**: every record attaches to its deal, completion rules, and a plan
    with a baseline.
+   **04/10/2026:** bills and fixed assets attach to their project's deal (expenses did 03/10; the
+   backfill lists both but has not been run for them); **completion rules** for every stage type
+   (`platform/engagement/completion.ts`), shown on the deal page; the baseline shipped 03/10.
+   **Not built:** completion kept on the deal as records change, so lists, the front door's deal
+   lane and deal KPIs can use it too.
 5. **KPIs** on kinds of work and steps, plus period KPIs, measured against the plan.
    **Started 03/10/2026:** the pure arithmetic (`modules/main/workKpis.ts`, `kpis.md`) — per-item
    `reach`/`onTime` and period `count`/`value`/`share`/`avgDays`, read off dates the records keep.
