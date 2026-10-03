@@ -97,5 +97,62 @@ ok("a share of another kind of work is refused", /different kind of work/.test(w
 ok("only counter sales add up money", /only a counter sale/.test(why([{ id: "x", label: "x", workType: "job", kind: "value", target: 5 }])));
 ok("a kind of work that does not exist is refused", /is not a kind of work/.test(why([{ id: "x", label: "x", workType: "case", kind: "count", target: 1 }])));
 
+console.log("\n== timed FROM a step: first delivery within 30 days of the project");
+
+const delivery = { id: "dlv", label: "x", workType: "deal", kind: "reach", step: "delivery", from: "project", days: 30 };
+const noProject = K.factsFromDeal("e3", { ticket: d("2031-01-01") }, ["ticket", "project", "delivery"]);
+ok("before the project exists the clock has not started — WAITING, not late",
+  K.judgeItem(delivery, noProject, d("2031-06-01")).outcome === "waiting");
+const projected = K.factsFromDeal("e4", { ticket: d("2031-01-01"), project: d("2031-05-01") }, ["ticket", "project", "delivery"]);
+ok("the clock starts at the project, not at the enquiry", K.judgeItem(delivery, projected, d("2031-05-20")).outcome === "in-progress");
+ok("...and runs out 30 days after it", K.judgeItem(delivery, projected, d("2031-06-02")).outcome === "missed");
+const delivered = K.factsFromDeal("e5", { ticket: d("2031-01-01"), project: d("2031-05-01"), delivery: d("2031-05-25") }, ["ticket", "project", "delivery"]);
+ok("a delivery inside the 30 days is met, however old the enquiry", K.judgeItem(delivery, delivered, d("2031-07-01")).outcome === "met");
+const FLOW = ["ticket", "rfq", "quotation", "project", "delivery"];
+const whyFlow = (defs) => K.workKpiProblems(defs, FLOW).join(" | ");
+ok("a sound timed-from KPI has nothing wrong", whyFlow([delivery]) === "", whyFlow([delivery]));
+ok("a from-step that does not exist is refused", /clock could never start/.test(whyFlow([{ ...delivery, from: "nope" }])));
+ok("a step timed from itself is refused", /from itself/.test(whyFlow([{ ...delivery, from: "delivery" }])));
+ok("a work order timed from a LATER step is refused",
+  /comes after/.test(why([{ id: "x", label: "x", workType: "workOrder", kind: "reach", step: "In progress", from: "Completed", days: 2 }])));
+
+console.log("\n== the list of measures, and a studio's targets");
+
+ok("every built-in measure is sound", K.measureProblems(K.BUILTIN_MEASURES, ["ticket", "rfq", "quotation", "contract", "project", "delivery", "invoice"]).length === 0,
+  K.measureProblems(K.BUILTIN_MEASURES, ["ticket", "rfq", "quotation", "contract", "project", "delivery", "invoice"]).join(" | "));
+ok("a built-in measure carries no number", K.BUILTIN_MEASURES.every((m) => !("days" in m) && !("target" in m)));
+const reworded = K.mergeMeasures([{ ...K.BUILTIN_MEASURES[0], name: { en: "Quoted fast", ar: "عرض سريع" } }, { id: "mine", name: { en: "Mine", ar: "خاص" }, workType: "job", kind: "onTime", active: true }]);
+ok("the console's row replaces its built-in by id, and an added one follows",
+  reworded[0].name.en === "Quoted fast" && reworded.length === K.BUILTIN_MEASURES.length + 1);
+
+const M = K.BUILTIN_MEASURES.find((m) => m.id === "deal-delivery");
+let v = K.nextVersions(undefined, { value: 30 }, d("2031-01-01"), "col_1");
+v = K.nextVersions(v, { flowId: "B", value: 7 }, d("2031-02-01"), "col_1");
+v = K.nextVersions(v, { value: 21 }, d("2031-06-01"), "col_1");
+ok("work that opened before any target was set is not measured", K.targetIn(v, "A", d("2030-12-01")) === null);
+ok("the studio-wide number applies to a flow with no override", K.targetIn(v, "A", d("2031-03-01")) === 30);
+ok("a flow's override wins over it", K.targetIn(v, "B", d("2031-03-01")) === 7);
+ok("A CHANGED TARGET DOES NOT RE-JUDGE THE PAST: March work keeps 30", K.targetIn(v, "A", d("2031-03-01")) === 30 && K.targetIn(v, "A", d("2031-07-01")) === 21);
+ok("...and the override survives the studio-wide change", K.targetIn(v, "B", d("2031-07-01")) === 7);
+const cleared = K.nextVersions(v, { flowId: "B", value: undefined }, d("2031-08-01"), "col_1");
+ok("removing an override hands the flow back to the studio-wide number", K.targetIn(cleared, "B", d("2031-09-01")) === 21);
+ok("a flow can be switched OFF a measure the studio keeps", K.targetIn(K.nextVersions(v, { flowId: "B", value: null }, d("2031-08-01"), "c"), "B", d("2031-09-01")) === null);
+ok("setting the same number again adds no version", K.nextVersions(v, { value: 21 }, d("2031-09-01"), "c").length === v.length);
+ok("versions are only ever appended", cleared.length === v.length + 1 && cleared[0].value === 30);
+
+const inForce = K.kpisInForce(K.BUILTIN_MEASURES, { "deal-delivery": v }, "deal", "B", d("2031-03-01"));
+ok("a deal on flow B is measured on its override, as days", inForce.length === 1 && inForce[0].days === 7 && inForce[0].from === "project");
+ok("a measure the console switched off is not in force",
+  K.kpisInForce([{ ...M, active: false }], { "deal-delivery": v }, "deal", "A", d("2031-03-01")).length === 0);
+
+ok("a number is checked against what the measure asks", K.targetProblem(M, 1.5) === "days" && K.targetProblem(M, 30) === "");
+ok("a share is a fraction", K.targetProblem(K.BUILTIN_MEASURES.find((m) => m.kind === "share"), 90) === "share");
+ok("on-time is on or off", K.targetProblem(K.BUILTIN_MEASURES.find((m) => m.kind === "onTime"), 1) === "");
+
+const month = K.periodBounds("month", "2031-03-17", "Asia/Riyadh");
+ok("a month is midnight to midnight on the studio's clock", month.from === "2031-02-28T21:00:00.000Z" && month.to === "2031-03-31T21:00:00.000Z", JSON.stringify(month));
+const week = K.periodBounds("week", "2031-03-19", "UTC");
+ok("a week starts on Monday", week.from === "2031-03-17T00:00:00.000Z" && week.to === "2031-03-24T00:00:00.000Z", JSON.stringify(week));
+
 console.log(fails ? `\nwork kpis: ${fails} FAILED` : "\nwork kpis: all passed");
 process.exit(fails ? 1 : 0);
