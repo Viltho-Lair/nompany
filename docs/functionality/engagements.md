@@ -309,14 +309,14 @@ catalogue read as that studio's own configuration.
   `editInvoice`, `editOrder`, `updateOvertime` and `updateShipment` each accept a new
   `projectId` and none of them re-attaches, so the record stays in the deal it first
   joined. That is the assignment feature (§3.6.2's promotion), not the create path.
-- **`task`, `bill` and `asset` still do not attach at all.** Every one is `unassignable`
-  and `onDelete: "keep"` — raised on its own screen and assigned to a deal afterwards — so
-  their attach is the assignment feature above rather than this one, and their delete verbs
-  correspondingly detach nothing. When assignment lands, each of those delete verbs needs its
-  detach in the same commit. **An expense filed against a project joins that project's deal**
-  (03/10/2026), as an invoice does: on create, on refiling to another project (out of the old
-  deal first), and out again before it is deleted. An expense with no project stays unattached,
-  which is what `unassignable` allows. A bill coded to a project is the obvious next one.
+- **A record filed against a project joins that project's deal** — an expense since 03/10/2026, a
+  **bill and a fixed asset since 04/10/2026**, as invoices, orders and deliveries always did: on
+  create, on refiling to another project (out of the old deal first), and out again before it is
+  deleted. One with no project stays unattached, which is what `unassignable` allows. The backfill
+  (`buildEngagements`, `scripts/migrate/backfill-engagements.mjs`) lists bills and fixed assets too,
+  so a run attaches the ones already on file; **it has not been run for them**. A bill answering a
+  purchase order but naming no project of its own does not inherit the order's project for this.
+  (This bullet named `task` too; there is no task stage in the registry.)
 - **Deleting a PROJECT does not delete or detach its children.** `removeProject` removes
   the row, its board and its plans, and leaves every sheet, invoice, order, delivery,
   shipment and overtime raised on it standing — still in the deal, now naming a project

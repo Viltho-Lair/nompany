@@ -10,6 +10,7 @@
 import { requirePermission } from "@/platform/access";
 import { seriesSetting } from "@/modules/administration/numbering";
 import { repo } from "@/platform/db/repo";
+import { attachToProjectEngagement, detachFromItsEngagement } from "@/platform/db/engagement";
 import { nextReference } from "@/modules/main/references";
 import { str, day, cash } from "./finance";
 import { roundMoney } from "@/shared/money";
@@ -120,6 +121,9 @@ export async function createAsset(ctx: FinanceContext, body: Record<string, unkn
   // asset is registered and not posted — see FUNDING_SOURCES for why a default
   // would count the money twice.
   const posting = asset.fundedBy ? await autoPost(ctx, "asset", asset.id) : null;
+  // AN ASSET BOUGHT FOR A PROJECT JOINS THAT PROJECT'S DEAL (04/10/2026), as
+  // its bills and expenses do. Never throws — see attachToProjectEngagement.
+  await attachToProjectEngagement(studio.id, "asset", asset.id, String(asset.projectId || ""), asset.createdAt as string);
   return { asset: withDepreciation(asset, ctx.studio.currency), ...(posting ? { posting } : {}) };
 }
 
@@ -174,6 +178,11 @@ export async function editAsset(ctx: FinanceContext, id: string, body: Record<st
     : booked && moved
       ? await autoRepost(ctx, "asset", id, `Asset ${asset.reference} corrected`)
       : null;
+  // MOVED TO ANOTHER PROJECT, it moves to that project's deal, out of the old one first.
+  if (patch.projectId !== undefined) {
+    await detachFromItsEngagement(studio.id, "asset", id);
+    await attachToProjectEngagement(studio.id, "asset", id, String(patch.projectId), asset.createdAt as string);
+  }
   return { asset: withDepreciation(asset, ctx.studio.currency), ...(posting ? { posting } : {}) };
 }
 
@@ -280,6 +289,8 @@ export async function removeAsset(ctx: FinanceContext, id: string) {
   if (held?.depreciated) return { error: "on-the-books" };
   const posting = held?.booked ? await autoReverse(ctx, "asset", id, `Asset ${current.reference} deleted`) : null;
   if (posting && !posting.posted) return { error: posting.reason };
+  // Out of its deal BEFORE the row goes — the order expenses and bills keep.
+  await detachFromItsEngagement(studio.id, "asset", id);
   const removed = await Assets.remove({ studio, section: assetsSection }, id);
   return removed ? { ok: true } : { error: "notfound" };
 }

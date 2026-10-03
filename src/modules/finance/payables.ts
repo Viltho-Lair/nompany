@@ -18,6 +18,7 @@ import type { Approval } from "@/modules/approvals/schema";
 import type { StudioRef } from "@/modules/context";
 import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { repo } from "@/platform/db/repo";
+import { attachToProjectEngagement, detachFromItsEngagement } from "@/platform/db/engagement";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { nextReference } from "@/modules/main/references";
 import { invoiceTotals, cleanLines, str, day, cash } from "./finance";
@@ -273,6 +274,11 @@ export async function createBill(ctx: FinanceContext, body: Record<string, unkno
   // name — asked here rather than let through, so the reason is in the code
   // that decides rather than discovered from a refusal.
   const posting = bill.status === "Received" ? await autoPost(ctx, "bill", bill.id) : null;
+  // A BILL CODED TO A PROJECT JOINS THAT PROJECT'S DEAL, as an expense does
+  // (04/10/2026, the agreed order's step 4): a deal's page and anything built on
+  // its members — its KPIs among them — never saw what a supplier charged for
+  // it. Never throws: a refused index must not fail a bill already booked.
+  await attachToProjectEngagement(studio.id, "bill", bill.id, String(bill.projectId || ""), bill.createdAt as string);
   return { bill: { ...bill, ...billTotals(bill, studio.currency) }, ...(posting ? { posting } : {}) };
 }
 
@@ -365,6 +371,12 @@ export async function editBill(ctx: FinanceContext, id: string, body: Record<str
 
   const bill = await Bills.update({ studio, section: payablesSection }, id, patch);
   if (!bill) return { error: "notfound" };
+  // REFILED TO ANOTHER PROJECT, it moves to that project's deal: out of the old
+  // one first, so it never sits in two.
+  if (patch.projectId !== undefined) {
+    await detachFromItsEngagement(studio.id, "bill", id);
+    await attachToProjectEngagement(studio.id, "bill", id, String(patch.projectId), bill.createdAt as string);
+  }
   // THE SAME MOMENT, REACHED THE OTHER WAY. A bill entered as a draft and then
   // marked Received accrues exactly as one created Received does. Both doors or
   // neither: a studio that drafts its bills first would otherwise keep books
@@ -672,6 +684,9 @@ export async function removeBill(ctx: FinanceContext, id: string) {
   if ((current.payments || []).length || current.status === "Approved" || current.status === "Paid") {
     return { error: "has-history" };
   }
+  // Out of its deal BEFORE the row goes: a crash between the two leaves a row
+  // with no deal, which the backfill heals, rather than a deal pointing at nothing.
+  await detachFromItsEngagement(studio.id, "bill", id);
   const removed = await Bills.remove({ studio, section: payablesSection }, id);
   if (!removed) return { error: "notfound" };
   // A RECEIVED BILL HAD POSTED, and deleting it left the liability booked.

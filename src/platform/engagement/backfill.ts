@@ -30,6 +30,10 @@ export function buildEngagements(c: Record<string, Record<string, unknown>[]>): 
     ["invoice", "invoices"], ["expense", "expenses"], ["order", "materialOrders"],
     ["delivery", "deliveries"], ["shipment", "awbShipments"],
     ["overtime", "overtimes"], ["sheet", "projectSheets"],
+    // A BILL AND A FIXED ASSET CODED TO A PROJECT join its deal since 04/10/2026,
+    // as expenses did the day before; listed here so a backfill attaches the ones
+    // already on file exactly as the create paths now attach new ones.
+    ["bill", "bills"], ["asset", "fixedAssets"],
   ];
 
   for (const t of tickets) {
