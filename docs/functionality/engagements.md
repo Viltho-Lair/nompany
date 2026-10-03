@@ -263,7 +263,39 @@ catalogue read as that studio's own configuration.
   has to be able to point its own work at the clone. The name, the pairing and the reasoning
   are shown, not edited.
 
-## Not built yet — do not assume otherwise
+## When a stage is done (04/10/2026)
+
+A deal's stage used to count as done the moment one record of it existed — a draft quotation made
+"Quotation" look finished. **A stage is done when its records say the work is finished**
+(`platform/engagement/completion.ts`, pure), read off each record's own lifecycle:
+
+| Stage | Done when | Called off when |
+|---|---|---|
+| Ticket | Closed Won | Closed Lost, Cancelled by Client, Dropped |
+| RFQ | Converted | Rejected |
+| Quotation | approved (its Approvals record, or a stored Approved) | Rejected, Closed |
+| Project | closed (`closedAt`, set by closing it — not the renamable "Completed" stage) | — |
+| Contract | signed | — |
+| Purchase order / sales order | Received / Fulfilled | Cancelled |
+| Delivery | Issued | Cancelled |
+| Shipment | tracking shows delivered (DLV) | — |
+| Invoice, bill | paid in full against what is expected (Finance's own lists: withholding and credit notes netted) | Cancelled |
+| Change order, timesheet | approved | rejected |
+| Job | completed | cancelled |
+| Inspection | passed (with or without comments); a failed one is still under way | — |
+| Payment | always, unless reversed | reversed |
+| Expense, overtime, sheet, fixed asset | as soon as it exists — they have no states | — |
+
+A stage is **done** when every record that was not called off is done, **under way** otherwise
+(with a share: money-weighted for invoices and bills, by count for the rest), and **called off**
+when every record of it was. The deal page shows it as a badge on each stage card.
+
+## Not built yet
+
+- **Completion shows on the deal page only.** The front door's deal lane, the deals list and deal
+  KPIs still treat a stage as reached when its first record exists. Using completion there needs it
+  kept on the deal as records change (the design study's "progress kept on write"), not read for
+  every deal on every list. — do not assume otherwise
 
 - **Switching a section off warns about nothing.** Editing a flow shows what the change will touch first; the Sections
   panel does not, and a part switched off takes its screens, widgets, reads and API with it

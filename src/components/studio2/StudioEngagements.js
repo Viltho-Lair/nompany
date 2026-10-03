@@ -955,6 +955,21 @@ function StageCard({ slug, card }) {
                 {tr.notInThisFlow}
               </span>
             )}
+            {/* WHETHER THE STAGE'S WORK IS FINISHED — by its records' own
+                lifecycle (platform/engagement/completion), not merely that one
+                exists: a draft quotation is under way, an invoice is done when
+                it is paid. Called off reads as such, never as done. */}
+            {card.present && card.completion && (
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-600 ${
+                card.completion.state === "done" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+                  : card.completion.state === "void" ? "bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400"
+                    : "bg-brand-500/10 text-brand-700 dark:text-brand-300"}`}>
+                {card.completion.state === "done" ? tr.stageDone
+                  : card.completion.state === "void" ? tr.stageVoid
+                    : card.completion.progress !== null ? tr.stageUnderWayPct(Math.round(card.completion.progress * 100))
+                      : tr.stageUnderWay}
+              </span>
+            )}
           </p>
           {card.present && card.count > 1 && (
             <p className="text-xs text-slate-400 dark:text-slate-500">{tr.onThisDeal(card.count)}</p>

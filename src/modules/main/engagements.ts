@@ -21,6 +21,12 @@ import { repo } from "@/platform/db/repo";
 import { listFlowTemplates, defaultTemplateForStudio, pickTemplate, industryKeyOf } from "@/platform/db/flows";
 import { flowProgress, nextActionFor, stagesRunning } from "@/platform/engagement/progress";
 import { readMeasures } from "@/platform/db/kpis";
+import { stageCompletion, type CompletionContext, type StageCompletion } from "@/platform/engagement/completion";
+import { listInvoices, readWithholdingRules } from "@/modules/finance/finance";
+import { listBills } from "@/modules/finance/payables";
+import { approvalRows } from "@/modules/approvals/approvals";
+import { quotationApproved } from "@/modules/approvals/reads";
+import type { StudioRef } from "../context";
 import { factsFromDeal, judgeItem, kpisInForce, type KpiOutcome, type MeasureWords, type StudioKpiTargets } from "./workKpis";
 import type { FlowProgress, FlowStep, StageInfo } from "@/platform/engagement/progress";
 import type { Refusal } from "@/platform/access";
@@ -110,6 +116,11 @@ export type StageCard = {
   ref?: string; summary?: string; href?: string;
   /** When this stage's first record was made — what a KPI timing it reads. */
   firstAt?: string;
+  /**
+   * WHETHER THE STAGE'S WORK IS FINISHED, by its records' own lifecycle
+   * (platform/engagement/completion) — not merely that a record exists.
+   */
+  completion?: StageCompletion | null;
 };
 
 // A deal's status is not stored (Law 5, and the storage spec removed the column
@@ -278,6 +289,44 @@ async function readDealKpis(
   return out;
 }
 
+/**
+ * WHAT THE COMPLETION RULES CANNOT READ OFF A ROW, read once per deal page and
+ * only for the stages it shows: what is settled on an invoice or a bill —
+ * Finance's own lists, which net withholding and credit notes, so the deal
+ * page and Receivables cannot disagree about what is paid — and whether a
+ * quotation was approved, by its Approvals record.
+ */
+async function completionContext(
+  ctx: EngagementCtx,
+  shown: ReadonlySet<string>,
+): Promise<CompletionContext> {
+  const studio = ctx.studio as unknown as StudioRef;
+  const out: CompletionContext = {};
+  if (shown.has("invoice") || shown.has("bill")) {
+    const [settings, cash, payables] = await Promise.all([
+      getSectionByKey(studio.id, "finance-settings"),
+      shown.has("invoice") ? getSectionByKey(studio.id, "finance-cash") : null,
+      shown.has("bill") ? getSectionByKey(studio.id, "finance-payables") : null,
+    ]);
+    const withholdingRules = readWithholdingRules((settings || {}) as { settings?: Record<string, unknown> });
+    const settled = new Map<string, { total: number; paid: number }>();
+    const [invoices, bills] = await Promise.all([
+      cash ? listInvoices({ studio, cashSection: cash, withholdingRules }) : [],
+      payables ? listBills({ studio, payablesSection: payables, withholdingRules }) : [],
+    ]);
+    for (const r of [...invoices, ...bills] as Record<string, unknown>[]) {
+      settled.set(String(r.id), { total: Number(r.expected) || 0, paid: Number(r.paid) || 0 });
+    }
+    out.money = (row) => settled.get(String(row.id)) || null;
+  }
+  if (shown.has("quotation")) {
+    const section = await getSectionByKey(studio.id, "approvals");
+    const rows = await approvalRows(studio, section);
+    out.approved = (row) => quotationApproved(row as Parameters<typeof quotationApproved>[0], rows);
+  }
+  return out;
+}
+
 /** Which stage types this engagement actually has. */
 export function stagesPresent(view: { singletons: Record<string, string | null>; members: Record<string, string[]> }): string[] {
   const out: string[] = [];
@@ -302,6 +351,7 @@ async function summarise(
   ctx: EngagementCtx,
   entry: { type: string; collection: string; sectionKey: string },
   ids: string[],
+  completion: CompletionContext = {},
 ): Promise<Partial<StageCard>> {
   const section = await getSectionByKey(ctx.studio.id, entry.sectionKey);
   if (!section) return {};
@@ -322,6 +372,7 @@ async function summarise(
     ref: String(row.ref || row.number || row.reference || row.id || ""),
     summary: String(row.status || row.stage || ""),
     ...(firstAt ? { firstAt } : {}),
+    completion: stageCompletion(entry.type, rows as Record<string, unknown>[], completion),
   };
 }
 
@@ -427,6 +478,7 @@ export async function engagementBlock(
   const listed = new Set(ordered);
 
   const cards: StageCard[] = [];
+  const completion = await completionContext(ctx, new Set([...present].filter((t) => visible.has(t))));
   const addCard = async (type: string, offTemplate: boolean) => {
     const entry = STAGE_REGISTRY[type];
     if (!entry) return;                                   // templateProblems catches this
@@ -439,7 +491,7 @@ export async function engagementBlock(
       type, label: entry.label,
       present: ids.length > 0, count: ids.length, offTemplate,
     };
-    if (ids.length) Object.assign(card, await summarise(ctx, entry, ids));
+    if (ids.length) Object.assign(card, await summarise(ctx, entry, ids, completion));
     cards.push(card);
   };
 
