@@ -2460,14 +2460,21 @@ by design (`engagements.md`).
    with a baseline.
 5. **KPIs** on kinds of work and steps, plus period KPIs, measured against the plan.
 
-**Owner decisions that block the order:**
+**Owner decisions, ANSWERED 03/10/2026:**
 
-- **A. ZATCA submission policy.** nompany prepares the file and the company submits it, while
-  Phase 2 is described as system-to-ZATCA integration. Check this against ZATCA's own integration
-  rules before selling to Saudi studios above SAR 375k.
-- **B. Full vs back-office-only industries.**
-- **C. Kinds of work**: one general unit with types (deal, order, counter sale, job, case,
-  enrolment, recurring commitment), or the deal alone.
+- **A. ZATCA: nompany SUBMITS, the studio chooses WHEN within ZATCA's limits.** What is submitted
+  follows ZATCA's specification. A standard (B2B) tax invoice must be CLEARED before the customer
+  receives it, so it goes at issue with no choice; a simplified (B2C) invoice must be REPORTED
+  within 24 hours, so the studio picks immediately or a daily batch. This REVERSES the 26/09/2026
+  rule "nompany prepares, the company submits" (`einvoicing.md`), and needs each studio's device
+  onboarded with ZATCA (a certificate per studio) before its first submission.
+- **B. An industry is NOT OFFERED until its front office exists.** No "back office only" tier: the
+  front office is built, then the industry is switched on in /super → Industries. Unready
+  industries and specialisms are switched off there (`active`, not `locked` — `locked` only freezes
+  the console's edits).
+- **C. One kind of work item, with types** (deal, order, counter sale, job, case, enrolment,
+  recurring commitment), one engine underneath, each type with its own name, steps and progress.
+  Types are built for the industries that are switched on, first.
 
 **Not blocked, and started 03/10/2026:**
 
