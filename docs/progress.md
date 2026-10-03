@@ -2392,6 +2392,103 @@ already knows every record that could count as evidence.
 4. Studio KPIs on steps; plan vs actual; baseline.
 5. Comparison per template in Reports & BI; industry-seeded starter templates.
 
+### Answers and the agreed order (03/10/2026)
+
+The owner asked to stop going in loops. These are the answers given, and the one order the work
+follows. A later session takes the next step from here rather than re-deriving it.
+
+**Is the generic service-action list needed? No, but it cannot simply be deleted.** Measured on
+03/10/2026: a sales ticket cannot be saved without one (`createTicket` refuses with `"services"`).
+Lead scoring and campaign figures group tickets by it, KPIs pick their targets by it, and the old
+trade gating at studio creation reads it. Item scope stopped reading it on 02/10/2026
+(`872771dd`). The real need behind every remaining reader is "what is this work about". The 20
+industrial verbs answer that badly for a salon, school or law firm. **Replacement: each studio's
+own "What we sell" list**, which tickets, orders and contracts name. It comes first, or in the same
+change, because the ticket form requires the field.
+
+**What studio registration should ask:**
+
+1. **Company:** name, address, country and city. The country decides tax, e-invoicing and
+   payroll rules.
+2. **Industry → specialism:** one pick, which pre-fills everything below.
+3. **How you work:** three or four plain questions, pre-answered from the specialism. Do you sell
+   at a counter, take orders, deliver projects, sign service or recurring contracts, work at
+   customers' sites?
+4. **Review:** "here is what we set up", with every department shown and each still switchable.
+5. **Plan, then create.**
+
+Not asked at registration: service actions, seventeen department questions, KPIs, or what the
+studio sells. Those belong in a first-run checklist inside the studio.
+
+**How sections are picked, and what survives.** The back half is sound and stays as it is:
+
+- every section row is written, and only `enabled` changes;
+- dependencies are added (`SECTION_NEEDS`);
+- the server re-checks against one catalogue (`resolveSectionChoice`, `studioSetupCatalogue`);
+- Settings → Sections switches anything later.
+
+Only the front half changes. The seventeen per-department questions are replaced by the "how you
+work" answers, which map, in ONE place, to departments and their parts.
+
+**A KPI judges progress; it does not drive it.**
+
+- **Progress** is how far a piece of work has got: steps completed, weighted, counted from records.
+- **A KPI** is whether that progress is going well.
+
+They meet through a plan. The baseline says where the work should be by today, the actual says
+where it is, and the KPI compares the two (schedule performance = actual ÷ planned, the same
+arithmetic as the projects' SPI/CPI). Without service actions, a KPI attaches to a **kind of work
+and a step** (or to a **period**, for businesses with no units of work, such as shops). A studio
+may narrow one to an item from its own "What we sell" list.
+
+**Correction to the study above: arrival times are already stored.** A record that attaches to a
+deal is scored by its `createdAt` in the deal's membership set (`attachRecord`,
+`platform/db/engagement.ts`), so "when was this step reached" can be derived for every type that
+attaches. The real foundation gap is that **deliveries, invoices, expenses, material orders,
+shipments and overtime do not attach when created**; only a one-off backfill ever attached them.
+
+**The agreed order.** Each step depends only on the ones before it.
+
+1. **Kinds of work**: which units nompany supports (owner decision C below).
+2. **"What we sell" per studio**, replacing service actions.
+3. **Registration**: country, specialism, "how you work", then review.
+4. **Foundations for progress**: every record attaches to its deal, completion rules, and a plan
+   with a baseline.
+5. **KPIs** on kinds of work and steps, plus period KPIs, measured against the plan.
+
+**Owner decisions that block the order:**
+
+- **A. ZATCA submission policy.** nompany prepares the file and the company submits it, while
+  Phase 2 is described as system-to-ZATCA integration. Check this against ZATCA's own integration
+  rules before selling to Saudi studios above SAR 375k.
+- **B. Full vs back-office-only industries.**
+- **C. Kinds of work**: one general unit with types (deal, order, counter sale, job, case,
+  enrolment, recurring commitment), or the deal alone.
+
+**Not blocked, and started 03/10/2026:**
+
+- a /super lock that hides sections and sub-sections still under development from every studio;
+- the built-in industry profiles that miss sections their specialisms need;
+- Point of Sale's missing setup question;
+- three docs that contradict the code;
+- a planner baseline (initial plan against actual).
+
+**Research behind this (30/09/2026).** Two reports, kept outside the repository by the
+no-new-markdown rule:
+
+- *Industry adaptation for nompany ERP* covers how Odoo, ERPNext, NetSuite, Acumatica, SAP,
+  Microsoft and Salesforce adapt to industries.
+- *Priority industry ERP requirements* takes seven industries, compares their needs with the
+  code, and ranks the cross-cutting gaps:
+  1. Saudi B2B invoices and credit/debit notes;
+  2. recurring billing;
+  3. Saudi labour compliance (Mudad, Qiwa, Nitaqat, Ajeer);
+  4. a client id and buyer VAT number on invoices;
+  5. the links from work to invoice (sales order, subcontract certificate, milestone);
+  6. a timesheet submission screen;
+  7. stock posted to the ledger;
+  8. the six record types that do not attach to deals.
+
 ## Open decisions
 
 Things waiting on a person, not on work.

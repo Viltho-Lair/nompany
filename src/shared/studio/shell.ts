@@ -85,6 +85,8 @@ type ShellStrings = {
   // it. Distinct copy because "ask an admin" is a false promise here (see
   // NO_SCREEN_YET in platform/access/resolve.ts).
   sectionNotBuiltYet: string;
+  sectionInDevelopment: string;
+  sectionInDevelopmentBody: string;
   sectionNotBuiltYetBody: string;
   nothingGranted: string;
   nothingGrantedBody: string;
@@ -147,6 +149,8 @@ const en: ShellStrings = {
   noSectionAccess: "You don't have access to that section",
   noSectionAccessBody: "Ask an admin of this studio to grant it to you.",
   sectionNotBuiltYet: "This section isn't open yet",
+  sectionInDevelopment: "This section is being improved",
+  sectionInDevelopmentBody: "It will be back soon. Nothing in it has been lost — your records stay exactly where they are.",
   sectionNotBuiltYetBody: "It's on the way, but there's nothing here to grant — not even an admin can open it early.",
   nothingGranted: "Nothing has been shared with you yet",
   nothingGrantedBody:
@@ -220,6 +224,8 @@ const ar: ShellStrings = {
   noSectionAccess: "لا تملك صلاحية الوصول إلى ذلك القسم",
   noSectionAccessBody: "اطلب من مسؤول في هذا الاستوديو منحك إياها.",
   sectionNotBuiltYet: "هذا القسم غير متاح بعد",
+  sectionInDevelopment: "هذا القسم قيد التطوير",
+  sectionInDevelopmentBody: "سيعود قريبا. لم يضع شيء منه — سجلاتك باقية كما هي تماما.",
   sectionNotBuiltYetBody: "إنه قيد الإعداد، ولا يوجد فيه شيء يمكن منحه — حتى المسؤول لا يستطيع فتحه قبل أوانه.",
   nothingGranted: "لم تتم مشاركة أي شيء معك بعد",
   nothingGrantedBody:

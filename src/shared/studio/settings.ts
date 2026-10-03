@@ -136,6 +136,7 @@ type Strings = {
   sectionsLead: string;
   sectionsRequired: string;
   sectionsNotReady: string;
+  sectionsInDevelopment: string;
   sectionsRefused: string;
   // THE TRADE'S OFFER — what the studio's field of work would switch, applied
   // only when somebody presses Apply. The names are the studio's own section
@@ -420,6 +421,7 @@ const en: Strings = {
   sectionsLead: "Which parts of the product this studio uses. Turning one off hides it from everyone, whatever rights they hold; nothing is deleted, and turning it back on brings its records with it.",
   sectionsRequired: "Always on",
   sectionsNotReady: "Not ready yet",
+  sectionsInDevelopment: "Being improved — coming soon",
   sectionsRefused: "That section couldn't be changed.",
   sectionsSuggestLead: "Your field of work uses the ticked sections. Tick any others you want, untick any you don't, then apply. Nothing changes until you do.",
   sectionsShowSubs: (name) => `Show or hide the sub-sections of ${name}`,
@@ -710,6 +712,7 @@ const ar: Strings = {
   sectionsLead: "أي أجزاء المنتج يستخدمها هذا الاستوديو. إيقاف قسم يخفيه عن الجميع مهما كانت صلاحياتهم؛ ولا يحذف شيء، وإعادته تعيد سجلاته معه.",
   sectionsRequired: "دائم التشغيل",
   sectionsNotReady: "غير جاهز بعد",
+  sectionsInDevelopment: "قيد التطوير — قريبا",
   sectionsRefused: "تعذر تغيير ذلك القسم.",
   sectionsSuggestLead: "مجال عملك يستخدم الأقسام المحددة. حدّد أي أقسام أخرى تريدها وألغِ تحديد ما لا تريده، ثم طبّق. لا يتغير شيء حتى تطبّق.",
   sectionsShowSubs: (name) => `إظهار أو إخفاء الأقسام الفرعية لـ ${name}`,

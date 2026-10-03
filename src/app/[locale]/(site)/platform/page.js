@@ -1,6 +1,6 @@
 import JsonLd from "@/components/JsonLd";
 import { buildMetadata, breadcrumbLd, urlFor } from "@/lib/seo";
-import { liveDepartments } from "@/shared/marketing/departments";
+import { releasedDepartments } from "@/lib/industryPages";
 import { platformCopy } from "@/shared/marketing/platform";
 import { claimText } from "@/shared/marketing/claims";
 import { heroCopy } from "@/shared/marketing/hero";
@@ -40,7 +40,7 @@ export default async function PlatformPage({ params }) {
   const { locale } = await params;
   const tr = platformCopy(locale);
   const dict = getDict(locale);
-  const departments = liveDepartments(locale);
+  const departments = await releasedDepartments(locale);
   const stats = await platformStatLines(locale);
 
   const structured = [

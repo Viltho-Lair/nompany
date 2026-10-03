@@ -7,8 +7,20 @@
 import type { Industry } from "@/shared/industryCatalogue";
 import { readIndustries } from "@/lib/data/industries";
 import { publicCached } from "@/lib/data/publicSettings";
-import { liveDepartments } from "@/shared/marketing/departments";
+import { liveDepartments, type Department } from "@/shared/marketing/departments";
+import { hiddenDefKeys, readReleaseLocks } from "@/platform/db/releaseLocks";
 import { industriesCopy } from "@/shared/marketing/industries";
+
+/**
+ * THE DEPARTMENTS THE WEBSITE MAY NAME: the product's live ones, less any /super
+ * holds back as still being built (platform/db/releaseLocks) — a page should not
+ * advertise a department no studio can open. The home, platform and industry
+ * pages all read this.
+ */
+export async function releasedDepartments(locale: string): Promise<Department[]> {
+  const held = hiddenDefKeys(await readReleaseLocks());
+  return liveDepartments(locale).filter((d) => !held.has(d.key));
+}
 
 /** The catalogue through the public minute cache — every other page's rule. */
 const publicIndustries = publicCached(readIndustries, "industry-catalogue");
@@ -40,7 +52,7 @@ export async function industryPage(locale: string, key: string) {
   const all = await liveIndustries();
   const ind = all.find((i) => i.key === key);
   if (!ind) return null;
-  const named = new Map(liveDepartments(locale).map((d) => [d.key, d.name]));
+  const released = await releasedDepartments(locale);
   return {
     key: ind.key,
     name: name(ind, locale),
@@ -48,7 +60,7 @@ export async function industryPage(locale: string, key: string) {
     specialisms: activeSpecialisms(ind, locale),
     // In the product's own department order; a key no longer live drops out
     // rather than printing a raw key.
-    departments: liveDepartments(locale).filter((d) => ind.profile.sections.includes(d.key)).map((d) => named.get(d.key) as string),
+    departments: released.filter((d) => ind.profile.sections.includes(d.key)).map((d) => d.name),
     others: all.filter((i) => i.key !== ind.key).map((i) => ({ key: i.key, name: name(i, locale) })),
   };
 }

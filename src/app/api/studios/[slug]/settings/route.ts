@@ -1,6 +1,7 @@
 import { requirePermission } from "@/platform/access";
 import { deletionFinalisesAt } from "@/shared/studioDeletion";
 import { NO_SCREEN_YET } from "@/platform/access";
+import { hiddenKeys, readReleaseLocks } from "@/platform/db/releaseLocks";
 import { REQUIRED_SECTIONS } from "@/platform/db/sections";
 import { renameStudio } from "@/modules/main/studios";
 import { isKnownCurrency, crossRate } from "@/shared/currencies";
@@ -268,15 +269,10 @@ export const GET = route<StudioMembership>({ auth: "studio", name: "settings", k
     // because they render nothing; the screen greys those rather than hiding
     // them, so a studio can see that Manufacturing exists and is not ready
     // rather than wondering why the product has a gap where one should be.
-    sections: (context.sections || []).map((x) => ({
-      id: x.id,
-      key: x.key,
-      name: x.name,
-      parentId: x.parentId || null,
-      enabled: x.enabled !== false,
-      noScreen: (NO_SCREEN_YET as readonly string[]).includes(x.key),
-      required: (REQUIRED_SECTIONS as readonly string[]).includes(x.key),
-    })),
+    // SECTIONS STILL BEING BUILT (/super → Sections): they read as switched off
+    // and cannot be switched on; `inDevelopment` is what lets the screen say so
+    // rather than show a switch that refuses for no visible reason.
+    sections: await sectionRows(context.sections || [], String(studio.id)),
     // WHAT THE STUDIO'S TRADE WOULD SWITCH, as keys — the screen already holds
     // the rows and their names. OFFERED, never applied: the gate runs once, at
     // creation, and changing the trade later switches nothing by itself.
@@ -521,4 +517,19 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
     ]);
   }
   return Response.json({ ok: true, studio: clean(updated) });
+}
+
+/** The Sections panel's rows: every section, with why one may not be switched on. */
+async function sectionRows(rows: readonly { id: string; key: string; name: string; parentId?: string | null; enabled?: boolean }[], studioId: string) {
+  const hidden = hiddenKeys(rows, await readReleaseLocks(), studioId);
+  return rows.map((x) => ({
+    id: x.id,
+    key: x.key,
+    name: x.name,
+    parentId: x.parentId || null,
+    enabled: x.enabled !== false,
+    noScreen: (NO_SCREEN_YET as readonly string[]).includes(x.key),
+    inDevelopment: hidden.has(x.key),
+    required: (REQUIRED_SECTIONS as readonly string[]).includes(x.key),
+  }));
 }

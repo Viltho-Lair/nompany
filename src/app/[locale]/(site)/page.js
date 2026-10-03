@@ -3,7 +3,7 @@ import { featuredCompanies, landingPricing } from "@/lib/data/publicLanding";
 import JsonLd from "@/components/JsonLd";
 import { platformStatLines } from "@/components/landing/sections/PlatformStats";
 import { HomePage } from "@/components/landing/site/HomePage";
-import { liveDepartments } from "@/shared/marketing/departments";
+import { releasedDepartments } from "@/lib/industryPages";
 import { livePostCards } from "@/lib/data/blog";
 import { blogCopy } from "@/shared/marketing/blog";
 
@@ -37,8 +37,8 @@ export default async function Home({ params }) {
   // read from the software itself. Joined by key so the two lists cannot pair
   // one department's English with another's Arabic.
   const otherLocale = locale === "ar" ? "en" : "ar";
-  const otherNames = new Map(liveDepartments(otherLocale).map((d) => [d.key, d.name]));
-  const departments = liveDepartments(locale).map((d) => ({ key: d.key, name: d.name, other: otherNames.get(d.key) || "" }));
+  const otherNames = new Map((await releasedDepartments(otherLocale)).map((d) => [d.key, d.name]));
+  const departments = (await releasedDepartments(locale)).map((d) => ({ key: d.key, name: d.name, other: otherNames.get(d.key) || "" }));
 
   return (
     <>

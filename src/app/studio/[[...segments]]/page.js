@@ -8,6 +8,7 @@ import nextDynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { can, NO_SCREEN_YET } from "@/platform/access";
+import { hiddenKeys, readReleaseLocks } from "@/platform/db/releaseLocks";
 import { withRequest } from "@/platform/http/observability";
 import { requestedKey, SETTINGS_KEY } from "@/shared/studioRoute";
 import { isSystemSection } from "@/platform/db/keys";
@@ -757,6 +758,11 @@ async function renderStudio(params) {
   // administration reaches this flag now; it is the four product sections that
   // still render nothing.
   const notBuiltYet = deniedSection && NO_SCREEN_YET.includes(requested);
+  // A SECTION STILL BEING BUILT (/super → Sections) reads as switched off, so it
+  // lands here too — and says so, rather than telling an owner to ask an admin
+  // for a right that would not open it.
+  const inDevelopment = deniedSection && !notBuiltYet
+    && hiddenKeys(allSections, await readReleaseLocks(), String(studio.id)).has(requested);
 
   // Which component to render: a sub-section resolves to its parent's module.
   // The module then decides the screen from the ACTIVE key — Sales does this
@@ -924,7 +930,7 @@ async function renderStudio(params) {
         )
         : active?.key === "administration-master" ? <StudioMasterData slug={studio.slug} initial={keyedInitial} />
         : active?.key === "administration-settings" ? <StudioSettings slug={studio.slug} locale={locale} initial={keyedInitial} />
-        : deniedSection ? <NoSectionAccess locale={locale} notBuiltYet={notBuiltYet} />
+        : deniedSection ? <NoSectionAccess locale={locale} notBuiltYet={notBuiltYet} inDevelopment={inDevelopment} />
         : quotationId ? <SalesQuotationViewer slug={studio.slug} ticketId={ticketId} quotationId={quotationId} initial={recordInitial} />
         : ticketId ? <StudioTicketProfile slug={studio.slug} ticketId={ticketId} initial={salesInitial} />
         : isSheets ? <StudioSheetViewer slug={studio.slug} sheetId={sheetId} perspective="inventory" initial={viewInitial} />
@@ -1265,8 +1271,16 @@ function SettingsSurface({ studio, sections = [], locale = "en" }) {
 }
 
 
-function NoSectionAccess({ locale = "en", notBuiltYet = false }) {
+function NoSectionAccess({ locale = "en", notBuiltYet = false, inDevelopment = false }) {
   const t = shellDict(locale);
+  if (inDevelopment) {
+    return (
+      <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#111117]">
+        <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{t.sectionInDevelopment}</h2>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.sectionInDevelopmentBody}</p>
+      </div>
+    );
+  }
   return (
     <div className="rounded-geex border border-slate-200/70 bg-white p-8 text-center dark:border-white/10 dark:bg-[#111117]">
       <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">

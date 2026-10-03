@@ -149,6 +149,13 @@ export const REG = {
   // away falls back to the code. Platform-level: an industry is something
   // nompany offers, not something one studio owns.
   industryCatalogue: `${P}g:industryCatalogue`,
+  // SECTIONS STILL BEING BUILT, hidden from every studio (03/10/2026, the
+  // owner: "there should be a way in /super to lock these sections and their
+  // subsections entirely for studio to not be able to see undergoing
+  // improvements"). One small document: the locked keys and the studios
+  // allowed to preview them. Read through a short in-process cache on the
+  // section read every request makes (platform/db/releaseLocks).
+  sectionLocks: `${P}g:sectionLocks`,
   // WHAT A DEAL IS MEASURED ON — one row per KPI, keyed to a service action
   // (20/09/2026, the owner: service actions were a label and nothing else).
   // Platform-level, beside the trades: a target for "Installation" is what

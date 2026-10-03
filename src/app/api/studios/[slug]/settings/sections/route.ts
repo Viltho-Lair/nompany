@@ -1,6 +1,7 @@
 import { route, refused } from "@/platform/http/route";
 import { requirePermission } from "@/platform/access";
 import { NO_SCREEN_YET } from "@/platform/access";
+import { hiddenKeys, readReleaseLocks } from "@/platform/db/releaseLocks";
 import { moduleContext } from "@/modules/context";
 import { updateSection, REQUIRED_SECTIONS } from "@/platform/db/sections";
 import { tradeSuggestionFor, updateStudio } from "@/modules/main/studios";
@@ -58,6 +59,12 @@ export const PUT = route(spec, async (c) => {
   // about an arbitrary section key.
   if (c.body.enabled && (NO_SCREEN_YET as readonly string[]).includes(section.key)) {
     return { error: "no-screen" };
+  }
+  // A SECTION STILL BEING BUILT cannot be switched on either (/super →
+  // Sections). Switching it off is allowed — it is the studio's own choice for
+  // the day the lock lifts.
+  if (c.body.enabled && hiddenKeys(c.sections || [], await readReleaseLocks(), c.studio.id).has(section.key)) {
+    return { error: "in-development" };
   }
 
   const branch = await setBranch(c.studio.id, c.sections || [], section, c.body.enabled);
@@ -143,6 +150,7 @@ export const POST = route(spec, async (c) => {
   const picked = list(c.body.on);
 
   const changed: { key: string; enabled: boolean }[] = [];
+  const inDevelopment = hiddenKeys(all, await readReleaseLocks(), c.studio.id);
   for (const { key } of offer.choices) {
     if (!shown.has(key)) continue;
     const root = all.find((s) => !s.parentId && s.key === key);
@@ -150,6 +158,7 @@ export const POST = route(spec, async (c) => {
     const enabled = picked.has(key);
     // The PUT's own refusal: a section with no screen is never switched on.
     if (enabled && (NO_SCREEN_YET as readonly string[]).includes(key)) continue;
+    if (enabled && inDevelopment.has(key)) continue;
     if ((root.enabled !== false) === enabled) continue;
     if (await setBranch(c.studio.id, all, root, enabled)) changed.push({ key, enabled });
   }

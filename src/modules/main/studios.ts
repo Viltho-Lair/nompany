@@ -34,6 +34,7 @@ import { FIELDS_OF_WORK, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfW
 import type { Industry } from "@/shared/industryCatalogue";
 import { fieldForIndustry, isChoosable, pickCatalogue, specialismOf } from "@/shared/industryPick";
 import { readIndustries } from "@/lib/data/industries";
+import { hiddenDefKeys, readReleaseLocks } from "@/platform/db/releaseLocks";
 import {
   rootSectionsForTrade, sectionEnabledForTrade, tradeSuggestion, resolveSectionChoice, withNeeds, NEVER_GATED_KEYS, SECTION_NEEDS,
   type TradeSuggestion, type SetupCatalogue, type SectionChoiceInput,
@@ -213,8 +214,15 @@ export function industryRoots(industry: Industry): Set<string> {
   return withNeeds([...NEVER_GATED_KEYS, ...industry.profile.sections]);
 }
 
-export function studioSetupScreen(locale: string, industries: readonly Industry[] = []) {
-  const catalogue = studioSetupCatalogue();
+export function studioSetupScreen(locale: string, industries: readonly Industry[] = [], hidden: ReadonlySet<string> = new Set()) {
+  // SECTIONS STILL BEING BUILT (/super → Sections) are not asked about: a
+  // question about a department nobody can open yet is a promise the product
+  // cannot keep. createStudio decides them from the industry's suggestion.
+  const full = studioSetupCatalogue();
+  const catalogue = {
+    roots: full.roots.filter((k) => !hidden.has(k)),
+    children: Object.fromEntries(Object.entries(full.children).map(([k, v]) => [k, v.filter((c) => !hidden.has(c))])),
+  };
   const nameOf = (key: string) => {
     const def = SECTION_DEFS.find((d) => d.key === key)
       || SECTION_DEFS.flatMap((d) => d.children || []).find((c) => c.key === key);
@@ -300,6 +308,9 @@ export async function createStudio(
   // THE OWNER'S CHOICE, checked before anything is claimed, so a refused
   // choice costs no slug and writes no row.
   const choice = sections === undefined ? null : resolveSectionChoice(sections, studioSetupCatalogue());
+  // The sections /super holds back as still being built. Read once, here; the
+  // create screen did not ask about them (studioSetupScreen).
+  const heldBack = hiddenDefKeys(await readReleaseLocks());
   if (choice?.error) return { error: choice.error, detail: choice.detail };
 
   // The default package id is needed BEFORE anything is claimed — it is what
@@ -385,7 +396,19 @@ export async function createStudio(
     // and is one switch away in Studio settings.
     // Without an answer from the screen, the INDUSTRY'S PROFILE decides where
     // there is one, and the old trade gating only for a studio without one.
-    const onRoots = choice ? choice.roots : profiled ? industryRoots(profiled) : tradeRootsFor(trade);
+    const suggestedRoots = profiled ? industryRoots(profiled) : tradeRootsFor(trade);
+    const onRoots = choice ? new Set(choice.roots) : suggestedRoots;
+    // A SECTION HELD BACK AS STILL BEING BUILT was never asked about, so the
+    // owner's answer says nothing about it: it takes the industry's suggestion,
+    // which is what the studio meets the day the lock lifts. Hidden meanwhile —
+    // the lock is applied on read, whatever is stored here.
+    if (choice && onRoots) {
+      for (const key of studioSetupCatalogue().roots) {
+        if (!heldBack.has(key)) continue;
+        if (!suggestedRoots || suggestedRoots.has(key)) onRoots.add(key);
+        else onRoots.delete(key);
+      }
+    }
     const offChildren = choice ? choice.offChildren : new Set<string>();
     const gate = (key: string, rootKey: string) => {
       if (offChildren.has(key)) return false;

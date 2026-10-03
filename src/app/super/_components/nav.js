@@ -70,6 +70,7 @@ export const CONSOLE_GROUPS = [
     label: "Product",
     items: [
       { href: `${BASE}/industries`, label: "Industries", icon: "building" },
+      { href: `${BASE}/sections`, label: "Sections", icon: "layers" },
       { href: `${BASE}/erp-settings`, label: "ERP settings", icon: "gears" },
       { href: `${BASE}/nova`, label: "Nova", icon: "star" },
     ],

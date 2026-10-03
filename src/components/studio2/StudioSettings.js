@@ -563,8 +563,10 @@ function ConfirmDelete({ name, onClose, onConfirm }) {
 function SectionRow({ row, depth, tr, kids, canManage, busy, failed, onToggle }) {
   // A section with no screen can be turned OFF (tidying is allowed) and not back
   // ON, which is exactly what the route refuses.
-  const locked = row.required || (row.noScreen && !row.enabled);
-  const note = row.required ? tr.sectionsRequired : row.noScreen ? tr.sectionsNotReady : "";
+  // A section still being built (/super → Sections) is held off for every
+  // studio: shown, so nobody wonders where it went, and not switchable.
+  const locked = row.required || row.inDevelopment || (row.noScreen && !row.enabled);
+  const note = row.required ? tr.sectionsRequired : row.inDevelopment ? tr.sectionsInDevelopment : row.noScreen ? tr.sectionsNotReady : "";
   const children = depth ? [] : (kids.get(row.id) || []);
   const [open, setOpen] = useState(false);
   const panelId = `section-kids-${row.id}`;

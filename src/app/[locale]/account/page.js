@@ -5,6 +5,7 @@ import { currentUser, currentSession, needsQuestionnaire } from "@/platform/auth
 import AccountHome from "@/components/public/AccountHome";
 import { studioSetupScreen, getStudioById } from "@/modules/main/studios";
 import { readIndustries } from "@/lib/data/industries";
+import { hiddenDefKeys, readReleaseLocks } from "@/platform/db/releaseLocks";
 import { listCatalog } from "@/lib/data/catalog";
 import { INTENT_COOKIE, openIntent, intentOnSale } from "@/platform/auth/purchaseIntent";
 
@@ -46,7 +47,7 @@ export default async function AccountPage({ params, searchParams }) {
   // registry, which has no business in the account page's bundle.
   // The industries as the console left them (/super → Industries), so the
   // create screen offers exactly what a new studio may choose.
-  const setup = studioSetupScreen(locale, await readIndustries());
+  const setup = studioSetupScreen(locale, await readIndustries(), hiddenDefKeys(await readReleaseLocks()));
   // THE PACKAGE CHOSEN ON THE PRICING PAGE, if it is still on sale — the signed
   // cookie (platform/auth/purchaseIntent), checked against the catalogue as it
   // is now. Handed to studio creation to pre-select its Plan step; it opens

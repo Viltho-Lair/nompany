@@ -16,6 +16,7 @@ import { readArr, editArr } from "./store";
 import type { Row } from "./store";
 import * as R from "./redisRows";
 import * as P from "./pgRows";
+import { applyLocks, readReleaseLocks } from "./releaseLocks";
 import { emit, TYPE } from "@/platform/realtime/events";
 import { keysetFor, sealingConfigured } from "./sealing";
 import { isSealed, isSealedField, openRow, rowNeedsSealing, sealRow, tokenKeyId } from "./sealCipher";
@@ -154,9 +155,16 @@ export async function listSections(studioId: string): Promise<Section[]> {
   // up-to-date studio — every studio, almost always — pays nothing extra; a short
   // one pays one guarded write, once. `sectionsAsStored` is the reader that must
   // not write (the migration script's dry run).
-  const rows = await readArr<Section>(S.sections(studioId));
-  if (!isComplete(rows)) return plantMissingSections(studioId, rows);
-  return [...rows].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  // The release locks are read beside the rows, not after them: a cached
+  // document (platform/db/releaseLocks), so this costs nothing on most requests.
+  const [rows, locks] = await Promise.all([readArr<Section>(S.sections(studioId)), readReleaseLocks()]);
+  const ordered = isComplete(rows)
+    ? [...rows].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    : await plantMissingSections(studioId, rows);
+  // SECTIONS STILL BEING BUILT read as switched off, on a COPY: the studio's own
+  // switch is untouched underneath, and every rule that honours the switch
+  // (sidebar, API refusal, widgets) hides them with nothing new. See releaseLocks.
+  return applyLocks(ordered, locks, studioId);
 }
 
 // SEEDED SECTIONS A STUDIO DOES NOT HAVE YET — called by `listSections` on every
