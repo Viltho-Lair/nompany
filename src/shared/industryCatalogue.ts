@@ -1,5 +1,5 @@
 import { FIELDS_OF_WORK } from "./fieldsOfWork";
-import { departmentsForField, departmentSeedProblems, type DepartmentSeed } from "./departments/starters";
+import { UNIVERSAL_DEPARTMENTS, departmentsForField, departmentSeedProblems, type DepartmentSeed } from "./departments/starters";
 import { withNeeds } from "./tradeSections";
 
 // WHAT A COMPANY SAYS IT DOES, IN TWO LEVELS — the owner, 29/09/2026: "i want
@@ -281,23 +281,45 @@ const LEADS_AR: Record<string, string> = {
 // switched on 10 to 18 of the 18 departments everywhere, so a bank "started
 // with" Point of Sale and a restaurant with Tendering. These are the few a
 // company of the kind leans on first; the console edits them.
+// WIDENED 03/10/2026 from the requirements study (seven industries against
+// the code): construction lacked Inventory and Quotations, facility services
+// Quality & HSE, Procurement and Quotations, energy Tendering and Inventory,
+// manufacturing Engineering & Documents, Quotations and Logistics, transport
+// Quotations and Procurement — each a department those companies run daily.
 const FOCUS: Record<string, readonly string[]> = {
-  "construction-real-estate": ["tendering", "projects", "engineering-docs", "procurement", "assets", "quality-hse", "finance"],
-  manufacturing: ["manufacturing", "inventory", "procurement", "quality-hse", "maintenance", "crm-sales", "finance"],
-  "energy-utilities": ["projects", "field-service", "assets", "maintenance", "quality-hse", "procurement", "finance"],
+  "construction-real-estate": ["tendering", "quotations", "projects", "engineering-docs", "procurement", "inventory", "assets", "quality-hse", "finance"],
+  manufacturing: ["manufacturing", "inventory", "procurement", "quality-hse", "maintenance", "crm-sales", "quotations", "engineering-docs", "logistics", "finance"],
+  "energy-utilities": ["tendering", "projects", "field-service", "assets", "maintenance", "quality-hse", "procurement", "inventory", "finance"],
   "trading-distribution": ["crm-sales", "quotations", "procurement", "inventory", "logistics", "finance"],
   "retail-ecommerce": ["pos", "inventory", "crm-sales", "marketing", "finance"],
   hospitality: ["pos", "inventory", "procurement", "hr", "finance"],
-  "transport-logistics": ["logistics", "inventory", "field-service", "maintenance", "finance"],
+  "transport-logistics": ["logistics", "quotations", "procurement", "inventory", "field-service", "maintenance", "finance"],
   healthcare: ["hr", "inventory", "procurement", "assets", "maintenance", "quality-hse", "finance"],
   "professional-services": ["crm-sales", "quotations", "projects", "hr", "finance"],
   technology: ["crm-sales", "quotations", "projects", "field-service", "inventory", "maintenance", "finance"],
   "financial-services": ["crm-sales", "marketing", "hr", "finance", "reports"],
   education: ["hr", "procurement", "assets", "finance", "reports"],
   "media-events": ["crm-sales", "quotations", "projects", "procurement", "logistics", "finance"],
-  "facility-field-services": ["maintenance", "field-service", "inventory", "hr", "finance"],
+  "facility-field-services": ["maintenance", "field-service", "quotations", "procurement", "inventory", "quality-hse", "hr", "finance"],
   agriculture: ["inventory", "procurement", "crm-sales", "logistics", "assets", "finance"],
   "public-nonprofit": ["finance", "procurement", "hr", "assets", "reports"],
+};
+
+// AN INDUSTRY WHOSE TEMPLATE FIELD'S CHART DOES NOT FIT ITS SPECIALISMS. The
+// org chart normally comes from the field most of an industry's specialisms
+// share, and for Professional Services that is "Professional, Scientific &
+// Technical Services" — an ENGINEERING firm's chart (Engineering & Design,
+// Surveying & Site Services, Laboratory & Testing), which is what an accounting
+// or law firm was seeded with until 03/10/2026. A neutral professional-firm
+// chart instead; the console edits it like any profile.
+const DEPARTMENTS_OVERRIDE: Record<string, readonly DepartmentSeed[]> = {
+  "professional-services": [
+    { name: "Client Service & Delivery", code: "DEL", parent: "", sectionKeys: ["projects"] },
+    { name: "Practice Groups", code: "PRC", parent: "DEL", sectionKeys: ["projects"] },
+    { name: "Business Development", code: "BD", parent: "", sectionKeys: ["crm-sales", "quotations", "marketing"] },
+    { name: "Quality & Risk", code: "QR", parent: "", sectionKeys: [] },
+    ...UNIVERSAL_DEPARTMENTS,
+  ],
 };
 
 /** The part of every company: selling, people, money and the reports on them. */
@@ -320,7 +342,9 @@ function builtInIndustry(b: BuiltIn): Industry {
     locked: false,
     profile: {
       sections: [...withNeeds([...(FOCUS[b.key] || []), ...BACK_OFFICE])],
-      departments: departmentsForField(primaryField(b)),
+      departments: DEPARTMENTS_OVERRIDE[b.key]
+        ? DEPARTMENTS_OVERRIDE[b.key].map((d) => ({ ...d, sectionKeys: [...d.sectionKeys] }))
+        : departmentsForField(primaryField(b)),
     },
     specialisms: b.specialisms.map((sp) => ({ ...sp, flow: "", active: true })),
     builtIn: true,

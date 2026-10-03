@@ -379,8 +379,13 @@ type editor: `origin: "builtin"` is what stops a studio editing a seeded type, a
 route creates, edits or deletes a `recordTypes` row at all. A type is added by shipping
 code today.
 
-**Three built-in types exist** — `transmittal`, `rfi` and `submittal`, all seeded at
-studio creation under Engineering & Documents. The second and third are phase 2, and they
+**Twenty-six built-in types exist** (counted in `src/platform/engine/builtins.ts`, 03/10/2026;
+this said three long after the rest shipped): transmittal, RFI, submittal, engineering BOM and
+technical library under Engineering & Documents; NCR, audit, incident, toolbox talk, inspection
+plan, test report and certification under Quality & HSE; equipment and calibration under Assets;
+installed units under Field Operations; delivery, trip and vehicle under Logistics; work order,
+BOM, station and batch under Manufacturing; candidate, appraisal and course under HR; stocktake
+under Inventory. The first three were the original proof: The second and third are phase 2, and they
 are here to answer what one type could not: whether the DECLARATION is general, or whether
 it was quietly shaped around transmittals.
 

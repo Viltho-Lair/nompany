@@ -178,8 +178,10 @@ request.
   rows placed one by one keep printing as they did, duplicates included.
 - **The picker labels individual official fields in English**, in both languages; the
   composite line prints in the document's language.
-- **No ZATCA QR or e-invoice XML.** The values are ready for them; the QR waits on the
-  open decision in `progress.md`.
+- **The ZATCA QR and the e-invoice XML are built — in `einvoicing.md`, not here** (corrected
+  03/10/2026; this line said neither existed). What is still missing there: Saudi standard (B2B)
+  invoices, credit and debit notes, and submission, which waits on the owner's decision recorded
+  in `progress.md`.
 - **Some department rules are still code, because they are algorithms rather than
   figures**: the WPS `.SIF` layout, Saudi GOSI's per-person splits, and the end-of-service
   arithmetic all stay in `modules/hr/statutory.ts`. The figures they run on are in the

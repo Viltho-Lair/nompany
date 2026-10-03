@@ -29,8 +29,9 @@ and the offers, which `pos-promotions` owns (`promotions.md`);
 
 **Marketing is the eighteenth department (19/09/2026)** — `marketing` (its dashboard) and
 `marketing-campaigns`, which owns `marketingCampaigns`. The owner's plan has seventeen
-subsections; only Campaigns has a screen, so only Campaigns is declared, and the rest join as
-their screens ship. It is on for every trade by default (`UNIVERSAL_SECTION_KEYS`) and asked
+subsections; each joins as its screen ships, and eight have (campaigns, forms, budget & spend,
+planning & calendar, audiences & consent, events & webinars, content & brand assets, partners &
+influencers — counted 03/10/2026; this said "only Campaigns" long after it stopped being true). It is on for every trade by default (`UNIVERSAL_SECTION_KEYS`) and asked
 about at creation. `docs/functionality/marketing.md` has the rest.
 
 **An existing studio gains a new section by itself** — the owner's instruction, 11/09/2026:
@@ -54,24 +55,29 @@ holds everything, and every other role is ticked by hand. Without it the sidebar
 `/<slug>` lands on the first section the person may open, and `GET /main` answers 403.
 Engagements and Nova share Main's context and are not behind the right.
 
+**REFRESHED 03/10/2026** from the feature docs and the studio router; screens were not opened.
+It said Tendering, Manufacturing, Assets, Quality & HSE and Reports were "not built yet" and that
+CRM had no pipeline, weeks after each had shipped. Sections still being completed can be held
+back from every studio in /super → Sections (`docs/functionality/section-locks.md`).
+
 | Section | Owns | State |
 |---|---|---|
-| CRM & Sales | tickets, clients, **contracts**, **point of sale** (full-screen, owns its tills, shifts and receipts — `pos.md`), live view, settings — and, filed-only, the rows the Quotations department reads | Partial — no pipeline, customer 360 or catalog |
+| CRM & Sales | pipeline, tickets, customers (with customer 360), customer insights, contracts, sales orders, live view, settings — and, filed-only, the rows Quotations and Point of Sale read | Working — sales orders do not invoice (`sales-orders.md`) |
 | Quotations (13/09/2026) | **RFQs** (the intake desk), **quotations**, live view, settings — see `quotations.md` | Working |
-| Tendering & Estimating | — | **Not built yet** |
+| Tendering & Estimating | tender register (bill of quantities, tender pack, clarifications, bid review, handover), rate library | Working — estimating is thin (`boq.md`) |
 | Projects | project list, SLA, overtimes, **planner**, settings | Working |
 | Engineering & Documents | **document register** (and the engine registers planted under it) | Working |
-| Procurement & Subcontracting | suppliers | Partial — suppliers only |
+| Procurement & Subcontracting | requisitions, purchase orders, supplier quotes, expediting, subcontracts, receiving, suppliers | Working — a supplier award raises no order; a subcontract certificate never reaches Payables |
 | Inventory & Warehouse | stock, items, project sheets, deliveries | Working |
-| Manufacturing & Production | — | **Not built yet** |
+| Manufacturing & Production | production planning (MRP), shop floor; work order, BOM, station and batch registers | Partial — no material issue or finished-goods receipt (`production-planning.md`, `shop-floor.md`) |
 | Field Operations & Service | schedule, tracking, settings, shifts, permits | Working |
-| Logistics & Fleet | shipments (AWB) | Partial — waybills only |
-| Assets & Equipment | — | **Not built yet** |
-| Quality & HSE | — | **Not built yet** |
+| Logistics & Fleet | air waybills, landed cost; delivery, trip and vehicle registers | Partial — air only, no customs or job file |
+| Assets & Equipment | plant allocation; equipment and calibration registers | Partial — overlaps Maintenance → Machines |
+| Quality & HSE | permits; safety; NCR, audit, incident, toolbox, inspection-plan, test-report and certification registers | Working |
 | Human Resources | employees, certifications, vacations | Working |
 | Finance & Accounting | cash, ledger, payables, assets, settings | Working |
-| Reports & BI | — | **Not built yet** |
-| Administration & Settings | **People**, **Access**, **Master data**, studio settings | Partial — master data holds locations only |
+| Reports & BI | data exports, report builder, executive board | Working |
+| Administration & Settings | **People**, **Access**, **Master data** (locations, departments), studio settings | Working |
 
 **QUOTATIONS IS ITS OWN DEPARTMENT SINCE 13/09/2026** (`docs/functionality/quotations.md`), on the
 owner's word that a quotation is engineering work Sales asks for. What follows is the history it
@@ -387,8 +393,8 @@ Stated in words, because a silent gap reads as a finished feature.
 (Two bullets that stood here — that five sections have no screens, and that Procurement holds only
 the supplier master — were removed on 17/09/2026: `NO_SCREEN_YET` is empty, and Procurement has
 requisitions, orders, supplier RFQs, expediting, subcontracts, receiving and suppliers.)
-- **Logistics holds only waybill tracking.** Trips, fleet register, customs files and landed cost
-  are not built.
+- **Logistics is air waybills, landed cost and three generic registers** (deliveries, trips,
+  vehicles). Sea and road shipments, customs files and a forwarding job file are not built.
 - **Master data is locations and nothing else.** Currencies, units of measure, numbering series,
   cost codes, the industry taxonomy and the flow templates all belong there on the blueprint.
   Four of those already exist and live in Studio settings — relocating a working screen is a
