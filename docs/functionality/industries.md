@@ -32,8 +32,9 @@ code's version**, the shape ERP settings' trades table had before it was retired
   website: it leaves the list and the sitemap, and its page is a 404. **A studio that already
   chose it keeps working**, and may save its own answer again.
 - **Specialisms**, each with a name in both languages, its own active switch, and the
-  **setup template**: the field of work its service actions, role library and deal flow start
-  from. A saved specialism is switched off, never removed, because studios hold its key.
+  **setup template**: the field of work its role library and deal flow start
+  from (it seeded a service-action pool too, until service actions were removed on
+  03/10/2026). A saved specialism is switched off, never removed, because studios hold its key.
 - **The profile**:
   - **sections**: the departments a new studio starts with. They are **pre-filled** on the
     create screen, and the owner can still say yes to any other there or switch more on later
@@ -128,13 +129,12 @@ added industry is switched off, and a built-in may be reverted.
 The owner's rule: "current studios will need to update their fields". Nothing is migrated.
 A studio that has an old field and no specialism (`needsIndustry`, which counts any stored key as an answer so the layout never reads the catalogue) keeps working exactly as
 before and sees, above every screen, *"Choose your industry from the new list"*, linking to
-Studio settings → Service actions (`#industry`). That section opens itself and offers the
+Studio settings → Industry (`#industry`). That section opens itself and offers the
 specialism with the **same setup** as the studio's current field (`suggestedIndustry`).
 
-- **Same setup: one click, nothing else moves.** The pool is not re-seeded, so a studio's own
-  edits to its service actions survive the answer.
-- **A different setup** goes through the confirm dialog that already existed. It lists what the
-  pool gains and loses before anything is written.
+- **Choosing saves at once.** Nothing is re-seeded by the choice (a service-action pool was,
+  until 03/10/2026), so there is nothing to confirm; the Sections panel then offers the
+  industry's departments as a checklist, applied only when somebody presses Apply.
 - **Only people holding `administration.settings.edit` see the alert.** A member who cannot act
   on it would only be nagged about somebody else's decision.
 - **A studio that chose nothing** ("I'll set this up later") is not asked. It skipped the
@@ -156,8 +156,7 @@ filtering. Every existing dropdown carries no group and is unchanged.
   profile to an existing studio, by design; the Sections panel is where one switches off what it
   does not use.
 - **The profile is per industry, not per specialism.** A pharma company under Healthcare gets
-  Healthcare's sections and org chart. Service actions, roles and the deal flow do follow the
-  specialism's template.
+  Healthcare's sections and org chart. Roles and the deal flow do follow the specialism's template.
 - **History is capped at 50 versions per industry.** Older ones fall off; nothing warns first.
 - **The registration questionnaire and the company profile still ask their own industry**
   from `src/lib/industries.ts`, a third list with its own wording. It should be folded into

@@ -181,7 +181,7 @@ export function computeTotals(items: unknown, vatRate: unknown, currency: unknow
 // INTERNAL quotation, raised with nothing behind it.
 const NO_TICKET = {
   ticketRef: "", title: "", clientId: "", clientName: "", urgency: "",
-  industry: "", serviceIds: [], deadline: "", ticketDescription: "",
+  industry: "", deadline: "", ticketDescription: "",
 };
 
 // Returns the per-ticket resolver AND the raw clientsById map, so a caller that
@@ -209,7 +209,6 @@ export async function ticketFacts({ studio, salesTicketsSection, salesClientsSec
       clientName: nameById.get(t.clientId) || "",
       urgency: t.urgency || "",
       industry: t.industry || "",
-      serviceIds: Array.isArray(t.serviceIds) ? t.serviceIds : [],
       deadline: t.deadline || "",
       // For a row that did not write its own wording.
       ticketDescription: t.description || "",
@@ -232,7 +231,7 @@ export async function listRfqs(ctx: TechnicalContext) {
         ticketRef: t.ticketRef, title: t.title,
         clientId: t.clientId, clientName: t.clientName,
         urgency: t.urgency, industry: t.industry,
-        serviceIds: t.serviceIds, deadline: t.deadline,
+        deadline: t.deadline,
         // The ONE field that is genuinely the RFQ's when somebody typed one:
         // asking Technical for something other than what the ticket says is the
         // point of the box. Empty means nobody did, so the ticket speaks.
@@ -717,7 +716,7 @@ export async function listQuotations(ctx: TechnicalContext) {
       return {
         ...q,
         title: t.title, clientId: t.clientId, clientName: t.clientName,
-        urgency: t.urgency, industry: t.industry, serviceIds: t.serviceIds,
+        urgency: t.urgency, industry: t.industry,
         // Both names answer the same question, so both carry — the table reads
         // one and the RFQ screen the other, and a row where they disagree is a
         // row that shows two handlers for one document.

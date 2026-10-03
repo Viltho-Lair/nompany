@@ -15,8 +15,8 @@ import { settingsDict } from "@/shared/studio/settings";
 import { fmtDate } from "@/lib/format";
 import { Field } from "@/components/fields/Field";
 import SelectMenu from "@/components/fields/SelectMenu";
-import { actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
-import { OTHER_INDUSTRY, fieldForIndustry, industryLabel, industryOptions } from "@/shared/industryPick";
+import { OTHER_FIELD } from "@/shared/fieldsOfWork";
+import { OTHER_INDUSTRY, industryLabel, industryOptions } from "@/shared/industryPick";
 import { useStudioLocale } from "@/components/studio2/locale";
 import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
 import SettingsFold from "@/components/studio2/SettingsFold";
@@ -401,13 +401,12 @@ export default function StudioSettings({ slug, locale = "en", initial }) {
         tr={tr}
       />
 
-      {/* Its own fetch/save cycle against the dedicated service-actions route —
-          the general settings PUT above no longer accepts `serviceActions` at
-          all, so this section cannot share the parent's `save`. */}
-      <ServiceActions slug={slug} onTradeSaved={load} />
+      {/* Its own fetch/save cycle against the industry route — the general
+          settings PUT does not write the trade. */}
+      <IndustrySetting slug={slug} onTradeSaved={load} />
 
       {/* THE DEAL FLOWS (Law 2). Its own fetch/save cycle against the flows
-          route, for the same reason ServiceActions has one: the general
+          route, for the same reason IndustrySetting has one: the general
           settings PUT does not accept templates, and a refused flow carries a
           reason that has to reach the screen intact. `tr` is handed down as a
           prop rather than read from the words context above — that context is
@@ -664,7 +663,7 @@ function TradeChecklist({ choices, nameOf, busy, failed, onApply }) {
 // because the product ships fifteen sections and assumed all fifteen applied.
 //
 // It has its own PUT (one section at a time) rather than joining the general
-// settings save, for the reason ServiceActions and the flow editor have theirs:
+// settings save, for the reason IndustrySetting and the flow editor have theirs:
 // the write refuses three sections by name and every section with no screen,
 // and a refusal has to reach the row it belongs to rather than the page banner.
 //
@@ -816,31 +815,29 @@ function LegalInfo({ rows, canManage, onSave }) {
   );
 }
 
-// SERVICE ACTIONS — the things this company DOES to finish a job (Delivery,
-// Installation, Programming, Building, Assembling, …). Seeded from the studio's
-// field of work against the market's fixed 25-field × 20-action matrix
-// (`@/shared/fieldsOfWork`), not freely typed: a deal's services are
-// chosen from the pool this section edits, and a project's requirement weights
-// are keyed to it. This section owns a fetch/save cycle onto the DEDICATED
-// `.../settings/service-actions` route — the general settings PUT stopped
-// accepting `serviceActions` once that route existed, so sharing the parent
-// `save` here would 400 on every change (see the route's own comment).
-function ServiceActions({ slug, onTradeSaved }) {
+// THE STUDIO'S INDUSTRY — the specialism it chose from the console's catalogue
+// (/super → Industries), and through it the field of work its departments and
+// deal flows start from. Its own fetch/save cycle onto `.../settings/industry`,
+// because the general settings PUT does not write the trade.
+//
+// SERVICE ACTIONS ARE GONE (03/10/2026, the owner): the twenty-action pool this
+// panel used to edit is removed from studios, tickets and items. Changing the
+// industry re-seeds nothing now, so it saves at once — the confirm dialog
+// existed to show which actions a change would add and retire.
+function IndustrySetting({ slug, onTradeSaved }) {
   const tr = useT();
   const locale = useStudioLocale();
   const router = useRouter();
-  const [data, setData] = useState(null); // GET body: fieldOfWork, serviceActions, usage, options, canManage…
+  const [data, setData] = useState(null); // GET body: industry, fieldOfWork, industries, canManage…
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   // The "Other" free-typed label, edited apart from `data` so typing does not
-  // get clobbered by the field-of-work refresh until it is explicitly saved.
+  // get clobbered by a refresh until it is explicitly saved.
   const [otherDraft, setOtherDraft] = useState("");
-  const [confirmField, setConfirmField] = useState(null); // { next, added, leaving }
-  const [confirmRetire, setConfirmRetire] = useState(null); // { action, count }
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/studios/${slug}/settings/service-actions`, { cache: "no-store" });
+    const res = await fetch(`/api/studios/${slug}/settings/industry`, { cache: "no-store" });
     if (res.ok) {
       const d = await res.json();
       setData(d);
@@ -861,12 +858,9 @@ function ServiceActions({ slug, onTradeSaved }) {
     document.getElementById("industry")?.scrollIntoView({ block: "start" });
   }, [data]);
 
-  // One writer for both kinds of edit, so a saved pool is always re-read from
-  // the server rather than assumed — `nextPool` decides retire-vs-drop, this
-  // component does not guess it.
   async function put(patch) {
     setBusy(true); setError("");
-    const res = await fetch(`/api/studios/${slug}/settings/service-actions`, {
+    const res = await fetch(`/api/studios/${slug}/settings/industry`, {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
     });
     setBusy(false);
@@ -875,64 +869,17 @@ function ServiceActions({ slug, onTradeSaved }) {
     setData(d);
     setOtherDraft(d.fieldOfWorkOther || "");
     // THE TRADE MOVED, so the Sections panel's offer is stale: it rides on the
-    // page's own settings read, which this component does not share. Without
-    // this the offer appeared only after a full reload — which is exactly how a
-    // trade change came to read as "the matrix did nothing".
-    if (patch.fieldOfWork !== undefined || patch.industry !== undefined) onTradeSaved?.();
+    // page's own settings read, which this component does not share.
+    onTradeSaved?.();
     // The "choose your industry" line above every screen is drawn by the
     // server layout, so it stays until the layout is asked again.
-    if (patch.industry !== undefined) router.refresh();
+    router.refresh();
     return true;
   }
 
-  // Nothing writes yet — the confirm dialog shows what would change first, using
-  // the matrix constant locally (no round trip needed to preview it) and `usage`
-  // already on hand from the GET.
-  // A SPECIALISM IS CHOSEN, not a field of work. When it starts from the
-  // template the studio already has, nothing about the setup moves, so it saves
-  // at once — that is how a studio answering "choose your new industry" with
-  // the suggestion is done in one click. A different template re-seeds the
-  // pool, which is what the confirm dialog exists to show first.
   function requestIndustryChange(industry) {
     if (!data || !industry || (industry === data.industry && !data.needsIndustry)) return;
-    const next = fieldForIndustry(data.industries, industry);
-    if (next === data.fieldOfWork && industry !== OTHER_INDUSTRY) { put({ industry }); return; }
-    requestFieldChange(next, industry);
-  }
-
-  function requestFieldChange(next, industry) {
-    if (!data || !next) return;
-    const nextActive = actionsForField(next);
-    const added = nextActive.filter((a) => !data.serviceActions.includes(a));
-    const leaving = data.serviceActions
-      .filter((a) => !nextActive.includes(a))
-      .map((a) => ({ action: a, count: data.usage[a] || 0 }));
-    setConfirmField({ next, industry, added, leaving });
-  }
-
-  async function confirmFieldChange(otherLabel) {
-    if (!confirmField) return;
-    const ok = await put({
-      industry: confirmField.industry,
-      fieldOfWorkOther: confirmField.next === OTHER_FIELD ? otherLabel : "",
-    });
-    if (ok) setConfirmField(null);
-  }
-
-  function toggleAction(action, checked, count) {
-    // Unticking something already relied on asks first — the pool drops it,
-    // but a deal that already names it keeps working either way; the studio
-    // just stops being offered it for NEW work, and should know that going in.
-    if (checked && count > 0) { setConfirmRetire({ action, count }); return; }
-    const next = checked ? data.serviceActions.filter((a) => a !== action) : [...data.serviceActions, action];
-    put({ serviceActions: next });
-  }
-
-  async function confirmRetireAction() {
-    if (!confirmRetire) return;
-    const next = data.serviceActions.filter((a) => a !== confirmRetire.action);
-    const ok = await put({ serviceActions: next });
-    if (ok) setConfirmRetire(null);
+    put({ industry, fieldOfWorkOther: industry === OTHER_INDUSTRY ? otherDraft : "" });
   }
 
   if (loading) {
@@ -994,155 +941,7 @@ function ServiceActions({ slug, onTradeSaved }) {
           )}
         </div>
       )}
-
-      <div className="mt-5">
-        <p className="text-[11px] font-600 uppercase tracking-wide text-slate-400">{tr.standardActions}</p>
-        <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
-          {data.options.actions.map((action) => {
-            const checked = data.serviceActions.includes(action);
-            const count = data.usage[action] || 0;
-            return (
-              <label
-                key={action}
-                className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-slate-700 dark:text-slate-200 ${data.canManage ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-white/5" : "cursor-default"}`}
-              >
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 shrink-0 accent-brand-600"
-                  checked={checked}
-                  disabled={!data.canManage || busy}
-                  onChange={() => toggleAction(action, checked, count)}
-                />
-                <span className="min-w-0 flex-1 truncate">{action}</span>
-                {count > 0 && (
-                  <span className="shrink-0 font-mono text-xs tabular-nums text-slate-400" title={tr.referencedBy(count)}>
-                    {count}
-                  </span>
-                )}
-              </label>
-            );
-          })}
-        </div>
-      </div>
-
-      {data.retiredServiceActions.length > 0 && (
-        <p className="mt-4 text-xs text-slate-400">
-          {tr.retiredStill}{data.retiredServiceActions.join("، ")}
-        </p>
-      )}
-
-      {confirmField && (
-        <ConfirmFieldChange
-          from={data.fieldOfWork}
-          to={confirmField.next}
-          toLabel={confirmField.industry === OTHER_INDUSTRY ? tr.industryOther : industryLabel(data.industries, confirmField.industry, locale)}
-          added={confirmField.added}
-          leaving={confirmField.leaving}
-          busy={busy}
-          onClose={() => setConfirmField(null)}
-          onConfirm={confirmFieldChange}
-        />
-      )}
-
-      {confirmRetire && (
-        <ConfirmRetireAction
-          action={confirmRetire.action}
-          count={confirmRetire.count}
-          busy={busy}
-          onClose={() => setConfirmRetire(null)}
-          onConfirm={confirmRetireAction}
-        />
-      )}
     </SettingsFold>
-  );
-}
-
-// Shown BEFORE a field-of-work change is sent — the pool reseeds from the new
-// field's matrix row, so whoever picks it should see what that means before it
-// happens rather than discover it afterwards.
-function ConfirmFieldChange({ to, toLabel, added, leaving, busy, onClose, onConfirm }) {
-  const tr = useT();
-  const [otherLabel, setOtherLabel] = useState("");
-  const panelRef = useRef(null);
-  useFocusTrap(panelRef, true);
-  useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label={tr.changeFieldAria}>
-      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div ref={panelRef} className="relative w-full max-w-[480px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
-        <div className="px-6 pt-6">
-          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{tr.switchTo(toLabel || to)}</h3>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{tr.reseedsFrom(toLabel || to)}</p>
-          {added.length > 0 && (
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-              <strong className="text-slate-900 dark:text-white">{tr.adds}</strong> {added.join("، ")}
-            </p>
-          )}
-          {leaving.length > 0 && (
-            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-              <strong className="text-slate-900 dark:text-white">{tr.leavesPool}</strong>{" "}
-              {leaving.map(({ action, count }, i) => (
-                <span key={action}>
-                  {i > 0 && "، "}
-                  {action}
-                  {count > 0
-                    ? <span className="text-amber-700 dark:text-amber-300">{tr.retiredWithCount(count)}</span>
-                    : <span className="text-slate-400">{tr.unusedRemoved}</span>}
-                </span>
-              ))}
-            </p>
-          )}
-          {to === OTHER_FIELD && (
-            <div className="mt-4">
-              <Field label={tr.ownLabel} value={otherLabel} onChange={setOtherLabel} />
-            </div>
-          )}
-        </div>
-        <div className="flex gap-3 px-6 pb-6 pt-5">
-          <button className={BTN} disabled={busy} onClick={() => onConfirm(otherLabel)}>{busy ? tr.saving : tr.confirm}</button>
-          <button className={BTN_GHOST} onClick={onClose}>{tr.cancel}</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Shown before unticking an action still referenced by inventory items — the
-// pool edit itself is "soft": the action leaves what new work is offered, but
-// nothing already scoped to it changes (`nextPool` retires rather than drops).
-function ConfirmRetireAction({ action, count, busy, onClose, onConfirm }) {
-  const tr = useT();
-  const panelRef = useRef(null);
-  useFocusTrap(panelRef, true);
-  useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label={tr.retireAria}>
-      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div ref={panelRef} className="relative w-full max-w-[440px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
-        <div className="px-6 pt-6">
-          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{tr.retireTitle(action)}</h3>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{tr.retireBody(count)}</p>
-        </div>
-        <div className="flex gap-3 px-6 pb-6 pt-5">
-          <button className={BTN} disabled={busy} onClick={onConfirm}>{busy ? tr.saving : tr.retire}</button>
-          <button className={BTN_GHOST} onClick={onClose}>{tr.cancel}</button>
-        </div>
-      </div>
-    </div>
   );
 }
 

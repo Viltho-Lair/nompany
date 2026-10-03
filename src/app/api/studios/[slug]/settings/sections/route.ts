@@ -4,7 +4,7 @@ import { NO_SCREEN_YET } from "@/platform/access";
 import { hiddenKeys, readReleaseLocks } from "@/platform/db/releaseLocks";
 import { moduleContext } from "@/modules/context";
 import { updateSection, REQUIRED_SECTIONS } from "@/platform/db/sections";
-import { tradeSuggestionFor, updateStudio } from "@/modules/main/studios";
+import { tradeSuggestionFor, updateStudio, studioIndustry } from "@/modules/main/studios";
 import type { Section } from "@/platform/db/sections";
 
 export const runtime = "nodejs";
@@ -139,10 +139,10 @@ export const POST = route(spec, async (c) => {
   if (c.body?.action !== "apply-trade") return { error: "action" };
 
   const all = c.sections || [];
-  // `fieldOfWork` rides on the studio record the context carries; `StudioRef`
+  // `industry` rides on the studio record the context carries; `StudioRef`
   // names only the fields every context needs, so it is read through here.
-  const field = String((c.studio as { fieldOfWork?: unknown }).fieldOfWork ?? "").trim();
-  const offer = tradeSuggestionFor(field, all);
+  const industryKey = String((c.studio as { industry?: unknown }).industry ?? "").trim();
+  const offer = tradeSuggestionFor(await studioIndustry(c.studio as { industry?: unknown }), all);
   if (!offer.choices.length) return { error: "nothing-to-apply" };
 
   const list = (v: unknown) => new Set(Array.isArray(v) ? v.map(String) : []);
@@ -163,12 +163,12 @@ export const POST = route(spec, async (c) => {
     if (await setBranch(c.studio.id, all, root, enabled)) changed.push({ key, enabled });
   }
 
-  // ANSWERED FOR THIS TRADE, so the settings read stops offering it. Without
+  // ANSWERED FOR THIS INDUSTRY, so the settings read stops offering it. Without
   // this the checklist came back on every visit the moment a studio kept one
   // extra section, because its switches would never again equal the trade's
   // set — the "cannot be dismissed" gap sections.md listed. Written even when
-  // nothing moved: applying the trade's set unchanged is still an answer. A
-  // different trade later is a different question, and the offer returns.
-  await updateStudio(c.studio.id, { sectionsTrade: field });
+  // nothing moved: applying the industry's set unchanged is still an answer. A
+  // different industry later is a different question, and the offer returns.
+  await updateStudio(c.studio.id, { sectionsTrade: industryKey });
   return { ok: true, changed };
 });

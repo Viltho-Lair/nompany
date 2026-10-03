@@ -31,8 +31,7 @@ and the offers, which `pos-promotions` owns (`promotions.md`);
 `marketing-campaigns`, which owns `marketingCampaigns`. The owner's plan has seventeen
 subsections; each joins as its screen ships, and eight have (campaigns, forms, budget & spend,
 planning & calendar, audiences & consent, events & webinars, content & brand assets, partners &
-influencers — counted 03/10/2026; this said "only Campaigns" long after it stopped being true). It is on for every trade by default (`UNIVERSAL_SECTION_KEYS`) and asked
-about at creation. `docs/functionality/marketing.md` has the rest.
+influencers — counted 03/10/2026; this said "only Campaigns" long after it stopped being true). It is asked about at creation, pre-ticked where the industry's profile names it. `docs/functionality/marketing.md` has the rest.
 
 **An existing studio gains a new section by itself** — the owner's instruction, 11/09/2026:
 "it is a system, it must take updates." `listSections`, the read every request passes through,
@@ -294,47 +293,51 @@ anything is claimed. `POST /api/studios` takes `sections: { roots, offChildren }
 
 `createStudio` then writes every row as before and switches on exactly the chosen roots, with a
 chosen root's parts on unless the owner unticked them. `sectionsTrade` is recorded, so the Sections
-panel does not immediately offer the trade's answer back to an owner who already gave their own.
+panel does not immediately offer the industry's answer back to an owner who already gave their own.
 
-**A caller that sends no `sections` keeps the old behaviour** — the trade decides alone — so a
-script or an older client is not refused.
+**A caller that sends no `sections`** gets the industry's profile, or every section when it named
+no industry — so a script or an older client is not refused.
 
-## A studio's trade suggests which sections it starts with — and, later, suggests again
+## A studio's industry suggests which sections it starts with — and, later, suggests again
 
-`createStudio` takes the studio's field of work and, when the owner sent no choice of their own,
-switches off the root sections that trade does not use (`shared/tradeSections`, joined with the
-trade's own flow templates). Since the create screen, this is what pre-fills the owner's answers.
-Every row is still written — only `enabled` differs — because a sub-section falls back to its root
-when absent, and planting one late strands the rows written before it.
+**The industry's profile is the one answer** (/super → Industries): the departments a new studio
+of that industry starts with, pre-filled on the create screen and offered again in Studio
+settings. `industryRoots` (`modules/main/studios.ts`) is the profile plus what never switches
+off (Main, Approvals) plus whatever those need (`SECTION_NEEDS`, `shared/tradeSections`).
+
+**Until 03/10/2026 it was DERIVED from the trade's service actions** — each of twenty actions
+resolved to one primary section, on top of eight departments every company was given, joined
+with the trade's flow template. Service actions were removed that day, and the derivation went
+with them (`tradeRootsFor`, `ACTION_SECTION`, `UNIVERSAL_SECTION_KEYS`). Studios created
+before keep the sections they were given: nothing re-applies anything.
+
+Every row is still written — only `enabled` differs — because a sub-section falls back to its
+root when absent, and planting one late strands the rows written before it.
 
 **That gate runs once, at creation, deliberately.** A section vanishing from a live sidebar
-overnight is a support ticket, not a courtesy, so changing the trade later in Studio settings
+overnight is a support ticket, not a courtesy, so changing the industry later in Studio settings
 switches nothing by itself. What it does instead is **offer**: when the studio's switches differ
-from what its trade uses, the Sections panel shows a **checklist of every section the trade may
-judge, the trade's own already ticked** — for Information Technology & Software, everything but
-Manufacturing and Logistics. The person ticks any others they want, unticks any they don't, and
-**Apply** sets exactly that; nothing changes until they press it. Departments makes the same
-kind of offer after a trade change, for the same reason.
+from its industry's profile, the Sections panel shows a **checklist of every section the profile
+may judge, the profile's own already ticked**. The person ticks any others they want, unticks
+any they don't, and **Apply** sets exactly that; nothing changes until they press it.
+Departments makes the same kind of offer after a change, for the same reason.
 
-**It was two read-only lines until 11/09/2026** — "Turn off: Manufacturing & Production,
-Logistics & Fleet" — and the owner read that as the product showing something other than the
-trade they had picked: it named only what would move, never the set the trade uses, and the
-route applied only what the trade suggested, so there was no way to keep an extra.
+**Once applied, it is not offered again for that industry.** The studio records the specialism
+its sections were last applied for (`sectionsTrade`, written by the apply route and by
+`createStudio`), and the settings read returns no offer while it matches the studio's
+specialism. It held the FIELD OF WORK until 03/10/2026, so a studio that answered before then is
+offered its industry's set once more.
 
-**Once applied, it is not offered again for that trade.** The studio records the trade its
-sections were last applied for (`sectionsTrade`, written by the apply route and by
-`createStudio`), and the settings read returns no offer while it matches the field of work.
-Changing the trade is a new question and brings the checklist back.
-
-- **One answer for both.** `tradeRootsFor` in `modules/main/studios.ts` is what `createStudio`
-  gates with and what the offer reads; `tradeSuggestion` in `shared/tradeSections` compares it
-  with the studio's rows. It is pure, and `tests/restructure.mjs` holds what it must never
-  propose.
+- **One answer for both.** `industryRoots` is what `createStudio` gates with and what the offer
+  reads (`tradeSuggestionFor`, through `studioIndustry`); `tradeSuggestion` in
+  `shared/tradeSections` compares it with the studio's rows. It is pure, and
+  `tests/restructure.mjs` holds what it must never propose and the floor every built-in profile
+  keeps.
 - **It never proposes a change the route would refuse**: nothing required, no system row,
   nothing with no screen switched on, and nothing the studio added itself.
-- **An unknown trade — none, "Other", or a name the matrix does not know — suggests nothing**,
+- **No industry — none, "Something else", or one the console has removed — suggests nothing**,
   and in particular not "turn everything back on": a studio that switched a section off without
-  naming its trade did it on purpose.
+  naming its industry did it on purpose.
 - **Applying is `POST /settings/sections` with `{ action: "apply-trade", on, shown }`**, on
   `administration.settings.edit`. `on` is every ticked section; every other choice goes off. The
   server recomputes which sections are choices, so a hand-made body cannot touch a required,
@@ -345,10 +348,9 @@ Changing the trade is a new question and brings the checklist back.
 ## Maintenance is the fifteenth (11/09/2026)
 
 `maintenance`, with `maintenance-requests` and `maintenance-orders`, placed after Assets &
-Equipment. The root holds no area; it is visible when a child is. "Maintenance & Repair"
-now switches it on for a trade, and `SECTION_NEEDS` (`shared/tradeSections`) brings Assets
-along, because a work order names a machine in the Assets register — without it,
-contractors and IT firms, which reached Assets only through that action, would have lost it.
+Equipment. The root holds no area; it is visible when a child is. `SECTION_NEEDS`
+(`shared/tradeSections`) brings Assets along with it, because a work order names a machine in
+the Assets register.
 Existing studios get the rows the first time they are opened after the deploy.
 `maintenance.md` is the file.
 
@@ -367,10 +369,11 @@ contract would be invisible.
 
 Stated in words, because a silent gap reads as a finished feature.
 
-- **An existing studio sees the checklist once even if its sections already suit it.** Nothing
-  recorded `sectionsTrade` before 11/09/2026, so a studio whose switches differ from its trade is
-  offered it until somebody presses Apply — after that, not again for that trade.
-- **Nothing points at the offer from where the trade is changed.** It sits in the Sections
+- **An existing studio sees the checklist once even if its sections already suit it.**
+  `sectionsTrade` recorded the field of work until 03/10/2026, so a studio whose switches differ
+  from its industry's profile is offered it until somebody presses Apply — after that, not again
+  for that industry.
+- **Nothing points at the offer from where the industry is changed.** It sits in the Sections
   panel; somebody has to scroll there to see it.
 
 - **The create screen asks once.** There is no way to run the questions again on an existing
@@ -386,9 +389,8 @@ Stated in words, because a silent gap reads as a finished feature.
 - **Parts are offered only one level down.** The engine registers planted under Quality & HSE and
   the other departments are created after the studio exists, so they cannot be chosen on the
   create screen; they follow their department.
-- **No department is ever suggested OFF for a studio whose field of work is unknown** — none,
-  "Other", or a name the matrix does not know. The screen starts with every department on and
-  the owner narrows it.
+- **No department is ever suggested OFF for a studio with no industry profile** — none, or
+  "Something else". The screen starts with every department on and the owner narrows it.
 
 (Two bullets that stood here — that five sections have no screens, and that Procurement holds only
 the supplier master — were removed on 17/09/2026: `NO_SCREEN_YET` is empty, and Procurement has

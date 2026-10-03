@@ -1,18 +1,20 @@
 # KPIs — what a deal's work is judged on
 
-A service action was a label and nothing else. A ticket named "Installation", the
-product knew the word, seeded a flow from it and stopped there — nothing could say
-whether the work behind it went well. This is the first thing that measures.
+Nothing in the product could say whether a deal's work went well. This is the first
+thing that measures.
+
+**Service actions were removed on 03/10/2026** (the owner: they are gone from studios,
+tickets and items). A KPI used to name the service action it measured; every
+declaration now measures every deal, until KPIs are keyed to the work types
+(`work-items.md`), which is the next piece of work.
 
 ## What a KPI is
 
-A **declaration** kept in `/super` → ERP settings, against one service action (or
-against every deal), and a **copy** of it that each deal carries from the moment its
-work starts.
+A **declaration** kept in `/super` → ERP settings, and a **copy** of it that each deal
+carries from the moment its work starts.
 
 | Field | What it means |
 |---|---|
-| Measures | the service action it applies to. Empty = every deal |
 | What | the sentence a person reads on the deal |
 | Kind | `milestone` (done or not done) or `quantity` (how many) |
 | Counted on | the stage the evidence lives in — a `STAGE_REGISTRY` type |
@@ -47,14 +49,12 @@ held, no banner arguing with how a company runs its work.
 `freezeKpis`, at the one place a deal is minted (`applyAsDeal`), beside
 `freezeTemplate`:
 
-- the **ticket** is the record that names service actions, so it is the head that
-  passes them in. A deal opened by a project or a quotation names none;
-- a deal naming no action is **not** a deal with no KPIs — every declaration with an
-  empty `Measures` still applies. That is what covers work nobody raised a ticket for;
-- one KPI per definition, however many actions reach it;
-- an action **added mid-deal** brings its KPIs with it, measuring from *then* — a clock
-  backdated to the deal's opening would report a target as missed before anybody had
-  been asked to meet it. What the deal already carries keeps its own `startedAt`.
+- every declaration, once each, whichever record opened the deal;
+- a second freeze adds only what the deal does not already carry, and what it carries
+  keeps its own `startedAt`, so no clock restarts.
+- A declaration or a deal's copy stored before 03/10/2026 may still carry `action` (and
+  the copy `source`); nothing reads either, and `kpisForDeal` does not copy them on.
+  `scripts/migrate/remove-service-actions.mjs` clears them.
 
 **Copied, never looked up.** Editing a declaration re-judges nothing already under
 way, and withdrawing one leaves every deal carrying it measuring as before — what

@@ -31,9 +31,8 @@ export type IndustryEntry = {
    *
    * THERE ARE TWO LISTS OF THE SAME TWENTY-FIVE TRADES AND THEY WERE JOINED
    * BY NOTHING. This one keys by SLUG and answers which flow template a deal
-   * starts on. `FIELD_ACTION_MATRIX` keys by DISPLAY NAME and is what a studio
-   * actually stores in `fieldOfWork` — what seeds its service actions, what
-   * seeds its departments, and what the Settings screen writes. Four of the
+   * starts on. `FIELDS_OF_WORK` keys by DISPLAY NAME and is what a studio
+   * actually stores in `fieldOfWork` — what seeds its departments, and what the Settings screen writes. Four of the
    * twenty-five are spelled differently between the two ("Energy & Utilities"
    * here against "Energy & Utilities (Electricity, Gas)" there), so a studio's
    * own trade could not be resolved to its own flow at all.
@@ -79,7 +78,7 @@ export const INDUSTRIES: readonly IndustryEntry[] = Object.freeze([
 /**
  * By the trade a STUDIO stores, which is the display name and not the slug.
  *
- * `studio.fieldOfWork` holds a `FIELD_ACTION_MATRIX` key — that is what the
+ * `studio.fieldOfWork` holds a `FIELDS_OF_WORK` name — that is what the
  * Settings screen writes and what every existing studio already carries — so
  * this is the door from a studio's own trade to its flow template, and through
  * the template's stages to the sections that trade actually needs.

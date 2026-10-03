@@ -71,11 +71,13 @@ ok("...and every other studio does not", L.hiddenKeys(rows, preview, "studio-a")
 console.log("\n== the create screen does not ask about a held-back department");
 
 const held = L.hiddenDefKeys(L.cleanLocks({ locked: ["manufacturing", "crm-sales-orders"] }));
-const setup = M.studioSetupScreen("en", [], held);
+const { builtInIndustries } = await import("@/shared/industryCatalogue");
+const setup = M.studioSetupScreen("en", builtInIndustries(), held);
 ok("a held-back root is not asked about", !setup.departments.some((d) => d.key === "manufacturing"));
 ok("a held-back part is not offered under its department",
   !setup.departments.find((d) => d.key === "crm-sales")?.parts.some((p) => p.key === "crm-sales-orders"));
-ok("...and nothing is pre-filled for it", Object.values(setup.suggested).every((on) => !on.includes("manufacturing")));
+ok("...and nothing is pre-filled for it", Object.values(setup.suggestedByIndustry).every((on) => !on.includes("manufacturing")));
+ok("...even for the industry whose profile names it", (setup.suggestedByIndustry["food-production"] || ["none"]).length > 0);
 ok("with nothing held back, every department is asked as before",
   M.studioSetupScreen("en", [], new Set()).departments.length === M.studioSetupCatalogue().roots.length);
 

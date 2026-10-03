@@ -123,7 +123,7 @@ const cleanSectionKeys = (v: unknown): string[] => {
  * it; called again — which is what the screen's "add the standard departments"
  * action does after a studio changes its field of work — it adds only what is
  * missing BY CODE and leaves every existing row exactly as the studio edited
- * it. That courtesy is the one `nextPool` already extends to service actions,
+ * it. That courtesy is the one the service-action pool used to extend (removed 03/10/2026),
  * and it is the reason changing the field of work can never cost a studio the
  * org chart it typed.
  */
@@ -240,7 +240,7 @@ async function seedDepartments(
  *
  * A studio whose field of work is `Other`, unset, or a trade this file has
  * never heard of seeds NOTHING and gets an empty register with an explanation —
- * `departmentsForField` returns nothing, mirroring `actionsForField`. Inventing
+ * `departmentsForField` returns nothing. Inventing
  * a generic chart would be the product guessing at a trade it was never told.
  */
 export async function listDepartments(

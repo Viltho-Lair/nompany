@@ -1,20 +1,15 @@
 import { route } from "@/platform/http/route";
 import { listPlatformKpis, writePlatformKpi, dropPlatformKpi } from "@/platform/db/kpis";
 import { STAGE_REGISTRY } from "@/platform/engagement/registry";
-import { SERVICE_ACTIONS } from "@/shared/fieldsOfWork";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// WHAT A DEAL IS MEASURED ON, DECLARED ONCE — the owner, 20/09/2026: a service
-// action was a label and nothing else, so nothing in the product could say
-// whether the work behind it went well.
-//
-// DECLARED HERE RATHER THAN PER STUDIO, for the reason the trades beside them
-// are: "Installation" means the same thing in every studio that names it, and a
-// target re-entered twenty-five times is twenty-five things to keep in step. A
-// deal COPIES what it is given when the work starts, so editing a row here
-// never re-judges work already under way.
+// WHAT A DEAL IS MEASURED ON, DECLARED ONCE — the owner, 20/09/2026. A deal
+// COPIES what it is given when the work starts, so editing a row here never
+// re-judges work already under way. A row named the service action it measured
+// until service actions were removed (03/10/2026); every row measures every
+// deal until KPIs are keyed to work types.
 const spec = { auth: "super", name: "super/erp-kpis" };
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -24,11 +19,9 @@ const idFrom = (label: string) =>
 export const GET = route(spec, async () => ({
   kpis: await listPlatformKpis(),
   // WHAT A ROW MAY POINT AT, sent with the list rather than restated in the
-  // screen: the stages a KPI can be counted off, and the twenty service actions
-  // a studio's tickets name. Both are fixed platform values, so the screen can
-  // never offer a target nothing could measure.
+  // screen: the stages a KPI can be counted off — a fixed platform value, so the
+  // screen can never offer a target nothing could measure.
   stages: Object.values(STAGE_REGISTRY).map((e) => ({ type: e.type, label: e.label })),
-  actions: SERVICE_ACTIONS,
 }));
 
 export const PUT = route({ ...spec, body: true }, async ({ body }) => {
@@ -44,7 +37,6 @@ export const PUT = route({ ...spec, body: true }, async ({ body }) => {
   try {
     await writePlatformKpi({
       id,
-      action: str(body?.action, 160),
       label,
       kind,
       stage: str(body?.stage, 60),

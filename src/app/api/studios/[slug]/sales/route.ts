@@ -86,10 +86,6 @@ export const GET = route(spec, async (sales) => {
       statuses: TICKET_STATUSES, urgencies: TICKET_URGENCIES,
       industries: valuesFor("clientIndustries", sales.studio.taxonomies),
       liveColumnOptions: TICKET_LIVE_COLUMNS,
-      // A ticket's services are chosen from the studio's own Service Actions
-      // now, so the form reads this list rather than a Sales-owned catalogue —
-      // the same pattern Inventory and Projects already serve theirs through.
-      serviceActions: (sales.studio.serviceActions as string[]) || [],
     },
   };
 });

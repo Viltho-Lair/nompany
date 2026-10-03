@@ -329,8 +329,7 @@ up to its own total. Money is written as numbers; an unvalued write-off is an em
 - **Unit conversion.** A unit is a label. Nothing knows that a box holds twelve, so nothing
   can convert a purchase in boxes into an issue in pieces.
 - **Renaming or retiring a unit a studio added.** It can be removed, which leaves existing
-  items reading a unit the form no longer offers — the same shape a retired service action
-  handles properly and this does not.
+  items reading a unit the form no longer offers, with nothing saying it was retired.
 - **Per-series counters visible on screen.** The editor shows a live example of the next
   reference, built from the values on screen; it does not show where the real counter has
   actually reached.

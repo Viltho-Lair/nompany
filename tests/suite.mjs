@@ -265,8 +265,8 @@ import * as KEYS from "@/platform/db/keys";
 import { STAT } from "@/platform/db/keys";
 import { putMedia, getMedia } from "@/lib/media";
 import { hashToken } from "@/platform/auth/passwords";
-import { SERVICE_ACTIONS, FIELDS_OF_WORK, FIELD_ACTION_MATRIX, actionsForField, OTHER_FIELD } from "@/shared/fieldsOfWork";
-import { nextPool, cleanNextActive } from "@/modules/studioServiceActions";
+import { FIELDS_OF_WORK } from "@/shared/fieldsOfWork";
+import { builtInIndustries } from "@/shared/industryCatalogue";
 
 const PUT_COLLABORATORS = (await import("@/app/api/studios/[slug]/collaborators/route.ts")).PUT;
 const APPROVALS_ROUTE = await import("@/app/api/studios/[slug]/approvals/route.ts");
@@ -275,7 +275,7 @@ const YEAR_ROLLOVER = (await import("@/app/api/cron/year-rollover/route.ts")).GE
 const MAIN_ROLLUP = (await import("@/app/api/cron/main-rollup/route.ts")).GET;
 const TRACK = (await import("@/app/api/track/route.ts")).POST;
 const MEDIA_GET = (await import("@/app/api/media/[id]/route.ts")).GET;
-const SVC_ACTIONS = await import("@/app/api/studios/[slug]/settings/service-actions/route.ts");
+const INDUSTRY_ROUTE = await import("@/app/api/studios/[slug]/settings/industry/route.ts");
 const FLOWS = await import("@/app/api/studios/[slug]/settings/flows/route.ts");
 
 // ---- harness ---------------------------------------------------------------
@@ -470,12 +470,6 @@ console.log("\n== the handler is carried, never copied");
 //      submit the quotation and it still named the appointment rather than the
 //      person who actually finished the document.
 {
-  // A ticket's services now name the studio's own Service Actions (Studio
-  // Settings → Service Actions) rather than a Sales-owned catalogue, so the
-  // fixture seeds the pool directly instead of creating a service row — and
-  // BEFORE salesContext resolves, because the context snapshots `studio` at
-  // read time and a later write here would not be seen by it.
-  await updateStudio(studio.id, { serviceActions: ["Integration"] });
 
   const sales = await salesContext(owner, slug);
   ok("owner can open Sales", !sales.error, sales.error);
@@ -486,7 +480,7 @@ console.log("\n== the handler is carried, never copied");
   // projection actually strips anything.
   const made = await createTicket(sales, {
     title: "Carry the handler", clientName: "Acme", deadline: "2026-12-01",
-    industry: "Technology", serviceIds: ["Integration"],
+    industry: "Technology",
     contactName: "Priya Shenoy", location: { name: "Acme HQ", city: "Austin", country: "US", url: "https://acme.example/hq" },
   });
   ok("a ticket can be raised", !!made.ticket, JSON.stringify(made.error));
@@ -955,7 +949,7 @@ console.log("\n== the handler is carried, never copied");
   // than by insertion into the index or by id.
   const laterTicket = await createTicket(sales, {
     title: "A later deal", clientName: "Later Co", deadline: "2026-12-01",
-    industry: "Technology", serviceIds: ["Integration"],
+    industry: "Technology",
   });
   const laterEngId = await resolveDealId(studio.id, deterministicEngId("ticket", laterTicket.ticket.id));
   const listAfter = await listEngagements({ studio, access: ownerAccess });
@@ -1354,14 +1348,10 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
   // never copied" block, above, asserts the equivalent for a ticket-born
   // project — this reasserts it did not regress under the new client-resolving
   // code path).
-  const svcRegressionName = `Regression ${rand()}`;
-  // Seeded before the context resolves — see the note on the same pattern
-  // above ("the handler is carried, never copied").
-  await updateStudio(studio.id, { serviceActions: [svcRegressionName] });
   const salesForRegression = await salesContext(owner, slug);
   const ticketMade = await createTicket(salesForRegression, {
     title: "Ticket-headed path stays put", clientName: `Ticket Client ${rand()}`, deadline: "2026-12-01",
-    industry: "Technology", serviceIds: [svcRegressionName],
+    industry: "Technology",
   });
   // Resolved through the alias (deal-aliases Task 3): the ticket's mint leaves
   // this derivation pointing at the deal, not naming it.
@@ -1401,12 +1391,10 @@ console.log("\n== a project opened from a quotation knows whose work it is (Task
   // a SINGLETON claim does, and neither of those is one), so they succeed same
   // as always and leave the engagement genuinely rootless, the way a swallowed
   // failure in attachTicketEngagement would.
-  const svcFallbackName = `Fallback ${rand()}`;
-  await updateStudio(studio.id, { serviceActions: [svcFallbackName] });
   const salesForFallback = await salesContext(owner, slug);
   const ticketFallback = await createTicket(salesForFallback, {
     title: "Engagement root never landed", clientName: `Fallback Client ${rand()}`, deadline: "2026-12-01",
-    industry: "Technology", serviceIds: [svcFallbackName],
+    industry: "Technology",
   });
   // Resolved through the alias (deal-aliases Task 3) to the minted deal — and
   // deliberately still the MINTED id after this: deleting its root below is
@@ -1488,12 +1476,10 @@ console.log("\n== the picker one screen before openProject names an internal quo
   // REGRESSION GUARD — a ticket-headed approved quotation still shows its
   // client in the picker, exactly as before this fix (that path was never
   // broken; only the internal-quotation branch above was).
-  const svcPickerTicketName = `Picker Ticket ${rand()}`;
-  await updateStudio(studio.id, { serviceActions: [svcPickerTicketName] });
   const salesForPickerTicket = await salesContext(owner, slug);
   const pickerTicket = await createTicket(salesForPickerTicket, {
     title: "Ticket-headed picker row", clientName: `Picker Ticket Client ${rand()}`, deadline: "2026-12-01",
-    industry: "Technology", serviceIds: [svcPickerTicketName],
+    industry: "Technology",
   });
   const pickerRfq = await requestTicketRfq(salesForPickerTicket, { ticketId: pickerTicket.ticket?.id });
   const techForPickerTicket = await technicalContext(owner, slug);
@@ -1826,12 +1812,10 @@ console.log("\n== an RFQ tells the people who will quote it");
   // this check — it is the second person who can quote, beside the owner who
   // raises — and hand it back after.
   await updateCollaborator(studio.id, member.collaborator.id, { roleIds: [ADMIN_ROLE_ID] });
-
-  await updateStudio(studio.id, { serviceActions: ["Handoff"] });
   const salesOwner = await salesContext(owner, slug);
   const tk = await createTicket(salesOwner, {
     title: "Quote this", clientName: "Bell Co", deadline: "2026-12-01",
-    industry: "Technology", serviceIds: ["Handoff"],
+    industry: "Technology",
   });
   const asked = await requestTicketRfq(salesOwner, { ticketId: tk.ticket?.id });
   ok("an RFQ is raised", !!asked.rfq, JSON.stringify(asked.error));
@@ -1864,11 +1848,11 @@ console.log("\n== raising a revision closes the quotation it revises");
   // rate taxes nothing, whatever a document asks for (shared/vat), so the 15%
   // this block prices at was silently 0 and its tax assertions failed. The
   // rate is set here and cleared at the end, so no other block inherits it.
-  await updateStudio(studio.id, { serviceActions: ["Revisions"], vatRate: 15 });
+  await updateStudio(studio.id, { vatRate: 15 });
   const sales = await salesContext(owner, slug);
   const made = await createTicket(sales, {
     title: "Revise the quotation", clientName: "Beta Works", deadline: "2026-12-01",
-    industry: "Technology", serviceIds: ["Revisions"],
+    industry: "Technology",
   });
 
   const first = await requestTicketRfq(sales, { ticketId: made.ticket?.id });
@@ -4084,13 +4068,10 @@ console.log("\n== fields are carried, not copied, and only where they are allowe
   ok("a legal field resolves to what the studio typed", values["legal.vat-number"] === "3001234567", values["legal.vat-number"]);
 
   // ---- binding ----
-  // A ticket needs a service from the studio's own Service Actions, so the
-  // fixture seeds the pool directly rather than posting an empty list.
-  await updateStudio(studio.id, { serviceActions: ["Control systems"] });
   const salesCtx = await salesContext(owner, slug);
   const ticket = await createTicket(salesCtx, {
     title: "New control room", clientName: "Acme Industrial", deadline: "2026-12-01",
-    industry: "Oil & Gas", serviceIds: ["Control systems"], contactName: "Sara Idris",
+    industry: "Oil & Gas", contactName: "Sara Idris",
   });
   if (ticket.error) {
     ok("fixture: a ticket to bind to", false, ticket.error);
@@ -4342,13 +4323,10 @@ console.log("\n== a sales ticket can finally say what became of it");
   }
 
   // A ticket that never got that far says null rather than inventing something.
-  // Re-fetched after the write: `sales` above snapshotted `studio` before this
-  // seeds the pool, and createTicket reads serviceActions off that snapshot.
-  await updateStudio(studio.id, { serviceActions: ["Standalone"] });
   const salesFresh = await salesContext(owner, slug);
   const fresh = await createTicket(salesFresh, {
     title: "Nothing downstream yet", clientName: "Acme", deadline: "2027-01-01",
-    industry: "Technology", serviceIds: ["Standalone"],
+    industry: "Technology",
   });
   const again = await listTickets(sales);
   const bare = again.find((t) => t.id === fresh.ticket.id);
@@ -4813,31 +4791,26 @@ console.log("== studio settings enforces the right that used to grant nothing");
 }
 
 // ============================================================================
-console.log("== the settings payload displays the field of work, but does not write it");
-// settings/service-actions/route.ts is the SOLE writer of fieldOfWork,
-// fieldOfWorkOther, serviceActions and retiredServiceActions — choosing a field
-// re-seeds the pool from the matrix and a removed-but-used action is retired,
-// not deleted, and that guarantee only holds if there is exactly one door onto
-// it. This route only DISPLAYS the four fields; asserted here so a future
-// convenience write through the general allowlist would fail loudly rather
-// than silently reintroducing the second write path.
+console.log("== the settings payload displays the industry, but does not write it");
+// settings/industry/route.ts is the SOLE writer of industry, fieldOfWork and
+// fieldOfWorkOther — the field follows the specialism, so the two are written
+// together, and that only holds if there is exactly one door onto them. This
+// route only DISPLAYS them; asserted so a future convenience write through the
+// general allowlist fails loudly rather than reintroducing a second path.
 {
   await signInAs(owner.id);
   const s = await (await SETTINGS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
   ok("settings carries the field of work", "fieldOfWork" in s.studio, JSON.stringify(Object.keys(s.studio)));
-  ok("settings carries the retired actions", Array.isArray(s.studio.retiredServiceActions));
+  // SERVICE ACTIONS ARE GONE (03/10/2026): neither list is served any more.
+  ok("settings serves no service actions", !("serviceActions" in s.studio) && !("retiredServiceActions" in s.studio));
 
-  // A direct write of serviceActions through the general route is a no-op: the
-  // key is not in FIELDS, so it is silently dropped from the patch rather than
-  // stored — the dedicated route's tests cover the actual write path.
   const before = await getStudioBySlug(slug);
-  const attempt = await SETTINGS.PUT(jsonReq({ serviceActions: ["Nope"] }), { params: params(slug) });
-  ok("a bare serviceActions write through /settings is refused as an empty patch",
+  const attempt = await SETTINGS.PUT(jsonReq({ fieldOfWork: "Manufacturing" }), { params: params(slug) });
+  ok("a bare fieldOfWork write through /settings is refused as an empty patch",
     attempt.status === 400, String(attempt.status));
   const after = await getStudioBySlug(slug);
-  ok("...and the studio's pool is unchanged",
-    JSON.stringify(after.serviceActions || []) === JSON.stringify(before.serviceActions || []),
-    JSON.stringify({ before: before.serviceActions, after: after.serviceActions }));
+  ok("...and the studio's field of work is unchanged", after.fieldOfWork === before.fieldOfWork,
+    JSON.stringify({ before: before.fieldOfWork, after: after.fieldOfWork }));
 }
 
 // ============================================================================
@@ -5234,60 +5207,12 @@ console.log("\n== Shared shell: CSV export escapes honestly");
 }
 
 // ============================================================================
-console.log("== fields of work: the matrix cannot drift from its actions");
+console.log("== fields of work: the list the specialisms point at");
 {
-  ok("there are 20 standard service actions", SERVICE_ACTIONS.length === 20, String(SERVICE_ACTIONS.length));
   ok("there are 25 fields of work", FIELDS_OF_WORK.length === 25, String(FIELDS_OF_WORK.length));
-
-  const actionSet = new Set(SERVICE_ACTIONS);
-  const strayValues = Object.entries(FIELD_ACTION_MATRIX)
-    .flatMap(([f, acts]) => acts.filter((a) => !actionSet.has(a)).map((a) => `${f}:${a}`));
-  ok("every matrix value is one of the 20 actions", strayValues.length === 0, strayValues.join(", "));
-
-  const missingRows = FIELDS_OF_WORK.filter((f) => !Array.isArray(FIELD_ACTION_MATRIX[f]));
-  ok("every field has a matrix row", missingRows.length === 0, missingRows.join(", "));
-
-  ok("actionsForField returns a field's row", actionsForField("Manufacturing").includes("Fabrication / Manufacturing"));
-  ok("actionsForField('Other') seeds nothing", actionsForField(OTHER_FIELD).length === 0);
-  ok("actionsForField(unknown) seeds nothing", actionsForField("Nope").length === 0);
-}
-
-// ============================================================================
-console.log("== service-action pool: remove is retire, not delete");
-{
-  // Removing a referenced action carries it into retired, not out of existence.
-  const a = nextPool({
-    prevActive: ["Installation", "Training"], prevRetired: [],
-    nextActive: ["Installation"], referenced: new Set(["Training"]),
-  });
-  ok("a referenced removed action is retired", a.retiredServiceActions.includes("Training"));
-  ok("...and leaves the active pool", !a.serviceActions.includes("Training"));
-
-  // Removing an UNreferenced action just drops it — nothing carries it.
-  const b = nextPool({
-    prevActive: ["Installation", "Training"], prevRetired: [],
-    nextActive: ["Installation"], referenced: new Set(),
-  });
-  ok("an unreferenced removed action is dropped", !b.retiredServiceActions.includes("Training"));
-
-  // Re-adding a retired action un-retires it.
-  const c = nextPool({
-    prevActive: ["Installation"], prevRetired: ["Training"],
-    nextActive: ["Installation", "Training"], referenced: new Set(["Training"]),
-  });
-  ok("re-adding un-retires", c.serviceActions.includes("Training") && !c.retiredServiceActions.includes("Training"));
-
-  // A retired action whose last item is gone is pruned on the next write.
-  const d = nextPool({
-    prevActive: ["Installation"], prevRetired: ["Training"],
-    nextActive: ["Installation"], referenced: new Set(),
-  });
-  ok("a retired action nothing references is pruned", d.retiredServiceActions.length === 0);
-
-  // Edited pool is limited to the standard 20 plus surviving legacy names.
-  ok("a non-standard new action is rejected", !cleanNextActive(["Made Up"], ["Installation"]).includes("Made Up"));
-  ok("a legacy name in prevActive survives", cleanNextActive(["Legacy Thing"], ["Legacy Thing"]).includes("Legacy Thing"));
-  ok("a standard action is accepted", cleanNextActive(["Commissioning"], []).includes("Commissioning"));
+  const named = new Set(FIELDS_OF_WORK);
+  const strays = builtInIndustries().flatMap((i) => i.specialisms).filter((sp) => sp.field && !named.has(sp.field) && sp.field !== "Other");
+  ok("every specialism names a real field of work", strays.length === 0, strays.map((sp) => sp.key).join(", "));
 }
 
 // ============================================================================
@@ -5296,7 +5221,6 @@ console.log("== a registered item has no scope: not stored, not served");
   // SCOPE WAS REMOVED FROM THE ITEM (02/10/2026). A caller that still sends one
   // — a stale screen, an old integration — must not get it written, or the
   // field comes back by the side door and nothing counts it any more.
-  await updateStudio(studio.id, { serviceActions: ["Installation", "Training"], retiredServiceActions: [] });
   const ic = await inventoryContext(owner, slug);
   const item = await createItem(ic, { name: `Unscoped ${rand()}`, unit: "pcs", scope: ["Installation"] });
   ok("creating an item ignores a scope it is sent", item.item && !("scope" in item.item), JSON.stringify(item));
@@ -5307,155 +5231,50 @@ console.log("== a registered item has no scope: not stored, not served");
 }
 
 // ============================================================================
-console.log("== service-actions endpoint: a field seeds the pool, removal retires");
+console.log("== a ticket names no services: service actions are gone");
 {
+  // REMOVED 03/10/2026 with service actions. A ticket used to be refused
+  // without at least one of the studio's actions; a caller that still sends a
+  // list must neither be refused for it nor have it stored.
   await signInAs(owner.id);
-
-  // Choosing a field seeds serviceActions from the matrix row.
-  const seed = await SVC_ACTIONS.PUT(jsonReq({ fieldOfWork: "Manufacturing" }), { params: params(slug) });
-  ok("setting a field of work is accepted", seed.status === 200, String(seed.status));
-  const afterSeed = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
-  ok("the pool is the field's matrix row", afterSeed.serviceActions.includes("Fabrication / Manufacturing"));
-  ok("the chosen field is echoed back", afterSeed.fieldOfWork === "Manufacturing");
-  ok("the endpoint offers all 25 fields", afterSeed.options.fields.length === 25);
-
-  // A deal naming one action; removing that action retires it (carry).
-  const epTicket = await createTicket(await salesContext(owner, slug), {
-    title: `Ep ${rand()}`, clientName: "Acme", deadline: "2031-12-01",
+  const t = await createTicket(await salesContext(owner, slug), {
+    title: `No services ${rand()}`, clientName: "Acme", deadline: "2031-12-01",
     industry: "Technology", serviceIds: ["Installation"],
   });
-  ok("a ticket names Installation", (epTicket.ticket?.serviceIds || []).includes("Installation"), JSON.stringify(epTicket.error));
-  const withoutInstall = afterSeed.serviceActions.filter((a) => a !== "Installation");
-  const edit = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: withoutInstall }), { params: params(slug) });
-  ok("editing the pool is accepted", edit.status === 200, String(edit.status));
-  const afterEdit = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
-  ok("the removed-but-used action is retired", afterEdit.retiredServiceActions.includes("Installation"));
-  ok("...and usage reports the count", afterEdit.usage["Installation"] >= 1, JSON.stringify(afterEdit.usage));
+  ok("a ticket with no service actions is raised", !!t.ticket, JSON.stringify(t.error));
+  ok("...and a list it was sent is not stored", t.ticket && !("serviceIds" in t.ticket), JSON.stringify(t.ticket));
+}
 
-  // "Other" seeds nothing.
-  await SVC_ACTIONS.PUT(jsonReq({ fieldOfWork: "Other", fieldOfWorkOther: "Bespoke" }), { params: params(slug) });
-  const other = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
-  ok("Other seeds an empty pool", other.serviceActions.length === 0, JSON.stringify(other.serviceActions));
-  ok("Other keeps its typed label", other.fieldOfWorkOther === "Bespoke");
+// ============================================================================
+console.log("== the industry endpoint: a specialism decides the field of work");
+{
+  await signInAs(owner.id);
+  const sp = builtInIndustries().flatMap((i) => i.specialisms).find((x) => x.active && x.field);
+  const put = await INDUSTRY_ROUTE.PUT(jsonReq({ industry: sp.key }), { params: params(slug) });
+  ok("choosing a specialism is accepted", put.status === 200, String(put.status));
+  const got = await (await INDUSTRY_ROUTE.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
+  ok("the specialism is echoed back", got.industry === sp.key, JSON.stringify(got.industry));
+  ok("...and the field of work follows it", got.fieldOfWork === sp.field, JSON.stringify({ got: got.fieldOfWork, want: sp.field }));
+  ok("the endpoint serves no service actions", !("serviceActions" in got) && !("usage" in got));
 
-  // A member with no role (not a non-member — nobody has a collaborator row,
-  // just no roleId, so no grant reaches studio.settings.edit) cannot edit.
+  const nothing = await INDUSTRY_ROUTE.PUT(jsonReq({ fieldOfWork: "Manufacturing" }), { params: params(slug) });
+  ok("a body naming no specialism is refused", nothing.status === 400, String(nothing.status));
+
+  // A member with no role cannot change it.
   await signInAs(nobody.user.id);
-  // usage is manager-only: it exists to warn the manage-side edit alerts
-  // ("N deals use this action"), which a view-only member never sees, so the
-  // route must not hand a viewer per-action counts, and must not even do the
-  // read to produce them.
-  const nobodyGet = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
-  ok("a member without settings.edit gets no usage counts",
-    Object.keys(nobodyGet.usage || {}).length === 0 && nobodyGet.canManage === false, JSON.stringify(nobodyGet));
-  const denied = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: [] }), { params: params(slug) });
+  const denied = await INDUSTRY_ROUTE.PUT(jsonReq({ industry: sp.key }), { params: params(slug) });
   ok("someone without settings.edit is refused", denied.status === 403, String(denied.status));
 
-  // A TRUE non-member — no collaborator row in this studio at all — learns
-  // nothing about the contents, on both verbs. studioContext returns
-  // "forbidden" before either handler runs, same door as every other route.
-  const svcOutsider = (await createUser({ email: `svc-outsider-${rand()}@test.invalid`, passwordHash: "x" })).user;
-  await signInAs(svcOutsider.id);
-  const outsiderGet = await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) });
-  ok("a non-member's GET of service-actions is refused, not answered",
+  // A TRUE non-member learns nothing about the contents, on both verbs.
+  const outsider = (await createUser({ email: `ind-outsider-${rand()}@test.invalid`, passwordHash: "x" })).user;
+  await signInAs(outsider.id);
+  const outsiderGet = await INDUSTRY_ROUTE.GET(new Request("http://localhost/test"), { params: params(slug) });
+  ok("a non-member's GET of the industry is refused, not answered",
     outsiderGet.status === 403 || outsiderGet.status === 404, String(outsiderGet.status));
-  const outsiderPut = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: [] }), { params: params(slug) });
-  ok("...and so is its PUT",
-    outsiderPut.status === 403 || outsiderPut.status === 404, String(outsiderPut.status));
+  const outsiderPut = await INDUSTRY_ROUTE.PUT(jsonReq({ industry: sp.key }), { params: params(slug) });
+  ok("...and so is its PUT", outsiderPut.status === 403 || outsiderPut.status === 404, String(outsiderPut.status));
 
   await signInAs(owner.id);
-}
-
-// ============================================================================
-console.log("== service-actions: settings.edit without sales view must never drop a referenced action");
-{
-  // FINDING B (final-review). serviceActionUsage once read its referrers through
-  // a module context gated on the CALLER's own view right — but the route that
-  // decides retire-vs-drop gates only on studio.settings.edit, and a role can
-  // hold that WITHOUT any other right. Under that combination the usage read
-  // came back `{}` (forbidden), "referenced" was empty, and a still-referenced
-  // action was DROPPED instead of retired — landing in neither serviceActions
-  // nor retiredServiceActions, so the next edit of the record naming it
-  // silently stripped it. The referrer was a registered item's scope when this
-  // was found; that field is gone (02/10/2026) and a TICKET is the referrer
-  // now, read the same ungated way. This proves the carry holds even when the
-  // acting collaborator cannot see Sales at all.
-  await signInAs(owner.id);
-  await updateStudio(studio.id, { serviceActions: ["Installation", "Training"], retiredServiceActions: [] });
-  const gapTicket = await createTicket(await salesContext(owner, slug), {
-    title: `Gap ${rand()}`, clientName: "Acme", deadline: "2031-12-01",
-    industry: "Technology", serviceIds: ["Training"],
-  });
-  ok("a ticket names Training before the gap is exercised",
-    (gapTicket.ticket?.serviceIds || []).includes("Training"), JSON.stringify(gapTicket.error));
-
-  // A role holding ONLY studio.settings.edit — no sales permission at all,
-  // so salesContext(user, slug) for this person resolves { error: "forbidden" }.
-  const settingsOnly = await createRole(studio.id, {
-    name: `SettingsOnly ${rand()}`, permissions: ["administration.settings.edit"],
-  });
-  const gap = await person("GapAdmin", null);
-  await updateCollaborator(studio.id, gap.collaborator.id, { roleIds: [settingsOnly.id] });
-  const gapCtx = await studioContext(gap.user, slug);
-  ok("the fixture role really does hold administration.settings.edit but not sales view",
-    gapCtx.access.has("administration.settings.edit") && !gapCtx.access.has("crmSales.tickets.view"),
-    JSON.stringify([...gapCtx.access]));
-
-  await signInAs(gap.user.id);
-  const before = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
-  // THE FIX, asserted directly: `usage` is complete for this caller even though
-  // they hold no sales right at all — serviceActionUsage does not route through
-  // the caller's own grant, so there is nothing left to be incomplete about.
-  // Before the fix this came back `{}` (the module context's own forbidden
-  // refusal), which is the exact hole the removal below exploited.
-  ok("this caller's usage read is COMPLETE despite holding no sales permission",
-    before.usage?.Training >= 1, JSON.stringify(before.usage));
-
-  const withoutTraining = (before.serviceActions || []).filter((a) => a !== "Training");
-  const put = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: withoutTraining }), { params: params(slug) });
-  ok("the settings-only admin's removal is accepted", put.status === 200, String(put.status));
-  const after = await put.json();
-  ok("Training is RETIRED, not dropped, though this caller cannot see sales",
-    (after.retiredServiceActions || []).includes("Training"), JSON.stringify(after));
-  ok("...and it left the active pool", !(after.serviceActions || []).includes("Training"), JSON.stringify(after));
-  await signInAs(owner.id);
-}
-
-// ============================================================================
-console.log("== service-actions: an action a TICKET names must retire, not drop");
-{
-  // THE REFERRER THE USAGE QUERY DID NOT KNOW ABOUT. serviceActionUsage counted
-  // inventory item scopes ONLY (a field since removed, 02/10/2026). That was complete right up until services moved
-  // from the Sales-owned catalogue to Studio Settings -> Service Actions, at which
-  // point a TICKET became a referrer too — and an action this query misses is
-  // reported unreferenced, so nextPool DROPS it instead of retiring it. It then
-  // lands in neither serviceActions nor retiredServiceActions, cleanServiceIds
-  // no longer recognises it, and the next edit of that ticket silently strips it
-  // from the ticket's scope: data loss reached from a settings screen, with no
-  // inventory item involved anywhere.
-  await signInAs(owner.id);
-  await updateStudio(studio.id, { serviceActions: ["Installation", "Commissioning"], retiredServiceActions: [] });
-
-  const salesForPool = await salesContext(owner, slug);
-  const poolTicket = await createTicket(salesForPool, {
-    title: `Pool referrer ${rand()}`, clientName: "Acme", deadline: "2031-12-01",
-    industry: "Technology", serviceIds: ["Commissioning"],
-  });
-  ok("a ticket names Commissioning, and no inventory item does",
-    (poolTicket.ticket?.serviceIds || []).includes("Commissioning"), JSON.stringify(poolTicket.error));
-
-  const usageRes = await (await SVC_ACTIONS.GET(new Request("http://localhost/test"), { params: params(slug) })).json();
-  ok("the usage query counts the ticket's reference",
-    usageRes.usage?.Commissioning >= 1, JSON.stringify(usageRes.usage));
-
-  const withoutIt = (usageRes.serviceActions || []).filter((a) => a !== "Commissioning");
-  const putRes = await SVC_ACTIONS.PUT(jsonReq({ serviceActions: withoutIt }), { params: params(slug) });
-  ok("removing it from the pool is accepted", putRes.status === 200, String(putRes.status));
-  const afterPool = await putRes.json();
-  ok("Commissioning is RETIRED, not dropped, on a ticket's reference alone",
-    (afterPool.retiredServiceActions || []).includes("Commissioning"), JSON.stringify(afterPool));
-  ok("...and it left the active pool",
-    !(afterPool.serviceActions || []).includes("Commissioning"), JSON.stringify(afterPool));
 }
 
 // ============================================================================

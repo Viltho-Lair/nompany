@@ -1697,6 +1697,14 @@ trade's answer alone, exactly as below. `docs/functionality/sections.md` is the
 file. The questions are worded as what a company DOES, never as a kind of
 business — the owner's rule: no named shop types.
 
+**SERVICE ACTIONS ARE GONE — the owner, 03/10/2026: "we will remove the service actions
+from studios and all links to Items from code and database."** The pool, the ticket's
+services, the KPI's `action`, the twenty-action matrix and the action-to-section map below
+were removed together; an INDUSTRY'S PROFILE (/super → Industries) decides a studio's
+starting sections now, at creation and in Studio settings' offer. Stored values are cleared
+by `scripts/migrate/remove-service-actions.mjs` (invariant 17: two confirmations).
+The next two paragraphs are the history of the derivation it replaced.
+
 **A STUDIO IS SET UP FOR ITS TRADE NOW, AND THE TRADE IS ASKED FOR AT CREATION.**
 `createStudio` takes `fieldOfWork`, which decides its service actions, its org
 chart and — new — **which of the fourteen sections it starts with**.

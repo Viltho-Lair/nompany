@@ -14,7 +14,7 @@
 // not use" is actionable, "Internal Server Error" is not — so they are carried
 // through to the caller rather than swallowed or reduced to a code.
 //
-// It sits at the modules root beside studioServiceActions.ts rather than in a
+// It sits at the modules root beside the other studio-wide settings rather than in a
 // department folder, for the same reason that one does: this is a studio-wide
 // setting, owned by no department, and every department reads its result.
 import { requirePermission } from "@/platform/access";
@@ -418,7 +418,7 @@ function industryFrom(body: Record<string, unknown>): IndustryEntry {
     note: str(body.note, 400),
     // A TRADE A STUDIO ADDED HAS NO MARKET-REFERENCE ROW, and "" says so.
     //
-    // `field` joins a seeded industry to `FIELD_ACTION_MATRIX`, which is a
+    // `field` joins a seeded industry to `FIELDS_OF_WORK`, which is a
     // fixed platform standard of twenty-five trades — a studio inventing a
     // twenty-sixth is exactly the case Law 2 exists for, and there is no row
     // there for it to point at. Empty is the truth rather than a default: it

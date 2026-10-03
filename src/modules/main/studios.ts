@@ -30,21 +30,18 @@ import { seedBuiltinTypes } from "@/platform/engine/builtins";
 import { startingPlan } from "@/lib/data/catalog";
 import { loadCatalogues, costsNothing } from "@/lib/plans";
 import { startSubscription } from "@/lib/data/subscriptions";
-import { FIELDS_OF_WORK, OTHER_FIELD, actionsForField } from "@/shared/fieldsOfWork";
+import { FIELDS_OF_WORK, OTHER_FIELD } from "@/shared/fieldsOfWork";
 import type { Industry } from "@/shared/industryCatalogue";
 import { fieldForIndustry, isChoosable, pickCatalogue, specialismOf } from "@/shared/industryPick";
 import { readIndustries } from "@/lib/data/industries";
 import { hiddenDefKeys, readReleaseLocks } from "@/platform/db/releaseLocks";
 import {
-  rootSectionsForTrade, sectionEnabledForTrade, tradeSuggestion, resolveSectionChoice, withNeeds, NEVER_GATED_KEYS, SECTION_NEEDS,
+  sectionEnabledForTrade, tradeSuggestion, resolveSectionChoice, withNeeds, NEVER_GATED_KEYS, SECTION_NEEDS,
   type TradeSuggestion, type SetupCatalogue, type SectionChoiceInput,
 } from "@/shared/tradeSections";
 import { sectionName } from "@/shared/studio/sections";
 import { NO_SCREEN_YET } from "@/platform/access";
 import { REQUIRED_SECTIONS } from "@/platform/db/sections";
-import { industryByField } from "@/platform/engagement/industries";
-import { FLOW_TEMPLATES } from "@/platform/engagement/templates";
-import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { emitPlatform, PLATFORM } from "@/platform/realtime/events";
 import { notifySuper, NOTIFY } from "@/platform/notify/notifications";
 import type { Section } from "@/platform/db/sections";
@@ -79,84 +76,40 @@ export function countFreeStudios(
   }).length;
 }
 
-// THE SECTIONS A TRADE'S OWN DEAL FLOW TOUCHES.
-//
-// An industry names a flow template, a template names its stages in order, and
-// every stage in STAGE_REGISTRY names the section that owns its records. So the
-// deal spine is derivable and does not need a second hand-kept list — which
-// matters because a hand-kept one would be wrong the first time a stage moved.
-//
-// THIS IS THE HALF THE ACTION MATRIX CANNOT SUPPLY. No action maps to Inventory
-// for a contractor, and a contractor plainly needs it: Template A carries
-// `sheet`, `order` and `delivery`, all three of which are Inventory's. Read the
-// other way, the actions supply what the flow cannot — Quality & HSE, Assets and
-// Manufacturing are capabilities rather than stages in a deal, so no template
-// mentions them.
-//
-// BOTH TEMPLATES COUNT. `secondary` is not a fallback: it is the OTHER business
-// the same company genuinely runs (industries.ts), so a manufacturer's service
-// arm gets Field Service beside its Make-to-Order sections.
-//
-// ROOTS, not leaf keys, because gating is applied per branch — see
-// `sectionEnabledForTrade`.
-function dealSpineFor(field: string): string[] {
-  const industry = industryByField(field);
-  if (!industry) return [];
-  const out = new Set<string>();
-  for (const id of [industry.primary, industry.secondary].filter(Boolean)) {
-    const template = FLOW_TEMPLATES.find((t) => t.id === id);
-    for (const stage of template?.stages || []) {
-      const entry = STAGE_REGISTRY[stage as keyof typeof STAGE_REGISTRY];
-      if (!entry) continue;
-      // A stage names a SUB-section (`crm-sales-tickets`); the gate works on
-      // roots, so it is resolved here rather than at the call site. The SCREEN
-      // wins where a stage has one: an RFQ is filed under a CRM & Sales row and
-      // worked in Quotations, and the trade needs the department it is worked in.
-      const at = entry.screenKey || entry.sectionKey;
-      const def = SECTION_DEFS.find(
-        (d) => d.key === at || (d.children || []).some((c) => c.key === at),
-      );
-      if (def) out.add(def.key);
-    }
-  }
-  return [...out];
-}
+// THE SECTIONS A TRADE SUGGESTS WERE DERIVED FROM ITS SERVICE ACTIONS — each of
+// the twenty resolved to one primary section, topped up by the sections its deal
+// flow touched. Service actions were removed on 03/10/2026, and the INDUSTRY'S
+// PROFILE (/super → Industries) is the one answer now, at creation and in
+// Studio settings alike (`industryRoots`). A studio with no industry is
+// suggested nothing — no evidence of what a company does is no evidence
+// against any department.
 
 /**
- * THE ROOT SECTIONS A TRADE SUGGESTS, or NULL when it suggests nothing.
- *
- * ONE ANSWER FOR BOTH CALLERS. `createStudio` gates a new studio with it and
- * Studio settings OFFERS it to an existing one; two copies of this line would be
- * two opinions about what a trade uses, free to disagree the day one of them
- * learned about a secondary template and the other did not.
- *
- * NULL for no trade, for "Other", and for a name the matrix does not know. The
- * third is new: such a name used to fall through to the universals alone and
- * would have started the studio with five sections. A trade the product cannot
- * read is no evidence of what the company does.
+ * THE INDUSTRY A STUDIO'S SPECIALISM BELONGS TO, from the console's catalogue —
+ * the profile its section offer is read from. Null for a studio with no
+ * specialism, "Something else", or one the console has since removed.
  */
-export function tradeRootsFor(field: unknown): Set<string> | null {
-  const trade = String(field ?? "").trim();
-  if (!trade || trade === OTHER_FIELD) return null;
-  const actions = actionsForField(trade);
-  if (!actions.length) return null;
-  return rootSectionsForTrade(actions, dealSpineFor(trade));
+export async function studioIndustry(studio: { industry?: unknown }): Promise<Industry | null> {
+  const key = String(studio?.industry || "").trim();
+  if (!key) return null;
+  return (specialismOf(await readIndustries(), key) as { industry: Industry } | null)?.industry || null;
 }
 
 /**
- * WHAT THIS STUDIO'S TRADE WOULD SWITCH, against its own section rows — the
+ * WHAT THIS STUDIO'S INDUSTRY WOULD SWITCH, against its own section rows — the
  * offer the Sections panel shows and the apply route re-checks. The rules are
  * the route's own refusals, so it never proposes a change the route would turn
- * down.
+ * down. `industry` is the INDUSTRY (not the specialism) whose profile decides;
+ * null suggests nothing.
  */
 export function tradeSuggestionFor(
-  field: unknown,
+  industry: Industry | null,
   sections: readonly { key: string; parentId?: string | null; enabled?: boolean }[],
 ): TradeSuggestion {
   const seeded = new Set<string>(SECTION_DEFS.map((d) => d.key));
   return tradeSuggestion(
     sections.filter((s) => !s.parentId).map((s) => ({ key: s.key, enabled: s.enabled !== false })),
-    tradeRootsFor(field),
+    industry ? industryRoots(industry) : null,
     {
       isSeeded: (k) => seeded.has(k),
       isSystem: isSystemSection,
@@ -200,11 +153,11 @@ export function studioSetupCatalogue(): SetupCatalogue {
  * a browser to answer twenty-six small questions. So the answers are computed
  * here, once per request, and handed across as data: the departments with
  * their names in the reader's language, the parts under each, what each
- * department brings with it, and what every field of work suggests.
+ * department brings with it, and what every specialism suggests.
  *
- * A field of work that suggests nothing (none chosen, "Other", or one the
- * matrix does not know) suggests EVERY department, which is what such a studio
- * got before this screen existed; the owner narrows it from there.
+ * A specialism with no profile ("Other") suggests EVERY department — the
+ * screen's own fallback — which is what such a studio got before this screen
+ * existed; the owner narrows it from there.
  */
 /**
  * THE SECTIONS AN INDUSTRY'S PROFILE STARTS A STUDIO WITH, as roots — the
@@ -228,10 +181,6 @@ export function studioSetupScreen(locale: string, industries: readonly Industry[
       || SECTION_DEFS.flatMap((d) => d.children || []).find((c) => c.key === key);
     return sectionName(key, def?.name || key, locale);
   };
-  const suggest = (field: string) => {
-    const roots = tradeRootsFor(field);
-    return catalogue.roots.filter((k) => !roots || roots.has(k));
-  };
   return {
     departments: catalogue.roots.map((key) => ({
       key,
@@ -239,7 +188,6 @@ export function studioSetupScreen(locale: string, industries: readonly Industry[
       parts: (catalogue.children[key] || []).map((c) => ({ key: c, name: nameOf(c) })),
       needs: [...(SECTION_NEEDS[key] || [])],
     })),
-    suggested: Object.fromEntries([...FIELDS_OF_WORK, OTHER_FIELD, ""].map((f) => [f, suggest(f)])),
     // WHAT EACH SPECIALISM PRE-FILLS: its INDUSTRY'S profile (the console's
     // answer, /super → Industries), keyed by the specialism a picker returns.
     suggestedByIndustry: Object.fromEntries(industries.flatMap((ind) => {
@@ -257,7 +205,7 @@ export async function createStudio(
   { ownerUserId, name, slug, ownerAlias = "", fieldOfWork = "", fieldOfWorkOther = "", industry = "", sections }:
   {
     ownerUserId?: string; name?: string; slug?: string; ownerAlias?: string;
-    /** The trade, as a `FIELD_ACTION_MATRIX` key. "" is allowed and means not said yet. */
+    /** The trade, as a `FIELDS_OF_WORK` name. "" is allowed and means not said yet. */
     fieldOfWork?: string;
     /** Free text, and only when the trade is `Other`. */
     fieldOfWorkOther?: string;
@@ -351,22 +299,18 @@ export async function createStudio(
       id, ownerUserId, name: cleanName, slug: cleanSlug,
       plan: "free", packageId, tierId,
       status: "active", createdAt: now,
-      // THE TRADE, AND THE POOL IT SEEDS, written together.
-      //
-      // `actionsForField` is the same function Studio settings calls, not a
-      // second copy: a studio that picks its trade at creation and one that
-      // picks it afterwards must end up with the identical pool, or the two
-      // paths are two products. An unknown trade and `Other` both seed
-      // nothing, which is what the matrix says about them.
+      // THE TRADE. It seeded a service-action pool beside it until service
+      // actions were removed (03/10/2026).
       fieldOfWork: trade,
       fieldOfWorkOther: tradeOther,
       industry: chosenIndustry,
-      serviceActions: actionsForField(trade),
       // THE SECTIONS BELOW ARE ALREADY THIS TRADE'S ANSWER, so Studio settings
       // must not offer it back. Blank when the trade gates nothing.
       // An owner who chose their departments has already answered what the
       // trade would ask, so the offer is marked as answered for that trade too.
-      sectionsTrade: choice || profiled || tradeRootsFor(trade) ? trade : "",
+      // WHICH INDUSTRY the sections were last answered for — the specialism's
+      // key, since the industry's profile is what decides (03/10/2026).
+      sectionsTrade: (choice || profiled) && chosenIndustry ? chosenIndustry : "",
     };
 
     // Seed the fixed section list. Parents get a SectionID, sub-sections get
@@ -386,17 +330,16 @@ export async function createStudio(
     // `enabled` IS ALREADY READ: `visibleSections` filters on it and there is
     // already a route and a screen to toggle it. Nothing here is new machinery —
     // the flag was built, honoured and never set to false by anything.
-    // An unknown or unsaid trade gates nothing — `tradeRootsFor` answers null
-    // for it — rather than leaving such a studio with five sections. The same
-    // function is what Studio settings OFFERS an existing studio, so a new
-    // studio and an offer cannot disagree about what a trade uses.
+    // No industry gates nothing, rather than leaving such a studio with five
+    // sections. The same profile is what Studio settings OFFERS an existing
+    // studio, so a new studio and an offer cannot disagree.
     // THE OWNER'S ANSWER WINS WHERE THERE IS ONE. The trade is only the
     // pre-filled answer on the screen; what the owner left ticked is what the
     // studio is. A part switched off inside a department that is on stays off,
     // and is one switch away in Studio settings.
     // Without an answer from the screen, the INDUSTRY'S PROFILE decides where
-    // there is one, and the old trade gating only for a studio without one.
-    const suggestedRoots = profiled ? industryRoots(profiled) : tradeRootsFor(trade);
+    // there is one; a studio without one gates nothing.
+    const suggestedRoots = profiled ? industryRoots(profiled) : null;
     const onRoots = choice ? new Set(choice.roots) : suggestedRoots;
     // A SECTION HELD BACK AS STILL BEING BUILT was never asked about, so the
     // owner's answer says nothing about it: it takes the industry's suggestion,

@@ -168,20 +168,7 @@ type Strings = {
   industryUpdateLink: string;
   ownLabel: string;
   saveLabel: string;
-  standardActions: string;
-  referencedBy: (n: number) => string;
-  retiredStill: string;
-  changeFieldAria: string;
-  switchTo: (to: string) => string;
-  reseedsFrom: (to: string) => string;
-  adds: string;
-  leavesPool: string;
-  retiredWithCount: (n: number) => string;
-  unusedRemoved: string;
   confirm: string;
-  retireAria: string;
-  retireTitle: (action: string) => string;
-  retireBody: (n: number) => string;
   retire: string;
 
   favHeading: string;
@@ -437,11 +424,10 @@ const en: Strings = {
   rowNumber: (i) => `row ${i}`,
   addAnother: "Add another",
 
-  actionsHeading: "Service actions",
-  actionsLead:
-    "Seeded from the studio's field of work — the things this company does to finish a job. A deal's services are chosen from this list, and a project's requirement weights are set against it.",
+  actionsHeading: "Industry",
+  actionsLead: "What your company does. It decides which departments are suggested and the flow a new deal starts on.",
   actionsAdminOnly: " Only an admin can change this.",
-  actionsLoadFailed: "We couldn't load service actions.",
+  actionsLoadFailed: "We couldn't load your industry.",
   industry: "Type of industry",
   industryOther: "Something else",
   industrySearch: "Search industries",
@@ -452,22 +438,7 @@ const en: Strings = {
   industryUpdateLink: "Choose your industry",
   ownLabel: "Field of work (your own label)",
   saveLabel: "Save label",
-  standardActions: "Standard actions",
-  referencedBy: (n) => (n === 1 ? "1 deal references this" : `${n} deals reference this`),
-  retiredStill: "Retired, still valid on records that already use them: ",
-  changeFieldAria: "Change field of work",
-  switchTo: (to) => `Switch to ${to}?`,
-  reseedsFrom: (to) => `This re-seeds the service-action pool from ${to}'s standard set.`,
-  adds: "Adds:",
-  leavesPool: "Leaves the pool:",
-  retiredWithCount: (n) =>
-    n === 1 ? " (retired — 1 deal still uses it)" : ` (retired — ${n} deals still use it)`,
-  unusedRemoved: " (unused, removed)",
   confirm: "Confirm",
-  retireAria: "Retire service action",
-  retireTitle: (action) => `Retire “${action}”?`,
-  retireBody: (n) =>
-    `${n === 1 ? "1 deal still references" : `${n} deals still reference`} it — they keep it, it's just no longer offered for new work. Re-add any time.`,
   retire: "Retire",
 
   favHeading: "Favourite currencies",
@@ -728,11 +699,10 @@ const ar: Strings = {
   rowNumber: (i) => `الصف ${i}`,
   addAnother: "إضافة صف آخر",
 
-  actionsHeading: "إجراءات الخدمة",
-  actionsLead:
-    "مبنية على مجال عمل الاستوديو — الأعمال التي تؤديها هذه الشركة لإنجاز المهمة. تختار خدمات أي صفقة من هذه القائمة، وتوزن متطلبات المشاريع عليها.",
+  actionsHeading: "مجال العمل",
+  actionsLead: "ما تعمل فيه شركتك. يحدد الأقسام المقترحة والمسار الذي تبدأ به كل صفقة جديدة.",
   actionsAdminOnly: " لا يمكن تغيير هذا إلا لمسؤول.",
-  actionsLoadFailed: "تعذر تحميل إجراءات الخدمة.",
+  actionsLoadFailed: "تعذّر تحميل مجال العمل.",
   industry: "نوع النشاط",
   industryOther: "مجال آخر",
   industrySearch: "ابحث في المجالات",
@@ -743,37 +713,7 @@ const ar: Strings = {
   industryUpdateLink: "اختر مجالك",
   ownLabel: "مجال العمل (تسميتك الخاصة)",
   saveLabel: "حفظ التسمية",
-  standardActions: "الإجراءات القياسية",
-  referencedBy: (n) => {
-    if (n === 1) return "صفقة واحدة تشير إلى هذا";
-    if (n === 2) return "صفقتان تشيران إلى هذا";
-    if (n <= 10) return `${n} صفقات تشير إلى هذا`;
-    return `${n} صفقة تشير إلى هذا`;
-  },
-  retiredStill: "متقاعدة، ولا تزال صالحة على السجلات التي تستخدمها بالفعل: ",
-  changeFieldAria: "تغيير مجال العمل",
-  switchTo: (to) => `التبديل إلى ${to}؟`,
-  reseedsFrom: (to) => `يعيد هذا بناء مجموعة إجراءات الخدمة من المجموعة القياسية لـ ${to}.`,
-  adds: "يضيف:",
-  leavesPool: "يخرج من المجموعة:",
-  retiredWithCount: (n) => {
-    if (n === 1) return " (متقاعد — لا تزال صفقة واحدة تستخدمه)";
-    if (n === 2) return " (متقاعد — لا تزال صفقتان تستخدمانه)";
-    if (n <= 10) return ` (متقاعد — لا تزال ${n} صفقات تستخدمه)`;
-    return ` (متقاعد — لا تزال ${n} صفقة تستخدمه)`;
-  },
-  unusedRemoved: " (غير مستخدم، أزيل)",
   confirm: "تأكيد",
-  retireAria: "تقاعد إجراء خدمة",
-  retireTitle: (action) => `تقاعد ”${action}“؟`,
-  retireBody: (n) => {
-    const who =
-      n === 1 ? "لا تزال صفقة واحدة تشير إليه"
-      : n === 2 ? "لا تزال صفقتان تشيران إليه"
-      : n <= 10 ? `لا تزال ${n} صفقات تشير إليه`
-      : `لا تزال ${n} صفقة تشير إليه`;
-    return `${who} — تحتفظ به، لكنه لم يعد يعرض للأعمال الجديدة. يمكن إعادته في أي وقت.`;
-  },
   retire: "تقاعد",
 
   favHeading: "العملات المفضلة",

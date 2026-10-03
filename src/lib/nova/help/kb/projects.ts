@@ -2363,16 +2363,6 @@ export const projects: HelpModule = {
       related: ["projects.progress", "projects-settings.weights"],
     },
     {
-      id: "projects-settings.no-service-actions", topic: "dept.projects-settings", kind: "troubleshoot", open: "administration-settings",
-      q: { en: "Why does it say there are no service actions yet?", ar: "لماذا يقول إنه لا توجد إجراءات خدمة بعد؟" },
-      a: {
-        en: "Projects settings no longer asks about service actions: they were there only for the requirement weights, which were removed. If another screen says there are none, your studio has not listed any yet; add them in Studio settings.",
-        ar: "لم تعد إعدادات المشاريع تسأل عن إجراءات الخدمة: فقد كانت هناك لأجل أوزان المتطلبات فقط، وقد أُزيلت. وإن قالت شاشة أخرى إنه لا يوجد أي منها، فاستوديوك لم يُدرجها بعد؛ أضفها في إعدادات الاستوديو.",
-      },
-      keywords: ["no service actions", "service actions", "studio settings", "لا إجراءات خدمة", "إجراءات الخدمة", "إعدادات الاستوديو"],
-      related: ["admin.settings.field-of-work"],
-    },
-    {
       id: "projects-settings.no-departments", topic: "dept.projects-settings", kind: "troubleshoot", open: "administration-master",
       q: { en: "Why can't I choose an overtime department?", ar: "لماذا لا أستطيع اختيار قسم للعمل الإضافي؟" },
       a: {

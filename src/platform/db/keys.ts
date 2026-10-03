@@ -158,8 +158,7 @@ export const REG = {
   sectionLocks: `${P}g:sectionLocks`,
   // WHAT A DEAL IS MEASURED ON — one row per KPI, keyed to a service action
   // (20/09/2026, the owner: service actions were a label and nothing else).
-  // Platform-level, beside the trades: a target for "Installation" is what
-  // nompany means by the word, and a studio inherits it by naming the action.
+  // Platform-level, beside the trades.
   // A deal COPIES what it is given when the work starts (see freezeKpis), so
   // editing a row here never re-judges work already under way.
   erpKpis: `${P}g:erpKpis`,

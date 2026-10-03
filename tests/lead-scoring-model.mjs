@@ -26,7 +26,7 @@ console.log("\n== the weights are what they say they are");
 ok("they sum to 100", S.LEAD_FACTORS.reduce((s, f) => s + f.max, 0) === 100);
 const everything = S.scoreLead({
   contactEmail: "a@b.co", contactPhone: "0790000000", clientName: "Firm Ltd", contactName: "Ali",
-  clientBudget: 5000, serviceIds: ["s1"], description: "We need a full fit-out of two floors",
+  clientBudget: 5000, industry: "Hospitality", description: "We need a full fit-out of two floors",
   campaignId: "cmp1",
 }, { wonBefore: 2, engagement: 3 });
 ok("a lead with everything scores 100", everything.score === 100, String(everything.score));
@@ -47,8 +47,8 @@ console.log("\n== half marks for half the facts");
 ok("one contact route is half", points(S.scoreLead({ contactEmail: "a@b.co" }), "reachable") === 10);
 ok("both routes are full", points(S.scoreLead({ contactEmail: "a@b.co", contactPhone: "079" }), "reachable") === 20);
 ok("neither is nothing", points(S.scoreLead({}), "reachable") === 0);
-ok("an industry alone is half of wants", points(S.scoreLead({ industry: "Hospitality" }), "wants") === 4);
-ok("named services are full", points(S.scoreLead({ serviceIds: ["a"] }), "wants") === 8);
+ok("naming an industry is the whole of wants (services left with service actions, 03/10/2026)", points(S.scoreLead({ industry: "Hospitality" }), "wants") === 8);
+ok("a lead naming no industry has not said what it wants", points(S.scoreLead({}), "wants") === 0);
 ok("an open deal is half of returning", points(S.scoreLead({}, { openDeals: 1 }), "returning") === 8);
 ok("having won before is full", points(S.scoreLead({}, { wonBefore: 1 }), "returning") === 15);
 ok("won beats open when both are true", points(S.scoreLead({}, { wonBefore: 1, openDeals: 3 }), "returning") === 15);
@@ -86,7 +86,7 @@ ok("a full lead is missing nothing", everything.missing.length === 0);
 
 console.log("\n== a lead fades as it sits");
 const strong = { contactEmail: "a@b.co", contactPhone: "079", clientName: "Firm Ltd", contactName: "Ali",
-  clientBudget: 9000, serviceIds: ["s"], description: "Two floors need fitting out", campaignId: "c1" };
+  clientBudget: 9000, industry: "Hospitality", description: "Two floors need fitting out", campaignId: "c1" };
 const at = (days) => new Date(Date.parse("2026-06-01T00:00:00Z") + days * 86400000).toISOString();
 const aged = (days, extra = {}) => S.scoreLead({ ...strong, createdAt: "2026-06-01T00:00:00Z" },
   { wonBefore: 1, engagement: 3, now: at(days), ...extra });
@@ -124,7 +124,7 @@ const spread = S.scoreSpread([{ band: "hot" }, { band: "cold" }, { band: "cold" 
 ok("the spread counts each band", spread.hot === 1 && spread.cold === 2 && spread.total === 3);
 
 console.log("\n== survivable inputs");
-ok("nonsense fields score nothing rather than NaN", Number.isFinite(S.scoreLead({ clientBudget: "lots", serviceIds: "no" }, { engagement: "many" }).score));
+ok("nonsense fields score nothing rather than NaN", Number.isFinite(S.scoreLead({ clientBudget: "lots", industry: 42 }, { engagement: "many" }).score));
 ok("no context is no context", S.scoreLead({}, undefined).score === 0);
 
 console.log(`\n${fails ? `${fails} FAILED` : "all passed"}`);

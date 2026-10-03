@@ -18,7 +18,6 @@
 import { REG } from "./keys";
 import { readArr, editArr } from "./store";
 import { STAGE_REGISTRY } from "../engagement/registry";
-import { SERVICE_ACTIONS } from "@/shared/fieldsOfWork";
 import { kpiProblems } from "../kpi/model";
 import type { KpiDefinition } from "../kpi/model";
 
@@ -37,7 +36,7 @@ export async function listPlatformKpis(): Promise<KpiDefinition[]> {
 export async function writePlatformKpi(def: KpiDefinition): Promise<void> {
   if (!def?.id) throw new Error("kpi: an id is required");
   const others = (await listPlatformKpis()).filter((k) => k.id !== def.id);
-  const problems = kpiProblems(Object.keys(STAGE_REGISTRY), SERVICE_ACTIONS, [...others, def]);
+  const problems = kpiProblems(Object.keys(STAGE_REGISTRY), [...others, def]);
   if (problems.length) throw new Error(`kpi-refused: ${problems.join("; ")}`);
 
   await editArr<KpiDefinition, void>(REG.erpKpis, (rows) => {

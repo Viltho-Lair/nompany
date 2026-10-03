@@ -12,7 +12,7 @@ import { templateById } from "../engagement/templates";
 // own, and it is where a studio's stored templates and industries live.
 import { defaultTemplateForStudio, defaultTemplateForTrade, industryKeyOf, listFlowTemplates } from "./flows";
 import { listPlatformKpis } from "./kpis";
-import { kpisForActions, mergeKpis } from "../kpi/model";
+import { kpisForDeal, mergeKpis } from "../kpi/model";
 import type { StoredKpi } from "../kpi/model";
 import { attachmentProblem, canSitUnassigned, promotionProblem } from "../engagement/membership";
 import { record as recordAudit } from "@/platform/http/audit";
@@ -29,8 +29,8 @@ export type Engagement = {
    */
   templateId?: string;
   /**
-   * WHAT THIS DEAL IS MEASURED ON — a COPY of the KPI declarations its service
-   * actions named, taken when the work started (see `freezeKpis`). Stored
+   * WHAT THIS DEAL IS MEASURED ON — a COPY of the KPI declarations, taken when
+   * the work started (see `freezeKpis`). Stored
    * rather than re-derived for the reason the template beside it is: a target
    * edited in /super must not re-judge work already under way, and a target
    * withdrawn must not make a deal's history unreadable.
@@ -663,24 +663,11 @@ export async function readEngagementView(
 async function applyAsDeal(
   studioId: string,
   d: EngagementDescriptor,
-  /**
-   * The service actions the opening record names, so the deal can be given what
-   * they are measured on. Passed in rather than read out of `d.context`,
-   * because the context carries the nine CONTEXT_FACTS and services are not one
-   * of them — and widening that list to carry a field only KPIs read would put
-   * a second thing through the contribution-rank machinery for no other gain.
-   */
-  actions: readonly string[] = [],
 ): Promise<string> {
   const derived = d.engId;
 
   const aliased = await resolveDealId(studioId, derived);
   if (aliased !== derived) {
-    // A DEAL THAT ALREADY EXISTS STILL TAKES ON NEW ACTIONS. The ticket that
-    // arrives after the project is the commonest shape there is, and it is the
-    // record that names the services — so KPIs are offered on every apply, not
-    // only on the mint. `freezeKpis` keeps what is already being measured.
-    if (actions.length) await freezeKpis(studioId, aliased, actions);
     // Pass the resolved id straight through. applyDescriptor also resolves
     // d.engId itself (it has its own callers that still hand it a derived
     // one, e.g. the backfill), but we already paid for that read above —
@@ -691,7 +678,6 @@ async function applyAsDeal(
   }
 
   if (await readEngagement(studioId, derived)) {
-    if (actions.length) await freezeKpis(studioId, derived, actions);
     await applyDescriptor(studioId, d);
     return derived;
   }
@@ -703,39 +689,33 @@ async function applyAsDeal(
   // AFTER the root exists, never before: freezeKpis edits the root in place
   // (invariant 8), so a write ahead of the apply would have nothing to edit and
   // the deal would open measured on nothing.
-  await freezeKpis(studioId, dealId, actions);
+  await freezeKpis(studioId, dealId);
   return dealId;
 }
 
 /**
  * WHAT THIS DEAL IS MEASURED ON, DECIDED WHEN THE WORK STARTS.
  *
- * The deal copies the KPI declarations its service actions name, plus the ones
- * that measure every deal. COPIED rather than looked up on read, which is the
+ * The deal copies every KPI declaration. (It copied those its service actions
+ * named, plus the universal ones, until service actions were removed on
+ * 03/10/2026.) COPIED rather than looked up on read, which is the
  * rule the BOQ rate and the frozen template already follow: a target edited in
  * /super must not silently re-judge work that has been under way for a month,
  * and a target withdrawn must not erase what a finished deal was judged on.
  *
  * ADDITIVE AND IDEMPOTENT. A deal that already carries a KPI keeps it — with
- * its own `startedAt`, so editing a ticket does not restart a clock somebody
- * has been working to. An action added in week three brings its KPIs in
- * measuring from week three, which is the only honest baseline for work nobody
- * had been asked to do.
- *
- * A DEAL WITH NO ACTIONS IS NOT A DEAL WITH NO KPIs: a project opened directly,
- * or a quotation with no ticket behind it, still takes on every declaration
- * that measures all work. That is the whole reason `action: ""` exists — it is
- * what covers the deal nobody raised a ticket for.
+ * its own `startedAt`, so a second call does not restart a clock somebody has
+ * been working to.
  *
  * BEST-EFFORT, exactly like `freezeTemplate` beside it: the records are the
  * authority, and a failure here must never fail the ticket that was just
  * created. A deal with no KPIs says so on screen.
  */
-async function freezeKpis(studioId: string, dealId: string, actions: readonly string[]): Promise<void> {
+async function freezeKpis(studioId: string, dealId: string): Promise<void> {
   try {
     const defs = await listPlatformKpis();
     if (!defs.length) return;
-    const incoming = kpisForActions(defs, actions, nowISO());
+    const incoming = kpisForDeal(defs, nowISO());
     if (!incoming.length) return;
     await editJSON<Engagement, void>(ENG.root(studioId, dealId), (current) => {
       if (!current) return { result: undefined };
@@ -803,11 +783,7 @@ export async function attachTicketEngagement(
     salesTickets: [ticket],
     salesClients: client ? [client] : [],
   });
-  // THE TICKET IS WHERE THE SERVICE ACTIONS ARE NAMED, so this is the one head
-  // that can say what the work is measured on. The other three pass nothing and
-  // take the declarations that measure every deal.
-  const actions = Array.isArray(ticket?.serviceIds) ? (ticket.serviceIds as unknown[]).map(String) : [];
-  return applyAsDeal(studioId, descriptor, actions);
+  return applyAsDeal(studioId, descriptor);
 }
 
 // Attach a spine record (rfq, converted quotation, invoice, …) to the ticket

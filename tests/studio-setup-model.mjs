@@ -17,7 +17,7 @@ register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 const T = await import("@/shared/tradeSections");
 const M = await import("@/modules/main/studios");
 const K = await import("@/platform/db/keys");
-const F = await import("@/shared/fieldsOfWork");
+const I = await import("@/shared/industryCatalogue");
 const A = await import("@/platform/access/resolve");
 
 let fails = 0;
@@ -99,14 +99,16 @@ ok("names come in the reader's language",
   M.studioSetupScreen("ar").departments.find((d) => d.key === "hr")?.name === "الموارد البشرية");
 ok("a department says what it brings with it",
   screen.departments.find((d) => d.key === "maintenance")?.needs.includes("assets"));
-// A FIELD THAT SUGGESTS NOTHING SUGGESTS EVERYTHING — what such a studio got
-// before the screen existed. The owner narrows it; the product does not guess.
-ok("no field of work suggests every department", screen.suggested[""].length === cat.roots.length);
-ok("\"Other\" suggests every department", screen.suggested.Other.length === cat.roots.length);
-ok("a real field of work suggests fewer", screen.suggested["Wholesale & Retail Trade"].length < cat.roots.length,
-  screen.suggested["Wholesale & Retail Trade"].join(", "));
-ok("the suggestion is the same answer the trade rule gives",
-  screen.suggested["Wholesale & Retail Trade"].every((k) => M.tradeRootsFor("Wholesale & Retail Trade").has(k)));
+// A SPECIALISM PRE-FILLS ITS INDUSTRY'S PROFILE; one with none ("Other") gets
+// the screen's own fallback, every department. The per-trade map that sat
+// beside this went with service actions (03/10/2026).
+const withCatalogue = M.studioSetupScreen("en", I.builtInIndustries());
+const retail = withCatalogue.suggestedByIndustry["shops"];
+ok("a specialism suggests fewer than every department", Array.isArray(retail) && retail.length < cat.roots.length,
+  (retail || []).join(", "));
+ok("...and its suggestion is its industry's profile, needs included",
+  (retail || []).every((k) => M.industryRoots(I.builtInIndustries().find((i) => i.key === "retail-ecommerce")).has(k)));
+ok("there is no per-trade suggestion map any more", !("suggested" in withCatalogue));
 
 console.log("\n== dependencies follow");
 
@@ -160,42 +162,27 @@ console.log("\n== every department some trade actually starts with");
 // including the ones that live by it, and the owner has to know to go and find
 // it.
 //
-// THE WAY IN IS `tradeSections.ts`, three of them: an action resolves to it
-// (ACTION_SECTION), it is on some trade's flow spine, or every company needs it
-// (UNIVERSAL_SECTION_KEYS — which is how Marketing arrived on 19/09/2026, no
-// service action being marketing). A new department that touched none of the
-// three is what this catches.
-//
-// REAL TRADES ONLY. An unknown trade suggests every department, so counting it
-// would satisfy this assertion for a root nothing knows about — the single case
-// it exists to find.
+// THE WAY IN IS AN INDUSTRY'S PROFILE (/super → Industries) since service
+// actions went (03/10/2026). A new department no built-in profile names is what
+// this catches: a department nobody's create screen ever pre-ticks.
 const preTicked = Object.fromEntries(cat.roots.map((k) => [k, 0]));
-for (const field of F.FIELDS_OF_WORK) {
-  const on = M.tradeRootsFor(field);
-  if (!(on instanceof Set) || on.size === 0) ok(`${field} resolves to a real set of departments`, false);
-  for (const key of cat.roots) if (on?.has(key)) preTicked[key] += 1;
+const industries = I.builtInIndustries();
+for (const ind of industries) {
+  const on = M.industryRoots(ind);
+  for (const key of cat.roots) if (on.has(key)) preTicked[key] += 1;
 }
 const orphans = cat.roots.filter((k) => preTicked[k] === 0);
 const rarest = [...cat.roots].sort((a, b) => preTicked[a] - preTicked[b])[0];
-ok("every department asked about is one some trade starts with", orphans.length === 0,
+ok("every department asked about is one some industry starts with", orphans.length === 0,
   orphans.length
-    ? `pre-ticked by no trade: ${orphans.join(", ")}`
-    : `least common is ${rarest} at ${preTicked[rarest]}/${F.FIELDS_OF_WORK.length}`);
-// MARKETING IS WHAT PROVED THE GAP WAS REACHABLE — declared 19/09/2026 with no
-// action that could turn it on, so it is universal BY HAND. Named here because
-// losing it reads as a trade-rules change rather than as a missing department.
-ok("Marketing is a department every trade starts with",
-  preTicked.marketing === F.FIELDS_OF_WORK.length,
-  `${preTicked.marketing}/${F.FIELDS_OF_WORK.length}`);
+    ? `pre-ticked by no industry: ${orphans.join(", ")}`
+    : `least common is ${rarest} at ${preTicked[rarest]}/${industries.length}`);
 
-console.log("\n== the trade rule did not move");
+console.log("\n== what every industry starts with");
 
-// SECTION_NEEDS gained Quotations -> CRM & Sales. CRM & Sales is universal, so
-// no field of work's default may have changed because of it.
-for (const field of ["Wholesale & Retail Trade", "Construction & Contracting", "Manufacturing"]) {
-  const roots = M.tradeRootsFor(field);
-  ok(`${field} still starts with CRM & Sales`, roots?.has("crm-sales"));
-}
+// Every profile carries Sales: six of the seven flow templates open on a sales
+// ticket, and a studio with nowhere to record a customer cannot open a deal.
+for (const ind of industries) ok(`${ind.key} starts with CRM & Sales`, M.industryRoots(ind).has("crm-sales"));
 
 console.log(fails === 0 ? "\nstudio setup model: all passed\n" : `\nstudio setup model: ${fails} FAILED\n`);
 process.exit(fails === 0 ? 0 : 1);

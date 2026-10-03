@@ -53,7 +53,6 @@ export function ticketRefusal(tr, out, kind = "") {
     : e === "client" ? tr.errClient
     : e === "deadline" ? tr.errDeadline
     : e === "industry" ? tr.errIndustry
-    : e === "services" ? tr.errServices
     : e === "budget" ? tr.errBudget
     : e === "already" ? tr.errAlready
     : e === "no-technical" ? tr.errNoTechnical
@@ -139,7 +138,7 @@ const EMPTY_FILTERS = {
 //   sales           -> the dashboard: pipeline aggregates and analytics
 //   crm-sales-tickets   -> the tickets list + form
 //   crm-sales-clients   -> the clients list + form
-//   crm-sales-settings  -> services, vocabulary and the Live view columns
+//   crm-sales-settings  -> vocabulary and the Live view columns
 // crm-sales-live renders full-screen outside the studio frame (see StudioSalesLive).
 //
 // `initial` is the /sales body the studio page answered in its own render, so
@@ -948,13 +947,6 @@ export function TicketForm({ row, clients, vocabulary, campaigns = [], cities = 
     status: row?.status || "Lead", urgency: row?.urgency || "Normal",
     probability: Number(row?.probability ?? 0),
   });
-  // THE STUDIO'S OWN SERVICE ACTIONS, not a Sales-only catalogue. These are
-  // plain strings from Studio Settings — the same list Inventory and Projects
-  // read — so `serviceIds` now holds action NAMES. The field kept its name
-  // because the wire shape did not change; only where the values come from did.
-  const serviceActions = Array.isArray(vocabulary?.serviceActions) ? vocabulary.serviceActions : [];
-  const [serviceIds, setServiceIds] = useState(row?.serviceIds || []);
-  const toggleService = (id) => setServiceIds((v) => v.includes(id) ? v.filter((x) => x !== id) : [...v, id]);
   const [busy, setBusy] = useState(false);
   // WHY THE DEAL ENDED, asked only when this edit closes it as lost, cancelled
   // or dropped. The route refuses such a close without one, and since the
@@ -971,7 +963,7 @@ export function TicketForm({ row, clients, vocabulary, campaigns = [], cities = 
     }))
     : [];
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
-  const ready = f.title.trim() && f.clientName.trim() && f.deadline && f.industry.trim() && serviceIds.length > 0
+  const ready = f.title.trim() && f.clientName.trim() && f.deadline && f.industry.trim()
     && (!closingWithReason || lostReason.trim());
 
   // The client the typed name resolves to, if any. Its contacts become the
@@ -1010,9 +1002,8 @@ export function TicketForm({ row, clients, vocabulary, campaigns = [], cities = 
           industry, a budget and a probability, and were then asked for that
           same company's contact and site.
 
-          They land ABOVE the services rather than below the description,
-          because the services and the description are what the work is too —
-          scalars first, then the actions, then the free text. Same grid, so
+          They land ABOVE the description, because the description is what
+          the work is too — scalars first, then the free text. Same grid, so
           the probability slider still spans both columns and Status and
           Urgency still pair up on an edit. */}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -1062,27 +1053,6 @@ export function TicketForm({ row, clients, vocabulary, campaigns = [], cities = 
         </div>
       </div>
 
-      <p className="mt-5 text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{tr.servicesHeading}</p>
-      {serviceActions.length === 0 ? (
-        <p className="mt-2 rounded-xl border border-dashed border-slate-200 p-4 text-xs text-slate-500 dark:border-white/15 dark:text-slate-400">
-          {tr.noServicesForTicket}
-        </p>
-      ) : (
-        <div className="mt-2 space-y-2">
-          {serviceActions.map((action) => {
-            const on = serviceIds.includes(action);
-            return (
-              <div key={action} className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3.5 dark:border-white/15">
-                <label className="flex items-center gap-2.5 text-sm">
-                  <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={on} onChange={() => toggleService(action)} />
-                  <span className="font-600 text-slate-900 dark:text-white">{action}</span>
-                </label>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       <div className="mt-4"><label className={label}>{tr.description}</label><textarea rows={3} className={input} value={f.description} onChange={set("description")} /></div>
 
       {campaignLocked ? (
@@ -1110,7 +1080,6 @@ export function TicketForm({ row, clients, vocabulary, campaigns = [], cities = 
             contactPhone: f.contactPhone, contactPosition: f.contactPosition,
             location: { name: f.locationName, country: f.locationCountry, city: f.locationCity, url: f.locationUrl },
             deadline: f.deadline, industry: f.industry,
-            serviceIds,
             clientBudget: f.clientBudget === "" ? null : f.clientBudget,
             description: f.description,
             probability: f.probability,

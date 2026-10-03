@@ -123,7 +123,7 @@ than a wrong answer.
 **Changing the field of work later overwrites nothing.** The screen says what
 the standard chart for the new trade would add and offers a button that adds
 only what is missing, by code. Nothing is renamed and nothing is deleted — the
-same courtesy `nextPool` extends to service actions, and the reason a studio
+same courtesy the service-action pool extended (it was removed on 03/10/2026), and the reason a studio
 cannot lose an org chart it has edited.
 
 Seeding is idempotent and lands in **one write**: ids are minted before the

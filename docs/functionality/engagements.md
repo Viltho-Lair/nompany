@@ -195,7 +195,7 @@ tickets, RFQs, quotations, projects, project sheets, invoices.
 **The rule that makes it safe: except if the information is created elsewhere.** A record the
 deal merely *used* survives. The **Sales client above all** — `context.clientId` points at a
 client, it does not own one, and other engagements reference the same row. Same for
-collaborators, service actions, sections and settings: Tier B and Tier C survive. Deleting a
+collaborators, sections and settings: Tier B and Tier C survive. Deleting a
 deal must never delete a client.
 
 **Engagements are LOCKED by default** — `locked` absent on the root reads as locked, so
@@ -265,8 +265,7 @@ catalogue read as that studio's own configuration.
 
 ## Not built yet — do not assume otherwise
 
-- **Switching a section off warns about nothing.** Changing the field of work, retiring a
-  service action and editing a flow all show what the change will touch first; the Sections
+- **Switching a section off warns about nothing.** Editing a flow shows what the change will touch first; the Sections
   panel does not, and a part switched off takes its screens, widgets, reads and API with it
   (`dashboards.md`). Nothing is deleted, so this is a warning that is missing rather than a
   loss that is silent — but it is the one switch of the four that says nothing.

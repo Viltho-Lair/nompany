@@ -153,8 +153,8 @@ export const general: HelpModule = {
       id: "start.field-of-work", topic: "start.basics", kind: "about",
       q: { en: "What does the field of work change?", ar: "ما الذي يغيّره مجال العمل؟" },
       a: {
-        en: "The field of work tells nompany what your company does. It suggests which sections you start with, seeds the service actions your items and projects use, offers the departments and pre-built roles your trade usually has, and picks the deal flow. Changing it later switches nothing off by itself: the Sections panel offers a checklist instead, and nothing changes until you press Apply.",
-        ar: "يخبر مجال العمل nompany بما تفعله شركتك. فهو يقترح الأقسام التي تبدأ بها، ويعبئ إجراءات الخدمة التي تستخدمها أصنافك ومشاريعك، ويعرض الإدارات والأدوار الجاهزة المعتادة في مجالك، ويختار مسار الصفقات. تغييره لاحقا لا يوقف شيئا بنفسه: إذ تعرض لوحة الأقسام قائمة اختيار بدلا من ذلك، ولا يتغير شيء حتى تضغط تطبيق.",
+        en: "The field of work tells nompany what your company does. It suggests which sections you start with, offers the departments and pre-built roles your trade usually has, and picks the deal flow. Changing it later switches nothing off by itself: the Sections panel offers a checklist instead, and nothing changes until you press Apply.",
+        ar: "يخبر مجال العمل nompany بما تفعله شركتك. فهو يقترح الأقسام التي تبدأ بها، ويعرض الإدارات والأدوار الجاهزة المعتادة في مجالك، ويختار مسار الصفقات. تغييره لاحقا لا يوقف شيئا بنفسه: إذ تعرض لوحة الأقسام قائمة اختيار بدلا من ذلك، ولا يتغير شيء حتى تضغط تطبيق.",
       },
       keywords: ["field of work", "industry", "trade", "business type", "مجال العمل", "الصناعة", "النشاط", "نوع العمل"],
       related: ["admin.settings.field-of-work", "start.switch-sections"],
@@ -780,8 +780,8 @@ export const general: HelpModule = {
       open: "administration-settings",
       q: { en: "What is in Studio settings?", ar: "ماذا تضم إعدادات الاستوديو؟" },
       a: {
-        en: "Studio settings is how the studio itself is set up: its logo, country, currency and favourite currencies, time zone, default language, VAT rate, working hours, legal information, field of work and service actions, deal flows, employment rules, and the Sections panel. Reading it needs the studio settings view right and changing it needs the edit right. Deleting the studio is also here, for the owner.",
-        ar: "إعدادات الاستوديو هي طريقة إعداد الاستوديو نفسه: شعاره ودولته وعملته والعملات المفضلة ومنطقته الزمنية ولغته الافتراضية ونسبة ضريبة القيمة المضافة وساعات العمل والمعلومات القانونية ومجال العمل وإجراءات الخدمة ومسارات الصفقات وقواعد التوظيف ولوحة الأقسام. قراءتها تحتاج صلاحية عرض إعدادات الاستوديو وتغييرها يحتاج صلاحية التعديل. وحذف الاستوديو موجود هنا أيضا للمالك.",
+        en: "Studio settings is how the studio itself is set up: its logo, country, currency and favourite currencies, time zone, default language, VAT rate, working hours, legal information, industry, deal flows, employment rules, and the Sections panel. Reading it needs the studio settings view right and changing it needs the edit right. Deleting the studio is also here, for the owner.",
+        ar: "إعدادات الاستوديو هي طريقة إعداد الاستوديو نفسه: شعاره ودولته وعملته والعملات المفضلة ومنطقته الزمنية ولغته الافتراضية ونسبة ضريبة القيمة المضافة وساعات العمل والمعلومات القانونية ومجال العمل ومسارات الصفقات وقواعد التوظيف ولوحة الأقسام. قراءتها تحتاج صلاحية عرض إعدادات الاستوديو وتغييرها يحتاج صلاحية التعديل. وحذف الاستوديو موجود هنا أيضا للمالك.",
       },
       keywords: ["studio settings", "company settings", "configuration", "preferences", "إعدادات الاستوديو", "إعدادات الشركة", "التهيئة", "التفضيلات"],
       related: ["admin.settings.currency", "admin.settings.timezone", "start.switch-sections"],
@@ -824,10 +824,10 @@ export const general: HelpModule = {
       open: "administration-settings",
       q: { en: "How do I change the studio's field of work?", ar: "كيف أغيّر مجال عمل الاستوديو؟" },
       a: {
-        en: "In Studio settings, under Service actions, change the type of industry and confirm. This re-seeds the service actions from the new trade; actions deals still use are kept as retired rather than removed. Your sections are not switched off: the Sections panel shows a checklist of what the new trade uses, and nothing moves until you press Apply. The Departments tab makes a similar offer.",
-        ar: "من إعدادات الاستوديو، تحت إجراءات الخدمة، غيّر نوع الصناعة وأكّد. يعيد ذلك تعبئة إجراءات الخدمة من المجال الجديد؛ وتبقى الإجراءات التي ما زالت صفقات تستخدمها كإجراءات متقاعدة بدلا من حذفها. ولا تُوقف أقسامك: إذ تعرض لوحة الأقسام قائمة بما يستخدمه المجال الجديد، ولا يتغير شيء حتى تضغط تطبيق. ويقدم تبويب الإدارات عرضا مشابها.",
+        en: "In Studio settings, under Industry, choose the type of industry; it saves at once. Your sections are not switched off: the Sections panel shows a checklist of what the new trade uses, and nothing moves until you press Apply. The Departments tab makes a similar offer.",
+        ar: "من إعدادات الاستوديو، تحت مجال العمل، اختر نوع الصناعة؛ ويُحفظ فورًا. ولا تُوقف أقسامك: إذ تعرض لوحة الأقسام قائمة بما يستخدمه المجال الجديد، ولا يتغير شيء حتى تضغط تطبيق. ويقدم تبويب الإدارات عرضا مشابها.",
       },
-      keywords: ["field of work", "industry", "trade", "service actions", "مجال العمل", "الصناعة", "النشاط", "إجراءات الخدمة"],
+      keywords: ["field of work", "industry", "trade", "مجال العمل", "الصناعة", "النشاط"],
       related: ["start.field-of-work", "start.switch-sections"],
     },
     {

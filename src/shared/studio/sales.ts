@@ -141,7 +141,6 @@ type Strings = CommonStrings & {
   errClient: string;
   errDeadline: string;
   errIndustry: string;
-  errServices: string;
   errBudget: string;
   errAlready: string;
   errNoTechnical: string;
@@ -242,8 +241,6 @@ type Strings = CommonStrings & {
   probabilityOf: (pct: number) => string;
   contactHeading: string;
   locationHeading: string;
-  servicesHeading: string;
-  noServicesForTicket: string;
   saveTicket: string;
 
   vocabularyTitle: string;
@@ -368,7 +365,6 @@ const en: Strings = {
   errClient: "Name the client.",
   errDeadline: "Deadline is required.",
   errIndustry: "Type of industry is required.",
-  errServices: "Pick at least one service. Add them in Studio Settings → Service Actions.",
   errBudget: "Client budget must be a non-negative number.",
   errAlready: "That ticket is already with Quotations — you can send it again once the quotation comes back.",
   errNoTechnical: "This studio has no Quotations section to send an RFQ to.",
@@ -469,9 +465,6 @@ const en: Strings = {
   probabilityOf: (pct) => `Probability — ${pct}%`,
   contactHeading: "Contact",
   locationHeading: "Location",
-  servicesHeading: "Type of services *",
-  noServicesForTicket:
-    "No service actions yet. Add them in Studio Settings → Service Actions before raising a ticket.",
   saveTicket: "Save ticket",
 
   vocabularyTitle: "Vocabulary",
@@ -597,7 +590,6 @@ const ar: Strings = {
   errClient: "حدد اسم العميل.",
   errDeadline: "الموعد النهائي مطلوب.",
   errIndustry: "نوع النشاط مطلوب.",
-  errServices: "اختر خدمة واحدة على الأقل. أضفها من إعدادات الاستوديو ← إجراءات الخدمة.",
   errBudget: "يجب أن تكون ميزانية العميل رقما غير سالب.",
   errAlready: "هذه التذكرة مع قسم عروض الأسعار بالفعل — يمكنك إرسالها مجددا بعد عودة عرض السعر.",
   errNoTechnical: "لا يوجد قسم عروض أسعار في هذا الاستوديو لإرسال طلب عرض سعر إليه.",
@@ -713,9 +705,6 @@ const ar: Strings = {
   probabilityOf: (pct) => `الاحتمال — ${pct}٪`,
   contactHeading: "جهة الاتصال",
   locationHeading: "الموقع",
-  servicesHeading: "نوع الخدمات *",
-  noServicesForTicket:
-    "لا توجد إجراءات خدمة بعد. أضفها من إعدادات الاستوديو ← إجراءات الخدمة قبل رفع تذكرة.",
   saveTicket: "حفظ التذكرة",
 
   vocabularyTitle: "المفردات",

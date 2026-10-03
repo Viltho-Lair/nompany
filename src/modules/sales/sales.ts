@@ -210,32 +210,12 @@ export async function saveSalesSettings(ctx: SalesContext, body: Record<string, 
   return updated ? readSalesVocab({ settings: next }) : { error: "notfound" };
 }
 
-// ---- service ids -------------------------------------------------------
-// A ticket's services USED TO be chosen from a Sales-owned catalogue
-// (`salesServices`, a collection under sales-settings). That catalogue is
-// gone: what a studio sells is now named once, in Studio Settings → Service
-// Actions (`studio.serviceActions`). A ticket stores the ACTION NAMES themselves in `serviceIds`
-// (the field name survives the catalogue it used to point into, because
-// renaming it would touch every screen and every golden for no behavioural
-// gain — the values are what changed, not the shape).
-//
-// Kept if the name is one of the studio's own actions, ACTIVE OR RETIRED: a
-// retired action is one removed from the pool but still in use here, so a
-// ticket that already named it keeps naming it rather than silently losing a
-// service the moment somebody edits the pool elsewhere. Only a name that is
-// neither — never one of theirs — is dropped.
-function cleanServiceIds(raw: unknown, studio: Record<string, unknown>) {
-  const known = new Set([
-    ...(Array.isArray(studio?.serviceActions) ? studio.serviceActions as unknown[] : []),
-    ...(Array.isArray(studio?.retiredServiceActions) ? studio.retiredServiceActions as unknown[] : []),
-  ].map((a) => str(a, 160)));
-  const seen = new Set<string>();
-  return (Array.isArray(raw) ? raw : []).slice(0, 40).map((s) => str(s, 160)).filter((s) => {
-    if (!s || !known.has(s) || seen.has(s)) return false;
-    seen.add(s);
-    return true;
-  });
-}
+// ---- service ids: GONE --------------------------------------------------
+// A ticket used to name the studio's Service Actions in `serviceIds`, and could
+// not be saved without one. The owner removed service actions from studios on
+// 03/10/2026, and the ticket's half went with them: no picker, no rule, no
+// field. A ticket written before still stores the list until
+// scripts/migrate/remove-service-actions.mjs clears it; nothing reads it.
 
 // ---- clients ---------------------------------------------------------------
 export async function listClients({ studio, clientsSection }: Pick<SalesContext, "studio" | "clientsSection">) {
@@ -1012,34 +992,6 @@ export async function submitTicketPo(ctx: SalesContext, body: Record<string, unk
 // existing rows: typing a brand-new client, contact or location is always
 // allowed. The contact and location used here are folded into the client
 // record without disturbing any other contact/location already on file.
-// EVERY SERVICE ACTION A TICKET STILL NAMES, by studio id alone.
-//
-// It deliberately does not go through `salesContext`: this feeds the
-// retire-vs-drop decision in studioServiceActions.serviceActionUsage, which is
-// guarded upstream by studio.settings.edit — a right a role can hold without
-// holding sales.tickets.view. Resolving through `salesContext` would return an
-// empty set on a forbidden read, and an empty set here does not read as "no
-// permission", it reads as "nothing references this action", so the action gets
-// DROPPED instead of retired and every ticket naming it silently loses that
-// scope on its next edit. Membership and settings authority are already proven
-// by the caller's own route guard; this needs no second permission to be right.
-//
-// Tickets only became a referrer when services moved to Studio Settings -> Service
-// Actions; before that they pointed at a Sales-owned catalogue and the usage
-// query was complete while counting items alone.
-export async function ticketServiceActionsForStudio(studioId: string): Promise<string[][]> {
-  // Child falls back to parent, the same resolution every cross-section read
-  // in this codebase uses, so a studio that never split sales-tickets out
-  // still answers.
-  const section = (await getSectionByKey(studioId, "crm-sales-tickets"))
-    || (await getSectionByKey(studioId, "crm-sales"));
-  if (!section) return [];
-  const tickets = await Tickets.find({ studio: { id: studioId }, section });
-  // Same default as the form: a ticket saved before the field existed carries
-  // nothing at all, and reads as an empty list rather than a guess.
-  return tickets.map((t) => (Array.isArray(t.serviceIds) ? t.serviceIds : []));
-}
-
 export async function createTicket(ctx: SalesContext, body: Record<string, unknown>) {
   // THE GUARD, BEFORE ANYTHING IS READ OR WRITTEN. Not in the route: routes get
   // added and forgotten, whereas the function that does the work cannot be
@@ -1072,17 +1024,10 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   const rawBudget = body?.clientBudget;
   const clientBudget = rawBudget === "" || rawBudget == null ? null : Number(rawBudget);
 
-  // Services are chosen from the studio's own Service Actions (Studio
-  // Settings → Service Actions), not a Sales-owned catalogue — see
-  // cleanServiceIds. Unknown names are dropped rather than trusted, so a
-  // stale client can't attach an action this studio doesn't have.
-  const serviceIds = cleanServiceIds(body?.serviceIds, studio);
-
   if (!title) return { error: "title" };
   if (!clientName && !clientId) return { error: "client" };
   if (!deadline) return { error: "deadline" };
   if (!industry) return { error: "industry" };
-  if (serviceIds.length === 0) return { error: "services" };
   if (clientBudget != null && (!Number.isFinite(clientBudget) || clientBudget < 0)) return { error: "budget" };
 
   // "WHICH CAMPAIGN BROUGHT THEM?" — optional, and it must be one of this
@@ -1094,7 +1039,7 @@ export async function createTicket(ctx: SalesContext, body: Record<string, unkno
   }
 
   return insertTicket({ studio, ticketsSection, clientsSection }, {
-    title, clientId, clientName, industry, deadline, contact, location, serviceIds, clientBudget,
+    title, clientId, clientName, industry, deadline, contact, location, clientBudget,
     description: str(body?.description, 4000),
     probability: normaliseProbability(body?.probability, 0),
     raisedBy: collaborator.id,
@@ -1108,7 +1053,7 @@ type TicketInput = {
   title: string; clientId: string; clientName: string; industry: string; deadline: string;
   contact: { name: string; email: string; phone: string; position: string };
   location: { name: string; country: string; city: string; url: string };
-  serviceIds: string[]; clientBudget: number | null; description: string; probability: number;
+  clientBudget: number | null; description: string; probability: number;
   raisedBy: string; assignedTo: string; campaignId: string; leadDeadlineHours: number | null;
 };
 
@@ -1122,7 +1067,7 @@ async function insertTicket(
   { studio, ticketsSection, clientsSection }: Pick<SalesContext, "studio" | "ticketsSection" | "clientsSection">,
   input: TicketInput,
 ) {
-  const { title, clientId, clientName, industry, deadline, contact, location, serviceIds, clientBudget } = input;
+  const { title, clientId, clientName, industry, deadline, contact, location, clientBudget } = input;
   // Find-or-create the client by name (case-insensitive), falling back to an
   // explicit id, then fold this ticket's contact + location into it — the
   // shared helper every deal-starting path uses; see salesClients.ts.
@@ -1157,7 +1102,6 @@ async function insertTicket(
     urgency: DEFAULT_URGENCY,               // Leader-only, and only after creation
     industry,
     deadline,
-    serviceIds,
     clientBudget,
     // Sales' own read on how likely this is to close. Drives the weighted
     // forecast on the dashboard, so it is a number, not a mood.
@@ -1228,7 +1172,7 @@ export async function raiseLead(
     title: input.title, clientId: input.clientId || "", clientName: input.clientName, industry: "", deadline: "",
     contact: { name: input.contactName, email: input.contactEmail, phone: input.contactPhone, position: "" },
     location: { name: "", country: "", city: "", url: "" },
-    serviceIds: [], clientBudget: null, description: input.description, probability: 0,
+    clientBudget: null, description: input.description, probability: 0,
     raisedBy: input.raisedBy, assignedTo: assignTo, campaignId: input.campaignId, leadDeadlineHours: input.leadDeadlineHours,
   });
   if ("ticket" in result && result.ticket && input.notify !== false) {
@@ -1355,13 +1299,6 @@ export async function editTicket(ctx: SalesContext, id: string, body: Record<str
     const budget = raw === "" || raw == null ? null : Number(raw);
     if (budget != null && (!Number.isFinite(budget) || budget < 0)) return { error: "budget" };
     patch.clientBudget = budget;
-  }
-  // Same rule as creation: unknown service names are dropped, not trusted, and
-  // a ticket is never left with none.
-  if (body?.serviceIds !== undefined) {
-    const serviceIds = cleanServiceIds(body.serviceIds, studio);
-    if (serviceIds.length === 0) return { error: "services" };
-    patch.serviceIds = serviceIds;
   }
   if (body?.value !== undefined) patch.value = Number(body.value) > 0 ? Number(body.value) : 0;
   // WHO RAISED IT AND WHO HAS IT ARE NOT EDITED HERE. The first never changes;

@@ -174,12 +174,11 @@ export const crmSales: HelpModule = {
       id: "crm-sales.setup", topic: "dept.crm-sales", kind: "howto", common: true, open: "administration-settings",
       q: { en: "What must I set up before using CRM & Sales?", ar: "ما الذي يجب إعداده قبل استخدام المبيعات وعلاقات العملاء؟" },
       a: {
-        en: "Raising tickets works as soon as the studio has at least one service action; the rest decides how the later steps behave. Most of it is set outside CRM & Sales, because other departments read the same settings. Work through these roughly in this order.",
-        ar: "يعمل رفع التذاكر بمجرد أن يكون لدى الاستوديو إجراء خدمة واحد على الأقل؛ أما الباقي فيحدد سلوك الخطوات اللاحقة. ويُضبط معظمه خارج المبيعات وعلاقات العملاء، لأن أقسامًا أخرى تقرأ الإعدادات نفسها. اتبعها بهذا الترتيب تقريبًا.",
+        en: "Raising tickets works from the start; the rest decides how the later steps behave. Most of it is set outside CRM & Sales, because other departments read the same settings. Work through these roughly in this order.",
+        ar: "يعمل رفع التذاكر من البداية؛ أما الباقي فيحدد سلوك الخطوات اللاحقة. ويُضبط معظمه خارج المبيعات وعلاقات العملاء، لأن أقسامًا أخرى تقرأ الإعدادات نفسها. اتبعها بهذا الترتيب تقريبًا.",
       },
       steps: {
         en: [
-          "In Studio settings, add the studio's Service Actions: a ticket cannot be saved without at least one",
           "In Studio settings, set the studio's country and city, which a new ticket's site starts from, and its currency, which money on a ticket is shown in",
           "Make sure the studio has the Quotations department switched on, or Request RFQ is not offered",
           "In Approval settings, name who answers a Quotation approval, a Client purchase order and a Change order",
@@ -188,7 +187,6 @@ export const crmSales: HelpModule = {
           "In CRM & Sales settings, add the cities and contact positions you want suggested, and choose the Live view's columns",
         ],
         ar: [
-          "في إعدادات الاستوديو، أضف إجراءات الخدمة الخاصة بالاستوديو: فلا تُحفظ تذكرة دون إجراء واحد على الأقل",
           "في إعدادات الاستوديو، حدد دولة الاستوديو ومدينته، ومنهما يبدأ موقع التذكرة الجديدة، وعملته التي تُعرض بها المبالغ على التذكرة",
           "تأكد من أن قسم عروض الأسعار مفعّل في الاستوديو، وإلا فلن يظهر زر «طلب عرض سعر»",
           "في إعدادات الموافقات، سمِّ من يرد على اعتماد عرض السعر وأمر شراء العميل وأمر التغيير",
@@ -198,7 +196,7 @@ export const crmSales: HelpModule = {
         ],
       },
       keywords: ["crm setup", "getting started", "first steps", "configure sales", "before I start", "إعداد المبيعات", "البدء", "الخطوات الأولى", "تهيئة المبيعات", "قبل البدء"],
-      related: ["crm-sales-settings.services", "crm-sales-settings.elsewhere", "admin.approvals.settings"],
+      related: ["crm-sales-settings.elsewhere", "admin.approvals.settings"],
     },
     {
       id: "crm-sales.dashboard-missing", topic: "dept.crm-sales", kind: "troubleshoot", open: "crm-sales",
@@ -553,7 +551,6 @@ export const crmSales: HelpModule = {
           "Type of industry (required): pick from the list or type your own",
           "Client budget: what the customer said they can spend, in the studio's currency; Value Quoted is not typed, it comes from the latest quotation",
           "Probability: 0 to 100 per cent, by slider or typed; it drives the weighted forecast",
-          "Type of services (required): tick at least one of the studio's Service Actions",
           "Description",
           "Which campaign brought them?: optional, offered only when Marketing has campaigns; once set it stays",
         ],
@@ -566,13 +563,12 @@ export const crmSales: HelpModule = {
           "نوع النشاط (مطلوب): اختر من القائمة أو اكتب نشاطك",
           "ميزانية العميل: ما قال العميل إنه يستطيع إنفاقه، بعملة الاستوديو؛ أما «القيمة المعروضة» فلا تُكتب بل تأتي من أحدث عرض سعر",
           "الاحتمال: من 0 إلى 100 بالمئة، بالمنزلق أو بالكتابة؛ وعليه تُبنى التوقعات المرجحة",
-          "نوع الخدمات (مطلوب): حدد واحدًا على الأقل من إجراءات الخدمة في الاستوديو",
           "الوصف",
           "أي حملة جاءت بهم؟: اختياري، ولا يظهر إلا إذا كانت في قسم التسويق حملات؛ ومتى حُدد بقي",
         ],
       },
       keywords: ["new ticket", "create deal", "raise ticket", "required fields", "ticket form", "تذكرة جديدة", "إنشاء صفقة", "رفع تذكرة", "حقول مطلوبة", "نموذج التذكرة"],
-      related: ["crm-sales-tickets.save-disabled", "crm-sales-settings.services", "crm-sales-tickets.edit-fields"],
+      related: ["crm-sales-tickets.save-disabled", "crm-sales-tickets.edit-fields"],
     },
     // Checked against src/components/studio2/StudioSales.js (TicketForm with `row`
     // set: statusOptions, the Urgency select, closingWithReason, campaignLocked) and
@@ -773,7 +769,7 @@ export const crmSales: HelpModule = {
         ar: "يبقى زر «حفظ التذكرة» معطلًا حتى تُملأ حقول العنوان والعميل والموعد النهائي ونوع النشاط وخدمة واحدة على الأقل، وكذلك السبب عند إغلاق الصفقة بالخسارة. والعملاء المحتملون الواردون من حملة أو نموذج أو تحليلات العملاء ليس لهم بعد موعد نهائي أو نشاط أو خدمات، فاملأها أول مرة تعدّل فيها أحدهم، ولو لإغلاقه. وإن رُفض الحفظ بعد ذلك ظهر السبب في النموذج: كأن تكون ميزانية العميل سالبة، أو أن الحملة التي اخترتها لم تعد موجودة.",
       },
       keywords: ["cannot save", "save greyed", "required", "lead from campaign", "لا يمكن الحفظ", "زر الحفظ معطل", "مطلوب", "عميل محتمل من حملة"],
-      related: ["crm-sales-tickets.fields", "crm-sales-settings.services"],
+      related: ["crm-sales-tickets.fields"],
     },
     {
       id: "crm-sales-tickets.client-locked", topic: "dept.crm-sales-tickets", kind: "troubleshoot", open: "crm-sales-tickets",
@@ -1946,21 +1942,11 @@ export const crmSales: HelpModule = {
       id: "crm-sales-settings.elsewhere", topic: "dept.crm-sales-settings", kind: "settings", open: "administration-settings",
       q: { en: "Where are the other settings CRM & Sales uses?", ar: "أين الإعدادات الأخرى التي يستخدمها قسم المبيعات وعلاقات العملاء؟" },
       a: {
-        en: "Settings other departments also read belong to the studio, not to CRM & Sales. The services a ticket offers are the studio's Service Actions, and the country, city and currency a ticket starts from are the studio's own, all in Studio settings. Who approves a quotation, a customer's PO and a variation is in Approval settings; client tags and the Client industries list are in Master data; and who may assign leads is a right given on the Access screen.",
-        ar: "الإعدادات التي تقرؤها أقسام أخرى أيضًا تخص الاستوديو لا قسم المبيعات وعلاقات العملاء. فالخدمات التي تعرضها التذكرة هي إجراءات الخدمة في الاستوديو، والدولة والمدينة والعملة التي تبدأ بها التذكرة هي الخاصة بالاستوديو، وكلها في إعدادات الاستوديو. ومن يعتمد عرض السعر وأمر شراء العميل والتغيير ففي إعدادات الموافقات؛ ووسوم العملاء وقائمة قطاعات العملاء في البيانات الأساسية؛ ومن يحق له إسناد العملاء المحتملين صلاحيةٌ تُمنح في شاشة الصلاحيات.",
+        en: "Settings other departments also read belong to the studio, not to CRM & Sales. The country, city and currency a ticket starts from are the studio's own, in Studio settings. Who approves a quotation, a customer's PO and a variation is in Approval settings; client tags and the Client industries list are in Master data; and who may assign leads is a right given on the Access screen.",
+        ar: "الإعدادات التي تقرؤها أقسام أخرى أيضًا تخص الاستوديو لا قسم المبيعات وعلاقات العملاء. فالدولة والمدينة والعملة التي تبدأ بها التذكرة هي الخاصة بالاستوديو، في إعدادات الاستوديو. ومن يعتمد عرض السعر وأمر شراء العميل والتغيير ففي إعدادات الموافقات؛ ووسوم العملاء وقائمة قطاعات العملاء في البيانات الأساسية؛ ومن يحق له إسناد العملاء المحتملين صلاحيةٌ تُمنح في شاشة الصلاحيات.",
       },
-      keywords: ["service actions", "approval settings", "client industries", "studio settings", "إجراءات الخدمة", "إعدادات الموافقات", "قطاعات العملاء", "إعدادات الاستوديو"],
+      keywords: ["approval settings", "client industries", "studio settings", "إعدادات الموافقات", "قطاعات العملاء", "إعدادات الاستوديو"],
       related: ["crm-sales.setup", "admin.settings.about", "admin.approvals.settings"],
-    },
-    {
-      id: "crm-sales-settings.services", topic: "dept.crm-sales-settings", kind: "troubleshoot", open: "administration-settings",
-      q: { en: "Where do I add the services a ticket offers?", ar: "أين أضيف الخدمات التي تعرضها التذكرة؟" },
-      a: {
-        en: "The services are not kept in CRM & Sales settings: they are the studio's Service Actions, in Studio settings, the same list other departments read. A ticket needs at least one, so if the ticket form says there are no service actions yet, somebody who manages Studio settings must add them first. The refusal message on the form says the same: Studio Settings, then Service Actions.",
-        ar: "لا تُحفظ الخدمات في إعدادات المبيعات وعلاقات العملاء: بل هي إجراءات الخدمة في إعدادات الاستوديو، وهي القائمة نفسها التي تقرؤها أقسام أخرى. وتحتاج التذكرة إلى إجراء واحد على الأقل، فإن قال نموذج التذكرة إنه لا توجد إجراءات خدمة بعد، فعلى من يدير إعدادات الاستوديو إضافتها أولًا. ورسالة الرفض في النموذج تقول الشيء نفسه: إعدادات الاستوديو ثم إجراءات الخدمة.",
-      },
-      keywords: ["services", "service actions", "empty services", "type of services", "الخدمات", "إجراءات الخدمة", "لا توجد خدمات", "نوع الخدمات"],
-      related: ["crm-sales-tickets.fields", "crm-sales.setup"],
     },
     {
       id: "crm-sales-settings.read-only", topic: "dept.crm-sales-settings", kind: "troubleshoot", open: "crm-sales-settings",

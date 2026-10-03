@@ -54,5 +54,7 @@ services/pg-gateway/dist/
 skills-lock.json
 .mcp.json
 
-# Item scopes exported by scripts/migrate/remove-item-scope.mjs before it clears them.
+# What scripts/migrate/remove-service-actions.mjs exports before it clears it
+# (scope-export/ was its predecessor's, remove-item-scope.mjs, which it replaced).
 scope-export/
+service-actions-export/

@@ -38,11 +38,10 @@ const { REQUIRED_SECTIONS } = await import("../src/platform/db/sections.ts");
 const { ARCHETYPES, permissionsFor, ADMIN_ONLY_AREAS } = await import("../src/modules/people/archetypes.ts");
 const { engineSectionKey } = await import("../src/platform/access/catalogue.ts");
 const { INDUSTRIES, industryByField } = await import("../src/platform/engagement/industries.ts");
-const { FIELD_ACTION_MATRIX, SERVICE_ACTIONS, actionsForField } = await import("../src/shared/fieldsOfWork.ts");
-const { ACTION_SECTION, UNIVERSAL_SECTION_KEYS, NEVER_GATED_KEYS, rootSectionsForTrade, sectionEnabledForTrade, tradeSuggestion }
+const { FIELDS_OF_WORK } = await import("../src/shared/fieldsOfWork.ts");
+const { NEVER_GATED_KEYS, withNeeds, sectionEnabledForTrade, tradeSuggestion }
   = await import("../src/shared/tradeSections.ts");
-const { FLOW_TEMPLATES } = await import("../src/platform/engagement/templates.ts");
-const { STAGE_REGISTRY } = await import("../src/platform/engagement/registry.ts");
+const { builtInIndustries } = await import("../src/shared/industryCatalogue.ts");
 // Dynamic for the same reason as every import in this file — see above.
 const { departmentOf } = await import("../src/shared/studio/insights.ts");
 const { AREAS } = await import("../src/platform/access/index.ts");
@@ -2091,7 +2090,7 @@ export async function testEverySectionWithAScreenIsReachableBySomeSeededRole(t) 
 // industry pointing at a trade that no longer exists, and a trade added to the
 // matrix with no industry beside it would silently get no flow.
 export async function testTheTwoIndustryListsAreOneList(t) {
-  const fields = Object.keys(FIELD_ACTION_MATRIX);
+  const fields = [...FIELDS_OF_WORK];
 
   t.equal(INDUSTRIES.length, fields.length,
     `the two industry lists are the same length (${INDUSTRIES.length} vs ${fields.length})`);
@@ -2099,13 +2098,13 @@ export async function testTheTwoIndustryListsAreOneList(t) {
   // -> every industry names a real trade
   const orphans = INDUSTRIES.filter((i) => !fields.includes(i.field)).map((i) => i.key);
   t.equal(orphans.length, 0,
-    `every industry's \`field\` is a key of FIELD_ACTION_MATRIX — orphans: ${orphans.join(", ")}`);
+    `every industry's \`field\` is one of FIELDS_OF_WORK — orphans: ${orphans.join(", ")}`);
 
   // <- every trade has an industry
   const named = new Set(INDUSTRIES.map((i) => i.field));
   const unclaimed = fields.filter((f) => !named.has(f));
   t.equal(unclaimed.length, 0,
-    `every trade in FIELD_ACTION_MATRIX has an industry — unclaimed: ${unclaimed.join(", ")}`);
+    `every trade in FIELDS_OF_WORK has an industry — unclaimed: ${unclaimed.join(", ")}`);
 
   // and the join is a function, not a relation: no two industries share a trade.
   t.equal(named.size, INDUSTRIES.length,
@@ -2118,28 +2117,6 @@ export async function testTheTwoIndustryListsAreOneList(t) {
   }
 }
 
-
-// A TRADE'S OWN FLOW, resolved to ROOT sections — the test-side mirror of
-// `dealSpineFor` in modules/main/studios.ts, which is private there. Shared by
-// the two trade tests below rather than written into each.
-const tradeRootOf = new Map();
-for (const d of SECTION_DEFS) {
-  tradeRootOf.set(d.key, d.key);
-  for (const c of d.children || []) tradeRootOf.set(c.key, d.key);
-}
-function tradeSpineFor(field) {
-  const ind = industryByField(field);
-  if (!ind) return [];
-  const out = new Set();
-  for (const id of [ind.primary, ind.secondary].filter(Boolean)) {
-    const tpl = FLOW_TEMPLATES.find((x) => x.id === id);
-    for (const st of tpl?.stages || []) {
-      const e = STAGE_REGISTRY[st];
-      if (e) out.add(tradeRootOf.get(e.sectionKey) || e.sectionKey);
-    }
-  }
-  return [...out];
-}
 
 // THE TRADE'S OFFER TO A STUDIO THAT ALREADY EXISTS.
 //
@@ -2185,59 +2162,29 @@ export async function testTheTradeOffersOnlyWhatItMayChange(t) {
   const none = tradeSuggestion([{ key: "manufacturing", enabled: false }], null, rules);
   t.equal(none.off.length + none.on.length + none.choices.length, 0, "an unknown trade suggests nothing");
 
-  // THE CASE THAT PROMPTED IT, on the real matrix: an IT & Software studio with
-  // everything on is offered exactly Manufacturing and Logistics. Inventory is
-  // NOT offered — no IT action maps there, but its support template (D) writes
-  // project sheets and deliveries, which are Inventory's.
-  const it = "Information Technology & Software";
-  const itOffer = tradeSuggestion(
-    SECTION_DEFS.map((d) => ({ key: d.key, enabled: true })),
-    rootSectionsForTrade(actionsForField(it), tradeSpineFor(it)),
-    { ...rules, required: (k) => ["main", "administration", "administration-settings"].includes(k),
-      noScreen: () => false });
-  t.equal([...itOffer.off].sort().join(","), "logistics,manufacturing",
-    `IT & Software, everything on, is offered off: ${itOffer.off.join(",")}`);
-  t.equal(itOffer.on.length, 0, "...and nothing on");
 }
 
-// A TRADE ONLY EVER SWITCHES OFF A SECTION IT DOES NOT USE.
+// AN INDUSTRY'S PROFILE ONLY EVER SWITCHES OFF A SECTION IT DOES NOT USE.
 //
-// `rootSectionsForTrade` decides which of the fourteen a new studio starts with,
-// from its actions (Field x Action Matrix) plus its own deal flow's stages. The
-// gate is applied ONCE, at creation, and a studio can switch anything back on —
-// so the cost of being wrong is a section somebody has to go and find, and the
-// cost of being wrong in the other direction is clutter. This holds the floor.
+// Until 03/10/2026 a trade's starting sections were DERIVED from its twenty
+// service actions (`ACTION_SECTION`) plus its deal flow's stages, and this test
+// held that derivation's floor. Service actions were removed, and the built-in
+// industry profiles (/super → Industries) are the one answer now — at creation
+// and in Studio settings' offer — so the same floor is asked of them: every key
+// is a real root, what never switches off is always on, system rows survive an
+// empty gate, and the profiles tell industries apart.
 export async function testNoTradeSwitchesOffASectionItActuallyUses(t) {
-  const spineFor = tradeSpineFor;
-
-  // -- the map names real sections, and covers every action.
   const roots = new Set(SECTION_DEFS.map((d) => d.key));
-  const strays = Object.entries(ACTION_SECTION).filter(([, v]) => !roots.has(v));
-  t.equal(strays.length, 0,
-    `every ACTION_SECTION target is a real root section — strays: ${strays.map(([k, v]) => `${k}->${v}`).join(", ")}`);
+  const profileRoots = (ind) => withNeeds([...NEVER_GATED_KEYS, ...ind.profile.sections]);
+  const industries = builtInIndustries();
 
-  const uncovered = SERVICE_ACTIONS.filter((a) => !ACTION_SECTION[a]);
-  t.equal(uncovered.length, 0,
-    `every one of the twenty service actions maps to a section — uncovered: ${uncovered.join(", ")}`);
+  for (const k of NEVER_GATED_KEYS) t.equal(roots.has(k), true, `${k} is a real root section key`);
 
-  for (const k of [...UNIVERSAL_SECTION_KEYS, ...NEVER_GATED_KEYS]) {
-    t.equal(roots.has(k), true, `${k} is a real root section key`);
-  }
-
-  // -- THE FLOOR: nothing a trade's own flow needs is ever switched off, and
-  // nothing universal is either. A future edit that drops the spine from
-  // `rootSectionsForTrade` would leave a contractor without Inventory while the
-  // flow it was seeded with writes project sheets there — a section that owns
-  // records the studio is actively creating, hidden from the people creating
-  // them.
-  for (const field of Object.keys(FIELD_ACTION_MATRIX)) {
-    const on = rootSectionsForTrade(actionsForField(field), spineFor(field));
-    for (const k of spineFor(field)) {
-      t.equal(on.has(k), true, `${field}: its own flow needs ${k}, so ${k} stays on`);
-    }
-    for (const k of [...UNIVERSAL_SECTION_KEYS, ...NEVER_GATED_KEYS]) {
-      t.equal(on.has(k), true, `${field}: ${k} is never gated`);
-    }
+  for (const ind of industries) {
+    const strays = ind.profile.sections.filter((k) => !roots.has(k));
+    t.equal(strays.length, 0, `${ind.key}: every profile section is a real root — strays: ${strays.join(", ")}`);
+    const on = profileRoots(ind);
+    for (const k of NEVER_GATED_KEYS) t.equal(on.has(k), true, `${ind.key}: ${k} is never gated`);
   }
 
   // -- SYSTEM ROWS ARE NEVER GATED. One of them holds the screen that switches
@@ -2248,26 +2195,22 @@ export async function testNoTradeSwitchesOffASectionItActuallyUses(t) {
       `${key} is a settings row and survives an empty gate`);
   }
 
-  // -- AND IT DISCRIMINATES. A gate that is on for everybody is not a gate: this
-  // was true of the first draft, which read the blueprint sheet naively and left
-  // thirteen of fourteen on for almost every trade.
-  const counts = Object.keys(FIELD_ACTION_MATRIX).map((f) =>
-    rootSectionsForTrade(actionsForField(f), spineFor(f)).size);
+  // -- AND IT DISCRIMINATES. A gate that is on for everybody is not a gate.
+  const counts = industries.map((ind) => profileRoots(ind).size);
   t.equal(Math.min(...counts) < Math.max(...counts), true,
-    `the gate tells trades apart (${Math.min(...counts)}..${Math.max(...counts)} sections on)`);
+    `the profiles tell industries apart (${Math.min(...counts)}..${Math.max(...counts)} sections on)`);
 
   // Two spot checks, because a range says nothing about whether the right ones
-  // are on. A contractor uses the whole product; a consultancy does not buy
-  // materials, make anything, run a fleet or own plant.
-  const contractor = rootSectionsForTrade(
-    actionsForField("Construction & Contracting"), spineFor("Construction & Contracting"));
-  for (const k of ["projects", "inventory", "procurement", "quality-hse", "assets", "logistics"]) {
+  // are on. A contractor uses most of the product; a professional-services firm
+  // does not make anything, run a fleet or keep a store.
+  const byKey = (k) => industries.find((i) => i.key === k);
+  const contractor = profileRoots(byKey("construction-real-estate"));
+  for (const k of ["projects", "inventory", "procurement", "quality-hse", "assets", "tendering"]) {
     t.equal(contractor.has(k), true, `a contractor starts with ${k}`);
   }
-  const consultancy = rootSectionsForTrade(
-    actionsForField("Management Consulting"), spineFor("Management Consulting"));
-  for (const k of ["manufacturing", "assets", "logistics"]) {
-    t.equal(consultancy.has(k), false, `a consultancy does not start with ${k}`);
+  const consultancy = profileRoots(byKey("professional-services"));
+  for (const k of ["manufacturing", "logistics", "inventory"]) {
+    t.equal(consultancy.has(k), false, `a professional-services firm does not start with ${k}`);
   }
   t.equal(consultancy.has("projects"), true, "...but it does start with Projects");
 

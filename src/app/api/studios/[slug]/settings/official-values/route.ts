@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 // OFFICIAL STUDIO VALUES — the country's official fields, what the Studio has
 // entered against them, and who changed what.
 //
-// ITS OWN ROUTE, for the reason service-actions has one: a save here is not
+// ITS OWN ROUTE, for the reason settings/industry has one: a save here is not
 // "set this field", it is "judge every value against the selected country's
 // rule, write all or none, and record each change". A blind write through the
 // general settings allowlist would skip all three.

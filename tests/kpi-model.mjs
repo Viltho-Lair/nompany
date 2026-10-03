@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 const root = pathToFileURL(process.cwd() + "/").href;
 register(new URL("./loader.mjs", import.meta.url), { data: { root } });
 
-const { measureKpi, kpisForActions, mergeKpis, kpiProblems, dueDate } =
+const { measureKpi, kpisForDeal, mergeKpis, kpiProblems, dueDate } =
   await import("@/platform/kpi/model");
 
 let fails = 0;
@@ -27,12 +27,12 @@ const MAY_10 = "2026-05-10T00:00:00.000Z";
 const JUNE = "2026-06-01T00:00:00.000Z";
 
 const milestone = (over = {}) => ({
-  id: "survey", action: "Survey & Assessment", label: "The site survey is done",
-  kind: "milestone", stage: "siteReport", startedAt: MAY, source: "Survey & Assessment", ...over,
+  id: "survey", label: "The site survey is done",
+  kind: "milestone", stage: "siteReport", startedAt: MAY, ...over,
 });
 const quantity = (over = {}) => ({
-  id: "visits", action: "Maintenance & Repair", label: "Four visits this year",
-  kind: "quantity", stage: "fieldJob", target: 4, startedAt: MAY, source: "Maintenance & Repair", ...over,
+  id: "visits", label: "Four visits this year",
+  kind: "quantity", stage: "fieldJob", target: 4, startedAt: MAY, ...over,
 });
 
 console.log("\n== a milestone is done or it is not");
@@ -88,75 +88,62 @@ eq("a KPI that started later is due later",
 console.log("\n== what a deal is given when the work starts");
 
 const DEFS = [
-  { id: "survey", action: "Survey & Assessment", label: "Survey done", kind: "milestone", stage: "siteReport" },
-  { id: "visits", action: "Maintenance & Repair", label: "Four visits", kind: "quantity", stage: "fieldJob", target: 4 },
-  { id: "quoted", action: "", label: "Quoted", kind: "milestone", stage: "quotation", days: 7 },
+  { id: "survey", label: "Survey done", kind: "milestone", stage: "siteReport" },
+  { id: "visits", label: "Four visits", kind: "quantity", stage: "fieldJob", target: 4 },
+  { id: "quoted", label: "Quoted", kind: "milestone", stage: "quotation", days: 7 },
 ];
 
-const surveying = kpisForActions(DEFS, ["Survey & Assessment"], MAY);
-eq("the action's own KPI is taken", surveying.filter((k) => k.id === "survey").length, 1);
-eq("...as is every KPI that measures all work", surveying.filter((k) => k.id === "quoted").length, 1);
-eq("...and nothing else", surveying.length, 2);
-eq("...stamped with when it started measuring", surveying[0].startedAt, MAY);
+// SERVICE ACTIONS WERE REMOVED (03/10/2026): a deal no longer takes the KPIs its
+// actions named — it takes every declaration, once each.
+const given = kpisForDeal(DEFS, MAY);
+eq("a deal takes every declaration", given.length, 3);
+eq("...stamped with when it started measuring", given[0].startedAt, MAY);
+// A declaration stored before the removal still carries `action`; the copy a
+// deal keeps does not, so nothing downstream can start keying off it again.
+const stale = kpisForDeal([{ ...DEFS[0], action: "Survey & Assessment" }], MAY);
+eq("an old declaration's service action is not copied onto the deal", "action" in stale[0], false);
+eq("the same id twice is taken once",
+  kpisForDeal([DEFS[0], { ...DEFS[0], label: "again" }], MAY).length, 1);
 
-// A DEAL NOBODY RAISED A TICKET FOR IS STILL MEASURED. This is the whole reason
-// `action: ""` exists: a project opened directly, or a quotation with no ticket
-// behind it, names no service action and must not fall off the map.
-const noActions = kpisForActions(DEFS, [], MAY);
-eq("a deal naming no action still takes the universal ones", noActions.length, 1);
-eq("...which is the one that measures every deal", noActions[0].id, "quoted");
+console.log("\n== a second freeze disturbs nothing");
 
-// ONE KPI PER DEFINITION, however many actions reach it — two copies would be
-// two states and two percentages for one piece of work.
-const shared = [
-  { id: "signed", action: "Installation", label: "Signed off", kind: "milestone", stage: "project" },
-  { id: "signed", action: "Commissioning", label: "Signed off", kind: "milestone", stage: "project" },
-];
-eq("a definition two actions share is taken once",
-  kpisForActions(shared, ["Installation", "Commissioning"], MAY).length, 1);
-
-console.log("\n== an action added mid-deal brings its KPIs, and disturbs nothing");
-
-const held = kpisForActions(DEFS, ["Survey & Assessment"], MAY);
-const later = kpisForActions(DEFS, ["Maintenance & Repair"], MAY_10);
+const held = kpisForDeal(DEFS.slice(0, 1), MAY);
+const later = kpisForDeal(DEFS, MAY_10);
 const merged = mergeKpis(held, later);
-eq("the new action's KPI arrives", merged.some((k) => k.id === "visits"), true);
-eq("...measuring from when it was added", merged.find((k) => k.id === "visits").startedAt, MAY_10);
+eq("a new declaration arrives", merged.some((k) => k.id === "visits"), true);
+eq("...measuring from when it was given", merged.find((k) => k.id === "visits").startedAt, MAY_10);
 eq("...and a target already being worked to keeps its own clock",
-  merged.find((k) => k.id === "quoted").startedAt, MAY);
+  merged.find((k) => k.id === "survey").startedAt, MAY);
 eq("...with nothing duplicated", merged.length, 3);
 
 console.log("\n== a declaration that could not be measured is refused at the door");
 
 const STAGES = ["siteReport", "fieldJob", "quotation", "project"];
-const ACTIONS = ["Survey & Assessment", "Maintenance & Repair", "Installation"];
-const why = (def) => kpiProblems(STAGES, ACTIONS, [def]).join(" | ");
+const why = (def) => kpiProblems(STAGES, [def]).join(" | ");
 
 ok("a stage nothing knows is named",
-  /is not a stage/.test(why({ id: "a", action: "", label: "x", kind: "milestone", stage: "nope" })));
+  /is not a stage/.test(why({ id: "a", label: "x", kind: "milestone", stage: "nope" })));
 ok("a quantity with no target is refused",
-  /needs a target/.test(why({ id: "b", action: "", label: "x", kind: "quantity", stage: "fieldJob" })));
+  /needs a target/.test(why({ id: "b", label: "x", kind: "quantity", stage: "fieldJob" })));
 ok("a milestone carrying a target is refused",
-  /carries no target/.test(why({ id: "c", action: "", label: "x", kind: "milestone", stage: "project", target: 3 })));
-ok("an action the product does not have is refused",
-  /is not a service action/.test(why({ id: "d", action: "Knitting", label: "x", kind: "milestone", stage: "project" })));
+  /carries no target/.test(why({ id: "c", label: "x", kind: "milestone", stage: "project", target: 3 })));
 ok("a KPI with no words is refused",
-  /needs a label/.test(why({ id: "e", action: "", label: "  ", kind: "milestone", stage: "project" })));
+  /needs a label/.test(why({ id: "e", label: "  ", kind: "milestone", stage: "project" })));
 ok("a fractional number of days is refused",
-  /whole number of days/.test(why({ id: "f", action: "", label: "x", kind: "milestone", stage: "project", days: 1.5 })));
+  /whole number of days/.test(why({ id: "f", label: "x", kind: "milestone", stage: "project", days: 1.5 })));
 ok("the same id twice is refused",
-  /declared twice/.test(kpiProblems(STAGES, ACTIONS, [
-    { id: "g", action: "", label: "x", kind: "milestone", stage: "project" },
-    { id: "g", action: "", label: "y", kind: "milestone", stage: "project" },
+  /declared twice/.test(kpiProblems(STAGES, [
+    { id: "g", label: "x", kind: "milestone", stage: "project" },
+    { id: "g", label: "y", kind: "milestone", stage: "project" },
   ]).join(" | ")));
 eq("a sound declaration has nothing wrong with it",
-  kpiProblems(STAGES, ACTIONS, DEFS).length, 0);
+  kpiProblems(STAGES, DEFS).length, 0);
 
 console.log("\n== the three properties, asserted in the source that holds them");
 
 const store = readFileSync("src/platform/db/engagement.ts", "utf8");
 ok("a minted deal is given what it is measured on",
-  /await freezeKpis\(studioId, dealId, actions\)/.test(store));
+  /await freezeKpis\(studioId, dealId\)/.test(store));
 // A RE-APPLY MUST NOT DESTROY WHAT IT DOES NOT OWN — the bug templateId
 // already paid for once. A backfill re-run that dropped the KPIs would leave a
 // deal judged on nothing, with no event saying its targets had gone.
@@ -164,8 +151,8 @@ ok("...and a re-apply carries them the way it carries the template",
   /\.\.\.\(existing\?\.kpis\?\.length \? \{ kpis: existing\.kpis \} : \{\}\)/.test(store));
 ok("...best-effort, so it cannot fail the record that opened the deal",
   /catch \{ \/\* the deal stands; it is simply not measured \*\//.test(store));
-ok("the ticket is what names the service actions",
-  /Array\.isArray\(ticket\?\.serviceIds\)/.test(store));
+ok("nothing keys a deal's KPIs off service actions any more",
+  !/serviceIds/.test(store));
 
 const read = readFileSync("src/modules/main/engagements.ts", "utf8");
 // THE SAFETY PROPERTY. `visible` is rights AND the studio's switches, so a

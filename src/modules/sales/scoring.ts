@@ -29,7 +29,6 @@ export type ScorableLead = {
   clientName?: unknown;
   contactName?: unknown;
   industry?: unknown;
-  serviceIds?: unknown;
   clientBudget?: unknown;
   description?: unknown;
   campaignId?: unknown;
@@ -101,8 +100,10 @@ export type Factor = {
  * - `budget` (15): they said what they can spend, which is the strongest thing
  *   a stranger volunteers.
  * - `returning` (15): this company has won business with the studio before.
- * - `wants` (8): named services or an industry, so it is clear what the work
- *   would be.
+ * - `wants` (8): an industry, so it is clear what kind of work it would be.
+ *   It was half for an industry and full for named services until service
+ *   actions were removed (03/10/2026); an industry is the whole of it now, or
+ *   no lead could reach the top of the scale.
  * - `told` (8): they wrote something — a description with real words in it.
  * - `engaged` (15): they have come back — more than one form answer from the
  *   same address. Somebody who answered three times and somebody who filled one
@@ -200,7 +201,6 @@ export function freshness(days: number | null): number {
 export function scoreLead(lead: ScorableLead, context: LeadContext = {}) {
   const email = text(lead.contactEmail);
   const phone = text(lead.contactPhone);
-  const services = Array.isArray(lead.serviceIds) ? lead.serviceIds.filter(Boolean) : [];
   const routes = (email ? 1 : 0) + (phone ? 1 : 0);
 
   // COMING BACK ONCE IS NOT ENGAGEMENT. Every lead from a form has answered at
@@ -219,7 +219,7 @@ export function scoreLead(lead: ScorableLead, context: LeadContext = {}) {
     // already talking to them — good to know, and a reason to join up rather
     // than to chase separately.
     returning: num(context.wonBefore) > 0 ? 1 : num(context.openDeals) > 0 ? 0.5 : 0,
-    wants: services.length > 0 ? 1 : text(lead.industry) ? 0.5 : 0,
+    wants: text(lead.industry) ? 1 : 0,
     told: text(lead.description).length >= SAYS_SOMETHING ? 1 : 0,
     campaign: text(lead.campaignId) ? 1 : 0,
     engaged: seen == null ? 0 : num(seen) >= 3 ? 1 : num(seen) === 2 ? 0.5 : 0,

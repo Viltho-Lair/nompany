@@ -71,9 +71,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   // there is one; the old field-of-work answer otherwise. Only PRE-FILLS — the
   // owner says yes or no to every department on the next step, and can switch
   // any of them on later in Studio settings.
-  const suggestedFor = (key) => setup?.suggestedByIndustry?.[key]
-    || setup?.suggested?.[fieldForIndustry(industries, key)]
-    || setup?.suggested?.[""] || departments.map((d) => d.key);
+  const suggestedFor = (key) => setup?.suggestedByIndustry?.[key] || departments.map((d) => d.key);
 
   const [step, setStepRaw] = useState(0);
   // The whole screen slides in once, on arrival. After that only the step body

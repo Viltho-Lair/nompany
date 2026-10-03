@@ -20,7 +20,7 @@
 //
 // KEYED BY THE FIELD-OF-WORK STRING, because that is what `studio.fieldOfWork`
 // stores — the display name from FIELDS_OF_WORK, not a slug. An unknown field
-// and `Other` seed nothing, exactly as `actionsForField` returns nothing, and
+// and `Other` seed nothing, and
 // for the same reason: there is no row to apply and inventing one would be this
 // file guessing at a trade it has never been told about.
 //
@@ -341,7 +341,7 @@ export const DEPARTMENT_STARTERS: Record<string, readonly DepartmentSeed[]> = {
 /**
  * The starter departments for a field of work, or none.
  *
- * A FRESH ARRAY EVERY CALL, like `actionsForField`: the seeder mutates its own
+ * A FRESH ARRAY EVERY CALL: the seeder mutates its own
  * copy while resolving parent codes into ids, and a frozen constant handed out
  * by reference is one careless `.map` away from being the studio's register.
  */

@@ -12,8 +12,8 @@ Built 2026-09-19, on the owner's decisions of the same day. The rules are
    want, and notes. Right: `marketing.campaigns.edit`. Sales must be switched on, and the
    campaign must not be Completed or Cancelled (`campaign-closed`, refused on the server).
 2. **It arrives in Sales as a ticket at Lead, assigned to nobody.** It is raised by the marketer,
-   names the campaign as its source, and carries the campaign's deadline. Industry, deadline and
-   services are left blank for the executive to fill in. Everybody holding
+   names the campaign as its source, and carries the campaign's deadline. Industry and deadline
+   are left blank for the executive to fill in. Everybody holding
    `crmSales.tickets.assign` is notified that a lead is waiting.
 3. **A Sales manager assigns it by hand.** The Tickets screen shows the manager a queue of
    unassigned leads (late ones first) with an Assign control; a ticket's own page has the same
@@ -38,8 +38,8 @@ else, because the second arrived an hour earlier.
 **A score out of 100, from eight declared factors**, each weighted and each carrying the reason it
 did or did not fire: can be reached (20, half for one route rather than two), a company rather
 than only a person (12), said what they can spend (15), has bought before (15, half where a deal
-is merely open), **has come back (15)**, said what they want (8, half for an industry without
-services), told us about the job (8), came from a campaign (7). **Hot from 70, warm from 40, cold
+is merely open), **has come back (15)**, said what they want (8, for naming an industry; services counted until
+service actions were removed on 03/10/2026), told us about the job (8), came from a campaign (7). **Hot from 70, warm from 40, cold
 below.**
 
 **Coming back is what engagement means** (2026-09-22). One form answer IS the lead, so it earns

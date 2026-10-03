@@ -133,7 +133,7 @@ reads it, so one provider would put the studio's module in the marketing bundle 
 marketing site's in the studio's.
 
 **What is never translated, and this is not an omission.** Record contents, documents,
-questionnaire questions, service actions, and every other word a tenant or an admin has
+questionnaire questions, and every other word a tenant or an admin has
 typed are **data**. They are stored once in whichever language they were written and no
 dictionary touches them. Two colleagues on opposite settings read the same tickets and the
 same names; they just reach them through their own menus.

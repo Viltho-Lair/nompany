@@ -136,7 +136,6 @@ export const SalesTicketSchema = z.object({
   urgency: z.string(),
   industry: z.string().max(80),
   deadline: z.string().max(10),
-  serviceIds: z.array(z.string()),
   /** null is "they did not say", which is different from zero. */
   clientBudget: z.number().nullable(),
   /** Sales' own read on how likely this is to close — a number, not a mood. */

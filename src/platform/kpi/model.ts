@@ -1,7 +1,7 @@
 // WHAT A DEAL IS BEING MEASURED ON — KPIs, pure.
 //
-// A service action was a label and nothing else: a ticket named "Installation"
-// and the product knew the word. The flow template says what STEPS a deal takes
+// A service action was a label and nothing else (they were removed on
+// 03/10/2026). The flow template says what STEPS a deal takes
 // and the record engine says what a record HOLDS; nothing said what the work is
 // expected to achieve, so "are we doing this well" could only be answered by a
 // person opening four screens and remembering last time.
@@ -50,8 +50,9 @@ export type KpiKind = "milestone" | "quantity";
 
 export type KpiDefinition = {
   id: string;
-  /** The service action this measures. `""` measures EVERY deal. */
-  action: string;
+  // `action` — the service action a KPI measured — went with service actions
+  // (03/10/2026). Every declaration measures every deal until KPIs are keyed
+  // to work types (modules/main/workTypes).
   label: string;
   kind: KpiKind;
   /** The stage type the evidence lives in — a STAGE_REGISTRY key. */
@@ -71,14 +72,11 @@ export type KpiDefinition = {
  */
 export type StoredKpi = KpiDefinition & {
   /**
-   * WHEN THIS KPI STARTED MEASURING, which is not always when the deal opened:
-   * an action added to a ticket in week three is measured from week three. A
-   * clock backdated to the deal's opening would report a target as missed
-   * before anybody had been asked to meet it.
+   * WHEN THIS KPI STARTED MEASURING — when the deal was given it. A clock
+   * backdated past that would report a target as missed before anybody had
+   * been asked to meet it.
    */
   startedAt: string;
-  /** The action it came from, `""` for one that measures every deal. */
-  source: string;
 };
 
 /**
@@ -173,33 +171,22 @@ export function measureKpi(kpi: StoredKpi, count: number | null, asOf: string): 
 }
 
 /**
- * WHAT A DEAL IS GIVEN WHEN IT OPENS: every definition whose action the deal
- * names, plus every definition that measures all work.
- *
- * ONE KPI PER DEFINITION, however many actions reach it. A deal naming both
- * Installation and Commissioning, where the same target is declared for each,
- * is measured against that target ONCE — two copies would be two states, two
- * percentages and two things to argue about for one piece of work.
- *
- * A deal that names no action is not a deal with no KPIs: the definitions that
- * measure every deal still apply. A deal that matches none at all gets an empty
- * list, and the screen says nothing is being measured here rather than drawing
- * an empty frame.
+ * WHAT A DEAL IS GIVEN WHEN IT OPENS: every definition, once each. (It was those
+ * whose service action the deal named, plus the universal ones, until service
+ * actions were removed on 03/10/2026.) A studio with no definitions gets an
+ * empty list, and the screen says nothing is being measured here rather than
+ * drawing an empty frame.
  */
-export function kpisForActions(
-  defs: readonly KpiDefinition[],
-  actions: readonly string[],
-  at: string,
-): StoredKpi[] {
-  const named = new Set(actions.map((a) => String(a || "")).filter(Boolean));
+export function kpisForDeal(defs: readonly KpiDefinition[], at: string): StoredKpi[] {
   const out: StoredKpi[] = [];
   const seen = new Set<string>();
   for (const def of defs) {
     if (!def?.id || seen.has(def.id)) continue;
-    const universal = !def.action;
-    if (!universal && !named.has(def.action)) continue;
     seen.add(def.id);
-    out.push({ ...def, startedAt: at, source: universal ? "" : def.action });
+    // A COPY OF THE DECLARATION'S OWN FIELDS ONLY: one stored before service
+    // actions were removed still carries `action`, and it is not carried on.
+    const { id, label, kind, stage, days, target } = def;
+    out.push({ id, label, kind, stage, ...(days !== undefined ? { days } : {}), ...(target !== undefined ? { target } : {}), startedAt: at });
   }
   return out;
 }
@@ -226,12 +213,10 @@ export function mergeKpis(existing: readonly StoredKpi[], incoming: readonly Sto
  */
 export function kpiProblems(
   stageTypes: readonly string[],
-  actions: readonly string[],
   defs: readonly KpiDefinition[],
 ): string[] {
   const problems: string[] = [];
   const stages = new Set(stageTypes);
-  const known = new Set(actions);
   const ids = new Set<string>();
   for (const def of defs) {
     const at = def?.id ? `KPI ${def.id}` : "a KPI";
@@ -239,7 +224,6 @@ export function kpiProblems(
     if (ids.has(def.id)) problems.push(`${at}: declared twice`);
     ids.add(def.id);
     if (!String(def.label || "").trim()) problems.push(`${at}: needs a label — it is what the screen says`);
-    if (def.action && !known.has(def.action)) problems.push(`${at}: "${def.action}" is not a service action`);
     if (def.kind !== "milestone" && def.kind !== "quantity") problems.push(`${at}: unknown kind "${String(def.kind)}"`);
     if (!stages.has(def.stage)) problems.push(`${at}: "${def.stage}" is not a stage, so nothing could count it`);
     if (def.kind === "quantity" && !(Number(def.target) >= 1)) {

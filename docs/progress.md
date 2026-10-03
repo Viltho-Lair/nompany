@@ -2454,7 +2454,11 @@ by design (`engagements.md`).
 **The agreed order.** Each step depends only on the ones before it.
 
 1. **Kinds of work**: which units nompany supports (owner decision C below).
-2. **"What we sell" per studio**, replacing service actions.
+2. ~~"What we sell" per studio, replacing service actions.~~ **CHANGED TO: service actions
+   REMOVED outright (the owner, 03/10/2026)**, with no replacement list for now: from studios,
+   tickets, items, KPIs and the trade → sections derivation, in code; the stored values by
+   `scripts/migrate/remove-service-actions.mjs` — **written, not yet run** (invariant 17). An
+   industry's profile decides starting sections. KPIs are keyed to work types next.
 3. **Registration**: country, specialism, "how you work", then review.
 4. **Foundations for progress**: every record attaches to its deal, completion rules, and a plan
    with a baseline.

@@ -9,7 +9,7 @@ import { getExchangeSnapshot } from "@/lib/data/exchangeRates";
 import { currentUser } from "@/platform/auth/identity";
 import { studioContext, type StudioMembership } from "@/lib/studios";
 import { route, subscriptionRefusal } from "@/platform/http/route";
-import { updateStudio, tradeSuggestionFor } from "@/modules/main/studios";
+import { updateStudio, tradeSuggestionFor, studioIndustry } from "@/modules/main/studios";
 import { studioLocale, isLocale, defaultLocale } from "@/shared/i18n";
 import { ALL_PERMISSIONS } from "@/platform/access/catalogue";
 import { getSectionByKey } from "@/platform/db/sections";
@@ -102,13 +102,10 @@ const FIELDS = [
   // days are counted (modules/hr/leaveBalance). A company policy, like the VAT
   // rate beside it; HR reads it and the country presets fill it.
   "employmentRules",
-  // fieldOfWork, fieldOfWorkOther, serviceActions and retiredServiceActions are
-  // deliberately NOT here. Writing a service action is not "set this text" — it
-  // is "recompute the pool": choosing a field re-seeds it from the matrix, and
-  // removing an in-use action retires rather than deletes it (see
-  // studioServiceActions.ts). A blind write through this allowlist would bypass
-  // that guarantee, so settings/service-actions/route.ts is the SOLE writer of
-  // all four; this route only displays them (see clean()).
+  // industry, fieldOfWork and fieldOfWorkOther are deliberately NOT here: the
+  // field follows the specialism, so they are written together by
+  // settings/industry/route.ts, the SOLE writer of all three; this route only
+  // displays them (see clean()).
 ];
 
 // Mon-first, which is how a working week is read here.
@@ -197,12 +194,10 @@ const clean = (studio: Record<string, unknown>) => ({
   showcaseConsent: studio.showcaseConsent || null,
   legalInfo: Array.isArray(studio.legalInfo) ? studio.legalInfo : [],
   favoriteCurrencies: Array.isArray(studio.favoriteCurrencies) ? studio.favoriteCurrencies : [],
-  serviceActions: Array.isArray(studio.serviceActions) ? studio.serviceActions : [],
   // Display only — see the WHY note on FIELDS. Written solely by
-  // settings/service-actions/route.ts.
+  // settings/industry/route.ts.
   fieldOfWork: String(studio.fieldOfWork || ""),
   fieldOfWorkOther: String(studio.fieldOfWorkOther || ""),
-  retiredServiceActions: Array.isArray(studio.retiredServiceActions) ? studio.retiredServiceActions : [],
   signingPin: Boolean((studio as { signingPin?: unknown }).signingPin),
   // EVERY SERIES WITH THE SETTING IN FORCE, defaults included, so the editor
   // can show its rows without knowing the catalogue — and can say which are the
@@ -277,13 +272,15 @@ export const GET = route<StudioMembership>({ auth: "studio", name: "settings", k
     // the rows and their names. OFFERED, never applied: the gate runs once, at
     // creation, and changing the trade later switches nothing by itself.
     //
-    // NULL ONCE ANSWERED FOR THIS TRADE. `sectionsTrade` is the field of work
+    // NULL ONCE ANSWERED FOR THIS INDUSTRY. `sectionsTrade` is the specialism
     // the sections were last applied for (the apply route writes it, and
     // `createStudio` does, because the gate there is that answer). Keeping one
-    // extra section would otherwise bring the offer back on every visit.
-    tradeSuggestion: studio.fieldOfWork && studio.sectionsTrade === studio.fieldOfWork
+    // extra section would otherwise bring the offer back on every visit. It held
+    // the field of work until service actions went (03/10/2026), so a studio
+    // that answered then is offered its industry's set once more.
+    tradeSuggestion: studio.industry && studio.sectionsTrade === studio.industry
       ? null
-      : tradeSuggestionFor(studio.fieldOfWork, context.sections || []),
+      : tradeSuggestionFor(await studioIndustry(studio as { industry?: unknown }), context.sections || []),
     // Asking for deletion is the OWNER's call, not an admin's: it ends the
     // studio for everybody in it.
     isOwner: collaborator.role === "owner",
