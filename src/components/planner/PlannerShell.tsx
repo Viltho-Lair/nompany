@@ -387,6 +387,7 @@ export function PlannerShell({
           onOpenTemplates={() => setTemplatesOpen(true)}
           search={search}
           onSearch={setSearch}
+          schedule={schedule}
         />
 
         {/* ============================ panes ============================ */}

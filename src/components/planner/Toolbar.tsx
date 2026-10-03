@@ -44,6 +44,8 @@ import {
   Tooltip,
 } from '@/components/planner/ui/primitives';
 import { cn } from '@/components/planner/lib/utils';
+import type { ScheduleResult } from '@/components/planner/lib/schedule/engine';
+import { BaselineControl } from './BaselineControl';
 
 // The colour-by key is stored on the view; its name is copy.
 const COLOR_LABEL_KEYS: Record<ColorBy, string> = {
@@ -60,11 +62,14 @@ export function Toolbar({
   onOpenTemplates,
   search,
   onSearch,
+  schedule,
 }: {
   onToday: () => void;
   onOpenTemplates: () => void;
   search: string;
   onSearch: (v: string) => void;
+  /** The engine's answer, for the baseline's plan-against-actual reading. */
+  schedule: ScheduleResult;
 }) {
   const tr = plannerDict(useStudioLocale());
   const {
@@ -289,6 +294,8 @@ export function Toolbar({
         onCheckedChange={setTrimTimeline}
         tone="blue"
       />
+
+      <BaselineControl schedule={schedule} />
 
       <div className="flex-1" />
 

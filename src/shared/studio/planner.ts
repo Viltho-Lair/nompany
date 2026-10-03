@@ -75,6 +75,26 @@ type Strings = CommonStrings & {
   contextLinksAcceptanceCriteria: string;
   creating: string;
   criticalPath: string;
+  baseline: string;
+  baselineHint: string;
+  baselineNone: string;
+  baselineSetOn: (date: string) => string;
+  setBaseline: string;
+  rebaseline: string;
+  clearBaseline: string;
+  rebaselineConfirm: string;
+  clearBaselineConfirm: string;
+  confirmYes: string;
+  plannedByToday: string;
+  actualDone: string;
+  scheduleIndex: string;
+  aheadOfPlan: string;
+  onPlan: string;
+  behindPlan: string;
+  notStartedYet: string;
+  finishSlip: (days: number) => string;
+  tasksAddedSince: (n: number) => string;
+  showOnChart: string;
   days: string;
   defaultColour: string;
   defaultZoom: string;
@@ -300,6 +320,26 @@ const en: Strings = {
   contextLinksAcceptanceCriteria: "Context, links, acceptance criteria…",
   creating: "Creating…",
   criticalPath: "Critical path",
+  baseline: "Baseline",
+  baselineHint: "Freeze the plan as agreed, then read the live plan against it.",
+  baselineNone: "No baseline yet. Set one when the plan is agreed — every date is frozen as it stands, and progress is read against it from then on.",
+  baselineSetOn: (date) => `Set on ${date}`,
+  setBaseline: "Set baseline",
+  rebaseline: "Re-baseline",
+  clearBaseline: "Clear",
+  rebaselineConfirm: "Replace the baseline with today's plan? Progress is then measured against the new dates.",
+  clearBaselineConfirm: "Remove the baseline? The plan stays as it is; only the comparison goes.",
+  confirmYes: "Yes",
+  plannedByToday: "Planned by today",
+  actualDone: "Actually done",
+  scheduleIndex: "Schedule index",
+  aheadOfPlan: "Ahead of plan",
+  onPlan: "On plan",
+  behindPlan: "Behind plan",
+  notStartedYet: "Nothing was planned to start yet",
+  finishSlip: (days) => (days === 0 ? "Finish date unchanged" : days > 0 ? `Finish ${days} day${days === 1 ? "" : "s"} later than planned` : `Finish ${-days} day${days === -1 ? "" : "s"} earlier than planned`),
+  tasksAddedSince: (n) => (n === 1 ? "1 task added since — not in the baseline" : `${n} tasks added since — not in the baseline`),
+  showOnChart: "Show on chart",
   days: "Days",
   defaultColour: "Default colour-by",
   defaultZoom: "Default zoom",
@@ -544,6 +584,26 @@ const ar: Strings = {
   contextLinksAcceptanceCriteria: "السياق، الروابط، معايير القبول…",
   creating: "جار الإنشاء…",
   criticalPath: "المسار الحرج",
+  baseline: "خط الأساس",
+  baselineHint: "جمد الخطة كما اتفق عليها، ثم اقرأ الخطة الحالية مقابلها.",
+  baselineNone: "لا يوجد خط أساس بعد. حدده عند اعتماد الخطة — تجمد كل التواريخ كما هي، ويقاس التقدم مقابلها من بعدها.",
+  baselineSetOn: (date) => `حدد في ${date}`,
+  setBaseline: "تحديد خط الأساس",
+  rebaseline: "إعادة تحديد خط الأساس",
+  clearBaseline: "إزالة",
+  rebaselineConfirm: "استبدال خط الأساس بخطة اليوم؟ يقاس التقدم بعدها مقابل التواريخ الجديدة.",
+  clearBaselineConfirm: "إزالة خط الأساس؟ تبقى الخطة كما هي، وتزول المقارنة فقط.",
+  confirmYes: "نعم",
+  plannedByToday: "المخطط حتى اليوم",
+  actualDone: "المنجز فعليا",
+  scheduleIndex: "مؤشر الجدول",
+  aheadOfPlan: "متقدم عن الخطة",
+  onPlan: "وفق الخطة",
+  behindPlan: "متأخر عن الخطة",
+  notStartedYet: "لم يخطط لبدء أي شيء بعد",
+  finishSlip: (days) => (days === 0 ? "تاريخ الانتهاء لم يتغير" : days > 0 ? `الانتهاء متأخر ${days} يوم عن المخطط` : `الانتهاء أبكر ${-days} يوم عن المخطط`),
+  tasksAddedSince: (n) => (n === 1 ? "مهمة واحدة أضيفت بعده — ليست في خط الأساس" : `${n} مهام أضيفت بعده — ليست في خط الأساس`),
+  showOnChart: "إظهاره على المخطط",
   days: "الأيام",
   defaultColour: "التلوين الافتراضي حسب",
   defaultZoom: "التكبير الافتراضي",

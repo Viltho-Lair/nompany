@@ -13,6 +13,7 @@ import type {
   ZoomLevel,
 } from '@/components/planner/lib/types';
 import { DEFAULT_CALENDAR, snapForward } from '@/components/planner/lib/schedule/calendar';
+import { cleanBaseline, type Baseline } from '@/components/planner/lib/schedule/baseline';
 import {
   buildTreeIndex,
   descendantsOf,
@@ -107,6 +108,10 @@ interface PlannerState {
   showCriticalPath: boolean;
   showDependencies: boolean;
   inspectorOpen: boolean;
+  // THE PLAN AS AGREED, frozen (lib/schedule/baseline). Persisted with the plan;
+  // null until somebody sets one. `showBaseline` draws it under the bars.
+  baseline: Baseline | null;
+  showBaseline: boolean;
   // Trim the waterfall's timeline to the work itself — one day before the first
   // task starts to one day after the last task ends — instead of the padded
   // project window. A view filter, so it is transient (never persisted).
@@ -167,6 +172,8 @@ interface PlannerState {
   toggleColumn: (c: GridColumn) => void;
   select: (id: string | null) => void;
   setShowCriticalPath: (v: boolean) => void;
+  setBaseline: (b: Baseline | null) => void;
+  setShowBaseline: (v: boolean) => void;
   setTrimTimeline: (v: boolean) => void;
   setShowDependencies: (v: boolean) => void;
   setInspectorOpen: (v: boolean) => void;
@@ -192,6 +199,8 @@ export interface PlanDoc {
   visibleColumns: GridColumn[];
   showCriticalPath: boolean;
   showDependencies: boolean;
+  baseline?: Baseline | null;
+  showBaseline?: boolean;
 }
 
 const HISTORY_LIMIT = 60;
@@ -219,6 +228,8 @@ function defaultPlan(): Omit<PlanDoc, 'meta' | 'tasks'> {
     visibleColumns: DEFAULT_COLUMNS,
     showCriticalPath: false,
     showDependencies: true,
+    baseline: null,
+    showBaseline: true,
   };
 }
 
@@ -232,6 +243,8 @@ export function planDoc(state: PlannerState): PlanDoc {
     visibleColumns: state.visibleColumns,
     showCriticalPath: state.showCriticalPath,
     showDependencies: state.showDependencies,
+    baseline: state.baseline,
+    showBaseline: state.showBaseline,
   };
 }
 
@@ -271,6 +284,8 @@ export const usePlannerStore = create<PlannerState>()((set, get) => ({
   showCriticalPath: false,
   showDependencies: true,
   inspectorOpen: false,
+  baseline: null,
+  showBaseline: true,
   trimTimeline: false,
 
   past: [],
@@ -288,6 +303,9 @@ export const usePlannerStore = create<PlannerState>()((set, get) => ({
       return {
         ...merged,
         tasks: normalizeOrder(merged.tasks),
+        // Whatever a stored plan carries is whatever some version wrote.
+        baseline: cleanBaseline(merged.baseline),
+        showBaseline: merged.showBaseline !== false,
         // Transient selection + history never survive a (re)hydrate.
         selectedId: null,
         inspectorOpen: false,
@@ -627,6 +645,8 @@ export const usePlannerStore = create<PlannerState>()((set, get) => ({
     })),
   select: (selectedId) => set({ selectedId }),
   setShowCriticalPath: (showCriticalPath) => set({ showCriticalPath }),
+  setBaseline: (baseline) => set({ baseline }),
+  setShowBaseline: (showBaseline) => set({ showBaseline }),
   setTrimTimeline: (trimTimeline) => set({ trimTimeline }),
   setShowDependencies: (showDependencies) => set({ showDependencies }),
   setInspectorOpen: (inspectorOpen) => set({ inspectorOpen }),

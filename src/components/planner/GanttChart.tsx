@@ -109,6 +109,8 @@ export function GanttBody({ rows, schedule, timeline, resources }: BodyProps) {
     select,
     updateTask,
     setInspectorOpen,
+    baseline,
+    showBaseline,
   } = usePlannerStore();
 
   // + one row for the grid's "Add task" lane, + the shared 24px bottom gutter.
@@ -276,6 +278,26 @@ export function GanttBody({ rows, schedule, timeline, resources }: BodyProps) {
           showCriticalPath={showCriticalPath}
         />
       )}
+
+      {/* THE BASELINE, a thin grey line under each bar: where the task sat when
+          the plan was agreed (lib/schedule/baseline). Under the bars, so it
+          never takes a click; absent for a task added since. */}
+      {baseline && showBaseline && rows.map((task, i) => {
+        const b = baseline.tasks[task.id];
+        if (!b) return null;
+        const start = new Date(b.start);
+        const end = new Date(b.end);
+        const x = timeline.x(start);
+        const w = Math.max(timeline.x(end) - x, 2);
+        return (
+          <div
+            key={`baseline-${task.id}`}
+            className="pointer-events-none absolute rounded-full bg-slate-400/70"
+            style={{ left: x, width: w, top: i * ROW_HEIGHT + ROW_HEIGHT - 6, height: 3 }}
+            aria-hidden="true"
+          />
+        );
+      })}
 
       {/* bars */}
       {rows.map((task, i) => (

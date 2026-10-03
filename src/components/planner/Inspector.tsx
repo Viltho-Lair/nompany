@@ -9,6 +9,7 @@ import TextField from '@mui/material/TextField';
 import type { DependencyType, Resource } from '@/components/planner/lib/types';
 import type { ScheduleResult } from '@/components/planner/lib/schedule/engine';
 import { usePlannerStore } from '@/components/planner/lib/store/plannerStore';
+import { slipDays } from '@/components/planner/lib/schedule/baseline';
 import { Button } from '@/components/planner/ui/button';
 import {
   DropdownMenu,
@@ -54,6 +55,7 @@ export function Inspector({
     updateDependency,
     removeDependency,
     select,
+    baseline,
   } = usePlannerStore();
 
   const task = selectedId ? schedule.byId.get(selectedId) : null;
@@ -137,6 +139,26 @@ export function Inspector({
               )}
             </span>
           </Field>
+
+          {/* WHERE THIS TASK SAT WHEN THE PLAN WAS AGREED, and how far its finish
+              has moved since (lib/schedule/baseline). Absent with no baseline,
+              or for a task added after it. */}
+          {baseline?.tasks[task.id] && (() => {
+            const b = baseline.tasks[task.id];
+            const slip = slipDays(b.end, task.endDate);
+            return (
+              <Field label={tr.baseline}>
+                <span className="px-1.5 text-[13px] text-slate-500">
+                  {formatMediumDate(new Date(b.start), locale)} – {formatMediumDate(new Date(b.end), locale)}
+                  {slip !== null && slip !== 0 && (
+                    <span className={slip > 0 ? 'ms-1 text-rose-600' : 'ms-1 text-emerald-600'}>
+                      ({slip > 0 ? '+' : ''}{slip}d)
+                    </span>
+                  )}
+                </span>
+              </Field>
+            );
+          })()}
 
           <Field label={tr.duration}>
             {task.isSummary ? (
