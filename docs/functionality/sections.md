@@ -242,7 +242,8 @@ rather than being told by a prop.
 
 **Creating a studio is a four-step screen on the account page, not a dialog** —
 `components/public/CreateStudioScreen.js`, rendered in place of the content column only while it
-is open. *Company* → *What you do* → *Plan* → *Review* → create. (Three steps until 2026-09-24.)
+is open. *Company* → *How you work* → *Departments* → *Plan*, which creates. (Three steps until
+2026-09-24; *What you do* → *Plan* → *Review* until 2026-10-03.)
 
 **Company asks the country, the city and the systems in use too** (2026-09-24) — the
 registration questionnaire's company questions, moved here on the owner's instruction because
@@ -265,23 +266,34 @@ free package like any other and the choice is kept on it as `requestedPlan`
 (`{ packageId, categoryId, cycle, at }`), and the screen says so. A successful create clears the
 cookie: the choice applies to the first studio only.
 
-**"What you do" asks one yes/no question per department**, worded as what the company does
-("Do you keep stock?"), never as a kind of business. The answers are **pre-filled from the field
-of work** — the trade rule below is now the suggestion, not the decision — and follow the field
-until the owner edits one; after that a *Reset to the suggested answers* link offers them
-instead of overwriting. A "yes" can be narrowed to **the parts of that department in use** (only
-the point of sale inside CRM & Sales, say). A department that another one needs stays on and says
-why (`SECTION_NEEDS`: Maintenance needs Assets; **Quotations needs CRM & Sales**, where clients
-are kept — added with this screen, and changing no trade's default because CRM & Sales was
-already universal). *Review* lists what will be on and off, and says that Main, Approvals and Settings
-(people, roles, access) are always there and that every answer is one switch in the Sections panel.
+**"How you work" asks four questions** (03/10/2026, the agreed order's step 3) — `shared/howYouWork.ts`.
+It replaced one yes/no question per department, seventeen of them. Each question is a kind of work
+(`work-items.md`): *Do you sell over a counter or a till?* (Point of Sale), *Do you deliver work
+as projects?* (Projects), *Do you send people to work at customers' sites?* (Field Operations),
+*Do you look after equipment and keep it running?* (Maintenance). They are **pre-answered from the
+specialism** — yes where the industry's profile already runs the department — and follow it until
+the owner edits one. A question whose department is held back in /super is not asked.
+
+**"Departments" shows what the specialism and the answers set up** — the profile, with each yes
+adding and each no removing its department — every department listed by name with what it holds,
+each still switchable, and a *Reset to the suggested answers* link once the owner has changed
+any. A department can be narrowed to **the parts in use** (only the point of sale inside CRM &
+Sales, say). A department that another one needs stays on and says why (`SECTION_NEEDS`:
+Maintenance needs Assets; Quotations needs CRM & Sales, where clients are kept).
+
+**"Plan" ends it**: what the studio opens with (how many departments, and their names), that Main,
+Approvals and Settings are always there, that every department is one switch in the Sections
+panel later, the package, and the Create button. The separate *Review* step was folded into it.
+
+**The server needs nothing new**: the answers become the department list `POST /api/studios`
+already takes (`sections.roots`) and checks.
 
 **One list for the screen and the route.** `studioSetupCatalogue()` (`modules/main/studios.ts`) is
 every product root except Main, Approvals and anything with no screen, with the parts worth offering
 under each — never a filed-only row (another department's storage) or a settings page.
 `studioSetupScreen(locale)` turns it into the screen's payload on the account page — names in the
-reader's language, each department's needs, and every field of work's suggested answers — so the
-trade rules, which reach the stage registry, never ship to the browser.
+reader's language, each department's needs, and each specialism's suggestion (its industry's
+profile) — so the profiles never ship to the browser beyond what the screen asks.
 
 **The route checks the answer with `resolveSectionChoice`** (`shared/tradeSections`), before
 anything is claimed. `POST /api/studios` takes `sections: { roots, offChildren }`:

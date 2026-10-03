@@ -8,6 +8,7 @@ import SelectMenu from "@/components/fields/SelectMenu";
 import { OTHER_FIELD } from "@/shared/fieldsOfWork";
 import { OTHER_INDUSTRY, fieldForIndustry, industryLabel, industryOptions } from "@/shared/industryPick";
 import { withNeeds } from "@/shared/tradeSections";
+import { WORK_QUESTION_KEYS, answersFor, applyAnswers, questionsAsked } from "@/shared/howYouWork";
 import { COUNTRIES, codeOfCountry } from "@/shared/countries";
 import { citiesFor } from "@/lib/cities";
 import { ERP_NONE, ERP_OTHER, ERP_SYSTEMS } from "@/lib/questionnaire";
@@ -24,25 +25,23 @@ import {
 // the same trade can share almost nothing, and walking into a sidebar full of
 // departments you never run is the first thing the product said to you.
 //
-// So there are four steps:
+// So there are four steps (the agreed order's step 3, 03/10/2026):
 //
-//   1. COMPANY      name, address, field of work — what the dialog asked —
-//                   and, since 24/09/2026, the country, the city and the
-//                   systems the company already runs: the registration
-//                   questionnaire's company questions, moved here on the
-//                   owner's instruction because they describe the company, and
-//                   the company is the studio.
-//   2. WHAT YOU DO  one yes/no question per department, PRE-ANSWERED from the
-//                   field of work so most owners only correct a few. A "yes"
-//                   can be narrowed to the parts of that department in use.
-//   3. PLAN         the package (24/09/2026): the free one, or a paid one and
+//   1. COMPANY      name, address, the industry → specialism, the country, the
+//                   city and the systems the company already runs.
+//   2. HOW YOU WORK four plain questions (shared/howYouWork), each a kind of
+//                   work — a counter, projects, customers' sites, looking after
+//                   equipment — PRE-ANSWERED from the specialism. They replaced
+//                   one yes/no question per department, seventeen of them.
+//   3. DEPARTMENTS  what the specialism and the answers set up, every
+//                   department shown and still switchable, narrowable to parts.
+//   4. PLAN         the package (24/09/2026): the free one, or a paid one and
 //                   its band, at the visitor's own regional price, PRE-SELECTED
 //                   from what they chose on the pricing page (the signed choice
-//                   the account page hands in as `intent`). A paid choice is a
-//                   request until it is paid — there is no checkout yet — and
-//                   the screen says so rather than implying a purchase.
-//   4. REVIEW       what will be on and what will be off, and the package,
-//                   before anything is written.
+//                   the account page hands in as `intent`), with what the
+//                   studio will open with, and the Create button. A paid choice
+//                   is a request until it is paid — there is no checkout yet —
+//                   and the screen says so rather than implying a purchase.
 //
 // NOTHING IS FINAL, and the screen says so: every answer is one switch in
 // Studio settings → Sections. Asking up front is about not being shocked on
@@ -58,14 +57,13 @@ import {
 const STEPS = 4;
 // The step indexes, named: bare numbers in the footer are how a new step lands
 // with the old Continue button still pointing past it.
-const COMPANY = 0, DEPARTMENTS = 1, PLAN = 2, REVIEW = 3;
+const COMPANY = 0, WORK = 1, DEPARTMENTS = 2, PLAN = 3;
 
 export default function CreateStudioScreen({ setup, intent = null, onDone, onCancel }) {
   const locale = useAccountLocale();
   const tr = accountDict(locale);
   const t = tr.setup;
   const departments = useMemo(() => setup?.departments || [], [setup]);
-  const nameOf = useMemo(() => new Map(departments.map((d) => [d.key, d.name])), [departments]);
   const industries = setup?.industries || [];
   // WHAT A SPECIALISM PRE-FILLS: its industry's profile, set in /super, where
   // there is one; the old field-of-work answer otherwise. Only PRE-FILLS — the
@@ -165,7 +163,30 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
     return () => clearTimeout(id);
   }, [effectiveSlug]);
 
-  // ---- step 2: what the company does ------------------------------------------
+  // ---- step 2: how the company works --------------------------------------------
+  // Four questions, asked only where their department can be offered at all (a
+  // department held back in /super is not). Pre-answered from the specialism,
+  // and kept once the owner has touched them.
+  const asked = useMemo(() => questionsAsked(departments.map((d) => d.key)), [departments]);
+  const [answers, setAnswers] = useState({});
+  const [answeredFor, setAnsweredFor] = useState(null);
+  const [answersEdited, setAnswersEdited] = useState(false);
+  function enterWork() {
+    if (!answersEdited && answeredFor !== industry) {
+      setAnswers(answersFor(suggestedFor(industry), asked));
+      setAnsweredFor(industry);
+    }
+    setStep(WORK);
+  }
+  function answerWork(key, value) {
+    setAnswersEdited(true);
+    setAnswers((cur) => ({ ...cur, [key]: value }));
+  }
+  // What the specialism suggests, with the answers applied — what the
+  // departments step starts from and what its reset link returns to.
+  const fromAnswers = () => applyAnswers(suggestedFor(industry), answers, departments.map((d) => d.key));
+
+  // ---- step 3: the departments ------------------------------------------------
   // `yes` is what the OWNER answered. `on` below adds what those answers need,
   // which the owner cannot switch off while the need stands.
   const [yes, setYes] = useState(() => new Set(suggestedFor("")));
@@ -178,25 +199,26 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   const neededBy = (key) => departments
     .filter((d) => yes.has(d.key) && (d.needs || []).includes(key))
     .map((d) => d.name);
-  const suggested = suggestedFor(industry);
+  const suggested = [...fromAnswers()];
   const matchesSuggestion = suggested.length === yes.size && suggested.every((k) => yes.has(k)) && offParts.size === 0;
 
-  // THE ANSWERS FOLLOW THE FIELD UNTIL THE OWNER TOUCHES THEM. Changing the
-  // field on step 1 and coming back re-fills step 2 — unless the owner has
-  // already made it their own, in which case the reset link offers it instead
-  // of overwriting their work.
+  // THE DEPARTMENTS FOLLOW THE SPECIALISM AND THE ANSWERS UNTIL THE OWNER
+  // TOUCHES THEM. Changing either and coming back re-fills this step — unless
+  // the owner has already made it their own, in which case the reset link
+  // offers it instead of overwriting their work.
   function enterDepartments() {
-    if (!edited && filledFor !== industry) {
-      setYes(new Set(suggestedFor(industry)));
+    const basis = `${industry}|${JSON.stringify(answers)}`;
+    if (!edited && filledFor !== basis) {
+      setYes(fromAnswers());
       setOffParts(new Set());
-      setFilledFor(industry);
+      setFilledFor(basis);
     }
     setStep(DEPARTMENTS);
   }
   function resetToSuggested() {
-    setYes(new Set(suggestedFor(industry)));
+    setYes(fromAnswers());
     setOffParts(new Set());
-    setFilledFor(industry);
+    setFilledFor(`${industry}|${JSON.stringify(answers)}`);
     setEdited(false);
   }
   function answer(key, value) {
@@ -216,7 +238,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
     });
   }
 
-  // ---- step 4: create ---------------------------------------------------------
+  // ---- create, from the plan step ---------------------------------------------
   async function create() {
     setBusy(true); setError("");
     const res = await fetch("/api/studios", {
@@ -270,7 +292,6 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
 
   const canLeaveCompany = Boolean(name.trim()) && Boolean(status?.available) && Boolean(country);
   const canLeaveDepartments = departments.some((d) => yes.has(d.key));
-  const offList = departments.filter((d) => !on.has(d.key));
   const onList = departments.filter((d) => on.has(d.key));
 
   return (
@@ -399,6 +420,52 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
           </div>
         )}
 
+        {step === WORK && (
+          <div>
+            <h3 className={H2}>{t.workTitle}</h3>
+            <p className={SUB}>{t.workLead}</p>
+            <p className="mt-3 rounded-xl bg-brand-500/5 px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300">
+              {field && field !== OTHER_FIELD ? t.workSuggested(industryLabel(industries, industry, locale)) : t.workNone}
+            </p>
+            <ul className="mt-4 space-y-2">
+              {WORK_QUESTION_KEYS.filter((k) => asked.includes(k)).map((k) => {
+                const q = t.work[k];
+                const value = Boolean(answers[k]);
+                return (
+                  <li key={k} className={cn(
+                    "rounded-2xl border bg-white px-4 py-3 transition-colors dark:bg-[#111117]",
+                    value ? "border-brand-500/30" : "border-slate-200/70 dark:border-white/10",
+                  )}>
+                    <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-600 text-slate-900 dark:text-white">{q.q}</p>
+                        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{q.d}</p>
+                      </div>
+                      <div role="radiogroup" aria-label={q.q} className="inline-flex shrink-0 rounded-full bg-slate-100 p-0.5 dark:bg-white/5">
+                        {[true, false].map((v) => {
+                          const picked = v === value;
+                          return (
+                            <button key={String(v)} type="button" role="radio" aria-checked={picked}
+                              onClick={() => answerWork(k, v)}
+                              className={cn(
+                                "min-w-[3.5rem] rounded-full px-3 py-1.5 text-sm font-600 transition-colors",
+                                picked
+                                  ? v ? "bg-brand-700 text-white" : "bg-white text-slate-900 shadow-sm dark:bg-[#2b2b38] dark:text-white"
+                                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white",
+                              )}>
+                              {v ? t.yes : t.no}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
         {step === DEPARTMENTS && (
           <div>
             <h3 className={H2}>{t.departmentsTitle}</h3>
@@ -431,8 +498,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
                   )}>
                     <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-700 uppercase tracking-wide text-slate-400 dark:text-slate-500">{d.name}</p>
-                        <p className="mt-0.5 font-600 text-slate-900 dark:text-white">{q?.q || d.name}</p>
+                        <p className="font-600 text-slate-900 dark:text-white">{d.name}</p>
                         {q?.d && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{q.d}</p>}
                         {forced && <p className="mt-1 text-xs font-600 text-brand-700 dark:text-brand-300">{t.neededBy(needers.join(", "))}</p>}
                       </div>
@@ -489,6 +555,13 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
 
         {step === PLAN && (
           <div>
+            {/* WHAT THE STUDIO OPENS WITH, above the package: the review step's
+                summary, folded in so the last screen is the one that creates. */}
+            <div className="mb-6 rounded-2xl border border-brand-500/30 bg-white p-4 dark:bg-[#111117]">
+              <p className="text-xs font-700 uppercase tracking-wide text-brand-700 dark:text-brand-300">{t.departmentsCount(onList.length)}</p>
+              <p className="mt-1.5 text-sm text-slate-700 dark:text-slate-200">{onList.map((d) => d.name).join(" · ")}</p>
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t.alwaysThere} {t.editLater}</p>
+            </div>
             <h3 className={H2}>{t.planTitle}</h3>
             <p className={SUB}>{t.planLead}</p>
             {pricing === null && <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{t.planLoading}</p>}
@@ -586,49 +659,6 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
           </div>
         )}
 
-        {step === REVIEW && (
-          <div>
-            <h3 className={H2}>{t.reviewTitle}</h3>
-            <p className={SUB}>{t.reviewLead}</p>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-brand-500/30 bg-white p-4 dark:bg-[#111117]">
-                <p className="text-xs font-700 uppercase tracking-wide text-brand-700 dark:text-brand-300">{t.onHeading} · {onList.length}</p>
-                <ul className="mt-2 space-y-1.5">
-                  {onList.map((d) => {
-                    const off = (d.parts || []).filter((p) => offParts.has(p.key)).length;
-                    return (
-                      <li key={d.key} className="flex items-center gap-2 text-sm text-slate-800 dark:text-slate-100">
-                        <Icon name="checkBold" className="h-3.5 w-3.5 text-brand-600" />
-                        <span className="min-w-0 flex-1 truncate">{d.name}</span>
-                        {off > 0 && <span className="shrink-0 text-xs text-slate-400">{t.partsOff(off)}</span>}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-              <div className="rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#111117]">
-                <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{t.offHeading} · {offList.length}</p>
-                {offList.length === 0 ? (
-                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.noneOff}</p>
-                ) : (
-                  <ul className="mt-2 space-y-1.5">
-                    {offList.map((d) => (
-                      <li key={d.key} className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                        <Icon name="xBold" className="h-3.5 w-3.5" />
-                        <span className="min-w-0 truncate">{nameOf.get(d.key)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-            <p className="mt-4 text-sm text-slate-800 dark:text-slate-100">
-              <span className="font-600">{t.planHeading}:</span> {choiceLabel}
-            </p>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.alwaysThere}</p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t.editLater}</p>
-          </div>
-        )}
       </div>
 
       {/* ---- footer: back and forward ---- */}
@@ -638,10 +668,10 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
           : <button type="button" className={BTN_GHOST} onClick={() => setStep(step - 1)} disabled={busy}>{t.back}</button>}
         {step === DEPARTMENTS && !canLeaveDepartments && <span className="text-xs text-rose-600 dark:text-rose-300">{t.pickOne}</span>}
         <span className="flex-1" />
-        {step === COMPANY && <button type="button" className={BTN} onClick={enterDepartments} disabled={!canLeaveCompany}>{t.continue}</button>}
+        {step === COMPANY && <button type="button" className={BTN} onClick={enterWork} disabled={!canLeaveCompany}>{t.continue}</button>}
+        {step === WORK && <button type="button" className={BTN} onClick={enterDepartments}>{t.continue}</button>}
         {step === DEPARTMENTS && <button type="button" className={BTN} onClick={() => setStep(PLAN)} disabled={!canLeaveDepartments}>{t.continue}</button>}
-        {step === PLAN && <button type="button" className={BTN} onClick={() => setStep(REVIEW)} disabled={pricing === null}>{t.continue}</button>}
-        {step === REVIEW && <button type="button" className={BTN} onClick={create} disabled={busy}>{busy ? tr.creating : tr.createStudioBtn}</button>}
+        {step === PLAN && <button type="button" className={BTN} onClick={create} disabled={busy || pricing === null}>{busy ? tr.creating : tr.createStudioBtn}</button>}
       </div>
     </section>
   );

@@ -2467,7 +2467,10 @@ by design (`engagements.md`).
    panel saves a specialism at once and the Sections offer follows its profile; the ticket form has no
    services and a ticket saves without any; /super's KPI form has no "Measures"; the create screen
    pre-fills Shops & showrooms with exactly the retail profile. KPIs are keyed to work types next.
-3. **Registration**: country, specialism, "how you work", then review.
+3. **Registration**: country, specialism, "how you work", then review. **BUILT 03/10/2026**: *Company* →
+   *How you work* (four questions, each a kind of work, pre-answered from the specialism) →
+   *Departments* (every one shown and switchable) → *Plan*, which creates. `shared/howYouWork.ts`,
+   `sections.md`. The first-run checklist inside the studio (KPI targets and the rest) is not built.
 4. **Foundations for progress**: every record attaches to its deal, completion rules, and a plan
    with a baseline.
 5. **KPIs** on kinds of work and steps, plus period KPIs, measured against the plan.

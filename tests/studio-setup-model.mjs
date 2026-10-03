@@ -184,5 +184,33 @@ console.log("\n== what every industry starts with");
 // ticket, and a studio with nowhere to record a customer cannot open a deal.
 for (const ind of industries) ok(`${ind.key} starts with CRM & Sales`, M.industryRoots(ind).has("crm-sales"));
 
+console.log("\n== how you work: four questions instead of seventeen");
+
+const H = await import("@/shared/howYouWork");
+const askable = cat.roots;
+ok("every question's department is one the screen can offer", H.WORK_QUESTION_KEYS.every((k) => H.WORK_QUESTION_SECTIONS[k].every((s) => askable.includes(s))));
+ok("all four are asked when nothing is held back", H.questionsAsked(askable).length === 4);
+ok("a question whose department is held back is not asked", !H.questionsAsked(askable.filter((k) => k !== "maintenance")).includes("upkeep"));
+
+const retailInd = I.builtInIndustries().find((i) => i.key === "retail-ecommerce");
+const retailRoots = M.industryRoots(retailInd);
+const pre = H.answersFor(retailRoots, H.questionsAsked(askable));
+ok("a shop is pre-answered: yes to a counter, no to projects, sites and upkeep",
+  pre.counter === true && pre.projects === false && pre.site === false && pre.upkeep === false, JSON.stringify(pre));
+const conInd = I.builtInIndustries().find((i) => i.key === "construction-real-estate");
+ok("a contractor is pre-answered yes to projects", H.answersFor(M.industryRoots(conInd), ["projects"]).projects === true);
+
+const withSite = H.applyAnswers(retailRoots, { ...pre, site: true }, askable);
+ok("a yes switches its department on", withSite.has("field-service"));
+ok("...and leaves everything the profile chose alone", [...retailRoots].every((k) => withSite.has(k)));
+const noCounter = H.applyAnswers(retailRoots, { counter: false }, askable);
+ok("a no switches its department off", !noCounter.has("pos") && noCounter.has("inventory"));
+ok("an unanswered question changes nothing", H.applyAnswers(retailRoots, {}, askable).size === retailRoots.size);
+ok("a yes never adds a department the screen cannot offer",
+  !H.applyAnswers([], { upkeep: true }, askable.filter((k) => k !== "maintenance")).has("maintenance"));
+ok("the result is a department list the route accepts",
+  !T.resolveSectionChoice({ roots: [...withSite].filter((k) => askable.includes(k)), offChildren: [] }, cat).error,
+  JSON.stringify(T.resolveSectionChoice({ roots: [...withSite].filter((k) => askable.includes(k)), offChildren: [] }, cat)));
+
 console.log(fails === 0 ? "\nstudio setup model: all passed\n" : `\nstudio setup model: ${fails} FAILED\n`);
 process.exit(fails === 0 ? 0 : 1);

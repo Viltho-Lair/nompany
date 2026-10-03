@@ -117,16 +117,17 @@ type Strings = {
     partsLead: string;
     neededBy: (names: string) => string;
     pickOne: string;
-    reviewTitle: string;
-    reviewLead: string;
-    onHeading: string;
-    offHeading: string;
-    noneOff: string;
-    partsOff: (n: number) => string;
     alwaysThere: string;
     editLater: string;
     sectionsInvalid: string;
     questions: Record<string, { q: string; d: string }>;
+    // HOW YOU WORK (shared/howYouWork): four questions, each a kind of work.
+    workTitle: string;
+    workLead: string;
+    workSuggested: (specialism: string) => string;
+    workNone: string;
+    work: Record<"counter" | "projects" | "site" | "upkeep", { q: string; d: string }>;
+    departmentsCount: (n: number) => string;
     // The company questions that moved here from the registration
     // questionnaire (24/09/2026), and the Plan step.
     countryLabel: string;
@@ -391,15 +392,15 @@ const en: Strings = {
   createStudioBtn: "Create studio",
   creating: "Creating…",
   setup: {
-    steps: ["Company", "What you do", "Plan", "Review"],
+    steps: ["Company", "How you work", "Departments", "Plan"],
     stepOf: (n, total) => `Step ${n} of ${total}`,
     back: "Back",
     continue: "Continue",
     companyLead: "The name and address your team will use to reach this studio.",
-    departmentsTitle: "What does your company do?",
-    departmentsLead: "Each answer switches a department on or off. Say no to anything you don't do — your studio opens with only what you use.",
-    suggestedFor: (field) => `Answers are pre-filled for ${field}. Change anything that doesn't fit your company.`,
-    suggestedNone: "Every department starts switched on. Say no to the ones you don't need.",
+    departmentsTitle: "Your departments",
+    departmentsLead: "This is what we set up from your answers. Switch on anything else you use, and off anything you don't.",
+    suggestedFor: (field) => `Set up for ${field} and your answers.`,
+    suggestedNone: "Every department starts switched on. Switch off the ones you don't need.",
     resetSuggestions: "Reset to the suggested answers",
     yes: "Yes",
     no: "No",
@@ -407,12 +408,6 @@ const en: Strings = {
     partsLead: "Keep only the parts of this department you use.",
     neededBy: (names) => `Needed by ${names}, so it stays on.`,
     pickOne: "Say yes to at least one department.",
-    reviewTitle: "Your studio will open with",
-    reviewLead: "Check the list before creating the studio.",
-    onHeading: "Switched on",
-    offHeading: "Switched off",
-    noneOff: "Nothing — every department is on.",
-    partsOff: (n) => (n === 1 ? "1 part off" : `${n} parts off`),
     alwaysThere: "Main, Approvals and Settings — where you manage people, roles and access — are always there.",
     editLater: "Nothing here is final. Any department can be switched on or off later in Settings → Studio settings → Sections.",
     sectionsInvalid: "The department list is out of date. Reload the page and try again.",
@@ -446,6 +441,17 @@ const en: Strings = {
     paidNote: (name) => `Paying online is not open yet. Your choice of ${name} is saved on the studio, and it runs on the free package, within its limits, until it is paid.`,
     freeNote: (months) => `Free for ${months === 1 ? "1 month" : `${months} months`}, then choose a paid package to keep working. You can upgrade at any time.`,
     planHeading: "Package",
+    workTitle: "How do you work?",
+    workLead: "Four questions about how your company works. Each answer decides which departments your studio opens with.",
+    workSuggested: (specialism) => `Answered for ${specialism}. Change anything that doesn't fit.`,
+    workNone: "Answer for your company; you can switch departments one by one on the next step.",
+    work: {
+      counter: { q: "Do you sell over a counter or a till?", d: "Walk-in customers paying on the spot — a shop, a showroom, a café." },
+      projects: { q: "Do you deliver work as projects?", d: "Jobs with a plan, a budget and stages, from the first enquiry to handover." },
+      site: { q: "Do you send people to work at customers' sites?", d: "Installations, visits and call-outs, scheduled and tracked." },
+      upkeep: { q: "Do you look after equipment and keep it running?", d: "Your own machines or your customers' — repairs, work orders and maintenance plans." },
+    },
+    departmentsCount: (n) => (n === 1 ? "1 department switched on" : `${n} departments switched on`),
     questions: {
       "crm-sales": { q: "Do you sell to customers?", d: "Clients, deals, the sales pipeline, contracts, sales orders and a point of sale." },
       quotations: { q: "Do you send customers priced offers before they order?", d: "Requests for quotation, quotations and their revisions." },
@@ -685,15 +691,15 @@ const ar: Strings = {
   createStudioBtn: "أنشئ الاستوديو",
   creating: "جار الإنشاء…",
   setup: {
-    steps: ["الشركة", "ما تقوم به", "الباقة", "المراجعة"],
+    steps: ["الشركة", "طريقة عملك", "الأقسام", "الباقة"],
     stepOf: (n, total) => `الخطوة ${n} من ${total}`,
     back: "رجوع",
     continue: "متابعة",
     companyLead: "الاسم والعنوان اللذان سيستخدمهما فريقك للوصول إلى هذا الاستوديو.",
-    departmentsTitle: "ما الذي تقوم به شركتك؟",
-    departmentsLead: "كل إجابة تفعّل قسما أو توقفه. أجب بلا عن كل ما لا تقوم به — يفتح الاستوديو بما تستخدمه فقط.",
-    suggestedFor: (field) => `الإجابات معبأة مسبقا لمجال ${field}. غيّر أي إجابة لا تناسب شركتك.`,
-    suggestedNone: "تبدأ جميع الأقسام مفعّلة. أجب بلا عن الأقسام التي لا تحتاجها.",
+    departmentsTitle: "أقسامك",
+    departmentsLead: "هذا ما أعددناه من إجاباتك. فعّل أي قسم آخر تستخدمه، وأوقف ما لا تحتاجه.",
+    suggestedFor: (field) => `معدّ لمجال ${field} ولإجاباتك.`,
+    suggestedNone: "تبدأ جميع الأقسام مفعّلة. أوقف الأقسام التي لا تحتاجها.",
     resetSuggestions: "إعادة الإجابات المقترحة",
     yes: "نعم",
     no: "لا",
@@ -701,12 +707,6 @@ const ar: Strings = {
     partsLead: "أبق فقط على أجزاء هذا القسم التي تستخدمها.",
     neededBy: (names) => `يحتاجه ${names}، لذا يبقى مفعّلا.`,
     pickOne: "أجب بنعم عن قسم واحد على الأقل.",
-    reviewTitle: "سيفتح الاستوديو بما يلي",
-    reviewLead: "راجع القائمة قبل إنشاء الاستوديو.",
-    onHeading: "مفعّل",
-    offHeading: "متوقف",
-    noneOff: "لا شيء — جميع الأقسام مفعّلة.",
-    partsOff: (n) => (n === 1 ? "جزء واحد متوقف" : `${n} أجزاء متوقفة`),
     alwaysThere: "الرئيسية والموافقات والإعدادات — حيث تدير الأشخاص والأدوار والصلاحيات — متاحة دائما.",
     editLater: "لا شيء هنا نهائي. يمكن تفعيل أي قسم أو إيقافه لاحقا من الإعدادات ← إعدادات الاستوديو ← الأقسام.",
     sectionsInvalid: "قائمة الأقسام قديمة. أعد تحميل الصفحة وحاول مرة أخرى.",
@@ -740,6 +740,17 @@ const ar: Strings = {
     paidNote: (name) => `الدفع عبر الإنترنت غير متاح بعد. اختيارك لباقة ${name} محفوظ في الاستوديو، ويعمل على الباقة المجانية وضمن حدودها إلى أن يتم الدفع.`,
     freeNote: (months) => `مجانا ${months === 1 ? "لشهر واحد" : months === 2 ? "لشهرين" : months <= 10 ? `لمدة ${months} أشهر` : `لمدة ${months} شهرا`}، ثم اختر باقة مدفوعة لمواصلة العمل. يمكنك الترقية في أي وقت.`,
     planHeading: "الباقة",
+    workTitle: "كيف تعمل شركتك؟",
+    workLead: "أربعة أسئلة عن طريقة عمل شركتك. كل إجابة تحدد الأقسام التي يفتح بها الاستوديو.",
+    workSuggested: (specialism) => `الإجابات معدّة لمجال ${specialism}. غيّر ما لا يناسبك.`,
+    workNone: "أجب بما يناسب شركتك؛ ويمكنك تفعيل الأقسام واحدًا واحدًا في الخطوة التالية.",
+    work: {
+      counter: { q: "هل تبيع عبر منضدة أو صندوق دفع؟", d: "عملاء يدخلون ويدفعون في الحال — متجر أو معرض أو مقهى." },
+      projects: { q: "هل تنفّذ أعمالك على شكل مشاريع؟", d: "أعمال لها خطة وميزانية ومراحل، من أول استفسار حتى التسليم." },
+      site: { q: "هل ترسل فرقًا للعمل في مواقع العملاء؟", d: "تركيبات وزيارات وطلبات خدمة، مجدولة ومتابَعة." },
+      upkeep: { q: "هل تعتني بمعدات وتحافظ على عملها؟", d: "آلاتك أو آلات عملائك — إصلاحات وأوامر عمل وخطط صيانة." },
+    },
+    departmentsCount: (n) => (n === 1 ? "قسم واحد مفعّل" : `${n} أقسام مفعّلة`),
     questions: {
       "crm-sales": { q: "هل تبيع للعملاء؟", d: "العملاء والصفقات ومسار المبيعات والعقود وأوامر البيع ونقطة البيع." },
       quotations: { q: "هل ترسل للعملاء عروض أسعار قبل أن يطلبوا؟", d: "طلبات عروض الأسعار وعروض الأسعار ومراجعاتها." },
