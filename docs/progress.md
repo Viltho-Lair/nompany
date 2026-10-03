@@ -2457,8 +2457,10 @@ by design (`engagements.md`).
 2. ~~"What we sell" per studio, replacing service actions.~~ **CHANGED TO: service actions
    REMOVED outright (the owner, 03/10/2026)**, with no replacement list for now: from studios,
    tickets, items, KPIs and the trade → sections derivation, in code; the stored values by
-   `scripts/migrate/remove-service-actions.mjs` — **written; dry-run on the sandbox only** (4 studio pools,
-   70 rows: 38 tickets and 32 items; no KPI declarations or deals), nothing applied (invariant 17). An
+   `scripts/migrate/remove-service-actions.mjs` — **APPLIED to the sandbox** 03/10/2026 (4 studio pools and 70 rows: 38 tickets, 32 items;
+   exported first, re-scan clean). **Live: dry run only** — 4 studio pools (farah-pharmacy 6 actions,
+   setup 6, yamos 6, nompany 13) and 7 rows (4 tickets, 3 items) across 7 studios; no KPI
+   declarations or deals. Not applied: waits on the owner's second confirmation (invariant 17). An
    industry's profile decides starting sections. **Opened in the sandbox 03/10/2026:** the Industry
    panel saves a specialism at once and the Sections offer follows its profile; the ticket form has no
    services and a ticket saves without any; /super's KPI form has no "Measures"; the create screen
