@@ -2457,8 +2457,12 @@ by design (`engagements.md`).
 2. ~~"What we sell" per studio, replacing service actions.~~ **CHANGED TO: service actions
    REMOVED outright (the owner, 03/10/2026)**, with no replacement list for now: from studios,
    tickets, items, KPIs and the trade → sections derivation, in code; the stored values by
-   `scripts/migrate/remove-service-actions.mjs` — **written, not yet run** (invariant 17). An
-   industry's profile decides starting sections. KPIs are keyed to work types next.
+   `scripts/migrate/remove-service-actions.mjs` — **written; dry-run on the sandbox only** (4 studio pools,
+   70 rows: 38 tickets and 32 items; no KPI declarations or deals), nothing applied (invariant 17). An
+   industry's profile decides starting sections. **Opened in the sandbox 03/10/2026:** the Industry
+   panel saves a specialism at once and the Sections offer follows its profile; the ticket form has no
+   services and a ticket saves without any; /super's KPI form has no "Measures"; the create screen
+   pre-fills Shops & showrooms with exactly the retail profile. KPIs are keyed to work types next.
 3. **Registration**: country, specialism, "how you work", then review.
 4. **Foundations for progress**: every record attaches to its deal, completion rules, and a plan
    with a baseline.
