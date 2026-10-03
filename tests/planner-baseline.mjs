@@ -86,5 +86,20 @@ ok("a task with unreadable dates is dropped", junk && !junk.tasks.a);
 ok("a negative weight reads as none", junk.tasks.b.weight === 0);
 ok("a baseline without a readable date set is none", B.cleanBaseline({ ...base, setAt: "" }) === null);
 
+console.log("\n== what is saved is what triggers a save");
+
+// THE BASELINE FIRST SHIPPED UNSAVED (found on screen, 03/10/2026): planDoc
+// carried it, but StudioPlanner's autosave lists the fields it watches by hand,
+// so setting one read correctly and vanished on reload. Every field planDoc
+// persists must be one the subscription compares.
+const { readFileSync } = await import("node:fs");
+const store = readFileSync("src/components/planner/lib/store/plannerStore.ts", "utf8");
+const body = store.slice(store.indexOf("export function planDoc"), store.indexOf("}", store.indexOf("return {", store.indexOf("export function planDoc"))));
+const saved = [...body.matchAll(/^\s+(\w+): state\.\w+,/gm)].map((m) => m[1]);
+const shell = readFileSync("src/components/studio2/StudioPlanner.jsx", "utf8");
+const unwatched = saved.filter((k) => !shell.includes(`s.${k} !== prev.${k}`));
+ok("planDoc's fields were read", saved.length >= 9, saved.join(","));
+ok("every field planDoc saves is one the autosave watches", unwatched.length === 0, unwatched.join(","));
+
 console.log(fails ? `\nplanner baseline: ${fails} FAILED` : "\nplanner baseline: all passed");
 process.exit(fails ? 1 : 0);

@@ -51,8 +51,11 @@ index, finish slip, added tasks, and that a stored baseline is cleaned rather th
   that line was standing in for, and wiring it in is the next step.
 - **Who set it is not recorded.** `setBy` exists on the baseline but the planner does not know the
   reader's CollaboratorID, so it is blank. When it was set is recorded.
-- **Not opened on screen.** The sandbox could not start on 03/10/2026 (the local database proxy was
-  down), so the control, the chart line and the inspector row were checked by type-check, lint and
-  the arithmetic tests only.
+- **Opened on screen 03/10/2026, and that found a bug.** Setting a baseline read correctly and was
+  never SAVED: the planner's autosave watches a hand-written list of fields and the baseline was not
+  on it, so it vanished on reload. Fixed, and `tests/planner-baseline.mjs` now refuses any field
+  `planDoc` saves that the autosave does not watch. After the fix: set, saved, kept on reload, the
+  verdict shown on the button and a grey line drawn under each task. The inspector row was not
+  opened.
 - **Deals have no plan at all.** This baseline is the project planner's. A deal's plan is the open
   study in `docs/progress.md`.

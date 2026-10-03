@@ -70,6 +70,10 @@ made in /super. The list is recorded in `docs/progress.md`.
   department.
 - **Nova** (the assistant) is not told which sections are held back, and may mention one.
 - **No per-country or per-package hold.** A hold is all-or-nothing, with a preview list.
-- **Not opened on screen.** The sandbox could not start on 03/10/2026 (the local database proxy
-  was down), so the console page, the Settings badge and the page message were checked by
-  type-check, lint and model tests only.
+- **The studio-creation screen was not opened with a hold on.** Everything else was, in the
+  sandbox on 03/10/2026: holding Manufacturing back, saving through the confirmation, its page
+  saying it is being improved, its API refusing with `section-off`, its link gone from the
+  sidebar, and its Studio settings switch disabled with "Being improved — coming soon". That visit
+  also found the console offering the FILED-ONLY storage rows (`crm-sales-pos`, the four old
+  quotation rows, `projects-sla`), which are shown nowhere, so holding one back did nothing.
+  They are no longer offered.

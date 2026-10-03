@@ -30,6 +30,8 @@ console.log("\n== what may be locked");
 const lockable = L.lockableKeys();
 ok("Main and Approvals can never be locked", !lockable.includes("main") && !lockable.includes("approvals"));
 ok("no Administration key can be locked", !lockable.some((k) => K.isSystemSection(k)));
+ok("a filed-only storage row is never offered — it is shown nowhere, so its switch would do nothing",
+  !lockable.some((k) => K.isFiledOnlySection(k)));
 ok("product roots and their sub-sections can", lockable.includes("manufacturing") && lockable.includes("crm-sales-orders"));
 const cleaned = L.cleanLocks({ locked: ["manufacturing", "main", "administration-settings", "nope", "manufacturing"], previewStudios: ["s1", "s1", ""] });
 ok("a stored list keeps only lockable keys, once each", JSON.stringify(cleaned.locked) === JSON.stringify(["manufacturing"]), JSON.stringify(cleaned.locked));

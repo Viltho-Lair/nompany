@@ -29,7 +29,7 @@
 // member lands and where the studio is configured; locking one would leave a
 // studio with nowhere to go and nowhere to undo it.
 
-import { REG, SECTION_DEFS, isSystemSection } from "./keys";
+import { REG, SECTION_DEFS, isFiledOnlySection, isSystemSection } from "./keys";
 import { editJSON, getJSON } from "./store";
 
 export type ReleaseLocks = {
@@ -44,11 +44,16 @@ export type ReleaseLocks = {
 const EMPTY: ReleaseLocks = { locked: [], previewStudios: [], updatedAt: "", updatedBy: "" };
 const NEVER_LOCKED = new Set(["main", "approvals"]);
 
-/** Every key the console may lock: the product's sections and their sub-sections. */
+/**
+ * Every key the console may lock: the product's sections and their sub-sections.
+ * FILED-ONLY rows are left out (measured on screen 03/10/2026): they are storage,
+ * already shown nowhere, so holding one back would change nothing a studio sees
+ * and the console would be offering a switch that does nothing.
+ */
 export function lockableKeys(): string[] {
   return SECTION_DEFS
     .filter((d) => !isSystemSection(d.key) && !NEVER_LOCKED.has(d.key))
-    .flatMap((d) => [d.key, ...(d.children || []).map((c) => c.key).filter((k) => !isSystemSection(k))]);
+    .flatMap((d) => [d.key, ...(d.children || []).map((c) => c.key).filter((k) => !isSystemSection(k) && !isFiledOnlySection(k))]);
 }
 
 /** The stored document, cleaned: unknown keys dropped, duplicates removed. */

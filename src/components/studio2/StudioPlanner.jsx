@@ -136,7 +136,13 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel, 
         s.colorBy !== prev.colorBy ||
         s.visibleColumns !== prev.visibleColumns ||
         s.showCriticalPath !== prev.showCriticalPath ||
-        s.showDependencies !== prev.showDependencies;
+        s.showDependencies !== prev.showDependencies ||
+        // The baseline is persisted in planDoc too. Leaving it off this list is
+        // how setting one first shipped: the popover read correctly and nothing
+        // was saved, so the baseline vanished on reload (found on screen,
+        // 03/10/2026). A field added to planDoc must be added here.
+        s.baseline !== prev.baseline ||
+        s.showBaseline !== prev.showBaseline;
       if (!changed) return;
       clearTimeout(timer);
       timer = setTimeout(async () => {
