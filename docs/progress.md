@@ -2471,6 +2471,10 @@ by design (`engagements.md`).
 4. **Foundations for progress**: every record attaches to its deal, completion rules, and a plan
    with a baseline.
 5. **KPIs** on kinds of work and steps, plus period KPIs, measured against the plan.
+   **Started 03/10/2026:** the pure arithmetic (`modules/main/workKpis.ts`, `kpis.md`) — per-item
+   `reach`/`onTime` and period `count`/`value`/`share`/`avgDays`, read off dates the records keep.
+   Not wired: storage, the editor and the screens wait on three owner decisions (who sets
+   targets; ship measures without numbers; judge by the target in force when work started).
 
 **Owner decisions, ANSWERED 03/10/2026:**
 

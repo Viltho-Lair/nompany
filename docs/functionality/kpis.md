@@ -76,6 +76,31 @@ step: a target is read with the deal's progress, not filed under it. A deal
 measuring nothing says so in words, because a deal measuring nothing and a deal
 measuring nothing *well* look identical otherwise.
 
+## KPIs on kinds of work — the arithmetic (03/10/2026)
+
+`modules/main/workKpis.ts`, pure, and **not wired to anything yet**: no declaration is stored,
+no screen shows one. It is the step before the declaration and the screens, built first so they
+have nothing to invent.
+
+- **What a piece of work is, for measuring** (`WorkFacts`), built only from dates its own record
+  keeps: a work order's created, started, completed and closed stamps and its step history (the
+  FIRST time a step was reached counts); a job's creation, scheduled end and completion (it keeps
+  no start, so "in progress" is never invented); a deal's first record of each stage; a receipt's
+  time and total.
+- **Per item** — one deal, job or work order: `reach` (a step within N days of opening) and
+  `onTime` (done by the record's own due date; a deal and a counter sale have none, and are
+  refused). **A late step is MISSED even once it happens** — unlike a deal milestone, which asks
+  "was it done"; these ask "was it done in time". No due date is `unknown`, never late, and
+  cancelled work is not judged.
+- **Per period** — the company over `[from, to)`: `count` and `value` of what OPENED in it, and
+  `share` (of a per-item KPI) and `avgDays` (a ceiling) of what FINISHED in it. A total short of
+  target while the period runs is in progress, not missed. Nothing finished is null, not 0.
+- **Refused at the door** (`workKpiProblems`): a step the kind of work does not have, a due-date
+  KPI on work with no due date, a share above 1, a share of a missing, period or other-type KPI,
+  money on anything but a counter sale.
+
+`tests/work-kpis-model.mjs` holds it.
+
 ## Not built yet
 
 - **Stage-to-stage durations** ("commissioned within 14 days of delivery"). The
