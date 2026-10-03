@@ -2470,7 +2470,10 @@ by design (`engagements.md`).
 3. **Registration**: country, specialism, "how you work", then review. **BUILT 03/10/2026**: *Company* →
    *How you work* (four questions, each a kind of work, pre-answered from the specialism) →
    *Departments* (every one shown and switchable) → *Plan*, which creates. `shared/howYouWork.ts`,
-   `sections.md`. The first-run checklist inside the studio (KPI targets and the rest) is not built.
+   `sections.md`. **Opened in the sandbox the same day**, English and Arabic: Shops & showrooms
+   pre-answered yes to the counter and no to the rest; a yes to customers' sites added Field Operations
+   on the Departments step; the Plan step showed the count and names and created nothing until asked.
+   The first-run checklist inside the studio (KPI targets and the rest) is not built.
 4. **Foundations for progress**: every record attaches to its deal, completion rules, and a plan
    with a baseline.
 5. **KPIs** on kinds of work and steps, plus period KPIs, measured against the plan.
