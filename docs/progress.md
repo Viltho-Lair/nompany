@@ -2444,8 +2444,12 @@ may narrow one to an item from its own "What we sell" list.
 **Correction to the study above: arrival times are already stored.** A record that attaches to a
 deal is scored by its `createdAt` in the deal's membership set (`attachRecord`,
 `platform/db/engagement.ts`), so "when was this step reached" can be derived for every type that
-attaches. The real foundation gap is that **deliveries, invoices, expenses, material orders,
-shipments and overtime do not attach when created**; only a one-off backfill ever attached them.
+attaches. **And the attachment gap claimed above and in the 30/09 research was wrong**, corrected
+the same day by reading the code: deliveries, invoices, material orders, shipments and overtime DO
+join their project's deal on creation (`attachToProjectEngagement`), and leave it on delete. The
+search behind the claim looked only for the low-level `attachRecord`. **Expenses were the one
+project child that did not**, and do since 03/10/2026. Bills, fixed assets and tasks still do not,
+by design (`engagements.md`).
 
 **The agreed order.** Each step depends only on the ones before it.
 
@@ -2487,7 +2491,8 @@ no-new-markdown rule:
   5. the links from work to invoice (sales order, subcontract certificate, milestone);
   6. a timesheet submission screen;
   7. stock posted to the ledger;
-  8. the six record types that do not attach to deals.
+  8. ~~the six record types that do not attach to deals~~ (wrong; only expenses did not, fixed
+     03/10/2026).
 
 ## Open decisions
 

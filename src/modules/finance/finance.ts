@@ -736,6 +736,12 @@ export async function createExpense(ctx: FinanceContext, body: Record<string, un
   // it — which is why `postExpense` has no state guard of its own where the
   // other four do.
   const posting = await autoPost(ctx, "expense", expense.id);
+  // AN EXPENSE FILED AGAINST A PROJECT JOINS THAT PROJECT'S DEAL, as its
+  // invoices, orders and deliveries already do — it was the one project child
+  // that never did (found 03/10/2026), so a deal's page and any figure built on
+  // its members never saw the money. Never throws: a refused index must not
+  // fail a cost that has already been booked (attachToProjectEngagement).
+  await attachToProjectEngagement(studio.id, "expense", expense.id, projectId, expense.createdAt as string);
   return { expense, posting };
 }
 
@@ -781,6 +787,12 @@ export async function editExpense(ctx: FinanceContext, id: string, body: Record<
   const moved = patch.amount !== undefined || patch.category !== undefined || patch.date !== undefined
     || patch.accountId !== undefined || patch.projectId !== undefined;
   const posting = moved ? await autoRepost(ctx, "expense", id, `Expense ${expense.reference || ""} corrected`.trim()) : null;
+  // REFILED TO ANOTHER PROJECT, it moves to that project's deal: out of the
+  // old one first, so it never sits in two.
+  if (patch.projectId !== undefined) {
+    await detachFromItsEngagement(studio.id, "expense", id);
+    await attachToProjectEngagement(studio.id, "expense", id, String(patch.projectId), expense.createdAt as string);
+  }
   return { expense, ...(posting ? { posting } : {}) };
 }
 
@@ -789,6 +801,10 @@ export async function removeExpense(ctx: FinanceContext, id: string) {
   const denied = requirePermission(ctx.access, "finance.expenses.delete");
   if (denied) return denied;
 
+  // Out of its deal BEFORE the row goes, the order the helper explains: a crash
+  // between the two leaves a row with no deal, which the backfill heals, rather
+  // than a deal pointing at nothing.
+  await detachFromItsEngagement(ctx.studio.id, "expense", id);
   const removed = await Expenses.remove({ studio: ctx.studio, section: ctx.cashSection }, id);
   if (!removed) return { error: "notfound" };
   // A DELETED EXPENSE TAKES ITS ENTRY WITH IT — reversed, not erased, so the

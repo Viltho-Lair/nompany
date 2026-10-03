@@ -310,11 +310,14 @@ catalogue read as that studio's own configuration.
   `editInvoice`, `editOrder`, `updateOvertime` and `updateShipment` each accept a new
   `projectId` and none of them re-attaches, so the record stays in the deal it first
   joined. That is the assignment feature (§3.6.2's promotion), not the create path.
-- **`task`, `expense`, `bill` and `asset` still do not attach at all.** Every one is
-  `unassignable` and `onDelete: "keep"` — raised on its own screen and assigned to a deal
-  afterwards — so their attach is the assignment feature above rather than this one, and
-  their delete verbs correspondingly detach nothing. When assignment lands, each of those
-  four delete verbs needs its detach in the same commit.
+- **`task`, `bill` and `asset` still do not attach at all.** Every one is `unassignable`
+  and `onDelete: "keep"` — raised on its own screen and assigned to a deal afterwards — so
+  their attach is the assignment feature above rather than this one, and their delete verbs
+  correspondingly detach nothing. When assignment lands, each of those delete verbs needs its
+  detach in the same commit. **An expense filed against a project joins that project's deal**
+  (03/10/2026), as an invoice does: on create, on refiling to another project (out of the old
+  deal first), and out again before it is deleted. An expense with no project stays unattached,
+  which is what `unassignable` allows. A bill coded to a project is the obvious next one.
 - **Deleting a PROJECT does not delete or detach its children.** `removeProject` removes
   the row, its board and its plans, and leaves every sheet, invoice, order, delivery,
   shipment and overtime raised on it standing — still in the deal, now naming a project
