@@ -30,6 +30,7 @@
 // nothing finished has no average, and a share of nothing is not 0%.
 
 import { WORK_TYPES, type WorkState, type WorkTypeKey } from "./workTypes";
+import { zonedMidnight } from "@/shared/timezone";
 
 // ---- what a piece of work is, for measuring ---------------------------------
 
@@ -142,7 +143,13 @@ export type WorkKpi = {
   kind: WorkKpiKind;
   /** `reach`: the step to reach — a step token, or for a deal a stage type. */
   step?: string;
-  /** `reach`: days from opening. */
+  /**
+   * `reach`: the step the clock STARTS at — "first delivery within 30 days of
+   * the PROJECT". Absent: from when the work opened. The owner, 03/10/2026, on a
+   * delivery KPI tied to a project's deliveries.
+   */
+  from?: string;
+  /** `reach`: days from `from` (or from opening). */
   days?: number;
   /** Period kinds: the target for the period asked about. `avgDays` is a ceiling. */
   target?: number;
@@ -152,10 +159,12 @@ export type WorkKpi = {
 
 export const isItemKind = (k: unknown): boolean => (ITEM_KINDS as readonly unknown[]).includes(k);
 
-// The four states a judgement can be in. `unknown` is a real answer (a KPI the
-// record cannot be measured by — no due date, a step it has no stamp for); it is
-// never reported as "not started", which would read as a company behind.
-export type KpiOutcome = "in-progress" | "met" | "missed" | "unknown";
+// The states a judgement can be in. `unknown` is a real answer (a KPI the record
+// cannot be measured by — no due date, a step it has no stamp for). `waiting` is
+// a `reach` whose clock has not started, because its `from` step has not
+// happened: "delivery within 30 days of the project" on a deal with no project
+// yet is neither late nor under way.
+export type KpiOutcome = "waiting" | "in-progress" | "met" | "missed" | "unknown";
 
 const DAY = 86_400_000;
 const endOfDay = (ymd: string) => Date.parse(`${ymd}T23:59:59.999Z`);
@@ -173,9 +182,15 @@ export function judgeItem(kpi: WorkKpi, facts: WorkFacts, asOf: string): { outco
   const now = Date.parse(asOf);
   if (kpi.kind === "reach") {
     const step = text(kpi.step);
-    const opened = Date.parse(facts.openedAt);
-    if (!step || !Number.isFinite(opened)) return { outcome: "unknown", dueAt: "" };
-    const due = opened + Number(kpi.days || 0) * DAY;
+    const from = text(kpi.from);
+    if (!step) return { outcome: "unknown", dueAt: "" };
+    const start = Date.parse(from ? facts.reached[from] || "" : facts.openedAt);
+    if (!Number.isFinite(start)) {
+      // THE CLOCK HAS NOT STARTED. Waiting while the work is open; once it is
+      // done without ever reaching `from`, it simply cannot be judged.
+      return { outcome: from && facts.state === "open" ? "waiting" : "unknown", dueAt: "" };
+    }
+    const due = start + Number(kpi.days || 0) * DAY;
     const dueAt = new Date(due).toISOString();
     const at = Date.parse(facts.reached[step] || "");
     if (Number.isFinite(at)) return { outcome: at <= due ? "met" : "missed", dueAt };
@@ -289,6 +304,13 @@ export function workKpiProblems(defs: readonly WorkKpi[], dealStages: readonly s
     if (def.kind === "reach") {
       const steps = type.steps ? type.steps.map((s) => s.token) : dealStages;
       if (!steps.includes(text(def.step))) problems.push(`${at}: "${text(def.step)}" is not a step of a ${type.name.en.toLowerCase()}`);
+      if (def.from !== undefined && text(def.from)) {
+        if (!steps.includes(text(def.from))) problems.push(`${at}: "${text(def.from)}" is not a step of a ${type.name.en.toLowerCase()}, so the clock could never start`);
+        else if (text(def.from) === text(def.step)) problems.push(`${at}: a step cannot be timed from itself`);
+        else if (type.steps && type.steps.findIndex((x) => x.token === def.from) > type.steps.findIndex((x) => x.token === def.step)) {
+          problems.push(`${at}: "${text(def.from)}" comes after "${text(def.step)}", so the clock would start after the work it times`);
+        }
+      }
       const days = Number(def.days);
       if (!Number.isInteger(days) || days < 1 || days > 3650) problems.push(`${at}: days must be a whole number from 1 to 3650`);
     }
@@ -308,4 +330,202 @@ export function workKpiProblems(defs: readonly WorkKpi[], dealStages: readonly s
     }
   }
   return problems;
+}
+
+// ---- the list of measures, and a studio's targets ---------------------------
+//
+// THE OWNER'S THREE ANSWERS, 03/10/2026:
+//   1. /super keeps the LIST of what can be measured (a MEASURE: a KPI with no
+//      number); each studio types its own numbers (a TARGET) in Studio settings.
+//   2. Measures ship without numbers, so a studio only types a target and
+//      nompany never invents one for a company.
+//   3. Changing a target does NOT re-judge past work: every target keeps a dated
+//      history, and a piece of work is judged by the version in force when it
+//      opened.
+// And, asked afterwards: a studio-wide target with an optional OVERRIDE PER
+// DEAL FLOW — a fit-out and a supply-only order may need different delivery
+// times in one company.
+
+export const PERIODS = ["day", "week", "month"] as const;
+export type Period = (typeof PERIODS)[number];
+
+export type MeasureWords = { en: string; ar: string };
+
+/** A KPI with no number — what /super lists and a studio turns on by giving it one. */
+export type WorkMeasure = {
+  id: string;
+  name: MeasureWords;
+  workType: WorkTypeKey;
+  kind: WorkKpiKind;
+  step?: string;
+  from?: string;
+  of?: string;
+  /** Period kinds: the period a target is for. */
+  per?: Period;
+  /** Offered to studios. A target a studio set stays stored either way. */
+  active: boolean;
+};
+
+/**
+ * WHAT A MEASURE'S NUMBER MEANS — so the editor asks the right question and
+ * `targetProblems` checks the right range. `onTime` has none: it is on or off.
+ */
+export function numberOf(kind: WorkKpiKind): "days" | "count" | "money" | "share" | "avgDays" | null {
+  if (kind === "reach") return "days";
+  if (kind === "count") return "count";
+  if (kind === "value") return "money";
+  if (kind === "share") return "share";
+  if (kind === "avgDays") return "avgDays";
+  return null;
+}
+
+/** A measure with a number, as the arithmetic above reads it. */
+export function withTarget(m: WorkMeasure, n: number): WorkKpi & { name: MeasureWords; per?: Period } {
+  const base = { id: m.id, label: m.name.en, name: m.name, workType: m.workType, kind: m.kind,
+    ...(m.step ? { step: m.step } : {}), ...(m.from ? { from: m.from } : {}), ...(m.of ? { of: m.of } : {}),
+    ...(m.per ? { per: m.per } : {}) };
+  if (m.kind === "reach") return { ...base, days: n };
+  if (m.kind === "onTime") return base;
+  return { ...base, target: n };
+}
+
+/**
+ * THE MEASURES EVERY STUDIO IS OFFERED, with no numbers. The console can switch
+ * one off, reword it, or add its own; it cannot give one a number — that is the
+ * studio's.
+ */
+export const BUILTIN_MEASURES: readonly WorkMeasure[] = [
+  { id: "deal-quoted", name: { en: "Quoted within … days of the enquiry", ar: "تقديم عرض السعر خلال … يومًا من الاستفسار" }, workType: "deal", kind: "reach", step: "quotation", active: true },
+  { id: "deal-contract", name: { en: "Contract signed within … days of the quotation", ar: "توقيع العقد خلال … يومًا من عرض السعر" }, workType: "deal", kind: "reach", step: "contract", from: "quotation", active: true },
+  { id: "deal-delivery", name: { en: "First delivery within … days of the project", ar: "أول توريد خلال … يومًا من بدء المشروع" }, workType: "deal", kind: "reach", step: "delivery", from: "project", active: true },
+  { id: "deal-invoice", name: { en: "First invoice within … days of the project", ar: "أول فاتورة خلال … يومًا من بدء المشروع" }, workType: "deal", kind: "reach", step: "invoice", from: "project", active: true },
+  { id: "deal-quoted-share", name: { en: "Share of deals quoted in time", ar: "نسبة الصفقات التي قُدّم عرضها في الوقت" }, workType: "deal", kind: "share", of: "deal-quoted", per: "month", active: true },
+  { id: "job-on-time", name: { en: "Field jobs finished by their scheduled end", ar: "إنجاز المهام الميدانية قبل نهاية موعدها" }, workType: "job", kind: "onTime", active: true },
+  { id: "job-on-time-share", name: { en: "Share of field jobs on time", ar: "نسبة المهام الميدانية المنجزة في الوقت" }, workType: "job", kind: "share", of: "job-on-time", per: "month", active: true },
+  { id: "job-avg-days", name: { en: "Average days to finish a field job (at most)", ar: "متوسط أيام إنجاز المهمة الميدانية (حدًا أقصى)" }, workType: "job", kind: "avgDays", per: "month", active: true },
+  { id: "wo-started", name: { en: "Work orders started within … days", ar: "بدء أوامر العمل خلال … يومًا" }, workType: "workOrder", kind: "reach", step: "In progress", active: true },
+  { id: "wo-on-time", name: { en: "Work orders done by their due date", ar: "إنجاز أوامر العمل قبل موعد استحقاقها" }, workType: "workOrder", kind: "onTime", active: true },
+  { id: "wo-on-time-share", name: { en: "Share of work orders on time", ar: "نسبة أوامر العمل المنجزة في الوقت" }, workType: "workOrder", kind: "share", of: "wo-on-time", per: "month", active: true },
+  { id: "wo-avg-days", name: { en: "Average days to complete a work order (at most)", ar: "متوسط أيام إنجاز أمر العمل (حدًا أقصى)" }, workType: "workOrder", kind: "avgDays", per: "month", active: true },
+  { id: "sales-count", name: { en: "Counter sales a day", ar: "عدد المبيعات المباشرة يوميًا" }, workType: "counterSale", kind: "count", per: "day", active: true },
+  { id: "sales-value", name: { en: "Counter sales value a day", ar: "قيمة المبيعات المباشرة يوميًا" }, workType: "counterSale", kind: "value", per: "day", active: true },
+];
+
+export const BUILTIN_MEASURE_IDS: ReadonlySet<string> = new Set(BUILTIN_MEASURES.map((m) => m.id));
+
+/** The console's rows over the built-ins: a stored row replaces its built-in by id, others are added. */
+export function mergeMeasures(stored: readonly WorkMeasure[]): WorkMeasure[] {
+  const byId = new Map(stored.filter((m) => m?.id).map((m) => [m.id, m]));
+  const merged = BUILTIN_MEASURES.map((b) => byId.get(b.id) || b);
+  return [...merged, ...stored.filter((m) => m?.id && !BUILTIN_MEASURE_IDS.has(m.id))];
+}
+
+/**
+ * WHAT IS WRONG WITH A LIST OF MEASURES — the declaration checks, asked with a
+ * stand-in number, because a measure has none and its shape is what matters.
+ */
+export function measureProblems(measures: readonly WorkMeasure[], dealStages: readonly string[]): string[] {
+  const stand = (m: WorkMeasure) => withTarget(m, m.kind === "share" ? 0.5 : 1);
+  const out = workKpiProblems(measures.map(stand), dealStages);
+  for (const m of measures) {
+    if (!text(m?.name?.en).trim() || !text(m?.name?.ar).trim()) out.push(`measure ${m?.id || "?"}: needs a name in English and Arabic`);
+    if (!isItemKind(m?.kind) && !PERIODS.includes(m?.per as Period)) out.push(`measure ${m?.id || "?"}: a period KPI needs a period — day, week or month`);
+  }
+  return out;
+}
+
+/** WHAT IS WRONG WITH A NUMBER for this measure, or "" when it is sound. Null (off) is always sound. */
+export function targetProblem(m: WorkMeasure, n: number | null): string {
+  if (n === null) return "";
+  const what = numberOf(m.kind);
+  if (!Number.isFinite(n)) return "not-a-number";
+  if (what === null) return n === 1 ? "" : "on-or-off";
+  if (what === "days") return Number.isInteger(n) && n >= 1 && n <= 3650 ? "" : "days";
+  if (what === "share") return n > 0 && n <= 1 ? "" : "share";
+  return n > 0 ? "" : "positive";
+}
+
+/**
+ * ONE VERSION OF A STUDIO'S TARGET FOR A MEASURE. `value` is studio-wide (null:
+ * not measured); `byFlow` overrides it for a deal flow (null: that flow is not
+ * measured on it; absent: the studio-wide number applies).
+ */
+export type TargetVersion = { at: string; by: string; value: number | null; byFlow: Record<string, number | null> };
+/** measure id → its versions, oldest first. */
+export type StudioKpiTargets = Record<string, TargetVersion[]>;
+
+/**
+ * THE NUMBER IN FORCE for a piece of work: the latest version set at or before
+ * the moment it opened, the flow's override over the studio-wide figure. Null:
+ * not measured — including work that opened before any target was set, which
+ * was never asked to meet one.
+ */
+export function targetIn(versions: readonly TargetVersion[] | undefined, flowId: string, at: string): number | null {
+  const t = Date.parse(at);
+  if (!versions?.length || !Number.isFinite(t)) return null;
+  let found: TargetVersion | null = null;
+  for (const v of versions) if (Date.parse(v.at) <= t) found = v;
+  if (!found) return null;
+  if (flowId && Object.prototype.hasOwnProperty.call(found.byFlow || {}, flowId)) return found.byFlow[flowId];
+  return found.value;
+}
+
+/**
+ * A CHANGE, APPENDED AS A NEW VERSION — never an edit of the last one, which
+ * would re-judge work already measured against it. `flowId` absent sets the
+ * studio-wide number; present sets that flow's override, and `undefined` as the
+ * value removes the override so the studio-wide number applies again.
+ * Unchanged when the result equals the version in force.
+ */
+export function nextVersions(
+  versions: readonly TargetVersion[] | undefined,
+  change: { flowId?: string; value: number | null | undefined },
+  at: string,
+  by: string,
+): TargetVersion[] {
+  const list = [...(versions || [])];
+  const last = list[list.length - 1] || { at: "", by: "", value: null, byFlow: {} };
+  const next: TargetVersion = { at, by, value: last.value, byFlow: { ...(last.byFlow || {}) } };
+  if (change.flowId) {
+    if (change.value === undefined) delete next.byFlow[change.flowId];
+    else next.byFlow[change.flowId] = change.value;
+  } else {
+    next.value = change.value === undefined ? null : change.value;
+  }
+  const same = next.value === last.value && JSON.stringify(next.byFlow) === JSON.stringify(last.byFlow || {});
+  return same && list.length ? list : [...list, next];
+}
+
+/** Every KPI in force for a piece of work of this type, on this flow, opened at `at`. */
+export function kpisInForce(
+  measures: readonly WorkMeasure[],
+  targets: StudioKpiTargets,
+  workType: WorkTypeKey,
+  flowId: string,
+  at: string,
+) {
+  const out: ReturnType<typeof withTarget>[] = [];
+  for (const m of measures) {
+    if (!m.active || m.workType !== workType) continue;
+    const n = targetIn(targets[m.id], flowId, at);
+    if (n === null) continue;
+    out.push(withTarget(m, n));
+  }
+  return out;
+}
+
+/**
+ * THE PERIOD A PERIOD KPI IS SCORED OVER, as instants, for the studio's own
+ * calendar: today, this week (from Monday), or this month — midnight to
+ * midnight on the studio's clock (`zonedMidnight`), so a shop's day is its own.
+ */
+export function periodBounds(per: Period, todayYmd: string, timezone?: string): { from: string; to: string } {
+  const [y, mo, d] = todayYmd.split("-").map(Number);
+  const m = mo - 1;
+  if (per === "day") return { from: zonedMidnight(y, m, d, timezone).toISOString(), to: zonedMidnight(y, m, d + 1, timezone).toISOString() };
+  if (per === "week") {
+    const weekday = (new Date(Date.UTC(y, m, d)).getUTCDay() + 6) % 7; // Monday = 0
+    return { from: zonedMidnight(y, m, d - weekday, timezone).toISOString(), to: zonedMidnight(y, m, d - weekday + 7, timezone).toISOString() };
+  }
+  return { from: zonedMidnight(y, m, 1, timezone).toISOString(), to: zonedMidnight(y, m + 1, 1, timezone).toISOString() };
 }
