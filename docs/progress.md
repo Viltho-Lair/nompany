@@ -2476,6 +2476,11 @@ by design (`engagements.md`).
   recurring commitment), one engine underneath, each type with its own name, steps and progress.
   Types are built for the industries that are switched on, first.
 
+**Decision C, first slice — BUILT 03/10/2026** (`work-items.md`): four work types read off
+the records that already exist — deal, field job, work order, counter sale — with no new stored
+record, and a "Work in hand" board on the front door, one lane per kind of work the studio runs.
+Opened in the sandbox in English and Arabic. Next: KPIs on work types.
+
 **Not blocked, and started 03/10/2026:**
 
 - a /super lock that hides sections and sub-sections still under development from every studio;

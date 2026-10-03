@@ -58,7 +58,7 @@ function resolveClientName(
 /** The minimal shape every caller here has in hand — studio id and the
  * resolved permission set. Deliberately not the full ModuleContext: engagements
  * is not a section (spec §3), so there is no department section to require. */
-type EngagementCtx = {
+export type EngagementCtx = {
   studio: { id: string; slug?: string };
   access: PermissionSet;
   /**
@@ -167,14 +167,24 @@ function statusOf(cards: StageCard[], statusChain: readonly string[]): { status:
  * exactly as it did before, rather than becoming statusless the day templates
  * arrived.
  */
-async function dealTemplate(ctx: EngagementCtx, root: { templateId?: string; context: Record<string, unknown> }) {
+/**
+ * The flow a deal walks. `preload` is for a caller resolving MANY deals (the
+ * work board, 03/10/2026): the template list read once and each industry's
+ * default remembered, so twenty-five deals cost one read rather than fifty.
+ * The precedence is unchanged, and still this function's alone.
+ */
+export async function dealTemplate(
+  ctx: EngagementCtx,
+  root: { templateId?: string; context: Record<string, unknown> },
+  preload?: { templates: Awaited<ReturnType<typeof listFlowTemplates>>; primaryFor: Map<string, Promise<string>> },
+) {
   // ONE READ OF THE TEMPLATE LIST, THEN PICKS FROM IT. getFlowTemplate is
   // listFlowTemplates plus a find — the merge of seeds and tenant overrides is
   // the whole cost — so calling it once per candidate would read the same key
   // up to three times to answer one question. Hop counts are part of the
   // contract here (a route going from 2 round trips to 8 fails the build), and
   // this is a per-deal read on the deal screen.
-  const templates = await listFlowTemplates(ctx.studio.id);
+  const templates = preload ? preload.templates : await listFlowTemplates(ctx.studio.id);
 
   // THE PRECEDENCE ITSELF LIVES IN pickTemplate, shared with the usage scan.
   // Two copies of "which flow is this deal on" is two answers, and the screen
@@ -191,7 +201,13 @@ async function dealTemplate(ctx: EngagementCtx, root: { templateId?: string; con
   // no deal written after. The usage scan reads every industry once instead,
   // which is why pickTemplate takes the answer rather than fetching it.
   const industryKey = industryKeyOf(root.context as Record<string, unknown> | undefined);
-  const primary = industryKey ? await defaultTemplateForStudio(ctx.studio.id, industryKey) : "";
+  let primary = "";
+  if (industryKey && preload) {
+    if (!preload.primaryFor.has(industryKey)) preload.primaryFor.set(industryKey, defaultTemplateForStudio(ctx.studio.id, industryKey));
+    primary = await preload.primaryFor.get(industryKey)!;
+  } else if (industryKey) {
+    primary = await defaultTemplateForStudio(ctx.studio.id, industryKey);
+  }
   return pickTemplate(templates, known, primary);
 }
 
@@ -231,7 +247,7 @@ function readKpis(
 }
 
 /** Which stage types this engagement actually has. */
-function stagesPresent(view: { singletons: Record<string, string | null>; members: Record<string, string[]> }): string[] {
+export function stagesPresent(view: { singletons: Record<string, string | null>; members: Record<string, string[]> }): string[] {
   const out: string[] = [];
   for (const [type, id] of Object.entries(view.singletons)) if (id && STAGE_REGISTRY[type]) out.push(type);
   for (const [type, ids] of Object.entries(view.members)) if (ids.length && STAGE_REGISTRY[type]) out.push(type);
@@ -270,6 +286,25 @@ async function summarise(
     ref: String(row.ref || row.number || row.reference || row.id || ""),
     summary: String(row.status || row.stage || ""),
   };
+}
+
+/**
+ * THE STAGES OF A DEAL'S FLOW THIS STUDIO RUNS — the deal screen's sequence and
+ * the work board's progress, from one place so the two cannot disagree about
+ * how far along a deal is. A deal on no template has none.
+ */
+export function runningStages(
+  ctx: EngagementCtx,
+  template: { stages: readonly string[] } | null | undefined,
+  present: ReadonlySet<string>,
+): string[] {
+  return template
+    ? stagesRunning(
+      [...template.stages], present as Set<string>,
+      STAGE_REGISTRY as Readonly<Record<string, StageInfo>>,
+      switchboard(ctx.sections || []),
+    )
+    : [];
 }
 
 /** One page of this studio's engagements, newest first. */
@@ -401,13 +436,7 @@ export async function engagementBlock(
   // or the flow would report a deal as further back than it is and invite a
   // step it has taken. Switching a department off hides what is not there; it
   // does not unmake what is.
-  const running = template
-    ? stagesRunning(
-      template.stages, present,
-      STAGE_REGISTRY as Readonly<Record<string, StageInfo>>,
-      switchboard(ctx.sections || []),
-    )
-    : [];
+  const running = runningStages(ctx, template, present);
   const progress = template
     ? flowProgress(running, present, STAGE_REGISTRY as Readonly<Record<string, StageInfo>>)
     : null;

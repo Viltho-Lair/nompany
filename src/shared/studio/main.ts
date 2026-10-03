@@ -12,6 +12,18 @@ type Strings = CommonStrings & {
   nothingShared: string;
   recentActivity: string;
   nothingMoved: string;
+  // The work in hand (modules/main/work).
+  workInHand: string;
+  workOpen: (n: number) => string;
+  workOverdue: (n: number) => string;
+  workDoneRecently: (n: number) => string;
+  workNewestDeals: (n: number) => string;
+  workNothingOpen: string;
+  workHeld: string;
+  workSalesToday: (count: number, value: string) => string;
+  workSeeAll: string;
+  workSalesRecently: (n: number) => string;
+  workDue: (date: string) => string;
   // The feed's record kinds. Fixed by the code, not typed by a tenant.
   feedTicket: string;
   feedQuotation: string;
@@ -57,6 +69,17 @@ const en: Strings = {
   nothingShared: "Nothing has been shared with you yet. An admin can grant you sections from Access.",
   recentActivity: "Recent activity",
   nothingMoved: "Nothing has moved yet.",
+  workInHand: "Work in hand",
+  workOpen: (n) => `${n} open`,
+  workOverdue: (n) => `${n} overdue`,
+  workDoneRecently: (n) => `${n} finished in the last 30 days`,
+  workNewestDeals: (n) => `Of the newest ${n}`,
+  workNothingOpen: "Nothing open.",
+  workHeld: "On hold",
+  workSalesToday: (count, value) => `${count} sales today · ${value}`,
+  workSeeAll: "See all",
+  workSalesRecently: (n) => `${n} in the last 30 days`,
+  workDue: (date) => `Due ${date}`,
   feedTicket: "Ticket",
   feedQuotation: "Quotation",
   feedProject: "Project",
@@ -101,6 +124,17 @@ const ar: Strings = {
   nothingShared: "لم تتم مشاركة أي شيء معك بعد. يمكن لمسؤول منحك الأقسام من شاشة الصلاحيات.",
   recentActivity: "النشاط الأخير",
   nothingMoved: "لم يتحرك شيء بعد.",
+  workInHand: "العمل الجاري",
+  workOpen: (n) => `${n} مفتوح`,
+  workOverdue: (n) => `${n} متأخر`,
+  workDoneRecently: (n) => `${n} أُنجز في آخر 30 يومًا`,
+  workNewestDeals: (n) => `من أحدث ${n}`,
+  workNothingOpen: "لا شيء مفتوح.",
+  workHeld: "معلّق",
+  workSalesToday: (count, value) => `${count} عملية بيع اليوم · ${value}`,
+  workSeeAll: "عرض الكل",
+  workSalesRecently: (n) => `${n} في آخر 30 يومًا`,
+  workDue: (date) => `الاستحقاق ${date}`,
   feedTicket: "تذكرة",
   feedQuotation: "عرض سعر",
   feedProject: "مشروع",

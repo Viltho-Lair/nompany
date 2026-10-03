@@ -10,6 +10,7 @@ import { useStudioLocale as useLocale } from "@/components/studio2/locale";
 import { useReload } from "@/components/studio2/useReload";
 import nextDynamic from "next/dynamic";
 import { useMoney } from "@/components/studio2/studioCurrency";
+import WorkInHand from "@/components/studio2/WorkInHand";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -102,6 +103,11 @@ export default function StudioMain({ slug, initial }) {
           </div>
         )}
       </section>
+
+      {/* THE WORK IN HAND — every kind of work the studio runs, read one way
+          (the owner's decision C, 03/10/2026). Draws nothing when there is no
+          lane this reader may see. */}
+      <WorkInHand slug={slug} />
 
       {/* "YOUR SECTIONS" IS GONE — the owner's instruction, 10/09/2026: a list of
           links to the departments the sidebar already lists, beside it, said
