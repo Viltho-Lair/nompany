@@ -23,6 +23,13 @@ type Strings = CommonStrings & {
   workSalesToday: (count: number, value: string) => string;
   workSeeAll: string;
   workSalesRecently: (n: number) => string;
+  // KPI lines on a lane, and an item's mark (modules/main/workKpis).
+  workKpiTarget: (target: string) => string;
+  workKpiMet: string;
+  workKpiMissed: string;
+  workKpiRunning: string;
+  workKpiDays: (n: number) => string;
+  workKpiNothingYet: string;
   workDue: (date: string) => string;
   // The feed's record kinds. Fixed by the code, not typed by a tenant.
   feedTicket: string;
@@ -79,6 +86,12 @@ const en: Strings = {
   workSalesToday: (count, value) => `${count} sales today · ${value}`,
   workSeeAll: "See all",
   workSalesRecently: (n) => `${n} in the last 30 days`,
+  workKpiTarget: (target) => `target ${target}`,
+  workKpiMet: "On target",
+  workKpiMissed: "Missed",
+  workKpiRunning: "Under way",
+  workKpiDays: (n) => (n === 1 ? "1 day" : `${n} days`),
+  workKpiNothingYet: "nothing to measure yet",
   workDue: (date) => `Due ${date}`,
   feedTicket: "Ticket",
   feedQuotation: "Quotation",
@@ -134,6 +147,12 @@ const ar: Strings = {
   workSalesToday: (count, value) => `${count} عملية بيع اليوم · ${value}`,
   workSeeAll: "عرض الكل",
   workSalesRecently: (n) => `${n} في آخر 30 يومًا`,
+  workKpiTarget: (target) => `الهدف ${target}`,
+  workKpiMet: "ضمن الهدف",
+  workKpiMissed: "لم يتحقق",
+  workKpiRunning: "جارٍ",
+  workKpiDays: (n) => (n === 1 ? "يوم واحد" : `${n} يومًا`),
+  workKpiNothingYet: "لا شيء لقياسه بعد",
   workDue: (date) => `الاستحقاق ${date}`,
   feedTicket: "تذكرة",
   feedQuotation: "عرض سعر",

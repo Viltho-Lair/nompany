@@ -2473,8 +2473,10 @@ by design (`engagements.md`).
 5. **KPIs** on kinds of work and steps, plus period KPIs, measured against the plan.
    **Started 03/10/2026:** the pure arithmetic (`modules/main/workKpis.ts`, `kpis.md`) — per-item
    `reach`/`onTime` and period `count`/`value`/`share`/`avgDays`, read off dates the records keep.
-   Not wired: storage, the editor and the screens wait on three owner decisions (who sets
-   targets; ship measures without numbers; judge by the target in force when work started).
+   **BUILT 03/10/2026** on the owner's answers (/super lists measures with no numbers, each studio
+   sets targets in Studio settings with a per-flow override, a changed target never re-judges past
+   work): measured-from steps, dated targets, deal KPIs read live (the frozen copy and `erpKpis`
+   removed), period lines and item marks on "Work in hand". `kpis.md`. Not opened on screen yet.
 
 **Owner decisions, ANSWERED 03/10/2026:**
 

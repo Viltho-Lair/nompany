@@ -27,6 +27,14 @@ const LANE_HREF = {
   counterSale: "pos-sales",
 };
 
+// AN OUTCOME'S COLOUR. Missed is amber, never red: a KPI measures and never
+// blocks, and a missed target is a fact to read, not an alarm.
+const OUTCOME_TONE = {
+  met: "text-emerald-600 dark:text-emerald-400",
+  missed: "text-amber-600 dark:text-amber-400",
+  "in-progress": "text-slate-500 dark:text-slate-400",
+};
+
 function Bar({ progress }) {
   // NULL IS NOT 0%: no bar at all when the progress cannot be said.
   if (progress === null || progress === undefined) return null;
@@ -63,6 +71,15 @@ export default function WorkInHand({ slug }) {
   if (!lanes || lanes.length === 0) return null;
 
   const words = (w) => (w ? (locale === "ar" ? w.ar : w.en) : "");
+  // A PERIOD KPI'S FIGURE in its own unit: a share as a percentage, an average
+  // in days, a sum as money, a count as a number. Null is "nothing to measure
+  // yet", never 0.
+  const figure = (k, n) => (n === null || n === undefined ? null
+    : k.kind === "share" ? `${Math.round(n * 100)}%`
+      : k.kind === "avgDays" ? tr.workKpiDays(n)
+        : k.kind === "value" ? money(n)
+          : String(n));
+  const outcomeWord = (o) => (o === "met" ? tr.workKpiMet : o === "missed" ? tr.workKpiMissed : o === "in-progress" ? tr.workKpiRunning : "");
   const stepWords = (type, reading) => (type === "deal"
     ? stageLabel(reading.token, reading.label?.en || reading.token, locale)
     : words(reading.label));
@@ -96,6 +113,26 @@ export default function WorkInHand({ slug }) {
                 </p>
               )}
 
+              {/* THE LANE'S PERIOD KPIs — the studio's own targets, for the period
+                  each is set for. */}
+              {(lane.kpis || []).length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {lane.kpis.map((k) => {
+                    const value = figure(k, k.value);
+                    return (
+                      <li key={k.id} className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                        <span className="text-slate-600 dark:text-slate-300">{words(k.name)}</span>
+                        <span className="num font-600 text-slate-900 dark:text-white">{value ?? tr.workKpiNothingYet}</span>
+                        <span className="text-slate-400">· {tr.workKpiTarget(figure(k, k.target))}</span>
+                        {value !== null && outcomeWord(k.outcome) && (
+                          <span className={`font-600 ${OUTCOME_TONE[k.outcome] || ""}`}>{outcomeWord(k.outcome)}</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+
               {lane.type !== "counterSale" && (lane.items.length === 0 ? (
                 <p className="mt-2 text-sm text-slate-400">{tr.workNothingOpen}</p>
               ) : (
@@ -108,8 +145,16 @@ export default function WorkInHand({ slug }) {
                             {item.ref && item.ref !== item.title ? <span className="me-1.5 font-500 text-slate-400">{item.ref}</span> : null}
                             {item.title || words(def?.name)}
                           </span>
-                          <span className={`shrink-0 text-xs ${item.reading.held ? "text-amber-600 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}>
-                            {item.reading.held ? tr.workHeld : stepWords(lane.type, item.reading)}
+                          <span className="flex shrink-0 items-baseline gap-2 text-xs">
+                            {/* THE ITEM'S OWN KPI, where the studio measures one —
+                                settled results only; "under way" is what every
+                                open item already is. */}
+                            {item.kpi && (item.kpi.outcome === "met" || item.kpi.outcome === "missed") && (
+                              <span className={`font-600 ${OUTCOME_TONE[item.kpi.outcome]}`} title={words(item.kpi.name)}>{outcomeWord(item.kpi.outcome)}</span>
+                            )}
+                            <span className={item.reading.held ? "text-amber-600 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}>
+                              {item.reading.held ? tr.workHeld : stepWords(lane.type, item.reading)}
+                            </span>
                           </span>
                         </span>
                         {item.dueOn && (

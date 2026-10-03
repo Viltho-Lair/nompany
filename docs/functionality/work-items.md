@@ -60,8 +60,8 @@ proxy (8.9 before the deals were read in parallel). The front door's own request
 
 ## Not built yet
 
-- **KPIs on work types.** KPIs still hang off deals alone (`kpis.md`); measuring a
-  job, a work order or a counter sale is the next step in the agreed order.
+- **KPIs** are built on these types (`kpis.md`): a lane shows its period KPIs and each listed job or
+  work order its own mark; the deal lane shows none yet.
 - **Sales orders and other types.** Trading's sales orders, cases, enrolments and recurring
   commitments are not types yet. Each joins when its industry's front office is built.
 - **A deal's progress counts every stage its flow lists.** On a long flow a new deal reads 7%.

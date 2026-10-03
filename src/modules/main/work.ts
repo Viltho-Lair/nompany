@@ -24,6 +24,12 @@ import { orderOverdue } from "@/modules/maintenance/model";
 import { readIfVisible, type MainContext } from "./main";
 import { dealTemplate, runningStages, stagesPresent, visibleStageTypes } from "./engagements";
 import { readDeal, readStatus, workTypesRunning, type WorkReading, type WorkTypeKey } from "./workTypes";
+import { readMeasures } from "@/platform/db/kpis";
+import {
+  factsFromJob, factsFromReceipt, factsFromWorkOrder, isItemKind, judgeItem, kpisInForce, periodBounds,
+  scorePeriod, targetIn, withTarget,
+  type KpiOutcome, type MeasureWords, type Period, type StudioKpiTargets, type WorkFacts, type WorkMeasure,
+} from "./workKpis";
 
 /** How many open items a lane lists. The counts are of everything. */
 const SHOWN = 6;
@@ -45,6 +51,23 @@ export type WorkItem = {
   dueOn: string;
   overdue: boolean;
   href: string;
+  /**
+   * THE ITEM'S OWN KPI, where the studio measures one for this kind of work —
+   * on-time first, then a reach. Judged by the target in force when it opened.
+   */
+  kpi?: { outcome: KpiOutcome; name: MeasureWords } | null;
+};
+
+/** One period KPI on a lane: "work orders on time this month: 82% (target 90%)". */
+export type LaneKpi = {
+  id: string;
+  name: MeasureWords;
+  kind: string;
+  per: Period | "";
+  value: number | null;
+  target: number | null;
+  outcome: KpiOutcome;
+  n: number;
 };
 
 export type WorkLane = {
@@ -58,7 +81,12 @@ export type WorkLane = {
   items: WorkItem[];
   /** Counter sales only: today's, in the studio's own day and currency. */
   today?: { count: number; value: number; currency: string };
+  /** The studio's period KPIs for this kind of work, scored for the current period. */
+  kpis: LaneKpi[];
 };
+
+/** What the KPI reading needs, read once for the whole board. */
+type KpiCtx = { measures: WorkMeasure[]; targets: StudioKpiTargets; asOf: string; today: string; tz: string };
 
 type Row = Record<string, unknown>;
 const text = (v: unknown) => String(v ?? "");
@@ -80,15 +108,54 @@ function lane(type: WorkTypeKey, items: WorkItem[], doneRecently: number | null,
     doneRecently,
     sampled,
     items: rank(open).slice(0, SHOWN),
+    kpis: [],
   };
+}
+
+/**
+ * AN ITEM'S OWN MARK: the first per-item measure the studio has a target for,
+ * on-time before reach, in force when the item opened. Null when none is.
+ */
+function itemKpi(k: KpiCtx, facts: WorkFacts): WorkItem["kpi"] {
+  const inForce = kpisInForce(k.measures, k.targets, facts.type, "", facts.openedAt).filter((x) => isItemKind(x.kind));
+  const pick = inForce.find((x) => x.kind === "onTime") || inForce[0];
+  if (!pick) return null;
+  const judged = judgeItem(pick, facts, k.asOf);
+  return judged ? { outcome: judged.outcome, name: pick.name } : null;
+}
+
+/**
+ * THE LANE'S PERIOD KPIs, each scored over its own current period on the
+ * studio's calendar, at the target in force when that period began. A share is
+ * counted against its item measure's target at the same moment — for the
+ * built-ins that is an on-time measure, which has no number to differ.
+ */
+function laneKpis(k: KpiCtx, type: WorkTypeKey, facts: readonly WorkFacts[]): LaneKpi[] {
+  const out: LaneKpi[] = [];
+  for (const m of k.measures) {
+    if (!m.active || m.workType !== type || isItemKind(m.kind) || !m.per) continue;
+    const { from, to } = periodBounds(m.per, k.today, k.tz);
+    const n = targetIn(k.targets[m.id], "", from);
+    if (n === null) continue;
+    const itemKpis: Record<string, ReturnType<typeof withTarget>> = {};
+    const of = m.of ? k.measures.find((x) => x.id === m.of) : null;
+    if (of) {
+      const ofN = targetIn(k.targets[of.id], "", from);
+      itemKpis[of.id] = withTarget(of, ofN === null ? 1 : ofN);
+    }
+    const score = scorePeriod(withTarget(m, n), facts, from, to, k.asOf, itemKpis);
+    out.push({ id: m.id, name: m.name, kind: m.kind, per: m.per, ...score });
+  }
+  return out;
 }
 
 const since = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
 
-async function jobsLane(ctx: MainContext, today: string, slug: string): Promise<WorkLane | null> {
+async function jobsLane(ctx: MainContext, today: string, slug: string, k: KpiCtx): Promise<WorkLane | null> {
   const rows = await readIfVisible<Row>(ctx, "field-service-schedule", "field-service", "jobs");
   if (!rows) return null;
-  const items = rows.map((j): WorkItem => {
+  const facts = rows.map(factsFromJob);
+  const items = rows.map((j, i): WorkItem => {
     const reading = readStatus("job", j.status);
     const dueOn = text(j.scheduledEnd || j.scheduledStart).slice(0, 10);
     return {
@@ -96,30 +163,33 @@ async function jobsLane(ctx: MainContext, today: string, slug: string): Promise<
       // A job is late when its window has closed and it is still open.
       overdue: reading.state === "open" && Boolean(dueOn) && dueOn < today,
       href: `/${slug}/field-service-schedule`,
+      kpi: itemKpi(k, facts[i]),
     };
   });
   const cut = since(RECENT_DAYS);
   const done = rows.filter((j) => readStatus("job", j.status).state === "done" && text(j.completedAt) >= cut).length;
-  return lane("job", items, done);
+  return { ...lane("job", items, done), kpis: laneKpis(k, "job", facts) };
 }
 
-async function workOrdersLane(ctx: MainContext, today: string, slug: string): Promise<WorkLane | null> {
+async function workOrdersLane(ctx: MainContext, today: string, slug: string, k: KpiCtx): Promise<WorkLane | null> {
   const rows = await readIfVisible<Row>(ctx, "maintenance-orders", "maintenance", "workOrders");
   if (!rows) return null;
-  const items = rows.map((o): WorkItem => ({
+  const facts = rows.map(factsFromWorkOrder);
+  const items = rows.map((o, i): WorkItem => ({
     id: text(o.id), ref: text(o.reference), title: text(o.title),
     reading: readStatus("workOrder", o.status),
     dueOn: text(o.dueOn),
     // Maintenance's own rule, not a second one: on hold still counts.
     overdue: orderOverdue(o, today),
     href: `/${slug}/maintenance-orders`,
+    kpi: itemKpi(k, facts[i]),
   }));
   const cut = since(RECENT_DAYS);
   const done = rows.filter((o) => readStatus("workOrder", o.status).state === "done" && text(o.completedAt || o.closedAt) >= cut).length;
-  return lane("workOrder", items, done);
+  return { ...lane("workOrder", items, done), kpis: laneKpis(k, "workOrder", facts) };
 }
 
-async function counterSalesLane(ctx: MainContext, slug: string): Promise<WorkLane | null> {
+async function counterSalesLane(ctx: MainContext, k: KpiCtx): Promise<WorkLane | null> {
   // Filed under the till's old row, worked in Point of Sale → Sales.
   const rows = await readIfVisible<Row>(ctx, "crm-sales-pos", null, "posReceipts", "pos-sales");
   if (!rows) return null;
@@ -138,6 +208,10 @@ async function counterSalesLane(ctx: MainContext, slug: string): Promise<WorkLan
   return {
     ...lane("counterSale", [], rows.filter((r) => text(r.at) >= cut).length),
     today: { count: todays.length, value: roundMoney(value, currency), currency },
+    // Receipts in another currency are left out of the figures, as above.
+    kpis: laneKpis(k, "counterSale", rows
+      .filter((r) => !currency || !text(r.currency) || text(r.currency) === currency)
+      .map(factsFromReceipt)),
   };
 }
 
@@ -173,13 +247,19 @@ async function dealsLane(ctx: MainContext, slug: string): Promise<WorkLane | nul
 /** Every kind of work this studio runs and this reader may see, in the registry's order. */
 export async function workBoard(ctx: MainContext): Promise<WorkLane[]> {
   const slug = text(ctx.studio.slug);
-  const today = dayIn(new Date(), studioTimezone(ctx.studio as { timezone?: unknown }));
+  const tz = studioTimezone(ctx.studio as { timezone?: unknown });
+  const today = dayIn(new Date(), tz);
   const running = workTypesRunning(switchboard(ctx.sections));
+  const k: KpiCtx = {
+    measures: await readMeasures(),
+    targets: ((ctx.studio as { kpiTargets?: unknown }).kpiTargets || {}) as StudioKpiTargets,
+    asOf: new Date().toISOString(), today, tz,
+  };
   const read: Record<WorkTypeKey, () => Promise<WorkLane | null>> = {
     deal: () => dealsLane(ctx, slug),
-    job: () => jobsLane(ctx, today, slug),
-    workOrder: () => workOrdersLane(ctx, today, slug),
-    counterSale: () => counterSalesLane(ctx, slug),
+    job: () => jobsLane(ctx, today, slug, k),
+    workOrder: () => workOrdersLane(ctx, today, slug, k),
+    counterSale: () => counterSalesLane(ctx, k),
   };
   const lanes = await Promise.all(running.map((t) => read[t]()));
   return lanes.filter((l): l is WorkLane => Boolean(l));
