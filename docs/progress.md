@@ -2476,7 +2476,8 @@ by design (`engagements.md`).
    **BUILT 03/10/2026** on the owner's answers (/super lists measures with no numbers, each studio
    sets targets in Studio settings with a per-flow override, a changed target never re-judges past
    work): measured-from steps, dated targets, deal KPIs read live (the frozen copy and `erpKpis`
-   removed), period lines and item marks on "Work in hand". `kpis.md`. Not opened on screen yet.
+   removed), period lines and item marks on "Work in hand". `kpis.md`. **Opened in the sandbox the same
+   day**; it found a period scored at the target in force when the period began, fixed.
 
 **Owner decisions, ANSWERED 03/10/2026:**
 

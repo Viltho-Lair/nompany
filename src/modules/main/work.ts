@@ -126,21 +126,27 @@ function itemKpi(k: KpiCtx, facts: WorkFacts): WorkItem["kpi"] {
 
 /**
  * THE LANE'S PERIOD KPIs, each scored over its own current period on the
- * studio's calendar, at the target in force when that period began. A share is
- * counted against its item measure's target at the same moment — for the
- * built-ins that is an on-time measure, which has no number to differ.
+ * studio's calendar, against the target in force NOW — the moment of scoring,
+ * capped at the period's end. Read at the period's START instead (the first
+ * version, found on screen 03/10/2026), a target set mid-month stayed invisible
+ * until next month and a daily one until tomorrow. A finished period is scored
+ * at the target in force when it ended, so changing a number later never
+ * re-scores it. A share is counted against its item measure's target at the
+ * same moment — for the built-ins that is an on-time measure, which has no
+ * number to differ.
  */
 function laneKpis(k: KpiCtx, type: WorkTypeKey, facts: readonly WorkFacts[]): LaneKpi[] {
   const out: LaneKpi[] = [];
   for (const m of k.measures) {
     if (!m.active || m.workType !== type || isItemKind(m.kind) || !m.per) continue;
     const { from, to } = periodBounds(m.per, k.today, k.tz);
-    const n = targetIn(k.targets[m.id], "", from);
+    const at = k.asOf < to ? k.asOf : to;
+    const n = targetIn(k.targets[m.id], "", at);
     if (n === null) continue;
     const itemKpis: Record<string, ReturnType<typeof withTarget>> = {};
     const of = m.of ? k.measures.find((x) => x.id === m.of) : null;
     if (of) {
-      const ofN = targetIn(k.targets[of.id], "", from);
+      const ofN = targetIn(k.targets[of.id], "", at);
       itemKpis[of.id] = withTarget(of, ofN === null ? 1 : ofN);
     }
     const score = scorePeriod(withTarget(m, n), facts, from, to, k.asOf, itemKpis);

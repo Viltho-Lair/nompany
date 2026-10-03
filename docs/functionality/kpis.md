@@ -85,14 +85,19 @@ A missed target is amber text and nothing else. No transition is refused and no 
 
 ## Not built yet
 
-- **Not opened on screen.** The database proxy was stopped when this landed, so the KPI targets
-  panel, the /super measures list, the deal page block and the lane lines were checked by
-  type-check, lint and the model tests only.
+- **Opened in the sandbox 03/10/2026**, and it found one flaw, fixed: a period was scored at the
+  target in force when it BEGAN, so a target set mid-month showed nothing until next month. Seen
+  working: the /super list (14 measures; an on-time measure for deals refused in words), a target
+  saved from Studio settings and a Contracting override, a new deal on the Field Service flow
+  showing "Under way · Quoted within 7 days of the enquiry · 7 days left", that deal KEEPING 7 after
+  a 2-day override was added while a deal opened afterwards got 2, a share typed as 90 refused, and
+  the lane lines on the front door. Not seen: a settled On target / Missed mark (the sandbox has no
+  work orders or jobs with due dates), and the per-flow panel drawn in Arabic.
 - **No period KPI on the deal lane.** It reads the newest 25 deals, and a period figure needs every
   deal's stage dates; deal KPIs show on each deal's page.
 - **Each delivery is not judged separately.** "First delivery within …" times the first one; every
   delivery on time would need deliveries as their own kind of work.
-- **A share uses its item measure's target in force when the period began**, not each item's own.
+- **A period is scored against the target in force now** (a finished one, when it ended); a share uses its item measure's target at that moment, not each item's own.
   For the built-ins (all on-time measures) there is no number to differ.
 - **The per-flow override is for deals only** — only deals have flows — and period KPIs use the
   studio-wide number.
