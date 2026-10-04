@@ -25,6 +25,7 @@ import { documentVatRate } from "@/shared/vat";
 import { documentTotals } from "@/shared/documentTotals";
 import { roundMoney } from "@/shared/money";
 import { creditedSoFar } from "./creditNotes";
+import { debitedSoFar } from "./debitNotes";
 import { withholdingProblems, cleanWithholding, withholdingOn, settledWith } from "./withholding";
 import type { WithholdingRule } from "./withholding";
 import { repo } from "@/platform/db/repo";
@@ -60,6 +61,7 @@ const Expenses = repo<Expense>(EXPENSES);
 const Projects = repo(PROJECTS);
 // Read beside the invoices so the receivable counts what was credited back.
 const CreditNoteRows = repo<{ id: string; invoiceId: string; status: string; amount: number }>("creditNotes");
+const DebitNoteRows = repo<{ id: string; invoiceId: string; status: string; amount: number }>("debitNotes");
 const SaleItems = repo<{ id: string; name: string; sku?: string; sellPrice?: unknown; taxCategory?: string }>("inventoryItems");
 const Clients = repo<{ id: string; taxRegistration?: unknown }>("salesClients");
 const Orders = repo(ORDERS);
@@ -300,10 +302,11 @@ export async function listInvoices(
   { studio, cashSection, withholdingRules = [] }:
   Pick<FinanceContext, "studio" | "cashSection"> & { withholdingRules?: WithholdingRule[] },
 ) {
-  const [invoices, projects, notes] = await Promise.all([
+  const [invoices, projects, notes, debits] = await Promise.all([
     Invoices.find({ studio, section: cashSection }),
     projectRows({ studio }),
     CreditNoteRows.find({ studio, section: cashSection }),
+    DebitNoteRows.find({ studio, section: cashSection }),
   ]);
   const projectNumber = Object.fromEntries(projects.map((p) => [p.id, p.number]));
 
@@ -325,16 +328,21 @@ export async function listInvoices(
       // what is expected against it falls by the credit. Credit notes had no
       // screen until 18/09/2026, which is why nothing here counted them.
       const credited = creditedSoFar(notes, inv.id, currency);
+      // AND WHAT A DEBIT NOTE ADDED IS OWED (04/10/2026) — the mirror: the
+      // invoice still says what it charged, and what is expected against it
+      // rises by what was added. Issued notes only (./debitNotes).
+      const debited = debitedSoFar(debits, inv.id, currency);
       const settled = settledWith(totals, withheld, currency);
-      const settlement = credited > 0
-        ? { ...settled, expected: roundMoney(Math.max(0, settled.expected - credited), currency),
-            outstanding: roundMoney(Math.max(0, settled.expected - credited - totals.paid), currency) }
+      const settlement = credited > 0 || debited > 0
+        ? { ...settled, expected: roundMoney(Math.max(0, settled.expected - credited + debited), currency),
+            outstanding: roundMoney(Math.max(0, settled.expected - credited + debited - totals.paid), currency) }
         : settled;
       const status = statusFor(inv, { ...totals, total: settlement.expected });
       return {
         ...inv, ...totals, status,
         withheld,
         credited,
+        debited,
         expected: settlement.expected,
         // OUTSTANDING IS AGAINST THE NET, not the gross: a client who withholds
         // pays less and still owes nothing, and chasing them for the tax would
@@ -614,9 +622,14 @@ export async function recordPayment(
   if (wrongAccount) return { error: wrongAccount };
 
   const totals = invoiceTotals(invoice, studio.currency);
+  // WHAT A DEBIT NOTE ADDED IS PAID AGAINST THE SAME INVOICE — the client owes
+  // the invoice and its debit notes together, and refusing the money for the
+  // extra charge as an overpayment would leave the note unpayable.
+  const debited = debitedSoFar(await DebitNoteRows.find({ studio, section: cashSection }), id, invoice.currency || studio.currency);
+  const owed = roundMoney(totals.outstanding + debited, invoice.currency || studio.currency);
   // Overpayment is refused rather than absorbed — it means something is wrong
   // with the invoice or the payment, and a human should decide which.
-  if (amount > totals.outstanding) return { error: "overpayment", outstanding: totals.outstanding };
+  if (amount > owed) return { error: "overpayment", outstanding: owed };
 
   const payments = [...(invoice.payments || []), {
     id: `pay${(invoice.payments || []).length + 1}`,
@@ -650,10 +663,11 @@ export async function recordPayment(
   const withholding = await settleWithholding(ctx, updated);
   // PAID IN FULL BY THIS PAYMENT — the project's manager hears the job's money
   // came in, which until now they learnt by opening the billing tab.
-  if (totals.outstanding > 0 && after.outstanding <= 0) {
+  const owedAfter = roundMoney(after.outstanding + debited, invoice.currency || studio.currency);
+  if (owed > 0 && owedAfter <= 0) {
     await tellProjectManager(ctx, updated as Invoice, NOTIFY.invoicePaid, "An invoice was paid in full", "success");
   }
-  return { invoice: { ...updated, ...after, status: statusFor(updated, after) }, posting, ...(withholding ? { withholding } : {}) };
+  return { invoice: { ...updated, ...after, status: statusFor(updated, { ...after, total: roundMoney(after.total + debited, invoice.currency || studio.currency) }) }, posting, ...(withholding ? { withholding } : {}) };
 }
 
 /**

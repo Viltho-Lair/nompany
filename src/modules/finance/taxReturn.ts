@@ -10,6 +10,7 @@
 //     typing, and a cancelled invoice charged nobody anything;
 //   - a credit note once Issued, dated by its own issue date, splitting its gross
 //     at the INVOICE's rate — the same `splitGross` the ledger posts with;
+//   - a DEBIT note likewise (04/10/2026), adding where a credit note takes away;
 //   - a bill once Received, Approved or Paid. A DISPUTED bill is left out: tax
 //     on an invoice the studio says it does not owe is not tax it can reclaim
 //     until the dispute is settled.
@@ -27,6 +28,7 @@ type Doc = Record<string, unknown> & { id: string; lines?: unknown; vatRate?: un
 const Invoices = repo<Doc>("invoices");
 const Bills = repo<Doc>("bills");
 const Notes = repo<Doc>("creditNotes");
+const Debits = repo<Doc>("debitNotes");
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const TAXED_INVOICE = new Set(["Sent", "Paid"]);
@@ -56,9 +58,10 @@ export async function taxReturnView(ctx: FinanceContext, query: { from?: unknown
   if (from > to) return { error: "period" };
 
   const cash = { studio: ctx.studio, section: ctx.cashSection };
-  const [invoices, notes, bills] = await Promise.all([
+  const [invoices, notes, debits, bills] = await Promise.all([
     Invoices.find(cash),
     Notes.find(cash),
+    Debits.find(cash),
     Bills.find({ studio: ctx.studio, section: ctx.payablesSection }),
   ]);
 
@@ -79,6 +82,15 @@ export async function taxReturnView(ctx: FinanceContext, query: { from?: unknown
     const { net, vat } = splitGross(note.amount, inv?.vatRate, text(inv?.currency) || base);
     rows.push({
       kind: "credit", id: note.id, reference: text(note.reference), date: text(note.issueDate),
+      currency: text(inv?.currency), net, vat,
+    });
+  }
+  for (const note of debits) {
+    if (note.status !== "Issued") continue;
+    const inv = invoiceById.get(text(note.invoiceId));
+    const { net, vat } = splitGross(note.amount, inv?.vatRate, text(inv?.currency) || base);
+    rows.push({
+      kind: "debit", id: note.id, reference: text(note.reference), date: text(note.issueDate),
       currency: text(inv?.currency), net, vat,
     });
   }

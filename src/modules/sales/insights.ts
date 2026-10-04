@@ -31,6 +31,7 @@ import { listCollaborators } from "@/platform/auth/collaborators";
 import { converterToBase } from "@/lib/data/exchangeRates";
 import { invoiceTotals } from "@/modules/finance/finance";
 import { creditedSoFar } from "@/modules/finance/creditNotes";
+import { debitedSoFar } from "@/modules/finance/debitNotes";
 import { toCsv } from "@/modules/inventory/itemImport";
 import { notifyHolders } from "@/modules/people/holders";
 import { NOTIFY } from "@/platform/notify/notifications";
@@ -84,6 +85,7 @@ const Tickets = repo<SalesTicket>("salesTickets");
 const Quotations = repo<Quotation>("quotations");
 const Invoices = repo<Invoice>("invoices");
 const CreditNotes = repo<{ id: string; invoiceId: string; amount: number; status: string }>("creditNotes");
+const DebitNotes = repo<{ id: string; invoiceId: string; amount: number; status: string }>("debitNotes");
 const Receipts = repo<PosReceipt>("posReceipts");
 const Terminals = repo<PosTerminal>("posTerminals");
 const Departments = repo<Department>("departments");
@@ -123,10 +125,11 @@ async function gather(ctx: InsightsContext) {
     deals: ctx.on("crm-sales-tickets"),
   };
   const none = <T,>(): Promise<T[]> => Promise.resolve([]);
-  const [clients, invoices, notes, receipts, terminals, tickets, quotations, team, departments] = await Promise.all([
+  const [clients, invoices, notes, debits, receipts, terminals, tickets, quotations, team, departments] = await Promise.all([
     Clients.find({ studio, section: ctx.clientsSection }),
     reads.invoices ? Invoices.find({ studio, section: ctx.cashSection! }) : none<Invoice>(),
     reads.invoices ? CreditNotes.find({ studio, section: ctx.cashSection! }) : none<{ id: string; invoiceId: string; amount: number; status: string }>(),
+    reads.invoices ? DebitNotes.find({ studio, section: ctx.cashSection! }) : none<{ id: string; invoiceId: string; amount: number; status: string }>(),
     reads.receipts ? Receipts.find({ studio, section: ctx.posSection! }) : none<PosReceipt>(),
     reads.receipts ? Terminals.find({ studio, section: ctx.posSection! }) : none<PosTerminal>(),
     reads.deals ? Tickets.find({ studio, section: ctx.ticketsSection }) : none<SalesTicket>(),
@@ -158,7 +161,9 @@ async function gather(ctx: InsightsContext) {
   for (const inv of invoices) {
     if (inv.status === "Draft" || inv.status === "Cancelled" || !str(inv.clientName)) continue;
     const currency = inv.currency || base;
-    const gross = invoiceTotals(inv, base).total - creditedSoFar(notes, inv.id, currency);
+    // WHAT THE CUSTOMER WAS CHARGED IN THE END: less what was credited back,
+    // plus what a debit note added (04/10/2026).
+    const gross = invoiceTotals(inv, base).total - creditedSoFar(notes, inv.id, currency) + debitedSoFar(debits, inv.id, currency);
     if (!(gross > 0)) continue;
     const value = inBase(gross, currency);
     if (value == null) continue;

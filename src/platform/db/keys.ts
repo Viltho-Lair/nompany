@@ -1434,7 +1434,7 @@ export const SECTION_COLLECTIONS = {
   // POST-DATED CHEQUES AND LETTERS OF GUARANTEE sit with Cash: both are money
   // in flight rather than ledger entries, and the forecast that reads them is
   // assembled from the receivables beside them.
-  "finance-cash": ["invoices", "expenses", "payments", "creditNotes", "cheques", "guarantees"],
+  "finance-cash": ["invoices", "expenses", "payments", "creditNotes", "debitNotes", "cheques", "guarantees"],
   // The chart of accounts and the journal. A journal entry is never edited once
   // posted — only reversed by a mirror entry — so there is no separate
   // "reversals" collection: a reversal is just another journalEntry.

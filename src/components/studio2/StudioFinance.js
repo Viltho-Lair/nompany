@@ -31,6 +31,7 @@ import { StatusPill } from "@/components/studio2/StatusPill";
 import { useReload } from "@/components/studio2/useReload";
 import { treasuryDict } from "@/shared/studio/treasury";
 import { creditNotesDict } from "@/shared/studio/creditNotes";
+import { debitNotesDict } from "@/shared/studio/debitNotes";
 import { taxDict, taxCategoryOptions } from "@/shared/studio/tax";
 import { documentTotals } from "@/shared/documentTotals";
 import TaxTag from "@/components/studio2/TaxTag";
@@ -62,6 +63,8 @@ const TaxReturnPanel = nextDynamic(() => import("@/components/studio2/TaxReturnP
 const ZakatPanel = nextDynamic(() => import("@/components/studio2/ZakatPanel"));
 // The credit notes and the door that issues them (18/09/2026) — behind the same boundary.
 const CreditNotesPanel = nextDynamic(() => import("@/components/studio2/CreditNotesPanel"));
+// The debit notes (04/10/2026), the mirror — raised here as well as issued.
+const DebitNotesPanel = nextDynamic(() => import("@/components/studio2/DebitNotesPanel"));
 
 const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
 const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
@@ -491,7 +494,7 @@ function FinanceSettings({ slug, initial }) {
 // `only` NAMES THE TABS A SCREEN SHOWS of the ones this read serves — two on
 // Receivables, one when Expenses or the project margins are embedded in
 // another screen, which also drops the summary and the setup notice there.
-function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes"], embedded = false, initial }) {
+function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes", "debit-notes"], embedded = false, initial }) {
   const money = useMoney();
   const locale = useStudioLocale();
   const tr = financeDict(locale);
@@ -552,6 +555,8 @@ function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes
     ["projects", `Profitability (${profitability.length})`],
     // WHAT WAS GIVEN BACK ON AN INVOICE — including the drafts a signed return raises.
     ["credit-notes", creditNotesDict(locale).tab],
+    // WHAT WAS ADDED TO AN INVOICE AFTER IT WENT OUT.
+    ["debit-notes", debitNotesDict(locale).tab],
   ].filter(([k]) => only.includes(k));
 
   if (view === "finance") {
@@ -599,6 +604,7 @@ function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes
       {tab === "projects" && <Profitability rows={profitability} slug={slug} nav={nav} />}
       {tab === "treasury" && <TreasuryPanel slug={slug} locale={locale} />}
       {tab === "credit-notes" && <CreditNotesPanel slug={slug} locale={locale} canManage={canManage} />}
+      {tab === "debit-notes" && <DebitNotesPanel slug={slug} locale={locale} canManage={canManage} invoices={invoices} />}
     </div>
   );
 }

@@ -12,9 +12,9 @@
 //   record      — the authority's answer, as the studio received it, for a
 //                 country where the studio submits itself
 //
-// FOUR KINDS OF DOCUMENT (04/10/2026): Finance's INVOICES and CREDIT NOTES, and
-// the till's RECEIPTS and RETURNS — ZATCA's simplified invoices and credit
-// notes. Each is read as an invoice-shaped VIEW — its own number as the
+// FIVE KINDS OF DOCUMENT (04/10/2026): Finance's INVOICES, CREDIT NOTES and
+// DEBIT NOTES, and the till's RECEIPTS and RETURNS — ZATCA's invoices, credit
+// notes and debit notes. Each is read as an invoice-shaped VIEW — its own number as the
 // reference, the day it took effect as the issue date, its status as an
 // invoice's — and every write lands on its own row. A note's view also carries
 // its settled FIGURES and what it corrects, which the adapter composes from.
@@ -43,10 +43,11 @@ const Invoices = repo<EInvoiced>("invoices");
 type AnyRow = Record<string, unknown> & { id: string; einvoice?: EInvoiceState | null };
 const Receipts = repo<AnyRow>("posReceipts");
 const Notes = repo<AnyRow>("creditNotes");
+const Debits = repo<AnyRow>("debitNotes");
 const Returns = repo<AnyRow>("posReturns");
 
 /** Which kind of document an act is on. */
-export const EINVOICE_KINDS = ["invoice", "receipt", "creditNote", "return"] as const;
+export const EINVOICE_KINDS = ["invoice", "receipt", "creditNote", "debitNote", "return"] as const;
 export type EInvoiceKind = (typeof EINVOICE_KINDS)[number];
 export const cleanKind = (v: unknown): EInvoiceKind =>
   ((EINVOICE_KINDS as readonly string[]).includes(String(v)) ? v : "invoice") as EInvoiceKind;
@@ -81,7 +82,7 @@ function receiptView(r: Record<string, unknown> & { id: string }, timezone: stri
  * books gave back. It names the invoice's buyer, so a note on a business
  * invoice is a standard note, cleared before it is issued.
  */
-export function creditNoteView(n: AnyRow, invoice: EInvoiced | undefined, studioCurrency: unknown): EInvoiced {
+export function creditNoteView(n: AnyRow, invoice: EInvoiced | undefined, studioCurrency: unknown, kind: "creditNote" | "debitNote" = "creditNote"): EInvoiced {
   const currency = String((invoice as { currency?: unknown } | undefined)?.currency || studioCurrency || "");
   const rate = Number(invoice?.vatRate) || 0;
   const gross = roundMoney(n.amount, currency);
@@ -97,10 +98,10 @@ export function creditNoteView(n: AnyRow, invoice: EInvoiced | undefined, studio
     buyerTax: (invoice as { buyerTax?: unknown } | undefined)?.buyerTax ?? null,
     figures: {
       number: n.reference, currency, vatRate: rate, pricesIncludeTax: true, total: gross, payments: [],
-      lines: [{ description: String(n.reason || "") || `Credit against ${String(n.invoiceReference || "")}`, count: 1, net: gross }],
+      lines: [{ description: String(n.reason || "") || `${kind === "debitNote" ? "Debit" : "Credit"} against ${String(n.invoiceReference || "")}`, count: 1, net: gross }],
       breakdown: [{ category: "standard", rate, taxable: net, tax: vat }],
     },
-    note: { kind: "creditNote", billingReference: String(n.invoiceReference || invoice?.reference || ""), reason: String(n.reason || "") },
+    note: { kind, billingReference: String(n.invoiceReference || invoice?.reference || ""), reason: String(n.reason || "") },
   } as unknown as EInvoiced;
 }
 
@@ -135,10 +136,12 @@ export function returnView(r: AnyRow, timezone: string): EInvoiced {
 async function rowsOf(t: EInvoiceTarget, kind: EInvoiceKind): Promise<EInvoiced[]> {
   const tz = studioTimezone(t.studio as { timezone?: unknown });
   if (kind === "invoice") return Invoices.find(cash(t));
-  if (kind === "creditNote") {
-    const [notes, invoices] = await Promise.all([Notes.find(cash(t)), Invoices.find(cash(t))]);
+  // A DEBIT NOTE IS READ EXACTLY AS A CREDIT NOTE IS — the same figures, the
+  // same buyer — and differs only in being ZATCA's 383 rather than its 381.
+  if (kind === "creditNote" || kind === "debitNote") {
+    const [notes, invoices] = await Promise.all([(kind === "creditNote" ? Notes : Debits).find(cash(t)), Invoices.find(cash(t))]);
     const byId = new Map(invoices.map((i) => [i.id, i]));
-    return notes.map((n) => creditNoteView(n, byId.get(String(n.invoiceId || "")), t.studio.currency));
+    return notes.map((n) => creditNoteView(n, byId.get(String(n.invoiceId || "")), t.studio.currency, kind));
   }
   if (kind === "return") {
     if (!t.posReturnsSection) return [];
@@ -157,6 +160,7 @@ async function writeState(t: EInvoiceTarget, kind: EInvoiceKind, id: string, nex
     return u ? (u.einvoice || null) : undefined;
   }
   const [rows, section] = kind === "creditNote" ? [Notes, t.cashSection]
+    : kind === "debitNote" ? [Debits, t.cashSection]
     : kind === "return" ? [Returns, t.posReturnsSection]
       : [Receipts, t.posSection];
   if (!section) return undefined;

@@ -81,9 +81,11 @@ studio has a rate. The default period is the previous calendar month.
 
 - **Output**: invoices Sent or Paid, by issue date. **Credits**: credit notes Issued, by
   their issue date, split at the invoice's own rate with `splitGross` — the same function the
-  ledger posts the note with, so the two cannot disagree. **Input**: bills Received,
+  ledger posts the note with, so the two cannot disagree. **Debits** (04/10/2026): debit notes
+  Issued, the same way, adding to output (`debit-notes.md`). **Input**: bills Received,
   Approved or Paid, by bill date. Drafts, cancelled documents and **disputed bills** are out.
-- **Payable = output − credits − input**; negative is reclaimable.
+- **Payable = output + debits − credits − input**; negative is reclaimable. A return filed
+  before debit notes existed declared none, and reads so.
 - **Zero-rated and exempt amounts are listed apart** under each figure, from the document's
   own breakdown — a return reports a zero-rated supply separately from an exempt one.
 - **Read from the documents, not the ledger**: input and output tax both post to 2100, so the

@@ -11,7 +11,7 @@
 // document they read and which accounts they touch; the decision a caller makes
 // is "post this thing", and five endpoints would be five places to forget one.
 import {
-  postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote,
+  postInvoice, postExpense, postBill, postBillPayment, postPayment, postCreditNote, postDebitNote,
   postPayroll, postWithholding, postAsset, postDepreciation, postAssetDisposal, postCheque, postBillWithholding, billWithheldToClear, postTaxReturn, postTaxPayment, postZakatProvision, postZakatPayment, postYearEnd, postClaim, postClaimPayment, postAdvance, postAdvanceReturn, postDeferral, postRecognition, postLease, postLeaseMonth, postAllocation, postShift, reverseDocument, invoiceWithheldToClear, postedAmount, ENTRY_SOURCE_KINDS,
 } from "./ledger";
 import type { FinanceContext } from "./types";
@@ -60,6 +60,7 @@ export async function postDocument(
     case "pos-shift": return postShift(ctx, documentId, options);
     case "invoice": return postInvoice(ctx, documentId, options);
     case "credit-note": return postCreditNote(ctx, documentId, options);
+    case "debit-note": return postDebitNote(ctx, documentId, options);
     case "expense": return postExpense(ctx, documentId, options);
     case "bill": return postBill(ctx, documentId, options);
     case "bill-payment": return postBillPayment(ctx, documentId, payment, options);

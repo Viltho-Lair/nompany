@@ -279,6 +279,8 @@ Stated in words, because a silent gap reads as a finished feature.
   reconciliation (profit to operating cash) is shown.
 - **No year-end carry-forward of balance-sheet opening entries** (none is needed in one
   continuous book), and no separate "period 13" for audit adjustments — reopen the year.
+- **Debit notes post as the mirror of a credit note** (04/10/2026): Dr Receivable, Cr Revenue and
+  VAT Payable, at the invoice's rate — `debit-notes.md`.
 - **Credit notes are raised only by a return.** Finance → Cash → Credit notes (18/09/2026) lists
   them and issues or cancels a draft, and issuing posts (`postCreditNote` reverses the invoice's
   revenue and VAT proportionally); the only thing that RAISES one is a signed return against an

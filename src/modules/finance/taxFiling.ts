@@ -30,8 +30,12 @@ export type TaxReturnRecord = {
   id: string;
   from: string;
   to: string;
-  /** What the documents said, as declared — output, credits, input and payable. */
-  declared: { output: number; credits: number; input: number; payable: number };
+  /**
+   * What the documents said, as declared — output, debit notes, credits, input
+   * and payable. `debits` is absent on a return filed before debit notes
+   * existed (04/10/2026), which declared none.
+   */
+  declared: { output: number; debits?: number; credits: number; input: number; payable: number };
   /** What the ledger moved into VAT Due: positive is owed, negative is a refund. */
   due: number;
   status: "filed" | "paid";
@@ -73,11 +77,11 @@ export async function fileTaxReturn(ctx: FinanceContext, body: Record<string, un
   const view = await taxReturnView(ctx, { from, to });
   if ("error" in view && view.error) return view;
   if (!("enabled" in view) || !view.enabled) return { error: "no-vat" };
-  const v = view as unknown as { output: { vat: number }; credits: { vat: number }; input: { vat: number }; payable: number };
+  const v = view as unknown as { output: { vat: number }; debits: { vat: number }; credits: { vat: number }; input: { vat: number }; payable: number };
 
   const record = await Returns.create(scope(ctx), {
     from, to,
-    declared: { output: v.output.vat, credits: v.credits.vat, input: v.input.vat, payable: v.payable },
+    declared: { output: v.output.vat, debits: v.debits.vat, credits: v.credits.vat, input: v.input.vat, payable: v.payable },
     due: (await vatMovement(ctx, from, to)).due,
     status: "filed",
     filedOn: ISO.test(text(body?.filedOn, 10)) ? text(body?.filedOn, 10) : new Date().toISOString().slice(0, 10),

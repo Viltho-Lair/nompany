@@ -219,6 +219,10 @@ compliance check (reported / cleared) with no warning; in `dev:sandbox`, a note 
 was refused, CN-0002 was reported from the queue (ICV 6) and CN-0003 on a business invoice was
 cleared at issue and keeps ZATCA's copy (ICV 7).
 
+**Debit notes** (04/10/2026, `debit-notes.md`) are composed exactly as credit notes are and
+sent as ZATCA's 383: cleared first on a business invoice, reported otherwise. ZATCA's developer
+portal reported a consumer debit note and cleared a business one, no warning.
+
 ### Renewing the certificate
 
 A production certificate ends (the developer portal's run three years). The Tax screen says
@@ -323,9 +327,6 @@ in the queue and was reported from its row's button (ICV 2, PIH the first one's 
   `buyer-vat`. ZATCA's rules for those (another ID scheme, an export flag) are not written.
 - **ZATCA's cleared copy is not yet what prints.** The kept file is ZATCA's copy and its QR is
   stored, but the printed invoice is still drawn from the invoice record.
-- **There are no debit notes in this product.** ZATCA has them (an extra charge on an invoice,
-  type 383) and onboarding signs and checks one, but nothing here raises one: a studio that
-  undercharged raises a second invoice.
 - **The till return's report after approval has not been seen in `dev:sandbox`.** Approving
   needs the account's signing PIN, which is the owner's; the return's document was checked
   against ZATCA from the real return's data, and the approval hook by the model test.

@@ -62,6 +62,9 @@ export default function TaxReturnPanel({ slug, locale }) {
   const box = "rounded-geex border border-slate-200 p-4 dark:border-white/10";
   const figures = [
     [tr.output, data.output, 1],
+    // DEBIT NOTES ADD OUTPUT TAX (04/10/2026). A view from before they existed
+    // has no bucket, and shows nothing for it rather than a nought.
+    ...(data.debits ? [[tr.debits, data.debits, 1]] : []),
     [tr.credits, data.credits, -1],
     [tr.input, data.input, -1],
   ];
@@ -251,7 +254,7 @@ function DocumentTable({ title, rows, tr, empty = "", showCurrency = false }) {
                   <td className="py-2 pe-4 font-mono text-xs">{r.reference}</td>
                   <td className="py-2 pe-4 text-slate-500 dark:text-slate-400">{tr.kind[r.kind]}</td>
                   <td className="num py-2 pe-4 text-end">{showCurrency ? money(r.net, r.currency) : money(r.net)}</td>
-                  <td className="num py-2 text-end">{r.kind === "sale" ? "" : "−"}{money(r.vat)}</td>
+                  <td className="num py-2 text-end">{r.kind === "sale" || r.kind === "debit" ? "" : "−"}{money(r.vat)}</td>
                 </tr>
               ))}
             </tbody>
@@ -377,7 +380,7 @@ function EInvoicing({ data, slug, locale, onDone }) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>
                   <span className="font-mono text-slate-900 dark:text-white">{q.reference}</span>
-                  <span className="ms-2 text-slate-500 dark:text-slate-400">{q.kind === "receipt" ? tr.einvTillReceipt : q.kind === "return" ? tr.einvTillReturn : q.kind === "creditNote" ? `${tr.einvCreditNote}${q.clientName ? ` · ${q.clientName}` : ""}` : q.clientName}</span>
+                  <span className="ms-2 text-slate-500 dark:text-slate-400">{q.kind === "receipt" ? tr.einvTillReceipt : q.kind === "return" ? tr.einvTillReturn : q.kind === "creditNote" || q.kind === "debitNote" ? `${q.kind === "debitNote" ? tr.einvDebitNote : tr.einvCreditNote}${q.clientName ? ` · ${q.clientName}` : ""}` : q.clientName}</span>
                   <span className="ms-2 text-xs text-slate-400">{q.issueDate}</span>
                 </span>
                 <span className="flex items-center gap-2">

@@ -220,7 +220,7 @@ export const zatcaAdapter: EInvoiceAdapter = {
       ? zatcaReceiptDocument({
         receipt: invoice, seller, uuid, issueTime, counter: link.counter, previousHash: link.previousHash, issueDate,
       })
-      : (source === "creditNote" || source === "return") && figures
+      : (source === "creditNote" || source === "debitNote" || source === "return") && figures
         ? zatcaReceiptDocument({
           receipt: figures, seller, uuid, issueTime, counter: link.counter, previousHash: link.previousHash, issueDate,
           kind: note?.kind || "creditNote", billingReference: note?.billingReference, reason: note?.reason,

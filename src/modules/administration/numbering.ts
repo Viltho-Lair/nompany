@@ -53,6 +53,7 @@ export type Series = {
 export const SERIES: readonly Series[] = Object.freeze([
   { key: "invoice", prefix: "INV", group: "Finance & Accounting", label: "Invoices", hasDueDays: true },
   { key: "creditNote", prefix: "CN", group: "Finance & Accounting", label: "Credit notes" },
+  { key: "debitNote", prefix: "DBN", group: "Finance & Accounting", label: "Debit notes" },
   { key: "bill", prefix: "BILL", group: "Finance & Accounting", label: "Bills" },
   { key: "expense", prefix: "EXP", group: "Finance & Accounting", label: "Expenses" },
   { key: "journal", prefix: "JE", group: "Finance & Accounting", label: "Journal entries" },

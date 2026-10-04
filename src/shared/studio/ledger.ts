@@ -45,6 +45,7 @@ type Strings = {
   to: string;
   output: string;
   credits: string;
+  debits: string;
   input: string;
   taxable: string;
   vat: string;
@@ -55,7 +56,7 @@ type Strings = {
   noDocuments: string;
   foreign: string;
   foreignLead: string;
-  kind: { sale: string; credit: string; purchase: string };
+  kind: { sale: string; debit: string; credit: string; purchase: string };
   reference: string;
   date: string;
   // ---- writing to the book (18/09/2026) ----
@@ -132,6 +133,7 @@ const en: Strings = {
   to: "To",
   output: "VAT on sales",
   credits: "Given back on credit notes",
+  debits: "Added on debit notes",
   input: "VAT on purchases",
   taxable: "Net value",
   vat: "VAT",
@@ -142,7 +144,7 @@ const en: Strings = {
   noDocuments: "No taxed document in this period.",
   foreign: "In another currency — not in the return",
   foreignLead: "A return is filed in the studio's currency at the tax authority's rate for each date, which nompany does not hold. Convert these yourself.",
-  kind: { sale: "Invoice", credit: "Credit note", purchase: "Bill" },
+  kind: { sale: "Invoice", debit: "Debit note", credit: "Credit note", purchase: "Bill" },
   reference: "Reference",
   date: "Date",
   accounts: "Accounts",
@@ -292,6 +294,7 @@ const ar: Strings = {
   to: "الى",
   output: "الضريبة على المبيعات",
   credits: "المردود باشعارات الدائن",
+  debits: "المضاف باشعارات المدين",
   input: "الضريبة على المشتريات",
   taxable: "القيمة الصافية",
   vat: "الضريبة",
@@ -302,7 +305,7 @@ const ar: Strings = {
   noDocuments: "لا يوجد مستند خاضع للضريبة في هذه الفترة.",
   foreign: "بعملة اخرى — خارج الاقرار",
   foreignLead: "يقدم الاقرار بعملة الاستوديو وبسعر الجهة الضريبية لكل تاريخ، وهذا السعر غير متوفر في نومباني. حول هذه المبالغ بنفسك.",
-  kind: { sale: "فاتورة", credit: "اشعار دائن", purchase: "فاتورة مورد" },
+  kind: { sale: "فاتورة", debit: "اشعار مدين", credit: "اشعار دائن", purchase: "فاتورة مورد" },
   reference: "المرجع",
   date: "التاريخ",
 };

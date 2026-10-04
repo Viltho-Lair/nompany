@@ -67,8 +67,11 @@ export function splitGross(gross: unknown, rate: unknown, currency?: unknown) {
 }
 
 export type TaxRow = {
-  /** A sale raises output tax, a credit note gives some back, a purchase is input tax. */
-  kind: "sale" | "credit" | "purchase";
+  /**
+   * A sale raises output tax, a debit note adds to it, a credit note gives
+   * some back, a purchase is input tax.
+   */
+  kind: "sale" | "debit" | "credit" | "purchase";
   id: string;
   reference: string;
   /** yyyy-mm-dd — the document's own date, which is the tax point. */
@@ -99,8 +102,8 @@ export function previousMonth(today: string): { from: string; to: string } {
 }
 
 /**
- * THE RETURN FOR A PERIOD: VAT charged on sales, less what credit notes gave
- * back, less VAT paid on purchases. Positive is owed to the authority; negative
+ * THE RETURN FOR A PERIOD: VAT charged on sales, plus what debit notes added
+ * (04/10/2026), less what credit notes gave back, less VAT paid on purchases. Positive is owed to the authority; negative
  * is reclaimable.
  *
  * FROM THE DOCUMENTS, NOT THE LEDGER. Input and output tax posted to one account
@@ -141,13 +144,14 @@ export function taxReturn(rows: readonly TaxRow[], opts: { from?: string; to?: s
       exempt: roundMoney(b.exempt + (Number(r.exemptNet) || 0), base),
     }), { net: 0, vat: 0, count: 0, zero: 0, exempt: 0 });
   const output = sum("sale");
+  const debits = sum("debit");
   const credits = sum("credit");
   const input = sum("purchase");
 
   return {
     from, to, currency: base,
-    output, credits, input,
-    payable: roundMoney(output.vat - credits.vat - input.vat, base),
+    output, debits, credits, input,
+    payable: roundMoney(output.vat + debits.vat - credits.vat - input.vat, base),
     rows: home.sort(byDate),
     // LISTED, NOT SUMMED: each has to be converted at its own date's rate.
     foreign: foreign.sort(byDate),

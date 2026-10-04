@@ -59,6 +59,7 @@ const ENTRIES = "journalEntries";
 
 const Accounts = repo<Account>(ACCOUNTS);
 const CreditNotes = repo("creditNotes");
+const DebitNotes = repo("debitNotes");
 const Entries = repo<JournalEntry>(ENTRIES);
 // CLOSED MONTHS. Read on every posting — a lock nobody consults is a lock
 // that does not exist.
@@ -652,7 +653,7 @@ export type PostOptions = { system?: boolean };
  * a new kind is added HERE, once, and both halves learn about it.
  */
 export const ENTRY_SOURCE_KINDS = [
-  "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "payroll", "withholding",
+  "invoice", "expense", "bill", "bill-payment", "payment", "credit-note", "debit-note", "payroll", "withholding",
   "asset", "depreciation", "asset-disposal", "transfer", "cheque", "bill-withholding",
   "tax-return", "tax-payment", "zakat-provision", "zakat-payment", "year-end",
   "claim", "claim-payment", "advance", "advance-return",
@@ -1480,6 +1481,51 @@ export async function postCreditNote(
       { accountId: byCode.get(REVENUE), debit: net },
       ...(vat ? [{ accountId: byCode.get(VAT_PAYABLE), debit: vat }] : []),
       { accountId: byCode.get(AR), credit: gross },
+    ],
+  }, options);
+}
+
+/**
+ * A DEBIT NOTE, issued — the exact mirror of a credit note (04/10/2026). The
+ * client owes more: Accounts Receivable is debited with the gross, revenue and
+ * VAT Payable credited with its parts, split at the INVOICE's rate by the one
+ * `splitGross` the tax return and the e-invoice use.
+ */
+export async function postDebitNote(
+  ctx: FinanceContext,
+  noteId: string,
+  options: PostOptions = {},
+) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+
+  const note = (await DebitNotes.find({ studio: ctx.studio, section: ctx.cashSection }))
+    .find((n) => n.id === noteId) as (Row & { amount?: number; invoiceId?: string; reference?: string }) | undefined;
+  if (!note) return { error: "notfound" };
+  const invoice = (await Invoices.find({ studio: ctx.studio, section: ctx.cashSection }))
+    .find((i) => i.id === note.invoiceId);
+  if (!invoice) return { error: "notfound" };
+
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  if (alreadyPosted(entries, "debit-note", noteId)) return { error: "already-posted" };
+
+  const { byCode, missing } = await codesToIds(ctx, [AR, REVENUE, VAT_PAYABLE]);
+  if (missing.length) return { error: "chart", missing };
+
+  const noteCurrency = (invoice as { currency?: unknown }).currency || ctx.studio.currency;
+  const gross = roundMoney(note.amount, noteCurrency);
+  const { net, vat } = splitGross(gross, (invoice as { vatRate?: unknown }).vatRate, noteCurrency);
+
+  return postEntry(ctx, {
+    date: new Date().toISOString().slice(0, 10),
+    memo: `Debit note ${note.reference || ""} against ${(invoice as { reference?: string }).reference || ""}`.trim(),
+    source: { kind: "debit-note", id: noteId },
+    lines: [
+      { accountId: byCode.get(AR), debit: gross },
+      { accountId: byCode.get(REVENUE), credit: net },
+      ...(vat ? [{ accountId: byCode.get(VAT_PAYABLE), credit: vat }] : []),
     ],
   }, options);
 }
