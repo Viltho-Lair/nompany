@@ -30,6 +30,8 @@
 // refund may be a CREDIT on the client's account, and money goes back only up
 // to what the client actually paid.
 
+import { after } from "next/server";
+import { submitOnIssue, type EInvoiceTarget } from "@/modules/finance/einvoiceService";
 import { requirePermission, can } from "@/platform/access";
 import { approvalPreflight, approvalRows, requestApproval } from "@/modules/approvals/approvals";
 import { approvalSummary } from "@/modules/approvals/reads";
@@ -460,6 +462,17 @@ async function completeReturn(ctx: PosContext, row: PosReturn): Promise<{ return
       }
     }
     if (moves.length) await Stock.createMany({ studio: ctx.studio, section: ctx.stockSection }, moves);
+  }
+
+  // A SAUDI RETURN OF A RECEIPT IS A SIMPLIFIED CREDIT NOTE (04/10/2026),
+  // reported after this answer for a studio that reports as it goes, or in the
+  // nightly batch — the refund has happened, and ZATCA being slow must not hold
+  // up whoever approved it. (A return against an invoice reaches ZATCA as the
+  // Finance credit note it raises, below.)
+  if (row.source === "receipt") {
+    const target = { studio: ctx.studio, posReturnsSection: ctx.returnsSection } as unknown as EInvoiceTarget;
+    const report = () => submitOnIssue(target, row.id, "return").then(() => undefined, () => undefined);
+    try { after(report); } catch { void report(); }
   }
 
   // THE CREDIT NOTE, AS A DRAFT, for Finance to issue. Its number and headroom

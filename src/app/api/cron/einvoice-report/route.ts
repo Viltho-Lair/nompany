@@ -36,7 +36,9 @@ async function run() {
       // THE TILL'S RECEIPTS are filed under crm-sales-pos (docs: pos.md) —
       // reported in the same batch as the invoices, one chain.
       const posSection = byKey["crm-sales-pos"] || null;
-      const out = await submitOutstanding({ studio, cashSection, posSection } as EInvoiceTarget);
+      // AND ITS RETURNS, the credit notes of the counter.
+      const posReturnsSection = byKey["pos-returns"] || null;
+      const out = await submitOutstanding({ studio, cashSection, posSection, posReturnsSection } as EInvoiceTarget);
       studiosRun += 1;
       submitted += out.submitted;
       accepted += out.accepted;

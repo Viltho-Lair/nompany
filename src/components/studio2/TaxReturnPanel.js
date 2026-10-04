@@ -377,7 +377,7 @@ function EInvoicing({ data, slug, locale, onDone }) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>
                   <span className="font-mono text-slate-900 dark:text-white">{q.reference}</span>
-                  <span className="ms-2 text-slate-500 dark:text-slate-400">{q.kind === "receipt" ? tr.einvTillReceipt : q.clientName}</span>
+                  <span className="ms-2 text-slate-500 dark:text-slate-400">{q.kind === "receipt" ? tr.einvTillReceipt : q.kind === "return" ? tr.einvTillReturn : q.kind === "creditNote" ? `${tr.einvCreditNote}${q.clientName ? ` · ${q.clientName}` : ""}` : q.clientName}</span>
                   <span className="ms-2 text-xs text-slate-400">{q.issueDate}</span>
                 </span>
                 <span className="flex items-center gap-2">

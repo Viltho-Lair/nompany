@@ -1810,8 +1810,11 @@ first, then business, then notes.
   client and snapshotted on the invoice, a unit declared `1100` with six onboarding samples, and
   clearance BEFORE issue (a refusal leaves the invoice a draft). Verified against the developer
   portal and in `dev:sandbox`.
-- ⬜ **Slice 3 — credit and debit notes** stamped and reported. Refunds are not, so a studio
-  over-declares output tax. The composer and onboarding already take both.
+- ✅ **Slice 3 — credit notes and till returns (04/10/2026):** a Finance credit note (reason
+  required; cleared first on a business invoice, reported otherwise) and a till return (a
+  simplified credit note against its receipt), both from settled figures equal to the ledger's.
+  **There are no debit notes in the product to report.** The return's after-approval report has
+  not been seen live (approving needs the owner's signing PIN).
 - ⬜ **Opening simulation, then production** — the owner's decision, one line in `zatcaApi.ts`.
 - ✅ **Certificate renewal** (same unit, same chain; amber in the last 30 days) and **a lease** so two
   submissions cannot prepare one invoice twice (04/10/2026).

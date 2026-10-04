@@ -209,19 +209,31 @@ export const zatcaAdapter: EInvoiceAdapter = {
     // again declares both.
     if (subtype === "standard" && unit && unit.invoiceTypes[0] !== "1") return { problem: "unit-simplified-only" };
     // A TILL RECEIPT IS COMPOSED FROM ITS OWN FIGURES (./zatcaReceipt) — always
-    // simplified, naming nobody; an invoice from its lines and its buyer.
+    // simplified, naming nobody; an invoice from its lines and its buyer; a
+    // CREDIT NOTE or a till RETURN from the settled figures its view carries
+    // (./einvoiceService), naming what it corrects and why — a note on a
+    // business invoice is a standard note with that invoice's buyer.
+    const issueDate = String((invoice as { issueDate?: unknown }).issueDate || "");
+    const note = (invoice as { note?: { kind?: "creditNote" | "debitNote"; billingReference?: string; reason?: string } }).note;
+    const figures = (invoice as { figures?: Record<string, unknown> }).figures;
     const out = await buildNextInChain(studioId, unit?.id || "", (link) => source === "receipt"
       ? zatcaReceiptDocument({
-        receipt: invoice, seller, uuid, issueTime, counter: link.counter, previousHash: link.previousHash,
-        issueDate: String((invoice as { issueDate?: unknown }).issueDate || ""),
+        receipt: invoice, seller, uuid, issueTime, counter: link.counter, previousHash: link.previousHash, issueDate,
       })
+      : (source === "creditNote" || source === "return") && figures
+        ? zatcaReceiptDocument({
+          receipt: figures, seller, uuid, issueTime, counter: link.counter, previousHash: link.previousHash, issueDate,
+          kind: note?.kind || "creditNote", billingReference: note?.billingReference, reason: note?.reason,
+          subtype, buyer: subtype === "standard" ? buyer : null,
+        })
       : zatcaDocument({
         invoice: invoice as Parameters<typeof zatcaDocument>[0]["invoice"],
         seller, buyer, subtype, uuid, issueTime, counter: link.counter, previousHash: link.previousHash,
       }));
     if ("problem" in out) return out;
     const filename = `${out.id || "invoice"}-zatca.xml`;
-    const kindOf = source === "receipt" ? "simplified" as const : subtype;
+    // A RETURN AT THE TILL NAMES NOBODY, like the sale it reverses.
+    const kindOf = source === "receipt" || source === "return" ? "simplified" as const : subtype;
     if (unit) {
       // THE STAMP DOES NOT MOVE THE HASH (./zatcaSign), so the link the chain
       // just recorded is the hash ZATCA computes from the stamped file.

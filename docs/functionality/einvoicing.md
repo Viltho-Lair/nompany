@@ -194,6 +194,31 @@ Simplified Tax Invoice", Arabic first whatever language it prints in (`receiptHe
 **The nightly batch ran** in `dev:sandbox`, 04/10/2026, with a local `CRON_SECRET`: one studio,
 one invoice submitted and accepted; without the secret it answers 401.
 
+### Credit notes and till returns (slice 3, 04/10/2026)
+
+**A Finance credit note** is ZATCA's credit note (381) against the invoice it corrects, saying
+why. Its figures are the LEDGER's: the amount split at the invoice's rate by `splitGross`, the
+one copy `postCreditNote` and the tax return use, so the tax ZATCA is told about is the tax the
+books gave back — to the halala, rounding edge included (10.00 at 15% is 8.70 + 1.30, though 8.70
+× 15% is 1.305; ZATCA accepts it). Issuing it:
+
+- **needs a reason** in a Saudi studio (`reason-required`, BR-KSA-17), refused while the person
+  can still type one;
+- **on a business invoice is CLEARED first** — the note names that invoice's buyer, so it is a
+  standard note, and a refusal leaves it a draft, exactly as for the invoice;
+- **on a consumer invoice is reported** as it is issued or nightly, as the studio chose.
+
+**A till return of a receipt** is a simplified credit note against the receipt, taking effect the
+day it was approved (in the studio's zone), refunded the way it was paid; it is reported after
+the approval answers, or nightly. A return against an invoice raises a Finance credit note,
+which is the document reported for it.
+
+Both join the queue ("Credit note", "Till return") and the nightly batch, on the one chain.
+Measured 04/10/2026: consumer and business credit notes and the real RTN-0001 each passed ZATCA's
+compliance check (reported / cleared) with no warning; in `dev:sandbox`, a note without a reason
+was refused, CN-0002 was reported from the queue (ICV 6) and CN-0003 on a business invoice was
+cleared at issue and keeps ZATCA's copy (ICV 7).
+
 ### Renewing the certificate
 
 A production certificate ends (the developer portal's run three years). The Tax screen says
@@ -298,13 +323,16 @@ in the queue and was reported from its row's button (ICV 2, PIH the first one's 
   `buyer-vat`. ZATCA's rules for those (another ID scheme, an export flag) are not written.
 - **ZATCA's cleared copy is not yet what prints.** The kept file is ZATCA's copy and its QR is
   stored, but the printed invoice is still drawn from the invoice record.
-- **Saudi credit and debit notes — the slice after.** Onboarding already signs and checks both;
-  a studio's own credit notes are not yet stamped or reported.
+- **There are no debit notes in this product.** ZATCA has them (an extra charge on an invoice,
+  type 383) and onboarding signs and checks one, but nothing here raises one: a studio that
+  undercharged raises a second invoice.
+- **The till return's report after approval has not been seen in `dev:sandbox`.** Approving
+  needs the account's signing PIN, which is the owner's; the return's document was checked
+  against ZATCA from the real return's data, and the approval hook by the model test.
 - **NOT TESTED AGAINST SIMULATION** — it is closed, and it needs a real taxpayer's OTP. Until it
   runs, nothing proves the signature matches the unit's own certificate (see above).
 - **Renewal is shown on the Tax screen only** — no notification and no e-mail reaches somebody
   who does not open it in the last thirty days.
-- **A till return is not reported** — it is a credit note, slice 3.
 - **The printed invoice's QR has not been seen on a page.** Finance's print draws the stored
   e-invoice QR (since 22/09; a cleared business invoice's is ZATCA's), but neither sandbox
   studio has a published invoice layout, and publishing one needs a second person: a controlled
@@ -313,9 +341,9 @@ in the queue and was reported from its row's button (ICV 2, PIH the first one's 
   26/09/2026: not the download, not the recording.
 - **No Jordanian file has been through JoFotara.** The first one a studio submits and records
   as accepted is the check; one recorded as rejected, with ISTD's words, is the next fix.
-- **Credit and debit notes.** Only invoices are prepared. Until notes are, a studio reports its
-  sales and not its refunds, which OVER-declares output tax. For Jordan this was held until a
-  first invoice is accepted (the owner, 22/09/2026).
+- **Jordan's credit notes.** Only invoices are prepared for JoFotara, so a Jordanian studio
+  reports its sales and not its refunds, which OVER-declares output tax. Held until a first
+  invoice is accepted (the owner, 22/09/2026). Saudi notes are reported since 04/10/2026.
 - **Zero-rated and exempt Saudi lines** are refused until a line can record its VATEX reason.
   Only SAR documents.
 - **A discount is not written as an allowance for JORDAN.** Saudi till receipts write their basket

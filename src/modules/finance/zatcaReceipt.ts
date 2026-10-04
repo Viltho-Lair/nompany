@@ -22,10 +22,16 @@
 //
 // which is ZATCA's own rule read backwards (a category's taxable amount is its
 // lines less its allowances), so it holds by construction.
+//
+// AND EVERY OTHER DOCUMENT WHOSE FIGURES ARE ALREADY SETTLED (04/10/2026, slice
+// 3): a till RETURN (its refund lines and stored breakdown) and a Finance CREDIT
+// NOTE (its amount split at the invoice's rate exactly as the ledger splits it)
+// are composed here too, as credit notes naming what they correct and why — so
+// the tax ZATCA is told about is the tax the books moved, to the halala.
 
 import { roundMoney, roundSum } from "@/shared/money";
 import { cleanTaxCategory, categoryRate } from "@/shared/taxProfile";
-import { ZATCA_DOCUMENT_TYPES, ZATCA_SUBTYPES, type ZatcaAllowance, type ZatcaCategory, type ZatcaDocument, type ZatcaExemptions, type ZatcaLine, type ZatcaSeller, type ZatcaSubtotal } from "./zatcaDocument";
+import { ZATCA_DOCUMENT_TYPES, ZATCA_SUBTYPES, type ZatcaAllowance, type ZatcaBuyer, type ZatcaCategory, type ZatcaDocument, type ZatcaDocumentKind, type ZatcaExemptions, type ZatcaLine, type ZatcaSeller, type ZatcaSubtotal, type ZatcaSubtype } from "./zatcaDocument";
 
 const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
@@ -78,8 +84,18 @@ function priced(net: number, count: number, currency: string): Pick<ZatcaLine, "
   return roundSum(unit * count) === net ? { unitPrice: unit } : { unitPrice: net, baseQuantity: count };
 }
 
-/** THE RECEIPT AS ZATCA'S SIMPLIFIED INVOICE. */
+/**
+ * THE RECEIPT AS ZATCA'S SIMPLIFIED INVOICE — or, given `kind`, the settled
+ * figures of a note as ZATCA's credit or debit note: `billingReference` the
+ * document it corrects and `reason` why (BR-KSA-17, -56), `subtype` and
+ * `buyer` where it corrects a business invoice.
+ */
 export function zatcaReceiptDocument(input: {
+  kind?: ZatcaDocumentKind;
+  subtype?: ZatcaSubtype;
+  buyer?: ZatcaBuyer | null;
+  billingReference?: string;
+  reason?: string;
   receipt: Receipt;
   seller: ZatcaSeller;
   uuid: string;
@@ -156,14 +172,17 @@ export function zatcaReceiptDocument(input: {
     uuid: input.uuid,
     issueDate: input.issueDate,
     issueTime: input.issueTime,
-    typeCode: ZATCA_DOCUMENT_TYPES.invoice,
-    subtype: ZATCA_SUBTYPES.simplified,
+    typeCode: ZATCA_DOCUMENT_TYPES[input.kind || "invoice"],
+    subtype: ZATCA_SUBTYPES[input.subtype || "simplified"],
     currency,
     counter: input.counter,
     previousHash: input.previousHash,
+    ...(input.billingReference ? { billingReference: str(input.billingReference, 60) } : {}),
+    ...(input.reason ? { reason: str(input.reason, 300) } : {}),
     seller: input.seller,
-    // A COUNTER SALE NAMES NOBODY — a walk-in customer is ordinary.
-    buyer: null,
+    // A COUNTER SALE NAMES NOBODY — a walk-in customer is ordinary. A note
+    // correcting a business invoice names that invoice's buyer.
+    buyer: input.buyer || null,
     paymentMeansCode: paymentMeansOf(r.payments),
     lines: lines.filter(Boolean),
     subtotals,

@@ -326,5 +326,34 @@ ok("the base quantity is written inside the price", rx.includes('<cbc:BaseQuanti
 ok("how the customer paid: card is 48, cash 10, anything else 1",
   RC.paymentMeansOf([{ method: "card" }]) === "48" && RC.paymentMeansOf([{ method: "cash" }]) === "10" && RC.paymentMeansOf([]) === "1");
 
+console.log("\n== credit notes and till returns (slice 3, 04/10/2026)");
+const E = await import("@/modules/finance/einvoiceService");
+const V = await import("@/shared/vat");
+const consumerInvoice = { id: "i1", reference: "INV-0008", clientName: "Walk-in customer", currency: "SAR", vatRate: 15, status: "Sent" };
+const note = E.creditNoteView({ id: "c1", reference: "CN-0002", invoiceId: "i1", invoiceReference: "INV-0008", amount: 10, reason: "Price correction", status: "Issued", issueDate: "2026-10-04" }, consumerInvoice, "SAR");
+const split = V.splitGross(10, 15, "SAR");
+ok("A CREDIT NOTE'S TAX IS THE LEDGER'S — its amount split at the invoice's rate by splitGross",
+  note.figures.breakdown[0].taxable === split.net && note.figures.breakdown[0].tax === split.vat && note.figures.total === 10);
+ok("an issued note reads as issued, and names what it corrects and why",
+  note.status === "Sent" && note.note.billingReference === "INV-0008" && note.note.reason === "Price correction");
+const noteDoc = RC.zatcaReceiptDocument({ receipt: note.figures, seller, uuid: "u", issueDate: "2026-10-04", issueTime: "10:00:00", counter: 2, previousHash: "h", ...note.note });
+ok("...composed as ZATCA's credit note: 381, the invoice referenced, the reason written, the ledger's total",
+  noteDoc.typeCode === "381" && noteDoc.billingReference === "INV-0008" && noteDoc.reason === "Price correction" && noteDoc.payableAmount === 10 && noteDoc.taxAmount === split.vat && D.zatcaProblem(noteDoc) === "");
+const bizNote = E.creditNoteView({ id: "c2", reference: "CN-0003", invoiceId: "i2", invoiceReference: "INV-0006", amount: 575, reason: "Scope reduced", status: "Draft" },
+  { ...consumerInvoice, id: "i2", reference: "INV-0006", clientName: "Buyer Co", buyerTax: bizTax }, "SAR");
+ok("A NOTE ON A BUSINESS INVOICE CARRIES THAT INVOICE'S BUYER, so it is a standard note — cleared before it is issued",
+  Z.zatcaBuyerOf(bizNote).subtype === "standard" && bizNote.status === "Draft");
+ok("a note with no reason composes to a document ZATCA would refuse — which is why issuing one is refused first",
+  D.zatcaProblem(RC.zatcaReceiptDocument({ receipt: note.figures, seller, uuid: "u", issueDate: "2026-10-04", issueTime: "10:00:00", counter: 2, previousHash: "h", ...note.note, reason: "" })) === "note-reference");
+const ret = E.returnView({ id: "r1", number: "RTN-0001", status: "Approved", source: "receipt", receiptNumber: "RCT-0002", currency: "SAR", method: "card", reason: "Damaged bag",
+  lines: [{ line: 0, itemId: "x", description: "Coffee beans 250g", units: 1, refund: 10 }], total: 10, breakdown: [{ category: "standard", rate: 15, taxable: 8.7, tax: 1.3 }], decidedAt: "2026-10-04T21:30:00Z" }, "Asia/Riyadh");
+ok("A TILL RETURN TAKES EFFECT THE DAY IT WAS APPROVED, in the studio's zone — 21:30 UTC is the next day in Riyadh",
+  ret.status === "Sent" && ret.issueDate === "2026-10-05");
+const retDoc = RC.zatcaReceiptDocument({ receipt: ret.figures, seller, uuid: "u", issueDate: ret.issueDate, issueTime: "00:30:00", counter: 3, previousHash: "h", ...ret.note });
+ok("...as a simplified credit note against the receipt, refunded the way it was paid",
+  retDoc.typeCode === "381" && retDoc.subtype === "0200000" && retDoc.billingReference === "RCT-0002" && retDoc.paymentMeansCode === "48" && retDoc.payableAmount === 10 && retDoc.taxAmount === 1.3);
+ok("a pending return reads as a draft, a rejected one as cancelled — neither is reported",
+  E.returnView({ id: "r", status: "Pending" }, "UTC").status === "Draft" && E.returnView({ id: "r", status: "Rejected" }, "UTC").status === "Cancelled");
+
 console.log(fails ? `\nzatca model: ${fails} FAILURES\n` : "\nzatca model: all passed\n");
 process.exitCode = fails ? 1 : 0;

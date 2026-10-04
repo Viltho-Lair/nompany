@@ -30,6 +30,11 @@ const en: Strings = {
       case "already-issued": return "That note has already been issued.";
       case "issued": return "An issued note cannot be cancelled; raise another document.";
       case "forbidden": return "You do not have the right to do that.";
+      case "reason-required": return "Say why the invoice is being credited — ZATCA requires a reason on every credit note.";
+      case "einvoice-not-cleared": return `ZATCA did not clear this credit note, so it has not been issued${x.detail ? `: ${x.detail}` : "."}`;
+      case "einvoice-unreached": return "ZATCA could not be reached to clear this credit note, so it has not been issued. Try again shortly.";
+      case "einvoice-busy": return "This credit note is being submitted already. Try again in a minute.";
+      case "einvoice-problem": return `It cannot be sent to ZATCA yet (${x.detail || ""}). Fix it on the invoice or in Studio settings → Official values.`;
       default: return "That did not work. Try again.";
     }
   },
@@ -51,6 +56,11 @@ const ar: Strings = {
       case "already-issued": return "صدر هذا الإشعار بالفعل.";
       case "issued": return "لا يلغى إشعار صادر؛ أنشئ مستندا آخر.";
       case "forbidden": return "لا تملك صلاحية القيام بذلك.";
+      case "reason-required": return "اذكر سبب الإشعار الدائن — تشترط الهيئة سببا على كل إشعار دائن.";
+      case "einvoice-not-cleared": return `لم تعتمد الهيئة هذا الإشعار الدائن، فلم يصدر${x.detail ? `: ${x.detail}` : "."}`;
+      case "einvoice-unreached": return "تعذر الوصول إلى الهيئة لاعتماد هذا الإشعار الدائن، فلم يصدر. حاول بعد قليل.";
+      case "einvoice-busy": return "هذا الإشعار قيد الإرسال بالفعل. حاول بعد دقيقة.";
+      case "einvoice-problem": return `لا يمكن إرساله إلى الهيئة بعد (${x.detail || ""}). أصلحه في الفاتورة أو في إعدادات الاستوديو ← القيم الرسمية.`;
       default: return "لم تنجح العملية. حاول مرة أخرى.";
     }
   },

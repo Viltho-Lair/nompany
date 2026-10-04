@@ -117,6 +117,17 @@ ok("THE PRINTED INVOICE DRAWS THE STORED E-INVOICE QR",
 ok("A SAUDI SLIP IS TITLED A SIMPLIFIED TAX INVOICE",
   pos.includes('adapter === "zatca" ? { ar: "فاتورة ضريبية مبسطة", en: "Simplified Tax Invoice" }'));
 
+// NOTES TAKE EFFECT THROUGH THE SAME DOORS (04/10/2026): a credit note is
+// refused without a reason and cleared BEFORE it is written as issued; an
+// approved till return is reported after the answer.
+const cnService = readFileSync("src/modules/finance/creditNoteService.ts", "utf8");
+const issue = cnService.slice(cnService.indexOf("export async function issueCreditNote"));
+ok("A SAUDI CREDIT NOTE NEEDS A REASON, and is cleared before the issue is written",
+  issue.includes('return { error: "reason-required" }') && issue.indexOf("clearBeforeIssue(") > 0
+  && issue.indexOf("clearBeforeIssue(") < issue.indexOf("Notes.update(scope(ctx), id"));
+const returns = readFileSync("src/modules/sales/posReturns.ts", "utf8");
+ok("AN APPROVED TILL RETURN IS REPORTED AFTER THE ANSWER", /submitOnIssue\(target, row\.id, "return"\)/.test(returns) && returns.includes("after(report)"));
+
 console.log("\n== where an invoice stands");
 ok("`prepared` is a state, and the three submission states survive only to be read",
   ["prepared", "accepted", "rejected", "pending", "submitted", "failed"].every((s) => EINVOICE_STATUSES.includes(s)));

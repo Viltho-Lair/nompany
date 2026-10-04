@@ -12,10 +12,12 @@
 //   record      — the authority's answer, as the studio received it, for a
 //                 country where the studio submits itself
 //
-// TWO KINDS OF SALE (04/10/2026): Finance's INVOICES, and the till's RECEIPTS,
-// which ZATCA treats as the simplified invoices they are. A receipt is read as
-// an invoice-shaped VIEW — its number as the reference, the day it was sold in
-// the studio's zone as the issue date — and every write lands on its own row.
+// FOUR KINDS OF DOCUMENT (04/10/2026): Finance's INVOICES and CREDIT NOTES, and
+// the till's RECEIPTS and RETURNS — ZATCA's simplified invoices and credit
+// notes. Each is read as an invoice-shaped VIEW — its own number as the
+// reference, the day it took effect as the issue date, its status as an
+// invoice's — and every write lands on its own row. A note's view also carries
+// its settled FIGURES and what it corrects, which the adapter composes from.
 // Preparing, submitting and recording are acts on the invoice, so all three
 // answer to `finance.receivables.edit`; onboarding is the studio's standing
 // arrangement with its tax authority, and answers to `finance.settings.edit`.
@@ -33,22 +35,32 @@ import type { FinanceContext, Invoice } from "./types";
 import { zatcaSeller } from "./zatca";
 import { onboardZatcaUnit, renewZatcaUnit, setZatcaTiming, zatcaUnitSummary } from "./zatcaUnit";
 import { dayIn, studioTimezone } from "@/shared/timezone";
+import { splitGross } from "@/shared/vat";
+import { roundMoney } from "@/shared/money";
 
 type EInvoiced = Invoice & { einvoice?: EInvoiceState | null };
 const Invoices = repo<EInvoiced>("invoices");
-const Receipts = repo<Record<string, unknown> & { id: string; einvoice?: EInvoiceState | null }>("posReceipts");
+type AnyRow = Record<string, unknown> & { id: string; einvoice?: EInvoiceState | null };
+const Receipts = repo<AnyRow>("posReceipts");
+const Notes = repo<AnyRow>("creditNotes");
+const Returns = repo<AnyRow>("posReturns");
 
-/** Which kind of sale an act is on. */
-export const EINVOICE_KINDS = ["invoice", "receipt"] as const;
+/** Which kind of document an act is on. */
+export const EINVOICE_KINDS = ["invoice", "receipt", "creditNote", "return"] as const;
 export type EInvoiceKind = (typeof EINVOICE_KINDS)[number];
-export const cleanKind = (v: unknown): EInvoiceKind => (v === "receipt" ? "receipt" : "invoice");
+export const cleanKind = (v: unknown): EInvoiceKind =>
+  ((EINVOICE_KINDS as readonly string[]).includes(String(v)) ? v : "invoice") as EInvoiceKind;
 
 /**
  * WHERE A STUDIO'S SALES ARE — what every act here needs, and all the nightly
  * job has: no person, no access, just the studio, its cash section (invoices)
  * and its till's section (receipts — null for a studio with no till).
  */
-export type EInvoiceTarget = Pick<FinanceContext, "studio" | "cashSection"> & { posSection?: FinanceContext["posSection"] | null };
+export type EInvoiceTarget = Pick<FinanceContext, "studio" | "cashSection"> & {
+  posSection?: FinanceContext["posSection"] | null;
+  /** Where the till's returns are filed — null for a studio with no till. */
+  posReturnsSection?: FinanceContext["posReturnsSection"] | null;
+};
 const cash = (t: EInvoiceTarget) => ({ studio: t.studio, section: t.cashSection });
 
 /** A receipt as the invoice-shaped thing every act here reads. */
@@ -62,11 +74,79 @@ function receiptView(r: Record<string, unknown> & { id: string }, timezone: stri
   } as unknown as EInvoiced;
 }
 
-/** Every sale of one kind, as the acts here read them. */
+/**
+ * A FINANCE CREDIT NOTE, as a view. Its FIGURES are the ledger's: the amount
+ * split back into net and tax at the INVOICE's rate by `splitGross`, the one
+ * copy `postCreditNote` and the tax return use — so ZATCA is told the tax the
+ * books gave back. It names the invoice's buyer, so a note on a business
+ * invoice is a standard note, cleared before it is issued.
+ */
+export function creditNoteView(n: AnyRow, invoice: EInvoiced | undefined, studioCurrency: unknown): EInvoiced {
+  const currency = String((invoice as { currency?: unknown } | undefined)?.currency || studioCurrency || "");
+  const rate = Number(invoice?.vatRate) || 0;
+  const gross = roundMoney(n.amount, currency);
+  const { net, vat } = splitGross(gross, rate, currency);
+  const status = String(n.status || "");
+  return {
+    ...n,
+    reference: String(n.reference || ""),
+    issueDate: String(n.issueDate || ""),
+    createdAt: String(n.createdAt || ""),
+    status: status === "Issued" ? "Sent" : status,
+    clientName: String(n.clientName || invoice?.clientName || ""),
+    buyerTax: (invoice as { buyerTax?: unknown } | undefined)?.buyerTax ?? null,
+    figures: {
+      number: n.reference, currency, vatRate: rate, pricesIncludeTax: true, total: gross, payments: [],
+      lines: [{ description: String(n.reason || "") || `Credit against ${String(n.invoiceReference || "")}`, count: 1, net: gross }],
+      breakdown: [{ category: "standard", rate, taxable: net, tax: vat }],
+    },
+    note: { kind: "creditNote", billingReference: String(n.invoiceReference || invoice?.reference || ""), reason: String(n.reason || "") },
+  } as unknown as EInvoiced;
+}
+
+/**
+ * A TILL RETURN OF A RECEIPT, as a view — a simplified credit note against the
+ * receipt, taking effect the day it was approved. Its figures are the return's
+ * own refund lines and stored breakdown. (A return against an INVOICE raises a
+ * Finance credit note, which is the document reported for it.)
+ */
+export function returnView(r: AnyRow, timezone: string): EInvoiced {
+  const status = String(r.status || "");
+  const breakdown = (Array.isArray(r.breakdown) ? r.breakdown : []) as Array<{ category?: unknown; rate?: unknown }>;
+  const lines = (Array.isArray(r.lines) ? r.lines : []) as Array<{ description?: unknown; units?: unknown; refund?: unknown; taxCategory?: unknown }>;
+  return {
+    ...r,
+    reference: String(r.number || ""),
+    issueDate: r.decidedAt ? dayIn(String(r.decidedAt), timezone) : "",
+    createdAt: String(r.decidedAt || r.requestedAt || ""),
+    status: status === "Approved" ? "Sent" : status === "Rejected" ? "Cancelled" : "Draft",
+    clientName: "",
+    figures: {
+      number: r.number, currency: r.currency, pricesIncludeTax: true, total: r.total, breakdown,
+      vatRate: Number(breakdown.find((b) => b.category === "standard")?.rate) || 0,
+      payments: [{ method: r.method }],
+      lines: lines.map((l) => ({ description: l.description, count: l.units, net: l.refund, ...(l.taxCategory ? { taxCategory: l.taxCategory } : {}) })),
+    },
+    note: { kind: "creditNote", billingReference: String(r.receiptNumber || ""), reason: String(r.reason || "") },
+  } as unknown as EInvoiced;
+}
+
+/** Every document of one kind, as the acts here read them. */
 async function rowsOf(t: EInvoiceTarget, kind: EInvoiceKind): Promise<EInvoiced[]> {
-  if (kind === "invoice") return Invoices.find(cash(t));
-  if (!t.posSection) return [];
   const tz = studioTimezone(t.studio as { timezone?: unknown });
+  if (kind === "invoice") return Invoices.find(cash(t));
+  if (kind === "creditNote") {
+    const [notes, invoices] = await Promise.all([Notes.find(cash(t)), Invoices.find(cash(t))]);
+    const byId = new Map(invoices.map((i) => [i.id, i]));
+    return notes.map((n) => creditNoteView(n, byId.get(String(n.invoiceId || "")), t.studio.currency));
+  }
+  if (kind === "return") {
+    if (!t.posReturnsSection) return [];
+    return (await Returns.find({ studio: t.studio, section: t.posReturnsSection }))
+      .filter((r) => r.source === "receipt")
+      .map((r) => returnView(r, tz));
+  }
+  if (!t.posSection) return [];
   return (await Receipts.find({ studio: t.studio, section: t.posSection })).map((r) => receiptView(r, tz));
 }
 
@@ -76,8 +156,11 @@ async function writeState(t: EInvoiceTarget, kind: EInvoiceKind, id: string, nex
     const u = await Invoices.update(cash(t), id, (cur) => ({ einvoice: next(cur.einvoice || null) }));
     return u ? (u.einvoice || null) : undefined;
   }
-  if (!t.posSection) return undefined;
-  const u = await Receipts.update({ studio: t.studio, section: t.posSection }, id, (cur) => ({ einvoice: next(cur.einvoice || null) }));
+  const [rows, section] = kind === "creditNote" ? [Notes, t.cashSection]
+    : kind === "return" ? [Returns, t.posReturnsSection]
+      : [Receipts, t.posSection];
+  if (!section) return undefined;
+  const u = await rows.update({ studio: t.studio, section }, id, (cur) => ({ einvoice: next(cur.einvoice || null) }));
   return u ? (u.einvoice || null) : undefined;
 }
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
@@ -92,7 +175,7 @@ export async function einvoiceQueue(ctx: FinanceContext) {
   const adapter = adapterFor(rules);
   // THE TILL'S RECEIPTS JOIN THE QUEUE only where nompany submits them — a
   // country whose files the studio submits itself has no receipt file here.
-  const kinds: EInvoiceKind[] = adapter?.submit ? ["invoice", "receipt"] : ["invoice"];
+  const kinds: EInvoiceKind[] = adapter?.submit ? [...EINVOICE_KINDS] : ["invoice"];
   const rows = await Promise.all(kinds.map(async (kind) => (await rowsOf(ctx, kind)).map((inv) => ({ kind, inv }))));
   const queue = rows.flat()
     .map(({ kind, inv }) => ({
@@ -320,22 +403,25 @@ export async function stampOnSale(t: EInvoiceTarget, receiptId: string): Promise
  * makes), and the next attempt prepares a new document — the state on the
  * draft says `rejected`, which is what tells `prepareFor` to.
  */
-export async function clearBeforeIssue(t: EInvoiceTarget, invoiceId: string, issuing: Record<string, unknown>) {
+export async function clearBeforeIssue(t: EInvoiceTarget, invoiceId: string, issuing: Record<string, unknown>, kind: EInvoiceKind = "invoice") {
   const rules = studioEInvoiceRules(t.studio);
   const adapter = adapterFor(rules);
-  if (!rules || !adapter?.submit || !adapter.submission || !adapter.clearsAtIssue?.(issuing)) return null;
+  if (!rules || !adapter?.submit || !adapter.submission) return null;
   if (!(await adapter.submission(studioOf(t)))) return null;
   const key = S.einvoiceLease(t.studio.id, invoiceId);
   if (!(await claim(key, randomUUID(), LEASE_SEC))) return { error: "einvoice-busy" as const };
   try {
-    const fresh = (await Invoices.find(cash(t))).find((i) => i.id === invoiceId);
+    const fresh = (await rowsOf(t, kind)).find((i) => i.id === invoiceId);
     if (!fresh) return { error: "notfound" as const };
+    // ASKED OF THE DOCUMENT AS IT IS ABOUT TO BE: a note's buyer comes from
+    // its invoice, which only the view knows.
+    if (!adapter.clearsAtIssue?.({ ...fresh, ...issuing })) return null;
     const invoice = { ...fresh, ...issuing, id: fresh.id, einvoice: fresh.einvoice, status: "Sent" } as EInvoiced;
     const state = einvoiceStatusOf(invoice, rules);
     // BEFORE THE MANDATE: nothing to clear.
     if (state === "not-required") return null;
     if (state === "accepted") return { einvoice: fresh.einvoice };
-    const out = await submitFor(t, invoice, rules, state);
+    const out = await submitFor(t, invoice, rules, state, kind);
     if ("error" in out) return out;
     if (out.outcome === "accepted") return { einvoice: out.einvoice };
     return { error: out.outcome === "rejected" ? "einvoice-not-cleared" as const : "einvoice-unreached" as const, detail: out.message };

@@ -4,6 +4,7 @@
 // refuses. This file is the doors: who may open them, what is read, what is
 // written, and when the ledger hears about it.
 
+import { studioEInvoiceRules } from "@/shared/compliance/rules";
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { nextReference } from "@/modules/main/references";
@@ -142,9 +143,21 @@ export async function issueCreditNote(ctx: FinanceContext, id: string) {
       : { error: problem };
   }
 
+  // A SAUDI CREDIT NOTE SAYS WHY (BR-KSA-17): ZATCA refuses one without a
+  // reason, and a note issued without one could never reach it. Refused here,
+  // where the person issuing can still type it, rather than in the queue later.
+  if (studioEInvoiceRules(ctx.studio)?.adapter === "zatca" && !str(note.reason, 500)) return { error: "reason-required" };
+
+  // A NOTE ON A SAUDI BUSINESS INVOICE IS CLEARED BEFORE IT IS ISSUED, like the
+  // invoice it corrects, and a refusal stops the issue (./einvoiceService).
+  const today = new Date().toISOString().slice(0, 10);
+  const svc = await import("./einvoiceService");
+  const cleared = await svc.clearBeforeIssue(ctx, id, { status: "Sent", issueDate: today }, "creditNote");
+  if (cleared && "error" in cleared) return cleared;
+
   const updated = await Notes.update(scope(ctx), id, {
     status: "Issued",
-    issueDate: new Date().toISOString().slice(0, 10),
+    issueDate: today,
   });
   if (!updated) return { error: "notfound" };
 
@@ -152,7 +165,10 @@ export async function issueCreditNote(ctx: FinanceContext, id: string) {
   // invoice posts on Draft → Sent. `autoPost` never fails the document: the
   // note was issued, that happened, and a ledger refusal travels back beside it.
   const posting = await autoPost(ctx, "credit-note", id);
-  return { creditNote: updated, posting };
+  // AND A CONSUMER NOTE IS REPORTED NOW, for a studio that reports as it goes —
+  // best-effort, the nightly batch behind it, exactly as an invoice.
+  const einvoice = cleared ? null : await svc.submitOnIssue(ctx, id, "creditNote");
+  return { creditNote: updated, posting, ...(cleared || einvoice ? { einvoiceSubmission: cleared ? { outcome: "accepted", message: "" } : einvoice } : {}) };
 }
 
 /**
