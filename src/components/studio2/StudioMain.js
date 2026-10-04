@@ -11,6 +11,7 @@ import { useReload } from "@/components/studio2/useReload";
 import nextDynamic from "next/dynamic";
 import { useMoney } from "@/components/studio2/studioCurrency";
 import WorkInHand from "@/components/studio2/WorkInHand";
+import FinishSetup from "@/components/studio2/FinishSetup";
 
 // THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
 // import, so every tenant page carried every department's dashboard and the
@@ -56,7 +57,7 @@ export default function StudioMain({ slug, initial }) {
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
 
-  const { studio, me, headlines, recent, nav, executive } = data;
+  const { studio, me, headlines, recent, nav, executive, setup } = data;
   const href = (key) => (nav?.[key] ? `/${slug}/${key}` : "");
 
   // Only the figures this person is entitled to. `null` means the section was
@@ -103,6 +104,9 @@ export default function StudioMain({ slug, initial }) {
           </div>
         )}
       </section>
+
+      {/* FINISH SETTING UP — a new studio's first steps, while any are left. */}
+      <FinishSetup slug={slug} items={setup} />
 
       {/* THE WORK IN HAND — every kind of work the studio runs, read one way
           (the owner's decision C, 03/10/2026). Draws nothing when there is no

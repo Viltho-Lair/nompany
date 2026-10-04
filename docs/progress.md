@@ -2473,7 +2473,8 @@ by design (`engagements.md`).
    `sections.md`. **Opened in the sandbox the same day**, English and Arabic: Shops & showrooms
    pre-answered yes to the counter and no to the rest; a yes to customers' sites added Field Operations
    on the Departments step; the Plan step showed the count and names and created nothing until asked.
-   The first-run checklist inside the studio (KPI targets and the rest) is not built.
+   **The first-run checklist inside the studio is BUILT 04/10/2026** (`first-run.md`): company
+   details, logo, team, KPI targets, each ticking itself from what the studio holds.
 4. **Foundations for progress**: every record attaches to its deal, completion rules, and a plan
    with a baseline.
    **04/10/2026:** bills and fixed assets attach to their project's deal (expenses did 03/10; the

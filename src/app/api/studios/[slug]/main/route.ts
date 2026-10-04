@@ -3,6 +3,8 @@ import { requirePermission } from "@/platform/access";
 import { mainContext, headlines, recent, type MainContext } from "@/modules/main/main";
 import { readAggregate } from "@/modules/main/executive";
 import { awaitingQueue } from "@/modules/main/awaiting";
+import { firstRunChecklist, firstRunDone } from "@/modules/main/firstRun";
+import { listCollaborators } from "@/platform/auth/collaborators";
 import { loadCatalogues, planOf } from "@/lib/plans";
 import { enabledWidgets, switchboard, widgetAvailable, DASHBOARD_WIDGETS } from "@/lib/dashboardWidgets";
 
@@ -83,6 +85,16 @@ export const GET = route(spec, async (main) => {
     locked.push(...shown);
   }
 
+  // FINISH SETTING UP (modules/main/firstRun) — only for somebody who can do
+  // something about it, and only while something is left: the people read is
+  // paid for by an admin on a studio still being set up, never by everybody.
+  let setup = null;
+  if (!requirePermission(main.access, "administration.settings.edit")) {
+    const people = (await listCollaborators(main.studio.id)).length;
+    const items = firstRunChecklist(main.studio as Record<string, unknown>, people, String(main.studio.slug || ""));
+    if (!firstRunDone(items)) setup = items;
+  }
+
   return {
     studio: { name: main.studio.name, slug: main.studio.slug },
     me: { alias: main.collaborator.alias || "", collaboratorId: main.collaborator.id },
@@ -90,5 +102,6 @@ export const GET = route(spec, async (main) => {
     headlines: figures,
     recent: feed,
     executive: { widgets, locked, hidden },
+    setup,
   };
 });

@@ -30,6 +30,11 @@ type Strings = CommonStrings & {
   workKpiRunning: string;
   workKpiDays: (n: number) => string;
   workKpiNothingYet: string;
+  // Finish setting up (modules/main/firstRun).
+  setupTitle: string;
+  setupLead: (done: number, total: number) => string;
+  setupHide: string;
+  setupItems: Record<"company" | "logo" | "team" | "kpis", { title: string; hint: string }>;
   workDue: (date: string) => string;
   // The feed's record kinds. Fixed by the code, not typed by a tenant.
   feedTicket: string;
@@ -92,6 +97,15 @@ const en: Strings = {
   workKpiRunning: "Under way",
   workKpiDays: (n) => (n === 1 ? "1 day" : `${n} days`),
   workKpiNothingYet: "nothing to measure yet",
+  setupTitle: "Finish setting up",
+  setupLead: (done, total) => `${done} of ${total} done. Each one ticks itself once it is set.`,
+  setupHide: "Hide",
+  setupItems: {
+    company: { title: "Your company details", hint: "Country and currency — they decide tax, invoices and payroll." },
+    logo: { title: "Your logo", hint: "It goes on quotations, invoices and every printed document." },
+    team: { title: "Invite your team", hint: "Add the people who will work here and give them roles." },
+    kpis: { title: "Your KPI targets", hint: "Say what good looks like: deals quoted in time, jobs done on schedule." },
+  },
   workDue: (date) => `Due ${date}`,
   feedTicket: "Ticket",
   feedQuotation: "Quotation",
@@ -153,6 +167,15 @@ const ar: Strings = {
   workKpiRunning: "جارٍ",
   workKpiDays: (n) => (n === 1 ? "يوم واحد" : `${n} يومًا`),
   workKpiNothingYet: "لا شيء لقياسه بعد",
+  setupTitle: "أكمل الإعداد",
+  setupLead: (done, total) => `أُنجز ${done} من ${total}. كل بند يُعلَّم تلقائيًا عند إتمامه.`,
+  setupHide: "إخفاء",
+  setupItems: {
+    company: { title: "بيانات شركتك", hint: "الدولة والعملة — تحددان الضرائب والفواتير والرواتب." },
+    logo: { title: "شعارك", hint: "يظهر على عروض الأسعار والفواتير وكل مستند مطبوع." },
+    team: { title: "ادعُ فريقك", hint: "أضف من سيعملون هنا وامنحهم أدوارهم." },
+    kpis: { title: "أهداف مؤشرات الأداء", hint: "حدّد ما يعنيه العمل الجيد: صفقات تُسعّر في الوقت، ومهام تُنجز في موعدها." },
+  },
   workDue: (date) => `الاستحقاق ${date}`,
   feedTicket: "تذكرة",
   feedQuotation: "عرض سعر",
