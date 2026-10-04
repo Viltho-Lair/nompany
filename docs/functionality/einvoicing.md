@@ -151,7 +151,12 @@ connected before then declared `0100`**: a business invoice is refused with
 
 Measured against ZATCA's developer portal, 04/10/2026: a stamped standard invoice passed the
 compliance check as CLEARED with no warning, and a standard invoice and credit note were each
-CLEARED by the clearance endpoint, which returned its own stamped copy.
+CLEARED by the clearance endpoint, which returned its own stamped copy. **In `dev:sandbox`, the
+same day:** a business invoice on a unit connected for consumer invoices only was refused
+`unit-simplified-only` and stayed a draft; after connecting again (six samples passed, the daily
+timing kept) it was cleared at issue as ICV 1, keeping ZATCA's copy and QR; one with a four-digit
+postal code was refused locally (`buyer-postal`) WITHOUT taking a chain link, and once corrected
+on the draft it cleared as ICV 2; a client saved with its tax registration.
 
 ### Renewing the certificate
 
@@ -254,9 +259,6 @@ in the queue and was reported from its row's button (ICV 2, PIH the first one's 
   the owner opens them. Nothing has been sent to either.
 - **The nightly batch has not run.** `CRON_SECRET` is empty locally, so the job fails closed
   there (invariant 15); it calls the same `submitFor` the button does, which has.
-- **Slice 2 has not been opened in `dev:sandbox`.** The local database connection was down when
-  it was finished (04/10/2026); it is verified against ZATCA's developer portal and by the model
-  tests only.
 - **Non-Saudi buyers.** A business invoice to a buyer with no Saudi VAT number (an export, a
   buyer registered elsewhere) is not modelled: a VAT number that is not Saudi is refused as
   `buyer-vat`. ZATCA's rules for those (another ID scheme, an export flag) are not written.

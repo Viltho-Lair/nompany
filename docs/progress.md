@@ -1809,14 +1809,15 @@ first, then business, then notes.
 - ✅ **Slice 2 — business (B2B) invoices (04/10/2026):** the buyer's tax registration on the
   client and snapshotted on the invoice, a unit declared `1100` with six onboarding samples, and
   clearance BEFORE issue (a refusal leaves the invoice a draft). Verified against the developer
-  portal; **not yet opened in `dev:sandbox`** (the database connection was down).
+  portal and in `dev:sandbox`.
 - ⬜ **Slice 3 — credit and debit notes** stamped and reported. Refunds are not, so a studio
   over-declares output tax. The composer and onboarding already take both.
 - ⬜ **Opening simulation, then production** — the owner's decision, one line in `zatcaApi.ts`.
 - ✅ **Certificate renewal** (same unit, same chain; amber in the last 30 days) and **a lease** so two
   submissions cannot prepare one invoice twice (04/10/2026).
-- ⬜ **Testing against simulation** — needs a real taxpayer's OTP; the developer portal signs with a
-  sample certificate and cannot prove our signature matches our certificate.
+- ⏸ **Testing against simulation — kept until there is a real customer** (the owner, 04/10/2026:
+  issues they hit are reported and fixed then). The developer portal signs with a sample
+  certificate and cannot prove our signature matches our certificate.
 - ⬜ **The point-of-sale receipt reported** as the simplified invoice it is — waits on the parked
   `AllowanceCharge` question, because a receipt carries basket discounts and promotions.
 - ⬜ **Zero-rated and exempt lines need a VATEX reason** on the line. Until then they are refused
