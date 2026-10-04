@@ -86,6 +86,19 @@ const unleased = acts.filter((name) => {
 });
 ok("EVERY ACT THAT CAN PREPARE HOLDS THE INVOICE'S LEASE", unleased.length === 0, unleased.join(", "));
 
+// A BUSINESS INVOICE IS CLEARED BEFORE IT IS ISSUED (04/10/2026): editInvoice
+// asks clearBeforeIssue BEFORE it writes the move, and returns its refusal —
+// clearing after the write would hand a client an invoice that is not yet one.
+const fin = readFileSync("src/modules/finance/finance.ts", "utf8");
+const edit = fin.slice(fin.indexOf("export async function editInvoice"));
+const clearAt = edit.indexOf("clearBeforeIssue(");
+const writeAt = edit.indexOf("Invoices.update({ studio, section: cashSection }, id, patch)");
+ok("THE CLEARANCE IS ASKED BEFORE THE ISSUE IS WRITTEN, and a refusal stops it",
+  clearAt > 0 && writeAt > clearAt && /if \(cleared && "error" in cleared\) return cleared;/.test(edit.slice(clearAt, writeAt)));
+const { isSealedField } = await import("../src/platform/db/sealCipher.ts");
+ok("THE BUYER'S TAX REGISTRATION ON AN INVOICE IS SEALED — it is a client's (invariant 18)",
+  isSealedField("invoices", "buyerTax") && isSealedField("creditNotes", "buyerTax") && isSealedField("salesClients", "taxRegistration"));
+
 console.log("\n== where an invoice stands");
 ok("`prepared` is a state, and the three submission states survive only to be read",
   ["prepared", "accepted", "rejected", "pending", "submitted", "failed"].every((s) => EINVOICE_STATUSES.includes(s)));

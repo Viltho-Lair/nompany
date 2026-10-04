@@ -117,6 +117,42 @@ secrets are sealed with `encryptField` (a NOMPANY_DATA_KEY purpose subkey, invar
 when and the timing — never a key or a secret. Connecting again replaces the unit and keeps the
 timing.
 
+### Business invoices — cleared before they are issued (slice 2, 04/10/2026)
+
+**The buyer's tax registration** — VAT number, commercial registration, and the registered
+address in its parts — is recorded once on the client in Sales (`taxRegistration`,
+`shared/taxRegistration`, one form block shared with Finance) and **snapshotted onto the
+invoice** as `buyerTax` when it is raised from a project, or typed on the invoice behind "Add
+the customer's tax registration". Editable while a draft, frozen once issued, like the lines.
+Sealed: the client whole by default, the invoice's copy by name in `sealCipher` (invariant 18).
+
+**A VAT number makes a STANDARD invoice** (`zatcaBuyerOf`). It must name the buyer's VAT
+number (15 digits, 3…3) and national address — street, building, district, city and a
+five-digit postal code (BR-KSA-63) — each refused by its own name (`buyer-vat`,
+`buyer-address`, `buyer-postal`). The buyer's commercial registration is written as its
+party identification when known.
+
+**Cleared at issue, and a refusal stops the issue.** `editInvoice` asks `clearBeforeIssue`
+BEFORE it writes Draft → Sent: the invoice is prepared, stamped and sent to ZATCA's clearance
+endpoint; CLEARED and the move goes ahead with **ZATCA's own copy kept as the file** (it carries
+ZATCA's stamp and QR, read out of its indented XML by `qrOf`); refused or not reached and the
+move is REFUSED, the invoice stays a draft and the Invoices screen says why. This is the one
+e-invoicing answer that is not best-effort: an uncleared standard invoice is not a valid
+invoice. It happens whatever the studio chose for its consumer invoices. A draft edited after a
+clearance that failed drops its prepared file, so the next issue prepares the draft as it now
+is.
+
+**A unit must declare business invoices to clear them.** Units are connected with invoice types
+`1100` since 04/10/2026, and ZATCA's onboarding checks six samples — a standard invoice,
+credit note and debit note (each must come back CLEARED) and the simplified three (REPORTED).
+The standard samples name an invented buyer, never one of the studio's customers. **A unit
+connected before then declared `0100`**: a business invoice is refused with
+`unit-simplified-only` until the studio connects again.
+
+Measured against ZATCA's developer portal, 04/10/2026: a stamped standard invoice passed the
+compliance check as CLEARED with no warning, and a standard invoice and credit note were each
+CLEARED by the clearance endpoint, which returned its own stamped copy.
+
 ### Renewing the certificate
 
 A production certificate ends (the developer portal's run three years). The Tax screen says
@@ -218,10 +254,14 @@ in the queue and was reported from its row's button (ICV 2, PIH the first one's 
   the owner opens them. Nothing has been sent to either.
 - **The nightly batch has not run.** `CRON_SECRET` is empty locally, so the job fails closed
   there (invariant 15); it calls the same `submitFor` the button does, which has.
-- **Saudi business (B2B) invoices — the next slice.** An invoice records no buyer VAT number or
-  national address, so a standard invoice is refused locally, every Saudi file is simplified, and
-  the unit declares simplified only (`0100`). Clearance at issue, and connecting with `1100`,
-  come with the buyer's details.
+- **Slice 2 has not been opened in `dev:sandbox`.** The local database connection was down when
+  it was finished (04/10/2026); it is verified against ZATCA's developer portal and by the model
+  tests only.
+- **Non-Saudi buyers.** A business invoice to a buyer with no Saudi VAT number (an export, a
+  buyer registered elsewhere) is not modelled: a VAT number that is not Saudi is refused as
+  `buyer-vat`. ZATCA's rules for those (another ID scheme, an export flag) are not written.
+- **ZATCA's cleared copy is not yet what prints.** The kept file is ZATCA's copy and its QR is
+  stored, but the printed invoice is still drawn from the invoice record.
 - **Saudi credit and debit notes — the slice after.** Onboarding already signs and checks both;
   a studio's own credit notes are not yet stamped or reported.
 - **NOT TESTED AGAINST SIMULATION** — it is closed, and it needs a real taxpayer's OTP. Until it

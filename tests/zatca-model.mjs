@@ -78,8 +78,8 @@ ok("a VAT number that is not fifteen digits between 3s is refused",
   D.zatcaProblem({ ...mixed, seller: { ...seller, vatNumber: "310000000000001" } }) === "seller-vat");
 ok("a building number that is not four digits is refused",
   D.zatcaProblem({ ...mixed, seller: { ...seller, address: { ...seller.address, building: "12" } } }) === "seller-building");
-ok("A STANDARD (B2B) INVOICE WITHOUT THE BUYER'S REGISTRATION IS REFUSED — an invoice here does not carry it",
-  D.zatcaProblem(compose({ lines: [{ description: "x", qty: 1, unitPrice: 1 }] }, { subtype: "standard" })) === "buyer-details");
+ok("A STANDARD (B2B) INVOICE WITHOUT THE BUYER'S REGISTRATION IS REFUSED, naming the VAT number first",
+  D.zatcaProblem(compose({ lines: [{ description: "x", qty: 1, unitPrice: 1 }] }, { subtype: "standard" })) === "buyer-vat");
 ok("a credit note must name what it corrects and why",
   D.zatcaProblem(compose({ lines: [{ description: "x", qty: 1, unitPrice: 1 }] }, { kind: "creditNote" })) === "note-reference");
 ok("a document in another currency is refused until the riyal tax total is written",
@@ -245,6 +245,48 @@ ok("NOT_REPORTED is rejected, with the rules it broke",
 ok("NO ANSWER IS NOT A REFUSAL — an outage, a 401 or a 5xx leaves the invoice to be tried again",
   Z.reportingOutcome(0, null).outcome === "unreached" && Z.reportingOutcome(401, null).outcome === "unreached"
   && Z.reportingOutcome(503, { reportingStatus: "NOT_REPORTED" }).outcome === "unreached");
+
+console.log("\n== business invoices: the buyer, and clearance (slice 2, 04/10/2026)");
+const T = await import("@/shared/taxRegistration");
+ok("AN ALL-BLANK REGISTRATION IS NO REGISTRATION — null, not an object of blanks",
+  T.cleanTaxRegistration({ vatNumber: " ", address: { city: "" } }) === null && T.cleanTaxRegistration(undefined) === null);
+ok("a VAT number typed with spaces is the same number", T.cleanTaxRegistration({ vatNumber: "3000 0000 0000 003" }).vatNumber === "300000000000003");
+const consumer = Z.zatcaBuyerOf({ clientName: "Walk-in" });
+ok("NO VAT NUMBER, A SIMPLIFIED INVOICE naming the customer by name", consumer.subtype === "simplified" && consumer.buyer.name === "Walk-in");
+const bizTax = { vatNumber: "399999999800003", crn: "1010999999", address: { street: "King Fahd Road", building: "1234", additional: "", district: "Al Olaya", city: "Riyadh", postal: "12211" } };
+const business = Z.zatcaBuyerOf({ clientName: "Buyer Co", buyerTax: bizTax });
+ok("A VAT NUMBER MAKES A STANDARD INVOICE, with the buyer's registration", business.subtype === "standard" && business.buyer.vatNumber === bizTax.vatNumber && business.buyer.crn === bizTax.crn);
+const std = (buyer) => D.zatcaDocument({ invoice: { reference: "INV-9", issueDate: "2026-10-04", currency: "SAR", vatRate: 15, lines: [{ description: "x", qty: 1, unitPrice: 100 }] },
+  seller, buyer, subtype: "standard", uuid: "u", issueTime: "10:00:00", counter: 1, previousHash: D.ZATCA_FIRST_PIH });
+ok("a complete business buyer has no problem", D.zatcaProblem(std(business.buyer)) === "", D.zatcaProblem(std(business.buyer)));
+ok("A BAD BUYER VAT NUMBER IS NAMED AS SUCH", D.zatcaProblem(std({ ...business.buyer, vatNumber: "123" })) === "buyer-vat");
+ok("a buyer with no district is refused — BR-KSA-63 asks for the address in its parts",
+  D.zatcaProblem(std({ ...business.buyer, address: { ...bizTax.address, district: "" } })) === "buyer-address");
+ok("a four-digit buyer postal code is refused", D.zatcaProblem(std({ ...business.buyer, address: { ...bizTax.address, postal: "1221" } })) === "buyer-postal");
+const stdXml = X.zatcaInvoiceXml(std(business.buyer));
+ok("the buyer's commercial registration is written as its party identification",
+  stdXml.includes('<cac:AccountingCustomerParty><cac:Party><cac:PartyIdentification><cbc:ID schemeID="CRN">1010999999</cbc:ID>'));
+ok("A STANDARD INVOICE SAYS SO — 0100000, with its supply date", stdXml.includes('name="0100000"') && stdXml.includes("<cac:Delivery>"));
+
+// THE ANSWER ZATCA GAVE, 04/10/2026: its cleared copy is INDENTED where ours is
+// not, so the QR is found across whitespace.
+const clearedCopy = '<Invoice><cac:AdditionalDocumentReference>\n    <cbc:ID>QR</cbc:ID>\n    <cac:Attachment>\n      <cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain">QVFJ=</cbc:EmbeddedDocumentBinaryObject>\n    </cac:Attachment>\n  </cac:AdditionalDocumentReference></Invoice>';
+ok("THE QR IS READ OUT OF ZATCA'S INDENTED COPY", Z.qrOf(clearedCopy) === "QVFJ=");
+const cleared = Z.clearanceOutcome(200, { clearanceStatus: "CLEARED", clearedInvoice: Buffer.from(clearedCopy).toString("base64") });
+ok("CLEARED IS ACCEPTED, AND ZATCA'S COPY REPLACES OURS — that copy is the invoice the buyer is given",
+  cleared.outcome === "accepted" && cleared.document.xml === clearedCopy && cleared.document.qr === "QVFJ=" && cleared.document.cleared === true);
+ok("NOT_CLEARED is rejected with its rules",
+  j(Z.clearanceOutcome(400, { clearanceStatus: "NOT_CLEARED", validationResults: { errorMessages: [{ code: "BR-KSA-63", message: "address" }] } })) === j({ outcome: "rejected", message: "BR-KSA-63: address" }));
+ok("no answer is not a refusal", Z.clearanceOutcome(0, null).outcome === "unreached" && Z.clearanceOutcome(503, null).outcome === "unreached");
+
+console.log("\n== onboarding's samples");
+const both = U.sampleDocuments(seller, "2026-10-04", "10:00:00", "1100");
+ok("A UNIT FOR BOTH KINDS IS CHECKED ON SIX: standard invoice, credit and debit note, then the simplified three",
+  both.length === 6 && both.slice(0, 3).every((d) => d.subtype === "0100000") && both.slice(3).every((d) => d.subtype === "0200000")
+  && j(both.map((d) => d.typeCode)) === j(["388", "381", "383", "388", "381", "383"]));
+ok("the samples are one chain of their own, from the seed", both[0].counter === 1 && both[0].previousHash === D.ZATCA_FIRST_PIH && both[5].counter === 6 && both[1].previousHash === X.zatcaInvoiceHash(both[0]));
+ok("THE STANDARD SAMPLES NAME AN INVENTED BUYER, never one of the studio's customers", both[0].buyer.vatNumber === "399999999800003" && D.zatcaProblem(both[0]) === "");
+ok("a simplified-only unit is checked on three", U.sampleDocuments(seller, "2026-10-04", "10:00:00", "0100").length === 3);
 
 console.log(fails ? `\nzatca model: ${fails} FAILURES\n` : "\nzatca model: all passed\n");
 process.exitCode = fails ? 1 : 0;

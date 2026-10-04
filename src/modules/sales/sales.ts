@@ -12,6 +12,7 @@
 // refer to someone's identity *inside this studio*, so nothing leaks across
 // studios and a removed collaborator doesn't drag a user account with them.
 
+import { cleanTaxRegistration } from "@/shared/taxRegistration";
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
 import { updateSection, getSectionByKey } from "@/platform/db/sections";
@@ -258,6 +259,8 @@ export async function createClient(ctx: SalesContext, body: Record<string, unkno
     // way, so a write-time check would guard only the half that cannot happen.
     tagIds: cleanTagIds(body?.tagIds),
     locations: cleanLocations(body?.locations),
+    // WHAT A B2B INVOICE MUST NAME ABOUT THIS BUYER — null for a consumer.
+    taxRegistration: cleanTaxRegistration(body?.taxRegistration),
     createdByCollaboratorId: collaborator.id,
     createdAt: new Date().toISOString(),
   });
@@ -291,6 +294,7 @@ export async function editClient(ctx: SalesContext, id: string, body: Record<str
   if (body?.contacts !== undefined) patch.contacts = cleanContacts(body.contacts);
   if (body?.locations !== undefined) patch.locations = cleanLocations(body.locations);
   if (body?.tagIds !== undefined) patch.tagIds = cleanTagIds(body.tagIds);
+  if (body?.taxRegistration !== undefined) patch.taxRegistration = cleanTaxRegistration(body.taxRegistration);
 
   // AGREED RATES, CHECKED AGAINST THE CATALOGUE THEY NAME — and the catalogue
   // is read ONLY on a request that actually carries rates. Renaming a client or

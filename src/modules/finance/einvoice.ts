@@ -61,6 +61,14 @@ export type EInvoiceDocument = {
    * before it is submitted — the old unit's certificate no longer answers.
    */
   unitId?: string;
+  /**
+   * SAUDI ARABIA: which kind of tax invoice this is — a `simplified` one is
+   * REPORTED, a `standard` (B2B) one is CLEARED, and the two go to different
+   * places (./zatca). Absent on a file prepared before 04/10/2026: simplified.
+   */
+  subtype?: "standard" | "simplified";
+  /** True once the authority returned its own cleared copy and `xml` IS that copy. */
+  cleared?: boolean;
 };
 
 export type EInvoiceState = {
@@ -92,6 +100,12 @@ export type EInvoiceState = {
 export type EInvoiceSubmission = {
   outcome: "accepted" | "rejected" | "unreached";
   message: string;
+  /**
+   * WHAT REPLACES THE KEPT FILE once accepted, where the authority hands back
+   * its own copy — a cleared ZATCA invoice carries ZATCA's stamp and QR, and
+   * that copy, not ours, is the invoice the buyer is given.
+   */
+  document?: Pick<EInvoiceDocument, "xml" | "qr" | "cleared">;
 };
 
 /** What an adapter is handed, and what it answers: the document, or why it cannot be made. */
@@ -120,6 +134,12 @@ export type EInvoiceAdapter = {
    * other way.
    */
   submission?: (studio: Record<string, unknown>) => Promise<{ timing: "immediate" | "daily"; since: string } | null>;
+  /**
+   * WHETHER THIS INVOICE MUST BE CLEARED BEFORE IT IS ISSUED — a Saudi
+   * business invoice is not valid until ZATCA clears it, so it is cleared at
+   * issue whatever the studio chose for its reported ones.
+   */
+  clearsAtIssue?: (invoice: Record<string, unknown>) => boolean;
 };
 
 /** THE ADAPTERS, by the key a country's definition names. `docs/progress.md` holds the work list. */

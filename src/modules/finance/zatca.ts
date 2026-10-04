@@ -10,8 +10,8 @@
 //
 // TWO PATHS, by whether the studio has onboarded a unit (./zatcaUnit):
 //   onboarded — the document is stamped as it is prepared, and `submit`
-//               reports it (simplified invoices; clearance of standard ones
-//               is the next slice)
+//               REPORTS a simplified one or CLEARS a standard one (B2B,
+//               since 04/10/2026 — a buyer with a VAT number makes it one)
 //   not yet   — the document is prepared unsigned, exactly as before, to
 //               download; there is nothing to submit it with
 //
@@ -37,7 +37,8 @@ import { zatcaQr } from "./zatcaQr";
 import { qrFieldsOf, stampZatca } from "./zatcaSign";
 import { readZatcaCertificate } from "./zatcaCrypto";
 import { readZatcaUnit, zatcaUnitSummary } from "./zatcaUnit";
-import { reportInvoice, zatcaMessages } from "./zatcaApi";
+import { reportInvoice, clearInvoice, zatcaMessages } from "./zatcaApi";
+import { isBusinessBuyer, cleanTaxRegistration } from "@/shared/taxRegistration";
 
 // ---- the seller, from the official values ------------------------------------------------
 
@@ -140,6 +141,48 @@ export function reportingOutcome(status: number, body: Record<string, unknown> |
   return { outcome: "unreached", message: status ? `zatca-${status}` : "zatca-unreachable" };
 }
 
+/**
+ * WHAT ZATCA'S CLEARANCE ANSWER MEANS — the same three outcomes as reporting.
+ * CLEARED (200, or 202 with warnings) hands back ZATCA's own copy, which
+ * becomes the invoice: `clearedXml` is that copy decoded.
+ */
+export function clearanceOutcome(status: number, body: Record<string, unknown> | null): EInvoiceSubmission {
+  const { errors, warnings } = zatcaMessages(body);
+  if ((status === 200 || status === 202) && body?.clearanceStatus === "CLEARED" && typeof body.clearedInvoice === "string") {
+    const xml = Buffer.from(body.clearedInvoice, "base64").toString("utf8");
+    return { outcome: "accepted", message: warnings.join(" · ").slice(0, 300), document: { xml, qr: qrOf(xml), cleared: true } };
+  }
+  if (status === 400 && body?.clearanceStatus === "NOT_CLEARED") {
+    return { outcome: "rejected", message: errors.join(" · ").slice(0, 300) || "NOT_CLEARED" };
+  }
+  return { outcome: "unreached", message: status ? `zatca-${status}` : "zatca-unreachable" };
+}
+
+/**
+ * THE QR IN A DOCUMENT ZATCA RETURNED. Its copy is indented where ours is not,
+ * so the reference is found allowing for whitespace between the elements.
+ */
+export function qrOf(xml: string): string {
+  const m = xml.match(/<cbc:ID>QR<\/cbc:ID>[\s\S]*?<cbc:EmbeddedDocumentBinaryObject[^>]*>([^<]+)<\/cbc:EmbeddedDocumentBinaryObject>/);
+  return m ? m[1].trim() : "";
+}
+
+/**
+ * THE BUYER, from the invoice's snapshot of the customer's tax registration.
+ * A VAT number makes a business buyer, and a business buyer makes a STANDARD
+ * invoice; without one the invoice is simplified and names the customer by
+ * name alone, as before.
+ */
+export function zatcaBuyerOf(invoice: { clientName?: unknown; buyerTax?: unknown }) {
+  const name = String(invoice.clientName || "").trim().slice(0, 160);
+  const tax = cleanTaxRegistration(invoice.buyerTax);
+  if (!isBusinessBuyer(tax)) return { subtype: "simplified" as const, buyer: name ? { name } : null };
+  return {
+    subtype: "standard" as const,
+    buyer: { name, vatNumber: tax!.vatNumber, ...(tax!.crn ? { crn: tax!.crn } : {}), address: tax!.address },
+  };
+}
+
 // ---- the adapter --------------------------------------------------------------------------------
 
 /**
@@ -158,9 +201,15 @@ export const zatcaAdapter: EInvoiceAdapter = {
     const issueTime = issueTimeOf(invoice as { issueDate?: unknown; createdAt?: unknown }, studioTimezone(studio as { timezone?: unknown }));
     const uuid = randomUUID();
     const unit = await readZatcaUnit(studioId);
+    const { subtype, buyer } = zatcaBuyerOf(invoice as { clientName?: unknown; buyerTax?: unknown });
+    // A UNIT DECLARED FOR SIMPLIFIED INVOICES ALONE (every unit connected before
+    // 04/10/2026, invoice types "0100") holds no certificate ZATCA will clear a
+    // business invoice under. Said before a chain link is taken: connecting
+    // again declares both.
+    if (subtype === "standard" && unit && unit.invoiceTypes[0] !== "1") return { problem: "unit-simplified-only" };
     const out = await buildNextInChain(studioId, unit?.id || "", (link) => zatcaDocument({
       invoice: invoice as Parameters<typeof zatcaDocument>[0]["invoice"],
-      seller, uuid, issueTime, counter: link.counter, previousHash: link.previousHash,
+      seller, buyer, subtype, uuid, issueTime, counter: link.counter, previousHash: link.previousHash,
     }));
     if ("problem" in out) return out;
     const filename = `${out.id || "invoice"}-zatca.xml`;
@@ -172,7 +221,7 @@ export const zatcaAdapter: EInvoiceAdapter = {
         certificate: readZatcaCertificate(unit.production.token),
         signingTime: new Date().toISOString().slice(0, 19),
       });
-      return { xml: stamp.xml, filename, qr: stamp.qr, hash: stamp.hash, counter: out.counter, uuid: out.uuid, unitId: unit.id };
+      return { xml: stamp.xml, filename, qr: stamp.qr, hash: stamp.hash, counter: out.counter, uuid: out.uuid, unitId: unit.id, subtype };
     }
     const qr = sellerQr(out);
     return {
@@ -182,6 +231,7 @@ export const zatcaAdapter: EInvoiceAdapter = {
       hash: zatcaInvoiceHash(out),
       counter: out.counter,
       uuid: out.uuid,
+      subtype,
     };
   },
   async submit({ studio, document }) {
@@ -191,9 +241,18 @@ export const zatcaAdapter: EInvoiceAdapter = {
     // A FILE ANOTHER UNIT SIGNED (or none did) cannot be reported with this
     // one's certificate; the service prepares it again before it gets here.
     if (document.unitId !== unit.id || !document.hash || !document.uuid) return { outcome: "unreached", message: "unsigned" };
-    const answer = await reportInvoice(unit.environment, unit.production, { hash: document.hash, uuid: document.uuid, xml: document.xml });
+    // CLEARED ALREADY: its xml is ZATCA's copy now, and sending ZATCA its own
+    // document back would only collect a duplicate refusal.
+    if (document.cleared) return { outcome: "accepted", message: "" };
+    const sent = { hash: document.hash, uuid: document.uuid, xml: document.xml };
+    if (document.subtype === "standard") {
+      const answer = await clearInvoice(unit.environment, unit.production, sent);
+      return clearanceOutcome(answer.status, answer.body);
+    }
+    const answer = await reportInvoice(unit.environment, unit.production, sent);
     return reportingOutcome(answer.status, answer.body);
   },
+  clearsAtIssue: (invoice) => zatcaBuyerOf(invoice as { clientName?: unknown; buyerTax?: unknown }).subtype === "standard",
   async submission(studio) {
     const studioId = String((studio as { id?: unknown }).id || "");
     const unit = studioId ? await zatcaUnitSummary(studioId) : null;

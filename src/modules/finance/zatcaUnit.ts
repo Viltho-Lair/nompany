@@ -131,21 +131,36 @@ export async function setZatcaTiming(studioId: string, timing: unknown) {
 // ---- onboarding -------------------------------------------------------------------------------
 
 /**
- * THE SAMPLE ZATCA CHECKS, one per document kind a simplified-only unit
- * declares: an invoice, a credit note and a debit note, on a chain of their
- * own — they are onboarding's documents, not the studio's, and taking links
- * from the studio's chain would put three invoices in it nobody issued.
+ * THE SAMPLE ZATCA CHECKS, one per document kind the unit declares — an
+ * invoice, a credit note and a debit note of each of the two kinds, standard
+ * first — on a chain of their own: they are onboarding's documents, not the
+ * studio's, and taking links from the studio's chain would put six invoices in
+ * it nobody issued.
+ *
+ * THE STANDARD SAMPLES NAME AN INVENTED BUYER (VAT 399999999800003, the
+ * pattern ZATCA's own samples use). A check document is never issued to
+ * anybody, and naming one of the studio's real customers in it would send that
+ * customer's details to ZATCA for no invoice at all.
  */
-function sampleDocuments(seller: ZatcaSeller, today: string, time: string) {
-  const kinds: ZatcaDocumentKind[] = ["invoice", "creditNote", "debitNote"];
+const SAMPLE_BUYER = {
+  name: "Sample buyer", vatNumber: "399999999800003",
+  address: { street: "King Fahd Road", building: "1234", additional: "", district: "Al Olaya", city: "Riyadh", postal: "12211" },
+};
+export function sampleDocuments(seller: ZatcaSeller, today: string, time: string, invoiceTypes: string) {
+  const plan: Array<{ subtype: "standard" | "simplified"; kind: ZatcaDocumentKind }> = [];
+  for (const subtype of ["standard", "simplified"] as const) {
+    if ((subtype === "standard" ? invoiceTypes[0] : invoiceTypes[1]) !== "1") continue;
+    for (const kind of ["invoice", "creditNote", "debitNote"] as ZatcaDocumentKind[]) plan.push({ subtype, kind });
+  }
   let previousHash = ZATCA_FIRST_PIH;
-  return kinds.map((kind, i) => {
+  return plan.map(({ subtype, kind }, i) => {
     const doc = zatcaDocument({
       invoice: {
         reference: `ONBOARD-${i + 1}`, issueDate: today, currency: "SAR", vatRate: 15,
         lines: [{ description: "Onboarding check", qty: 1, unitPrice: 100, taxCategory: "standard" }],
       },
-      seller, buyer: null, uuid: randomUUID(), issueTime: time, counter: i + 1, previousHash, kind,
+      seller, buyer: subtype === "standard" ? SAMPLE_BUYER : null, subtype,
+      uuid: randomUUID(), issueTime: time, counter: i + 1, previousHash, kind,
       ...(kind === "invoice" ? {} : { billingReference: "ONBOARD-1", reason: "Onboarding check" }),
     });
     previousHash = zatcaInvoiceHash(doc);
@@ -235,7 +250,10 @@ export async function onboardZatcaUnit(input: {
   const now = new Date();
   const today = dayIn(now, studioTimezone(studio));
   const time = now.toISOString().slice(11, 19);
-  const samples = sampleDocuments(seller, today, time);
+  // BOTH KINDS since 04/10/2026: a business invoice is cleared, and a unit can
+  // only clear what its certificate declared.
+  const invoiceTypes = "1100";
+  const samples = sampleDocuments(seller, today, time, invoiceTypes);
   // THE STUDIO'S OWN SETTINGS FIRST: a seller ZATCA will refuse is named here,
   // before an OTP is spent on it.
   const problem = zatcaProblem(samples[0]);
@@ -245,7 +263,6 @@ export async function onboardZatcaUnit(input: {
   const key = newZatcaKey();
   const commonName = `nompany-${String(studio.slug || studio.id).slice(0, 40)}`;
   const serialNumber = `1-nompany|2-erp|3-${id}`;
-  const invoiceTypes = "0100";
   const csr = zatcaCsr(csrInput({ environment, commonName, serialNumber, invoiceTypes }, seller, studio), key.privateKeyPem);
 
   const issued = await requestComplianceCsid(environment, otp, csr);
@@ -258,9 +275,12 @@ export async function onboardZatcaUnit(input: {
 
   for (const doc of samples) {
     const stamp = stampZatca(doc, { privateKeyPem: key.privateKeyPem, certificate, signingTime: new Date().toISOString().slice(0, 19) });
-    const checked = await checkCompliance(environment, compliance, { hash: stamp.hash, uuid: doc.uuid, xml: stamp.xml });
+    const checked = await checkCompliance(environment, compliance, { hash: stamp.hash, uuid: doc.uuid, xml: stamp.xml }, doc.subtype === "0100000");
     const words = zatcaMessages(checked.body);
-    if (checked.status !== 200 || checked.body?.reportingStatus !== "REPORTED") {
+    // A STANDARD SAMPLE IS CLEARED, A SIMPLIFIED ONE REPORTED — each judged
+    // by the answer its own kind gets.
+    const passed = doc.subtype === "0100000" ? checked.body?.clearanceStatus === "CLEARED" : checked.body?.reportingStatus === "REPORTED";
+    if (checked.status !== 200 || !passed) {
       return { error: checked.status ? "zatca-check-failed" : "zatca-unreachable", detail: words.errors };
     }
   }

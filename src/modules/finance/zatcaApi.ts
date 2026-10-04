@@ -6,13 +6,14 @@
 // `tests/einvoice-model.mjs` holds the line: no other file names an
 // authority's host, and no other e-invoicing file calls fetch.
 //
-// FIVE CALLS, as ZATCA's onboarding and reporting guide names them:
+// SIX CALLS, as ZATCA's onboarding and reporting guide names them:
 //   POST  /compliance             — an OTP and a certificate request → a COMPLIANCE certificate
 //   POST  /compliance/invoices    — a sample document, checked and nothing more
 //   POST  /production/csids       — the compliance request id → the PRODUCTION certificate
 //   PATCH /production/csids       — an OTP and a new request, signed in with the current
 //                                   production certificate → its RENEWAL
 //   POST  /invoices/reporting/single — a simplified invoice, reported
+//   POST  /invoices/clearance/single — a standard invoice, cleared before it is issued
 // Authentication is HTTP Basic over the certificate token and its secret.
 //
 // ONLY THE DEVELOPER PORTAL IS OPEN — the owner, 03/10/2026: ZATCA is called
@@ -73,8 +74,8 @@ export const requestComplianceCsid = (environment: ZatcaEnvironment, otp: string
   call(environment, "/compliance", { csr }, { OTP: otp });
 
 /** One sample document, checked against ZATCA's rules and recorded as part of onboarding. */
-export const checkCompliance = (environment: ZatcaEnvironment, credentials: ZatcaCredentials, doc: { hash: string; uuid: string; xml: string }) =>
-  call(environment, "/compliance/invoices", { invoiceHash: doc.hash, uuid: doc.uuid, invoice: Buffer.from(doc.xml, "utf8").toString("base64") }, basic(credentials));
+export const checkCompliance = (environment: ZatcaEnvironment, credentials: ZatcaCredentials, doc: { hash: string; uuid: string; xml: string }, standard = false) =>
+  call(environment, "/compliance/invoices", { invoiceHash: doc.hash, uuid: doc.uuid, invoice: Buffer.from(doc.xml, "utf8").toString("base64") }, { ...basic(credentials), "Clearance-Status": standard ? "1" : "0" });
 
 /** Once the checks passed: the production certificate. */
 export const requestProductionCsid = (environment: ZatcaEnvironment, credentials: ZatcaCredentials, complianceRequestId: string) =>
@@ -87,6 +88,14 @@ export const renewProductionCsid = (environment: ZatcaEnvironment, credentials: 
 /** A simplified invoice (or note), reported. `Clearance-Status: 0` says it is not a clearance. */
 export const reportInvoice = (environment: ZatcaEnvironment, credentials: ZatcaCredentials, doc: { hash: string; uuid: string; xml: string }) =>
   call(environment, "/invoices/reporting/single", { invoiceHash: doc.hash, uuid: doc.uuid, invoice: Buffer.from(doc.xml, "utf8").toString("base64") }, { ...basic(credentials), "Clearance-Status": "0" });
+
+/**
+ * A STANDARD (B2B) invoice, CLEARED — `Clearance-Status: 1`. ZATCA answers with
+ * its own copy of the document (`clearedInvoice`), stamped and carrying the QR
+ * it issued, and THAT copy is the invoice the buyer is given.
+ */
+export const clearInvoice = (environment: ZatcaEnvironment, credentials: ZatcaCredentials, doc: { hash: string; uuid: string; xml: string }) =>
+  call(environment, "/invoices/clearance/single", { invoiceHash: doc.hash, uuid: doc.uuid, invoice: Buffer.from(doc.xml, "utf8").toString("base64") }, { ...basic(credentials), "Clearance-Status": "1" });
 
 /** ZATCA's messages, flattened to their words — what a studio is shown. */
 export function zatcaMessages(body: Record<string, unknown> | null): { errors: string[]; warnings: string[] } {

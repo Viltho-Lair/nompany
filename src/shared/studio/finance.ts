@@ -462,6 +462,8 @@ type Strings = CommonStrings & {
   einvProblem: (code: string) => string;
   /** Saudi Arabia, where nompany submits (the owner's decision A, 03/10/2026). */
   einvSubmitsHow: (system: string) => string;
+  mNotCleared: (detail: string) => string;
+  mClearanceUnreached: string;
   einvConnectFirst: (system: string) => string;
   einvSubmit: (system: string) => string;
   einvSubmitted: (outcome: string) => string;
@@ -963,6 +965,8 @@ const en: Strings = {
   einvCancel: "Cancel",
   einvSubmitsHow: (system) => `nompany signs each invoice and reports it to ${system}, when you chose below. A row stays here until ${system} accepts it; one it rejects says why.`,
   einvSubmit: (system) => `Submit to ${system}`,
+  mNotCleared: (detail) => `ZATCA did not clear this business invoice, so it has not been issued${detail ? `: ${detail}` : "."}`,
+  mClearanceUnreached: "ZATCA could not be reached to clear this business invoice, so it has not been issued. Try again shortly.",
   einvConnectFirst: (system) => `Connect to ZATCA below and nompany signs each invoice and reports it to ${system} for you. Until then, download each invoice's file and submit it through ${system} yourself.`,
   einvSubmitted: (outcome) => ({ accepted: "Accepted by ZATCA.", rejected: "ZATCA rejected it — the reason is on the row.", unreached: "ZATCA was not reached. It will be tried again tonight." } as Record<string, string>)[outcome] || outcome,
   zatcaTitle: "Connection to ZATCA",
@@ -998,7 +1002,11 @@ const en: Strings = {
     "seller-building": "Set the national address building number (4 digits) in Studio settings → Official values.",
     "seller-postal": "Set the national address postal code (5 digits) in Studio settings → Official values.",
     "exemption-reason": "This invoice has a zero-rated or exempt line, and its reason code cannot be recorded yet, so its file cannot be prepared here.",
-    "buyer-details": "A business-to-business invoice needs the buyer's VAT number and address, which invoices here do not record yet.",
+    "buyer-details": "A business invoice needs the buyer's name.",
+    "buyer-vat": "The buyer's VAT number must be 15 digits, starting and ending with 3 — fix it in the invoice's tax registration.",
+    "buyer-address": "A business invoice needs the buyer's national address: street, building number, district and city.",
+    "buyer-postal": "The buyer's postal code must be 5 digits.",
+    "unit-simplified-only": "This company's ZATCA connection was made for consumer invoices only. Connect again on the Tax screen to issue business invoices.",
     currency: "Only invoices in riyals can be prepared.",
     lines: "The invoice has no lines.",
     "issue-date": "The invoice has no issue date.",
@@ -1496,6 +1504,8 @@ const ar: Strings = {
   einvCancel: "إلغاء",
   einvSubmitsHow: (system) => `يوقّع نومباني كل فاتورة ويبلغ عنها ${system} في الموعد الذي تختاره أدناه. يبقى السطر هنا حتى يقبلها ${system}، والمرفوضة تذكر السبب.`,
   einvSubmit: (system) => `إرسال إلى ${system}`,
+  mNotCleared: (detail) => `لم تعتمد الهيئة فاتورة المنشأة هذه، فلم تصدر${detail ? `: ${detail}` : "."}`,
+  mClearanceUnreached: "تعذر الوصول إلى الهيئة لاعتماد فاتورة المنشأة هذه، فلم تصدر. حاول بعد قليل.",
   einvConnectFirst: (system) => `اربط مع الهيئة أدناه فيوقّع نومباني كل فاتورة ويبلغ عنها ${system} عنك. وحتى ذلك، نزّل ملف كل فاتورة وقدّمه عبر ${system} بنفسك.`,
   einvSubmitted: (outcome) => ({ accepted: "قبلتها هيئة الزكاة والضريبة والجمارك.", rejected: "رفضتها الهيئة — السبب على السطر.", unreached: "تعذر الوصول إلى الهيئة. ستعاد المحاولة الليلة." } as Record<string, string>)[outcome] || outcome,
   zatcaTitle: "الربط مع هيئة الزكاة والضريبة والجمارك",
@@ -1531,7 +1541,11 @@ const ar: Strings = {
     "seller-building": "حدد رقم المبنى في العنوان الوطني (4 أرقام) في إعدادات الاستوديو ← القيم الرسمية.",
     "seller-postal": "حدد الرمز البريدي في العنوان الوطني (5 أرقام) في إعدادات الاستوديو ← القيم الرسمية.",
     "exemption-reason": "في الفاتورة بند معفى أو بنسبة صفر، ولا يمكن تسجيل رمز سببه بعد، فلا يعد ملفها هنا.",
-    "buyer-details": "فاتورة منشأة لمنشأة تحتاج الرقم الضريبي للمشتري وعنوانه، ولا تسجلهما الفواتير هنا بعد.",
+    "buyer-details": "فاتورة المنشأة تحتاج اسم المشتري.",
+    "buyer-vat": "الرقم الضريبي للمشتري 15 رقما يبدأ وينتهي بـ 3 — صححه في التسجيل الضريبي للفاتورة.",
+    "buyer-address": "فاتورة المنشأة تحتاج العنوان الوطني للمشتري: الشارع ورقم المبنى والحي والمدينة.",
+    "buyer-postal": "الرمز البريدي للمشتري 5 أرقام.",
+    "unit-simplified-only": "ربط المنشأة مع الهيئة أنشئ لفواتير المستهلكين فقط. اربط من جديد من شاشة الضرائب لإصدار فواتير المنشآت.",
     currency: "تعد الفواتير بالريال فقط.",
     lines: "الفاتورة بلا بنود.",
     "issue-date": "الفاتورة بلا تاريخ إصدار.",

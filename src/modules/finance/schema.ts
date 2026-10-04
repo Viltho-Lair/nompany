@@ -153,6 +153,21 @@ export const InvoiceSchema = z.object({
     after: z.number().optional(),
   }).optional(),
   clientName: z.string().max(160),
+  /**
+   * THE BUYER'S TAX REGISTRATION AS IT STOOD WHEN THE INVOICE WAS RAISED
+   * (04/10/2026) — a snapshot like `clientName`, copied from the project's
+   * client or typed on the invoice, editable while it is a draft. A VAT number
+   * here is what makes a Saudi invoice a STANDARD one, cleared by ZATCA before
+   * it is issued (modules/finance/zatca). Sealed at rest: it is a client's.
+   */
+  buyerTax: z.object({
+    vatNumber: z.string(),
+    crn: z.string(),
+    address: z.object({
+      street: z.string(), building: z.string(), additional: z.string(),
+      district: z.string(), city: z.string(), postal: z.string(),
+    }),
+  }).nullable().optional(),
   lines: z.array(InvoiceLineSchema),
   vatRate: z.number().min(0).max(100),
   /**

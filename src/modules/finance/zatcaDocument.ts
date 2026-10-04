@@ -25,12 +25,11 @@
 //    street, district, city, postal code — which the country's official values
 //    already ask a Saudi studio for.
 //
-// SIMPLIFIED ONLY, FOR NOW. A simplified tax invoice (B2C, `0200000`) is
-// REPORTED; a standard one (B2B, `0100000`) is CLEARED and must name the buyer's
-// VAT number and national address, which an invoice in this product does not
-// record. `buyer` is accepted so the day a client carries them nothing here
-// changes shape — and `zatcaProblem` refuses a standard invoice without them
-// rather than preparing one ZATCA will reject.
+// BOTH KINDS. A simplified tax invoice (B2C, `0200000`) is REPORTED; a
+// standard one (B2B, `0100000`) is CLEARED and must name the buyer's VAT
+// number and national address — which an invoice records since 04/10/2026 as
+// `buyerTax` (shared/taxRegistration). `zatcaProblem` refuses a standard
+// invoice without them rather than preparing one ZATCA will reject.
 
 import { documentTotals } from "@/shared/documentTotals";
 import { roundMoney } from "@/shared/money";
@@ -86,6 +85,8 @@ export type ZatcaSeller = {
 export type ZatcaBuyer = {
   name: string;
   vatNumber?: string;
+  /** The buyer's commercial registration — written when known, beside the VAT number. */
+  crn?: string;
   address?: Partial<ZatcaAddress>;
 };
 
@@ -283,10 +284,17 @@ export function zatcaProblem(doc: ZatcaDocument): string {
   // A NOTE MUST SAY WHAT IT CORRECTS AND WHY (BR-KSA-17, BR-KSA-56).
   if (doc.typeCode !== "388" && (!doc.billingReference || !doc.reason)) return "note-reference";
   if (doc.subtotals.some((t) => t.category !== "S" && !t.exemptionCode)) return "exemption-reason";
-  // A STANDARD INVOICE NAMES ITS BUYER'S REGISTRATION — see the header.
+  // A STANDARD INVOICE NAMES ITS BUYER'S REGISTRATION — see the header. A
+  // Saudi buyer's national address in its parts (BR-KSA-63): street, building,
+  // district, city and a five-digit postal code. Each is named, because each
+  // is fixed on the client record by somebody who has to know which.
   if (doc.subtype === ZATCA_SUBTYPES.standard) {
     const b = doc.buyer;
-    if (!b?.name || !isSaudiVatNumber(b.vatNumber) || !b.address?.street || !b.address?.city) return "buyer-details";
+    if (!b?.name) return "buyer-details";
+    if (!isSaudiVatNumber(b.vatNumber)) return "buyer-vat";
+    const a = b.address || {};
+    if (!a.street || !a.district || !a.city || !a.building) return "buyer-address";
+    if (!/^\d{5}$/.test(String(a.postal || ""))) return "buyer-postal";
   }
   return "";
 }

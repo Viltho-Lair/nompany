@@ -95,7 +95,8 @@ async function required(t: EInvoiceTarget, invoiceId: string) {
  * corrected and resubmitted as a new document — or when `fresh` says the kept
  * one cannot be submitted (a unit that has since been replaced signed it).
  */
-async function prepareFor(t: EInvoiceTarget, invoice: EInvoiced, rules: EInvoiceRules, state: string, fresh = false) {
+type Prepared = { document: EInvoiceDocument } | { error: string; system?: string; detail?: string };
+async function prepareFor(t: EInvoiceTarget, invoice: EInvoiced, rules: EInvoiceRules, state: string, fresh = false): Promise<Prepared> {
   const adapter = adapterFor(rules);
   if (!adapter) return { error: "no-adapter", system: rules.system };
   const kept = invoice.einvoice?.document;
@@ -170,7 +171,8 @@ async function submitFor(t: EInvoiceTarget, invoice: EInvoiced, rules: EInvoiceR
     if ("error" in prepared) return prepared;
     answer = await adapter.submit({ studio: studioOf(t), document: prepared.document as EInvoiceDocument });
   }
-  const document = prepared.document as EInvoiceDocument;
+  // THE AUTHORITY'S OWN COPY, where it handed one back (a cleared invoice).
+  const document = { ...(prepared.document as EInvoiceDocument), ...(answer.outcome === "accepted" && answer.document ? answer.document : {}) };
   const at = new Date().toISOString();
   const updated = await Invoices.update(cash(t), invoice.id, (cur) => {
     const prior = cur.einvoice || null;
@@ -217,6 +219,8 @@ export async function submitOnIssue(t: EInvoiceTarget, invoiceId: string) {
     const when = await adapter.submission(studioOf(t));
     if (!when || when.timing !== "immediate") return null;
     const out = await leased(t, invoiceId, async (found) => {
+      // CLEARED BEFORE IT WAS ISSUED (a business invoice — clearBeforeIssue).
+      if (found.state === "accepted") return null;
       if (String(found.invoice.issueDate || "") < when.since) return null;
       return submitFor(t, found.invoice, found.rules, found.state);
     });
@@ -224,6 +228,49 @@ export async function submitOnIssue(t: EInvoiceTarget, invoiceId: string) {
     return out && "error" in out ? null : out;
   } catch {
     return { outcome: "unreached" as const, message: "einvoice-error" };
+  }
+}
+
+/**
+ * A BUSINESS INVOICE IS CLEARED BEFORE IT IS ISSUED — the owner's decision A,
+ * 03/10/2026: "B2B cleared at issue". ZATCA's clearance is what makes a Saudi
+ * standard invoice VALID, so issuing one first and clearing it after would hand
+ * a client a document that is not yet an invoice. Called by `editInvoice` on
+ * the Draft → Sent move, BEFORE the move is written, with the invoice as it is
+ * about to be issued:
+ *
+ *   null              — nothing to clear: no submitting adapter, the studio is
+ *                       not connected (it issues as before and submits itself),
+ *                       or this is not a business invoice
+ *   { einvoice }      — cleared; the move goes ahead and ZATCA's copy is kept
+ *   { error, detail } — refused or not reached; the move is REFUSED and the
+ *                       invoice stays a draft, with ZATCA's words
+ *
+ * A refusal still took a chain link (ZATCA counts every document the unit
+ * makes), and the next attempt prepares a new document — the state on the
+ * draft says `rejected`, which is what tells `prepareFor` to.
+ */
+export async function clearBeforeIssue(t: EInvoiceTarget, invoiceId: string, issuing: Record<string, unknown>) {
+  const rules = studioEInvoiceRules(t.studio);
+  const adapter = adapterFor(rules);
+  if (!rules || !adapter?.submit || !adapter.submission || !adapter.clearsAtIssue?.(issuing)) return null;
+  if (!(await adapter.submission(studioOf(t)))) return null;
+  const key = S.einvoiceLease(t.studio.id, invoiceId);
+  if (!(await claim(key, randomUUID(), LEASE_SEC))) return { error: "einvoice-busy" as const };
+  try {
+    const fresh = (await Invoices.find(cash(t))).find((i) => i.id === invoiceId);
+    if (!fresh) return { error: "notfound" as const };
+    const invoice = { ...fresh, ...issuing, id: fresh.id, einvoice: fresh.einvoice, status: "Sent" } as EInvoiced;
+    const state = einvoiceStatusOf(invoice, rules);
+    // BEFORE THE MANDATE: nothing to clear.
+    if (state === "not-required") return null;
+    if (state === "accepted") return { einvoice: fresh.einvoice };
+    const out = await submitFor(t, invoice, rules, state);
+    if ("error" in out) return out;
+    if (out.outcome === "accepted") return { einvoice: out.einvoice };
+    return { error: out.outcome === "rejected" ? "einvoice-not-cleared" as const : "einvoice-unreached" as const, detail: out.message };
+  } finally {
+    await release(key);
   }
 }
 

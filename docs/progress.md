@@ -1806,8 +1806,10 @@ first, then business, then notes.
   nothing, the key and secrets sealed. Every invoice prepared after is stamped (nine-tag QR) on
   the unit's own chain and reported as it is issued or nightly, as the studio chose. Verified
   against ZATCA's developer portal and in `dev:sandbox`. **Only the developer portal is open.**
-- ⬜ **Slice 2 — business (B2B) invoices:** the buyer's VAT number and national address on the
-  client record and the invoice, a unit declared `1100`, and clearance at issue.
+- ✅ **Slice 2 — business (B2B) invoices (04/10/2026):** the buyer's tax registration on the
+  client and snapshotted on the invoice, a unit declared `1100` with six onboarding samples, and
+  clearance BEFORE issue (a refusal leaves the invoice a draft). Verified against the developer
+  portal; **not yet opened in `dev:sandbox`** (the database connection was down).
 - ⬜ **Slice 3 — credit and debit notes** stamped and reported. Refunds are not, so a studio
   over-declares output tax. The composer and onboarding already take both.
 - ⬜ **Opening simulation, then production** — the owner's decision, one line in `zatcaApi.ts`.

@@ -25,6 +25,7 @@ import { rfqInfo, isUnresolved } from "@/modules/sales/salesAnalytics";
 import { useAnalyticsLevel } from "@/components/studio2/analyticsLevel";
 import { StatusPill } from "@/components/studio2/StatusPill";
 import { useStudioLocale } from "@/components/studio2/locale";
+import TaxRegistrationFields from "@/components/studio2/TaxRegistrationFields";
 import { salesDict, liveColumnLabel } from "@/shared/studio/sales";
 import { clientTagsDict } from "@/shared/studio/clientTags";
 import { useReload } from "@/components/studio2/useReload";
@@ -845,6 +846,9 @@ function ClientForm({ row, cities, positions, tags = [], onSave, onCancel }) {
   // IDS, NOT NAMES. The register may rename a tag tomorrow and this client
   // keeps it — see modules/administration/clientTags.
   const [tagIds, setTagIds] = useState(row?.tagIds || []);
+  // WHAT A B2B INVOICE MUST NAME ABOUT THIS CUSTOMER — copied onto an invoice
+  // raised from one of its projects (shared/taxRegistration).
+  const [taxRegistration, setTaxRegistration] = useState(row?.taxRegistration || null);
   const [busy, setBusy] = useState(false);
 
   return (
@@ -901,12 +905,14 @@ function ClientForm({ row, cities, positions, tags = [], onSave, onCancel }) {
         )}
       </div>
 
+      <TaxRegistrationFields value={taxRegistration} onChange={setTaxRegistration} />
+
       <Field label={tr.notes} as="textarea" value={f.notes} onChange={(v) => setF((p) => ({ ...p, notes: v }))} className="mt-5" />
 
       <div className="mt-5 flex gap-3">
         <button className={btn} disabled={busy || !f.name.trim()} onClick={async () => {
           setBusy(true);
-          await onSave({ name: f.name, industry: f.industry, website: f.website, logo: f.logo, notes: f.notes, contacts, locations, tagIds });
+          await onSave({ name: f.name, industry: f.industry, website: f.website, logo: f.logo, notes: f.notes, contacts, locations, tagIds, taxRegistration });
           setBusy(false);
         }}>{busy ? tr.saving : tr.saveClient}</button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>

@@ -15,6 +15,7 @@
 // plus expenses booked here. Nothing is copied into Finance and left to rot —
 // it is recomputed on every read.
 
+import { cleanTaxRegistration } from "@/shared/taxRegistration";
 import { readDunningDays } from "./credit";
 import { readCloseTasks } from "./closeChecklist";
 import { requirePermission, ALL_PERMISSIONS } from "@/platform/access";
@@ -60,6 +61,7 @@ const Projects = repo(PROJECTS);
 // Read beside the invoices so the receivable counts what was credited back.
 const CreditNoteRows = repo<{ id: string; invoiceId: string; status: string; amount: number }>("creditNotes");
 const SaleItems = repo<{ id: string; name: string; sku?: string; sellPrice?: unknown; taxCategory?: string }>("inventoryItems");
+const Clients = repo<{ id: string; taxRegistration?: unknown }>("salesClients");
 const Orders = repo(ORDERS);
 
 export const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Cancelled"];
@@ -353,6 +355,10 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
   const { studio, cashSection, collaborator } = ctx;
   const projectId = str(body?.projectId, 60);
   let clientName = str(body?.clientName, 160);
+  // THE BUYER'S TAX REGISTRATION: as typed on the invoice, or — when nothing
+  // was typed — the project's client's own, so a B2B customer recorded once in
+  // Sales does not have to be re-typed on every invoice.
+  let buyerTax = cleanTaxRegistration(body?.buyerTax);
 
   if (projectId) {
     const projects = await projectRows(ctx);
@@ -361,6 +367,7 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
     // Snapshot the client, so the invoice still reads correctly if the project
     // is edited later.
     clientName = clientName || String(project.clientName || "");
+    if (!buyerTax && project.clientId) buyerTax = await clientTaxRegistration(ctx, String(project.clientId));
   }
   if (!clientName) return { error: "client" };
 
@@ -402,6 +409,7 @@ export async function createInvoice(ctx: FinanceContext, body: Record<string, un
     withholdingLabel: str(body?.withholdingLabel, 80),
     certificateRef: str(body?.certificateRef, 80),
     clientName,
+    buyerTax,
     lines,
     vatRate: documentVatRate(studio, body?.vatRate),
     // FROZEN like the currency below: how the studio's country adds tax up.
@@ -462,6 +470,12 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
     if (issued) return { error: "issued" };
     patch.vatRate = documentVatRate(studio, body.vatRate, current.vatRate);
   }
+  // WHO IT IS ISSUED TO, IN THE TAX AUTHORITY'S TERMS, is part of what was
+  // billed — frozen with the lines once issued.
+  if (body?.buyerTax !== undefined) {
+    if (issued) return { error: "issued" };
+    patch.buyerTax = cleanTaxRegistration(body.buyerTax);
+  }
   if (body?.projectId !== undefined) {
     if (issued) return { error: "issued" };
     const projectId = str(body.projectId, 60);
@@ -497,6 +511,27 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
         ...("limit" in problem ? { limit: problem.limit, after: problem.after } : {}),
       };
     }
+  }
+
+  // A DRAFT EDITED AFTER ITS E-INVOICE WAS PREPARED — a clearance that did not
+  // reach ZATCA, or one it refused — no longer matches that file, which still
+  // carries the old lines. The file is dropped so the next issue prepares the
+  // draft as it now is. Never once the authority accepted it: an accepted file
+  // IS the invoice (and an accepted draft cannot exist — clearance issues it).
+  const kept = (current as { einvoice?: { status?: string; document?: unknown } | null }).einvoice;
+  if (current.status === "Draft" && kept?.document && kept.status !== "accepted"
+    && ["lines", "vatRate", "buyerTax", "issueDate"].some((k) => k in patch)) {
+    patch.einvoice = null;
+  }
+
+  // A SAUDI BUSINESS INVOICE IS CLEARED BY ZATCA BEFORE IT IS ISSUED, and a
+  // refusal STOPS the issue — the one e-invoicing answer that is not
+  // best-effort, because an uncleared standard invoice is not a valid invoice
+  // (./einvoiceService clearBeforeIssue). Nothing happens for anything else.
+  let cleared: Awaited<ReturnType<typeof import("./einvoiceService").clearBeforeIssue>> = null;
+  if (patch.status === "Sent" && current.status === "Draft") {
+    cleared = await (await import("./einvoiceService")).clearBeforeIssue(ctx, id, { ...current, ...patch });
+    if (cleared && "error" in cleared) return cleared;
   }
 
   const updated = await Invoices.update({ studio, section: cashSection }, id, patch);
@@ -536,9 +571,11 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
   // GOES TO THE TAX AUTHORITY NOW (./einvoiceService). Best-effort like the
   // posting above: the answer travels back beside the invoice, and one that
   // did not reach is the nightly job's. Imported late, as the credit check is.
-  const einvoice = nowIssued
-    ? await (await import("./einvoiceService")).submitOnIssue(ctx, id)
-    : null;
+  const einvoice = cleared
+    ? { outcome: "accepted" as const, message: "", einvoice: cleared.einvoice }
+    : nowIssued
+      ? await (await import("./einvoiceService")).submitOnIssue(ctx, id)
+      : null;
 
   return {
     invoice: { ...(einvoice && "einvoice" in einvoice ? { ...updated, einvoice: einvoice.einvoice } : updated), ...invoiceTotals(updated, studio.currency) },
@@ -902,6 +939,19 @@ export function cleanLines(list: unknown, currency: unknown): InvoiceLine[] {
 // back to the parent so a studio predating the sub-section model still works.
 async function ownerOf(studioId: string, childKey: string, parentKey: string) {
   return (await getSectionByKey(studioId, childKey)) || (await getSectionByKey(studioId, parentKey));
+}
+
+/**
+ * ONE CLIENT'S TAX REGISTRATION, read from Sales where clients are filed —
+ * null when the studio has no clients section, the client is gone, or it has
+ * none recorded. Read only when an invoice is raised from a project and
+ * nothing was typed, so the common invoice pays nothing for it.
+ */
+async function clientTaxRegistration({ studio }: Pick<FinanceContext, "studio">, clientId: string) {
+  const owner = await ownerOf(studio.id, "crm-sales-clients", "crm-sales");
+  if (!owner) return null;
+  const client = (await Clients.find({ studio, section: owner })).find((c) => c.id === clientId);
+  return cleanTaxRegistration(client?.taxRegistration);
 }
 
 export async function projectRows({ studio }: Pick<FinanceContext, "studio">) {

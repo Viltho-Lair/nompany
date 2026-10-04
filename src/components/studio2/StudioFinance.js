@@ -8,6 +8,8 @@ import { claimsDict } from "@/shared/studio/claims";
 import { leasesDict } from "@/shared/studio/leases";
 import { groupDict } from "@/shared/studio/group";
 import { financeDict } from "@/shared/studio/finance";
+import { taxRegistrationDict } from "@/shared/studio/taxRegistration";
+import TaxRegistrationFields from "@/components/studio2/TaxRegistrationFields";
 import { documentsDict } from "@/shared/studio/documents";
 import Link from "next/link";
 import FinanceSettingsPanel from "@/components/studio2/FinanceSettingsPanel";
@@ -660,6 +662,10 @@ function message(out, tr, money) {
   if (out.error === "disposed") return tr.mDisposed;
   if (out.error === "already-disposed") return tr.mAlreadyDisposed(fmt(out.on));
   if (out.error === "before-acquired") return tr.mBeforeAcquired;
+  // ---- ZATCA: a business invoice is cleared before it is issued (04/10/2026) --
+  if (out.error === "einvoice-not-cleared") return tr.mNotCleared(String(out.detail || ""));
+  if (out.error === "einvoice-unreached") return tr.mClearanceUnreached;
+  if (out.error === "einvoice-busy" || out.error === "einvoice-problem") return tr.einvProblem(String(out.detail || out.error));
   return tr.mDidntSave;
 }
 
@@ -949,6 +955,13 @@ function InvoiceForm({ projects, milestones = [], items = [], rules = [], defaul
     .filter((m) => head.projectId && m.projectId === head.projectId)
     .map((m) => ({ value: m.id, label: [m.code, m.name].filter(Boolean).join(" · ") }));
   const [lines, setLines] = useState([{ ...EMPTY_LINE }]);
+  // THE BUYER'S TAX REGISTRATION, opened only for a business customer — most
+  // invoices go to people who have none, and eight empty fields on every one
+  // would read as eight things missing. Not sent at all while closed, so a
+  // project invoice takes the project client's own (modules/finance createInvoice).
+  const [buyerOpen, setBuyerOpen] = useState(false);
+  const [buyerTax, setBuyerTax] = useState(null);
+  const taxTr = taxRegistrationDict(useStudioLocale());
 
   const filled = filledLines(lines);
   const project = projects.find((p) => p.id === head.projectId);
@@ -980,6 +993,10 @@ function InvoiceForm({ projects, milestones = [], items = [], rules = [], defaul
         <WithholdingField rules={rules} value={head.withholdingLabel} onChange={(v) => setHead((h) => ({ ...h, withholdingLabel: v }))} />
       </div>
 
+      {buyerOpen
+        ? <TaxRegistrationFields value={buyerTax} onChange={setBuyerTax} help={taxTr.invoiceHelp} note={taxTr.projectFallback} />
+        : <button type="button" className={`${btnGhost} mt-4`} onClick={() => setBuyerOpen(true)}>{taxTr.addForInvoice}</button>}
+
       <LineItemsEditor lines={lines} setLines={setLines} vatOn={vatOn} items={items} />
 
       <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
@@ -989,7 +1006,7 @@ function InvoiceForm({ projects, milestones = [], items = [], rules = [], defaul
 
       <div className="mt-5 flex flex-wrap gap-2">
         <button className={btn} disabled={busy || !ready}
-          onClick={() => onSave({ ...head, vatRate: Number(head.vatRate) || 0, lines: filled })}>
+          onClick={() => onSave({ ...head, vatRate: Number(head.vatRate) || 0, lines: filled, ...(buyerOpen ? { buyerTax } : {}) })}>
           {busy ? tr.saving : tr.saveDraft2}
         </button>
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>

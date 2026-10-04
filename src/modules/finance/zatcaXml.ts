@@ -164,6 +164,7 @@ function pieces(doc: ZatcaDocument) {
     // A SIMPLIFIED INVOICE MAY NAME NOBODY — a walk-in customer is ordinary —
     // and UBL allows the customer party to be empty.
     box("cac:AccountingCustomerParty", b ? box("cac:Party", [
+      b.crn ? box("cac:PartyIdentification", el("cbc:ID", b.crn, { schemeID: "CRN" })) : "",
       b.address ? address(b.address) : "",
       b.vatNumber ? box("cac:PartyTaxScheme", [el("cbc:CompanyID", b.vatNumber), vatScheme]) : "",
       box("cac:PartyLegalEntity", el("cbc:RegistrationName", b.name)),

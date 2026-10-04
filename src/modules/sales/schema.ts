@@ -87,6 +87,21 @@ export const ClientSchema = z.object({
    */
   tagIds: z.array(z.string()).max(30).optional(),
 
+  /**
+   * THE CUSTOMER'S TAX REGISTRATION (04/10/2026) — the VAT number, commercial
+   * registration and registered address a business-to-business invoice must
+   * name (shared/taxRegistration). Null or absent for a consumer. Copied onto
+   * an invoice as `buyerTax` when the invoice is raised, like the name.
+   */
+  taxRegistration: z.object({
+    vatNumber: z.string(),
+    crn: z.string(),
+    address: z.object({
+      street: z.string(), building: z.string(), additional: z.string(),
+      district: z.string(), city: z.string(), postal: z.string(),
+    }),
+  }).nullable().optional(),
+
   // LEGACY, pre-dating `contacts`. Nothing writes these any more; records made
   // before the list existed still carry them, and `clientContacts` reads either
   // shape so no screen has to know which era a client is from.

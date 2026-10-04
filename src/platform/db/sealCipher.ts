@@ -79,6 +79,10 @@ const EVERYWHERE = new Set([
   "ticketRef",
   // A tender's issuer IS its client until the handover says otherwise.
   "issuer",
+  // A CUSTOMER'S TAX REGISTRATION COPIED ONTO AN INVOICE (04/10/2026) — its VAT
+  // number, commercial registration and address. By name, so the credit note
+  // that copies it next is sealed by this line too.
+  "buyerTax",
 ]);
 
 // Fields that are only a client's on particular records.
