@@ -1813,8 +1813,8 @@ first, then business, then notes.
 - ✅ **Slice 3 — credit notes and till returns (04/10/2026):** a Finance credit note (reason
   required; cleared first on a business invoice, reported otherwise) and a till return (a
   simplified credit note against its receipt), both from settled figures equal to the ledger's.
-  The return's after-approval report has not been seen live (approving needs the owner's signing
-  PIN).
+  A return approved under "as each is issued" was reported by itself after the approval (dev:sandbox,
+  04/10/2026).
 - ✅ **Debit notes, for every country (04/10/2026)** — a Finance document of their own
   (`debit-notes.md`), and ZATCA's 383 where nompany submits. Verified in `dev:sandbox` in a Saudi
   studio and in one with no country. **Credit and debit notes print** through layouts of their own

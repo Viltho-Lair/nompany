@@ -217,7 +217,9 @@ Both join the queue ("Credit note", "Till return") and the nightly batch, on the
 Measured 04/10/2026: consumer and business credit notes and the real RTN-0001 each passed ZATCA's
 compliance check (reported / cleared) with no warning; in `dev:sandbox`, a note without a reason
 was refused, CN-0002 was reported from the queue (ICV 6) and CN-0003 on a business invoice was
-cleared at issue and keeps ZATCA's copy (ICV 7).
+cleared at issue and keeps ZATCA's copy (ICV 7). Till returns, the same day: RTN-0001,
+approved under "once a day", waited in the queue and was reported from it (ICV 10); RTN-0002,
+approved under "as each is issued", was reported by itself after the approval answered (ICV 11).
 
 **Debit notes** (04/10/2026, `debit-notes.md`) are composed exactly as credit notes are and
 sent as ZATCA's 383: cleared first on a business invoice, reported otherwise. ZATCA's developer
@@ -327,9 +329,6 @@ in the queue and was reported from its row's button (ICV 2, PIH the first one's 
   `buyer-vat`. ZATCA's rules for those (another ID scheme, an export flag) are not written.
 - **ZATCA's cleared copy is not yet what prints.** The kept file is ZATCA's copy and its QR is
   stored, but the printed invoice is still drawn from the invoice record.
-- **The till return's report after approval has not been seen in `dev:sandbox`.** Approving
-  needs the account's signing PIN, which is the owner's; the return's document was checked
-  against ZATCA from the real return's data, and the approval hook by the model test.
 - **NOT TESTED AGAINST SIMULATION** — it is closed, and it needs a real taxpayer's OTP. Until it
   runs, nothing proves the signature matches the unit's own certificate (see above).
 - **Renewal is shown on the Tax screen only** — no notification and no e-mail reaches somebody
