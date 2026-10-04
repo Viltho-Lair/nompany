@@ -19,6 +19,7 @@
 // Each is asked for here, in the function that does the act, never only at the
 // route.
 
+import { studioEInvoiceRules } from "@/shared/compliance/rules";
 import { after } from "next/server";
 import { stampOnSale, submitOnIssue, type EInvoiceTarget } from "@/modules/finance/einvoiceService";
 import { withEinvoiceQr } from "@/modules/finance/einvoiceQr";
@@ -1101,6 +1102,11 @@ function receiptHeading(ctx: PosContext) {
   const official = officialForDocument(ctx.studio, "receipt", { sectionOn: ctx.on });
   const legal = legalRowsBeside(ctx.studio.legalInfo as { key?: unknown; value?: unknown }[] | undefined, official);
   return {
+    // WHAT THE SLIP IS, IN LAW (04/10/2026). A sale at a Saudi till is a
+    // SIMPLIFIED TAX INVOICE and ZATCA requires it to say so — in Arabic, which
+    // is mandatory, and English beside it, whatever language the slip prints
+    // in. Elsewhere the slip is a receipt and says so as before.
+    documentTitle: studioEInvoiceRules(ctx.studio)?.adapter === "zatca" ? { ar: "فاتورة ضريبية مبسطة", en: "Simplified Tax Invoice" } : null,
     official: official.map((p) => ({ key: p.key, label: p.label, value: p.value })),
     legal: legal.map((r) => ({ key: String(r.key ?? ""), value: String(r.value ?? "") })),
   };

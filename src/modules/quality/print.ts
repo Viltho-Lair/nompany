@@ -136,8 +136,10 @@ export async function printDocument(
   // it out of the studio route's bundle — a printed page is the one surface
   // that can afford a round trip and cannot afford thirty kilobytes.
   //
-  // EMPTY UNTIL AN AUTHORITY ACCEPTS ONE, and empty for ever where none is
-  // required. A failure to draw is an absent QR rather than a failed print: an
+  // EMPTY UNTIL THE INVOICE'S FILE IS PREPARED, and empty for ever where none
+  // is required. A Saudi simplified invoice prints its stamped QR before ZATCA
+  // has heard of it — that is the model: printed at issue, reported within a
+  // day — and a cleared business invoice prints the QR ZATCA issued. A failure to draw is an absent QR rather than a failed print: an
   // invoice that will not open is worse than one a studio must reprint.
   const qrPayload = values["invoice.einvoiceQr"] || "";
   let einvoiceQr = "";

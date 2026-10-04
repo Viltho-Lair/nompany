@@ -1821,7 +1821,9 @@ first, then business, then notes.
 - ✅ **Till receipts reported** as simplified invoices (04/10/2026, the owner's "Yes" to the
   allowance): stamped at the sale with the QR on the slip, reported after the response or nightly,
   every total equal to the slip's. Verified against the developer portal and in `dev:sandbox`.
-- ⬜ **The slip titled "Simplified tax invoice"**, and the QR drawn on Finance's printed invoice.
+- ✅ **The slip titled a simplified tax invoice**, Arabic first, and **the nightly batch run** locally
+  (04/10/2026). Finance's printed invoice already draws the stored QR; not yet seen on a page — no
+  published invoice layout in the single-person sandbox.
 - ⬜ **Zero-rated and exempt lines need a VATEX reason** on the line. Until then they are refused
   rather than written with a guessed code.
 - ⬜ **The printed Saudi invoice:** check it carries everything ZATCA requires on paper, Arabic

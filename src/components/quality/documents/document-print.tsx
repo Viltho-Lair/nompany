@@ -179,9 +179,10 @@ export function DocumentPrint({
               server-side. NOT a layout element and deliberately so: a fiscal QR
               is required by law rather than chosen by design, exactly like the
               country's official values that print above it — a studio cannot be
-              allowed to lay out a compliant invoice without it. It appears only
-              once an authority has accepted this invoice, so an unsubmitted one
-              prints exactly as it always did. */}
+              allowed to lay out a compliant invoice without it. It appears once
+              the invoice's e-invoice file is prepared (a cleared business invoice
+              carries ZATCA's own), so an invoice in a country that requires
+              nothing prints exactly as it always did. */}
           {ready.einvoiceQr && (
             /* eslint-disable-next-line @next/next/no-img-element -- a data URI,
                already sized, printed rather than laid out: next/image would add

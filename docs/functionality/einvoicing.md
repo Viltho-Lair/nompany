@@ -188,6 +188,12 @@ every total equal to the receipt's. In `dev:sandbox`: a sale stamped at the till
 two cleared invoices), held on "once a day" and reported from the Tax queue; a sale on "as each is
 issued" reported after the response; the reprinted slip carries the QR.
 
+**The slip says what it is in law:** a Saudi studio's slip is titled "فاتورة ضريبية مبسطة ·
+Simplified Tax Invoice", Arabic first whatever language it prints in (`receiptHeading`).
+
+**The nightly batch ran** in `dev:sandbox`, 04/10/2026, with a local `CRON_SECRET`: one studio,
+one invoice submitted and accepted; without the secret it answers 401.
+
 ### Renewing the certificate
 
 A production certificate ends (the developer portal's run three years). The Tax screen says
@@ -287,8 +293,6 @@ in the queue and was reported from its row's button (ICV 2, PIH the first one's 
 - **ONLY ZATCA'S DEVELOPER PORTAL IS OPEN.** Invoices reported there are tests and reach no
   record of ZATCA's. Simulation and production are declared and refused in `zatcaApi.ts` until
   the owner opens them. Nothing has been sent to either.
-- **The nightly batch has not run.** `CRON_SECRET` is empty locally, so the job fails closed
-  there (invariant 15); it calls the same `submitFor` the button does, which has.
 - **Non-Saudi buyers.** A business invoice to a buyer with no Saudi VAT number (an export, a
   buyer registered elsewhere) is not modelled: a VAT number that is not Saudi is refused as
   `buyer-vat`. ZATCA's rules for those (another ID scheme, an export flag) are not written.
@@ -300,10 +304,11 @@ in the queue and was reported from its row's button (ICV 2, PIH the first one's 
   runs, nothing proves the signature matches the unit's own certificate (see above).
 - **Renewal is shown on the Tax screen only** — no notification and no e-mail reaches somebody
   who does not open it in the last thirty days.
-- **The slip is not titled "Simplified tax invoice" (فاتورة ضريبية مبسطة)** — it says Receipt.
-  ZATCA requires the title on the printed document; the slip's header is the till's own.
 - **A till return is not reported** — it is a credit note, slice 3.
-- **The printed invoice (Finance) does not draw its QR yet**; the till slip does.
+- **The printed invoice's QR has not been seen on a page.** Finance's print draws the stored
+  e-invoice QR (since 22/09; a cleared business invoice's is ZATCA's), but neither sandbox
+  studio has a published invoice layout, and publishing one needs a second person: a controlled
+  document's reviewer is never its approver, owner included.
 - **Nothing in Jordan's half has been opened in `dev:sandbox`** since the rewrite of
   26/09/2026: not the download, not the recording.
 - **No Jordanian file has been through JoFotara.** The first one a studio submits and records

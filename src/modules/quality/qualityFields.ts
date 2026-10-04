@@ -365,9 +365,10 @@ STATIC_FIELDS.push(
     ["invoice.status", "Status", "status"],
     ["invoice.notes", "Notes", "notes"],
     ["invoice.currency", "Currency", "currency"],
-    // WHAT THE TAX AUTHORITY GAVE BACK when it accepted this invoice
-    // (22/09/2026). Dotted into the stored e-invoice state; empty until one is
-    // accepted, and empty for ever in a country that requires nothing.
+    // THE INVOICE'S E-INVOICE QR AND NUMBER (22/09/2026), dotted into the stored
+    // e-invoice state: present once its file is prepared — a Saudi invoice's own
+    // stamped QR from then, ZATCA's once it has cleared a business invoice
+    // (04/10/2026) — and empty for ever in a country that requires nothing.
     //
     // THE QR IS NOT PLACED BY A LAYOUT. It is printed automatically, like the
     // country's official values, because it is required by law rather than

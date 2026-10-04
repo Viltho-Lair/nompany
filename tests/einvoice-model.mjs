@@ -107,6 +107,16 @@ ok("THE TILL STAMPS THE RECEIPT, THEN REPORTS IT AFTER THE RESPONSE",
   sale.indexOf("stampOnSale(") > 0 && sale.indexOf("after(report)") > sale.indexOf("stampOnSale("));
 ok("...and the batch takes the till's receipts with the invoices", service.includes("EINVOICE_KINDS.map(async (kind) => (await rowsOf(t, kind))"));
 
+// WHAT PRINTS (04/10/2026): Finance's printed invoice draws the stored e-invoice
+// QR (a cleared business invoice's is ZATCA's own), and a Saudi till slip is
+// titled a simplified tax invoice, Arabic first.
+const fields = readFileSync("src/modules/quality/qualityFields.ts", "utf8");
+const print = readFileSync("src/modules/quality/print.ts", "utf8");
+ok("THE PRINTED INVOICE DRAWS THE STORED E-INVOICE QR",
+  fields.includes('["invoice.einvoiceQr", "E-invoice QR", "einvoice.qr"]') && /QRCode\.toDataURL\(qrPayload/.test(print));
+ok("A SAUDI SLIP IS TITLED A SIMPLIFIED TAX INVOICE",
+  pos.includes('adapter === "zatca" ? { ar: "فاتورة ضريبية مبسطة", en: "Simplified Tax Invoice" }'));
+
 console.log("\n== where an invoice stands");
 ok("`prepared` is a state, and the three submission states survive only to be read",
   ["prepared", "accepted", "rejected", "pending", "submitted", "failed"].every((s) => EINVOICE_STATUSES.includes(s)));

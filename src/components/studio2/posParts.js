@@ -123,7 +123,14 @@ export function Receipt({ tr, receipt, studio, terms, tillName, test = false }) 
         {(studio.legal || []).map((r) => <p key={r.key}>{r.key}: {r.value}</p>)}
         {test
           ? <p className="mt-1 border border-black py-1 font-bold">{tr.testPrintBanner}</p>
-          : <p className="mt-1">{tr.receipt} {receipt.number}</p>}
+          : (
+            <>
+              {/* A SAUDI SLIP IS A SIMPLIFIED TAX INVOICE and says so, Arabic first
+                  (modules/sales/pos receiptHeading). */}
+              {studio.documentTitle && <p className="mt-1 font-bold">{studio.documentTitle.ar} · {studio.documentTitle.en}</p>}
+              <p className="mt-1">{tr.receipt} {receipt.number}</p>
+            </>
+          )}
         <p>{fmtDateTime(receipt.at)}</p>
         {tillName && <p>{tr.till}: {tillName}</p>}
       </div>
