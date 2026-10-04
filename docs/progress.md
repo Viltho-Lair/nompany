@@ -2480,8 +2480,8 @@ by design (`engagements.md`).
    **04/10/2026:** bills and fixed assets attach to their project's deal (expenses did 03/10; the
    backfill lists both — run on the sandbox 04/10, 23 bills linked; not run on live); **completion rules** for every stage type
    (`platform/engagement/completion.ts`), shown on the deal page; the baseline shipped 03/10.
-   **Not built:** completion kept on the deal as records change, so lists, the front door's deal
-   lane and deal KPIs can use it too.
+   **Completion kept on the deal — BUILT 04/10/2026** (owner: nightly + when opened, not on every
+   write): the deals list and the deal lane read it with its date. Deal period KPIs on lists: not built.
 5. **KPIs** on kinds of work and steps, plus period KPIs, measured against the plan.
    **Started 03/10/2026:** the pure arithmetic (`modules/main/workKpis.ts`, `kpis.md`) — per-item
    `reach`/`onTime` and period `count`/`value`/`share`/`avgDays`, read off dates the records keep.

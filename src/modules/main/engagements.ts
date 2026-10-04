@@ -400,7 +400,10 @@ export type CompletionSnapshot = {
 /** Every held stage's completion, from rows already read. */
 function snapshotStages(rows: ReadonlyMap<string, Row[]>, comp: CompletionContext): CompletionSnapshot["stages"] {
   const out: CompletionSnapshot["stages"] = {};
-  for (const [type, list] of rows) {
+  // IN A FIXED ORDER: the rows are read in parallel and arrive in any order,
+  // and `saveCompletion` compares snapshots as text — found on the sandbox
+  // 04/10/2026, when a second refresh rewrote snapshots that had not changed.
+  for (const [type, list] of [...rows].sort(([x], [y]) => x.localeCompare(y))) {
     const c = stageCompletion(type, list, comp);
     if (c) out[type] = { ...c, firstAt: firstAtOf(list) };
   }

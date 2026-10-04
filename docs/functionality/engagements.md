@@ -292,13 +292,22 @@ when every record of it was. The deal page shows it as a badge on each stage car
 unapproved quotations read "RFQ · Done" and "Quotation · Under way · 0%"; an unsigned contract read
 under way and approved timesheets and change orders done.
 
+**Kept on the deal (04/10/2026).** Each deal stores this as a snapshot, refreshed nightly (`cron/main-rollup`)
+and whenever the deal is opened, so the deals list ("N of M done") and the front door's deal lane read it
+without opening every record. Opened in the sandbox: opening a deal saved "1 of 3 done"; the refresh run
+over all 44 sandbox deals wrote every snapshot, and two further runs wrote nothing — after a fix, because
+the first version compared stages in whatever order they were read and re-saved unchanged snapshots.
+
 ## Not built yet
 
-- **Completion shows on the deal page only.** The front door's deal lane, the deals list and deal
-  KPIs still treat a stage as reached when its first record exists. Using completion there needs it
-  kept on the deal as records change (the design study's "progress kept on write"), not read for
-  every deal on every list. — do not assume otherwise
-
+- **Completion is a snapshot, not live, everywhere but the deal page** (the owner's choice,
+  04/10/2026: nightly + whenever a deal is opened). Each deal's root keeps `completion`
+  (`{ at, stages: { <type>: { state, progress, firstAt } } }`), written only when it changed, and
+  carried across a backfill re-apply. The nightly pass rides on `cron/main-rollup` (newest 500 deals
+  per studio). The deals list shows "N of M done" and the front door's deal lane reads progress by
+  completion, each saying how old the snapshot is. A deal nobody opens can be up to a day behind;
+  one never refreshed reads by presence, as before. **Deal KPIs on lists** still have no period
+  figure for deals.
 - **Switching a section off warns about nothing.** Editing a flow shows what the change will touch first; the Sections
   panel does not, and a part switched off takes its screens, widgets, reads and API with it
   (`dashboards.md`). Nothing is deleted, so this is a warning that is missing rather than a
