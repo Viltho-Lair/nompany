@@ -26,11 +26,12 @@ Four items, in the order a new owner would do them, each linking to where it is 
 - **Hide** is the viewer's own convenience, kept in their browser per studio
   (`FinishSetup.js`). A private window or blocked storage shows the list again.
 
-`tests/first-run-model.mjs` holds the rules.
+`tests/first-run-model.mjs` holds the rules. **Opened in the sandbox 04/10/2026**: a studio with no country
+and no logo, two people and a KPI target read "2 of 4 done" with team and targets ticked; Hide removed
+it and it stayed hidden after a reload.
 
 ## Not built yet
 
-- **Not opened on screen.** Checked by type-check, lint and the model test only.
 - **No other items.** Approvals, numbering, the deal flows and payment methods are all things a
   new studio may want to look at; none is on the list, because none has a clear "done".
 - **Hiding is per browser**, not per person: the same owner on another device sees it again.
