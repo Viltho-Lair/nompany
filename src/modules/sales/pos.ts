@@ -19,6 +19,9 @@
 // Each is asked for here, in the function that does the act, never only at the
 // route.
 
+import { after } from "next/server";
+import { stampOnSale, submitOnIssue, type EInvoiceTarget } from "@/modules/finance/einvoiceService";
+import { withEinvoiceQr } from "@/modules/finance/einvoiceQr";
 import { requirePermission, can, type PermissionKey } from "@/platform/access";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { repo } from "@/platform/db/repo";
@@ -992,7 +995,19 @@ export async function createSale(ctx: PosContext, body: Record<string, unknown>)
   // told (modules/inventory/stockAlerts).
   await alertIfLow(ctx.studio, { itemsSection: ctx.itemsSection, stockSection: ctx.stockSection }, Object.fromEntries(need));
 
-  return { receipt };
+  // A SAUDI SALE IS A SIMPLIFIED TAX INVOICE (04/10/2026): stamped NOW, so the
+  // slip carries its QR, and reported AFTER the response, so the customer is
+  // not kept at the counter while ZATCA answers (finance/einvoiceService).
+  // Nothing happens for a studio that does not submit, or is not connected.
+  const einvoiceTarget = { studio: ctx.studio, posSection: ctx.posSection } as unknown as EInvoiceTarget;
+  const stamped = await stampOnSale(einvoiceTarget, receipt.id);
+  if (stamped) {
+    const report = () => submitOnIssue(einvoiceTarget, receipt.id, "receipt").then(() => undefined, () => undefined);
+    // OUTSIDE A REQUEST (a script, a test) `after` throws, and there the
+    // report simply runs — the nightly batch is the safety net either way.
+    try { after(report); } catch { void report(); }
+  }
+  return { receipt: stamped ? await withEinvoiceQr({ ...receipt, einvoice: stamped }) : receipt };
 }
 
 /** A shift's receipts, newest first — the till's own history. */
@@ -1008,13 +1023,14 @@ export async function listReceipts(ctx: PosContext, shiftId: string, limit?: num
   const till = await requireTill(ctx);
   if (isRefusal(till)) return till;
   const cap = Number.isFinite(limit) && Number(limit) > 0 ? Math.min(100, Math.floor(Number(limit))) : undefined;
-  return {
-    receipts: await Receipts.find(scope(ctx), {
-      where: { shiftId: str(shiftId, 60), terminalId: till.id },
-      order: { field: "at", dir: "desc" },
-      ...(cap ? { limit: cap } : {}),
-    }),
-  };
+  // EACH WITH ITS E-INVOICE QR DRAWN, so the till's one-click reprint prints
+  // the slip the customer was given — QR included — without a second read.
+  const receipts = await Receipts.find(scope(ctx), {
+    where: { shiftId: str(shiftId, 60), terminalId: till.id },
+    order: { field: "at", dir: "desc" },
+    ...(cap ? { limit: cap } : {}),
+  });
+  return { receipts: await Promise.all(receipts.map((r) => withEinvoiceQr(r as PosReceipt & { einvoice?: { qr?: unknown } | null }))) };
 }
 
 // ---- the department's screens (17/09/2026) ------------------------------------
@@ -1101,7 +1117,7 @@ export async function receiptDetail(ctx: PosContext, id: string) {
   const shift = await Shifts.byId(scope(ctx), receipt.shiftId);
   return {
     receipt: {
-      ...receipt,
+      ...(await withEinvoiceQr(receipt as PosReceipt & { einvoice?: { qr?: unknown } | null })),
       cashier: names.cashiers[receipt.cashierCollaboratorId] || "",
       till: names.tills[receipt.terminalId] || "",
       shiftNumber: shift?.number || "",

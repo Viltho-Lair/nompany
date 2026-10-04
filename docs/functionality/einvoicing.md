@@ -158,6 +158,36 @@ timing kept) it was cleared at issue as ICV 1, keeping ZATCA's copy and QR; one 
 postal code was refused locally (`buyer-postal`) WITHOUT taking a chain link, and once corrected
 on the draft it cleared as ICV 2; a client saved with its tax registration.
 
+### Till receipts — simplified invoices from the counter (04/10/2026)
+
+A sale at a till is a simplified tax invoice in ZATCA's eyes. **The owner, 04/10/2026: "Yes"** to
+writing a basket discount as ZATCA's document-level allowance and folding the shop's offers and
+the cashier's line discounts into each line's net.
+
+- **The receipt's own figures are the truth** (`zatcaReceipt.ts`, pure). Each tax category's
+  taxable amount and tax are the receipt's stored `breakdown`; the allowance is the basket
+  discount in that category without its tax; the lines are built to add up to taxable plus
+  allowance. So the document ZATCA receives equals the slip in the customer's hand to the halala,
+  and ZATCA's own rule (lines less allowances is the taxable amount) holds by construction.
+- **No line rounds:** a net that does not divide into a two-decimal price — three for 24.34 — is
+  written as "24.34 per 3" (UBL `BaseQuantity`).
+- **Stamped at the sale, reported after it.** `createSale` calls `stampOnSale` before it answers —
+  local work, a chain link and a signature — so the slip prints ZATCA's QR; the report waits for
+  nobody: `after()` hands it to `submitOnIssue` (for a studio that reports as it goes) or the
+  nightly batch takes it. Only a connected studio stamps; a sale is never refused over its stamp.
+- **One chain** with the invoices, and **one queue**: the Tax screen lists outstanding receipts
+  beside invoices ("Till receipt"), and the batch submits both in the order they were made.
+- **The QR is drawn on the server** (`einvoiceQr.ts`, the `qrcode` package two-factor already
+  ships) when a receipt is read — the sale's answer, the till's recent list, a reprint — never
+  stored and never drawn in the browser, so no studio's till carries the library.
+
+Measured 04/10/2026: four receipts priced by the till's own functions — tax-inclusive and
+exclusive prices, with and without a basket discount, an offer, a line discount and a
+three-for-ten line — each REPORTED by the developer portal's compliance check with no warning,
+every total equal to the receipt's. In `dev:sandbox`: a sale stamped at the till (ICV 3 after
+two cleared invoices), held on "once a day" and reported from the Tax queue; a sale on "as each is
+issued" reported after the response; the reprinted slip carries the QR.
+
 ### Renewing the certificate
 
 A production certificate ends (the developer portal's run three years). The Tax screen says
@@ -270,9 +300,10 @@ in the queue and was reported from its row's button (ICV 2, PIH the first one's 
   runs, nothing proves the signature matches the unit's own certificate (see above).
 - **Renewal is shown on the Tax screen only** — no notification and no e-mail reaches somebody
   who does not open it in the last thirty days.
-- **The point-of-sale receipt is not reported.** A till sale is a simplified invoice in ZATCA's
-  eyes; only Finance's invoices are. A receipt's basket discount and promotions need ZATCA's
-  document-level allowance (`AllowanceCharge`), which is the parked discount question below.
+- **The slip is not titled "Simplified tax invoice" (فاتورة ضريبية مبسطة)** — it says Receipt.
+  ZATCA requires the title on the printed document; the slip's header is the till's own.
+- **A till return is not reported** — it is a credit note, slice 3.
+- **The printed invoice (Finance) does not draw its QR yet**; the till slip does.
 - **Nothing in Jordan's half has been opened in `dev:sandbox`** since the rewrite of
   26/09/2026: not the download, not the recording.
 - **No Jordanian file has been through JoFotara.** The first one a studio submits and records
@@ -282,9 +313,9 @@ in the queue and was reported from its row's button (ICV 2, PIH the first one's 
   first invoice is accepted (the owner, 22/09/2026).
 - **Zero-rated and exempt Saudi lines** are refused until a line can record its VATEX reason.
   Only SAR documents.
-- **A discount is not written as an allowance.** A till receipt records discounts per line and
-  per sale; an invoice records none. Mapping them onto UBL `AllowanceCharge` is parked on the
-  owner's instruction, 22/09/2026.
+- **A discount is not written as an allowance for JORDAN.** Saudi till receipts write their basket
+  discount as `AllowanceCharge` since 04/10/2026 (the owner's "Yes"); Jordan's adapter, and an
+  invoice (which records no discount), do not.
 - **A prepared file does not notice a later edit** to its invoice. It is handed out again as
   prepared.
 - Countries other than Saudi Arabia and Jordan declare nothing yet, though `docs/progress.md`'s

@@ -381,6 +381,14 @@ stands. **An empty drawer opened and closed posts nothing** and says so.
 
 **Posted once**, guarded on the shift's own id like every other document.
 
+## Saudi Arabia: every sale reaches ZATCA (04/10/2026)
+
+For a Saudi studio connected to ZATCA (Finance → Tax), each sale is stamped as it is made — the
+slip prints ZATCA's QR above the barcode — and reported after the till has answered, or in the
+nightly batch, as the studio chose. The basket discount is written as ZATCA's allowance and the
+offers and line discounts are in each line's net, so what ZATCA receives is the slip to the
+halala. `docs/functionality/einvoicing.md` (Till receipts) has the whole of it.
+
 ## Not built yet
 
 - **An invoice does not take stock out**: its item lines are what a return puts back, but raising

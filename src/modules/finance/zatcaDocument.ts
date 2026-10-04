@@ -102,6 +102,26 @@ export type ZatcaLine = {
   percent: number;
   /** This line's own tax, shown on the line; the DOCUMENT's tax is per category (see the header). */
   taxAmount: number;
+  /**
+   * HOW MANY `unitPrice` IS THE PRICE OF (UBL's BaseQuantity). A till line
+   * whose net after its offers and discounts does not divide into a two-decimal
+   * unit price — three for 10.00 is 3.333… — is written as "10.00 per 3", so
+   * quantity × price ÷ base is the line's net EXACTLY rather than to a halala.
+   * Absent: the price is of one.
+   */
+  baseQuantity?: number;
+};
+
+/**
+ * A DOCUMENT-LEVEL DISCOUNT (UBL AllowanceCharge, charge indicator false) —
+ * a till's basket discount (the owner, 04/10/2026: "Yes" to writing it as
+ * ZATCA's allowance). Per tax category, because ZATCA takes each category's
+ * taxable amount as its lines LESS its allowances.
+ */
+export type ZatcaAllowance = {
+  category: ZatcaCategory;
+  percent: number;
+  amount: number;
 };
 
 export type ZatcaSubtotal = {
@@ -136,6 +156,8 @@ export type ZatcaDocument = {
   paymentMeansCode: string;
   lines: ZatcaLine[];
   subtotals: ZatcaSubtotal[];
+  /** Document-level discounts — a till receipt's basket discount. Absent on an invoice. */
+  allowances?: ZatcaAllowance[];
   lineExtensionAmount: number;
   taxExclusiveAmount: number;
   taxAmount: number;

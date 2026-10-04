@@ -341,7 +341,7 @@ function EInvoicing({ data, slug, locale, onDone }) {
 
   const submit = async (row) => {
     setProblem(""); setSaid(""); setSubmitting(row.id);
-    const r = await post(slug, { action: "einvoice-submit", id: row.id });
+    const r = await post(slug, { action: "einvoice-submit", id: row.id, kind: row.kind });
     setSubmitting(null);
     if (!r.ok) { setProblem(tr.einvProblem(r.detail || r.error)); return; }
     setSaid(tr.einvSubmitted(r.out.outcome));
@@ -350,7 +350,7 @@ function EInvoicing({ data, slug, locale, onDone }) {
 
   const download = async (row) => {
     setProblem("");
-    const r = await post(slug, { action: "einvoice-prepare", id: row.id });
+    const r = await post(slug, { action: "einvoice-prepare", id: row.id, kind: row.kind });
     if (!r.ok) { setProblem(tr.einvProblem(r.detail || r.error)); return; }
     const doc = r.out.document;
     const url = URL.createObjectURL(new Blob([doc.xml], { type: "application/xml" }));
@@ -377,7 +377,7 @@ function EInvoicing({ data, slug, locale, onDone }) {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>
                   <span className="font-mono text-slate-900 dark:text-white">{q.reference}</span>
-                  <span className="ms-2 text-slate-500 dark:text-slate-400">{q.clientName}</span>
+                  <span className="ms-2 text-slate-500 dark:text-slate-400">{q.kind === "receipt" ? tr.einvTillReceipt : q.clientName}</span>
                   <span className="ms-2 text-xs text-slate-400">{q.issueDate}</span>
                 </span>
                 <span className="flex items-center gap-2">

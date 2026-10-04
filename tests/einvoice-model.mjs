@@ -99,6 +99,14 @@ const { isSealedField } = await import("../src/platform/db/sealCipher.ts");
 ok("THE BUYER'S TAX REGISTRATION ON AN INVOICE IS SEALED — it is a client's (invariant 18)",
   isSealedField("invoices", "buyerTax") && isSealedField("creditNotes", "buyerTax") && isSealedField("salesClients", "taxRegistration"));
 
+// A TILL SALE IS STAMPED BEFORE IT ANSWERS AND REPORTED AFTER (04/10/2026): the
+// slip carries the stamped QR, and the customer is not kept waiting on ZATCA.
+const pos = readFileSync("src/modules/sales/pos.ts", "utf8");
+const sale = pos.slice(pos.indexOf("export async function createSale"));
+ok("THE TILL STAMPS THE RECEIPT, THEN REPORTS IT AFTER THE RESPONSE",
+  sale.indexOf("stampOnSale(") > 0 && sale.indexOf("after(report)") > sale.indexOf("stampOnSale("));
+ok("...and the batch takes the till's receipts with the invoices", service.includes("EINVOICE_KINDS.map(async (kind) => (await rowsOf(t, kind))"));
+
 console.log("\n== where an invoice stands");
 ok("`prepared` is a state, and the three submission states survive only to be read",
   ["prepared", "accepted", "rejected", "pending", "submitted", "failed"].every((s) => EINVOICE_STATUSES.includes(s)));

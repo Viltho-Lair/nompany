@@ -465,6 +465,7 @@ type Strings = CommonStrings & {
   mNotCleared: (detail: string) => string;
   mClearanceUnreached: string;
   einvConnectFirst: (system: string) => string;
+  einvTillReceipt: string;
   einvSubmit: (system: string) => string;
   einvSubmitted: (outcome: string) => string;
   zatcaTitle: string;
@@ -965,6 +966,7 @@ const en: Strings = {
   einvCancel: "Cancel",
   einvSubmitsHow: (system) => `nompany signs each invoice and reports it to ${system}, when you chose below. A row stays here until ${system} accepts it; one it rejects says why.`,
   einvSubmit: (system) => `Submit to ${system}`,
+  einvTillReceipt: "Till receipt",
   mNotCleared: (detail) => `ZATCA did not clear this business invoice, so it has not been issued${detail ? `: ${detail}` : "."}`,
   mClearanceUnreached: "ZATCA could not be reached to clear this business invoice, so it has not been issued. Try again shortly.",
   einvConnectFirst: (system) => `Connect to ZATCA below and nompany signs each invoice and reports it to ${system} for you. Until then, download each invoice's file and submit it through ${system} yourself.`,
@@ -1504,6 +1506,7 @@ const ar: Strings = {
   einvCancel: "إلغاء",
   einvSubmitsHow: (system) => `يوقّع نومباني كل فاتورة ويبلغ عنها ${system} في الموعد الذي تختاره أدناه. يبقى السطر هنا حتى يقبلها ${system}، والمرفوضة تذكر السبب.`,
   einvSubmit: (system) => `إرسال إلى ${system}`,
+  einvTillReceipt: "إيصال نقطة البيع",
   mNotCleared: (detail) => `لم تعتمد الهيئة فاتورة المنشأة هذه، فلم تصدر${detail ? `: ${detail}` : "."}`,
   mClearanceUnreached: "تعذر الوصول إلى الهيئة لاعتماد فاتورة المنشأة هذه، فلم تصدر. حاول بعد قليل.",
   einvConnectFirst: (system) => `اربط مع الهيئة أدناه فيوقّع نومباني كل فاتورة ويبلغ عنها ${system} عنك. وحتى ذلك، نزّل ملف كل فاتورة وقدّمه عبر ${system} بنفسك.`,

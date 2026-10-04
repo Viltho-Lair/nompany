@@ -33,7 +33,10 @@ async function run() {
       const byKey = Object.fromEntries((await listSections(studio.id)).map((s) => [s.key, s]));
       const cashSection = byKey["finance-cash"] || byKey.finance;
       if (!cashSection) continue;
-      const out = await submitOutstanding({ studio, cashSection } as EInvoiceTarget);
+      // THE TILL'S RECEIPTS are filed under crm-sales-pos (docs: pos.md) —
+      // reported in the same batch as the invoices, one chain.
+      const posSection = byKey["crm-sales-pos"] || null;
+      const out = await submitOutstanding({ studio, cashSection, posSection } as EInvoiceTarget);
       studiosRun += 1;
       submitted += out.submitted;
       accepted += out.accepted;

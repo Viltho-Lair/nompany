@@ -120,6 +120,11 @@ export type EInvoiceAdapter = {
     invoice: Record<string, unknown>;
     studio: Record<string, unknown>;
     rules: EInvoiceRules;
+    /**
+     * WHICH KIND OF SALE `invoice` is: Finance's invoice, or a till receipt
+     * read as one (./einvoiceService receiptView). Absent means an invoice.
+     */
+    source?: "invoice" | "receipt";
   }) => Promise<EInvoiceDocument | { problem: string }>;
   /**
    * SUBMIT A PREPARED FILE — only where the owner has decided nompany submits

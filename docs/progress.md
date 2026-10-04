@@ -1818,8 +1818,10 @@ first, then business, then notes.
 - ⏸ **Testing against simulation — kept until there is a real customer** (the owner, 04/10/2026:
   issues they hit are reported and fixed then). The developer portal signs with a sample
   certificate and cannot prove our signature matches our certificate.
-- ⬜ **The point-of-sale receipt reported** as the simplified invoice it is — waits on the parked
-  `AllowanceCharge` question, because a receipt carries basket discounts and promotions.
+- ✅ **Till receipts reported** as simplified invoices (04/10/2026, the owner's "Yes" to the
+  allowance): stamped at the sale with the QR on the slip, reported after the response or nightly,
+  every total equal to the slip's. Verified against the developer portal and in `dev:sandbox`.
+- ⬜ **The slip titled "Simplified tax invoice"**, and the QR drawn on Finance's printed invoice.
 - ⬜ **Zero-rated and exempt lines need a VATEX reason** on the line. Until then they are refused
   rather than written with a guessed code.
 - ⬜ **The printed Saudi invoice:** check it carries everything ZATCA requires on paper, Arabic

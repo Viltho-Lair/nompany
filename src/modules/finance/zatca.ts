@@ -34,6 +34,7 @@ import type { EInvoiceAdapter, EInvoiceSubmission } from "./einvoice";
 import { zatcaDocument, zatcaProblem, ZATCA_FIRST_PIH, type ZatcaDocument, type ZatcaSeller } from "./zatcaDocument";
 import { zatcaInvoiceHash, zatcaInvoiceXml } from "./zatcaXml";
 import { zatcaQr } from "./zatcaQr";
+import { zatcaReceiptDocument } from "./zatcaReceipt";
 import { qrFieldsOf, stampZatca } from "./zatcaSign";
 import { readZatcaCertificate } from "./zatcaCrypto";
 import { readZatcaUnit, zatcaUnitSummary } from "./zatcaUnit";
@@ -194,7 +195,7 @@ export function zatcaBuyerOf(invoice: { clientName?: unknown; buyerTax?: unknown
  */
 export const zatcaAdapter: EInvoiceAdapter = {
   key: "zatca",
-  async prepare({ invoice, studio }) {
+  async prepare({ invoice, studio, source }) {
     const studioId = String((studio as { id?: unknown }).id || "");
     if (!studioId) return { problem: "no-studio" };
     const seller = zatcaSeller(studio as Parameters<typeof zatcaSeller>[0]);
@@ -207,12 +208,20 @@ export const zatcaAdapter: EInvoiceAdapter = {
     // business invoice under. Said before a chain link is taken: connecting
     // again declares both.
     if (subtype === "standard" && unit && unit.invoiceTypes[0] !== "1") return { problem: "unit-simplified-only" };
-    const out = await buildNextInChain(studioId, unit?.id || "", (link) => zatcaDocument({
-      invoice: invoice as Parameters<typeof zatcaDocument>[0]["invoice"],
-      seller, buyer, subtype, uuid, issueTime, counter: link.counter, previousHash: link.previousHash,
-    }));
+    // A TILL RECEIPT IS COMPOSED FROM ITS OWN FIGURES (./zatcaReceipt) — always
+    // simplified, naming nobody; an invoice from its lines and its buyer.
+    const out = await buildNextInChain(studioId, unit?.id || "", (link) => source === "receipt"
+      ? zatcaReceiptDocument({
+        receipt: invoice, seller, uuid, issueTime, counter: link.counter, previousHash: link.previousHash,
+        issueDate: String((invoice as { issueDate?: unknown }).issueDate || ""),
+      })
+      : zatcaDocument({
+        invoice: invoice as Parameters<typeof zatcaDocument>[0]["invoice"],
+        seller, buyer, subtype, uuid, issueTime, counter: link.counter, previousHash: link.previousHash,
+      }));
     if ("problem" in out) return out;
     const filename = `${out.id || "invoice"}-zatca.xml`;
+    const kindOf = source === "receipt" ? "simplified" as const : subtype;
     if (unit) {
       // THE STAMP DOES NOT MOVE THE HASH (./zatcaSign), so the link the chain
       // just recorded is the hash ZATCA computes from the stamped file.
@@ -221,7 +230,7 @@ export const zatcaAdapter: EInvoiceAdapter = {
         certificate: readZatcaCertificate(unit.production.token),
         signingTime: new Date().toISOString().slice(0, 19),
       });
-      return { xml: stamp.xml, filename, qr: stamp.qr, hash: stamp.hash, counter: out.counter, uuid: out.uuid, unitId: unit.id, subtype };
+      return { xml: stamp.xml, filename, qr: stamp.qr, hash: stamp.hash, counter: out.counter, uuid: out.uuid, unitId: unit.id, subtype: kindOf };
     }
     const qr = sellerQr(out);
     return {
@@ -231,7 +240,7 @@ export const zatcaAdapter: EInvoiceAdapter = {
       hash: zatcaInvoiceHash(out),
       counter: out.counter,
       uuid: out.uuid,
-      subtype,
+      subtype: kindOf,
     };
   },
   async submit({ studio, document }) {

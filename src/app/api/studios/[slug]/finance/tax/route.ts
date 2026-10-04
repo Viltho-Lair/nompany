@@ -7,7 +7,7 @@ import { requirePermission } from "@/platform/access";
 import { unclaimed } from "@/modules/finance/withholding";
 import { setupFor } from "@/modules/finance/setup";
 import { listTaxReturns, fileTaxReturn, payTaxReturn } from "@/modules/finance/taxFiling";
-import { einvoiceQueue, prepareEInvoice, recordEInvoice, submitEInvoice, onboardZatca, renewZatca, setZatcaReporting } from "@/modules/finance/einvoiceService";
+import { einvoiceQueue, prepareEInvoice, recordEInvoice, submitEInvoice, cleanKind, onboardZatca, renewZatca, setZatcaReporting } from "@/modules/finance/einvoiceService";
 import { vatMovement, storedMoneyAccounts } from "@/modules/finance/ledger";
 
 export const runtime = "nodejs";
@@ -72,8 +72,8 @@ export const POST = route(
         // sends it, where nompany submits (Saudi Arabia, the owner's decision of
         // 03/10/2026); record keeps what the authority answered a studio that
         // submits itself (modules/finance/einvoiceService).
-        : action === "einvoice-prepare" ? await prepareEInvoice(f, String(f.body?.id ?? ""))
-        : action === "einvoice-submit" ? await submitEInvoice(f, String(f.body?.id ?? ""))
+        : action === "einvoice-prepare" ? await prepareEInvoice(f, String(f.body?.id ?? ""), cleanKind(f.body?.kind))
+        : action === "einvoice-submit" ? await submitEInvoice(f, String(f.body?.id ?? ""), cleanKind(f.body?.kind))
         : action === "einvoice-record" ? await recordEInvoice(f, String(f.body?.id ?? ""), f.body || {})
         : action === "zatca-onboard" ? await onboardZatca(f, f.body || {})
         : action === "zatca-renew" ? await renewZatca(f, f.body || {})

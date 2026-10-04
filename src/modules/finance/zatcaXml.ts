@@ -25,7 +25,7 @@
 // hash, from the same data.
 
 import { createHash } from "node:crypto";
-import type { ZatcaDocument, ZatcaSubtotal, ZatcaAddress } from "./zatcaDocument";
+import type { ZatcaAllowance, ZatcaDocument, ZatcaSubtotal, ZatcaAddress } from "./zatcaDocument";
 
 /** Canonical text escaping (C14N §2.3): &, <, > and carriage return. Quotes stay as they are. */
 export function c14nText(value: unknown): string {
@@ -120,6 +120,16 @@ const QR_REF = (qr: string) => box("cac:AdditionalDocumentReference", [
   el("cbc:ID", "QR"),
   box("cac:Attachment", el("cbc:EmbeddedDocumentBinaryObject", qr, { mimeCode: "text/plain" })),
 ]);
+/** One document-level discount, in its tax category. */
+const allowance = (a: ZatcaAllowance, currency: string) => box("cac:AllowanceCharge", [
+  el("cbc:ChargeIndicator", "false"),
+  el("cbc:AllowanceChargeReason", "discount"),
+  amount("cbc:Amount", a.amount, currency),
+  box("cac:TaxCategory", [el("cbc:ID", a.category, CATEGORY_ID), el("cbc:Percent", percent(a.percent)), vatScheme]),
+]);
+const allowanceTotal = (doc: ZatcaDocument) =>
+  Math.round((doc.allowances || []).reduce((s, a) => s + a.amount, 0) * 100) / 100;
+
 /** THE SIGNATURE ENVELOPE, pointing at the stamp in the extension (ZATCA's fixed values). */
 const SIGNATURE_REF = box("cac:Signature", [
   el("cbc:ID", "urn:oasis:names:specification:ubl:signature:Invoice"),
@@ -177,6 +187,9 @@ function pieces(doc: ZatcaDocument) {
       // A NOTE'S REASON rides here (KSA-10), the only place UBL gives it.
       doc.reason ? el("cbc:InstructionNote", doc.reason) : "",
     ]),
+    // DOCUMENT-LEVEL DISCOUNTS, where UBL puts them: after the payment means,
+    // before the tax totals. One per tax category (see ZatcaAllowance).
+    ...(doc.allowances || []).map((a) => allowance(a, c)),
     // TWO TAX TOTALS, the way ZATCA's own samples carry them: the first is the
     // tax in the TAX currency and stands alone, the second carries the
     // subtotals in the document currency. With both in SAR they are the same
@@ -190,7 +203,7 @@ function pieces(doc: ZatcaDocument) {
       amount("cbc:LineExtensionAmount", doc.lineExtensionAmount, c),
       amount("cbc:TaxExclusiveAmount", doc.taxExclusiveAmount, c),
       amount("cbc:TaxInclusiveAmount", doc.taxInclusiveAmount, c),
-      amount("cbc:AllowanceTotalAmount", 0, c),
+      amount("cbc:AllowanceTotalAmount", allowanceTotal(doc), c),
       amount("cbc:PrepaidAmount", 0, c),
       amount("cbc:PayableAmount", doc.payableAmount, c),
     ]),
@@ -211,7 +224,10 @@ function pieces(doc: ZatcaDocument) {
           vatScheme,
         ]),
       ]),
-      box("cac:Price", amount("cbc:PriceAmount", l.unitPrice, c)),
+      box("cac:Price", [
+        amount("cbc:PriceAmount", l.unitPrice, c),
+        l.baseQuantity ? el("cbc:BaseQuantity", String(l.baseQuantity), { unitCode: "PCE" }) : "",
+      ]),
     ])),
   ].join("");
 

@@ -288,5 +288,43 @@ ok("the samples are one chain of their own, from the seed", both[0].counter === 
 ok("THE STANDARD SAMPLES NAME AN INVENTED BUYER, never one of the studio's customers", both[0].buyer.vatNumber === "399999999800003" && D.zatcaProblem(both[0]) === "");
 ok("a simplified-only unit is checked on three", U.sampleDocuments(seller, "2026-10-04", "10:00:00", "0100").length === 3);
 
+console.log("\n== a till receipt as a simplified invoice (04/10/2026)");
+const P = await import("@/modules/sales/posModel");
+const RC = await import("@/modules/finance/zatcaReceipt");
+// PRICED BY THE TILL'S OWN FUNCTIONS, so the receipt is the one a till stores.
+const tillReceipt = (inclusive, basketPct) => {
+  const { lines } = P.priceBasket([
+    { itemId: "a", description: "Coffee beans 250g", count: 3, price: 10, promotionDiscount: 2 },
+    { itemId: "b", description: "Mug", count: 1, price: 7.99, discount: { kind: "percent", value: 10 } },
+    { itemId: "c", description: "Filter papers", count: 2, price: 4.35 },
+  ], basketPct ? { kind: "percent", value: basketPct } : null, "SAR");
+  const t = P.posTotals(lines, { vatRate: 15, currency: "SAR", method: "document", pricesIncludeTax: inclusive });
+  return { number: "RCT-0001", currency: "SAR", vatRate: 15, pricesIncludeTax: inclusive, lines, ...t, payments: [{ method: "card", amount: t.total }] };
+};
+const asDoc = (receipt) => RC.zatcaReceiptDocument({ receipt, seller, uuid: "u", issueDate: "2026-10-04", issueTime: "10:00:00", counter: 1, previousHash: D.ZATCA_FIRST_PIH });
+for (const [inclusive, pct] of [[true, 5], [false, 12.5], [true, 0]]) {
+  const receipt = tillReceipt(inclusive, pct);
+  const doc = asDoc(receipt);
+  const sumLines = Math.round(doc.lines.reduce((x, l) => x + l.lineExtensionAmount, 0) * 100) / 100;
+  const allow = Math.round((doc.allowances || []).reduce((x, l) => x + l.amount, 0) * 100) / 100;
+  ok(`THE DOCUMENT IS THE SLIP, to the halala — ${inclusive ? "tax-inclusive" : "tax-exclusive"} prices, ${pct}% basket`,
+    doc.payableAmount === receipt.total && doc.taxAmount === receipt.vat, j([doc.payableAmount, receipt.total, doc.taxAmount, receipt.vat]));
+  ok("...and adds up by ZATCA's rule: lines less allowances are the taxable amount",
+    Math.round((sumLines - allow) * 100) / 100 === doc.subtotals[0].taxableAmount && doc.taxExclusiveAmount === doc.subtotals[0].taxableAmount);
+  ok("a basket discount is an allowance only when there is one", pct ? doc.allowances?.length === 1 : !doc.allowances, j(doc.allowances));
+  ok("no line rounds: quantity × price ÷ base is its net exactly",
+    doc.lines.every((l) => Math.round((l.quantity * l.unitPrice / (l.baseQuantity || 1)) * 100) / 100 === l.lineExtensionAmount));
+  ok("it is a simplified invoice naming nobody, with no problem", doc.subtype === "0200000" && doc.buyer === null && D.zatcaProblem(doc) === "", D.zatcaProblem(doc));
+}
+const priced3 = asDoc(tillReceipt(true, 5)).lines[0];
+ok("A NET THAT DOES NOT DIVIDE — three for 24.34 — IS WRITTEN AS THE PRICE OF THREE", priced3.baseQuantity === 3 && priced3.unitPrice === priced3.lineExtensionAmount, j(priced3));
+const rx = X.zatcaInvoiceXml(asDoc(tillReceipt(true, 5)));
+ok("THE ALLOWANCE IS WHERE UBL PUTS IT — after the payment means, before the tax totals",
+  /<\/cac:PaymentMeans><cac:AllowanceCharge><cbc:ChargeIndicator>false<\/cbc:ChargeIndicator>/.test(rx) && rx.indexOf("<cac:AllowanceCharge>") < rx.indexOf("<cac:TaxTotal>"));
+ok("...and the document's allowance total says so", /<cbc:AllowanceTotalAmount currencyID="SAR">1\.90<\/cbc:AllowanceTotalAmount>/.test(rx));
+ok("the base quantity is written inside the price", rx.includes('<cbc:BaseQuantity unitCode="PCE">3</cbc:BaseQuantity>'));
+ok("how the customer paid: card is 48, cash 10, anything else 1",
+  RC.paymentMeansOf([{ method: "card" }]) === "48" && RC.paymentMeansOf([{ method: "cash" }]) === "10" && RC.paymentMeansOf([]) === "1");
+
 console.log(fails ? `\nzatca model: ${fails} FAILURES\n` : "\nzatca model: all passed\n");
 process.exitCode = fails ? 1 : 0;

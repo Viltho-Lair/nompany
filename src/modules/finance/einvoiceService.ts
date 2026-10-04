@@ -11,6 +11,11 @@
 //                 studio chose, or when somebody presses the button
 //   record      — the authority's answer, as the studio received it, for a
 //                 country where the studio submits itself
+//
+// TWO KINDS OF SALE (04/10/2026): Finance's INVOICES, and the till's RECEIPTS,
+// which ZATCA treats as the simplified invoices they are. A receipt is read as
+// an invoice-shaped VIEW — its number as the reference, the day it was sold in
+// the studio's zone as the issue date — and every write lands on its own row.
 // Preparing, submitting and recording are acts on the invoice, so all three
 // answer to `finance.receivables.edit`; onboarding is the studio's standing
 // arrangement with its tax authority, and answers to `finance.settings.edit`.
@@ -27,16 +32,54 @@ import type { EInvoiceDocument, EInvoiceState } from "./einvoice";
 import type { FinanceContext, Invoice } from "./types";
 import { zatcaSeller } from "./zatca";
 import { onboardZatcaUnit, renewZatcaUnit, setZatcaTiming, zatcaUnitSummary } from "./zatcaUnit";
+import { dayIn, studioTimezone } from "@/shared/timezone";
 
 type EInvoiced = Invoice & { einvoice?: EInvoiceState | null };
 const Invoices = repo<EInvoiced>("invoices");
+const Receipts = repo<Record<string, unknown> & { id: string; einvoice?: EInvoiceState | null }>("posReceipts");
+
+/** Which kind of sale an act is on. */
+export const EINVOICE_KINDS = ["invoice", "receipt"] as const;
+export type EInvoiceKind = (typeof EINVOICE_KINDS)[number];
+export const cleanKind = (v: unknown): EInvoiceKind => (v === "receipt" ? "receipt" : "invoice");
 
 /**
- * WHERE A STUDIO'S INVOICES ARE — what every act here needs, and all the
- * nightly job has: no person, no access, just the studio and its cash section.
+ * WHERE A STUDIO'S SALES ARE — what every act here needs, and all the nightly
+ * job has: no person, no access, just the studio, its cash section (invoices)
+ * and its till's section (receipts — null for a studio with no till).
  */
-export type EInvoiceTarget = Pick<FinanceContext, "studio" | "cashSection">;
+export type EInvoiceTarget = Pick<FinanceContext, "studio" | "cashSection"> & { posSection?: FinanceContext["posSection"] | null };
 const cash = (t: EInvoiceTarget) => ({ studio: t.studio, section: t.cashSection });
+
+/** A receipt as the invoice-shaped thing every act here reads. */
+function receiptView(r: Record<string, unknown> & { id: string }, timezone: string): EInvoiced {
+  return {
+    ...r,
+    reference: String(r.number || ""),
+    issueDate: r.at ? dayIn(String(r.at), timezone) : "",
+    createdAt: String(r.at || ""),
+    clientName: "",
+  } as unknown as EInvoiced;
+}
+
+/** Every sale of one kind, as the acts here read them. */
+async function rowsOf(t: EInvoiceTarget, kind: EInvoiceKind): Promise<EInvoiced[]> {
+  if (kind === "invoice") return Invoices.find(cash(t));
+  if (!t.posSection) return [];
+  const tz = studioTimezone(t.studio as { timezone?: unknown });
+  return (await Receipts.find({ studio: t.studio, section: t.posSection })).map((r) => receiptView(r, tz));
+}
+
+/** Write one sale's e-invoice state onto its own row, under a function patch (invariant 8). */
+async function writeState(t: EInvoiceTarget, kind: EInvoiceKind, id: string, next: (prior: EInvoiceState | null) => EInvoiceState | null) {
+  if (kind === "invoice") {
+    const u = await Invoices.update(cash(t), id, (cur) => ({ einvoice: next(cur.einvoice || null) }));
+    return u ? (u.einvoice || null) : undefined;
+  }
+  if (!t.posSection) return undefined;
+  const u = await Receipts.update({ studio: t.studio, section: t.posSection }, id, (cur) => ({ einvoice: next(cur.einvoice || null) }));
+  return u ? (u.einvoice || null) : undefined;
+}
 const str = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max);
 const studioOf = (t: EInvoiceTarget) => t.studio as unknown as Record<string, unknown>;
 
@@ -46,9 +89,14 @@ export async function einvoiceQueue(ctx: FinanceContext) {
   if (denied) return denied;
   const rules = studioEInvoiceRules(ctx.studio);
   if (!rules) return { required: false as const };
-  const invoices = await Invoices.find(cash(ctx));
-  const queue = invoices
-    .map((inv) => ({
+  const adapter = adapterFor(rules);
+  // THE TILL'S RECEIPTS JOIN THE QUEUE only where nompany submits them — a
+  // country whose files the studio submits itself has no receipt file here.
+  const kinds: EInvoiceKind[] = adapter?.submit ? ["invoice", "receipt"] : ["invoice"];
+  const rows = await Promise.all(kinds.map(async (kind) => (await rowsOf(ctx, kind)).map((inv) => ({ kind, inv }))));
+  const queue = rows.flat()
+    .map(({ kind, inv }) => ({
+      kind,
       id: inv.id,
       reference: inv.reference,
       issueDate: inv.issueDate,
@@ -59,7 +107,6 @@ export async function einvoiceQueue(ctx: FinanceContext) {
     }))
     .filter((r) => needsAction(r.state))
     .sort((a, b) => String(a.issueDate || "").localeCompare(String(b.issueDate || "")));
-  const adapter = adapterFor(rules);
   return {
     required: true as const,
     authority: rules.authority, system: rules.system, mode: rules.mode, inForce: rules.inForce,
@@ -76,10 +123,10 @@ export async function einvoiceQueue(ctx: FinanceContext) {
   };
 }
 
-async function required(t: EInvoiceTarget, invoiceId: string) {
+async function required(t: EInvoiceTarget, invoiceId: string, kind: EInvoiceKind = "invoice") {
   const rules = studioEInvoiceRules(t.studio);
   if (!rules) return { error: "not-required" as const };
-  const invoice = (await Invoices.find(cash(t))).find((i) => i.id === invoiceId);
+  const invoice = (await rowsOf(t, kind)).find((i) => i.id === invoiceId);
   if (!invoice) return { error: "notfound" as const };
   const state = einvoiceStatusOf(invoice, rules);
   if (state === "not-required") return { error: "not-required" as const };
@@ -96,25 +143,23 @@ async function required(t: EInvoiceTarget, invoiceId: string) {
  * one cannot be submitted (a unit that has since been replaced signed it).
  */
 type Prepared = { document: EInvoiceDocument } | { error: string; system?: string; detail?: string };
-async function prepareFor(t: EInvoiceTarget, invoice: EInvoiced, rules: EInvoiceRules, state: string, fresh = false): Promise<Prepared> {
+async function prepareFor(t: EInvoiceTarget, invoice: EInvoiced, rules: EInvoiceRules, state: string, fresh = false, kind: EInvoiceKind = "invoice"): Promise<Prepared> {
   const adapter = adapterFor(rules);
   if (!adapter) return { error: "no-adapter", system: rules.system };
   const kept = invoice.einvoice?.document;
   if (kept?.xml && state !== "rejected" && !fresh) return { document: kept };
 
-  const out = await adapter.prepare({ invoice: invoice as Record<string, unknown>, studio: studioOf(t), rules });
+  const out = await adapter.prepare({ invoice: invoice as Record<string, unknown>, studio: studioOf(t), rules, source: kind });
   // WHAT THE STUDIO MUST FIX FIRST — named, and nothing written.
   if ("problem" in out) return { error: "einvoice-problem", detail: out.problem };
 
-  const updated = await Invoices.update(cash(t), invoice.id, () => ({
-    einvoice: {
-      status: "prepared", adapter: adapter.key, at: new Date().toISOString(), document: out,
-      // THE QR THAT PRINTS, where the seller builds one; where the authority
-      // issues it, it arrives when recorded.
-      ...(out.qr ? { qr: out.qr } : {}),
-    } as EInvoiceState,
-  }));
-  return updated ? { document: out } : { error: "notfound" };
+  const written = await writeState(t, kind, invoice.id, () => ({
+    status: "prepared", adapter: adapter.key, at: new Date().toISOString(), document: out,
+    // THE QR THAT PRINTS, where the seller builds one; where the authority
+    // issues it, it arrives when recorded.
+    ...(out.qr ? { qr: out.qr } : {}),
+  } as EInvoiceState));
+  return written !== undefined ? { document: out } : { error: "notfound" };
 }
 
 /**
@@ -128,11 +173,11 @@ async function prepareFor(t: EInvoiceTarget, invoice: EInvoiced, rules: EInvoice
  * waiting: a person can press again, and the batch comes back tomorrow.
  */
 const LEASE_SEC = 120;
-async function leased<R>(t: EInvoiceTarget, invoiceId: string, op: (found: Exclude<Awaited<ReturnType<typeof required>>, { error: string }>) => Promise<R>) {
+async function leased<R>(t: EInvoiceTarget, invoiceId: string, op: (found: Exclude<Awaited<ReturnType<typeof required>>, { error: string }>) => Promise<R>, kind: EInvoiceKind = "invoice") {
   const key = S.einvoiceLease(t.studio.id, invoiceId);
   if (!(await claim(key, randomUUID(), LEASE_SEC))) return { error: "einvoice-busy" as const };
   try {
-    const found = await required(t, invoiceId);
+    const found = await required(t, invoiceId, kind);
     if ("error" in found) return found;
     return await op(found);
   } finally {
@@ -141,10 +186,10 @@ async function leased<R>(t: EInvoiceTarget, invoiceId: string, op: (found: Exclu
 }
 
 /** THE OFFICIAL FILE FOR ONE INVOICE, to download. */
-export async function prepareEInvoice(ctx: FinanceContext, invoiceId: string) {
+export async function prepareEInvoice(ctx: FinanceContext, invoiceId: string, kind: EInvoiceKind = "invoice") {
   const denied = requirePermission(ctx.access, "finance.receivables.edit");
   if (denied) return denied;
-  return leased(ctx, invoiceId, (found) => prepareFor(ctx, found.invoice, found.rules, found.state));
+  return leased(ctx, invoiceId, (found) => prepareFor(ctx, found.invoice, found.rules, found.state, false, kind), kind);
 }
 
 /**
@@ -157,61 +202,56 @@ export async function prepareEInvoice(ctx: FinanceContext, invoiceId: string) {
  *   unreached — nobody judged it (an outage, no unit yet); it stays prepared,
  *               the attempt is counted, and the nightly job tries it again
  */
-async function submitFor(t: EInvoiceTarget, invoice: EInvoiced, rules: EInvoiceRules, state: string) {
+async function submitFor(t: EInvoiceTarget, invoice: EInvoiced, rules: EInvoiceRules, state: string, kind: EInvoiceKind = "invoice") {
   const adapter = adapterFor(rules);
   if (!adapter?.submit) return { error: "no-submit" as const };
-  let prepared = await prepareFor(t, invoice, rules, state);
+  let prepared = await prepareFor(t, invoice, rules, state, false, kind);
   if ("error" in prepared) return prepared;
   let answer = await adapter.submit({ studio: studioOf(t), document: prepared.document as EInvoiceDocument });
   // KEPT FROM BEFORE THE STUDIO'S UNIT — or signed by one it has replaced. It
   // was never submitted by nompany, so it is prepared again under the unit
   // that can submit it, taking a link in that unit's chain.
   if (answer.outcome === "unreached" && answer.message === "unsigned") {
-    prepared = await prepareFor(t, invoice, rules, state, true);
+    prepared = await prepareFor(t, invoice, rules, state, true, kind);
     if ("error" in prepared) return prepared;
     answer = await adapter.submit({ studio: studioOf(t), document: prepared.document as EInvoiceDocument });
   }
   // THE AUTHORITY'S OWN COPY, where it handed one back (a cleared invoice).
   const document = { ...(prepared.document as EInvoiceDocument), ...(answer.outcome === "accepted" && answer.document ? answer.document : {}) };
   const at = new Date().toISOString();
-  const updated = await Invoices.update(cash(t), invoice.id, (cur) => {
-    const prior = cur.einvoice || null;
-    return {
-      einvoice: {
-        ...(prior || {}),
-        adapter: adapter.key,
-        at,
-        document,
-        ...(document.qr ? { qr: document.qr } : {}),
-        message: answer.message,
-        ...(answer.outcome === "unreached"
-          ? { status: "prepared", attempts: (Number(prior?.attempts) || 0) + 1 }
-          : { status: answer.outcome, submitted: true, uuid: document.uuid || "", attempts: (Number(prior?.attempts) || 0) + 1 }),
-      } as EInvoiceState,
-    };
-  });
-  if (!updated) return { error: "notfound" as const };
-  return { outcome: answer.outcome, message: answer.message, einvoice: updated.einvoice };
+  const written = await writeState(t, kind, invoice.id, (prior) => ({
+    ...(prior || {}),
+    adapter: adapter.key,
+    at,
+    document,
+    ...(document.qr ? { qr: document.qr } : {}),
+    message: answer.message,
+    ...(answer.outcome === "unreached"
+      ? { status: "prepared", attempts: (Number(prior?.attempts) || 0) + 1 }
+      : { status: answer.outcome, submitted: true, uuid: document.uuid || "", attempts: (Number(prior?.attempts) || 0) + 1 }),
+  } as EInvoiceState));
+  if (written === undefined) return { error: "notfound" as const };
+  return { outcome: answer.outcome, message: answer.message, einvoice: written };
 }
 
-/** SUBMIT, because somebody pressed the button — any outstanding invoice, whatever its date. */
-export async function submitEInvoice(ctx: FinanceContext, invoiceId: string) {
+/** SUBMIT, because somebody pressed the button — any outstanding sale, whatever its date. */
+export async function submitEInvoice(ctx: FinanceContext, invoiceId: string, kind: EInvoiceKind = "invoice") {
   const denied = requirePermission(ctx.access, "finance.receivables.edit");
   if (denied) return denied;
   return leased(ctx, invoiceId, async (found) => {
     if (found.state === "accepted") return { error: "already-accepted" as const };
-    return submitFor(ctx, found.invoice, found.rules, found.state);
-  });
+    return submitFor(ctx, found.invoice, found.rules, found.state, kind);
+  }, kind);
 }
 
 /**
- * THE MOMENT AN INVOICE IS ISSUED — for a studio that chose to submit each as
- * it goes. BEST-EFFORT, BY THE SAME RULE AS POSTING IT: the invoice was issued
+ * THE MOMENT AN INVOICE IS ISSUED, OR A TILL SALE IS MADE — for a studio that
+ * chose to submit each as it goes. BEST-EFFORT, BY THE SAME RULE AS POSTING IT: the invoice was issued
  * and that happened; an authority being down must not undo it. What happened
  * travels back beside the invoice, and an invoice not reached is the nightly
  * job's to retry.
  */
-export async function submitOnIssue(t: EInvoiceTarget, invoiceId: string) {
+export async function submitOnIssue(t: EInvoiceTarget, invoiceId: string, kind: EInvoiceKind = "invoice") {
   try {
     const rules = studioEInvoiceRules(t.studio);
     const adapter = adapterFor(rules);
@@ -222,12 +262,42 @@ export async function submitOnIssue(t: EInvoiceTarget, invoiceId: string) {
       // CLEARED BEFORE IT WAS ISSUED (a business invoice — clearBeforeIssue).
       if (found.state === "accepted") return null;
       if (String(found.invoice.issueDate || "") < when.since) return null;
-      return submitFor(t, found.invoice, found.rules, found.state);
-    });
+      return submitFor(t, found.invoice, found.rules, found.state, kind);
+    }, kind);
     // BUSY IS NOT AN ANSWER TO SHOW: somebody else is already submitting it.
     return out && "error" in out ? null : out;
   } catch {
     return { outcome: "unreached" as const, message: "einvoice-error" };
+  }
+}
+
+/**
+ * A TILL SALE IS STAMPED AS IT IS MADE (04/10/2026). A Saudi simplified
+ * invoice carries its stamped QR on the slip the customer takes away, so the
+ * receipt is PREPARED — signed, a chain link taken — before the sale answers,
+ * which is local work and fast. REPORTING it needs ZATCA and waits for nobody:
+ * the till hands it to `submitOnIssue` after the response, or the nightly batch
+ * takes it. Only for a studio that is connected — an unconnected one would take
+ * a chain link per sale for a file nothing submits. Best-effort: a sale is never
+ * refused because its stamp could not be made; the batch prepares it later.
+ */
+export async function stampOnSale(t: EInvoiceTarget, receiptId: string): Promise<EInvoiceState | null> {
+  try {
+    const rules = studioEInvoiceRules(t.studio);
+    const adapter = adapterFor(rules);
+    if (!rules || !adapter?.submit || !adapter.submission) return null;
+    if (!(await adapter.submission(studioOf(t)))) return null;
+    let document: EInvoiceDocument | null = null;
+    await leased(t, receiptId, async (found) => {
+      const prepared = await prepareFor(t, found.invoice, found.rules, found.state, false, "receipt");
+      if (!("error" in prepared)) document = prepared.document;
+      return null;
+    }, "receipt");
+    const doc = document as EInvoiceDocument | null;
+    if (!doc) return null;
+    return { status: "prepared", adapter: adapter.key, at: new Date().toISOString(), document: doc, ...(doc.qr ? { qr: doc.qr } : {}) } as EInvoiceState;
+  } catch {
+    return null;
   }
 }
 
@@ -293,18 +363,22 @@ export async function submitOutstanding(t: EInvoiceTarget) {
   if (!rules || !adapter?.submit || !adapter.submission) return { submitted: 0, accepted: 0 };
   const when = await adapter.submission(studioOf(t));
   if (!when) return { submitted: 0, accepted: 0 };
-  const invoices = (await Invoices.find(cash(t)))
+  // INVOICES AND THE TILL'S RECEIPTS TOGETHER, in the order they were made —
+  // one chain, and its order is the order ZATCA sees.
+  const due = (await Promise.all(EINVOICE_KINDS.map(async (kind) => (await rowsOf(t, kind))
     .filter((inv) => dueForBatch(inv, einvoiceStatusOf(inv, rules), when.since))
-    .sort((a, b) => String(a.issueDate || "").localeCompare(String(b.issueDate || "")) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+    .map((inv) => ({ kind, inv })))))
+    .flat()
+    .sort((a, b) => String(a.inv.issueDate || "").localeCompare(String(b.inv.issueDate || "")) || String(a.inv.createdAt || "").localeCompare(String(b.inv.createdAt || "")));
   let accepted = 0;
-  for (const inv of invoices) {
+  for (const { kind, inv } of due) {
     // READ AGAIN UNDER THE LEASE: the list above may be minutes old by the
     // time the loop reaches this one, and somebody may have submitted it since.
     const out = await leased(t, inv.id, async (found) =>
-      dueForBatch(found.invoice, found.state, when.since) ? submitFor(t, found.invoice, found.rules, found.state) : null);
+      dueForBatch(found.invoice, found.state, when.since) ? submitFor(t, found.invoice, found.rules, found.state, kind) : null, kind);
     if (out && "outcome" in out && out.outcome === "accepted") accepted += 1;
   }
-  return { submitted: invoices.length, accepted };
+  return { submitted: due.length, accepted };
 }
 
 /**

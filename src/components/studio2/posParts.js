@@ -185,6 +185,11 @@ export function Receipt({ tr, receipt, studio, terms, tillName, test = false }) 
           {tr.youSaved} {money(num(receipt.discountTotal) + num(receipt.promotionDiscount), cur)} {cur}
         </p>
       )}
+      {/* THE TAX AUTHORITY'S QR (a Saudi simplified invoice, 04/10/2026) — drawn
+          by the server from the stamped receipt's own tags, never by the till. */}
+      {!test && receipt.einvoiceQrSvg && (
+        <div className="mx-auto mt-3 w-[132px]" dangerouslySetInnerHTML={{ __html: receipt.einvoiceQrSvg }} />
+      )}
       <p className="mt-3 text-center">{terms.footer || tr.thankYou}</p>
       {/* THE NUMBER AS A BARCODE, so a return finds this sale by scanning the slip. */}
       {test
