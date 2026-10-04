@@ -110,6 +110,9 @@ export default function WorkInHand({ slug }) {
                   {lane.overdue > 0 && <span className="text-rose-600 dark:text-rose-300"> · {tr.workOverdue(lane.overdue)}</span>}
                   {lane.doneRecently !== null && <> · {tr.workDoneRecently(lane.doneRecently)}</>}
                   {lane.sampled ? <> · {tr.workNewestDeals(lane.sampled)}</> : null}
+                  {/* Deals are read from their snapshots, refreshed nightly and on
+                      opening — the oldest one says how fresh the lane is. */}
+                  {lane.completionAsOf ? <> · {tr.workCompletionAsOf(fmtDate(lane.completionAsOf))}</> : null}
                 </p>
               )}
 

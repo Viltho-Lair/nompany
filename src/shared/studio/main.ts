@@ -30,6 +30,7 @@ type Strings = CommonStrings & {
   workKpiRunning: string;
   workKpiDays: (n: number) => string;
   workKpiNothingYet: string;
+  workCompletionAsOf: (date: string) => string;
   // Finish setting up (modules/main/firstRun).
   setupTitle: string;
   setupLead: (done: number, total: number) => string;
@@ -97,6 +98,7 @@ const en: Strings = {
   workKpiRunning: "Under way",
   workKpiDays: (n) => (n === 1 ? "1 day" : `${n} days`),
   workKpiNothingYet: "nothing to measure yet",
+  workCompletionAsOf: (date) => `progress as of ${date}`,
   setupTitle: "Finish setting up",
   setupLead: (done, total) => `${done} of ${total} done. Each one ticks itself once it is set.`,
   setupHide: "Hide",
@@ -167,6 +169,7 @@ const ar: Strings = {
   workKpiRunning: "جارٍ",
   workKpiDays: (n) => (n === 1 ? "يوم واحد" : `${n} يومًا`),
   workKpiNothingYet: "لا شيء لقياسه بعد",
+  workCompletionAsOf: (date) => `التقدم حتى ${date}`,
   setupTitle: "أكمل الإعداد",
   setupLead: (done, total) => `أُنجز ${done} من ${total}. كل بند يُعلَّم تلقائيًا عند إتمامه.`,
   setupHide: "إخفاء",

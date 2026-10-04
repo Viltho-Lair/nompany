@@ -77,5 +77,20 @@ ok("a facilities company runs deals, field jobs and work orders, in the registry
   JSON.stringify(W.workTypesRunning(on(["maintenance", "field-service", "crm-sales"]))) === JSON.stringify(["deal", "job", "workOrder"]));
 ok("a studio running none of those runs no kind of work", W.workTypesRunning(on(["finance", "hr"])).length === 0);
 
+console.log("\n== a deal read with its completion snapshot");
+
+const snapFlow = ["ticket", "quotation", "invoice"];
+const both = new Set(["ticket", "quotation", "invoice"]);
+const allThere = W.readDeal(snapFlow, both, {}, { ticket: { state: "done", progress: 1 }, quotation: { state: "done", progress: 1 }, invoice: { state: "started", progress: 0.25 } });
+ok("an unpaid invoice keeps a deal OPEN even though every stage is there", allThere.state === "open");
+ok("...and counts its paid share: (1 + 1 + 0.25) / 3", allThere.progress === 0.75, String(allThere.progress));
+const noShare = W.readDeal(snapFlow, new Set(["ticket"]), {}, { ticket: { state: "started", progress: null } });
+ok("a stage reached with no share counts half, not nothing", noShare.progress === Math.round((0.5 / 3) * 1000) / 1000, String(noShare.progress));
+const called = W.readDeal(snapFlow, both, {}, { ticket: { state: "done", progress: 1 }, quotation: { state: "void", progress: null }, invoice: { state: "done", progress: 1 } });
+ok("a called-off stage counts as absent", called.state === "open" && called.progress === Math.round((2 / 3) * 1000) / 1000, JSON.stringify(called));
+const finished = W.readDeal(snapFlow, both, {}, Object.fromEntries(snapFlow.map((t) => [t, { state: "done", progress: 1 }])));
+ok("every stage done is a done deal", finished.state === "done" && finished.progress === 1);
+ok("without a snapshot it reads as before, by presence", W.readDeal(snapFlow, both).state === "done");
+
 console.log(fails ? `\nwork types: ${fails} FAILED` : "\nwork types: all passed");
 process.exit(fails ? 1 : 0);

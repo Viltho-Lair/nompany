@@ -598,7 +598,7 @@ export async function engagementOf(studioId: string, type: string, recId: string
 // bodies are resolved by the caller from their own collections — this returns ids.
 export async function readEngagementView(
   studioId: string, engId: string,
-): Promise<{ ref: string; locked: boolean; context: Record<string, unknown>; singletons: Record<string, string | null>; members: Record<string, string[]> } | null> {
+): Promise<{ ref: string; locked: boolean; context: Record<string, unknown>; singletons: Record<string, string | null>; members: Record<string, string[]>; completion: Engagement["completion"] | null } | null> {
   const root = await readEngagement(studioId, engId);
   if (!root) return null;
   const members: Record<string, string[]> = {};
@@ -627,7 +627,9 @@ export async function readEngagementView(
   // `locked` rides alongside `ref` for the same reason `ref` does: the caller
   // already has the root in hand here, and a screen that has to re-read it just
   // to decide whether to draw an Unlock button is a hop nobody chose to spend.
-  return { ref: root.ref, locked: isEngagementLocked(root), context: root.context, singletons: root.singletons, members };
+  // The completion SNAPSHOT rides along too, so a list reads where each deal's
+  // work stands from the same read it already makes (null until first refreshed).
+  return { ref: root.ref, locked: isEngagementLocked(root), context: root.context, singletons: root.singletons, members, completion: root.completion || null };
 }
 
 /**

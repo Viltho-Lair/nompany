@@ -177,6 +177,9 @@ export function readStatus(type: Exclude<WorkTypeKey, "deal">, status: unknown):
   };
 }
 
+/** A stage's completion as a deal's snapshot keeps it (platform/engagement/completion). */
+export type StageState = { state: string; progress: number | null };
+
 /**
  * A deal, read against its FLOW: `running` is the flow's stages this studio
  * runs (`stagesRunning`), `present` the stages the deal holds. Its step is the
@@ -187,6 +190,13 @@ export function readStatus(type: Exclude<WorkTypeKey, "deal">, status: unknown):
  * stage it holds — but its progress counts only what it holds, so the skipped
  * stage still shows as not done.
  *
+ * WITH `completion` (the deal's stored snapshot, 04/10/2026) a stage counts by
+ * how FINISHED it is rather than by being there: done counts in full, under
+ * way counts its share — or half where no share can be said, because it has
+ * been reached and is not finished — and called off counts as absent. The deal
+ * is done only when every stage of its flow is done. Without a snapshot (a deal
+ * not yet refreshed) it reads as before, by presence.
+ *
  * `labels` names each stage, so a screen can say "at Quotation" without the
  * stage registry. A deal on no flow has no sequence to be at a point in: null.
  */
@@ -194,19 +204,30 @@ export function readDeal(
   running: readonly string[],
   present: ReadonlySet<string>,
   labels: Readonly<Record<string, string>> = {},
+  completion: Readonly<Record<string, StageState>> | null = null,
 ): WorkReading {
   if (!running.length) return UNKNOWN;
+  const held = (t: string) => present.has(t) && completion?.[t]?.state !== "void";
   let step = -1;
-  running.forEach((t, i) => { if (present.has(t)) step = i; });
-  const held = running.filter((t) => present.has(t)).length;
-  const done = held === running.length;
+  running.forEach((t, i) => { if (held(t)) step = i; });
+  const weight = (t: string) => {
+    if (!held(t)) return 0;
+    const c = completion?.[t];
+    if (!c) return completion ? 0.5 : 1;
+    if (c.state === "done") return 1;
+    return c.progress ?? 0.5;
+  };
+  const sum = running.reduce((n, t) => n + weight(t), 0);
+  const done = completion
+    ? running.every((t) => completion[t]?.state === "done")
+    : running.every((t) => present.has(t));
   const at = step >= 0 ? running[step] : "";
   const word = labels[at] || at;
   return {
     state: done ? "done" : "open",
     step,
     steps: running.length,
-    progress: held / running.length,
+    progress: Math.round((sum / running.length) * 1000) / 1000,
     held: false,
     label: at ? { en: word, ar: word } : null,
     token: at,

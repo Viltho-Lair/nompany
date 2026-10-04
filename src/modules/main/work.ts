@@ -83,6 +83,11 @@ export type WorkLane = {
   today?: { count: number; value: number; currency: string };
   /** The studio's period KPIs for this kind of work, scored for the current period. */
   kpis: LaneKpi[];
+  /**
+   * Deals only: the OLDEST completion snapshot the lane's figures were read
+   * from — what "as of" says, since snapshots refresh nightly and on opening.
+   */
+  completionAsOf?: string;
 };
 
 /** What the KPI reading needs, read once for the whole board. */
@@ -228,6 +233,7 @@ async function dealsLane(ctx: MainContext, slug: string): Promise<WorkLane | nul
   const preload = { templates: await listFlowTemplates(ctx.studio.id), primaryFor: new Map<string, Promise<string>>() };
   const labels = Object.fromEntries(Object.entries(STAGE_REGISTRY).map(([k, v]) => [k, v.label]));
 
+  let asOf = "";
   // IN PARALLEL, not one after another: measured 03/10/2026 in the sandbox, the
   // board took 8.9 seconds reading thirteen deals in turn — several reads each,
   // every one waiting on the last.
@@ -239,7 +245,10 @@ async function dealsLane(ctx: MainContext, slug: string): Promise<WorkLane | nul
     // list's own rule.
     if (![...present].some((t) => visible.has(t))) return null;
     const template = await dealTemplate(ctx, root, preload);
-    const reading = readDeal(runningStages(ctx, template, present), present, labels);
+    // READ BY HOW FINISHED EACH STAGE IS where the deal's snapshot says, by
+    // presence where it has none yet (modules/main/workTypes readDeal).
+    const reading = readDeal(runningStages(ctx, template, present), present, labels, view.completion?.stages || null);
+    if (view.completion?.at && (!asOf || view.completion.at < asOf)) asOf = view.completion.at;
     return {
       id, ref: text(view.ref), title: text(view.context.title), reading,
       dueOn: "", overdue: false,
@@ -247,7 +256,7 @@ async function dealsLane(ctx: MainContext, slug: string): Promise<WorkLane | nul
     };
   }));
   const items = read.filter((i): i is WorkItem => Boolean(i));
-  return lane("deal", items, null, ids.length === DEAL_SAMPLE ? DEAL_SAMPLE : null);
+  return { ...lane("deal", items, null, ids.length === DEAL_SAMPLE ? DEAL_SAMPLE : null), ...(asOf ? { completionAsOf: asOf } : {}) };
 }
 
 /** Every kind of work this studio runs and this reader may see, in the registry's order. */

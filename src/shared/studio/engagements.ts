@@ -57,6 +57,9 @@ type Strings = CommonStrings & {
   stageUnderWay: string;
   stageUnderWayPct: (pct: number) => string;
   stageVoid: string;
+  /** The deals list: how many of a deal's stages are finished, from its snapshot. */
+  stagesDone: (done: number, total: number) => string;
+  completionAsOf: (date: string) => string;
   kpiUnknown: string;
   kpiDueIn: (days: number) => string;
   kpiOverdue: (days: number) => string;
@@ -147,6 +150,8 @@ const en: Strings = {
   stageUnderWay: "Under way",
   stageUnderWayPct: (pct: number) => `Under way · ${pct}%`,
   stageVoid: "Called off",
+  stagesDone: (done: number, total: number) => `${done} of ${total} done`,
+  completionAsOf: (date: string) => `as of ${date}`,
   kpiUnknown: "Cannot be counted",
   kpiDueIn: (days: number) => (days === 0 ? "due today" : days === 1 ? "1 day left" : `${days} days left`),
   kpiOverdue: (days: number) => (days === 1 ? "1 day over" : `${days} days over`),
@@ -246,6 +251,8 @@ const ar: Strings = {
   stageUnderWay: "جارٍ",
   stageUnderWayPct: (pct: number) => `جارٍ · ${pct}٪`,
   stageVoid: "أُلغي",
+  stagesDone: (done: number, total: number) => `${done} من ${total} منجز`,
+  completionAsOf: (date: string) => `حتى ${date}`,
   kpiUnknown: "لا يمكن احتسابه",
   kpiDueIn: (days: number) => (days === 0 ? "مستحق اليوم" : days === 1 ? "بقي يوم واحد" : `بقي ${days} يوما`),
   kpiOverdue: (days: number) => (days === 1 ? "تأخر يوما واحدا" : `تأخر ${days} يوما`),

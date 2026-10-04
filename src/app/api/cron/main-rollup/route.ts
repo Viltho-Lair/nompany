@@ -6,6 +6,17 @@ import { S } from "@/platform/db/keys";
 import { MAIN_AGG_SOURCES, aggField } from "@/platform/db/mainAgg";
 import { writePlatformStats, type PlatformStats } from "@/platform/db/platformStats";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { ENG } from "@/platform/db/keys";
+import { zRange } from "@/platform/db/store";
+import { refreshDealCompletion } from "@/modules/main/engagements";
+import type { PermissionSet } from "@/platform/access";
+
+/**
+ * DEALS REFRESHED PER STUDIO PER NIGHT, newest first. A deal nobody opens and
+ * nothing touches for longer than that keeps its last snapshot, which says how
+ * old it is; opening it refreshes it at once.
+ */
+const DEALS_PER_NIGHT = 500;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,6 +57,7 @@ async function reconcile() {
 
   const studios = (await listStudios()) as { id: string }[];
   let rebuilt = 0;
+  let dealsRefreshed = 0;
 
   // THE PUBLIC PAGES' FIGURES RIDE ON THIS PASS. See platform/db/platformStats
   // for why they are not their own cron: a second job would walk every studio
@@ -109,6 +121,22 @@ async function reconcile() {
     // One more read per studio, on a job that has already read every collection
     // it owns. The alternative is a second nightly traversal for one integer.
     platform.people += (await listCollaborators(sid)).length;
+
+    // EVERY DEAL'S COMPLETION, REFRESHED (the owner's choice, 04/10/2026:
+    // nightly + whenever a deal is opened). It rides on this pass rather than a
+    // job of its own for the reason the public figures do: this traversal
+    // already holds the studio and its sections. The refresh reads records and
+    // writes nothing to them; a deal whose snapshot did not change is not
+    // written at all. One deal failing never stops the rest.
+    const dealIds = await zRange(ENG.index(sid), 0, DEALS_PER_NIGHT - 1, { rev: true });
+    // The refresh reads no rights — completion is the deal's, not a reader's —
+    // so the context carries none.
+    const dealCtx = { studio: studio as { id: string }, access: new Set<string>() as unknown as PermissionSet, sections };
+    for (const dealId of dealIds) {
+      try {
+        if (await refreshDealCompletion(dealCtx, dealId)) dealsRefreshed += 1;
+      } catch { /* the next night, or the next opening, tries again */ }
+    }
     rebuilt += 1;
   }
 
@@ -123,5 +151,5 @@ async function reconcile() {
     // Deliberately swallowed; the rollup's own result is what this job is for.
   }
 
-  return Response.json({ ok: true, studios: rebuilt, at: now.toISOString() });
+  return Response.json({ ok: true, studios: rebuilt, dealsRefreshed, at: now.toISOString() });
 }

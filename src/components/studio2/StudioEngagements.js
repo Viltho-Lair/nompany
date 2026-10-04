@@ -375,6 +375,14 @@ function EngagementList({
                   <div className="flex flex-wrap gap-1.5">
                     {row.stages.map((type) => <StageBadge key={type} type={type} />)}
                   </div>
+                  {/* HOW MANY ARE FINISHED, from the deal's snapshot — refreshed
+                      nightly and whenever the deal is opened, so it says how old
+                      it is. Absent until the deal has one. */}
+                  {row.completion && row.completion.total > 0 && (
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400" title={tr.completionAsOf(fmtDate(row.completion.at))}>
+                      {tr.stagesDone(row.completion.done, row.completion.total)}
+                    </p>
+                  )}
                 </td>
                 <td className="num whitespace-nowrap px-4 py-3 text-slate-500 dark:text-slate-400">{fmtDate(row.createdAt)}</td>
                 <td className="whitespace-nowrap px-4 py-3">

@@ -462,7 +462,7 @@ export function runningStages(
 export async function listEngagements(
   ctx: EngagementCtx,
   { limit = PAGE, cursor = 0 }: { limit?: number; cursor?: number } = {},
-): Promise<{ engagements: Array<{ id: string; ref: string; clientName: string; title: string; createdAt: string; stages: string[]; locked: boolean }>; nextCursor: number | null } | Refusal> {
+): Promise<{ engagements: Array<{ id: string; ref: string; clientName: string; title: string; createdAt: string; stages: string[]; locked: boolean; completion: { done: number; total: number; at: string } | null }>; nextCursor: number | null } | Refusal> {
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
@@ -472,7 +472,7 @@ export async function listEngagements(
   // per row — see clientNameById's own comment.
   const nameById = await clientNameById(ctx.studio.id);
 
-  const engagements: Array<{ id: string; ref: string; clientName: string; title: string; createdAt: string; stages: string[]; locked: boolean }> = [];
+  const engagements: Array<{ id: string; ref: string; clientName: string; title: string; createdAt: string; stages: string[]; locked: boolean; completion: { done: number; total: number; at: string } | null }> = [];
   for (const engId of ids) {
     const view = await readEngagementView(ctx.studio.id, engId);
     if (!view) continue;
@@ -496,6 +496,13 @@ export async function listEngagements(
       // a migration or a single write to live data. The row carries it so the list
       // can draw the unlock control without a second request per row.
       locked: view.locked,
+      // HOW MANY OF THE STAGES THIS READER SEES ARE FINISHED, from the deal's
+      // snapshot (refreshed nightly and on opening) — null until it has one.
+      completion: view.completion ? {
+        done: stages.filter((t) => view.completion?.stages[t]?.state === "done").length,
+        total: stages.filter((t) => view.completion?.stages[t]?.state !== "void").length,
+        at: view.completion.at,
+      } : null,
     });
   }
   return { engagements, nextCursor: ids.length === limit ? cursor + limit : null };
