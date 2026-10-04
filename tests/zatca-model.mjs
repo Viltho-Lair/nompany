@@ -1,14 +1,17 @@
-// WHAT SAUDI ARABIA'S TAX AUTHORITY IS HANDED — composed, written, hashed and
-// QR'd by nompany, and SUBMITTED BY THE STUDIO (the owner's rule, 26/09/2026:
-// nompany never reaches a tax authority; ./modules/finance/einvoice).
+// WHAT SAUDI ARABIA'S TAX AUTHORITY IS HANDED — composed, written, hashed,
+// QR'd and STAMPED by nompany, which reports it (the owner's decision A,
+// 03/10/2026; ./modules/finance/einvoice has the rule it reversed).
 //
 // WHAT THIS PROVES. The arithmetic, that the document is written in the
-// canonical form its hash is taken over, the counter and hash chain, and the
-// QR's five seller tags. Several of those encodings were confirmed against
-// ZATCA's developer portal on 25/09/2026, before the owner's rule, while an
-// adapter still submitted; this file holds them where ZATCA accepted them. One
-// assertion below exists because that portal warned: the QR's time carried a
-// "Z" the issue time does not.
+// canonical form its hash is taken over, the counter and hash chain, the QR's
+// tags, and the stamp. The encodings were confirmed against ZATCA's developer
+// portal — on 25/09/2026, and again on 04/10/2026, when a stamped simplified
+// invoice, credit note and debit note were each REPORTED by its production
+// reporting endpoint with no warning. Two assertions exist because that portal
+// objected: the QR's time carried a "Z" the issue time does not (a warning),
+// and the signed properties were hashed with an empty element written open
+// and shut where ZATCA writes it self-closed (a refusal — and its compliance
+// check had passed the same file, so only reporting finds it).
 
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -20,6 +23,9 @@ const D = await import("@/modules/finance/zatcaDocument");
 const X = await import("@/modules/finance/zatcaXml");
 const Q = await import("@/modules/finance/zatcaQr");
 const Z = await import("@/modules/finance/zatca");
+const C = await import("@/modules/finance/zatcaCrypto");
+const G = await import("@/modules/finance/zatcaSign");
+const { createVerify } = await import("node:crypto");
 
 let fails = 0;
 const ok = (what, cond, saw) => {
@@ -102,7 +108,7 @@ ok("a changed line changes the hash",
 console.log("\n== the file the studio downloads");
 const qr = Z.sellerQr(mixed);
 const xml = X.zatcaInvoiceXml(mixed, qr);
-ok("NO STAMP: no signature extension and no signature envelope — the company's certified solution adds both",
+ok("AN UNSTAMPED FILE — a studio not yet connected to ZATCA — has no signature extension and no envelope",
   !xml.includes("ext:UBLExtensions>") && !xml.includes("<cac:Signature>"));
 ok("the seller's QR rides in its AdditionalDocumentReference",
   xml.includes(`<cbc:ID>QR</cbc:ID><cac:Attachment><cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain">${qr}</cbc:EmbeddedDocumentBinaryObject>`));
@@ -115,7 +121,7 @@ ok("THE FILE, WITH ITS QR REFERENCE CUT OUT, IS EXACTLY THE HASHED STRING", cut 
 
 console.log("\n== the QR the seller builds");
 const tags = Q.tlvDecode(qr);
-ok("FIVE TAGS — 6 to 9 are the stamp's, which nompany does not make", tags.length === 5, tags.length);
+ok("FIVE TAGS on an unstamped file — 6 to 9 are the stamp's", tags.length === 5, tags.length);
 ok("tag 1 is the seller's name in UTF-8, Arabic intact", tags[0].toString("utf8") === seller.name);
 // THE TIME HAS NO "Z": with one, ZATCA warned invoiceTimeStamp_QRCODE_INVALID
 // (KSA-25) on every document, because the issue time is local.
@@ -150,9 +156,83 @@ ok("the national address comes across in its parts",
 
 console.log("\n== the chain");
 ok("AN EMPTY CHAIN STARTS AT 1 FROM THE STANDARD'S SEED",
-  j(Z.nextLink(null)) === j({ counter: 1, previousHash: D.ZATCA_FIRST_PIH }));
-ok("the next link follows the last",
-  j(Z.nextLink({ counter: 7, previousHash: "h7" })) === j({ counter: 8, previousHash: "h7" }));
+  j(Z.nextLink(null)) === j({ counter: 1, previousHash: D.ZATCA_FIRST_PIH, unitId: "" }));
+ok("the next link follows the last — a chain written before units counts for no unit",
+  j(Z.nextLink({ counter: 7, previousHash: "h7" })) === j({ counter: 8, previousHash: "h7", unitId: "" }));
+ok("A NEW UNIT STARTS ITS OWN CHAIN: ZATCA counts per unit, and never saw the old count",
+  j(Z.nextLink({ counter: 7, previousHash: "h7" }, "u1")) === j({ counter: 1, previousHash: D.ZATCA_FIRST_PIH, unitId: "u1" }));
+ok("...and continues it once started",
+  j(Z.nextLink({ counter: 3, previousHash: "h3", unitId: "u1" }, "u1")) === j({ counter: 4, previousHash: "h3", unitId: "u1" }));
+
+console.log("\n== the stamp (./zatcaSign)");
+// A CERTIFICATE ZATCA'S DEVELOPER PORTAL ISSUED, 04/10/2026, for an invented
+// company (VAT 399999999900003). A certificate is public by design; the key it
+// was issued for is not here, and is not needed — the signature is checked
+// against a key made below, and the certificate is read for what the stamp
+// copies out of it.
+const DEV_CERT = "TUlJQjlqQ0NBWnlnQXdJQkFnSUdBYUVHQ1daYU1Bb0dDQ3FHU000OUJBTUNNQlV4RXpBUkJnTlZCQU1NQ21WSmJuWnZhV05wYm1jd0hoY05Nall4TURBME1EZ3pNRE0yV2hjTk16RXhNREF6TWpFd01EQXdXakJUTVFzd0NRWURWUVFHRXdKVFFURVdNQlFHQTFVRUN3d05VbWw1WVdSb0lFSnlZVzVqYURFVk1CTUdBMVVFQ2d3TVZHVnpkQ0JEYjIxd1lXNTVNUlV3RXdZRFZRUUREQXh1YjIxd1lXNTVMWFJsYzNRd1ZqQVFCZ2NxaGtqT1BRSUJCZ1VyZ1FRQUNnTkNBQVQ3RnNDVXo3QTlIN05sZVJBbUpCRkZsN3VCR0NsSFE0eGordllXRFhRRERtOTl0NG54SEYyRlB3ckRhVlJpWWpRdzl0QUxaY2owT1NtSzJueDRXR2VhbzRHY01JR1pNQXdHQTFVZEV3RUIvd1FDTUFBd2dZZ0dBMVVkRVFTQmdEQitwSHd3ZWpFa01DSUdBMVVFQkF3Yk1TMXViMjF3WVc1NWZESXRNUzR3ZkRNdGRHVnpkQzB3TURBeE1SOHdIUVlLQ1pJbWlaUHlMR1FCQVF3UE16azVPVGs1T1RrNU9UQXdNREF6TVEwd0N3WURWUVFNREFReE1UQXdNUTh3RFFZRFZRUWFEQVpTYVhsaFpHZ3hFVEFQQmdOVkJBOE1DRk5sY25acFkyVnpNQW9HQ0NxR1NNNDlCQU1DQTBnQU1FVUNJUURtb0g3R2lHaTJLcHBIQVJXYXZENW5QS3c0ZGE2YThRTmVUUWl1Y3pnVEdnSWdTeUZsQjVVYUxTZk5kd1lVUjJrSzl2SzI3ZEJtUDJKejR2SWxnc0NjREJzPQ==";
+const cert = C.readZatcaCertificate(DEV_CERT);
+ok("the certificate is read: issuer, decimal serial, public key, ZATCA's signature",
+  cert.issuer === "CN=eInvoicing" && /^\d+$/.test(cert.serial) && cert.publicKeyDer.length === 88 && cert.signature[0] === 0x30, j({ issuer: cert.issuer, serial: cert.serial }));
+const key = C.newZatcaKey();
+const stamp = G.stampZatca(mixed, { privateKeyPem: key.privateKeyPem, certificate: cert, signingTime: "2026-10-04T08:00:00" });
+ok("THE STAMP SIGNS THE HASH IT WAS HANDED — stamping moves nothing the hash covers", stamp.hash === X.zatcaInvoiceHash(mixed));
+const verifier = createVerify("sha256");
+verifier.update(Buffer.from(stamp.hash, "base64"));
+ok("the signature is ECDSA over the 32 raw bytes of the hash, and verifies with the key's public half",
+  verifier.verify({ key: key.publicKeyDer, format: "der", type: "spki" }, Buffer.from(stamp.signature, "base64")));
+// THE PROPERTY ZATCA'S VALIDATOR RESTS ON: cut its three parts out of the
+// stamped file and what is left is exactly what was hashed.
+const stampedCut = stamp.xml
+  .replace('<?xml version="1.0" encoding="UTF-8"?>', "")
+  .replace(/<ext:UBLExtensions>.*<\/ext:UBLExtensions>/, "")
+  .replace(/<cac:AdditionalDocumentReference><cbc:ID>QR<\/cbc:ID>.*?<\/cac:AdditionalDocumentReference>/, "")
+  .replace(/<cac:Signature>.*?<\/cac:Signature>/, "");
+ok("THE STAMPED FILE, WITH ITS EXTENSION, QR AND ENVELOPE CUT OUT, IS EXACTLY THE HASHED STRING", stampedCut === hashInput);
+ok("the extension comes first inside the root, and the envelope straight after the QR",
+  /^<\?xml[^>]*\?><Invoice [^>]*><ext:UBLExtensions>/.test(stamp.xml)
+  && /<cbc:ID>QR<\/cbc:ID>.*?<\/cac:AdditionalDocumentReference><cac:Signature>/.test(stamp.xml));
+// THE REFUSAL THIS PINS: ZATCA hashes the signed properties with the digest
+// method SELF-CLOSED; written open and shut, its reporting endpoint answered
+// "Invalid signed properties hashing" (04/10/2026).
+const props = stamp.xml.match(/<xades:SignedProperties .*?<\/xades:SignedProperties>/)?.[0] || "";
+ok("the digest method inside the signed properties is self-closed", props.includes('<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>'), props.slice(0, 200));
+const hashedForm = props
+  .replace("<xades:SignedProperties ", '<xades:SignedProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" ')
+  .replace(/<ds:(\w+)/g, '<ds:$1 xmlns:ds="http://www.w3.org/2000/09/xmldsig#"')
+  .replace(/ xmlns:ds="http:\/\/www\.w3\.org\/2000\/09\/xmldsig#">/g, ' xmlns:ds="http://www.w3.org/2000/09/xmldsig#">');
+const propsDigest = Buffer.from(createHash("sha256").update(hashedForm).digest("hex")).toString("base64");
+ok("THE SIGNED PROPERTIES' DIGEST is base64 of the HEX of SHA-256 over them, each element carrying its namespace",
+  stamp.xml.includes(`URI="#xadesSignedProperties"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"></ds:DigestMethod><ds:DigestValue>${propsDigest}</ds:DigestValue>`), propsDigest);
+const certDigest = Buffer.from(createHash("sha256").update(cert.base64).digest("hex")).toString("base64");
+ok("the certificate's digest the same way, over its base64 text", props.includes(`<ds:DigestValue>${certDigest}</ds:DigestValue>`));
+const stampTags = Q.tlvDecode(stamp.qr);
+ok("NINE TAGS once stamped: the seller's five, the hash, the signature, the public key, ZATCA's certificate signature",
+  stampTags.length === 9 && stampTags[0].toString("utf8") === seller.name
+  && stampTags[5].toString() === stamp.hash && stampTags[6].toString() === stamp.signature
+  && stampTags[7].equals(cert.publicKeyDer) && stampTags[8].equals(cert.signature), stampTags.length);
+ok("the stamped file carries the nine-tag QR", stamp.xml.includes(`mimeCode="text/plain">${stamp.qr}</cbc:EmbeddedDocumentBinaryObject>`));
+
+console.log("\n== the certificate request");
+const csr = Buffer.from(C.zatcaCsr({ environment: "developer", commonName: "nompany-test", serialNumber: "1-nompany|2-erp|3-x",
+  vatNumber: "399999999900003", orgUnit: "Riyadh", orgName: "Test", invoiceTypes: "0100", location: "Riyadh", industry: "Services" }, key.privateKeyPem), "base64").toString("utf8");
+const csrDer = Buffer.from(csr.replace(/-----[^-]+-----|\s/g, ""), "base64");
+ok("THE REQUEST IS A PEM, base64'd once more — the form ZATCA's compliance API takes", csr.startsWith("-----BEGIN CERTIFICATE REQUEST-----"));
+ok("it names the developer portal's certificate template — each environment has its own",
+  csrDer.includes(Buffer.from("TSTZATCA-Code-Signing")) && !csrDer.includes(Buffer.from("PREZATCA")));
+ok("and carries the identity ZATCA reads: the VAT number, the unit's serial, the invoice types",
+  csrDer.includes(Buffer.from("399999999900003")) && csrDer.includes(Buffer.from("1-nompany|2-erp|3-x")) && csrDer.includes(Buffer.from("0100")));
+
+console.log("\n== what ZATCA's reporting answer means");
+ok("REPORTED is accepted, its warnings kept as the message",
+  j(Z.reportingOutcome(202, { reportingStatus: "REPORTED", validationResults: { warningMessages: [{ code: "W1", message: "careful" }] } }))
+  === j({ outcome: "accepted", message: "W1: careful" }));
+ok("NOT_REPORTED is rejected, with the rules it broke",
+  j(Z.reportingOutcome(400, { reportingStatus: "NOT_REPORTED", validationResults: { errorMessages: [{ code: "BR-KSA-01", message: "bad" }] } }))
+  === j({ outcome: "rejected", message: "BR-KSA-01: bad" }));
+ok("NO ANSWER IS NOT A REFUSAL — an outage, a 401 or a 5xx leaves the invoice to be tried again",
+  Z.reportingOutcome(0, null).outcome === "unreached" && Z.reportingOutcome(401, null).outcome === "unreached"
+  && Z.reportingOutcome(503, { reportingStatus: "NOT_REPORTED" }).outcome === "unreached");
 
 console.log(fails ? `\nzatca model: ${fails} FAILURES\n` : "\nzatca model: all passed\n");
 process.exitCode = fails ? 1 : 0;

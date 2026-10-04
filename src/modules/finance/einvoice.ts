@@ -5,21 +5,23 @@
 // the contract an adapter meets, the registry it goes into, and the one
 // question every screen asks: where is this invoice with the authority?
 //
-// NOMPANY NEVER TALKS TO A TAX AUTHORITY — the owner's rule, 26/09/2026: "our
-// job is to prepare companies to submit their invoicing on the official
-// channels, not through us … we must not interact with official channels at
-// all." So an adapter PREPARES and nothing else: no endpoint, no credential, no
-// API key, no certificate request. The studio downloads the prepared file and
-// submits it through the authority's own channel, and records what the
-// authority answered.
+// WHO SUBMITS, BY COUNTRY — and the rule has had two answers.
 //
-// DO NOT PUT A SUBMISSION PATH BACK. There was one, twice: Jordan's adapter
-// posted to JoFotara with the studio's API credentials (22/09/2026), and
-// Saudi Arabia's onboarded with ZATCA for a certificate and reported invoices
-// (25/09/2026). Both were removed on 26/09/2026 at the owner's instruction —
-// see docs/progress.md, the e-invoicing ledger row. A submission path means
-// holding a company's credentials with its tax authority and answering for
-// what reaches it, which is not this product's job.
+// 26/09/2026, the owner: nompany prepares and never submits — "our job is to
+// prepare companies to submit their invoicing on the official channels, not
+// through us". Jordan's submission path (22/09) and Saudi Arabia's (25/09) were
+// removed that day.
+//
+// 03/10/2026, the owner's decision A, for SAUDI ARABIA: nompany SUBMITS, and
+// the studio chooses when, inside ZATCA's limits — a B2C (simplified) invoice
+// reported as it is issued or in a daily batch, a B2B (standard) one cleared at
+// issue. Phase 2 makes a seller's own e-invoicing system sign every invoice, so
+// a file nompany prepared unsigned was one every Saudi studio had to take
+// somewhere else to finish. An adapter MAY therefore have a `submit`; only
+// ZATCA's does, its one door to the authority is ./zatcaApi, and a studio holds
+// a unit there only after onboarding with an OTP from ZATCA's own portal
+// (./zatcaUnit). JORDAN IS STILL PREPARE-ONLY — the decision named Saudi
+// Arabia, and nothing here widens it.
 //
 // ADDING A COUNTRY IS ADDING ONE ADAPTER HERE, keyed by the `adapter` name its
 // definition already declares ("zatca", "jofotara").
@@ -31,9 +33,10 @@ import { zatcaAdapter } from "./zatca";
 /**
  * WHERE AN INVOICE STANDS WITH ITS AUTHORITY, as far as this product knows.
  *
- *   prepared — the official file exists; the studio has not said it submitted
- *   accepted — the studio recorded that the authority accepted it
- *   rejected — the studio recorded that the authority refused it
+ *   prepared — the official file exists and the authority has not accepted it
+ *              yet: not submitted, or submitted and not reached (retried)
+ *   accepted — the authority accepted it (ZATCA answered, or the studio recorded it)
+ *   rejected — the authority refused it (likewise)
  *
  * `pending`, `submitted` and `failed` are READ-ONLY LEGACY: they were written
  * while an adapter submitted (22–26/09/2026) and are kept in the list so an
@@ -52,6 +55,12 @@ export type EInvoiceDocument = {
   hash?: string;
   counter?: number;
   uuid?: string;
+  /**
+   * THE ZATCA UNIT THAT SIGNED IT, when one did. Absent on an unsigned file.
+   * A file signed by a unit the studio has since replaced is prepared again
+   * before it is submitted — the old unit's certificate no longer answers.
+   */
+  unitId?: string;
 };
 
 export type EInvoiceState = {
@@ -65,11 +74,24 @@ export type EInvoiceState = {
    * by the studio where the authority issues it (Jordan).
    */
   qr?: string;
-  /** The authority's words, as the studio recorded them. */
+  /** The authority's words — as the studio recorded them, or as it answered nompany. */
   message?: string;
+  /** Whether nompany submitted it (ZATCA) rather than the studio recording an answer. */
+  submitted?: boolean;
   document?: EInvoiceDocument;
   /** Legacy, from the submitting adapters. */
   attempts?: number;
+};
+
+/**
+ * WHAT SUBMITTING ANSWERED. `unreached` is not a refusal: the authority was not
+ * reached, or the studio cannot submit yet (no unit), and the invoice stays
+ * prepared to be tried again — a refusal is the document's problem, an outage
+ * is not.
+ */
+export type EInvoiceSubmission = {
+  outcome: "accepted" | "rejected" | "unreached";
+  message: string;
 };
 
 /** What an adapter is handed, and what it answers: the document, or why it cannot be made. */
@@ -85,6 +107,19 @@ export type EInvoiceAdapter = {
     studio: Record<string, unknown>;
     rules: EInvoiceRules;
   }) => Promise<EInvoiceDocument | { problem: string }>;
+  /**
+   * SUBMIT A PREPARED FILE — only where the owner has decided nompany submits
+   * (Saudi Arabia, 03/10/2026). An adapter without it is prepare-only.
+   */
+  submit?: (input: { studio: Record<string, unknown>; document: EInvoiceDocument }) => Promise<EInvoiceSubmission>;
+  /**
+   * WHETHER THIS STUDIO CAN SUBMIT, AND WHEN IT CHOSE TO: as each invoice is
+   * issued, or in the nightly batch. Null when it cannot submit yet. `since`
+   * is the day submitting began — nothing issued before it is submitted
+   * without somebody asking, because it may have reached the authority some
+   * other way.
+   */
+  submission?: (studio: Record<string, unknown>) => Promise<{ timing: "immediate" | "daily"; since: string } | null>;
 };
 
 /** THE ADAPTERS, by the key a country's definition names. `docs/progress.md` holds the work list. */

@@ -460,6 +460,25 @@ type Strings = CommonStrings & {
   einvSave: string;
   einvCancel: string;
   einvProblem: (code: string) => string;
+  /** Saudi Arabia, where nompany submits (the owner's decision A, 03/10/2026). */
+  einvSubmitsHow: (system: string) => string;
+  einvConnectFirst: (system: string) => string;
+  einvSubmit: (system: string) => string;
+  einvSubmitted: (outcome: string) => string;
+  zatcaTitle: string;
+  zatcaNotConnected: string;
+  zatcaOtp: string;
+  zatcaOtpHint: string;
+  zatcaEnvironment: string;
+  zatcaEnv: (e: string) => string;
+  zatcaConnect: string;
+  zatcaConnecting: string;
+  zatcaConnected: (env: string, since: string) => string;
+  zatcaReconnect: string;
+  zatcaTesting: string;
+  zatcaTiming: string;
+  zatcaTimingOption: (t: string) => string;
+  zatcaNoRight: string;
 };
 
 const en: Strings = {
@@ -928,7 +947,7 @@ const en: Strings = {
   einvNoAdapter: (system) => `nompany does not prepare ${system} files yet. Issue these invoices through ${system} yourself, then record what it answered here.`,
   einvHowTo: (system) => `nompany does not submit anything. Download each invoice's file, submit it through ${system} yourself, then record what ${system} answered — its reference, and its QR if it issued one, which then prints on the invoice.`,
   einvQueueNone: "Every issued invoice is recorded as accepted by the authority.",
-  einvState: (s) => ({ unsubmitted: "Not prepared", prepared: "File ready — not yet recorded", accepted: "Accepted", rejected: "Rejected", pending: "Waiting", submitted: "Sent", failed: "Failed" } as Record<string, string>)[s] || s,
+  einvState: (s) => ({ unsubmitted: "Not prepared", prepared: "File ready — not accepted yet", accepted: "Accepted", rejected: "Rejected", pending: "Waiting", submitted: "Sent", failed: "Failed" } as Record<string, string>)[s] || s,
   einvDownload: "Download file",
   einvRecord: "Record answer",
   einvOutcome: "The authority",
@@ -938,6 +957,24 @@ const en: Strings = {
   einvMessage: "Its message",
   einvSave: "Save",
   einvCancel: "Cancel",
+  einvSubmitsHow: (system) => `nompany signs each invoice and reports it to ${system}, when you chose below. A row stays here until ${system} accepts it; one it rejects says why.`,
+  einvSubmit: (system) => `Submit to ${system}`,
+  einvConnectFirst: (system) => `Connect to ZATCA below and nompany signs each invoice and reports it to ${system} for you. Until then, download each invoice's file and submit it through ${system} yourself.`,
+  einvSubmitted: (outcome) => ({ accepted: "Accepted by ZATCA.", rejected: "ZATCA rejected it — the reason is on the row.", unreached: "ZATCA was not reached. It will be tried again tonight." } as Record<string, string>)[outcome] || outcome,
+  zatcaTitle: "Connection to ZATCA",
+  zatcaNotConnected: "Not connected. Generate a one-time password on ZATCA's Fatoora portal and enter it here: nompany creates this company's signing key, has ZATCA check a sample invoice, credit note and debit note, and receives the certificate every invoice is then signed with.",
+  zatcaOtp: "One-time password",
+  zatcaOtpHint: "Six digits, from the Fatoora portal. It works once and expires within an hour.",
+  zatcaEnvironment: "Where to connect",
+  zatcaEnv: (e) => ({ developer: "ZATCA developer portal (testing)", simulation: "ZATCA simulation", production: "ZATCA production" } as Record<string, string>)[e] || e,
+  zatcaConnect: "Connect",
+  zatcaConnecting: "Connecting — ZATCA is checking the samples…",
+  zatcaConnected: (env, since) => `Connected to ${env} since ${since}.`,
+  zatcaReconnect: "Connect again",
+  zatcaTesting: "Only ZATCA's developer portal is open for now. Invoices reported there are tests: they do not reach ZATCA's records and count for nothing.",
+  zatcaTiming: "When invoices are reported",
+  zatcaTimingOption: (t) => ({ immediate: "As each invoice is issued", daily: "Once a day, at midnight Riyadh time" } as Record<string, string>)[t] || t,
+  zatcaNoRight: "Connecting to ZATCA needs the right to edit Finance settings.",
   einvProblem: (code) => ({
     "reference-required": "An acceptance needs the authority's reference for the invoice.",
     outcome: "Choose accepted or rejected.",
@@ -958,6 +995,16 @@ const en: Strings = {
     lines: "The invoice has no lines.",
     "issue-date": "The invoice has no issue date.",
     reference: "The invoice has no reference.",
+    otp: "Enter the six-digit one-time password from ZATCA's Fatoora portal.",
+    environment: "Choose where to connect.",
+    "environment-closed": "That ZATCA environment is not open yet.",
+    "zatca-refused": "ZATCA refused the request",
+    "zatca-check-failed": "ZATCA's check of a sample document failed",
+    "zatca-unreachable": "ZATCA could not be reached. Try again shortly.",
+    "already-accepted": "This invoice is already accepted.",
+    "no-submit": "nompany does not submit this country's invoices.",
+    "not-onboarded": "Connect to ZATCA first.",
+    timing: "Choose when invoices are reported.",
   } as Record<string, string>)[code] || code,
 };
 
@@ -1427,7 +1474,7 @@ const ar: Strings = {
   einvNoAdapter: (system) => `لا يعد نومباني ملفات ${system} بعد. أصدر هذه الفواتير عبر ${system} بنفسك، ثم سجل هنا ما رد به.`,
   einvHowTo: (system) => `لا يرسل نومباني شيئا. نزّل ملف كل فاتورة وقدّمه عبر ${system} بنفسك، ثم سجل ما رد به ${system} — مرجعه، ورمز QR إن أصدره، فيطبع على الفاتورة من بعدها.`,
   einvQueueNone: "كل فاتورة صادرة مسجلة مقبولة لدى الجهة.",
-  einvState: (s) => ({ unsubmitted: "لم يعد", prepared: "الملف جاهز — لم يسجل الرد", accepted: "مقبولة", rejected: "مرفوضة", pending: "بالانتظار", submitted: "أرسلت", failed: "فشلت" } as Record<string, string>)[s] || s,
+  einvState: (s) => ({ unsubmitted: "لم يعد", prepared: "الملف جاهز — لم يقبل بعد", accepted: "مقبولة", rejected: "مرفوضة", pending: "بالانتظار", submitted: "أرسلت", failed: "فشلت" } as Record<string, string>)[s] || s,
   einvDownload: "تنزيل الملف",
   einvRecord: "تسجيل الرد",
   einvOutcome: "رد الجهة",
@@ -1437,6 +1484,24 @@ const ar: Strings = {
   einvMessage: "رسالتها",
   einvSave: "حفظ",
   einvCancel: "إلغاء",
+  einvSubmitsHow: (system) => `يوقّع نومباني كل فاتورة ويبلغ عنها ${system} في الموعد الذي تختاره أدناه. يبقى السطر هنا حتى يقبلها ${system}، والمرفوضة تذكر السبب.`,
+  einvSubmit: (system) => `إرسال إلى ${system}`,
+  einvConnectFirst: (system) => `اربط مع الهيئة أدناه فيوقّع نومباني كل فاتورة ويبلغ عنها ${system} عنك. وحتى ذلك، نزّل ملف كل فاتورة وقدّمه عبر ${system} بنفسك.`,
+  einvSubmitted: (outcome) => ({ accepted: "قبلتها هيئة الزكاة والضريبة والجمارك.", rejected: "رفضتها الهيئة — السبب على السطر.", unreached: "تعذر الوصول إلى الهيئة. ستعاد المحاولة الليلة." } as Record<string, string>)[outcome] || outcome,
+  zatcaTitle: "الربط مع هيئة الزكاة والضريبة والجمارك",
+  zatcaNotConnected: "غير مربوط. أنشئ رمز تحقق لمرة واحدة في بوابة فاتورة وأدخله هنا: ينشئ نومباني مفتاح التوقيع للمنشأة، وتفحص الهيئة فاتورة وإشعار دائن وإشعار مدين نموذجية، ثم يستلم الشهادة التي توقع بها كل فاتورة بعدها.",
+  zatcaOtp: "رمز التحقق",
+  zatcaOtpHint: "ستة أرقام من بوابة فاتورة. يعمل مرة واحدة وتنتهي صلاحيته خلال ساعة.",
+  zatcaEnvironment: "بيئة الربط",
+  zatcaEnv: (e) => ({ developer: "بوابة المطورين لدى الهيئة (اختبار)", simulation: "بيئة المحاكاة", production: "بيئة الإنتاج" } as Record<string, string>)[e] || e,
+  zatcaConnect: "ربط",
+  zatcaConnecting: "جار الربط — الهيئة تفحص النماذج…",
+  zatcaConnected: (env, since) => `مربوط مع ${env} منذ ${since}.`,
+  zatcaReconnect: "ربط من جديد",
+  zatcaTesting: "بوابة المطورين وحدها متاحة حاليا. الفواتير المبلغ عنها فيها تجريبية: لا تصل إلى سجلات الهيئة ولا تحتسب.",
+  zatcaTiming: "موعد الإبلاغ عن الفواتير",
+  zatcaTimingOption: (t) => ({ immediate: "عند إصدار كل فاتورة", daily: "مرة يوميا، عند منتصف الليل بتوقيت الرياض" } as Record<string, string>)[t] || t,
+  zatcaNoRight: "الربط مع الهيئة يحتاج صلاحية تعديل إعدادات المالية.",
   einvProblem: (code) => ({
     "reference-required": "القبول يحتاج مرجع الجهة للفاتورة.",
     outcome: "اختر مقبولة أو مرفوضة.",
@@ -1457,6 +1522,16 @@ const ar: Strings = {
     lines: "الفاتورة بلا بنود.",
     "issue-date": "الفاتورة بلا تاريخ إصدار.",
     reference: "الفاتورة بلا مرجع.",
+    otp: "أدخل رمز التحقق المكون من ستة أرقام من بوابة فاتورة.",
+    environment: "اختر بيئة الربط.",
+    "environment-closed": "هذه البيئة غير متاحة بعد.",
+    "zatca-refused": "رفضت الهيئة الطلب",
+    "zatca-check-failed": "فشل فحص الهيئة لأحد النماذج",
+    "zatca-unreachable": "تعذر الوصول إلى الهيئة. حاول بعد قليل.",
+    "already-accepted": "هذه الفاتورة مقبولة بالفعل.",
+    "no-submit": "لا يرسل نومباني فواتير هذه الدولة.",
+    "not-onboarded": "اربط مع الهيئة أولا.",
+    timing: "اختر موعد الإبلاغ عن الفواتير.",
   } as Record<string, string>)[code] || code,
 };
 

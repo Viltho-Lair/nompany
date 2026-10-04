@@ -532,11 +532,19 @@ export async function editInvoice(ctx: FinanceContext, id: string, body: Record<
   const withholding = patch.withholdingLabel !== undefined && patch.withholdingLabel !== current.withholdingLabel
     ? await settleWithholding(ctx, updated)
     : null;
+  // AND, WHERE NOMPANY SUBMITS AND THE STUDIO CHOSE "AS EACH IS ISSUED", IT
+  // GOES TO THE TAX AUTHORITY NOW (./einvoiceService). Best-effort like the
+  // posting above: the answer travels back beside the invoice, and one that
+  // did not reach is the nightly job's. Imported late, as the credit check is.
+  const einvoice = nowIssued
+    ? await (await import("./einvoiceService")).submitOnIssue(ctx, id)
+    : null;
 
   return {
-    invoice: { ...updated, ...invoiceTotals(updated, studio.currency) },
+    invoice: { ...(einvoice && "einvoice" in einvoice ? { ...updated, einvoice: einvoice.einvoice } : updated), ...invoiceTotals(updated, studio.currency) },
     ...(posting ? { posting } : {}),
     ...(withholding ? { withholding } : {}),
+    ...(einvoice ? { einvoiceSubmission: "outcome" in einvoice ? { outcome: einvoice.outcome, message: einvoice.message } : einvoice } : {}),
   };
 }
 

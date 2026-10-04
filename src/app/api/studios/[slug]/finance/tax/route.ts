@@ -7,7 +7,7 @@ import { requirePermission } from "@/platform/access";
 import { unclaimed } from "@/modules/finance/withholding";
 import { setupFor } from "@/modules/finance/setup";
 import { listTaxReturns, fileTaxReturn, payTaxReturn } from "@/modules/finance/taxFiling";
-import { einvoiceQueue, prepareEInvoice, recordEInvoice } from "@/modules/finance/einvoiceService";
+import { einvoiceQueue, prepareEInvoice, recordEInvoice, submitEInvoice, onboardZatca, setZatcaReporting } from "@/modules/finance/einvoiceService";
 import { vatMovement, storedMoneyAccounts } from "@/modules/finance/ledger";
 
 export const runtime = "nodejs";
@@ -57,20 +57,26 @@ export const GET = route(
   },
 );
 
-// FILE A RETURN OR PAY ONE (`finance.tax.file`), OR PREPARE OR RECORD AN
-// INVOICE'S E-INVOICE (`finance.receivables.edit`, checked in the service) —
-// each named in the body rather than guessed from its shape.
+// FILE A RETURN OR PAY ONE (`finance.tax.file`); PREPARE, SUBMIT OR RECORD AN
+// INVOICE'S E-INVOICE (`finance.receivables.edit`); ONBOARD THE STUDIO'S ZATCA
+// UNIT OR CHOOSE WHEN IT REPORTS (`finance.settings.edit`) — every right
+// checked in the service, each act named in the body rather than guessed from
+// its shape.
 export const POST = route(
   { auth: "studio", context: financeContext, body: true, name: "finance-tax" },
   async (f) => {
     const action = String(f.body?.action ?? "");
     const result = action === "file" ? await fileTaxReturn(f, f.body)
       : action === "pay" ? await payTaxReturn(f, String(f.body?.id ?? ""), f.body)
-        // E-INVOICING, AND NOTHING HERE REACHES AN AUTHORITY: prepare hands back
-        // the official file to download, record keeps what the authority
-        // answered the studio (modules/finance/einvoiceService).
+        // E-INVOICING: prepare hands back the official file to download; submit
+        // sends it, where nompany submits (Saudi Arabia, the owner's decision of
+        // 03/10/2026); record keeps what the authority answered a studio that
+        // submits itself (modules/finance/einvoiceService).
         : action === "einvoice-prepare" ? await prepareEInvoice(f, String(f.body?.id ?? ""))
+        : action === "einvoice-submit" ? await submitEInvoice(f, String(f.body?.id ?? ""))
         : action === "einvoice-record" ? await recordEInvoice(f, String(f.body?.id ?? ""), f.body || {})
+        : action === "zatca-onboard" ? await onboardZatca(f, f.body || {})
+        : action === "zatca-timing" ? await setZatcaReporting(f, f.body || {})
           : { error: "action" };
     if (refused(result)) return result;
     return { ok: true, ...result };

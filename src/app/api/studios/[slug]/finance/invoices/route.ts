@@ -44,7 +44,13 @@ export const PUT = route(spec, async (fin) => {
   // payment that settles an invoice began moving it (18/09/2026) — so a refused
   // move could never reach the screen that says so.
   const withholding = (result as { withholding?: unknown }).withholding;
-  return { ok: true, invoice: result.invoice, ...(posting ? { posting } : {}), ...(withholding ? { withholding } : {}) };
+  // AND WHAT THE TAX AUTHORITY SAID, where issuing submitted it (Saudi Arabia,
+  // the owner's decision of 03/10/2026) — the same reason as the two above.
+  const einvoiceSubmission = (result as { einvoiceSubmission?: unknown }).einvoiceSubmission;
+  return {
+    ok: true, invoice: result.invoice,
+    ...(posting ? { posting } : {}), ...(withholding ? { withholding } : {}), ...(einvoiceSubmission ? { einvoiceSubmission } : {}),
+  };
 });
 
 // An issued invoice is part of the record — cancel it rather than erasing what

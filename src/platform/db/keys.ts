@@ -628,6 +628,11 @@ export const S = {
   // a hole ZATCA can see. Only ever forward, like the counters above, and under
   // the studio prefix so it dies with the studio.
   einvoiceChain: (studioId: string) => `${P}s:${studioId}:einvoice-chain`,
+  // THE STUDIO'S ZATCA UNIT — its key, the certificates ZATCA issued it and
+  // when to report (modules/finance/zatcaUnit). The key and the secrets are
+  // sealed with a subkey of NOMPANY_DATA_KEY before they are written; under the
+  // studio prefix so they die with the studio.
+  zatcaUnit: (studioId: string) => `${P}s:${studioId}:zatca-unit`,
   // THE STUDIO'S DATA KEY, WRAPPED — see platform/db/sealing.ts. Under the
   // studio prefix ON PURPOSE: a studio cascade deletes it, and with it every
   // sealed value any backup still holds for that studio becomes unreadable.

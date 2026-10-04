@@ -10,6 +10,7 @@ import { moneyText } from "@/shared/money";
 import { taxDict } from "@/shared/studio/tax";
 import { financeDict } from "@/shared/studio/finance";
 import { useMoney } from "@/components/studio2/studioCurrency";
+import { fmtDate } from "@/lib/format";
 
 // THE TAX RETURN TAB (vat.md) — one period's VAT, read from the documents.
 //
@@ -318,17 +319,34 @@ function CertificateRow({ row, tr, slug, kind, canRecord, onDone }) {
 }
 
 // E-INVOICING — what the studio's country requires, and the issued invoices it
-// still owes the authority. NOMPANY NEVER SUBMITS (the owner's rule,
-// 26/09/2026): each row offers the invoice's official FILE to download, which
-// the studio submits through the authority's own channel, and a place to
-// RECORD what the authority answered — its reference, and its QR where the
-// authority issues one (Jordan's), which then prints on the invoice.
+// still owes the authority. TWO WAYS, by country:
+//   SAUDI ARABIA — nompany submits (the owner's decision A, 03/10/2026), once
+//   the studio has connected to ZATCA: each row can be submitted now, and the
+//   rest go when the studio chose (as issued, or nightly).
+//   ELSEWHERE — each row offers the invoice's official FILE to download, which
+//   the studio submits through the authority's own channel, and a place to
+//   RECORD what the authority answered — its reference, and its QR where the
+//   authority issues one (Jordan's), which then prints on the invoice.
 function EInvoicing({ data, slug, locale, onDone }) {
   const tr = financeDict(locale);
   const e = data.einvoice;
   const [problem, setProblem] = useState("");
   const [recording, setRecording] = useState(null);
+  const [submitting, setSubmitting] = useState(null);
+  const [said, setSaid] = useState("");
   if (!e || !e.required) return null;
+  // NOMPANY SUBMITS HERE ONLY ONCE THE STUDIO IS CONNECTED; before that the
+  // rows read exactly as they do for a country where the studio submits.
+  const submits = e.submits && e.zatca?.onboarded;
+
+  const submit = async (row) => {
+    setProblem(""); setSaid(""); setSubmitting(row.id);
+    const r = await post(slug, { action: "einvoice-submit", id: row.id });
+    setSubmitting(null);
+    if (!r.ok) { setProblem(tr.einvProblem(r.detail || r.error)); return; }
+    setSaid(tr.einvSubmitted(r.out.outcome));
+    await onDone();
+  };
 
   const download = async (row) => {
     setProblem("");
@@ -348,7 +366,8 @@ function EInvoicing({ data, slug, locale, onDone }) {
     <section className="space-y-2 rounded-geex border border-slate-200 p-4 dark:border-white/10">
       <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.einvTitle}</h3>
       <p className="text-sm text-slate-600 dark:text-slate-300">{tr.einvRequired(e.system, e.authority, e.mode, e.inForce)}</p>
-      <p className="text-sm text-slate-600 dark:text-slate-300">{e.prepares ? tr.einvHowTo(e.system) : tr.einvNoAdapter(e.system)}</p>
+      <p className="text-sm text-slate-600 dark:text-slate-300">{submits ? tr.einvSubmitsHow(e.system) : e.zatca ? tr.einvConnectFirst(e.system) : e.prepares ? tr.einvHowTo(e.system) : tr.einvNoAdapter(e.system)}</p>
+      {e.zatca && <ZatcaConnection unit={e.zatca} canEdit={e.canOnboard} slug={slug} locale={locale} onDone={onDone} />}
       {e.queue.length === 0 ? (
         <p className="text-sm text-emerald-600 dark:text-emerald-300">{tr.einvQueueNone}</p>
       ) : (
@@ -363,10 +382,18 @@ function EInvoicing({ data, slug, locale, onDone }) {
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="text-xs text-slate-500 dark:text-slate-400">{tr.einvState(q.state)}{q.message ? ` — ${q.message}` : ""}</span>
-                  {e.canAct && e.prepares && (
-                    <button className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white" onClick={() => download(q)}>{tr.einvDownload}</button>
+                  {e.canAct && submits && (
+                    <button className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white disabled:opacity-50" disabled={submitting === q.id}
+                      onClick={() => submit(q)}>{tr.einvSubmit(e.system)}</button>
                   )}
-                  {e.canAct && recording !== q.id && (
+                  {e.canAct && e.prepares && (
+                    <button className={submits
+                      ? "rounded-lg border border-slate-300 px-2 py-1 text-xs font-600 text-slate-700 dark:border-white/15 dark:text-slate-200"
+                      : "rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white"} onClick={() => download(q)}>{tr.einvDownload}</button>
+                  )}
+                  {/* RECORDING AN ANSWER is for a studio that submits itself; where
+                      nompany submits, ZATCA's own answer is what is kept. */}
+                  {e.canAct && !submits && recording !== q.id && (
                     <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-600 text-slate-700 dark:border-white/15 dark:text-slate-200"
                       onClick={() => { setProblem(""); setRecording(q.id); }}>{tr.einvRecord}</button>
                   )}
@@ -382,8 +409,72 @@ function EInvoicing({ data, slug, locale, onDone }) {
           ))}
         </ul>
       )}
+      {said && <p className="text-sm text-slate-600 dark:text-slate-300" role="status">{said}</p>}
       {problem && <p className="text-sm text-rose-600 dark:text-rose-300" role="alert">{problem}</p>}
     </section>
+  );
+}
+
+// THE STUDIO'S CONNECTION TO ZATCA (modules/finance/zatcaUnit). Connecting is
+// the studio's act: an OTP from ZATCA's own portal is ZATCA's proof that the
+// taxpayer asked. Connected, it says where and since when, and holds the one
+// choice the owner gave the studio — when its invoices are reported.
+function ZatcaConnection({ unit, canEdit, slug, locale, onDone }) {
+  const tr = financeDict(locale);
+  const [otp, setOtp] = useState("");
+  const [environment, setEnvironment] = useState(unit.environments[0] || "developer");
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState("");
+  const [again, setAgain] = useState(false);
+
+  const connect = async () => {
+    setBusy(true); setProblem("");
+    const r = await post(slug, { action: "zatca-onboard", otp, environment });
+    setBusy(false);
+    if (!r.ok) { setProblem([tr.einvProblem(r.error), r.detail].filter(Boolean).join(": ")); return; }
+    setOtp(""); setAgain(false);
+    await onDone();
+  };
+  const choose = async (timing) => {
+    setProblem("");
+    const r = await post(slug, { action: "zatca-timing", timing });
+    if (!r.ok) { setProblem(tr.einvProblem(r.error)); return; }
+    await onDone();
+  };
+
+  const testing = unit.environments.length === 1 && unit.environments[0] === "developer";
+  return (
+    <div className="space-y-2 rounded-lg bg-slate-50 p-3 text-sm dark:bg-white/5">
+      <p className="font-600 text-slate-900 dark:text-white">{tr.zatcaTitle}</p>
+      {unit.onboarded
+        ? <p className="text-slate-600 dark:text-slate-300">{tr.zatcaConnected(tr.zatcaEnv(unit.environment), fmtDate(unit.onboardedAt))}</p>
+        : <p className="text-slate-600 dark:text-slate-300">{tr.zatcaNotConnected}</p>}
+      {testing && <p className="text-xs text-amber-700 dark:text-amber-300">{tr.zatcaTesting}</p>}
+      {unit.onboarded && (
+        <Field label={tr.zatcaTiming} as="select" value={unit.timing} disabled={!canEdit}
+          options={["immediate", "daily"].map((t) => ({ value: t, label: tr.zatcaTimingOption(t) }))}
+          onChange={(v) => choose(v)} />
+      )}
+      {!canEdit && !unit.onboarded && <p className="text-xs text-slate-500 dark:text-slate-400">{tr.zatcaNoRight}</p>}
+      {canEdit && unit.onboarded && !again && (
+        <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-600 text-slate-700 dark:border-white/15 dark:text-slate-200"
+          onClick={() => setAgain(true)}>{tr.zatcaReconnect}</button>
+      )}
+      {canEdit && (!unit.onboarded || again) && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Field label={tr.zatcaOtp} hint={tr.zatcaOtpHint} value={otp} inputProps={{ inputMode: "numeric", autoComplete: "one-time-code" }} onChange={(v) => setOtp(String(v).replace(/\D/g, "").slice(0, 6))} />
+          <Field label={tr.zatcaEnvironment} as="select" value={environment}
+            options={unit.environments.map((x) => ({ value: x, label: tr.zatcaEnv(x) }))}
+            onChange={(v) => setEnvironment(v)} />
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <button className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-600 text-white disabled:opacity-50" disabled={busy || otp.length !== 6}
+              onClick={connect}>{tr.zatcaConnect}</button>
+            {busy && <span className="text-xs text-slate-500 dark:text-slate-400">{tr.zatcaConnecting}</span>}
+          </div>
+        </div>
+      )}
+      {problem && <p className="text-sm text-rose-600 dark:text-rose-300" role="alert">{problem}</p>}
+    </div>
   );
 }
 

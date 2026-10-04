@@ -610,9 +610,15 @@ function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes
 // THE WITHHELD TAX IS A SECOND ENTRY with its own answer — a payment can post
 // and the move of the client's withheld tax be refused — so either refusal is
 // said, the payment's first.
+// AND THE TAX AUTHORITY'S, where issuing submitted the invoice (Saudi Arabia,
+// 03/10/2026): a rejection, or ZATCA not reached, is said on the spot rather
+// than left for somebody to find on the Tax screen.
 function postingWarning(out, tr) {
   const refused = [out?.posting, out?.withholding].find((p) => p && p.posted === false);
-  return refused ? tr.notPosted(String(refused.reason || "")) : "";
+  const sub = out?.einvoiceSubmission;
+  const einvoice = sub && sub.outcome && sub.outcome !== "accepted"
+    ? `${tr.einvSubmitted(sub.outcome)}${sub.message ? ` (${sub.message})` : ""}` : "";
+  return [refused ? tr.notPosted(String(refused.reason || "")) : "", einvoice].filter(Boolean).join(" ");
 }
 
 // `money` is the calling screen's (useMoney), so an amount in a refusal is in

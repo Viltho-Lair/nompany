@@ -113,14 +113,19 @@ const subtotal = (t: ZatcaSubtotal, currency: string) => box("cac:TaxSubtotal", 
 /**
  * THE QR REFERENCE, one of the three parts ZATCA cuts before hashing. The
  * other two — the signature extension and the signature envelope — belong to
- * the cryptographic stamp, which the company's own certified solution adds
- * (./zatca says why), so a document prepared here carries neither. The QR is
- * kept apart so `zatcaHashInput` can leave it out without searching for it.
+ * the cryptographic stamp (./zatcaSign). All three are kept apart so
+ * `zatcaHashInput` can leave them out without searching for them.
  */
 const QR_REF = (qr: string) => box("cac:AdditionalDocumentReference", [
   el("cbc:ID", "QR"),
   box("cac:Attachment", el("cbc:EmbeddedDocumentBinaryObject", qr, { mimeCode: "text/plain" })),
 ]);
+/** THE SIGNATURE ENVELOPE, pointing at the stamp in the extension (ZATCA's fixed values). */
+const SIGNATURE_REF = box("cac:Signature", [
+  el("cbc:ID", "urn:oasis:names:specification:ubl:signature:Invoice"),
+  el("cbc:SignatureMethod", "urn:oasis:names:specification:ubl:dsig:enveloped:xades"),
+]);
+
 /**
  * THE DOCUMENT, in two pieces either side of where the QR reference goes.
  */
@@ -229,9 +234,29 @@ export function zatcaInvoiceXml(doc: ZatcaDocument, qr?: string): string {
 }
 
 /**
+ * THE DOCUMENT STAMPED: the signature extension first inside the root, the QR
+ * — all nine tags now — and the envelope after it, where UBL's order puts them.
+ * The hash is unchanged by any of the three, which is what lets the stamp sign
+ * a hash taken before it existed.
+ */
+export function zatcaSignedXml(doc: ZatcaDocument, qr: string, extensions: string): string {
+  const { head, tail } = pieces(doc);
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    ROOT_OPEN,
+    extensions,
+    head,
+    QR_REF(qr),
+    SIGNATURE_REF,
+    tail,
+    "</Invoice>",
+  ].join("");
+}
+
+/**
  * WHAT IS HASHED: the document without the XML declaration and the QR
- * reference (a stamped document also loses its signature extension and
- * envelope, which this one never has) — already canonical, see the header. Built from the same pieces as the document itself rather than cut out
+ * reference, the signature extension and the envelope — already canonical,
+ * see the header. Built from the same pieces as the document itself rather than cut out
  * of its text, so the two cannot drift apart.
  */
 export function zatcaHashInput(doc: ZatcaDocument): string {

@@ -1,30 +1,32 @@
-# E-invoicing — preparing each invoice's official file
+# E-invoicing — each invoice's official file, and submitting it where nompany submits
 
 **Where:** Finance → Tax, the E-invoicing section · Studio settings → Official values (what the
 files need) · `modules/finance/einvoice.ts` (the contract), `modules/finance/einvoiceService.ts`,
 `rules.einvoice` in `shared/compliance/countries/*.json`, `tests/einvoice-model.mjs` · Jordan:
 `jofotara*.ts`, `ublXml.ts`, `tests/jofotara-model.mjs` · Saudi Arabia: `zatca*.ts`,
-`tests/zatca-model.mjs`.
+`tests/zatca-model.mjs`; the ZATCA unit (onboarding, keys, certificates) `zatcaUnit.ts`, the stamp
+`zatcaSign.ts`, the request and certificate parsing `zatcaCrypto.ts`, the ONLY door to ZATCA
+`zatcaApi.ts`, the nightly batch `app/api/cron/einvoice-report`.
 
-## The rule: nompany prepares, the company submits
+## The rule, by country — it has had two answers
 
-**The owner, 26/09/2026:** *"our job is to prepare companies to submit their invoicing on the
+**26/09/2026, the owner:** *"our job is to prepare companies to submit their invoicing on the
 official channels not through us … we must not interact with official channels at all, our job
-is only the delivery of work done on the system."*
+is only the delivery of work done on the system."* Jordan's JoFotara submission (on `main`
+22–26/09/2026, with a Send button, a daily retry cron and a credentials panel) and Saudi
+Arabia's ZATCA onboarding and reporting (built 25/09, never committed) were removed that day.
 
-So nompany **never contacts a tax authority.** No endpoint, no API credential, no certificate,
-no one-time password. It builds each invoice's file exactly as the authority's official
-instructions describe. The company downloads it, submits it through the authority's own channel
-itself, and records what the authority answered. `tests/einvoice-model.mjs` holds this: no
-adapter has anything but `prepare`, no e-invoicing module calls `fetch`, and no file under `src/`
-names an authority's API host.
+**03/10/2026, the owner's decision A, for Saudi Arabia: nompany SUBMITS**, and the studio
+chooses when, inside ZATCA's limits: a consumer (simplified) invoice reported as it is issued or
+in a daily batch, a business (standard) one cleared at issue. Phase 2 makes the seller's own
+e-invoicing unit sign every invoice, so an unsigned file was one every Saudi studio had to
+finish somewhere else. **Jordan is still prepare-only**: the decision named Saudi Arabia.
 
-**There was a submission path, twice, and both are gone.** Jordan's adapter posted invoices to
-JoFotara with the studio's Client-Id and Secret-Key (22–26/09/2026, on `main`), with a Send
-button, a daily retry cron and a credentials panel in Studio settings. Saudi Arabia's onboarded
-with ZATCA for a certificate, signed invoices with it and reported them (25/09/2026, never
-committed). All of it was removed on 26/09/2026. **Do not put it back**; the reason is recorded
-in `docs/progress.md`'s e-invoicing ledger row.
+`tests/einvoice-model.mjs` holds the boundary: every adapter prepares, only ZATCA's submits,
+ONE file under `src/` names an authority's API host and it is `zatcaApi.ts`, it is the only
+e-invoicing module that calls `fetch`, and **only ZATCA's developer portal is open**
+(`ZATCA_OPEN_ENVIRONMENTS`). Opening simulation or production is the owner's decision, made in
+that one line and in that test.
 
 **Stored credentials were not deleted.** Studios that saved Jordan's credentials between 22/09
 and 26/09/2026 still carry them, sealed, on `einvoiceSettings`. Nothing reads them, the studio
@@ -92,19 +94,78 @@ Every one looks right to somebody who knows UBL and does not know JORDAN'S UBL:
 
 ## Saudi Arabia
 
-**The file is ZATCA's UBL**, complete in every field the SELLER writes, and **unsigned**.
+**The file is ZATCA's UBL**, complete in every field the seller writes. **Signed and reported
+once the studio has connected a unit; unsigned, to download, until then.**
 
-**What that means for a Saudi company.** In phase 2, ZATCA requires a cryptographic stamp signed
-with a certificate that ZATCA issues to the company's own e-invoicing solution, and the QR's tags
-6 to 9 come from that stamp. Nompany holds no such certificate and asks for none, so the
-company's certified solution (or ZATCA's own channel) stamps and reports the file.
+### Connecting — the studio's ZATCA unit
+
+Finance → Tax → **Connection to ZATCA**, behind `finance.settings.edit`. Somebody generates a
+one-time password on ZATCA's Fatoora portal and types it here — ZATCA's own proof that the
+taxpayer asked for this unit. Then, in one step (`onboardZatcaUnit`):
+
+1. a secp256k1 key and a certificate request with ZATCA's fields (the VAT number, the unit's
+   serial `1-nompany|2-erp|3-<unit id>`, invoice types `0100` — simplified only for now, the
+   branch's address, the industry, and the environment's certificate template);
+2. the **compliance** certificate, for the OTP;
+3. ZATCA's checks on a sample **invoice, credit note and debit note** — on a chain of their own,
+   so onboarding takes no link from the studio's;
+4. the **production** certificate.
+
+**All or nothing**: the unit is written only once step 4 answers. The private key and both
+secrets are sealed with `encryptField` (a NOMPANY_DATA_KEY purpose subkey, invariant 18) under
+`S.zatcaUnit`; the certificate tokens are public and stay readable. A screen sees where, since
+when and the timing — never a key or a secret. Connecting again replaces the unit and keeps the
+timing.
+
+### Stamping
+
+`zatcaSign.ts`, pure. The invoice hash (base64 of the raw SHA-256 of the canonical document
+without its three cut parts) is signed with ECDSA over its 32 raw bytes. The XAdES signed
+properties carry the signing time and the certificate's digest, issuer and decimal serial. **Two
+digests are base64 of the HEX text** of the SHA-256 — the certificate's and the signed
+properties' — which is the standard's own way, like the chain's first PIH. The signed properties
+are hashed with each element carrying its own namespace and **the digest method self-closed**:
+written open-and-shut, ZATCA's reporting endpoint refused "Invalid signed properties hashing"
+while its compliance check had passed the same file. The stamped file puts `ext:UBLExtensions`
+first in the root and `cac:Signature` straight after the QR, and its QR carries all nine tags.
+**Stamping moves nothing the hash covers**, so the chain link recorded at preparing is the hash
+ZATCA computes.
+
+### The chain belongs to the unit
+
+ZATCA counts per unit, so the chain document records which unit it counts for, and a new unit
+starts at 1 from the standard's seed. A chain written before units counts for "no unit" and
+continues for unsigned files.
+
+### Reporting, and when
+
+- **As each invoice is issued** (the default): issuing — Draft to Sent in `editInvoice` —
+  reports it. Best-effort, by the same rule as posting it: the invoice was issued whatever ZATCA
+  says, and the answer travels back beside it; the Invoices screen says a rejection or an outage
+  on the spot.
+- **Once a day**: `cron/einvoice-report` at 21:00 UTC, midnight in Riyadh, inside ZATCA's 24
+  hours. It also retries everything an immediate report did not reach.
+- **Submit to Fatoora** on a row of the Tax screen sends any outstanding invoice now, whatever
+  its date.
+- The nightly batch takes only invoices **issued on or after the day the studio connected**: an
+  older one may have reached ZATCA some other way, so a person submits it. **A rejected one
+  waits for a person** — sent again unchanged it collects the same refusal.
+
+**Three answers:** reported (200/202) is `accepted`, its warnings kept as the message;
+`NOT_REPORTED` (400) is `rejected` with the rules it broke; anything else — no answer, a 401
+on the unit's own certificate, a 5xx — reached nobody who judged the document, so the invoice
+stays `prepared`, the attempt is counted, and the night retries it. A file kept from before the
+unit (or signed by a replaced one) is prepared again under the current unit before it is sent.
+
+### The document
 
 - **Tax is taken once per category on the total** (`documentTotals`, method `document`), as
   ZATCA's standard says and as every Saudi invoice here is already totalled. So the file's payable
   amount is the total the customer was shown. Each line still shows its own rounded tax.
-- **The XML is written already canonical**: no whitespace, no self-closing elements, attributes
-  and namespaces in canonical order, canonical escaping. So the file with its QR reference cut out
-  IS the canonical form ZATCA hashes, and no canonicaliser is needed. A test cuts it and compares.
+- **The XML is written already canonical**: no whitespace, no self-closing elements in the hashed
+  part, attributes and namespaces in canonical order, canonical escaping. So the file with its
+  three parts cut out IS the canonical form ZATCA hashes, and no canonicaliser is needed. A test
+  cuts it and compares, unstamped and stamped.
 - **The chain:** every file carries a counter and the previous file's hash (ICV and PIH). Both
   move together in ONE compare-and-set on `S.einvoiceChain`, so two invoices can never claim the
   same place, and a document with a problem takes no link.
@@ -113,24 +174,42 @@ company's certified solution (or ZATCA's own channel) stamps and reports the fil
   with no VAT rate reads as not VAT-registered, and SA.json then hides its VAT number.
 - **The issue time** is when the invoice was created, in the studio's time zone, if that was on
   its issue date. Otherwise it is midnight, rather than an invented time.
-- **The QR's five seller tags**: seller, VAT number, time, total, VAT. **The time has no `Z`**:
-  with one, ZATCA's validator warned KSA-25 on every document.
-- **Measured against ZATCA once.** On 25/09/2026, before the owner's rule, the owner authorised a
-  check on ZATCA's public developer portal. Signed documents built from this code passed with no
-  error, which confirmed the canonical form, the hash and the QR timestamp. It is not repeated:
-  nompany does not contact ZATCA.
+- **The QR's time has no `Z`**: with one, ZATCA's validator warned KSA-25 on every document.
+
+**Measured against ZATCA's developer portal, 04/10/2026**, with an invented company (VAT
+399999999900003): a stamped simplified invoice, credit note and debit note each passed the
+compliance check and were each REPORTED by the reporting endpoint with no warning; and in
+`dev:sandbox` a test studio connected through the screen, an invoice issued under "as each is
+issued" was reported at issue (ICV 1 of the new unit), and one issued under "once a day" waited
+in the queue and was reported from its row's button (ICV 2, PIH the first one's hash).
 
 ## Not built yet
 
-- **Nothing here has been opened in `dev:sandbox`** since the rewrite of 26/09/2026: not the
-  download, not the recording, not the new official values.
+- **ONLY ZATCA'S DEVELOPER PORTAL IS OPEN.** Invoices reported there are tests and reach no
+  record of ZATCA's. Simulation and production are declared and refused in `zatcaApi.ts` until
+  the owner opens them. Nothing has been sent to either.
+- **The nightly batch has not run.** `CRON_SECRET` is empty locally, so the job fails closed
+  there (invariant 15); it calls the same `submitFor` the button does, which has.
+- **Saudi business (B2B) invoices — the next slice.** An invoice records no buyer VAT number or
+  national address, so a standard invoice is refused locally, every Saudi file is simplified, and
+  the unit declares simplified only (`0100`). Clearance at issue, and connecting with `1100`,
+  come with the buyer's details.
+- **Saudi credit and debit notes — the slice after.** Onboarding already signs and checks both;
+  a studio's own credit notes are not yet stamped or reported.
+- **No certificate renewal.** A production certificate expires; there is no reminder and no
+  renewal, only connecting again (a new unit, a new chain).
+- **Two submissions at once** — an issue and the nightly batch, or two people pressing the
+  button — can each prepare the same unprepared invoice and take two chain links. Nothing claims
+  the invoice first.
+- **The point-of-sale receipt is not reported.** A till sale is a simplified invoice in ZATCA's
+  eyes; only Finance's invoices are.
+- **Nothing in Jordan's half has been opened in `dev:sandbox`** since the rewrite of
+  26/09/2026: not the download, not the recording.
 - **No Jordanian file has been through JoFotara.** The first one a studio submits and records
   as accepted is the check; one recorded as rejected, with ISTD's words, is the next fix.
 - **Credit and debit notes.** Only invoices are prepared. Until notes are, a studio reports its
   sales and not its refunds, which OVER-declares output tax. For Jordan this was held until a
   first invoice is accepted (the owner, 22/09/2026).
-- **Saudi business (B2B) invoices.** An invoice records no buyer VAT number or national address,
-  so a standard invoice is refused locally and every Saudi file is simplified.
 - **Zero-rated and exempt Saudi lines** are refused until a line can record its VATEX reason.
   Only SAR documents.
 - **A discount is not written as an allowance.** A till receipt records discounts per line and

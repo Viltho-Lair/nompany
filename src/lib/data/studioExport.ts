@@ -29,11 +29,12 @@ import { listMediaForStudio, getMedia } from "@/lib/media";
 const ENGINE_SECTION = /^engine-/;
 
 /**
- * A SETTINGS OBJECT WITHOUT ITS CREDENTIALS, AT EVERY DEPTH. Nothing WRITES
- * e-invoicing credentials any more (the owner, 26/09/2026: nompany never
- * submits to a tax authority), but studios that saved Jordan's between 22/09
- * and 26/09/2026 still hold a sealed secret on `einvoiceSettings`, and it must
- * not leave in an export. Every depth, so a nested object is filtered too.
+ * A SETTINGS OBJECT WITHOUT ITS CREDENTIALS, AT EVERY DEPTH. Nothing writes
+ * e-invoicing credentials onto the studio any more (26/09/2026; a Saudi
+ * studio's ZATCA unit lives under its own key since 03/10/2026 and is not part
+ * of this export), but studios that saved Jordan's between 22/09 and
+ * 26/09/2026 still hold a sealed secret on `einvoiceSettings`, and it must not
+ * leave in an export. Every depth, so a nested object is filtered too.
  */
 function withoutCredentials(value: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(value)

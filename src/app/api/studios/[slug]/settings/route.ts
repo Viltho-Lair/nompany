@@ -48,10 +48,11 @@ const FIELDS = [
   // a nightly job all ask which day it is; one answer, on the studio, beside
   // the currency it is the exact counterpart of. `shared/timezone` is the file.
   "timezone",
-  // NO E-INVOICING CREDENTIALS, and deliberately (the owner, 26/09/2026):
-  // nompany prepares the official file and never submits it, so there is
-  // nothing to log in to an authority with. `einvoiceSettings` was accepted here
-  // from 22/09 to 26/09/2026 and is refused now by not being listed.
+  // NO E-INVOICING CREDENTIALS HERE. `einvoiceSettings` was accepted from 22/09
+  // to 26/09/2026 and is refused by not being listed. Where nompany submits
+  // again (Saudi Arabia, the owner's decision of 03/10/2026) the credentials
+  // are a ZATCA unit's — made by onboarding from Finance → Tax, sealed, and
+  // kept under their own key (modules/finance/zatcaUnit), never on the studio.
   // THE STUDIO'S DEFAULT LANGUAGE — see studioLocale in shared/i18n. It sets
   // the direction and the dictionary for everyone who has not chosen one of
   // their own, which for most people is everyone; that is why it stays behind
