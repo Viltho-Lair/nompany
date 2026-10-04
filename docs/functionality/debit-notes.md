@@ -33,8 +33,10 @@ adapter's business (`einvoicing.md`) — Saudi Arabia's today.
   source `debit-note`, so it posts once and is never re-posted.
 - **It is owed:** the invoice list's `expected` and `outstanding` rise by what was added
   (`debited` beside `credited`), which is what the customer credit limit, reminders and the Cash
-  screen read. A payment on the invoice may cover the note — the overpayment check allows the
-  invoice's outstanding plus its issued debit notes.
+  screen read. A payment on the invoice may cover the note: the overpayment check allows the
+  invoice's total, LESS what credit notes gave back, PLUS what debit notes added, less what was
+  paid — the figure the invoice list shows. (It read the invoice alone until 04/10/2026, so a
+  credited invoice could be overpaid by exactly the credit.)
 - **The VAT return has a line of its own**, "Added on debit notes": payable is output + debits −
   credits − input. A return filed before 04/10/2026 declared no debits and still reads.
 - **Customer insights** count it in what a customer was charged.
@@ -42,13 +44,15 @@ adapter's business (`einvoicing.md`) — Saudi Arabia's today.
   reason; on a business invoice it is cleared before it is issued, otherwise reported as issued or
   nightly — exactly as a credit note. Elsewhere nothing more happens.
 
-Measured 04/10/2026: the model test (rules, balance, return, posting, the 383); ZATCA's developer
+Measured 04/10/2026 in `dev:sandbox`: in the Saudi test studio DBN-0001 on a consumer invoice
+posted, raised its invoice to 133.75 owed (86.25 − 10 credited + 57.50), put 7.50 on the return's
+debit line, and was reported from the queue; one on a business invoice was cleared at issue; a
+payment of 10.01 against 10.00 owed was refused and 10.00 marked the invoice Paid. In the studio
+with NO country, a debit note posted and nothing else happened. Also the model test (rules, balance, return, posting, the 383); ZATCA's developer
 portal reported a consumer debit note and cleared a business one, no warning.
 
 ## Not built yet
 
-- **Not opened in `dev:sandbox`.** The local database connection hung when it was finished; the
-  route, the screen and the posting have been checked by type, lint and the model test only.
 - **No printed debit note.** The print layouts are for invoices and quotations; a debit note has
   no layout type yet.
 - **Jordan's adapter does not prepare one** — Jordan's e-invoicing is prepare-only and does not

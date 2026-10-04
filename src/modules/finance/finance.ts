@@ -622,11 +622,22 @@ export async function recordPayment(
   if (wrongAccount) return { error: wrongAccount };
 
   const totals = invoiceTotals(invoice, studio.currency);
-  // WHAT A DEBIT NOTE ADDED IS PAID AGAINST THE SAME INVOICE — the client owes
-  // the invoice and its debit notes together, and refusing the money for the
-  // extra charge as an overpayment would leave the note unpayable.
-  const debited = debitedSoFar(await DebitNoteRows.find({ studio, section: cashSection }), id, invoice.currency || studio.currency);
-  const owed = roundMoney(totals.outstanding + debited, invoice.currency || studio.currency);
+  // WHAT IS OWED ON THIS INVOICE IS WHAT THE INVOICE LIST SAYS IS OWED: less
+  // what credit notes gave back, plus what debit notes added (04/10/2026). This
+  // check read the invoice alone, so a credited invoice could be paid its full
+  // original amount — overpaid by exactly the credit — and a debit-noted one
+  // refused the money for its extra charge.
+  const [creditRows, debitRows] = await Promise.all([
+    CreditNoteRows.find({ studio, section: cashSection }),
+    DebitNoteRows.find({ studio, section: cashSection }),
+  ]);
+  const currency = invoice.currency || studio.currency;
+  const credited = creditedSoFar(creditRows, id, currency);
+  const debited = debitedSoFar(debitRows, id, currency);
+  // FROM THE TOTAL AND WHAT WAS PAID, never from `outstanding`: that is
+  // clamped at nought, so once payments pass the invoice's own total the
+  // debit note added on top would read as owed in full again.
+  const owed = roundMoney(Math.max(0, totals.total - credited + debited - totals.paid), currency);
   // Overpayment is refused rather than absorbed — it means something is wrong
   // with the invoice or the payment, and a human should decide which.
   if (amount > owed) return { error: "overpayment", outstanding: owed };
@@ -663,11 +674,11 @@ export async function recordPayment(
   const withholding = await settleWithholding(ctx, updated);
   // PAID IN FULL BY THIS PAYMENT — the project's manager hears the job's money
   // came in, which until now they learnt by opening the billing tab.
-  const owedAfter = roundMoney(after.outstanding + debited, invoice.currency || studio.currency);
+  const owedAfter = roundMoney(Math.max(0, after.total - credited + debited - after.paid), currency);
   if (owed > 0 && owedAfter <= 0) {
     await tellProjectManager(ctx, updated as Invoice, NOTIFY.invoicePaid, "An invoice was paid in full", "success");
   }
-  return { invoice: { ...updated, ...after, status: statusFor(updated, { ...after, total: roundMoney(after.total + debited, invoice.currency || studio.currency) }) }, posting, ...(withholding ? { withholding } : {}) };
+  return { invoice: { ...updated, ...after, status: statusFor(updated, { ...after, total: roundMoney(after.total - credited + debited, currency) }) }, posting, ...(withholding ? { withholding } : {}) };
 }
 
 /**

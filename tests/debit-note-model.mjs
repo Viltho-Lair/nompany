@@ -69,7 +69,7 @@ ok("THE MIRROR OF A CREDIT NOTE: receivable debited with the gross, revenue and 
   && post.includes("{ accountId: byCode.get(VAT_PAYABLE), credit: vat }"));
 const fin = readFileSync("src/modules/finance/finance.ts", "utf8");
 ok("THE INVOICE LIST COUNTS IT OWED, and a payment may cover it",
-  fin.includes("settled.expected - credited + debited") && fin.includes("const owed = roundMoney(totals.outstanding + debited"));
+  fin.includes("settled.expected - credited + debited") && fin.includes("const owed = roundMoney(Math.max(0, totals.total - credited + debited - totals.paid)"));
 
 console.log("\n== where nompany submits (Saudi Arabia)");
 const seller = { name: "شركة", vatNumber: "399999999900003", crn: "1010010000",

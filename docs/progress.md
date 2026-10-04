@@ -1816,7 +1816,8 @@ first, then business, then notes.
   The return's after-approval report has not been seen live (approving needs the owner's signing
   PIN).
 - ✅ **Debit notes, for every country (04/10/2026)** — a Finance document of their own
-  (`debit-notes.md`), and ZATCA's 383 where nompany submits. Not yet opened in `dev:sandbox`.
+  (`debit-notes.md`), and ZATCA's 383 where nompany submits. Verified in `dev:sandbox` in a Saudi
+  studio and in one with no country.
 - ⬜ **Opening simulation, then production** — the owner's decision, one line in `zatcaApi.ts`.
 - ✅ **Certificate renewal** (same unit, same chain; amber in the last 30 days) and **a lease** so two
   submissions cannot prepare one invoice twice (04/10/2026).
