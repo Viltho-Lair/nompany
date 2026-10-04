@@ -12,7 +12,8 @@
 import { useCallback, useState } from "react";
 import { creditNotesDict } from "@/shared/studio/creditNotes";
 import { useReload } from "@/components/studio2/useReload";
-import { btn, btnGhost, fmtDate } from "@/components/studio2/ui";
+import Link from "next/link";
+import { btn, btnGhost, btnRow, fmtDate } from "@/components/studio2/ui";
 import { useMoney } from "@/components/studio2/studioCurrency";
 
 export default function CreditNotesPanel({ slug, locale = "en", canManage = false }) {
@@ -61,6 +62,9 @@ export default function CreditNotesPanel({ slug, locale = "en", canManage = fals
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-600 text-slate-600 dark:bg-white/10 dark:text-slate-300">{tr.status(n.status)}</span>
                   </td>
                   <td className="py-2.5 text-end">
+                    {/* PRINT IS A READER'S ACT, at any status — a draft prints with its
+                        watermark — through the studio's layout for this type. */}
+                    <Link className={btnRow} href={`/${slug}/print/creditNote/${n.id}`}>{tr.print}</Link>
                     {canManage && n.status === "Draft" && (
                       <span className="inline-flex gap-2">
                         <button type="button" className={btn} disabled={busy} onClick={() => act(n.id, "issue")}>{tr.issue}</button>

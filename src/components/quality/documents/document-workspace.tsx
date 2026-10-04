@@ -104,7 +104,10 @@ export function DocumentWorkspace({
     { value: "", label: tr.layoutNone },
     { value: "quotation", label: tr.layoutQuotation },
     { value: "invoice", label: tr.layoutInvoice },
-    ...(subjectType && !["quotation", "invoice"].includes(subjectType)
+    // THE NOTES THAT CORRECT AN INVOICE print through layouts of their own (04/10/2026).
+    { value: "creditNote", label: tr.layoutCreditNote },
+    { value: "debitNote", label: tr.layoutDebitNote },
+    ...(subjectType && !["quotation", "invoice", "creditNote", "debitNote"].includes(subjectType)
       ? [{ value: subjectType, label: subjectType }] : []),
   ];
   const [layoutError, setLayoutError] = useState(false);

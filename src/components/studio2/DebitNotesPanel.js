@@ -8,7 +8,8 @@
 import { useCallback, useState } from "react";
 import { debitNotesDict } from "@/shared/studio/debitNotes";
 import { useReload } from "@/components/studio2/useReload";
-import { btn, btnGhost, fmtDate } from "@/components/studio2/ui";
+import Link from "next/link";
+import { btn, btnGhost, btnRow, fmtDate } from "@/components/studio2/ui";
 import { Field } from "@/components/fields/Field";
 import { useMoney } from "@/components/studio2/studioCurrency";
 
@@ -84,6 +85,9 @@ export default function DebitNotesPanel({ slug, locale = "en", canManage = false
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-600 text-slate-600 dark:bg-white/10 dark:text-slate-300">{tr.status(n.status)}</span>
                   </td>
                   <td className="py-2.5 text-end">
+                    {/* PRINT IS A READER'S ACT, at any status — a draft prints with its
+                        watermark — through the studio's layout for this type. */}
+                    <Link className={btnRow} href={`/${slug}/print/debitNote/${n.id}`}>{tr.print}</Link>
                     {canManage && n.status === "Draft" && (
                       <span className="inline-flex gap-2">
                         <button type="button" className={btn} disabled={busy} onClick={() => call("PATCH", { id: n.id, action: "issue" })}>{tr.issue}</button>

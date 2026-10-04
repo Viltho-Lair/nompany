@@ -47,6 +47,7 @@ import { netUnitPrice, discountPct } from "@/modules/technical/quotations";
 // invoice printed with a total its own ledger disagrees with is worse than none.
 import { invoiceTotals } from "@/modules/finance/finance";
 import { roundMoney } from "@/shared/money";
+import { splitGross } from "@/shared/vat";
 import { dayIn, studioTimezone } from "@/shared/timezone";
 import { approvalRows } from "@/modules/approvals/approvals";
 import { quotationApproved } from "@/modules/approvals/reads";
@@ -262,7 +263,10 @@ export async function mergeValuesFor(
   // Section switches are the Studio's own, so a fleet licence prints only while
   // Logistics & Fleet is on.
   const officialKind: OfficialDocumentKind =
-    document.subjectType === "invoice" ? "invoice" : document.subjectType === "quotation" ? "quote" : "letter";
+    // A credit or debit note is a TAX document like the invoice it corrects,
+    // and prints the official values an invoice prints (04/10/2026).
+    document.subjectType === "invoice" || document.subjectType === "creditNote" || document.subjectType === "debitNote" ? "invoice"
+      : document.subjectType === "quotation" ? "quote" : "letter";
   const locale = language === "ar" ? "ar" : "en";
   const resolveOpts = { sectionOn: switchboard(ctx.sections) };
   Object.assign(values, officialMergeValues(ctx.studio, officialKind, locale, resolveOpts));
@@ -399,6 +403,25 @@ export async function resolveBlocks(ctx: QualityContext, document: QualityDocume
         };
       });
       out[source.key] = { columns: source.columns, groups: rows.length ? [{ title: "", rows, subtotal: money(subtotal) }] : [] };
+    }
+
+    // A NOTE: its gross split at the rate of the invoice it corrects (reached
+    // through the note's own edge, so a reader without the invoice's right
+    // gets the note's gross alone rather than a guessed split).
+    if (source.key === "creditNote.totals" || source.key === "debitNote.totals") {
+      const invoice = reached.invoice as { vatRate?: unknown; currency?: unknown } | undefined;
+      const currency = String(invoice?.currency || (record as { currency?: unknown }).currency || ctx.studio.currency || "");
+      const gross = roundMoney((record as { amount?: unknown }).amount, currency);
+      const rate = Number(invoice?.vatRate) || 0;
+      const { net, vat } = splitGross(gross, rate, currency);
+      out[source.key] = {
+        columns: source.columns,
+        rows: invoice ? [
+          { token: "subtotal", label: "Subtotal", value: moneyIn(currency)(net) },
+          { token: "vat", rate, label: rate ? `VAT (${rate}%)` : "VAT", value: moneyIn(currency)(vat) },
+          { token: "total", label: "Total", value: moneyIn(currency)(gross), strong: true },
+        ] : [{ token: "total", label: "Total", value: moneyIn(currency)(gross), strong: true }],
+      };
     }
 
     if (source.key === "invoice.totals") {

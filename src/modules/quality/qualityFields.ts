@@ -46,6 +46,10 @@ const NAMING: Record<string, { primary: string; secondary: string } | undefined>
   // A CUSTOMER DOCUMENT'S SECOND TYPE (tier 4). A template bound to `invoice`
   // is an invoice layout; the print page supplies which invoice at render.
   invoice: { primary: "reference", secondary: "clientName" },
+  // CREDIT AND DEBIT NOTES (04/10/2026): customer documents too, printed
+  // through a layout of their own type, the invoice's way.
+  creditNote: { primary: "reference", secondary: "clientName" },
+  debitNote: { primary: "reference", secondary: "clientName" },
 };
 export const BINDABLE = Object.keys(NAMING);
 
@@ -382,6 +386,28 @@ STATIC_FIELDS.push(
   })),
 );
 
+// A CREDIT OR A DEBIT NOTE, as the client receives it — read off the note,
+// which COPIED the invoice's reference and the client's name when it was
+// raised, so it prints correctly even to somebody looking at it alone. Its
+// e-invoice QR is printed automatically, as an invoice's is.
+for (const [subject, group] of [["creditNote", "Credit note"], ["debitNote", "Debit note"]] as const) {
+  STATIC_FIELDS.push(
+    ...[
+      [`${subject}.reference`, `${group} number`, "reference"],
+      [`${subject}.client`, "Client", "clientName"],
+      [`${subject}.issueDate`, "Issue date", "issueDate"],
+      [`${subject}.invoiceReference`, "Invoice it corrects", "invoiceReference"],
+      [`${subject}.reason`, "Reason", "reason"],
+      [`${subject}.status`, "Status", "status"],
+      [`${subject}.einvoiceQr`, "E-invoice QR", "einvoice.qr"],
+      [`${subject}.einvoiceUuid`, "E-invoice number", "einvoice.uuid"],
+    ].map(([key, label, path]) => ({
+      key, label, path, kind: "scalar" as const,
+      group: "Finance", department: "finance", subject,
+    })),
+  );
+}
+
 for (const f of STATIC_FIELDS) STATIC_KEY_SET.add(f.key);
 
 // ---- record blocks ----------------------------------------------------------
@@ -452,6 +478,22 @@ export const BLOCK_SOURCES = [
       { key: "amount", label: "Amount", align: "end" },
     ],
   },
+  // A NOTE'S FIGURES — net, tax and total — split at the INVOICE's rate by the
+  // one `splitGross` the ledger, the return and the e-invoice use, so the paper
+  // says what the books moved.
+  ...(["creditNote", "debitNote"] as const).map((subject) => ({
+    key: `${subject}.totals`,
+    label: subject === "creditNote" ? "Credit note totals" : "Debit note totals",
+    group: "Finance",
+    department: "finance",
+    subject,
+    permission: "finance.receivables.view",
+    totals: true,
+    columns: [
+      { key: "label", label: "" },
+      { key: "value", label: "", align: "end" },
+    ],
+  })),
   {
     key: "invoice.totals",
     label: "Invoice totals",

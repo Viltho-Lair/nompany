@@ -175,6 +175,8 @@ type Strings = CommonStrings & {
   layoutNone: string;
   layoutQuotation: string;
   layoutInvoice: string;
+  layoutCreditNote: string;
+  layoutDebitNote: string;
   layoutLocked: string;
   quote: string;
   redo: string;
@@ -431,6 +433,8 @@ const en: Strings = {
   layoutNone: "Not a layout",
   layoutQuotation: "Quotations",
   layoutInvoice: "Invoices",
+  layoutCreditNote: "Credit notes",
+  layoutDebitNote: "Debit notes",
   layoutLocked: "Issued documents keep their type — start a new revision to change it.",
   quote: "Quote",
   redo: "Redo",
@@ -690,6 +694,8 @@ const ar: Strings = {
   layoutNone: "ليس قالبا",
   layoutQuotation: "عروض الأسعار",
   layoutInvoice: "الفواتير",
+  layoutCreditNote: "الإشعارات الدائنة",
+  layoutDebitNote: "الإشعارات المدينة",
   layoutLocked: "الوثائق الصادرة تحتفظ بنوعها — ابدأ مراجعة جديدة لتغييره.",
   quote: "اقتباس",
   redo: "إعادة",
@@ -855,6 +861,25 @@ const AR_FIELD_LABELS: Record<string, string> = {
   "invoice.einvoiceUuid": "رقم الفاتورة الإلكترونية",
   "invoice.lines": "بنود الفاتورة",
   "invoice.totals": "إجماليات الفاتورة",
+  // CREDIT AND DEBIT NOTES, printed since 04/10/2026.
+  "creditNote.reference": "رقم الإشعار الدائن",
+  "creditNote.client": "العميل",
+  "creditNote.issueDate": "تاريخ الإصدار",
+  "creditNote.invoiceReference": "الفاتورة التي يصححها",
+  "creditNote.reason": "السبب",
+  "creditNote.status": "الحالة",
+  "creditNote.einvoiceQr": "رمز QR للفاتورة الإلكترونية",
+  "creditNote.einvoiceUuid": "رقم الفاتورة الإلكترونية",
+  "creditNote.totals": "إجماليات الإشعار الدائن",
+  "debitNote.reference": "رقم الإشعار المدين",
+  "debitNote.client": "العميل",
+  "debitNote.issueDate": "تاريخ الإصدار",
+  "debitNote.invoiceReference": "الفاتورة التي يصححها",
+  "debitNote.reason": "السبب",
+  "debitNote.status": "الحالة",
+  "debitNote.einvoiceQr": "رمز QR للفاتورة الإلكترونية",
+  "debitNote.einvoiceUuid": "رقم الفاتورة الإلكترونية",
+  "debitNote.totals": "إجماليات الإشعار المدين",
 };
 
 export function qualityDict(locale: string): Strings {

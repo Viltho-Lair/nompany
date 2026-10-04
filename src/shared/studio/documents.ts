@@ -9,7 +9,7 @@ import { defaultLocale, type Locale } from "../locale";
 // See the header of ./shell for why each surface's dictionary is a separate
 // module and why nothing may enumerate them.
 
-type Kind = "quotation" | "invoice";
+type Kind = "quotation" | "invoice" | "creditNote" | "debitNote";
 
 type Strings = {
   print: string;
@@ -45,6 +45,9 @@ type Strings = {
     client: string;
     validUntil: string;
     dueDate: string;
+    /** A credit or debit note: the invoice it corrects, and why. */
+    corrects: string;
+    reason: string;
     notes: string;
     terms: string;
     termsText: string;
@@ -52,8 +55,8 @@ type Strings = {
   };
 };
 
-const EN_KIND: Record<Kind, string> = { quotation: "quotation", invoice: "invoice" };
-const EN_KIND_TITLE: Record<Kind, string> = { quotation: "Quotation", invoice: "Invoice" };
+const EN_KIND: Record<Kind, string> = { quotation: "quotation", invoice: "invoice", creditNote: "credit note", debitNote: "debit note" };
+const EN_KIND_TITLE: Record<Kind, string> = { quotation: "Quotation", invoice: "Invoice", creditNote: "Credit note", debitNote: "Debit note" };
 const EN_LANG: Record<string, string> = { en: "English", ar: "Arabic" };
 
 const en: Strings = {
@@ -92,6 +95,8 @@ const en: Strings = {
     client: "Client",
     validUntil: "Valid until",
     dueDate: "Due date",
+    corrects: "Invoice",
+    reason: "Reason",
     notes: "Notes",
     terms: "Terms and conditions",
     termsText: "Write your terms here — payment, delivery, warranty.",
@@ -100,8 +105,8 @@ const en: Strings = {
 };
 
 // HAND-WRITTEN. NO DIACRITICS.
-const AR_KIND: Record<Kind, string> = { quotation: "عروض الأسعار", invoice: "الفواتير" };
-const AR_KIND_TITLE: Record<Kind, string> = { quotation: "عرض سعر", invoice: "فاتورة" };
+const AR_KIND: Record<Kind, string> = { quotation: "عروض الأسعار", invoice: "الفواتير", creditNote: "الإشعارات الدائنة", debitNote: "الإشعارات المدينة" };
+const AR_KIND_TITLE: Record<Kind, string> = { quotation: "عرض سعر", invoice: "فاتورة", creditNote: "إشعار دائن", debitNote: "إشعار مدين" };
 const AR_LANG: Record<string, string> = { en: "بالإنجليزية", ar: "بالعربية" };
 
 const ar: Strings = {
@@ -140,6 +145,8 @@ const ar: Strings = {
     client: "العميل",
     validUntil: "صالح حتى",
     dueDate: "تاريخ الاستحقاق",
+    corrects: "الفاتورة",
+    reason: "السبب",
     notes: "ملاحظات",
     terms: "الشروط والأحكام",
     termsText: "اكتب شروطك هنا — الدفع والتسليم والضمان.",

@@ -15,7 +15,7 @@
 import { BLOCK_NODE, FIELD_NODE, legalFieldsFrom } from "./qualityFields";
 import { OFFICIAL_BLOCK_KEY } from "@/shared/compliance/printing";
 
-export const DOCUMENT_KINDS = ["quotation", "invoice"] as const;
+export const DOCUMENT_KINDS = ["quotation", "invoice", "creditNote", "debitNote"] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 export const LAYOUT_LANGUAGES = ["en", "ar"] as const;
 export type LayoutLanguage = (typeof LAYOUT_LANGUAGES)[number];
@@ -82,7 +82,9 @@ export function withLayout(stored: unknown, kind: DocumentKind, language: Layout
  */
 export function recordWatermark(kind: DocumentKind, status: unknown): "" | "DRAFT" | "CANCELLED" {
   const s = String(status ?? "");
-  if (kind === "invoice") return s === "Draft" ? "DRAFT" : s === "Cancelled" ? "CANCELLED" : "";
+  // A NOTE IS DRAFT, ISSUED OR CANCELLED, like an invoice is Draft, Sent or
+  // Cancelled — only a draft or a cancelled one carries a watermark.
+  if (kind === "invoice" || kind === "creditNote" || kind === "debitNote") return s === "Draft" ? "DRAFT" : s === "Cancelled" ? "CANCELLED" : "";
   return s === "Approved" || s === "Sent" ? "" : "DRAFT";
 }
 
@@ -100,6 +102,8 @@ export type StarterWords = {
   client: string;
   validUntil: string;
   dueDate: string;
+  corrects: string;
+  reason: string;
   notes: string;
   terms: string;
   termsText: string;
@@ -135,6 +139,17 @@ export function starterLayout(kind: DocumentKind, w: StarterWords, legalInfo: un
       block("quotation.totals", w.title),
       { type: "heading", attrs: { level: 3 }, content: [text(w.terms)] },
       para(text(w.termsText)),
+    );
+  } else if (kind === "creditNote" || kind === "debitNote") {
+    // WHAT IT CORRECTS AND WHY, which a tax note must say (ZATCA's BR-KSA-17
+    // among others) and any client asks first.
+    body.push(
+      labelled(w.number, `${kind}.reference`),
+      labelled(w.date, `${kind}.issueDate`),
+      labelled(w.client, `${kind}.client`),
+      labelled(w.corrects, `${kind}.invoiceReference`),
+      labelled(w.reason, `${kind}.reason`),
+      block(`${kind}.totals`, w.title),
     );
   } else {
     body.push(

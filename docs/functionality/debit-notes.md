@@ -40,6 +40,7 @@ adapter's business (`einvoicing.md`) — Saudi Arabia's today.
 - **The VAT return has a line of its own**, "Added on debit notes": payable is output + debits −
   credits − input. A return filed before 04/10/2026 declared no debits and still reads.
 - **Customer insights** count it in what a customer was charged.
+- **It prints** through a Debit notes layout of its own (`customer-documents.md`).
 - **Where nompany submits** (Saudi Arabia): a debit note is ZATCA's 383 naming the invoice and the
   reason; on a business invoice it is cleared before it is issued, otherwise reported as issued or
   nightly — exactly as a credit note. Elsewhere nothing more happens.
@@ -53,8 +54,6 @@ portal reported a consumer debit note and cleared a business one, no warning.
 
 ## Not built yet
 
-- **No printed debit note.** The print layouts are for invoices and quotations; a debit note has
-  no layout type yet.
 - **Jordan's adapter does not prepare one** — Jordan's e-invoicing is prepare-only and does not
   prepare credit notes either.
 - **A debit note is not shown on the invoice's own row** — `debited` travels with the invoice and

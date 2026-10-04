@@ -1,4 +1,4 @@
-// PRINTING A CUSTOMER DOCUMENT — a quotation or an invoice, through the layout
+// PRINTING A CUSTOMER DOCUMENT — a quotation, an invoice, or a credit or debit note (04/10/2026), through the layout
 // the studio chose for that type in that language, filled from the record.
 //
 // THREE RULES, each the owner's or a consequence of one:
@@ -141,7 +141,8 @@ export async function printDocument(
   // has heard of it — that is the model: printed at issue, reported within a
   // day — and a cleared business invoice prints the QR ZATCA issued. A failure to draw is an absent QR rather than a failed print: an
   // invoice that will not open is worse than one a studio must reprint.
-  const qrPayload = values["invoice.einvoiceQr"] || "";
+  // THE KIND'S OWN QR — an invoice's, or a credit or debit note's (04/10/2026).
+  const qrPayload = kind === "quotation" ? "" : values[`${kind}.einvoiceQr`] || "";
   let einvoiceQr = "";
   if (qrPayload) {
     try {
@@ -155,7 +156,7 @@ export async function printDocument(
     language,
     templateId,
     einvoiceQr,
-    reference: values[kind === "invoice" ? "invoice.reference" : "quotation.number"] || "",
+    reference: values[kind === "quotation" ? "quotation.number" : `${kind}.reference`] || "",
     watermark: recordWatermark(kind, values[statusKey]),
     missing: [...missing],
     document,
@@ -230,7 +231,8 @@ export async function createStarterLayout(ctx: QualityContext, body: Record<stri
   const made = await createDoc(ctx, {
     title: tr.starter.layoutTitle(kind, language),
     prefix: "LAY",
-    dept: kind === "invoice" ? "FIN" : "SAL",
+    // A NOTE IS FINANCE'S, like the invoice it corrects.
+    dept: kind === "quotation" ? "SAL" : "FIN",
   });
   if (!made || !("document" in made)) return made;
   const id = String(made.document.id);

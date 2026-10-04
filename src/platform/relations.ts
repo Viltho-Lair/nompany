@@ -49,6 +49,11 @@ export const NODES: Record<string, Node> = {
   projectSheet: { label: "Project sheet", sectionKey: "inventory-sheets", collection: "projectSheets", permission: "inventory.sheets.view" },
   materialOrder: { label: "Material order", sectionKey: "inventory-sheets", collection: "materialOrders", permission: "inventory.sheets.view" },
   invoice: { label: "Invoice", sectionKey: "finance-cash", collection: "invoices", permission: "finance.receivables.view" },
+  // THE NOTES THAT CORRECT AN INVOICE (04/10/2026) — joined so a printed note
+  // can read the invoice it corrects (its rate, its date) through the same
+  // traversal, and the same per-hop right, as every other printed record.
+  creditNote: { label: "Credit note", sectionKey: "finance-cash", collection: "creditNotes", permission: "finance.receivables.view" },
+  debitNote: { label: "Debit note", sectionKey: "finance-cash", collection: "debitNotes", permission: "finance.receivables.view" },
   expense: { label: "Expense", sectionKey: "finance-cash", collection: "expenses", permission: "finance.expenses.view" },
   delivery: { label: "Delivery", sectionKey: "inventory", collection: "deliveries", permission: "inventory.stock.view" },
   overtime: { label: "Overtime", sectionKey: "projects-overtimes", collection: "overtimes", permission: "projects.overtimes.view" },
@@ -127,6 +132,8 @@ export const EDGES = [
   edge("salesTicket", "client", "forward", "clientId", ONE),
   edge("projectSheet", "project", "forward", "projectId", ONE),
   edge("invoice", "project", "forward", "projectId", ONE),
+  edge("creditNote", "invoice", "forward", "invoiceId", ONE),
+  edge("debitNote", "invoice", "forward", "invoiceId", ONE),
   edge("expense", "project", "forward", "projectId", ONE),
   edge("delivery", "project", "forward", "projectId", ONE),
   edge("overtime", "project", "forward", "projectId", ONE),

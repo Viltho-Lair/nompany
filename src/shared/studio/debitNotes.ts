@@ -17,6 +17,7 @@ type Strings = {
   save: string;
   against: (ref: string) => string;
   issue: string;
+  print: string;
   cancel: string;
   status: (s: string) => string;
   refusal: (code: string, extra?: Record<string, unknown>) => string;
@@ -35,6 +36,7 @@ const en: Strings = {
   save: "Save draft",
   against: (ref) => `against ${ref || "—"}`,
   issue: "Issue",
+  print: "Print",
   cancel: "Cancel",
   status: (s) => (s === "Issued" ? "Issued" : s === "Cancelled" ? "Cancelled" : "Draft"),
   refusal: (code, x = {}) => {
@@ -71,6 +73,7 @@ const ar: Strings = {
   save: "حفظ مسودة",
   against: (ref) => `على ${ref || "—"}`,
   issue: "إصدار",
+  print: "طباعة",
   cancel: "إلغاء",
   status: (s) => (s === "Issued" ? "صادر" : s === "Cancelled" ? "ملغى" : "مسودة"),
   refusal: (code, x = {}) => {

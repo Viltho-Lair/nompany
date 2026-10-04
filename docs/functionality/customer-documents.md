@@ -1,4 +1,4 @@
-# Customer documents — quotations and invoices as the client receives them
+# Customer documents — quotations, invoices and their notes as the client receives them
 
 **Tier 4, the owner's design (11/09/2026).** A quotation or an invoice reaches a client as a
 document built in the **Document builder** (Engineering & Documents → the register): the
@@ -163,9 +163,33 @@ Open decisions). **Not seen printed in the sandbox**: publishing a layout needs 
 a different approver, and the sandbox has one account; the same component on the till's slip
 was decoded by an independent reader.
 
+## Credit and debit notes print too (04/10/2026)
+
+Two more document types, each with its own layout slot per language: **Credit notes** and
+**Debit notes** (`DOCUMENT_KINDS`, the Document builder's "Layout for" list). A note is a
+record the relations graph knows (`creditNote` / `debitNote`, joined to its invoice by
+`invoiceId`), so a layout can name its fields — number, client, issue date, the invoice it
+corrects, the reason, status, e-invoice QR and number — and its **totals block**: net, tax and
+total, the note's gross split at the rate of the invoice it corrects by `splitGross`, the
+function the ledger, the VAT return and the e-invoice use. A reader who may not open the invoice
+gets the gross alone rather than a guessed split.
+
+- **The starter** says what the note corrects and why, then its totals, under the company's
+  letterhead with the country's official values — a note prints what an invoice prints.
+  Starters for notes are filed under Finance (`LAY-FIN-…`), as an invoice's are.
+- **Watermarked like an invoice:** a draft or cancelled note prints DRAFT or CANCELLED.
+- **The e-invoice QR prints by itself**, as an invoice's does, from the note's own stored QR.
+- **A Print link on every note**, in the Credit notes and Debit notes tabs.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.
+
+- **No printed note has been seen on a page.** A layout prints only once published through its
+  approval, whose reviewer is never its approver — owner included — and the sandbox has one
+  person. The print page, its "no layout yet" state and the starter (its fields and totals
+  block) were opened in `dev:sandbox` on 04/10/2026; one starter made before the fix is
+  numbered `LAY-SAL-001` there.
 
 - **No live preview of a filled layout while authoring.** The author sees `[Client]` chips;
   the filled document is the print page.

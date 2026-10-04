@@ -85,5 +85,21 @@ ok("ON A BUSINESS INVOICE IT IS CLEARED BEFORE IT IS WRITTEN AS ISSUED — and o
   issue.indexOf("clearBeforeIssue(") > 0 && issue.indexOf("clearBeforeIssue(") < issue.indexOf("Notes.update(scope(ctx), id")
   && issue.includes("studioEInvoiceRules(ctx.studio) ? await import"));
 
+console.log("\n== printing a credit or debit note (04/10/2026)");
+const L = await import("../src/modules/quality/layouts.ts");
+const Q = await import("../src/modules/quality/qualityFields.ts");
+ok("BOTH NOTES ARE PRINTABLE KINDS, each with its own layout slot", L.DOCUMENT_KINDS.includes("creditNote") && L.DOCUMENT_KINDS.includes("debitNote"));
+ok("a draft or cancelled note prints watermarked, an issued one clean, as an invoice does",
+  L.recordWatermark("debitNote", "Draft") === "DRAFT" && L.recordWatermark("creditNote", "Cancelled") === "CANCELLED" && L.recordWatermark("debitNote", "Issued") === "");
+const words = { title: "Debit note", number: "No", date: "Date", client: "Client", validUntil: "", dueDate: "", notes: "", terms: "", termsText: "", corrects: "Invoice", reason: "Reason" };
+const starter = L.starterLayout("debitNote", words, []).content;
+ok("THE STARTER SAYS WHAT IT CORRECTS AND WHY, and prints the note's own totals",
+  starter.includes('"debitNote.invoiceReference"') && starter.includes('"debitNote.reason"') && starter.includes('"debitNote.totals"'));
+ok("a note can be the subject of a layout, read through the relations graph",
+  Boolean(Q.subjectById("creditNote")) && Boolean(Q.subjectById("debitNote")));
+const quality = readFileSync("src/modules/quality/quality.ts", "utf8");
+ok("ITS TOTALS ARE THE LEDGER'S — splitGross at the rate of the invoice it corrects",
+  quality.includes('source.key === "creditNote.totals" || source.key === "debitNote.totals"') && quality.includes("splitGross(gross, rate, currency)"));
+
 console.log(fails ? `\ndebit notes: ${fails} FAILED` : "\ndebit notes: all passed");
 process.exitCode = fails ? 1 : 0;

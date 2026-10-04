@@ -1817,7 +1817,9 @@ first, then business, then notes.
   PIN).
 - ✅ **Debit notes, for every country (04/10/2026)** — a Finance document of their own
   (`debit-notes.md`), and ZATCA's 383 where nompany submits. Verified in `dev:sandbox` in a Saudi
-  studio and in one with no country.
+  studio and in one with no country. **Credit and debit notes print** through layouts of their own
+  (04/10/2026, `customer-documents.md`); no printed note seen yet — publishing a layout needs a
+  second person.
 - ⬜ **Opening simulation, then production** — the owner's decision, one line in `zatcaApi.ts`.
 - ✅ **Certificate renewal** (same unit, same chain; amber in the last 30 days) and **a lease** so two
   submissions cannot prepare one invoice twice (04/10/2026).
