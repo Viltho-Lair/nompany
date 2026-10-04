@@ -25,6 +25,13 @@ export type Engagement = {
    * reasons nobody performed.
    */
   templateId?: string;
+  /**
+   * WHERE EACH STAGE'S WORK STANDS — state, share and first arrival per stage
+   * (platform/engagement/completion), refreshed nightly and whenever the deal is
+   * opened (modules/main/engagements `saveCompletion`). What lists and KPIs read
+   * instead of opening every record of every deal; `at` says how fresh it is.
+   */
+  completion?: { at: string; stages: Record<string, { state: string; progress: number | null; firstAt: string }> };
   // `kpis` — a COPY of the KPI declarations taken when the deal opened — is
   // gone (03/10/2026). A deal's KPIs are matched on read now, by kind of work,
   // by its flow and by the studio's target in force when it opened
@@ -534,6 +541,9 @@ export async function applyDescriptor(studioId: string, d: EngagementDescriptor)
   await setJSON(ENG.root(studioId, engId), {
     id: engId, studioId, ref: d.ref, context,
     ...(existing?.templateId ? { templateId: existing.templateId } : {}),
+    // CARRIED, as the template is: a re-apply (the backfill) that dropped the
+    // completion snapshot would blank every list until the next nightly run.
+    ...(existing?.completion ? { completion: existing.completion } : {}),
     ...(Object.keys(provenance).length ? { provenance } : {}),
     singletons: d.singletons, createdAt: existing?.createdAt || nowISO(), updatedAt: nowISO(),
   });

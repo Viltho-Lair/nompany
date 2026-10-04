@@ -3,7 +3,7 @@ import { requirePermission } from "@/platform/access";
 import { mainContext, headlines, recent, type MainContext } from "@/modules/main/main";
 import { readAggregate } from "@/modules/main/executive";
 import { awaitingQueue } from "@/modules/main/awaiting";
-import { firstRunChecklist, firstRunDone } from "@/modules/main/firstRun";
+import { firstRunChecklist, firstRunDone, type FirstRunItem } from "@/modules/main/firstRun";
 import { listCollaborators } from "@/platform/auth/collaborators";
 import { loadCatalogues, planOf } from "@/lib/plans";
 import { enabledWidgets, switchboard, widgetAvailable, DASHBOARD_WIDGETS } from "@/lib/dashboardWidgets";
@@ -88,7 +88,7 @@ export const GET = route(spec, async (main) => {
   // FINISH SETTING UP (modules/main/firstRun) — only for somebody who can do
   // something about it, and only while something is left: the people read is
   // paid for by an admin on a studio still being set up, never by everybody.
-  let setup = null;
+  let setup: FirstRunItem[] | null = null;
   if (!requirePermission(main.access, "administration.settings.edit")) {
     const people = (await listCollaborators(main.studio.id)).length;
     const items = firstRunChecklist(main.studio as Record<string, unknown>, people, String(main.studio.slug || ""));

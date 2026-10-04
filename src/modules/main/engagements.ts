@@ -12,7 +12,7 @@ import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { switchboard, type SwitchRow } from "@/lib/dashboardWidgets";
 import { statusStage } from "@/platform/engagement/context";
 import { ENG } from "@/platform/db/keys";
-import { zRange } from "@/platform/db/store";
+import { editJSON, zRange } from "@/platform/db/store";
 import { readEngagement, readEngagementView, engagementIdFor, setEngagementLock, resolveDealId } from "@/platform/db/engagement";
 import { cascadeDeleteEngagement } from "@/platform/db/cascade";
 import type { EngagementLineage } from "@/platform/db/engagement";
@@ -347,33 +347,96 @@ function idsFor(
 // The one-line summary per stage: read only the collection of a stage that both
 // exists and is visible. `cardinality: "one"` stages summarise their single row;
 // a "many" stage summarises its newest and carries the count.
-async function summarise(
+type Row = Record<string, unknown>;
+
+/**
+ * EVERY STAGE THIS DEAL HOLDS, its rows read ONCE — for the cards, the KPIs and
+ * the completion snapshot alike, so the three cannot disagree and nothing is
+ * read twice. Reader-neutral on purpose: the snapshot stored on the deal must
+ * not depend on who happened to open it; what a reader SEES is filtered later.
+ */
+async function readDealStages(
   ctx: EngagementCtx,
-  entry: { type: string; collection: string; sectionKey: string },
-  ids: string[],
-  completion: CompletionContext = {},
-): Promise<Partial<StageCard>> {
-  const section = await getSectionByKey(ctx.studio.id, entry.sectionKey);
-  if (!section) return {};
-  // repo().find(scope, options) is TWO arguments, not one merged object — the
-  // brief's sample folded scope and `where` together, which tsc caught: `Scope`
-  // has no `where` field.
-  const rows = await repo(entry.collection).find(
-    { studio: ctx.studio, section },
-    { where: { id: { in: ids } } },
-  );
-  const row = rows[rows.length - 1] as Record<string, unknown> | undefined;
+  view: { singletons: Record<string, string | null>; members: Record<string, string[]> },
+  types: readonly string[],
+): Promise<Map<string, Row[]>> {
+  const out = new Map<string, Row[]>();
+  await Promise.all(types.map(async (type) => {
+    const entry = STAGE_REGISTRY[type];
+    const ids = idsFor(view, type);
+    if (!entry || !ids.length) return;
+    const section = await getSectionByKey(ctx.studio.id, entry.sectionKey);
+    if (!section) return;
+    // repo().find(scope, options) is TWO arguments, not one merged object — the
+    // brief's sample folded scope and `where` together, which tsc caught: `Scope`
+    // has no `where` field.
+    out.set(type, await repo(entry.collection).find({ studio: ctx.studio, section }, { where: { id: { in: ids } } }) as Row[]);
+  }));
+  return out;
+}
+
+/** When a stage first arrived — its earliest record — which is what a KPI timing it reads. */
+const firstAtOf = (rows: readonly Row[]) => rows.map((r) => String(r.createdAt || "")).filter(Boolean).sort()[0] || "";
+
+/** The one-line summary per stage, from its rows: the newest record's reference and status. */
+function summarise(rows: readonly Row[]): Partial<StageCard> {
+  const row = rows[rows.length - 1];
   if (!row) return {};
-  // WHEN THE STAGE FIRST ARRIVED — its earliest record — which is what a KPI
-  // timing this stage reads (readDealKpis). Read here because these rows are
-  // already in hand.
-  const firstAt = (rows as Record<string, unknown>[]).map((r) => String(r.createdAt || "")).filter(Boolean).sort()[0] || "";
+  const firstAt = firstAtOf(rows);
   return {
     ref: String(row.ref || row.number || row.reference || row.id || ""),
     summary: String(row.status || row.stage || ""),
     ...(firstAt ? { firstAt } : {}),
-    completion: stageCompletion(entry.type, rows as Record<string, unknown>[], completion),
   };
+}
+
+/** A deal's completion as it is stored on the deal (`completion` on its root). */
+export type CompletionSnapshot = {
+  /** When it was worked out — what a list says the figures are "as of". */
+  at: string;
+  stages: Record<string, StageCompletion & { firstAt: string }>;
+};
+
+/** Every held stage's completion, from rows already read. */
+function snapshotStages(rows: ReadonlyMap<string, Row[]>, comp: CompletionContext): CompletionSnapshot["stages"] {
+  const out: CompletionSnapshot["stages"] = {};
+  for (const [type, list] of rows) {
+    const c = stageCompletion(type, list, comp);
+    if (c) out[type] = { ...c, firstAt: firstAtOf(list) };
+  }
+  return out;
+}
+
+/**
+ * KEEP THE SNAPSHOT ON THE DEAL — the owner's choice, 04/10/2026: refreshed
+ * nightly and whenever the deal is opened, so lists and KPIs can read
+ * completion without opening every record of every deal. Written only when it
+ * CHANGED (the stages, not the clock), so opening a deal twice writes nothing
+ * the second time. Best-effort: a deal page must never fail because its
+ * snapshot could not be saved.
+ */
+export async function saveCompletion(studioId: string, dealId: string, stages: CompletionSnapshot["stages"]): Promise<boolean> {
+  try {
+    return await editJSON<Record<string, unknown>, boolean>(ENG.root(studioId, dealId), (current) => {
+      if (!current) return { result: false };
+      const was = (current.completion as CompletionSnapshot | undefined)?.stages;
+      if (JSON.stringify(was || {}) === JSON.stringify(stages)) return { result: false };
+      return { next: { ...current, completion: { at: new Date().toISOString(), stages } }, result: true };
+    });
+  } catch { return false; }
+}
+
+/**
+ * ONE DEAL'S SNAPSHOT, worked out and saved — what the nightly run does for
+ * every deal. Returns whether it changed.
+ */
+export async function refreshDealCompletion(ctx: EngagementCtx, dealId: string): Promise<boolean> {
+  const view = await readEngagementView(ctx.studio.id, dealId);
+  if (!view) return false;
+  const present = stagesPresent(view);
+  const rows = await readDealStages(ctx, view, present);
+  const comp = await completionContext(ctx, new Set(present));
+  return saveCompletion(ctx.studio.id, dealId, snapshotStages(rows, comp));
 }
 
 /**
@@ -478,7 +541,11 @@ export async function engagementBlock(
   const listed = new Set(ordered);
 
   const cards: StageCard[] = [];
-  const completion = await completionContext(ctx, new Set([...present].filter((t) => visible.has(t))));
+  // EVERY HELD STAGE, read once: the cards below, the KPIs and the snapshot
+  // saved on the deal all come from these rows.
+  const stageRows = await readDealStages(ctx, view, [...present]);
+  const completion = await completionContext(ctx, present);
+  const stages = snapshotStages(stageRows, completion);
   const addCard = async (type: string, offTemplate: boolean) => {
     const entry = STAGE_REGISTRY[type];
     if (!entry) return;                                   // templateProblems catches this
@@ -491,7 +558,11 @@ export async function engagementBlock(
       type, label: entry.label,
       present: ids.length > 0, count: ids.length, offTemplate,
     };
-    if (ids.length) Object.assign(card, await summarise(ctx, entry, ids, completion));
+    if (ids.length) {
+      Object.assign(card, summarise(stageRows.get(type) || []));
+      const c = stages[type];
+      card.completion = c ? { state: c.state, progress: c.progress } : null;
+    }
     cards.push(card);
   };
 
@@ -559,6 +630,9 @@ export async function engagementBlock(
   // contract and its key order is pinned by the goldens, so which keys a line
   // contributes should be readable at the line, not inferred from a function's
   // return type.
+  // OPENING A DEAL REFRESHES ITS SNAPSHOT (the owner's choice, 04/10/2026), so
+  // lists read what this page just worked out. Written only when it changed.
+  await saveCompletion(ctx.studio.id, dealId, stages);
   const { status, statusType } = statusOf(cards, template?.statusChain ?? []);
   return {
     engagement: {
