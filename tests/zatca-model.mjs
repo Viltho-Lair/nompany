@@ -223,6 +223,18 @@ ok("it names the developer portal's certificate template — each environment ha
 ok("and carries the identity ZATCA reads: the VAT number, the unit's serial, the invoice types",
   csrDer.includes(Buffer.from("399999999900003")) && csrDer.includes(Buffer.from("1-nompany|2-erp|3-x")) && csrDer.includes(Buffer.from("0100")));
 
+console.log("\n== the certificate's end (./zatcaUnit)");
+const U = await import("@/modules/finance/zatcaUnit");
+const expires = U.certificateExpiry(DEV_CERT);
+ok("the expiry is read from the certificate itself", /^\d{4}-\d{2}-\d{2}T/.test(expires), expires);
+ok("an unreadable token has no expiry, rather than throwing", U.certificateExpiry("not a certificate") === "");
+const day = 86_400_000;
+const end = new Date("2027-01-31T00:00:00Z");
+ok("RENEWAL IS DUE INSIDE THE LAST THIRTY DAYS — an OTP has to be fetched, and an expired certificate signs invoices ZATCA refuses",
+  U.renewDue(end.toISOString(), new Date(end.getTime() - 30 * day)) && !U.renewDue(end.toISOString(), new Date(end.getTime() - 31 * day)));
+ok("...and stays due once it has ended", U.renewDue(end.toISOString(), new Date(end.getTime() + day)));
+ok("no certificate, nothing to renew", U.renewDue("", new Date()) === false);
+
 console.log("\n== what ZATCA's reporting answer means");
 ok("REPORTED is accepted, its warnings kept as the message",
   j(Z.reportingOutcome(202, { reportingStatus: "REPORTED", validationResults: { warningMessages: [{ code: "W1", message: "careful" }] } }))

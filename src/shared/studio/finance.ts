@@ -479,6 +479,10 @@ type Strings = CommonStrings & {
   zatcaTiming: string;
   zatcaTimingOption: (t: string) => string;
   zatcaNoRight: string;
+  zatcaExpires: (date: string) => string;
+  zatcaRenewSoon: (date: string) => string;
+  zatcaRenew: string;
+  zatcaRenewHint: string;
 };
 
 const en: Strings = {
@@ -975,6 +979,10 @@ const en: Strings = {
   zatcaTiming: "When invoices are reported",
   zatcaTimingOption: (t) => ({ immediate: "As each invoice is issued", daily: "Once a day, at midnight Riyadh time" } as Record<string, string>)[t] || t,
   zatcaNoRight: "Connecting to ZATCA needs the right to edit Finance settings.",
+  zatcaExpires: (date) => `The certificate invoices are signed with is valid until ${date}.`,
+  zatcaRenewSoon: (date) => `The certificate ends on ${date}. Renew it before then — after it ends, ZATCA refuses every invoice signed with it.`,
+  zatcaRenew: "Renew certificate",
+  zatcaRenewHint: "Renewing keeps this connection and its invoice count; connecting again starts a new one.",
   einvProblem: (code) => ({
     "reference-required": "An acceptance needs the authority's reference for the invoice.",
     outcome: "Choose accepted or rejected.",
@@ -1005,6 +1013,8 @@ const en: Strings = {
     "no-submit": "nompany does not submit this country's invoices.",
     "not-onboarded": "Connect to ZATCA first.",
     timing: "Choose when invoices are reported.",
+    "unit-replaced": "This connection was replaced while renewing. Renew the new one.",
+    "einvoice-busy": "This invoice is being submitted already. Try again in a minute.",
   } as Record<string, string>)[code] || code,
 };
 
@@ -1502,6 +1512,10 @@ const ar: Strings = {
   zatcaTiming: "موعد الإبلاغ عن الفواتير",
   zatcaTimingOption: (t) => ({ immediate: "عند إصدار كل فاتورة", daily: "مرة يوميا، عند منتصف الليل بتوقيت الرياض" } as Record<string, string>)[t] || t,
   zatcaNoRight: "الربط مع الهيئة يحتاج صلاحية تعديل إعدادات المالية.",
+  zatcaExpires: (date) => `الشهادة التي توقع بها الفواتير سارية حتى ${date}.`,
+  zatcaRenewSoon: (date) => `تنتهي الشهادة في ${date}. جددها قبل ذلك — بعد انتهائها ترفض الهيئة كل فاتورة موقعة بها.`,
+  zatcaRenew: "تجديد الشهادة",
+  zatcaRenewHint: "التجديد يبقي هذا الربط وتسلسل فواتيره؛ أما الربط من جديد فيبدأ ربطا جديدا.",
   einvProblem: (code) => ({
     "reference-required": "القبول يحتاج مرجع الجهة للفاتورة.",
     outcome: "اختر مقبولة أو مرفوضة.",
@@ -1532,6 +1546,8 @@ const ar: Strings = {
     "no-submit": "لا يرسل نومباني فواتير هذه الدولة.",
     "not-onboarded": "اربط مع الهيئة أولا.",
     timing: "اختر موعد الإبلاغ عن الفواتير.",
+    "unit-replaced": "استبدل هذا الربط أثناء التجديد. جدد الربط الجديد.",
+    "einvoice-busy": "هذه الفاتورة قيد الإرسال بالفعل. حاول بعد دقيقة.",
   } as Record<string, string>)[code] || code,
 };
 

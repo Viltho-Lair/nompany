@@ -17,13 +17,16 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
+import { claim, release } from "@/platform/db/store";
+import { S } from "@/platform/db/keys";
+import { randomUUID } from "node:crypto";
 import { studioEInvoiceRules } from "@/shared/compliance/rules";
 import type { EInvoiceRules } from "@/shared/compliance/definition";
 import { adapterFor, einvoiceStatusOf, needsAction, RECORDABLE_OUTCOMES } from "./einvoice";
 import type { EInvoiceDocument, EInvoiceState } from "./einvoice";
 import type { FinanceContext, Invoice } from "./types";
 import { zatcaSeller } from "./zatca";
-import { onboardZatcaUnit, setZatcaTiming, zatcaUnitSummary } from "./zatcaUnit";
+import { onboardZatcaUnit, renewZatcaUnit, setZatcaTiming, zatcaUnitSummary } from "./zatcaUnit";
 
 type EInvoiced = Invoice & { einvoice?: EInvoiceState | null };
 const Invoices = repo<EInvoiced>("invoices");
@@ -113,13 +116,34 @@ async function prepareFor(t: EInvoiceTarget, invoice: EInvoiced, rules: EInvoice
   return updated ? { document: out } : { error: "notfound" };
 }
 
+/**
+ * ONE ACT ON ONE INVOICE AT A TIME. Preparing takes a link in the studio's
+ * chain, so two acts racing on the same unprepared invoice — an issue and the
+ * nightly batch, two people at the button — would each take one, and one link
+ * would point at a document nobody ever submitted. A short lease (a claim with
+ * a TTL, so a crashed holder cannot lock the invoice for ever) serialises them,
+ * and the invoice is READ AGAIN once the lease is held, so the second act sees
+ * what the first one did. The loser is told `einvoice-busy` rather than kept
+ * waiting: a person can press again, and the batch comes back tomorrow.
+ */
+const LEASE_SEC = 120;
+async function leased<R>(t: EInvoiceTarget, invoiceId: string, op: (found: Exclude<Awaited<ReturnType<typeof required>>, { error: string }>) => Promise<R>) {
+  const key = S.einvoiceLease(t.studio.id, invoiceId);
+  if (!(await claim(key, randomUUID(), LEASE_SEC))) return { error: "einvoice-busy" as const };
+  try {
+    const found = await required(t, invoiceId);
+    if ("error" in found) return found;
+    return await op(found);
+  } finally {
+    await release(key);
+  }
+}
+
 /** THE OFFICIAL FILE FOR ONE INVOICE, to download. */
 export async function prepareEInvoice(ctx: FinanceContext, invoiceId: string) {
   const denied = requirePermission(ctx.access, "finance.receivables.edit");
   if (denied) return denied;
-  const found = await required(ctx, invoiceId);
-  if ("error" in found) return found;
-  return prepareFor(ctx, found.invoice, found.rules, found.state);
+  return leased(ctx, invoiceId, (found) => prepareFor(ctx, found.invoice, found.rules, found.state));
 }
 
 /**
@@ -172,10 +196,10 @@ async function submitFor(t: EInvoiceTarget, invoice: EInvoiced, rules: EInvoiceR
 export async function submitEInvoice(ctx: FinanceContext, invoiceId: string) {
   const denied = requirePermission(ctx.access, "finance.receivables.edit");
   if (denied) return denied;
-  const found = await required(ctx, invoiceId);
-  if ("error" in found) return found;
-  if (found.state === "accepted") return { error: "already-accepted" };
-  return submitFor(ctx, found.invoice, found.rules, found.state);
+  return leased(ctx, invoiceId, async (found) => {
+    if (found.state === "accepted") return { error: "already-accepted" as const };
+    return submitFor(ctx, found.invoice, found.rules, found.state);
+  });
 }
 
 /**
@@ -192,10 +216,12 @@ export async function submitOnIssue(t: EInvoiceTarget, invoiceId: string) {
     if (!rules || !adapter?.submit || !adapter.submission) return null;
     const when = await adapter.submission(studioOf(t));
     if (!when || when.timing !== "immediate") return null;
-    const found = await required(t, invoiceId);
-    if ("error" in found) return null;
-    if (String(found.invoice.issueDate || "") < when.since) return null;
-    return await submitFor(t, found.invoice, found.rules, found.state);
+    const out = await leased(t, invoiceId, async (found) => {
+      if (String(found.invoice.issueDate || "") < when.since) return null;
+      return submitFor(t, found.invoice, found.rules, found.state);
+    });
+    // BUSY IS NOT AN ANSWER TO SHOW: somebody else is already submitting it.
+    return out && "error" in out ? null : out;
   } catch {
     return { outcome: "unreached" as const, message: "einvoice-error" };
   }
@@ -225,8 +251,11 @@ export async function submitOutstanding(t: EInvoiceTarget) {
     .sort((a, b) => String(a.issueDate || "").localeCompare(String(b.issueDate || "")) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
   let accepted = 0;
   for (const inv of invoices) {
-    const out = await submitFor(t, inv, rules, einvoiceStatusOf(inv, rules));
-    if ("outcome" in out && out.outcome === "accepted") accepted += 1;
+    // READ AGAIN UNDER THE LEASE: the list above may be minutes old by the
+    // time the loop reaches this one, and somebody may have submitted it since.
+    const out = await leased(t, inv.id, async (found) =>
+      dueForBatch(found.invoice, found.state, when.since) ? submitFor(t, found.invoice, found.rules, found.state) : null);
+    if (out && "outcome" in out && out.outcome === "accepted") accepted += 1;
   }
   return { submitted: invoices.length, accepted };
 }
@@ -283,6 +312,19 @@ export async function onboardZatca(ctx: FinanceContext, body: Record<string, unk
     collaboratorId: ctx.collaborator.id,
     otp: body?.otp,
     environment: body?.environment,
+  });
+}
+
+/** RENEW THE STUDIO'S ZATCA CERTIFICATE with a fresh OTP — the same unit, the same chain. */
+export async function renewZatca(ctx: FinanceContext, body: Record<string, unknown>) {
+  const denied = requirePermission(ctx.access, "finance.settings.edit");
+  if (denied) return denied;
+  const rules = studioEInvoiceRules(ctx.studio);
+  if (rules?.adapter !== "zatca") return { error: "not-required" };
+  return renewZatcaUnit({
+    studio: ctx.studio as unknown as { id: string; fieldOfWork?: unknown },
+    seller: zatcaSeller(ctx.studio as unknown as Parameters<typeof zatcaSeller>[0]),
+    otp: body?.otp,
   });
 }
 

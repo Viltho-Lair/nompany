@@ -7,7 +7,7 @@ import { requirePermission } from "@/platform/access";
 import { unclaimed } from "@/modules/finance/withholding";
 import { setupFor } from "@/modules/finance/setup";
 import { listTaxReturns, fileTaxReturn, payTaxReturn } from "@/modules/finance/taxFiling";
-import { einvoiceQueue, prepareEInvoice, recordEInvoice, submitEInvoice, onboardZatca, setZatcaReporting } from "@/modules/finance/einvoiceService";
+import { einvoiceQueue, prepareEInvoice, recordEInvoice, submitEInvoice, onboardZatca, renewZatca, setZatcaReporting } from "@/modules/finance/einvoiceService";
 import { vatMovement, storedMoneyAccounts } from "@/modules/finance/ledger";
 
 export const runtime = "nodejs";
@@ -76,6 +76,7 @@ export const POST = route(
         : action === "einvoice-submit" ? await submitEInvoice(f, String(f.body?.id ?? ""))
         : action === "einvoice-record" ? await recordEInvoice(f, String(f.body?.id ?? ""), f.body || {})
         : action === "zatca-onboard" ? await onboardZatca(f, f.body || {})
+        : action === "zatca-renew" ? await renewZatca(f, f.body || {})
         : action === "zatca-timing" ? await setZatcaReporting(f, f.body || {})
           : { error: "action" };
     if (refused(result)) return result;

@@ -18,13 +18,13 @@
 // production one. A unit is written once that last step answers, so a studio
 // never holds half a unit that signs with a certificate nothing will accept.
 
-import { randomUUID } from "node:crypto";
+import { randomUUID, X509Certificate } from "node:crypto";
 import { editJSON, getJSON } from "@/platform/db/store";
 import { S } from "@/platform/db/keys";
 import { encryptField, decryptField } from "@/platform/auth/fieldCrypto";
 import { dayIn, studioTimezone } from "@/shared/timezone";
 import { newZatcaKey, zatcaCsr, readZatcaCertificate, type ZatcaEnvironment, ZATCA_ENVIRONMENTS } from "./zatcaCrypto";
-import { requestComplianceCsid, checkCompliance, requestProductionCsid, zatcaMessages, ZATCA_OPEN_ENVIRONMENTS } from "./zatcaApi";
+import { requestComplianceCsid, checkCompliance, requestProductionCsid, renewProductionCsid, zatcaMessages, ZATCA_OPEN_ENVIRONMENTS } from "./zatcaApi";
 import { zatcaDocument, zatcaProblem, ZATCA_FIRST_PIH, type ZatcaDocumentKind, type ZatcaSeller } from "./zatcaDocument";
 import { stampZatca } from "./zatcaSign";
 import { zatcaInvoiceHash } from "./zatcaXml";
@@ -62,7 +62,34 @@ export type ZatcaUnitSummary = {
   timing: ZatcaTiming;
   /** Which environments may be onboarded to today — ./zatcaApi decides. */
   environments: ZatcaEnvironment[];
+  /** When the production certificate stops being accepted (ISO), "" when not onboarded. */
+  expiresAt: string;
+  /** True inside the last RENEW_WITHIN_DAYS — the screen says so and offers renewal. */
+  renewSoon: boolean;
 };
+
+/**
+ * HOW EARLY A STUDIO IS TOLD TO RENEW. An expired certificate signs invoices
+ * ZATCA refuses, and renewing takes an OTP somebody has to fetch from the
+ * Fatoora portal — a month is time for that to happen without a lapse.
+ */
+export const RENEW_WITHIN_DAYS = 30;
+
+/** When a certificate token expires, read from the certificate itself. "" when it cannot be read. */
+export function certificateExpiry(token: string): string {
+  try {
+    const at = new Date(new X509Certificate(Buffer.from(Buffer.from(token, "base64").toString("utf8").trim(), "base64")).validTo);
+    return Number.isNaN(at.getTime()) ? "" : at.toISOString();
+  } catch {
+    return "";
+  }
+}
+
+/** Whether a certificate expiring at `expiresAt` should be renewed now. Pure. */
+export function renewDue(expiresAt: string, now: Date = new Date()): boolean {
+  if (!expiresAt) return false;
+  return Date.parse(expiresAt) - now.getTime() <= RENEW_WITHIN_DAYS * 86_400_000;
+}
 
 const cleanTiming = (v: unknown): ZatcaTiming => (v === "daily" ? "daily" : "immediate");
 
@@ -80,12 +107,15 @@ export async function readZatcaUnit(studioId: string): Promise<ZatcaUnit | null>
 
 export async function zatcaUnitSummary(studioId: string): Promise<ZatcaUnitSummary> {
   const r = await getJSON<ZatcaUnitRecord>(S.zatcaUnit(studioId));
+  const expiresAt = r?.production?.token ? certificateExpiry(r.production.token) : "";
   return {
     onboarded: Boolean(r?.production?.token),
     environment: r?.environment || null,
     onboardedAt: r?.onboardedAt || "",
     timing: cleanTiming(r?.timing),
     environments: [...ZATCA_OPEN_ENVIRONMENTS],
+    expiresAt,
+    renewSoon: renewDue(expiresAt),
   };
 }
 
@@ -126,6 +156,64 @@ function sampleDocuments(seller: ZatcaSeller, today: string, time: string) {
 export type OnboardRefusal = { error: string; detail?: string[] };
 
 /**
+ * WHAT A CERTIFICATE REQUEST SAYS ABOUT THE STUDIO — one place, because
+ * onboarding and renewal must describe the same unit the same way: a renewal
+ * whose request named a different serial or VAT number would be a different
+ * unit to ZATCA.
+ */
+function csrInput(
+  unit: Pick<ZatcaUnitRecord, "environment" | "commonName" | "serialNumber" | "invoiceTypes">,
+  seller: ZatcaSeller,
+  studio: { fieldOfWork?: unknown },
+) {
+  return {
+    environment: unit.environment, commonName: unit.commonName, serialNumber: unit.serialNumber, invoiceTypes: unit.invoiceTypes,
+    vatNumber: seller.vatNumber,
+    orgUnit: seller.address.city || "Main",
+    orgName: seller.name,
+    location: [seller.address.building, seller.address.street, seller.address.city].filter(Boolean).join(" ").slice(0, 120),
+    industry: String(studio.fieldOfWork || "Services").slice(0, 60) || "Services",
+  };
+}
+
+/**
+ * RENEW THE PRODUCTION CERTIFICATE before it ends — an OTP from the Fatoora
+ * portal again, a NEW key and request for the SAME unit (same serial, same id),
+ * and ZATCA's renewal call signed in with the certificate being replaced. THE
+ * CHAIN CONTINUES: it is the same unit, so its counter and hash carry on, which
+ * is the difference from connecting again (a new unit, a new chain).
+ */
+export async function renewZatcaUnit(input: {
+  studio: { id: string; fieldOfWork?: unknown };
+  seller: ZatcaSeller;
+  otp: unknown;
+}): Promise<{ unit: ZatcaUnitSummary } | OnboardRefusal> {
+  const unit = await readZatcaUnit(input.studio.id);
+  if (!unit) return { error: "not-onboarded" };
+  const otp = String(input.otp ?? "").trim();
+  if (!/^\d{6}$/.test(otp)) return { error: "otp" };
+  const key = newZatcaKey();
+  const csr = zatcaCsr(csrInput(unit, input.seller, input.studio), key.privateKeyPem);
+  const renewed = await renewProductionCsid(unit.environment, unit.production, otp, csr);
+  const body = renewed.body || {};
+  if (renewed.status !== 200 || !body.binarySecurityToken) {
+    return { error: renewed.status ? "zatca-refused" : "zatca-unreachable", detail: zatcaMessages(renewed.body).errors };
+  }
+  const production = { token: String(body.binarySecurityToken), secret: String(body.secret || ""), requestId: String(body.requestID || "") };
+  const done = await editJSON<ZatcaUnitRecord, boolean>(S.zatcaUnit(input.studio.id), (current) => {
+    // CONNECTED AGAIN MEANWHILE: that is another unit now, and this
+    // certificate was issued for the one it replaced.
+    if (!current || current.id !== unit.id) return { result: false };
+    return {
+      next: { ...current, privateKey: encryptField(key.privateKeyPem), production: { ...production, secret: encryptField(production.secret) } },
+      result: true,
+    };
+  });
+  if (!done) return { error: "unit-replaced" };
+  return { unit: await zatcaUnitSummary(input.studio.id) };
+}
+
+/**
  * ONBOARD THE STUDIO'S UNIT: a key, a certificate request, the compliance
  * certificate, ZATCA's checks on the three samples, the production certificate
  * — then, and only then, the unit is written.
@@ -158,14 +246,7 @@ export async function onboardZatcaUnit(input: {
   const commonName = `nompany-${String(studio.slug || studio.id).slice(0, 40)}`;
   const serialNumber = `1-nompany|2-erp|3-${id}`;
   const invoiceTypes = "0100";
-  const csr = zatcaCsr({
-    environment, commonName, serialNumber, invoiceTypes,
-    vatNumber: seller.vatNumber,
-    orgUnit: seller.address.city || "Main",
-    orgName: seller.name,
-    location: [seller.address.building, seller.address.street, seller.address.city].filter(Boolean).join(" ").slice(0, 120),
-    industry: String(studio.fieldOfWork || "Services").slice(0, 60) || "Services",
-  }, key.privateKeyPem);
+  const csr = zatcaCsr(csrInput({ environment, commonName, serialNumber, invoiceTypes }, seller, studio), key.privateKeyPem);
 
   const issued = await requestComplianceCsid(environment, otp, csr);
   const cBody = issued.body || {};

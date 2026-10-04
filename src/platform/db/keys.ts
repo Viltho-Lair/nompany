@@ -633,6 +633,10 @@ export const S = {
   // sealed with a subkey of NOMPANY_DATA_KEY before they are written; under the
   // studio prefix so they die with the studio.
   zatcaUnit: (studioId: string) => `${P}s:${studioId}:zatca-unit`,
+  // WHO IS PREPARING OR SUBMITTING ONE INVOICE'S E-INVOICE RIGHT NOW — a
+  // short lease (claim with a TTL), so an issue and the nightly batch, or two
+  // people at the button, cannot each take a chain link for the same invoice.
+  einvoiceLease: (studioId: string, invoiceId: string) => `${P}s:${studioId}:einvoice-lease:${invoiceId}`,
   // THE STUDIO'S DATA KEY, WRAPPED — see platform/db/sealing.ts. Under the
   // studio prefix ON PURPOSE: a studio cascade deletes it, and with it every
   // sealed value any backup still holds for that studio becomes unreadable.

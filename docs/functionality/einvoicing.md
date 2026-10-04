@@ -117,6 +117,27 @@ secrets are sealed with `encryptField` (a NOMPANY_DATA_KEY purpose subkey, invar
 when and the timing — never a key or a secret. Connecting again replaces the unit and keeps the
 timing.
 
+### Renewing the certificate
+
+A production certificate ends (the developer portal's run three years). The Tax screen says
+until when, turns amber inside the last **30 days** (`RENEW_WITHIN_DAYS`) and offers **Renew
+certificate**: an OTP from the Fatoora portal again, a NEW key and request for the SAME unit —
+same serial, same id, built by the same `csrInput` onboarding uses so the two cannot describe
+the unit differently — and ZATCA's renewal call (`PATCH /production/csids`) signed in with the
+certificate being replaced. **The chain carries on**: it is the same unit. That is the
+difference from connecting again, which makes a new unit and starts a new chain. A renewal that
+finds the unit replaced meanwhile refuses (`unit-replaced`) rather than putting the new
+certificate on a unit it was not issued for.
+
+### One act on one invoice at a time
+
+Preparing takes a chain link, so two acts on one unprepared invoice — an issue and the nightly
+batch, two people at the button — would each take one. Every act that can prepare holds a
+**lease** first (`S.einvoiceLease`, a claim with a 120-second TTL so a crashed holder locks
+nothing for long) and reads the invoice again once it holds it. The loser is told
+`einvoice-busy`; the batch skips it. Measured in `dev:sandbox`: two submissions of one
+invoice at once — one accepted, one busy, one chain link taken.
+
 ### Stamping
 
 `zatcaSign.ts`, pure. The invoice hash (base64 of the raw SHA-256 of the canonical document
@@ -176,6 +197,13 @@ unit (or signed by a replaced one) is prepared again under the current unit befo
   its issue date. Otherwise it is midnight, rather than an invented time.
 - **The QR's time has no `Z`**: with one, ZATCA's validator warned KSA-25 on every document.
 
+**WHAT THE DEVELOPER PORTAL CANNOT PROVE.** Its "production" certificate is a fixed sample issued
+to another company, whatever request it is sent, so a report there is signed with our key under a
+certificate whose public key is not ours — and it is still accepted. The portal therefore checks
+the document, the hash, the QR and the signed-properties digest, and does NOT check that the
+signature matches the unit's own certificate. **Only ZATCA's simulation environment proves that**,
+and simulation needs a real taxpayer's OTP from the Fatoora simulation portal.
+
 **Measured against ZATCA's developer portal, 04/10/2026**, with an invented company (VAT
 399999999900003): a stamped simplified invoice, credit note and debit note each passed the
 compliance check and were each REPORTED by the reporting endpoint with no warning; and in
@@ -196,13 +224,13 @@ in the queue and was reported from its row's button (ICV 2, PIH the first one's 
   come with the buyer's details.
 - **Saudi credit and debit notes — the slice after.** Onboarding already signs and checks both;
   a studio's own credit notes are not yet stamped or reported.
-- **No certificate renewal.** A production certificate expires; there is no reminder and no
-  renewal, only connecting again (a new unit, a new chain).
-- **Two submissions at once** — an issue and the nightly batch, or two people pressing the
-  button — can each prepare the same unprepared invoice and take two chain links. Nothing claims
-  the invoice first.
+- **NOT TESTED AGAINST SIMULATION** — it is closed, and it needs a real taxpayer's OTP. Until it
+  runs, nothing proves the signature matches the unit's own certificate (see above).
+- **Renewal is shown on the Tax screen only** — no notification and no e-mail reaches somebody
+  who does not open it in the last thirty days.
 - **The point-of-sale receipt is not reported.** A till sale is a simplified invoice in ZATCA's
-  eyes; only Finance's invoices are.
+  eyes; only Finance's invoices are. A receipt's basket discount and promotions need ZATCA's
+  document-level allowance (`AllowanceCharge`), which is the parked discount question below.
 - **Nothing in Jordan's half has been opened in `dev:sandbox`** since the rewrite of
   26/09/2026: not the download, not the recording.
 - **No Jordanian file has been through JoFotara.** The first one a studio submits and records

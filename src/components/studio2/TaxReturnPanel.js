@@ -426,13 +426,16 @@ function ZatcaConnection({ unit, canEdit, slug, locale, onDone }) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
   const [again, setAgain] = useState(false);
+  const [renewing, setRenewing] = useState(false);
 
+  // CONNECT (a new unit) AND RENEW (the same unit, a new certificate) share the
+  // OTP field; which one the button does is the mode the person chose.
   const connect = async () => {
     setBusy(true); setProblem("");
-    const r = await post(slug, { action: "zatca-onboard", otp, environment });
+    const r = await post(slug, renewing ? { action: "zatca-renew", otp } : { action: "zatca-onboard", otp, environment });
     setBusy(false);
     if (!r.ok) { setProblem([tr.einvProblem(r.error), r.detail].filter(Boolean).join(": ")); return; }
-    setOtp(""); setAgain(false);
+    setOtp(""); setAgain(false); setRenewing(false);
     await onDone();
   };
   const choose = async (timing) => {
@@ -449,6 +452,11 @@ function ZatcaConnection({ unit, canEdit, slug, locale, onDone }) {
       {unit.onboarded
         ? <p className="text-slate-600 dark:text-slate-300">{tr.zatcaConnected(tr.zatcaEnv(unit.environment), fmtDate(unit.onboardedAt))}</p>
         : <p className="text-slate-600 dark:text-slate-300">{tr.zatcaNotConnected}</p>}
+      {unit.onboarded && unit.expiresAt && (
+        <p className={unit.renewSoon ? "text-amber-700 dark:text-amber-300" : "text-slate-600 dark:text-slate-300"}>
+          {unit.renewSoon ? tr.zatcaRenewSoon(fmtDate(unit.expiresAt)) : tr.zatcaExpires(fmtDate(unit.expiresAt))}
+        </p>
+      )}
       {testing && <p className="text-xs text-amber-700 dark:text-amber-300">{tr.zatcaTesting}</p>}
       {unit.onboarded && (
         <Field label={tr.zatcaTiming} as="select" value={unit.timing} disabled={!canEdit}
@@ -457,18 +465,31 @@ function ZatcaConnection({ unit, canEdit, slug, locale, onDone }) {
       )}
       {!canEdit && !unit.onboarded && <p className="text-xs text-slate-500 dark:text-slate-400">{tr.zatcaNoRight}</p>}
       {canEdit && unit.onboarded && !again && (
-        <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-600 text-slate-700 dark:border-white/15 dark:text-slate-200"
-          onClick={() => setAgain(true)}>{tr.zatcaReconnect}</button>
+        <div className="flex flex-wrap gap-2">
+          <button className={unit.renewSoon
+            ? "rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white"
+            : "rounded-lg border border-slate-300 px-2 py-1 text-xs font-600 text-slate-700 dark:border-white/15 dark:text-slate-200"}
+            onClick={() => { setRenewing(true); setAgain(true); }}>{tr.zatcaRenew}</button>
+          <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-600 text-slate-700 dark:border-white/15 dark:text-slate-200"
+            onClick={() => { setRenewing(false); setAgain(true); }}>{tr.zatcaReconnect}</button>
+        </div>
       )}
+      {canEdit && again && renewing && <p className="text-xs text-slate-500 dark:text-slate-400">{tr.zatcaRenewHint}</p>}
       {canEdit && (!unit.onboarded || again) && (
         <div className="grid gap-2 sm:grid-cols-2">
           <Field label={tr.zatcaOtp} hint={tr.zatcaOtpHint} value={otp} inputProps={{ inputMode: "numeric", autoComplete: "one-time-code" }} onChange={(v) => setOtp(String(v).replace(/\D/g, "").slice(0, 6))} />
-          <Field label={tr.zatcaEnvironment} as="select" value={environment}
-            options={unit.environments.map((x) => ({ value: x, label: tr.zatcaEnv(x) }))}
-            onChange={(v) => setEnvironment(v)} />
+          {!renewing && (
+            <Field label={tr.zatcaEnvironment} as="select" value={environment}
+              options={unit.environments.map((x) => ({ value: x, label: tr.zatcaEnv(x) }))}
+              onChange={(v) => setEnvironment(v)} />
+          )}
           <div className="flex items-center gap-2 sm:col-span-2">
             <button className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-600 text-white disabled:opacity-50" disabled={busy || otp.length !== 6}
-              onClick={connect}>{tr.zatcaConnect}</button>
+              onClick={connect}>{renewing ? tr.zatcaRenew : tr.zatcaConnect}</button>
+            {unit.onboarded && (
+              <button className="rounded-lg px-3 py-1.5 text-xs font-600 text-slate-600 dark:text-slate-300"
+                onClick={() => { setAgain(false); setRenewing(false); setOtp(""); setProblem(""); }}>{tr.einvCancel}</button>
+            )}
             {busy && <span className="text-xs text-slate-500 dark:text-slate-400">{tr.zatcaConnecting}</span>}
           </div>
         </div>

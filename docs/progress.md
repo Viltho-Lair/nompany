@@ -1811,8 +1811,12 @@ first, then business, then notes.
 - ⬜ **Slice 3 — credit and debit notes** stamped and reported. Refunds are not, so a studio
   over-declares output tax. The composer and onboarding already take both.
 - ⬜ **Opening simulation, then production** — the owner's decision, one line in `zatcaApi.ts`.
-- ⬜ **Certificate renewal**, a claim so two submissions cannot prepare one invoice twice, and the
-  point-of-sale receipt reported as the simplified invoice it is.
+- ✅ **Certificate renewal** (same unit, same chain; amber in the last 30 days) and **a lease** so two
+  submissions cannot prepare one invoice twice (04/10/2026).
+- ⬜ **Testing against simulation** — needs a real taxpayer's OTP; the developer portal signs with a
+  sample certificate and cannot prove our signature matches our certificate.
+- ⬜ **The point-of-sale receipt reported** as the simplified invoice it is — waits on the parked
+  `AllowanceCharge` question, because a receipt carries basket discounts and promotions.
 - ⬜ **Zero-rated and exempt lines need a VATEX reason** on the line. Until then they are refused
   rather than written with a guessed code.
 - ⬜ **The printed Saudi invoice:** check it carries everything ZATCA requires on paper, Arabic

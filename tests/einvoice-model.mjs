@@ -74,6 +74,18 @@ ok("A REJECTED ONE WAITS FOR A PERSON — sent again unchanged it collects the s
   !dueForBatch({ issueDate: "2026-10-05" }, "rejected", "2026-10-04"));
 ok("an accepted one is never sent again", !dueForBatch({ issueDate: "2026-10-05" }, "accepted", "2026-10-04"));
 
+// ONE ACT ON ONE INVOICE AT A TIME (04/10/2026). Preparing takes a chain link,
+// so two acts racing on one invoice would take two. Every exported act that can
+// prepare must go through the lease — a new one that calls prepareFor or
+// submitFor directly is the race back.
+const service = readFileSync("src/modules/finance/einvoiceService.ts", "utf8");
+const acts = ["prepareEInvoice", "submitEInvoice", "submitOnIssue", "submitOutstanding"];
+const unleased = acts.filter((name) => {
+  const body = service.slice(service.indexOf(`export async function ${name}`)).split(/\nexport /)[0];
+  return !body.includes("leased(");
+});
+ok("EVERY ACT THAT CAN PREPARE HOLDS THE INVOICE'S LEASE", unleased.length === 0, unleased.join(", "));
+
 console.log("\n== where an invoice stands");
 ok("`prepared` is a state, and the three submission states survive only to be read",
   ["prepared", "accepted", "rejected", "pending", "submitted", "failed"].every((s) => EINVOICE_STATUSES.includes(s)));

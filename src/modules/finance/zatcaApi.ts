@@ -6,11 +6,13 @@
 // `tests/einvoice-model.mjs` holds the line: no other file names an
 // authority's host, and no other e-invoicing file calls fetch.
 //
-// FOUR CALLS, as ZATCA's onboarding and reporting guide names them:
-//   POST /compliance             — an OTP and a certificate request → a COMPLIANCE certificate
-//   POST /compliance/invoices    — a sample document, checked and nothing more
-//   POST /production/csids       — the compliance request id → the PRODUCTION certificate
-//   POST /invoices/reporting/single — a simplified invoice, reported
+// FIVE CALLS, as ZATCA's onboarding and reporting guide names them:
+//   POST  /compliance             — an OTP and a certificate request → a COMPLIANCE certificate
+//   POST  /compliance/invoices    — a sample document, checked and nothing more
+//   POST  /production/csids       — the compliance request id → the PRODUCTION certificate
+//   PATCH /production/csids       — an OTP and a new request, signed in with the current
+//                                   production certificate → its RENEWAL
+//   POST  /invoices/reporting/single — a simplified invoice, reported
 // Authentication is HTTP Basic over the certificate token and its secret.
 //
 // ONLY THE DEVELOPER PORTAL IS OPEN — the owner, 03/10/2026: ZATCA is called
@@ -45,11 +47,12 @@ async function call(
   path: string,
   payload: Record<string, unknown>,
   headers: Record<string, string>,
+  method: "POST" | "PATCH" = "POST",
 ): Promise<ZatcaAnswer> {
   if (!ZATCA_OPEN_ENVIRONMENTS.includes(environment)) return { status: 0, body: null, error: "environment-closed" };
   try {
     const res = await fetch(`${BASE[environment]}${path}`, {
-      method: "POST",
+      method,
       headers: { "Accept-Version": "V2", "Accept-Language": "en", "Content-Type": "application/json", Accept: "application/json", ...headers },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(30_000),
@@ -76,6 +79,10 @@ export const checkCompliance = (environment: ZatcaEnvironment, credentials: Zatc
 /** Once the checks passed: the production certificate. */
 export const requestProductionCsid = (environment: ZatcaEnvironment, credentials: ZatcaCredentials, complianceRequestId: string) =>
   call(environment, "/production/csids", { compliance_request_id: complianceRequestId }, basic(credentials));
+
+/** A production certificate nearing its end, renewed for a new request — the same unit, the same chain. */
+export const renewProductionCsid = (environment: ZatcaEnvironment, credentials: ZatcaCredentials, otp: string, csr: string) =>
+  call(environment, "/production/csids", { csr }, { ...basic(credentials), OTP: otp }, "PATCH");
 
 /** A simplified invoice (or note), reported. `Clearance-Status: 0` says it is not a clearance. */
 export const reportInvoice = (environment: ZatcaEnvironment, credentials: ZatcaCredentials, doc: { hash: string; uuid: string; xml: string }) =>
