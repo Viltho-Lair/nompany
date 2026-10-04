@@ -2477,7 +2477,7 @@ by design (`engagements.md`).
 4. **Foundations for progress**: every record attaches to its deal, completion rules, and a plan
    with a baseline.
    **04/10/2026:** bills and fixed assets attach to their project's deal (expenses did 03/10; the
-   backfill lists both but has not been run for them); **completion rules** for every stage type
+   backfill lists both — run on the sandbox 04/10, 23 bills linked; not run on live); **completion rules** for every stage type
    (`platform/engagement/completion.ts`), shown on the deal page; the baseline shipped 03/10.
    **Not built:** completion kept on the deal as records change, so lists, the front door's deal
    lane and deal KPIs can use it too.

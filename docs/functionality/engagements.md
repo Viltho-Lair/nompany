@@ -348,7 +348,9 @@ under way and approved timesheets and change orders done.
   create, on refiling to another project (out of the old deal first), and out again before it is
   deleted. One with no project stays unattached, which is what `unassignable` allows. The backfill
   (`buildEngagements`, `scripts/migrate/backfill-engagements.mjs`) lists bills and fixed assets too,
-  so a run attaches the ones already on file; **it has not been run for them**. A bill answering a
+  so a run attaches the ones already on file. **Run on the sandbox 04/10/2026** (44 deals, 141 records;
+  all 23 bills filed against a project in the demo studio now in their deal; no fixed asset there
+  names a project). **Not run on live.** A bill answering a
   purchase order but naming no project of its own does not inherit the order's project for this.
   (This bullet named `task` too; there is no task stage in the registry.)
 - **Deleting a PROJECT does not delete or detach its children.** `removeProject` removes
