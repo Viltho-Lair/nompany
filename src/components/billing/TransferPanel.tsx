@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { fmtCurrencyAmount } from "@/lib/pricing";
 import { billingDict } from "@/shared/studio/billing";
+import type { OwnerBillingView } from "@/lib/data/customerBilling";
+
+type Words = ReturnType<typeof billingDict>;
 
 // PAYING BY BANK TRANSFER — the details to pay to, then "I've sent it" (the
 // owner, 26/09/2026). Shown in the upgrade dialog once a package is requested
@@ -24,12 +27,12 @@ const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
-const dmy = (d) => (/^\d{4}-\d{2}-\d{2}/.test(String(d || "")) ? String(d).slice(0, 10).split("-").reverse().join("/") : "");
+const dmy = (d: unknown) => (/^\d{4}-\d{2}-\d{2}/.test(String(d || "")) ? String(d).slice(0, 10).split("-").reverse().join("/") : "");
 
 const INPUT = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 dark:border-white/15 dark:bg-white/5 dark:text-white";
 const LABEL = "mb-1 block text-xs font-600 text-slate-500 dark:text-slate-400";
 
-function Copyable({ label, value, t, mono = false }) {
+function Copyable({ label, value, t, mono = false }: { label: string; value?: string; t: Words; mono?: boolean }) {
   const [done, setDone] = useState(false);
   if (!value) return null;
   return (
@@ -46,11 +49,17 @@ function Copyable({ label, value, t, mono = false }) {
   );
 }
 
-export default function TransferPanel({ slug, data, locale = "en", onChanged }) {
+export default function TransferPanel({ slug, data, locale = "en", onChanged }: {
+  slug: string;
+  data: OwnerBillingView | null;
+  locale?: string;
+  onChanged?: () => Promise<unknown> | void;
+}) {
   const t = billingDict(locale);
   const ar = locale === "ar";
   const req = data?.request || null;
-  const open = (data?.claims || []).find((c) => c.kind === "transfer" && c.status === "pending") || null;
+  type Claim = OwnerBillingView["claims"][number];
+  const open = (data?.claims || []).find((c): c is Extract<Claim, { kind: "transfer" }> => c.kind === "transfer" && c.status === "pending") || null;
   const bank = data?.pay?.bankTransfer || null;
   const [claimId, setClaimId] = useState(newId);
   const [busy, setBusy] = useState(false);
@@ -59,10 +68,10 @@ export default function TransferPanel({ slug, data, locale = "en", onChanged }) 
     amount: req ? String(req.total) : "", currency: req?.currency || bank?.accounts?.[0]?.currency || "",
     sentOn: today(), bankReference: "", payerName: "", note: "",
   }));
-  const set = (patch) => setForm((f) => ({ ...f, ...patch }));
-  const money = (n, c) => `${fmtCurrencyAmount(Number(n) || 0, c || "USD")} ${c || ""}`;
+  const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
+  const money = (n: unknown, c?: string) => `${fmtCurrencyAmount(Number(n) || 0, c || "USD")} ${c || ""}`;
 
-  async function post(body) {
+  async function post(body: Record<string, unknown>) {
     setBusy(true); setError("");
     const res = await fetch(`/api/studios/${slug}/billing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const out = await res.json().catch(() => ({}));
@@ -119,7 +128,7 @@ export default function TransferPanel({ slug, data, locale = "en", onChanged }) 
               </div>
             ))}
             <div className="rounded-xl border border-dashed border-slate-300 p-3 dark:border-white/15">
-              <Copyable label={t.reference} value={data.reference} t={t} mono />
+              <Copyable label={t.reference} value={data?.reference} t={t} mono />
               <p className="text-xs text-slate-500 dark:text-slate-400">{t.referenceHint}</p>
             </div>
           </div>

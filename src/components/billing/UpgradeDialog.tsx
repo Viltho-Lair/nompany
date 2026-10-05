@@ -7,6 +7,20 @@ import { quoteUpgrade } from "@/shared/upgradeQuote";
 import { upgradeDict } from "@/shared/studio/upgrade";
 import { dirFor } from "@/shared/locale";
 import TransferPanel from "./TransferPanel";
+import type { Cycle, PriceList, UpgradeChoice } from "@/shared/upgradeQuote";
+import type { OwnerBillingView } from "@/lib/data/customerBilling";
+
+// WHAT `GET /upgrade` ANSWERS, as this dialog reads it. The price list's own
+// type leaves a card's fields `unknown` because it is checked against stored
+// rows; over the wire they are the JSON shapes below.
+type Band = { id: string; label?: string; minEmployees?: number; maxEmployees?: number };
+type UpgradeCard = { id: string; type?: string; name?: string; nameAr?: string; categories?: Band[] };
+type UpgradeData = {
+  current: { packageId: string; tierId: string };
+  requested: Partial<UpgradeChoice> | null;
+  request: (UpgradeChoice & { total: number; requestedAt?: string }) | null;
+  list: Omit<PriceList, "cards" | "tiers"> & { cards: UpgradeCard[]; tiers: { id: string; name?: string }[] };
+};
 
 // THE UPGRADE DIALOG — one component, opened from the studio header (Standard
 // studios, owner only) and from the account page's list of owned studios (the
@@ -29,20 +43,26 @@ import TransferPanel from "./TransferPanel";
 // IT OPENS ON THE PACKAGE THEY PICKED WHEN SIGNING UP (studio.requestedPlan)
 // when there is one; older studios open on the first package on sale.
 
-const day = (iso) => {
+const day = (iso: unknown) => {
+  if (typeof iso !== "string") return "";
   const t = Date.parse(iso || "");
   return Number.isFinite(t) ? new Date(t).toLocaleDateString("en-GB") : "";
 };
 
-export default function UpgradeDialog({ slug, studioName, locale = "en", onClose }) {
+export default function UpgradeDialog({ slug, studioName, locale = "en", onClose }: {
+  slug: string;
+  studioName: string;
+  locale?: string;
+  onClose: () => void;
+}) {
   const t = upgradeDict(locale);
   const ar = locale === "ar";
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<UpgradeData | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [choice, setChoice] = useState(null);
-  const [billing, setBilling] = useState(null);
+  const [choice, setChoice] = useState<UpgradeChoice | null>(null);
+  const [billing, setBilling] = useState<OwnerBillingView | null>(null);
 
   const loadBilling = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/billing`, { cache: "no-store" });
@@ -53,7 +73,7 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
   // body that is not JSON used to leave the dialog loading forever.
   const load = useCallback(async () => {
     setError("");
-    let d;
+    let d: UpgradeData;
     try {
       const res = await fetch(`/api/studios/${slug}/upgrade`, { cache: "no-store" });
       if (!res.ok) { setError(t.failed); return; }
@@ -85,16 +105,19 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
   useReload(load);
 
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   const cards = useMemo(() => data?.list?.cards || [], [data]);
   const card = cards.find((c) => c.id === choice?.packageId) || null;
-  const quote = data && choice ? quoteUpgrade(data.list, choice) : null;
-  const money = (n) => `${fmtCurrencyAmount(n, data?.list?.currency || "USD")} ${data?.list?.currency || ""}`;
-  const name = (c) => (ar && c?.nameAr) || c?.name || "";
+  const quoted = data && choice ? quoteUpgrade(data.list, choice) : null;
+  // A price that can be shown, or null — the refusal is kept apart because the
+  // send button needs to know there was one.
+  const quote = quoted && !("error" in quoted) ? quoted : null;
+  const money = (n: number) => `${fmtCurrencyAmount(n, data?.list?.currency || "USD")} ${data?.list?.currency || ""}`;
+  const name = (c: UpgradeCard | null | undefined) => (ar && c?.nameAr) || c?.name || "";
 
   async function send() {
     setBusy(true); setError("");
@@ -115,8 +138,10 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
     await load();
   }
 
-  const pending = data?.request && !editing;
-  const pill = (active) => `rounded-full border px-3 py-1.5 text-sm transition-colors ${active
+  // The request being shown, or null while choosing — one value, so the branch
+  // below reads it without asking again whether it exists.
+  const pending = data?.request && !editing ? data.request : null;
+  const pill = (active: boolean) => `rounded-full border px-3 py-1.5 text-sm transition-colors ${active
     ? "border-brand-600 bg-brand-600 text-white"
     : "border-slate-200 text-slate-700 hover:border-slate-300 dark:border-white/15 dark:text-slate-200"}`;
 
@@ -145,11 +170,11 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
           </div>
         ) : pending ? (
           <div className="mt-5 space-y-3 text-sm">
-            <p>{t.pending(day(data.request.requestedAt))}</p>
+            <p>{t.pending(day(pending.requestedAt))}</p>
             <p className="font-600">
-              {name(cards.find((c) => c.id === data.request.packageId)) || data.request.packageId}
-              {" · "}{data.request.cycle === "yearly" ? t.yearly : t.monthly}
-              {" · "}{money(data.request.total)}
+              {name(cards.find((c) => c.id === pending.packageId)) || pending.packageId}
+              {" · "}{pending.cycle === "yearly" ? t.yearly : t.monthly}
+              {" · "}{money(pending.total)}
             </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <button type="button" className={pill(false)} onClick={() => setEditing(true)} disabled={busy}>{t.change}</button>
@@ -168,7 +193,7 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
             <div className="flex flex-wrap gap-2">
               {cards.map((c) => (
                 <button key={c.id} type="button" className={pill(c.id === choice?.packageId)}
-                  onClick={() => setChoice((ch) => ({ ...ch, packageId: c.id, categoryId: c.type === "compound" ? c.categories?.[0]?.id || "" : "" }))}>
+                  onClick={() => setChoice((ch) => ch && ({ ...ch, packageId: c.id, categoryId: c.type === "compound" ? c.categories?.[0]?.id || "" : "" }))}>
                   {name(c)}
                 </button>
               ))}
@@ -180,7 +205,7 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
                 <div className="flex flex-wrap gap-2">
                   {(card.categories || []).map((b) => (
                     <button key={b.id} type="button" className={pill(b.id === choice?.categoryId)}
-                      onClick={() => setChoice((ch) => ({ ...ch, categoryId: b.id }))}>
+                      onClick={() => setChoice((ch) => ch && ({ ...ch, categoryId: b.id }))}>
                       {b.label || `${b.minEmployees}–${b.maxEmployees}`}
                     </button>
                   ))}
@@ -194,7 +219,7 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
                 <div className="flex flex-wrap gap-2">
                   {data.list.tiers.map((tier) => (
                     <button key={tier.id} type="button" className={pill(tier.id === choice?.tierId)}
-                      onClick={() => setChoice((ch) => ({ ...ch, tierId: tier.id }))}>
+                      onClick={() => setChoice((ch) => ch && ({ ...ch, tierId: tier.id }))}>
                       {tier.name}
                     </button>
                   ))}
@@ -203,14 +228,14 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
             )}
 
             <div className="flex gap-2">
-              {["monthly", "yearly"].map((cy) => (
-                <button key={cy} type="button" className={pill(choice?.cycle === cy)} onClick={() => setChoice((ch) => ({ ...ch, cycle: cy }))}>
+              {(["monthly", "yearly"] as Cycle[]).map((cy) => (
+                <button key={cy} type="button" className={pill(choice?.cycle === cy)} onClick={() => setChoice((ch) => ch && ({ ...ch, cycle: cy }))}>
                   {cy === "yearly" ? t.yearly : t.monthly}
                 </button>
               ))}
             </div>
 
-            {quote && !quote.error && (
+            {quote && (
               <dl className="space-y-1 rounded-xl bg-slate-50 p-4 text-sm dark:bg-white/5">
                 <div className="flex justify-between"><dt className="text-slate-500">{quote.seats > 0 ? t.seats(quote.seats) : t.unlimitedSeats}</dt></div>
                 <div className="flex justify-between"><dt>{t.subtotal}</dt><dd className="tabular-nums">{money(quote.amount)} {quote.cycle === "yearly" ? t.perYear : t.perMonth}</dd></div>
@@ -219,7 +244,7 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
               </dl>
             )}
 
-            <button type="button" onClick={send} disabled={busy || !quote || Boolean(quote.error)}
+            <button type="button" onClick={send} disabled={busy || !quote}
               className="w-full rounded-full bg-brand-600 px-5 py-2.5 font-display text-sm font-700 text-white hover:bg-brand-700 disabled:opacity-60">
               {busy ? t.sending : t.send}
             </button>

@@ -5,6 +5,12 @@ import { fmtCurrencyAmount } from "@/lib/pricing";
 import { billingDict } from "@/shared/studio/billing";
 import SelectMenu from "@/components/fields/SelectMenu";
 import TransferPanel from "./TransferPanel";
+import type { InputHTMLAttributes } from "react";
+import type { OwnerBillingView } from "@/lib/data/customerBilling";
+import type { BillingProfile } from "@/lib/data/customerBilling";
+
+type Words = ReturnType<typeof billingDict>;
+type View = OwnerBillingView;
 
 // THE OWNER'S BILLING PAGE — /account → Billing (the owner, 26/09/2026: "they
 // will still need to check their financial information"). On the account page
@@ -17,8 +23,9 @@ import TransferPanel from "./TransferPanel";
 // page), refund requests, and the billing details printed on invoices.
 
 const newId = () => (globalThis.crypto?.randomUUID?.() || `rf_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`);
-const dmy = (d) => (/^\d{4}-\d{2}-\d{2}/.test(String(d || "")) ? String(d).slice(0, 10).split("-").reverse().join("/") : "");
-const when = (iso) => {
+const dmy = (d: unknown) => (/^\d{4}-\d{2}-\d{2}/.test(String(d || "")) ? String(d).slice(0, 10).split("-").reverse().join("/") : "");
+const when = (iso: unknown) => {
+  if (typeof iso !== "string") return "";
   const t = Date.parse(iso || "");
   return Number.isFinite(t) ? new Date(t).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
 };
@@ -29,7 +36,7 @@ const INPUT = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text
 const BTN = "rounded-full bg-brand-600 px-4 py-2 font-display text-sm font-700 text-white hover:bg-brand-700 disabled:opacity-60";
 const GHOST = "rounded-full border border-slate-200 px-3 py-1.5 text-xs text-slate-700 hover:border-slate-300 dark:border-white/15 dark:text-slate-200";
 
-const TONE = {
+const TONE: Record<string, string> = {
   pending: "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200",
   confirmed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200",
   refunded: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200",
@@ -38,10 +45,14 @@ const TONE = {
   withdrawn: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300",
 };
 
-export default function BillingCenter({ owned = [], locale = "en", initialSlug = "" }) {
+export default function BillingCenter({ owned = [], locale = "en", initialSlug = "" }: {
+  owned?: { slug: string; name: string }[];
+  locale?: string;
+  initialSlug?: string;
+}) {
   const t = billingDict(locale);
   const [slug, setSlug] = useState(() => (owned.some((s) => s.slug === initialSlug) ? initialSlug : owned[0]?.slug || ""));
-  const [data, setData] = useState(null);
+  const [data, setData] = useState<View | null>(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -91,9 +102,9 @@ export default function BillingCenter({ owned = [], locale = "en", initialSlug =
   );
 }
 
-function Status({ data, t }) {
+function Status({ data, t }: { data: View; t: Words }) {
   const s = data.subscription;
-  const lines = [];
+  const lines: string[] = [];
   if (data.status === "trial") lines.push(t.freeUntil(dmy(s.paidUntil)));
   else if (data.status === "active") lines.push(t.paidUntil(dmy(s.paidUntil)));
   if (data.status === "due") lines.push(t.closesOn(dmy(data.dates.closesOn)));
@@ -109,8 +120,8 @@ function Status({ data, t }) {
   );
 }
 
-function Claims({ data, t }) {
-  const money = (n, c) => `${fmtCurrencyAmount(Number(n) || 0, c || "USD")} ${c || ""}`;
+function Claims({ data, t }: { data: View; t: Words }) {
+  const money = (n: unknown, c?: string) => `${fmtCurrencyAmount(Number(n) || 0, c || "USD")} ${c || ""}`;
   return (
     <section className={CARD}>
       <h2 className={H2}>{t.claimsTitle}</h2>
@@ -130,15 +141,15 @@ function Claims({ data, t }) {
   );
 }
 
-function Documents({ slug, data, t, onChanged }) {
+function Documents({ slug, data, t, onChanged }: { slug: string; data: View; t: Words; onChanged: () => Promise<unknown> }) {
   const [asking, setAsking] = useState("");
   const [reason, setReason] = useState("");
   const [claimId, setClaimId] = useState(newId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const money = (n, c) => `${fmtCurrencyAmount(Number(n) || 0, c || "USD")} ${c || ""}`;
-  const pendingFor = (no) => data.claims.some((c) => c.kind === "refund" && c.status === "pending" && c.invoiceNo === no);
-  const credited = (no) => data.documents.filter((d) => d.kind === "credit-note" && d.creditsInvoice === no).reduce((s, d) => s + d.total, 0);
+  const money = (n: unknown, c?: string) => `${fmtCurrencyAmount(Number(n) || 0, c || "USD")} ${c || ""}`;
+  const pendingFor = (no: string) => data.claims.some((c) => c.kind === "refund" && c.status === "pending" && c.invoiceNo === no);
+  const credited = (no: string) => data.documents.filter((d) => d.kind === "credit-note" && d.creditsInvoice === no).reduce((s, d) => s + d.total, 0);
 
   async function ask() {
     setBusy(true); setError("");
@@ -188,11 +199,11 @@ function Documents({ slug, data, t, onChanged }) {
   );
 }
 
-function Profile({ slug, data, t }) {
-  const [p, setP] = useState(data.profile);
+function Profile({ slug, data, t }: { slug: string; data: View; t: Words }) {
+  const [p, setP] = useState<BillingProfile>(data.profile);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const set = (patch) => { setP((x) => ({ ...x, ...patch })); setMsg(""); };
+  const set = (patch: Partial<BillingProfile>) => { setP((x) => ({ ...x, ...patch })); setMsg(""); };
   async function save() {
     setBusy(true); setMsg("");
     const res = await fetch(`/api/studios/${slug}/billing`, {
@@ -201,7 +212,7 @@ function Profile({ slug, data, t }) {
     setBusy(false);
     setMsg(res.ok ? t.saved : t.failed);
   }
-  const field = (key, label, extra = {}) => (
+  const field = (key: keyof BillingProfile, label: string, extra: InputHTMLAttributes<HTMLInputElement> = {}) => (
     <label className="block"><span className="mb-1 block text-xs font-600 text-slate-500">{label}</span>
       <input className={INPUT} value={p[key] || ""} onChange={(e) => set({ [key]: e.target.value })} {...extra} /></label>
   );

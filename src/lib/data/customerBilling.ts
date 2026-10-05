@@ -112,6 +112,14 @@ export async function ownerBillingView(studio: Studio) {
   };
 }
 
+/**
+ * THE BILLING PAGE'S PAYLOAD, as the screens read it — derived from the
+ * function above rather than written out a second time, so the screen's idea of
+ * the answer cannot drift from the answer. A type only: `import type` from a
+ * client file brings none of this module's server code with it.
+ */
+export type OwnerBillingView = Awaited<ReturnType<typeof ownerBillingView>>;
+
 /** WHAT THE CONSOLE'S SUBSCRIPTION PANEL ADDS — claims opened, documents listed, the hold. */
 export async function consoleBillingView(doc: SubscriptionDoc) {
   const { holdUntil } = await effectiveAccess(doc);

@@ -25,8 +25,15 @@ const STEPS = [
   { value: "free-ended", label: "Standard's free period just ended" },
 ];
 
-export default function SandboxClock({ slug }) {
-  const [state, setState] = useState(null);
+/** What the sandbox clock route answers — only on a sandbox studio. */
+type ClockState = {
+  sandbox?: boolean;
+  status?: string;
+  dates?: { closesOn: string; shutsDownOn: string; deletedOn: string } | null;
+};
+
+export default function SandboxClock({ slug }: { slug: string }) {
+  const [state, setState] = useState<ClockState | null>(null);
   const [busy, setBusy] = useState(false);
   const url = `/api/studios/${slug}/sandbox-clock`;
 
@@ -38,7 +45,7 @@ export default function SandboxClock({ slug }) {
 
   if (!state?.sandbox) return null;
 
-  async function move(to) {
+  async function move(to: string) {
     setBusy(true);
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to }) });
     setBusy(false);
