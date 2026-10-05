@@ -18,16 +18,18 @@ import { cascadeDeleteEngagement } from "@/platform/db/cascade";
 import type { EngagementLineage } from "@/platform/db/engagement";
 import { getSectionByKey } from "@/platform/db/sections";
 import { repo } from "@/platform/db/repo";
-import { listFlowTemplates, defaultTemplateForStudio, pickTemplate, industryKeyOf } from "@/platform/db/flows";
+import { listFlowTemplates, pickTemplate, studioDefaultFlowId } from "@/platform/db/flows";
 import { flowProgress, nextActionFor, stagesRunning } from "@/platform/engagement/progress";
-import { readMeasures } from "@/platform/db/kpis";
 import { stageCompletion, type CompletionContext, type StageCompletion } from "@/platform/engagement/completion";
 import { listInvoices, readWithholdingRules } from "@/modules/finance/finance";
 import { listBills } from "@/modules/finance/payables";
 import { approvalRows } from "@/modules/approvals/approvals";
 import { quotationApproved } from "@/modules/approvals/reads";
 import type { StudioRef } from "../context";
-import { factsFromDeal, judgeItem, kpisInForce, type KpiOutcome, type MeasureWords, type StudioKpiTargets } from "./workKpis";
+import { factsFromDeal, type KpiOutcome, type MeasureWords } from "./workKpis";
+import { judgeStep, stepTargetIn } from "./flowSteps";
+import { stageLabel } from "@/shared/studio/stages";
+import type { FlowTemplate } from "@/platform/engagement/templates";
 import type { FlowProgress, FlowStep, StageInfo } from "@/platform/engagement/progress";
 import type { Refusal } from "@/platform/access";
 
@@ -209,17 +211,17 @@ export async function dealTemplate(
     if (chosen?.id === known) return chosen;
   }
 
-  // The industry costs a SECOND read, so it is asked only when the deal itself
-  // does not know — which is every deal written before templates existed, and
-  // no deal written after. The usage scan reads every industry once instead,
-  // which is why pickTemplate takes the answer rather than fetching it.
-  const industryKey = industryKeyOf(root.context as Record<string, unknown> | undefined);
-  let primary = "";
-  if (industryKey && preload) {
-    if (!preload.primaryFor.has(industryKey)) preload.primaryFor.set(industryKey, defaultTemplateForStudio(ctx.studio.id, industryKey));
-    primary = await preload.primaryFor.get(industryKey)!;
-  } else if (industryKey) {
-    primary = await defaultTemplateForStudio(ctx.studio.id, industryKey);
+  // A DEAL THAT NAMES NO FLOW WALKS THE STUDIO'S DEFAULT (05/10/2026) — every
+  // deal written before flows were stored, and none written since. This asked
+  // the deal's industry and an industry table first; the owner retired the
+  // table, because which flow a deal walks is the studio's to say. Asked only
+  // when the deal does not know, and once per board under `preload`.
+  let primary: string;
+  if (preload) {
+    if (!preload.primaryFor.has("")) preload.primaryFor.set("", studioDefaultFlowId(ctx.studio.id));
+    primary = await preload.primaryFor.get("")!;
+  } else {
+    primary = await studioDefaultFlowId(ctx.studio.id);
   }
   return pickTemplate(templates, known, primary);
 }
@@ -239,51 +241,54 @@ export type DealKpi = {
 };
 
 /**
- * WHAT THIS DEAL IS BEING MEASURED ON, AS THIS READER MAY SEE IT — matched on
- * READ (03/10/2026): every active per-item measure for a deal that the studio
- * has a target for, in force when the deal OPENED, on the deal's own flow (a
- * flow's override over the studio-wide number). Nothing is stored on the deal;
- * the dated target is what keeps a changed number from re-judging it.
+ * WHAT THIS DEAL IS BEING MEASURED ON, AS THIS READER MAY SEE IT — its FLOW's
+ * own step targets (05/10/2026), each in the version in force when the deal
+ * OPENED, so a number changed since never re-judges it. Nothing is stored on
+ * the deal. This read the /super measure catalogue and a separate studio
+ * targets screen before; the owner folded both into the flow, which the studio
+ * owns.
  *
  * TIMED OFF THE DEAL'S OWN RECORDS: each stage's first record, read with the
  * stage cards (`firstAt`), and the deal's own opening.
  *
- * A KPI IS ABSENT where its flow does not run its step — a delivery target on a
- * deal whose flow has no delivery is not missed, it is not this deal's — and
- * where the reader may not see the records of its step or its starting step:
- * the same rule every block on this page follows, rights AND the studio's
- * switches.
+ * A TARGET IS ABSENT where the deal's running steps do not include its step —
+ * a department switched off — and where the reader may not see the records of
+ * its step or its starting step: the same rule every block on this page follows.
  */
-async function readDealKpis(
-  ctx: EngagementCtx,
+function readDealKpis(
   dealId: string,
   root: { createdAt?: unknown },
-  flowId: string,
+  template: FlowTemplate | null,
   running: readonly string[],
   firstAt: Readonly<Record<string, string>>,
   visible: ReadonlySet<string>,
-): Promise<DealKpi[]> {
-  const targets = ((ctx.studio as { kpiTargets?: unknown }).kpiTargets || {}) as StudioKpiTargets;
-  if (!Object.keys(targets).length) return [];
+): DealKpi[] {
+  if (!template?.targets) return [];
   const facts = factsFromDeal(dealId, firstAt, running);
   const opened = String(root.createdAt || facts.openedAt || "");
   if (!opened) return [];
   const measured = { ...facts, openedAt: opened };
   const asOf = new Date().toISOString();
+  const word = (type: string, locale: string) => stageLabel(type, STAGE_REGISTRY[type]?.label || type, locale);
   const out: DealKpi[] = [];
-  for (const kpi of kpisInForce(await readMeasures(), targets, "deal", flowId, opened)) {
-    if (kpi.kind !== "reach") continue;
-    const step = String(kpi.step || "");
-    const from = String(kpi.from || "");
-    if (!running.includes(step) || (from && !running.includes(from))) continue;
+  for (const step of running) {
+    const target = stepTargetIn(template.targets[step], opened);
+    if (!target) continue;
+    const { from } = target;
+    if (from && !running.includes(from)) continue;
     if (!visible.has(step) || (from && !visible.has(from))) continue;
-    const judged = judgeItem(kpi, measured, asOf);
+    const judged = judgeStep(step, target, measured, asOf);
     if (!judged) continue;
     const due = Date.parse(judged.dueAt);
     out.push({
-      id: kpi.id, name: kpi.name, outcome: judged.outcome, dueAt: judged.dueAt,
+      id: `step:${step}`,
+      name: {
+        en: from ? `${word(step, "en")} within … days of ${word(from, "en")}` : `${word(step, "en")} within … days`,
+        ar: from ? `${word(step, "ar")} خلال … يومًا من ${word(from, "ar")}` : `${word(step, "ar")} خلال … يومًا`,
+      },
+      outcome: judged.outcome, dueAt: judged.dueAt,
       daysLeft: Number.isFinite(due) ? Math.ceil((due - Date.parse(asOf)) / 86_400_000) : null,
-      days: Number(kpi.days || 0), step, from,
+      days: target.days, step, from,
     });
   }
   return out;
@@ -694,8 +699,8 @@ export async function engagementBlock(
       // resolved here and passed down, so one read reports every KPI against
       // the same instant — two of them measured milliseconds apart could
       // otherwise disagree about which day it is.
-      kpis: await readDealKpis(
-        ctx, dealId, root, String(template?.id || ""), running,
+      kpis: readDealKpis(
+        dealId, root, template, running,
         Object.fromEntries(cards.filter((c) => c.firstAt).map((c) => [c.type, String(c.firstAt)])),
         visible,
       ),

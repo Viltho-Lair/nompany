@@ -43,10 +43,28 @@ export const BILLING_TRIGGERS = Object.freeze([
 
 export type BillingTrigger = (typeof BILLING_TRIGGERS)[number];
 
+/**
+ * ONE VERSION OF A STEP'S TARGET — "reach this step within `days` of `from`"
+ * (`from` "": of the deal opening). `days` null: the step is not measured.
+ *
+ * THE STUDIO'S OWN NUMBER, ON ITS OWN FLOW (the owner, 05/10/2026): a deal KPI
+ * used to be a measure nompany declared in /super and a studio numbered on a
+ * second screen, which put two people in charge of one flow. The step carries
+ * its target now, and only the studio sets it.
+ *
+ * APPENDED, NEVER EDITED: a deal is judged by the version in force when it
+ * OPENED, so changing a number never re-judges work already measured.
+ */
+export type StepTarget = { at: string; by: string; days: number | null; from: string };
+
 export type FlowTemplate = {
   /** "A".."G" for the built-ins; a clone gets its own id. */
   id: string;
   name: string;
+  /** step (a stage type) → its target's versions, oldest first. */
+  targets?: Readonly<Record<string, readonly StepTarget[]>>;
+  /** The flow a new deal starts on when the studio has several. */
+  isDefault?: boolean;
   /** Every stage type this flow uses, in the order a deal walks them. */
   stages: readonly string[];
   /**
@@ -230,4 +248,33 @@ export function templateProblems(
     }
   }
   return problems;
+}
+
+/**
+ * WHAT A FLOW'S STEPS IMPLY, so a studio edits steps and nothing else.
+ *
+ * `heads` and `statusChain` were two more lists on the editor, each able to
+ * name a step the flow no longer has. They are kept from the flow's previous
+ * version where they still apply and filled from the steps where nothing does —
+ * the status falls back to the built-ins' own order of authority, then to the
+ * first step, so every saved flow can report a status and open a deal.
+ */
+const STATUS_AUTHORITY = ["project", "contract", "job", "shipment", "quotation", "ticket"] as const;
+
+export function deriveFlowShape(
+  stages: readonly string[],
+  previous?: Pick<FlowTemplate, "heads" | "statusChain" | "cardinalityOverrides"> | null,
+): Pick<FlowTemplate, "heads" | "statusChain" | "cardinalityOverrides"> {
+  const own = new Set(stages);
+  const heads = (previous?.heads || []).filter((s) => own.has(s));
+  let chain = (previous?.statusChain || []).filter((s) => own.has(s));
+  if (!chain.length) chain = STATUS_AUTHORITY.filter((s) => own.has(s));
+  if (!chain.length && stages[0]) chain = [stages[0]];
+  return {
+    heads: heads.length ? heads : stages.slice(0, 1),
+    statusChain: chain,
+    cardinalityOverrides: Object.fromEntries(
+      Object.entries(previous?.cardinalityOverrides || {}).filter(([s]) => own.has(s)),
+    ),
+  };
 }

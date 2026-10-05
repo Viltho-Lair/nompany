@@ -1,5 +1,43 @@
 # Flow templates and industries — the flow editor
 
+## THE STUDIO OWNS ITS FLOWS — the owner, 05/10/2026
+
+*"I should run nompany, not the flow … let the users feel free to improve their own flow based on
+their requirements with less steps and less code."* What follows this section describes the
+editor in Studio settings and the industry table, both of which are being replaced by this:
+
+- **A studio starts with one flow**, copied from its trade's starter the first time its flows
+  are opened (`plantStarterFlow`, `platform/db/flows.ts`) — planted on read inside `editArr`,
+  only into an empty list, and **keeping the starter's id**, so every deal already walking that
+  flow is on the studio's copy without anything being re-pointed. The seven built-ins stay in code
+  as starters and as what an older deal naming one still resolves to.
+- **The studio edits steps and nothing else.** Name, steps in order, each step's target, and
+  which flow is the default. `heads`, `statusChain` and `cardinalityOverrides` follow from the
+  steps (`deriveFlowShape`, `platform/engagement/templates.ts`): kept from the flow's previous
+  version where they still apply, otherwise the first step opens a deal and the built-ins' order
+  of authority (project, contract, job, shipment, quotation, ticket) reports its status.
+- **Each step carries one target** — reach it within N days of the deal opening or of an earlier
+  step (`targets`, dated versions; `modules/main/flowSteps.ts`). A change is appended, never an
+  edit, so a deal is judged by the version in force when it opened. **The suggestion is the
+  studio's own history**: how long its deals took to reach the step, on average, rounded up —
+  offered from three deals or more.
+- **A new deal starts on the studio's default flow** (`studioDefaultFlowId`: the one marked
+  default, else its first, else its trade's starter, else A). A deal that names no flow — written
+  before flows were stored — walks the default too; it used to ask the deal's client industry and
+  an industry table first. **A deal can be moved to another of the studio's flows**
+  (`setDealTemplate` now checks the studio's own list, not the seven built-ins).
+- **A second flow is a copy** of one of the studio's or of a starter; targets are not copied. A
+  flow is **removed** only when no scanned deal walks it, and never the last one; removing the
+  default makes the next one the default.
+
+**The board** — `GET /api/studios/<slug>/main/flows` (`modules/main/dealFlows.ts`), behind
+`engagements.view`: each flow, its steps, and per step the open deals AT it, how many are past the
+step's target, how many reached it under a target and how many in time, and the suggestion. Read
+from the deals' completion snapshots (the newest 500), never by opening records; a deal with no
+snapshot yet is counted as `unread`. A step the reader may not see shows no figures. **Writes**
+— `POST` with `action` `save`, `add`, `remove` or `move` — need
+`administration.settings.edit`, the right the flow editor already used. **No new permission key.**
+
 ## What it is
 
 A **flow template** is the shape of the work: which stages a deal walks, in what order,
@@ -166,6 +204,14 @@ because `route()` needs a root section and `administration-settings` is in `NO_S
 hand-rolled for the same reason.
 
 ## Not built yet — do not assume otherwise
+
+- **The board has no screen yet** (05/10/2026): the route and its service are built and checked by
+  `tests/flow-steps-model.mjs`; the page in the Deals area, step results on the deal page and the
+  deal's flow picker are next. **The old editor, the Industries panel, the deal measures in /super
+  and the per-flow KPI override are still there** and are the removals after that.
+- **Moving a deal to another flow needs `administration.settings.edit`** for now — somebody who
+  may change flows. Whether a salesperson picks a deal's flow at opening is still to be decided
+  with the screen.
 
 - **A template id is never reused or renamed, and nothing enforces that.** `freeId` picks
   the first free letter H–Z for a duplicate, and a studio with more than nineteen clones

@@ -79,9 +79,60 @@ export async function saveFlowTemplate(studioId: string, template: FlowTemplate)
   }
 
   await editArr<FlowTemplate, void>(S.flowTemplates(studioId), (rows) => {
-    const next = rows.filter((r) => r.id !== template.id);
-    next.push(template);
+    // ONE DEFAULT. Marking a flow the default unmarks the rest in the same
+    // write, so two flows can never both claim a new deal.
+    const others = rows.filter((r) => r.id !== template.id)
+      .map((r) => (template.isDefault && r.isDefault ? { ...r, isDefault: false } : r));
+    const at = rows.findIndex((r) => r.id === template.id);
+    const next = [...others];
+    next.splice(at < 0 ? next.length : at, 0, template);
     return { next, result: undefined };
+  });
+}
+
+// ---- the studio's OWN flows (05/10/2026) -------------------------------------
+//
+// THE STUDIO OWNS ITS FLOWS OUTRIGHT — the owner: "I should run nompany, not
+// the flow." A studio starts with ONE flow, copied from its trade's starter the
+// first time anything asks, and from then on it adds, removes, reorders and
+// measures its own steps. The seven built-ins stay in code as starters and as
+// what an older deal naming one still resolves to (`listFlowTemplates`); they
+// are no longer a list every studio scrolls past.
+
+/** The flows this studio has made its own, in its order. */
+export async function listOwnFlows(studioId: string): Promise<FlowTemplate[]> {
+  return readArr<FlowTemplate>(S.flowTemplates(studioId));
+}
+
+/**
+ * THE FLOW A NEW DEAL STARTS ON: the studio's default, else its first own flow,
+ * else its trade's starter (a studio that has not opened its flows yet), else A.
+ */
+export async function studioDefaultFlowId(studioId: string, own?: readonly FlowTemplate[]): Promise<string> {
+  const rows = own || await listOwnFlows(studioId);
+  const chosen = rows.find((r) => r.isDefault) || rows[0];
+  if (chosen) return chosen.id;
+  return (await defaultTemplateForTrade(studioId)) || "A";
+}
+
+/**
+ * A STUDIO WITH NO FLOW OF ITS OWN GETS ITS STARTER, written once — the first
+ * time its flows are opened. Planted on read like a section (a new studio needs
+ * no script), inside `editArr` so two first readers plant one flow, and only
+ * into an EMPTY list: a studio that has any flow of its own already chose.
+ *
+ * THE COPY KEEPS THE STARTER'S ID, so every deal already walking that flow is
+ * on the studio's copy the moment it exists — nothing is re-pointed.
+ */
+export async function plantStarterFlow(studioId: string): Promise<FlowTemplate[]> {
+  const rows = await listOwnFlows(studioId);
+  if (rows.length) return rows;
+  const starterId = await studioDefaultFlowId(studioId, rows);
+  const starter = FLOW_TEMPLATES.find((t) => t.id === starterId) || FLOW_TEMPLATES[0];
+  return editArr<FlowTemplate, FlowTemplate[]>(S.flowTemplates(studioId), (current) => {
+    if (current.length) return { result: current };
+    const next = [{ ...starter, isDefault: true }];
+    return { next, result: next };
   });
 }
 

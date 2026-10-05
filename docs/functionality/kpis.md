@@ -54,7 +54,19 @@ The console can reword one or switch it off, and add its own; a built-in is neve
 studios hold targets keyed by its id. **What a measure measures cannot change once it exists** —
 only its words and whether it is offered — because targets were set for what it measured.
 
-## How a deal gets its KPIs — matched on read, nothing stored on the deal
+## A DEAL'S TARGETS ARE ITS FLOW'S STEPS NOW (05/10/2026)
+
+The owner: a deal KPI was a measure nompany declared and a studio numbered on another screen, over
+a flow an industry table chose — *"two different places with two different people controlling the
+flow, I should run nompany not the flow."* So the studio's flow carries the targets: **each step
+has one, "reach it within N days" of the deal opening or of an earlier step**, kept as dated
+versions on the flow (`targets`, `flows.md`). The deal page judges a deal by its flow's targets
+in force when it opened (`modules/main/flowSteps.ts` — `stepTargetIn`, `judgeStep`, which is
+`judgeItem` asked a reach question), absent where the reader may not see the step or its start.
+**What follows below is the deal half of the old model and is being removed**; the job, work order
+and counter-sale halves stay.
+
+## How a deal got its KPIs before 05/10/2026 — matched on read, nothing stored on the deal
 
 1. **By kind of work** — the studio's deal measures with a target.
 2. **By the deal's flow** — a measure applies only if its steps are in the flow the deal walks
@@ -84,6 +96,10 @@ A missed target is amber text and nothing else. No transition is refused and no 
 `tests/work-kpis-model.mjs` holds the arithmetic.
 
 ## Not built yet
+
+- **The deal measures still exist in /super and on the KPI targets screen**, and a deal no longer
+  reads them (05/10/2026). Deleting them, with the per-flow override, is the next step of the
+  flow redesign.
 
 - **Opened in the sandbox 03/10/2026**, and it found one flaw, fixed: a period was scored at the
   target in force when it BEGAN, so a target set mid-month showed nothing until next month. Seen

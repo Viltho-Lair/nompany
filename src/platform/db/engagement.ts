@@ -10,7 +10,7 @@ import { contribute, emptyContext, CONTEXT_FACTS, rankOf } from "../engagement/c
 import { templateById } from "../engagement/templates";
 // SIBLINGS IMPORT EACH OTHER RELATIVELY (CLAUDE.md) — `flows` is this folder's
 // own, and it is where a studio's stored templates and industries live.
-import { defaultTemplateForStudio, defaultTemplateForTrade, industryKeyOf, listFlowTemplates } from "./flows";
+import { listFlowTemplates, studioDefaultFlowId } from "./flows";
 import { attachmentProblem, canSitUnassigned, promotionProblem } from "../engagement/membership";
 import { record as recordAudit } from "@/platform/http/audit";
 import type { DealContext, ContextProvenance, ContextSource, ContributionResult } from "../engagement/context";
@@ -120,7 +120,10 @@ async function claimSingleton(studioId: string, engId: string, type: string, rec
  */
 async function templateOf(studioId: string, dealId: string) {
   const eng = await readEngagement(studioId, dealId);
-  return eng?.templateId ? templateById(eng.templateId) : null;
+  if (!eng?.templateId) return null;
+  // THE STUDIO'S OWN FLOWS, not the built-ins alone: a flow a studio made has
+  // its own id, and reading only the seven would treat its deals as flowless.
+  return (await listFlowTemplates(studioId)).find((t) => t.id === eng.templateId) || templateById(eng.templateId);
 }
 
 export async function attachRecord(
@@ -710,14 +713,11 @@ async function applyAsDeal(
  */
 async function freezeTemplate(studioId: string, dealId: string): Promise<void> {
   try {
-    const root = await readEngagement(studioId, dealId);
-    const industryKey = industryKeyOf(root?.context as Record<string, unknown> | undefined);
-    // THE DEAL'S OWN INDUSTRY FIRST, THEN THE STUDIO'S TRADE. A deal carries its
-    // CLIENT's industry, which is a different vocabulary from the trade the map
-    // is keyed by — see `defaultTemplateForTrade`, which is why almost every
-    // deal used to fall back to Template A whatever the map said.
-    const primary = (industryKey ? await defaultTemplateForStudio(studioId, industryKey) : "")
-      || await defaultTemplateForTrade(studioId);
+    // THE STUDIO'S DEFAULT FLOW (05/10/2026). This asked the deal's client
+    // industry and then an industry table first — a table nompany kept, which
+    // the owner retired: the studio owns its flows and says which one a new
+    // deal starts on. The deal page can move a deal to another of its flows.
+    const primary = await studioDefaultFlowId(studioId);
     if (!primary) return;
     // THE STUDIO'S OWN LIST, not the built-ins: a studio that cloned a template
     // and pointed its industry at the clone would otherwise be refused here and
@@ -974,7 +974,7 @@ export async function contributeContext(
  * What it cannot do is retroactively refuse what already attached.
  */
 export async function setDealTemplate(studioId: string, engId: string, templateId: string): Promise<void> {
-  if (!templateById(templateId)) {
+  if (!(await listFlowTemplates(studioId)).some((t) => t.id === templateId)) {
     throw new Error(
       `engagement: no flow template "${templateId}". A deal on a missing template has no stages, ` +
         "no heads and no status chain, so it would render empty and accept anything.",
