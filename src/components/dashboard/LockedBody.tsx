@@ -13,7 +13,7 @@ import { chromeDict } from "@/shared/studio/chrome";
 // on the server and stream; this teaser has to know the reader's language, which
 // only a client tree knows. Splitting it puts the client boundary exactly where
 // the requirement is instead of dragging Widget, DashGrid and StatRow across it.
-function LockIcon({ className = "h-5 w-5" }) {
+function LockIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="4.5" y="10.5" width="15" height="10" rx="2" />
@@ -22,7 +22,7 @@ function LockIcon({ className = "h-5 w-5" }) {
   );
 }
 
-export default function LockedBody({ what }) {
+export default function LockedBody({ what }: { what?: string }) {
   const tr = chromeDict(useStudioLocale());
   return (
     <div className="relative min-h-[8rem]">

@@ -13,7 +13,7 @@ import { titleWithCount } from "@/shared/notificationInbox";
 // a count applied when it changed would vanish at the next click. An observer
 // on <head> re-applies it whenever the title is rewritten; it settles after
 // one pass because re-applying an already-counted title changes nothing.
-export default function useUnreadTitle(unread) {
+export default function useUnreadTitle(unread: number) {
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
     const apply = () => {

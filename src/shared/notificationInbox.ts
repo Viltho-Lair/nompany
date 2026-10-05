@@ -11,6 +11,18 @@
 /** The fields a bell reads off a notification row. */
 export type InboxRow = { id: string; at?: unknown; readAt?: unknown };
 
+/** A notice as the bell and the notification page hold it (the route's row). */
+export type Notice = InboxRow & {
+  type?: string;
+  title?: string;
+  body?: string;
+  params?: unknown;
+  href?: string;
+  tone?: string;
+  at?: string;
+  readAt?: string | null;
+};
+
 /**
  * One list, newest first, each notice once. The STREAMED copy wins a tie: it
  * is the later of the two to arrive, and an optimistic "mark read" is applied

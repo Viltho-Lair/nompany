@@ -6,6 +6,9 @@ import { ago } from "@/lib/format";
 import { renderNotice } from "@/modules/administration/notices";
 import { kindOf } from "@/shared/notificationKinds";
 import { inboxDict } from "@/shared/studio/inbox";
+import type { ReactNode } from "react";
+import type { Notice } from "@/shared/notificationInbox";
+import type { Locale } from "@/shared/locale";
 
 // ONE NOTICE, AS THE BELL AND THE NOTIFICATION PAGE BOTH DRAW IT — one
 // component, so the two can never show the same notice two ways.
@@ -20,14 +23,22 @@ import { inboxDict } from "@/shared/studio/inbox";
 // to the stored sentence for rows written before templates existed and for
 // `system` notices, which have no fixed sentence to translate.
 
-const TONE = {
+const TONE: Record<string, string> = {
   primary: "bg-brand-500/10 text-brand-600 dark:text-brand-400",
   success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   danger: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
 };
 
-export default function NoticeRow({ slug, locale = "en", notice: n, templates, onOpen, actions = null }) {
+export default function NoticeRow({ slug, locale = "en", notice: n, templates, onOpen, actions = null }: {
+  slug: string;
+  locale?: Locale;
+  /** A row, or a group of like rows (`groupNotices`) — which carries a count. */
+  notice: Notice & { anyUnread?: boolean; count?: number };
+  templates?: unknown;
+  onOpen?: () => void;
+  actions?: ReactNode;
+}) {
   const ti = inboxDict(locale);
   const words = renderNotice(n, locale, templates);
   const unread = n.anyUnread ?? !n.readAt;
@@ -35,7 +46,7 @@ export default function NoticeRow({ slug, locale = "en", notice: n, templates, o
 
   const body = (
     <>
-      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${TONE[n.tone] || TONE.primary}`}>
+      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${TONE[n.tone || ""] || TONE.primary}`}>
         <Icon name={kindOf(n.type).icon} className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1">

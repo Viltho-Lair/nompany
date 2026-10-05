@@ -9,6 +9,7 @@
 // see LockedBody for why that split is where the boundary belongs.
 
 import { Children, cloneElement, isValidElement } from "react";
+import type { ReactNode } from "react";
 import { panel, StatTile, WidgetTitle, tileRow } from "@/components/studio2/ui";
 // The one part of this file that needs the reader's language, and therefore a
 // client — kept out of here so the rest stays server-renderable.
@@ -26,7 +27,9 @@ const STAT_ACCENTS = [
 
 // A responsive grid for widgets. Widgets set their own column span; this just
 // lays the tracks.
-export function DashGrid({ children, className = "" }) {
+type Wrap = { children?: ReactNode; className?: string };
+
+export function DashGrid({ children, className = "" }: Wrap) {
   return (
     <div className={`dash-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${className}`}>
       {children}
@@ -36,12 +39,12 @@ export function DashGrid({ children, className = "" }) {
 
 // A row of KPI tiles across the top of a dashboard — the summary before the
 // detail, which is how a dashboard is read.
-export function StatRow({ children, className = "" }) {
+export function StatRow({ children, className = "" }: Wrap) {
   // Each tile takes the next colour in the ramp unless it named its own, so a
   // dashboard gets a coloured KPI row for free — no per-dashboard change.
   let i = 0;
   const tinted = Children.map(children, (child) =>
-    isValidElement(child)
+    isValidElement<{ accent?: string }>(child)
       ? cloneElement(child, { accent: child.props.accent ?? STAT_ACCENTS[i++ % STAT_ACCENTS.length] })
       : child,
   );
@@ -52,14 +55,25 @@ export function StatRow({ children, className = "" }) {
   );
 }
 
-const SPAN = { 1: "", 2: "sm:col-span-2", 3: "lg:col-span-3 sm:col-span-2", full: "sm:col-span-2 lg:col-span-3" };
+const SPAN: Record<string, string> = { 1: "", 2: "sm:col-span-2", 3: "lg:col-span-3 sm:col-span-2", full: "sm:col-span-2 lg:col-span-3" };
 
 /**
  * A dashboard card. Pass `locked` (with `lockedWhat` naming the metric) to show
  * the teaser instead of the content — the department decides `locked` from
  * `analyticsAllows(studioLevel, widgetRung)`.
  */
-export function Widget({ title, hint, span = 1, locked = false, hidden = false, lockedWhat, children, className = "" }) {
+export type WidgetProps = {
+  title?: string;
+  hint?: ReactNode;
+  span?: 1 | 2 | 3 | "full";
+  locked?: boolean;
+  hidden?: boolean;
+  lockedWhat?: string;
+  children?: ReactNode;
+  className?: string;
+};
+
+export function Widget({ title, hint, span = 1, locked = false, hidden = false, lockedWhat, children, className = "" }: WidgetProps) {
   // HIDDEN is not locked: a section this widget is drawn from is switched off,
   // so there is nothing to show and nothing to sell — the card is simply not
   // there, and the grid flows on (useWidgetGate in studio2/analyticsLevel).
@@ -75,7 +89,7 @@ export function Widget({ title, hint, span = 1, locked = false, hidden = false, 
 // THE EMPTY LINE every widget says when its data has nothing in it yet. One
 // component, because nine dashboards each wrote the same paragraph with the
 // same five classes and would have drifted the first time one was restyled.
-export function DashEmpty({ text }) {
+export function DashEmpty({ text }: { text?: ReactNode }) {
   return <p className="py-8 text-center text-sm text-slate-400">{text}</p>;
 }
 
@@ -83,12 +97,19 @@ export function DashEmpty({ text }) {
 // a slightly different legend. Slices keep the colour of their place in the
 // list whether or not a neighbour is empty, and an empty slice is not drawn or
 // listed. `format` formats both the centre total and each row (money, say).
-export function DonutLegend({ data = [], total, word, format }) {
+export type DonutSlice = { label: string; value: number; color?: string };
+
+export function DonutLegend({ data = [], total, word, format }: {
+  data?: DonutSlice[];
+  total?: number;
+  word?: ReactNode;
+  format?: (value: number) => ReactNode;
+}) {
   const slices = data
     .map((d, i) => ({ ...d, color: d.color || PALETTE[i % PALETTE.length] }))
     .filter((d) => d.value > 0);
   const sum = total ?? slices.reduce((a, d) => a + d.value, 0);
-  const show = (v) => (format ? format(v) : v);
+  const show = (v: number) => (format ? format(v) : v);
   return (
     <div className="flex flex-wrap items-center justify-center gap-5 py-2">
       <Donut size={156} data={slices}

@@ -8,14 +8,16 @@ import { chromeDict } from "@/shared/studio/chrome";
 // Selected-pill classes follow the studio's segmented controls so the
 // dashboard's filter row reads as the same control family as the rest of the
 // studio, not a one-off.
-export default function FilterBar({ value = "month", onChange }) {
+export type Preset = "month" | "quarter" | "year";
+
+export default function FilterBar({ value = "month", onChange }: { value?: Preset; onChange?: (preset: Preset) => void }) {
   const tr = chromeDict(useStudioLocale());
-  const PRESETS = [
+  const PRESETS: { key: Preset; label: string }[] = [
     { key: "month", label: tr.thisMonth },
     { key: "quarter", label: tr.thisQuarter },
     { key: "year", label: tr.thisYear },
   ];
-  const pick = useCallback((k) => onChange?.(k), [onChange]);
+  const pick = useCallback((k: Preset) => onChange?.(k), [onChange]);
   return (
     <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
       {PRESETS.map((p) => (

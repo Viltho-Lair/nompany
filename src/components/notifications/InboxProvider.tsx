@@ -4,6 +4,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useLive } from "@/components/studio2/LiveProvider";
 import { mergeNotices } from "@/shared/notificationInbox";
 import useUnreadTitle from "@/components/notifications/useUnreadTitle";
+import type { ReactNode } from "react";
+import type { Notice } from "@/shared/notificationInbox";
+
+export type Inbox = {
+  rows: Notice[];
+  unread: number;
+  templates: unknown;
+  loaded: boolean;
+  reload: () => Promise<void>;
+  markRead: (ids?: string[]) => Promise<void>;
+  setArchived: (ids: string[], archived?: boolean) => Promise<void>;
+};
 
 // THIS PERSON'S NOTIFICATIONS, ONCE PER TAB.
 //
@@ -18,7 +30,7 @@ import useUnreadTitle from "@/components/notifications/useUnreadTitle";
 // and then moved by what this tab itself does: a streamed arrival adds one, a
 // read subtracts. Every connect re-reads both, which is what reconciles a
 // count the tab could only estimate.
-const InboxContext = createContext(null);
+const InboxContext = createContext<Inbox | null>(null);
 
 export function useInbox() {
   return useContext(InboxContext);
@@ -26,14 +38,20 @@ export function useInbox() {
 
 const PAGE = 30;
 
-export default function InboxProvider({ slug, children }) {
-  const live = useLive();
-  const [rows, setRows] = useState([]);
+export default function InboxProvider({ slug, children }: { slug: string; children?: ReactNode }) {
+  // LiveProvider is still JavaScript, so its context reads as `null` to the
+  // compiler; this is the part of it the inbox uses.
+  const live = useLive() as {
+    notifications?: Notice[];
+    setNotifications?: (fn: (prev: Notice[]) => Notice[]) => void;
+    connection?: number;
+  } | null;
+  const [rows, setRows] = useState<Notice[]>([]);
   const [serverUnread, setServerUnread] = useState(0);
   // THE STUDIO'S OWN WORDING, served with the list. Null until the first
   // load, which is the same as "no overrides" — `renderNotice` falls back to
   // the shipped template, so a notice is never blank while it waits.
-  const [templates, setTemplates] = useState(null);
+  const [templates, setTemplates] = useState<unknown>(null);
   const [loaded, setLoaded] = useState(false);
 
   const streamed = live?.notifications;
@@ -74,12 +92,12 @@ export default function InboxProvider({ slug, children }) {
   // Everything this tab changes is applied to BOTH lists at once — optimistic,
   // because the count is the point and should not wait for a round trip — and
   // then reconciled by a load.
-  const patchBoth = useCallback((fn) => {
+  const patchBoth = useCallback((fn: (prev: Notice[]) => Notice[]) => {
     setRows((prev) => fn(prev));
     setStreamed?.((prev) => fn(prev));
   }, [setStreamed]);
 
-  const send = useCallback(async (body) => {
+  const send = useCallback(async (body: Record<string, unknown>) => {
     try {
       await fetch(`/api/studios/${slug}/notifications`, {
         method: "PATCH",
@@ -97,11 +115,11 @@ export default function InboxProvider({ slug, children }) {
   // by `arrived` instead, and reading it takes it out of `arrived` by itself;
   // subtracting it from the server's count as well took it off twice, and the
   // badge flashed "0" for a moment when six were unread and three were read.
-  const fetchedUnread = useCallback((wanted) =>
+  const fetchedUnread = useCallback((wanted: Set<string> | null) =>
     rows.filter((n) => !n.readAt && (!wanted || wanted.has(n.id))).length, [rows]);
 
   /** Mark read — `ids` empty means all of mine. */
-  const markRead = useCallback(async (ids = []) => {
+  const markRead = useCallback(async (ids: string[] = []) => {
     const at = new Date().toISOString();
     const wanted = ids.length ? new Set(ids) : null;
     const hits = fetchedUnread(wanted);
@@ -111,7 +129,7 @@ export default function InboxProvider({ slug, children }) {
   }, [fetchedUnread, patchBoth, send]);
 
   /** Put notices away (or back). Archiving reads them too, as the server does. */
-  const setArchived = useCallback(async (ids, archived = true) => {
+  const setArchived = useCallback(async (ids: string[], archived = true) => {
     if (!ids?.length) return;
     const wanted = new Set(ids);
     if (archived) {

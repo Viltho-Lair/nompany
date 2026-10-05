@@ -251,10 +251,12 @@ ledger in `docs/progress.md`); they are the whole of what `checkJs: false` and t
 refuses one not on `scripts/browser-types-baseline.json`, and `npm run types:browser` holds every
 remaining JavaScript file to its type-error ceiling (checkJs on, `tsconfig.browser.json`). After
 converting a file, `node scripts/browser-types.mjs --record` takes it off the list.
-**A RENAMED FILE CAN LEAVE `next dev` SERVING THE SITE'S 404 PAGE FOR EVERY API ROUTE** (05/10/2026):
-after `.jsx` → `.tsx` renames, a freshly started sandbox answered most `/api/**` with HTML 404
-while the route manifest listed them and the modules imported cleanly in Node. Stop the server
-and delete `.next/dev` (a local build cache) before believing a route is broken.
+**RESTART `next dev` AFTER RENAMING A FILE** (05/10/2026). Tailwind v3's content watcher keeps the
+OLD path and `stat`s it on the next change, so `globals.css` fails with `ENOENT … index.jsx` —
+and the symptom is not a CSS error but most `/api/**` answering the site's HTML 404 page while
+the route manifest lists them and the modules import cleanly in Node. Nothing in the code is
+broken. A restart alone does NOT clear it — Turbopack's cache on disk keeps the path — so stop
+the server, delete `.next/dev` (a local build cache), and start it again.
 
 | Folder | Holds |
 |---|---|

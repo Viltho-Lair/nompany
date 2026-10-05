@@ -446,7 +446,7 @@ async function renderStudio(params) {
   // already established to render this page — is the whole gate, and the route
   // behind it reads by the caller's own collaborator id.
   if (requested === "notifications") {
-    return <StudioNotifications slug={studio.slug} />;
+    return <StudioNotifications slug={studio.slug ?? ""} />;
   }
 
   // ENGAGEMENTS IS NOT A SECTION, deliberately. Making it one would give Main a

@@ -8,6 +8,7 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { inboxDict } from "@/shared/studio/inbox";
 import { NOTICE_CATEGORIES } from "@/shared/notificationKinds";
 import { groupNotices } from "@/shared/notificationInbox";
+import type { Grouped, Notice } from "@/shared/notificationInbox";
 
 // THE NOTIFICATION CENTRE — /<slug>/notifications.
 //
@@ -21,15 +22,16 @@ import { groupNotices } from "@/shared/notificationInbox";
 // person's notifications are addressed to them and to nobody else. Membership
 // is the whole gate, and the route reads by the caller's own collaborator id.
 
-const VIEWS = ["inbox", "unread", "archived"];
+const VIEWS = ["inbox", "unread", "archived"] as const;
+type View = (typeof VIEWS)[number];
 
-export default function StudioNotifications({ slug }) {
+export default function StudioNotifications({ slug }: { slug: string }) {
   const locale = useStudioLocale();
   const ti = inboxDict(locale);
   const inbox = useInbox();
-  const [view, setView] = useState("inbox");
+  const [view, setView] = useState<View>("inbox");
   const [category, setCategory] = useState("");
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState<Notice[]>([]);
   const [next, setNext] = useState("");
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -78,14 +80,14 @@ export default function StudioNotifications({ slug }) {
     if (!paged.current) fetchPage("");
   }, [newest, fetchPage]);
 
-  const act = useCallback(async (fn) => {
+  const act = useCallback(async (fn: () => Promise<unknown> | undefined) => {
     await fn();
     await fetchPage("");
   }, [fetchPage]);
 
   // Opening a notice reads it here at once, as the bell does; the inbox writes
   // it and moves the count.
-  const openGroup = useCallback((g) => {
+  const openGroup = useCallback((g: Grouped<Notice>) => {
     if (!g.anyUnread) return;
     const at = new Date().toISOString();
     const ids = new Set(g.ids);
@@ -95,7 +97,7 @@ export default function StudioNotifications({ slug }) {
 
   const groups = groupNotices(rows);
   const empty = view === "unread" ? ti.emptyUnread : view === "archived" ? ti.emptyArchived : ti.empty;
-  const chip = (on) => `rounded-full px-3 py-1 text-xs font-600 transition-colors ${
+  const chip = (on: boolean) => `rounded-full px-3 py-1 text-xs font-600 transition-colors ${
     on ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/15"
   }`;
 
@@ -109,7 +111,7 @@ export default function StudioNotifications({ slug }) {
         {view !== "archived" && (inbox?.unread || 0) > 0 && (
           <button
             type="button"
-            onClick={() => act(() => inbox.markRead([]))}
+            onClick={() => act(() => inbox?.markRead([]))}
             className="rounded-full bg-brand-600 px-4 py-2 text-xs font-600 text-white hover:bg-brand-700"
           >
             {ti.markAllRead}
@@ -150,12 +152,12 @@ export default function StudioNotifications({ slug }) {
                 <div className="flex shrink-0 items-center gap-1 pe-3">
                   {g.anyUnread && view !== "archived" && (
                     <button type="button" className="rounded-md px-2 py-1 text-xs font-600 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/10"
-                      onClick={() => act(() => inbox.markRead(g.ids))}>
+                      onClick={() => act(() => inbox?.markRead(g.ids))}>
                       {ti.markRead}
                     </button>
                   )}
                   <button type="button" className="rounded-md px-2 py-1 text-xs font-600 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/10"
-                    onClick={() => act(() => inbox.setArchived(g.ids, view !== "archived"))}>
+                    onClick={() => act(() => inbox?.setArchived(g.ids, view !== "archived"))}>
                     {view === "archived" ? ti.unarchive : ti.archive}
                   </button>
                 </div>
