@@ -8,7 +8,12 @@ import { securityDict } from "@/shared/security";
 // who has set a PIN is asked for it before signing; on, everybody is, and a
 // signer with no PIN is told to set one. Saved on the studio's settings PUT
 // beside the approval chains, because it is a rule about signing them.
-export default function SigningPinSetting({ value, canManage, onSave, locale = "en" }) {
+export default function SigningPinSetting({ value, canManage, onSave, locale = "en" }: {
+  value?: boolean;
+  canManage?: boolean;
+  onSave: (patch: { signingPin: boolean }) => Promise<unknown>;
+  locale?: string;
+}) {
   const t = securityDict(locale);
   const [busy, setBusy] = useState(false);
   return (

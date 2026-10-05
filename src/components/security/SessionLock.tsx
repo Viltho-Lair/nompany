@@ -2,6 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { securityDict } from "@/shared/security";
+import type { FormEvent } from "react";
+
+type Words = ReturnType<typeof securityDict>;
+
+/** What the signing prompt is told: nothing yet, a wrong PIN, or a locked one. */
+type PinMessage = { kind: "invalid"; left: number } | { kind: "locked" } | null;
+
+// The page-wide hooks this file installs on `window`: the fetch observer's
+// once-only flag, and the prompt it calls when a signature needs a PIN.
+declare global {
+  interface Window {
+    __nompanyLockObserver?: boolean;
+    __nompanyAskPin?: (message: PinMessage) => Promise<string | null>;
+  }
+}
 
 // THE LOCK, ON THE SCREEN — the button beside the profile, the idle timer, and
 // the cover that asks for the PIN. `platform/auth/lock.ts` is the half that
@@ -34,8 +49,8 @@ const WARN_MS = 30 * 1000;
 // the window. All of it is throttled to one note per five seconds.
 const ACTIVITY = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart", "scroll"];
 
-const readNum = (key) => { try { return Number(window.localStorage.getItem(key)) || 0; } catch { return 0; } };
-const writeNum = (key, v) => { try { window.localStorage.setItem(key, String(v)); } catch { /* private window */ } };
+const readNum = (key: string) => { try { return Number(window.localStorage.getItem(key)) || 0; } catch { return 0; } };
+const writeNum = (key: string, v: number) => { try { window.localStorage.setItem(key, String(v)); } catch { /* private window */ } };
 
 // ONE OBSERVER FOR THE WHOLE PAGE. Every screen fetches on its own, and none of
 // them knows about the lock or the signing PIN; watching responses here is
@@ -51,7 +66,7 @@ function installLockObserver() {
   if (typeof window === "undefined" || window.__nompanyLockObserver) return;
   window.__nompanyLockObserver = true;
   const original = window.fetch.bind(window);
-  window.fetch = async (input, init) => {
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const res = await original(input, init);
     if (res.status === 423) window.dispatchEvent(new Event("nompany:locked"));
     if (res.status === 428 && typeof init?.body === "string" && typeof window.__nompanyAskPin === "function") {
@@ -67,41 +82,46 @@ function installLockObserver() {
 
 // Ask, resend, and ask again on a wrong PIN until it is right, cancelled, or
 // the PIN is locked for a while. A cancelled prompt hands back the original 428.
-async function signWithPin(original, input, init, first) {
-  let body;
-  try { body = JSON.parse(init.body); } catch { return first; }
-  let message = null;
+async function signWithPin(
+  original: typeof fetch, input: RequestInfo | URL, init: RequestInit, first: Response,
+): Promise<Response> {
+  let body: Record<string, unknown>;
+  try { body = JSON.parse(String(init.body)); } catch { return first; }
+  let message: PinMessage = null;
+  const askPin = window.__nompanyAskPin;
+  if (!askPin) return first;
   for (;;) {
-    const pin = await window.__nompanyAskPin(message);
+    const pin = await askPin(message);
     if (!pin) return first;
     const res = await original(input, { ...init, body: JSON.stringify({ ...body, pin }) });
     if (res.status === 423) { window.dispatchEvent(new Event("nompany:locked")); return res; }
     const data = await res.clone().json().catch(() => ({}));
     if (data?.error === "pin-invalid") { message = { kind: "invalid", left: Number(data.attemptsLeft) || 1 }; continue; }
-    if (data?.error === "pin-locked") { await window.__nompanyAskPin({ kind: "locked" }); return res; }
+    if (data?.error === "pin-locked") { await askPin({ kind: "locked" }); return res; }
     return res;
   }
 }
 
-async function post(body) {
+async function post(body: Record<string, unknown>): Promise<{ status: number; data: { ok?: boolean; error?: string; attemptsLeft?: number } }> {
   const res = await fetch("/api/identity/session/lock", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
   return { status: res.status, data: await res.json().catch(() => ({})) };
 }
 
-export default function SessionLock({ locale = "en", buttonClass = "" }) {
+export default function SessionLock({ locale = "en", buttonClass = "" }: { locale?: string; buttonClass?: string }) {
   const t = securityDict(locale);
   const [idleMs, setIdleMs] = useState(0);
   const [locked, setLocked] = useState(false);
   const [byIdle, setByIdle] = useState(false);
-  const [needsPin, setNeedsPin] = useState(false);
+  // false, true (locking needs a PIN), or "sign" (signing does).
+  const [needsPin, setNeedsPin] = useState<boolean | "sign">(false);
   // A SIGNATURE WAITING ON THE PIN: what to say, and how to answer the request.
-  const [ask, setAsk] = useState(null);
+  const [ask, setAsk] = useState<{ message: PinMessage; resolve: (pin: string | null) => void } | null>(null);
   // Seconds left before an idle lock while the warning is showing, else 0.
   const [warnLeft, setWarnLeft] = useState(0);
-  const channel = useRef(null);
-  const stayRef = useRef(null);
+  const channel = useRef<BroadcastChannel | null>(null);
+  const stayRef = useRef<(() => void) | null>(null);
 
   const showLocked = useCallback((idle = false) => { setByIdle(idle); setLocked(true); }, []);
 
@@ -131,7 +151,7 @@ export default function SessionLock({ locale = "en", buttonClass = "" }) {
 
   // THE SIGNING PROMPT, offered to the page's response observer.
   useEffect(() => {
-    window.__nompanyAskPin = (message) => new Promise((resolve) => setAsk({ message, resolve }));
+    window.__nompanyAskPin = (message) => new Promise<string | null>((resolve) => setAsk({ message, resolve }));
     const onNoPin = () => setNeedsPin("sign");
     window.addEventListener("nompany:pin-not-set", onNoPin);
     return () => {
@@ -249,7 +269,7 @@ export default function SessionLock({ locale = "en", buttonClass = "" }) {
   );
 }
 
-function NeedsPin({ t, locale, message, onClose }) {
+function NeedsPin({ t, locale, message, onClose }: { t: Words; locale: string; message: string; onClose: () => void }) {
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/40 p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl dark:bg-[#111117]">
@@ -265,7 +285,7 @@ function NeedsPin({ t, locale, message, onClose }) {
 
 // THE PIN BEFORE A SIGNATURE. Not a lock — the page stays visible behind it —
 // and cancelling it simply leaves the document unsigned.
-function SignPrompt({ t, message, onDone }) {
+function SignPrompt({ t, message, onDone }: { t: Words; message: PinMessage; onDone: (pin: string | null) => void }) {
   const [pin, setPin] = useState("");
   const locked = message?.kind === "locked";
   return (
@@ -319,13 +339,20 @@ const LOCK_LOOK = {
 // The cover itself. Also used by the sign-in page when a locked session
 // reloads a page, which is why it takes its callbacks — and, since the sign-in
 // page was redesigned, its look — rather than knowing where it is.
-export function LockCover({ t, locale, byIdle, onUnlocked, inline = false, look = null }) {
+export function LockCover({ t, locale, byIdle, onUnlocked, inline = false, look = null }: {
+  t: Words;
+  locale: string;
+  byIdle?: boolean;
+  onUnlocked?: () => void;
+  inline?: boolean;
+  look?: Partial<typeof LOCK_LOOK> | null;
+}) {
   const c = { ...LOCK_LOOK, ...(look || {}) };
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function unlock(e) {
+  async function unlock(e?: FormEvent) {
     e?.preventDefault();
     if (!pin) return;
     setBusy(true); setError("");

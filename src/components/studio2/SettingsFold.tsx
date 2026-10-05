@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Icon } from "@/components/studio2/icons";
+import type { ReactNode } from "react";
 
 /* A STUDIO SETTINGS SECTION THAT OPENS ON DEMAND — the owner's instruction,
    10/09/2026: every section folded by default, so Studio settings reads as a
@@ -31,8 +32,17 @@ export default function SettingsFold({
   attention = false,
   id,
   children,
+}: {
+  heading: ReactNode;
+  lead?: ReactNode;
+  tone?: "default" | "danger";
+  defaultOpen?: boolean;
+  attention?: boolean;
+  /** An anchor, for links that open this section (`#kpis`). */
+  id?: string;
+  children?: ReactNode;
 }) {
-  const ref = useRef(null);
+  const ref = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     if (attention && ref.current) ref.current.open = true;
   }, [attention]);

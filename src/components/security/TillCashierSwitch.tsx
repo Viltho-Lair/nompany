@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { securityDict } from "@/shared/security";
+import type { FormEvent } from "react";
+
+/** The paired till as `/api/identity/till` describes it. */
+export type PairedTill = {
+  terminal: { code?: string; name?: string };
+  studio: { name: string };
+  cashiers: { id: string; name: string }[];
+};
 
 // A CASHIER TAKES OVER A PAIRED TILL: pick a name, type the PIN. Shown on the
 // sign-in page of a paired device, and behind "Switch cashier" on the till
@@ -12,9 +20,16 @@ import { securityDict } from "@/shared/security";
 // and makes this browser stop being a till. No PIN — the route says why. A
 // computer paired once, often somebody's own, otherwise opened on this screen
 // for a year.
-export default function TillCashierSwitch({ locale = "en", onDone, onCancel, cancelLabel, onTill, onUnpaired }) {
+export default function TillCashierSwitch({ locale = "en", onDone, onCancel, cancelLabel, onTill, onUnpaired }: {
+  locale?: string;
+  onDone?: (slug: string) => void;
+  onCancel?: () => void;
+  cancelLabel?: string;
+  onTill?: (till: PairedTill | null) => void;
+  onUnpaired?: () => void;
+}) {
   const t = securityDict(locale);
-  const [till, setTill] = useState(undefined);
+  const [till, setTill] = useState<PairedTill | null | undefined>(undefined);
   const [who, setWho] = useState("");
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,7 +45,7 @@ export default function TillCashierSwitch({ locale = "en", onDone, onCancel, can
     return () => { alive = false; };
   }, [onTill]);
 
-  async function submit(e) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     if (!who || !pin) return;
     setBusy(true); setError("");
