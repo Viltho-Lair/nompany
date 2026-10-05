@@ -8,6 +8,11 @@ import Link from "next/link";
 import { sectionName } from "@/shared/studio/sections";
 import { Icon } from "@/components/studio2/icons";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import nextDynamic from "next/dynamic";
+import { dealFlowsDict } from "@/shared/studio/dealFlows";
+// THE FLOWS TAB LOADS WHEN IT IS OPENED — most visits to the deals list never
+// open it, and this is a client module, so the import() is a real boundary.
+const DealFlowsBoard = nextDynamic(() => import("@/components/studio2/DealFlowsBoard"), { ssr: false });
 import { fmtDate } from "@/lib/format";
 // The studio's own dialog shell — backdrop, Escape, scroll lock, focus trap,
 // portalled to the body. Imported rather than re-rolled: a second confirmation
@@ -88,7 +93,12 @@ function withMinDelay(promise, ms = MIN_SKELETON_MS) {
 // page's render, so the list paints at once rather than holding its skeleton for
 // a second request; absent — refused, or over the ceiling — it fetches as before.
 export default function StudioEngagements({ slug, canLock = false, canDelete = false, initial }) {
-  const tr = engagementsDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = engagementsDict(locale);
+  const flowsTr = dealFlowsDict(locale);
+  // DEALS OR THEIR FLOWS (05/10/2026): the flows a studio's deals walk, and each
+  // step's target, are on the same screen as the deals — one place, not three.
+  const [tab, setTab] = useState("deals");
   const [list, setList] = useState(initial ?? null); // { engagements, nextCursor } | null while loading
   const [listLoading, setListLoading] = useState(initial === undefined);
   const [listError, setListError] = useState("");
@@ -234,13 +244,29 @@ export default function StudioEngagements({ slug, canLock = false, canDelete = f
               {openId ? tr.oneDealEveryStage : (list ? tr.nDeals(list.engagements.length) : tr.loading)}
             </p>
           </div>
+          {!openId && (
+            <div role="tablist" className="ms-auto flex shrink-0 rounded-full bg-[var(--geex-surface)] p-1 shadow-geex-sm">
+              {[["deals", flowsTr.tabDeals], ["flows", flowsTr.tabFlows]].map(([key, words]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === key}
+                  onClick={() => setTab(key)}
+                  className={`rounded-full px-4 py-1.5 font-display text-sm font-600 transition-colors ${tab === key ? "bg-brand-700 text-white" : "text-[var(--geex-muted)] hover:text-brand-600"}`}
+                >
+                  {words}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
       <main className="mx-auto max-w-[1100px] px-5 py-8 sm:px-8">
         {openId
           ? <EngagementDetail slug={slug} block={block} loading={blockLoading} error={blockError} />
-          : (
+          : tab === "flows" ? <DealFlowsBoard slug={slug} /> : (
             <EngagementList
               list={list}
               loading={listLoading}

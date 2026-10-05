@@ -32,6 +32,13 @@ const ar: StageMap = {
   expense: "مصروف",
   bill: "فاتورة مورد",
   asset: "أصل ثابت",
+  sales_order: "أمر بيع",
+  contract: "عقد",
+  change_order: "أمر تغيير",
+  timesheet: "سجل ساعات العمل",
+  job: "مهمة ميدانية",
+  inspection: "فحص",
+  payment: "دفعة",
 };
 
 const maps: Partial<Record<Locale, StageMap>> = { ar };
