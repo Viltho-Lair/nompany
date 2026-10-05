@@ -381,8 +381,8 @@ try {
     await F.saveFlowTemplate(S, {
       id: "A", name: "Contracting (ours)",
       stages: ["ticket", "quotation", "project", "invoice"],
-      heads: ["ticket"], statusChain: ["project", "quotation", "ticket"],
-      billingTrigger: "progress", costDrivers: ["expense"], cardinalityOverrides: {},
+      statusChain: ["project", "quotation", "ticket"],
+      cardinalityOverrides: {},
     });
     ok("editing a built-in does not add a template", (await F.listFlowTemplates(S)).length === 7);
     ok("...and the edit is what the studio now reads",
@@ -398,17 +398,16 @@ try {
 
     await F.saveFlowTemplate(S, {
       id: "H", name: "Our own flow",
-      stages: ["ticket", "job", "invoice"], heads: ["ticket"],
-      statusChain: ["job", "ticket"], billingTrigger: "signoff",
-      costDrivers: ["timesheet"], cardinalityOverrides: {},
+      stages: ["ticket", "job", "invoice"],
+      statusChain: ["job", "ticket"],
+      cardinalityOverrides: {},
     });
     ok("a clone appends an eighth", (await F.listFlowTemplates(S)).length === 8);
 
     // REFUSED ON WRITE, because every one of these is invisible at runtime.
     const bad = [
-      [{ id: "X", name: "x", stages: ["ticket", "nonsense"], heads: ["ticket"], statusChain: ["ticket"], billingTrigger: "progress", costDrivers: [], cardinalityOverrides: {} }, "not a registry type"],
-      [{ id: "X", name: "x", stages: ["ticket"], heads: ["job"], statusChain: ["ticket"], billingTrigger: "progress", costDrivers: [], cardinalityOverrides: {} }, "not one of its own stages"],
-      [{ id: "X", name: "x", stages: ["ticket"], heads: ["ticket"], statusChain: ["project"], billingTrigger: "progress", costDrivers: [], cardinalityOverrides: {} }, "which it does not use"],
+      [{ id: "X", name: "x", stages: ["ticket", "nonsense"], statusChain: ["ticket"], cardinalityOverrides: {} }, "not a registry type"],
+      [{ id: "X", name: "x", stages: ["ticket"], statusChain: ["project"], cardinalityOverrides: {} }, "which it does not use"],
     ];
     for (const [tpl, expected] of bad) {
       let msg = "";
@@ -417,50 +416,42 @@ try {
         msg.includes("flow-template-refused") && msg.includes(expected), msg.slice(0, 80));
     }
 
-    // AN INDUSTRY IS CHECKED AGAINST THIS STUDIO'S TEMPLATES, not the built-ins.
-    await F.saveIndustry(S, { key: "pearl-diving", name: "Pearl Diving", primary: "H", secondary: "", note: "ours" });
-    ok("an industry may point at a template this studio invented",
-      await F.defaultTemplateForStudio(S, "pearl-diving") === "H");
-    ok("...and the seeded twenty-five are still there", (await F.listIndustries(S)).length === 26);
-
-    let indMsg = "";
-    try { await F.saveIndustry(S, { key: "x", name: "X", primary: "ZZ", secondary: "", note: "" }); }
-    catch (e) { indMsg = e.message; }
-    ok("an industry pointing at a template that does not exist is refused",
-      indMsg.includes("industry-refused"), indMsg.slice(0, 70));
-
     // DELETING AN OVERRIDE REVERTS TO THE SEED; deleting a clone removes it.
     ok("dropping an edit reverts to the built-in",
       (await F.deleteFlowTemplate(S, "A")) &&
       (await F.getFlowTemplate(S, "A"))?.name === "Contracting / Project");
     // WHICH FLOW A DEAL WALKS — the precedence, asserted in one place because it
-    // now has two callers. The deal screen resolves one deal and pays for the
-    // industry lookup only when it must; the settings usage scan resolves
-    // hundreds and reads every industry once. They agree only because they share
-    // pickTemplate: two copies of this order would mean the screen showing one
-    // flow while the warning counted deals against another.
+    // has two callers: the deal screen resolves one deal, the flows board
+    // hundreds. They agree only because they share pickTemplate.
     const all = await F.listFlowTemplates(S);
     ok("a deal that names its own template gets it",
       F.pickTemplate(all, "G", "B")?.id === "G");
-    ok("...one that does not falls to its industry's default",
+    ok("...one that does not walks the studio's default flow",
       F.pickTemplate(all, "", "B")?.id === "B");
     ok("...and one with neither falls to A, never to nothing",
       F.pickTemplate(all, "", "")?.id === "A");
     ok("a templateId naming a flow this studio deleted does not win",
       F.pickTemplate(all, "ZZ", "B")?.id === "B");
 
-    // BOTH SPELLINGS OF THE INDUSTRY FACT. The backfill writes `industry`; the
-    // later context layer writes `industryRef`. Reading only the newer name made
-    // the industry branch dead code on every deal it exists to serve.
-    ok("the industry is read under the name the backfill wrote",
-      F.industryKeyOf({ industry: "manufacturing" }) === "manufacturing");
-    ok("...and under the name the context layer writes",
-      F.industryKeyOf({ industryRef: "mining-and-quarrying" }) === "mining-and-quarrying");
-    ok("...with the newer name winning when a deal carries both",
-      F.industryKeyOf({ industry: "old", industryRef: "new" }) === "new");
-
     ok("dropping a clone removes it entirely",
       (await F.deleteFlowTemplate(S, "H")) && (await F.getFlowTemplate(S, "H")) === null);
+
+    // THE STUDIO OWNS ITS FLOWS (05/10/2026): a studio with none of its own gets
+    // its starter ONCE, keeping the starter's id so no deal is re-pointed, and
+    // a studio that already has one is never re-seeded.
+    const FRESH = `${S}_fresh`;
+    const planted = await F.plantStarterFlow(FRESH);
+    ok("a studio with no flow gets exactly one, marked as the default",
+      planted.length === 1 && planted[0].isDefault === true, JSON.stringify(planted.map((t) => t.id)));
+    ok("...under the starter's own id, so a deal naming it walks the copy",
+      ["A", "B", "C", "D", "E", "F", "G"].includes(planted[0].id), planted[0].id);
+    ok("planting again adds nothing", (await F.plantStarterFlow(FRESH)).length === 1);
+    ok("a new deal starts on it", (await F.studioDefaultFlowId(FRESH)) === planted[0].id);
+    await F.saveFlowTemplate(FRESH, { ...planted[0], id: "Fx", name: "Second", isDefault: true });
+    const own = await F.listOwnFlows(FRESH);
+    ok("marking another flow the default unmarks the first in the same write",
+      own.filter((t) => t.isDefault).map((t) => t.id).join() === "Fx", JSON.stringify(own.map((t) => [t.id, t.isDefault])));
+    ok("...and new deals follow it", (await F.studioDefaultFlowId(FRESH)) === "Fx");
   }
 
 } finally {

@@ -30,7 +30,7 @@ const KIND_WORDS = {
   avgDays: "Average days to finish (at most)",
 };
 
-const blank = { id: "", name: { en: "", ar: "" }, workType: "deal", kind: "reach", step: "", from: "", of: "", per: "month", active: true };
+const blank = { id: "", name: { en: "", ar: "" }, workType: "workOrder", kind: "reach", step: "", from: "", of: "", per: "month", active: true };
 
 export default function KpiMeasures() {
   const [data, setData] = useState(null);
@@ -86,7 +86,7 @@ export default function KpiMeasures() {
     <Card>
       <CardHead
         title="KPI measures"
-        sub="What a studio can be measured on, with no numbers: each studio sets its own targets in Studio settings, and can override one per deal flow. A changed target never re-judges work already under way."
+        sub="What a studio can be measured on, with no numbers: each studio sets its own targets in Studio settings. A deal is not measured here: its targets are its flow's steps, which each studio sets on its Deals → Flows tab. A changed target never re-judges work already under way."
         action={<Button onClick={() => setDraft({ ...blank, name: { ...blank.name } })} disabled={busy}>Add a measure</Button>}
       />
       <CardBody>

@@ -32,9 +32,9 @@ export const PUT = route(spec, async (schedule) => {
 });
 
 // Status is a transition, not a field — the same distinction change orders and
-// timesheets draw. A job reaching done is what Template D bills on
-// (billingTrigger: signoff), so it is not something an edit should be able to
-// set in passing.
+// timesheets draw. A job reaching done is the customer's sign-off, which is
+// what a field-service job bills on, so it is not something an edit should be
+// able to set in passing.
 //
 // THE STATUS IS NARROWED HERE, and this line was a live defect: it passed the
 // whole BODY where `setJobStatus` takes a status string, so `isStatus(next)`

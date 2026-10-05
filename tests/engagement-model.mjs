@@ -26,7 +26,7 @@ const { FLOW_TEMPLATES, templateProblems, templateStageTypes, templateById } =
 const { INDUSTRIES, industryProblems, defaultTemplateFor, industryByKey } =
   await import("@/platform/engagement/industries");
 const { contribute, emptyContext, statusStage } = await import("@/platform/engagement/context");
-const { attachability, canAttach, canHead, cardinalityFor, attachmentProblem, stageCards,
+const { attachability, canAttach, cardinalityFor, attachmentProblem, stageCards,
   canSitUnassigned, promotionProblem } = await import("@/platform/engagement/membership");
 const { ALL_PERMISSIONS } = await import("@/platform/access");
 const { NO_SCREEN_YET } = await import("@/platform/access/resolve");
@@ -43,7 +43,7 @@ const stageTypes = Object.keys(STAGE_REGISTRY);
 console.log("== the seven templates are well formed");
 {
   const problems = templateProblems(stageTypes);
-  ok("every template's stages, heads, statusChain and overrides resolve",
+  ok("every template's stages, statusChain and overrides resolve",
     problems.length === 0, problems.join(" | "));
   ok("there are seven of them", FLOW_TEMPLATES.length === 7, String(FLOW_TEMPLATES.length));
   ok("their ids are A–G",
@@ -119,7 +119,7 @@ console.log("== the status chain is what makes a deal statusless on purpose");
 
   const g = templateById("G");
   ok("Template G has no ticket at all — a recurring contract is not requested",
-    !g.stages.includes("ticket") && g.heads.join() === "contract", g.heads.join());
+    !g.stages.includes("ticket") && g.statusChain.join() === "contract", g.statusChain.join());
 
   const f = templateById("F");
   ok("Template F pins shipment to one, because a job file IS one shipment",
@@ -249,21 +249,6 @@ console.log("== Law 7: every cost can attach, and none sits outside the system")
   ok("promoting something that was never in the pen says so",
     promotionProblem("contract", A, []).includes("never in the pen"),
     promotionProblem("contract", A, []));
-}
-
-console.log("== heads are per template, not per type");
-{
-  const A = templateById("A");
-  const G = templateById("G");
-  const D = templateById("D");
-
-  // A contract heads a deal in G and cannot in A, where it is what a won
-  // quotation produces rather than a starting point. Asking the type alone
-  // would have to answer for all seven flows at once.
-  ok("a contract opens a recurring deal", canHead("contract", G));
-  ok("...and cannot open a contracting one", !canHead("contract", A));
-  ok("a job opens a field-service deal", canHead("job", D));
-  ok("...and cannot open a contracting one", !canHead("job", A));
 }
 
 console.log("== cardinality is the template's, then the registry's");

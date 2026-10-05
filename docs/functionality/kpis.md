@@ -5,28 +5,34 @@
 removed that day, and so was the copy. Live held no KPI declarations and no deal carried a copy,
 so nothing had to move.
 
+**A DEAL IS NOT MEASURED HERE SINCE 05/10/2026.** Its targets are its flow's own steps, which the
+studio sets on Deals → Flows (`flows.md`). The owner: a deal measure declared in /super and
+numbered on another screen, over a flow an industry table chose, was *"two different places with
+two different people controlling the flow, I should run nompany not the flow."* What follows is
+field jobs, work orders and counter sales.
+
 ## Three pieces, owned by three people
 
 | Piece | What it is | Who owns it | Where |
 |---|---|---|---|
-| **Measure** | A KPI with **no number**: "work orders done by their due date", "first delivery within … days of the project". | nompany | /super → ERP settings → KPI measures (`REG.kpiMeasures` over the built-ins in `modules/main/workKpis.ts`) |
-| **Target** | The studio's own number for a measure, studio-wide, with an optional **override per deal flow**. Blank: not measured. | Each studio | Studio settings → KPI targets (`kpiTargets` on the studio record) |
-| **Result** | Met, missed, under way, waiting or unknown — worked out from dates the records already keep. | Nobody types it | The deal page and the front door's "Work in hand" |
+| **Measure** | A KPI with **no number**: "work orders done by their due date". Never a deal. | nompany | /super → ERP settings → KPI measures (`REG.kpiMeasures` over the built-ins in `modules/main/workKpis.ts`) |
+| **Target** | The studio's own number for a measure. Blank: not measured. | Each studio | Studio settings → KPI targets (`kpiTargets` on the studio record) |
+| **Result** | Met, missed, under way, waiting or unknown — worked out from dates the records already keep. | Nobody types it | The front door's "Work in hand" |
 
 The owner's answers, 03/10/2026: /super keeps the list and each studio sets its numbers; measures
 ship **without** numbers, so nompany never invents a target for a company; a changed target
-**never re-judges** past work; and a studio-wide target can be **overridden per deal flow** (a
-fit-out and a supply-only order need different delivery times in one company).
+**never re-judges** past work. (A per-deal-flow override followed; it went with the deal measures
+on 05/10/2026 — a flow needing different numbers now simply has them on its own steps.)
 
 ## Two kinds of question
 
-**One piece of work** — a deal, a field job, a work order:
+**One piece of work** — a field job, a work order:
 
-- **Reach a step within N days**, timed from when the work opened or **from another step**
-  ("first delivery within 30 days of the project"). Before the starting step happens the result is
-  **waiting**, not late.
-- **Done by its own due date** — a job's scheduled end, a work order's due date. A deal and a
-  counter sale have none, and the measure is refused for them.
+- **Reach a step within N days**, timed from when the work opened or **from another step**.
+  Before the starting step happens the result is **waiting**, not late. (A deal's step targets are
+  this same question, judged by the same `judgeItem`.)
+- **Done by its own due date** — a job's scheduled end, a work order's due date. A counter sale
+  has none, and the measure is refused for it.
 
 **A late step is MISSED even once it happens** — the question is "was it done in time".
 Cancelled work is not judged. No due date, or a step the record keeps no time for (a job keeps no
@@ -45,7 +51,6 @@ nothing finished has **no figure**, never 0%.
 
 | Kind of work | Measures |
 |---|---|
-| Deal | Quoted within … days of the enquiry · Contract within … days of the quotation · First delivery within … days of the project · First invoice within … days of the project · Share of deals quoted in time |
 | Field job | Finished by its scheduled end · Share on time · Average days to finish |
 | Work order | Started within … days · Done by its due date · Share on time · Average days to complete |
 | Counter sale | Sales a day · Sales value a day |
@@ -54,37 +59,9 @@ The console can reword one or switch it off, and add its own; a built-in is neve
 studios hold targets keyed by its id. **What a measure measures cannot change once it exists** —
 only its words and whether it is offered — because targets were set for what it measured.
 
-## A DEAL'S TARGETS ARE ITS FLOW'S STEPS NOW (05/10/2026)
-
-The owner: a deal KPI was a measure nompany declared and a studio numbered on another screen, over
-a flow an industry table chose — *"two different places with two different people controlling the
-flow, I should run nompany not the flow."* So the studio's flow carries the targets: **each step
-has one, "reach it within N days" of the deal opening or of an earlier step**, kept as dated
-versions on the flow (`targets`, `flows.md`). The deal page judges a deal by its flow's targets
-in force when it opened (`modules/main/flowSteps.ts` — `stepTargetIn`, `judgeStep`, which is
-`judgeItem` asked a reach question), absent where the reader may not see the step or its start.
-**What follows below is the deal half of the old model and is being removed**; the job, work order
-and counter-sale halves stay.
-
-## How a deal got its KPIs before 05/10/2026 — matched on read, nothing stored on the deal
-
-1. **By kind of work** — the studio's deal measures with a target.
-2. **By the deal's flow** — a measure applies only if its steps are in the flow the deal walks
-   (and the studio runs). A delivery KPI never appears on a deal whose flow has no delivery.
-3. **By the target in force when the deal opened** — each target keeps dated versions
-   (`nextVersions` appends, never edits), and `targetIn` reads the one in force at the deal's
-   opening, the flow's override over the studio-wide number. A deal opened before any target was
-   set is not measured.
-4. **By the deal's own records** — each stage's first record (read with the stage cards) and the
-   deal's opening.
-
-A KPI is **absent** where the reader may not see the records of its step or its starting step —
-rights AND the studio's switches, the rule every block on the deal page follows.
-
 ## Where they show
 
-- **The deal page**, above the stage cards: each KPI's result, its name with the studio's number in
-  it, and days left while it is under way.
+- **The deal page** shows its flow's step targets the same way (`flows.md`).
 - **"Work in hand"** on the front door: each lane's period KPIs for the current period, with the
   figure, the target and the result; and on each listed job or work order, **On target** or
   **Missed** once settled.
@@ -97,25 +74,17 @@ A missed target is amber text and nothing else. No transition is refused and no 
 
 ## Not built yet
 
-- **The deal measures still exist in /super and on the KPI targets screen**, and a deal no longer
-  reads them (05/10/2026). Deleting them, with the per-flow override, is the next step of the
-  flow redesign.
-
+- **A deal measure or a per-flow number stored before 05/10/2026 is left in place and read by
+  nothing** (`mergeMeasures` drops a stored deal measure; `targetIn` ignores `byFlow`).
 - **Opened in the sandbox 03/10/2026**, and it found one flaw, fixed: a period was scored at the
   target in force when it BEGAN, so a target set mid-month showed nothing until next month. Seen
-  working: the /super list (14 measures; an on-time measure for deals refused in words), a target
-  saved from Studio settings and a Contracting override, a new deal on the Field Service flow
-  showing "Under way · Quoted within 7 days of the enquiry · 7 days left", that deal KEEPING 7 after
-  a 2-day override was added while a deal opened afterwards got 2, a share typed as 90 refused, and
-  the lane lines on the front door. Not seen: a settled On target / Missed mark (the sandbox has no
-  work orders or jobs with due dates), and the per-flow panel drawn in Arabic.
-- **No period KPI on the deal lane.** It reads the newest 25 deals, and a period figure needs every
-  deal's stage dates; deal KPIs show on each deal's page.
-- **Each delivery is not judged separately.** "First delivery within …" times the first one; every
-  delivery on time would need deliveries as their own kind of work.
+  working then: the /super list, a target saved from Studio settings, a share typed as 90
+  refused, and the lane lines on the front door. Not seen: a settled On target / Missed mark (the
+  sandbox has no work orders or jobs with due dates). The 05/10/2026 removal of deals from this
+  screen and from /super has not been opened yet.
+- **No period figure for deals.** The deal lane reads the newest 25 deals; the Flows tab counts
+  late and in-time deals per step instead (`flows.md`).
 - **A period is scored against the target in force now** (a finished one, when it ended); a share uses its item measure's target at that moment, not each item's own.
   For the built-ins (all on-time measures) there is no number to differ.
-- **The per-flow override is for deals only** — only deals have flows — and period KPIs use the
-  studio-wide number.
 - **No KPI report in Reports & BI, and no notification when one is missed.**
 - **The job and work order screens show no KPI mark yet**; only the front door does.

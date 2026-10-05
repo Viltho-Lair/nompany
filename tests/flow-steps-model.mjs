@@ -6,8 +6,8 @@
 // and a deal is judged by the one in force when it opened; a change appends and
 // never re-judges; a clock cannot start after the step it times; a suggestion is
 // the studio's own average, rounded up, and only from enough deals to mean it;
-// and a flow's other lists follow from its steps, so the steps are all a studio
-// edits.
+// and a flow's status order follows from its steps, so the steps are all a
+// studio edits.
 
 import { register } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -77,12 +77,13 @@ console.log("\n== a flow's other lists follow from its steps");
 
 const A = FLOW_TEMPLATES.find((t) => t.id === "A");
 const kept = deriveFlowShape(A.stages, A);
-ok("an unchanged flow keeps its heads and status order", kept.heads.join() === A.heads.join() && kept.statusChain.join() === A.statusChain.join());
+ok("an unchanged flow keeps its status order", kept.statusChain.join() === A.statusChain.join());
 const trimmed = deriveFlowShape(["ticket", "quotation", "invoice"], A);
-ok("removing steps drops them from the status order", trimmed.statusChain.join() === "quotation,ticket" && trimmed.heads.join() === "ticket,quotation");
+ok("removing steps drops them from the status order", trimmed.statusChain.join() === "quotation,ticket");
 const fresh = deriveFlowShape(["order", "delivery", "invoice"], A);
-ok("a flow with none of its old heads opens on its first step", fresh.heads.join() === "order");
-ok("...and reports its status from its first step when nothing else can", fresh.statusChain.join() === "order");
+ok("a flow none of whose steps can speak for it reports its status from its first step", fresh.statusChain.join() === "order");
+ok("a flow that gains a project reports from it, by the built-ins' order of authority",
+  deriveFlowShape(["order", "project", "invoice"], { statusChain: [], cardinalityOverrides: {} }).statusChain.join() === "project");
 const F0 = FLOW_TEMPLATES.find((t) => t.id === "F");
 ok("a narrowed cardinality survives while its step does", deriveFlowShape(F0.stages, F0).cardinalityOverrides.shipment === "one");
 ok("...and goes with it", !("shipment" in deriveFlowShape(["ticket", "invoice"], F0).cardinalityOverrides));

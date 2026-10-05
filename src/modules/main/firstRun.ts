@@ -20,28 +20,37 @@ type StudioLike = { country?: unknown; currency?: unknown; logo?: unknown; kpiTa
 
 const has = (v: unknown) => String(v ?? "").trim() !== "";
 
-/** Is any KPI target set right now — a measure whose latest version has a number. */
-function anyTarget(targets: unknown): boolean {
+/**
+ * Is any target set right now — a measure, or a deal flow's step, whose latest
+ * version has a number. Both shapes are dated version lists; a measure's number
+ * is `value`, a step's is `days` (./flowSteps).
+ */
+export function anyTarget(targets: unknown): boolean {
   if (!targets || typeof targets !== "object") return false;
   return Object.values(targets as Record<string, unknown>).some((versions) => {
     if (!Array.isArray(versions) || !versions.length) return false;
-    const last = versions[versions.length - 1] as { value?: unknown; byFlow?: Record<string, unknown> };
-    return (last?.value !== null && last?.value !== undefined)
-      || Object.values(last?.byFlow || {}).some((v) => v !== null && v !== undefined);
+    const last = versions[versions.length - 1] as { value?: unknown; days?: unknown };
+    const n = last?.value ?? last?.days;
+    return n !== null && n !== undefined;
   });
 }
 
 /**
  * THE CHECKLIST, in the order a new owner would do it. `people` is how many
- * people are in the studio, the owner included.
+ * people are in the studio, the owner included. `flows` is the studio's own
+ * deal flows: a target set on a flow's step counts (05/10/2026), because that
+ * is where a deal's targets are set now.
  */
-export function firstRunChecklist(studio: StudioLike, people: number, slug: string): FirstRunItem[] {
+export function firstRunChecklist(
+  studio: StudioLike, people: number, slug: string,
+  flows: readonly { targets?: unknown }[] = [],
+): FirstRunItem[] {
   const settings = `/${slug}/administration-settings`;
   return [
     { key: "company", done: has(studio.country) && has(studio.currency), href: settings },
     { key: "logo", done: has(studio.logo), href: settings },
     { key: "team", done: people > 1, href: `/${slug}/administration-members` },
-    { key: "kpis", done: anyTarget(studio.kpiTargets), href: `${settings}#kpis` },
+    { key: "kpis", done: anyTarget(studio.kpiTargets) || flows.some((fl) => anyTarget(fl.targets)), href: `${settings}#kpis` },
   ];
 }
 

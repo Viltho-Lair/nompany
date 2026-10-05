@@ -122,7 +122,7 @@ function lane(type: WorkTypeKey, items: WorkItem[], doneRecently: number | null,
  * on-time before reach, in force when the item opened. Null when none is.
  */
 function itemKpi(k: KpiCtx, facts: WorkFacts): WorkItem["kpi"] {
-  const inForce = kpisInForce(k.measures, k.targets, facts.type, "", facts.openedAt).filter((x) => isItemKind(x.kind));
+  const inForce = kpisInForce(k.measures, k.targets, facts.type, facts.openedAt).filter((x) => isItemKind(x.kind));
   const pick = inForce.find((x) => x.kind === "onTime") || inForce[0];
   if (!pick) return null;
   const judged = judgeItem(pick, facts, k.asOf);
@@ -146,12 +146,12 @@ function laneKpis(k: KpiCtx, type: WorkTypeKey, facts: readonly WorkFacts[]): La
     if (!m.active || m.workType !== type || isItemKind(m.kind) || !m.per) continue;
     const { from, to } = periodBounds(m.per, k.today, k.tz);
     const at = k.asOf < to ? k.asOf : to;
-    const n = targetIn(k.targets[m.id], "", at);
+    const n = targetIn(k.targets[m.id], at);
     if (n === null) continue;
     const itemKpis: Record<string, ReturnType<typeof withTarget>> = {};
     const of = m.of ? k.measures.find((x) => x.id === m.of) : null;
     if (of) {
-      const ofN = targetIn(k.targets[of.id], "", at);
+      const ofN = targetIn(k.targets[of.id], at);
       itemKpis[of.id] = withTarget(of, ofN === null ? 1 : ofN);
     }
     const score = scorePeriod(withTarget(m, n), facts, from, to, k.asOf, itemKpis);

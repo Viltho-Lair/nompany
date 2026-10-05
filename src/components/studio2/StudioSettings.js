@@ -18,7 +18,6 @@ import SelectMenu from "@/components/fields/SelectMenu";
 import { OTHER_FIELD } from "@/shared/fieldsOfWork";
 import { OTHER_INDUSTRY, industryLabel, industryOptions } from "@/shared/industryPick";
 import { useStudioLocale } from "@/components/studio2/locale";
-import StudioFlowEditor from "@/components/studio2/StudioFlowEditor";
 import SettingsFold from "@/components/studio2/SettingsFold";
 import SigningPinSetting from "@/components/security/SigningPinSetting";
 import EmploymentRulesPanel from "@/components/studio2/EmploymentRulesPanel";
@@ -405,17 +404,10 @@ export default function StudioSettings({ slug, locale = "en", initial }) {
           settings PUT does not write the trade. */}
       <IndustrySetting slug={slug} onTradeSaved={load} />
 
-      {/* KPI TARGETS — the studio's own numbers for the measures /super lists. */}
+      {/* KPI TARGETS — the studio's own numbers for the measures /super lists.
+          A deal's targets are not here: they are its flow's steps, on the
+          Deals screen's Flows tab (05/10/2026), and so is the flow itself. */}
       <KpiTargets slug={slug} />
-
-      {/* THE DEAL FLOWS (Law 2). Its own fetch/save cycle against the flows
-          route, for the same reason IndustrySetting has one: the general
-          settings PUT does not accept templates, and a refused flow carries a
-          reason that has to reach the screen intact. `tr` is handed down as a
-          prop rather than read from the words context above — that context is
-          not exported, and importing it into a component this file imports
-          would close a cycle for one value. */}
-      <StudioFlowEditor slug={slug} tr={tr} />
 
       {/* ENDING THE STUDIO. Kept apart from the settings above and framed in red,
           because it is not a setting — it is the end of the thing the settings
@@ -950,9 +942,10 @@ function IndustrySetting({ slug, onTradeSaved }) {
 
 // KPI TARGETS — the owner, 03/10/2026: /super lists what can be measured, and a
 // studio types its own numbers here. One row per measure the studio's kinds of
-// work cover; blank is "not measured". Each row can be given a different number
-// for a deal flow (a fit-out and a supply-only order need different delivery
-// times in one company). Its own fetch/save cycle onto `.../settings/kpis`.
+// work cover; blank is "not measured". Deals are not here: their targets are
+// their flow's steps (Deals → Flows, 05/10/2026), which is also where the
+// per-flow number this panel used to carry went. Its own fetch/save cycle onto
+// `.../settings/kpis`.
 //
 // A SAVE IS A NEW DATED VERSION on the server, never an edit: work that opened
 // before the change keeps being judged by the number it opened under.
@@ -966,7 +959,6 @@ function KpiTargets({ slug }) {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const [open, setOpen] = useState("");
   const [drafts, setDrafts] = useState({});
 
   const load = useCallback(async () => {
@@ -987,10 +979,8 @@ function KpiTargets({ slug }) {
     : m.asks === "avgDays" ? `${tr.kpiDaysAtMost} · ${tr.kpiPer(m.per)}`
       : m.asks === "share" ? `${tr.kpiPercent} · ${tr.kpiPer(m.per)}`
         : m.per ? tr.kpiPer(m.per) : "");
-  const keyOf = (m, flowId = "") => `${m.id}:${flowId}`;
-
   async function put(body) {
-    setBusy(`${body.measureId}:${body.flowId || ""}`); setError("");
+    setBusy(body.measureId); setError("");
     const res = await fetch(`/api/studios/${slug}/settings/kpis`, {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
@@ -1016,8 +1006,8 @@ function KpiTargets({ slug }) {
   // RENDER FUNCTIONS, NOT COMPONENTS: a component declared inside this one is a
   // new type on every render, so React would remount the input on each
   // keystroke and the box would lose focus mid-number.
-  const numberCell = (m, flowId, value) => {
-    const k = keyOf(m, flowId);
+  const numberCell = (m, value) => {
+    const k = m.id;
     const draft = drafts[k] ?? shown(m, value);
     const changed = draft !== shown(m, value);
     return (
@@ -1031,7 +1021,7 @@ function KpiTargets({ slug }) {
         <span className="text-xs text-slate-500 dark:text-slate-400">{unit(m)}</span>
         {data.canManage && changed && (
           <button className={BTN_GHOST} disabled={busy === k}
-            onClick={() => put({ measureId: m.id, ...(flowId ? { flowId } : {}), value: stored(m, draft) })}>
+            onClick={() => put({ measureId: m.id, value: stored(m, draft) })}>
             {busy === k ? tr.saving : tr.save}
           </button>
         )}
@@ -1040,16 +1030,16 @@ function KpiTargets({ slug }) {
   };
 
   // On-time measures have no number: they are on or off.
-  const toggle = (m, flowId, value) => (
+  const toggle = (m, value) => (
     <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
       <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={value === 1}
-        disabled={!data.canManage || busy === keyOf(m, flowId)}
-        onChange={(e) => put({ measureId: m.id, ...(flowId ? { flowId } : {}), value: e.target.checked ? 1 : null })} />
+        disabled={!data.canManage || busy === m.id}
+        onChange={(e) => put({ measureId: m.id, value: e.target.checked ? 1 : null })} />
       {tr.kpiMeasureOn}
     </label>
   );
 
-  const cell = (m, flowId, value) => (m.asks === null ? toggle(m, flowId, value) : numberCell(m, flowId, value));
+  const cell = (m, value) => (m.asks === null ? toggle(m, value) : numberCell(m, value));
 
   return (
     <SettingsFold id="kpis" heading={tr.kpiHeading} attention={!!error} lead={tr.kpiLead}>
@@ -1065,43 +1055,8 @@ function KpiTargets({ slug }) {
                   <span className="block text-sm font-600 text-slate-900 dark:text-white">{words(m.name)}</span>
                   {m.since && <span className="block text-xs text-slate-400">{tr.kpiSince(fmtDate(m.since))}</span>}
                 </span>
-                {cell(m, "", m.value)}
+                {cell(m, m.value)}
               </div>
-              {/* THE PER-FLOW OVERRIDE, folded: most studios never need it. A
-                  flow's own number wins over the studio-wide one for deals on
-                  that flow; only deals have flows. */}
-              {m.workType === "deal" && data.flows.length > 0 && (
-                <div className="mt-2">
-                  <button className="text-xs font-600 text-brand-600 hover:underline dark:text-brand-300"
-                    aria-expanded={open === m.id} onClick={() => setOpen((o) => (o === m.id ? "" : m.id))}>
-                    {tr.kpiByFlow}{Object.keys(m.byFlow || {}).length ? ` (${Object.keys(m.byFlow).length})` : ""}
-                  </button>
-                  {open === m.id && (
-                    <ul className="mt-2 space-y-2 ps-4">
-                      {data.flows.map((flow) => {
-                        const has = Object.prototype.hasOwnProperty.call(m.byFlow || {}, flow.id);
-                        return (
-                          <li key={flow.id} className="flex flex-wrap items-center justify-between gap-3">
-                            <span className="text-sm text-slate-700 dark:text-slate-200">{flow.name}</span>
-                            <span className="flex flex-wrap items-center gap-3">
-                              {has
-                                ? cell(m, flow.id, m.byFlow[flow.id])
-                                : <span className="text-xs text-slate-400">{tr.kpiStudioWide}</span>}
-                              {data.canManage && (has ? (
-                                <button className="text-xs text-slate-500 hover:underline" disabled={!!busy}
-                                  onClick={() => put({ measureId: m.id, flowId: flow.id, clear: true })}>{tr.kpiUseStudioWide}</button>
-                              ) : (
-                                <button className="text-xs text-brand-600 hover:underline dark:text-brand-300" disabled={!!busy}
-                                  onClick={() => put({ measureId: m.id, flowId: flow.id, value: m.value })}>{tr.kpiByFlow}</button>
-                              ))}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              )}
             </li>
           ))}
         </ul>

@@ -3,45 +3,19 @@
 // rather than paraphrased, so a reader can diff this against the document.
 //
 // WHY A TEMPLATE EXISTS AT ALL. Every one of the seven describes the SAME
-// container — a deal — differently: which stages belong to it, which of them
-// may root it, which one's status speaks for the whole, and what triggers a
-// bill. A contracting job bills on progress and a trading deal bills on
-// delivery; nothing else about the two differs enough to justify a second
-// container, and plenty about them is identical. One shape, seven readings.
+// container — a deal — differently: which stages belong to it, in what order,
+// and which one's status speaks for the whole. One shape, seven readings.
 //
-// THESE ARE BUILT-IN DEFAULTS, NOT THE LAW (Law 2 — flow templates as data).
-// A studio clones one and edits it: reorder stages, add or drop them, insert a
-// named checkpoint, change the heads or the billing trigger. That is why this
-// file exports plain data and no behaviour — the stored, per-tenant copy is the
-// one the product reads, and this is only what it is seeded from. A template
-// that lived in code would make "we do it slightly differently" a release.
+// THESE ARE STARTERS, NOT THE LAW (Law 2 — flow templates as data). A studio's
+// first flow is copied from one, and from then on the studio edits its STEPS
+// and nothing else (the owner, 05/10/2026). Three more settings a flow used to
+// carry — the stages that may open a deal, a billing trigger and the cost
+// drivers — were read by nothing anywhere in the product and went the same day.
 //
 // STAGE NAMES ARE REGISTRY TYPES. Every string in `stages` must be a key of
 // STAGE_REGISTRY (registry.ts), and `assertTemplatesAreWellFormed` below is
 // what keeps that true — a typo here would otherwise surface as a stage that
 // silently never renders.
-
-/** What triggers an invoice. The word is the template's, not a schedule. */
-/**
- * WHEN A DEAL ON THIS FLOW BILLS.
- *
- * A RUNTIME LIST, WITH THE TYPE DERIVED FROM IT rather than the other way
- * round. This was a bare union, which has no runtime form at all — so anything
- * that had to CHECK a trigger (a tenant typing one into the flow editor, most
- * of all) had to write the seven words out again, and the copy would be free to
- * drift from the type that no longer constrained it.
- */
-export const BILLING_TRIGGERS = Object.freeze([
-  "progress",           // A — periodic IPCs against percentage complete
-  "shipment",           // B — when goods leave
-  "delivery",           // C — when goods arrive
-  "signoff",            // D — when the customer accepts the job
-  "milestone-or-time",  // E — whichever the engagement was sold on
-  "pod",                // F — proof of delivery closes the file
-  "calendar",           // G — the contract bills on a period, not an event
-] as const);
-
-export type BillingTrigger = (typeof BILLING_TRIGGERS)[number];
 
 /**
  * ONE VERSION OF A STEP'S TARGET — "reach this step within `days` of `from`"
@@ -68,11 +42,6 @@ export type FlowTemplate = {
   /** Every stage type this flow uses, in the order a deal walks them. */
   stages: readonly string[];
   /**
-   * Stages that may ROOT a deal — the ones whose arrival mints a deal id when
-   * no deal exists yet. Everything else must attach to one.
-   */
-  heads: readonly string[];
-  /**
    * WHOSE STATUS SPEAKS FOR THE DEAL, most authoritative first (Law 5). There
    * is deliberately no status column on a deal: asking "is this deal open?"
    * walks this chain and takes the first stage present. A stored status is a
@@ -80,9 +49,6 @@ export type FlowTemplate = {
    * moment one of them moves.
    */
   statusChain: readonly string[];
-  billingTrigger: BillingTrigger;
-  /** Which stages are COSTS — what a margin is computed against. */
-  costDrivers: readonly string[];
   /**
    * Per-template overrides of a stage's cardinality. F pins `shipment` to one
    * because a logistics job file IS one shipment; everywhere else a deal may
@@ -101,60 +67,42 @@ const BUILT_IN_TEMPLATES: readonly FlowTemplate[] = [
     id: "A",
     name: "Contracting / Project",
     stages: ["ticket", "rfq", "quotation", "contract", "project", "sheet", "order", "delivery", "job", "timesheet", "change_order", "inspection", "invoice", "payment"],
-    heads: ["ticket", "quotation", "project"],
     statusChain: ["project", "contract", "quotation", "ticket"],
-    billingTrigger: "progress",
-    costDrivers: ["timesheet", "order", "delivery", "expense", "bill"],
     cardinalityOverrides: {},
   },
   {
     id: "B",
     name: "Make-to-Order Manufacturing",
     stages: ["ticket", "quotation", "contract", "job", "sheet", "order", "delivery", "inspection", "shipment", "invoice", "payment"],
-    heads: ["ticket", "contract"],
     statusChain: ["contract", "quotation", "ticket"],
-    billingTrigger: "shipment",
-    costDrivers: ["order", "timesheet", "delivery", "expense", "bill"],
     cardinalityOverrides: {},
   },
   {
     id: "C",
     name: "Trading / Distribution",
     stages: ["ticket", "quotation", "contract", "order", "shipment", "delivery", "invoice", "payment"],
-    heads: ["ticket", "contract"],
     statusChain: ["contract", "quotation", "ticket"],
-    billingTrigger: "delivery",
-    costDrivers: ["order", "bill", "expense"],
     cardinalityOverrides: {},
   },
   {
     id: "D",
     name: "Field Service & Installation",
     stages: ["ticket", "quotation", "job", "sheet", "delivery", "timesheet", "inspection", "invoice", "payment"],
-    heads: ["ticket", "job"],
     statusChain: ["job", "quotation", "ticket"],
-    billingTrigger: "signoff",
-    costDrivers: ["timesheet", "delivery", "expense", "bill"],
     cardinalityOverrides: {},
   },
   {
     id: "E",
     name: "Professional Services",
     stages: ["ticket", "quotation", "contract", "project", "timesheet", "expense", "invoice", "payment"],
-    heads: ["ticket", "quotation", "project"],
     statusChain: ["project", "contract", "quotation", "ticket"],
-    billingTrigger: "milestone-or-time",
-    costDrivers: ["timesheet", "expense"],
     cardinalityOverrides: {},
   },
   {
     id: "F",
     name: "Logistics Job File",
     stages: ["ticket", "quotation", "shipment", "delivery", "bill", "invoice", "payment"],
-    heads: ["ticket", "shipment"],
     statusChain: ["shipment", "quotation", "ticket"],
-    billingTrigger: "pod",
-    costDrivers: ["bill", "expense"],
     // A JOB FILE IS ONE SHIPMENT. Everywhere else a deal may carry several, so
     // this is the single place the blueprint narrows the registry's default.
     cardinalityOverrides: { shipment: "one" },
@@ -165,12 +113,8 @@ const BUILT_IN_TEMPLATES: readonly FlowTemplate[] = [
     stages: ["contract", "job", "timesheet", "delivery", "inspection", "invoice", "payment", "change_order"],
     // THE ONLY TEMPLATE WITH NO TICKET. A recurring contract is not requested
     // each period — it already exists, and every job under it hangs off the
-    // contract itself. That is why `heads` is one entry and the status chain
-    // has nothing to fall back to.
-    heads: ["contract"],
+    // contract itself. That is why the status chain has nothing to fall back to.
     statusChain: ["contract"],
-    billingTrigger: "calendar",
-    costDrivers: ["timesheet", "delivery", "expense", "bill"],
     cardinalityOverrides: {},
   },
 ];
@@ -192,11 +136,9 @@ export const templateStageTypes = (): string[] =>
  * it, so this file stays data-only and the check can run in a test without
  * dragging the registry's dependencies in behind it.
  *
- * Four things can be wrong in a way nothing else would notice:
+ * Three things can be wrong in a way nothing else would notice:
  *
  *   - a stage that is not a registry type — renders as nothing, forever;
- *   - a head that is not one of the template's own stages — a deal that can be
- *     rooted by a record the flow does not contain;
  *   - a statusChain entry that is not one of its stages — a status question
  *     that can never be answered, so the deal reads as statusless;
  *   - a cardinality override naming a stage the template does not use.
@@ -219,33 +161,16 @@ export function templateProblems(
     for (const s of t.stages) {
       if (!known.has(s)) problems.push(`template ${t.id}: stage "${s}" is not a registry type`);
     }
-    for (const h of t.heads) {
-      if (!own.has(h)) problems.push(`template ${t.id}: head "${h}" is not one of its own stages`);
-    }
     for (const s of t.statusChain) {
       if (!own.has(s)) problems.push(`template ${t.id}: statusChain names "${s}", which it does not use`);
     }
     for (const s of Object.keys(t.cardinalityOverrides)) {
       if (!own.has(s)) problems.push(`template ${t.id}: cardinalityOverride names "${s}", which it does not use`);
     }
-    if (!t.heads.length) problems.push(`template ${t.id}: no heads — nothing could ever start a deal`);
     if (!t.statusChain.length) problems.push(`template ${t.id}: empty statusChain — no deal could report a status`);
 
-    // THE TWO A TENANT CAN GET WRONG THAT NOTHING ELSE CATCHES. Both were
-    // unchecked while the only templates were the seven written here, and both
-    // become reachable the moment somebody can type one.
-    //
-    // A nameless template is unpickable: the editor lists flows by name and an
-    // industry points at one by id, so an empty name is a row nobody can
-    // identify in the list they must choose from.
-    //
-    // An unknown billingTrigger is worse, because it is invisible. It decides
-    // when a deal on this flow bills; a value outside the seven simply matches
-    // nothing, and the failure surfaces later as revenue that never triggered.
+    // A nameless flow is unpickable: flows are listed and chosen by name.
     if (!t.name) problems.push(`template ${t.id}: no name — nothing could pick it from a list`);
-    if (!(BILLING_TRIGGERS as readonly string[]).includes(t.billingTrigger)) {
-      problems.push(`template ${t.id}: billingTrigger "${t.billingTrigger}" is not one of ${BILLING_TRIGGERS.join(", ")}`);
-    }
   }
   return problems;
 }
@@ -253,25 +178,23 @@ export function templateProblems(
 /**
  * WHAT A FLOW'S STEPS IMPLY, so a studio edits steps and nothing else.
  *
- * `heads` and `statusChain` were two more lists on the editor, each able to
- * name a step the flow no longer has. They are kept from the flow's previous
- * version where they still apply and filled from the steps where nothing does —
- * the status falls back to the built-ins' own order of authority, then to the
- * first step, so every saved flow can report a status and open a deal.
+ * `statusChain` was another list on the editor, able to name a step the flow
+ * no longer has. It is kept from the flow's previous version where it still
+ * applies and filled from the steps where nothing does — the built-ins' own
+ * order of authority, then the first step — so every saved flow can report a
+ * status. A narrowed cardinality goes with its step.
  */
 const STATUS_AUTHORITY = ["project", "contract", "job", "shipment", "quotation", "ticket"] as const;
 
 export function deriveFlowShape(
   stages: readonly string[],
-  previous?: Pick<FlowTemplate, "heads" | "statusChain" | "cardinalityOverrides"> | null,
-): Pick<FlowTemplate, "heads" | "statusChain" | "cardinalityOverrides"> {
+  previous?: Pick<FlowTemplate, "statusChain" | "cardinalityOverrides"> | null,
+): Pick<FlowTemplate, "statusChain" | "cardinalityOverrides"> {
   const own = new Set(stages);
-  const heads = (previous?.heads || []).filter((s) => own.has(s));
   let chain = (previous?.statusChain || []).filter((s) => own.has(s));
   if (!chain.length) chain = STATUS_AUTHORITY.filter((s) => own.has(s));
   if (!chain.length && stages[0]) chain = [stages[0]];
   return {
-    heads: heads.length ? heads : stages.slice(0, 1),
     statusChain: chain,
     cardinalityOverrides: Object.fromEntries(
       Object.entries(previous?.cardinalityOverrides || {}).filter(([s]) => own.has(s)),

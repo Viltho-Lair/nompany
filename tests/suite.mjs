@@ -276,7 +276,7 @@ const MAIN_ROLLUP = (await import("@/app/api/cron/main-rollup/route.ts")).GET;
 const TRACK = (await import("@/app/api/track/route.ts")).POST;
 const MEDIA_GET = (await import("@/app/api/media/[id]/route.ts")).GET;
 const INDUSTRY_ROUTE = await import("@/app/api/studios/[slug]/settings/industry/route.ts");
-const FLOWS = await import("@/app/api/studios/[slug]/settings/flows/route.ts");
+const FLOWS = await import("@/app/api/studios/[slug]/main/flows/route.ts");
 
 // ---- harness ---------------------------------------------------------------
 let fails = 0;
@@ -5278,172 +5278,62 @@ console.log("== the industry endpoint: a specialism decides the field of work");
 }
 
 // ============================================================================
-console.log("== the flow editor: a studio owns its flows, and a refusal says why");
+console.log("== deal flows: a studio owns its flows and sets each step's target");
+// The owner, 05/10/2026: "I should run nompany, not the flow." The studio's
+// first flow is planted from its starter on first read; it edits steps and
+// targets on the Deals screen's Flows tab (/main/flows).
 {
   await signInAs(owner.id);
-  const req = (path = "") => new Request(`http://localhost/test${path}`);
+  const get = async () => (await FLOWS.GET(new Request("http://localhost/test"), { params: params(slug) }));
+  const post = (body) => FLOWS.POST(jsonReq(body), { params: params(slug) });
 
-  const seen = await (await FLOWS.GET(req(), { params: params(slug) })).json();
-  ok("a studio reads the seven built-in flows", seen.templates?.length === 7, String(seen.templates?.length));
-  // THE WARNING THIS SCREEN OWES ANYBODY ABOUT TO CHANGE A FLOW. Editing a
-  // template changes what every deal on it shows, which stages it still invites
-  // and what may attach to it — and the editor had no idea any of them existed.
-  // Service Actions next door has warned "N deals use this action" since the day
-  // removing one could silently drop a ticket's scope.
-  //
-  // Counted from the engagement ROOTS rather than from ENG.hasStage: that index
-  // looks like exactly what this wants, but applyDescriptor never writes it, so
-  // it does not know about the deals every ticket mints.
-  ok("the flows report how many deals already walk them",
-    (seen.usage?.deals?.A ?? 0) >= 1, JSON.stringify(seen.usage));
-  ok("...and say whether that count is the whole picture or a floor",
-    seen.usage?.capped === false && seen.usage?.scanned >= 1, JSON.stringify(seen.usage));
+  const board = await (await get()).json();
+  ok("a studio has its own flows, one of them the default",
+    board.flows?.length >= 1 && board.flows.filter((fl) => fl.isDefault).length === 1,
+    JSON.stringify(board.flows?.map((fl) => [fl.id, fl.isDefault])));
+  ok("...and its owner may manage them", board.canManage === true);
+  const flow = board.flows.find((fl) => fl.isDefault);
+  const first = flow.steps[0].type;
+  const second = flow.steps[1]?.type;
 
-  ok("...and the twenty-five industries", seen.industries?.length === 25, String(seen.industries?.length));
-  ok("...and is told it may edit them", seen.canManage === true);
+  // A CLOCK THAT COULD NEVER RUN IS REFUSED IN WORDS ABOUT THE STEP.
+  const late = await post({ action: "save", flow: { id: flow.id, targets: { [first]: { days: 3, from: second } } } });
+  const lateBody = await late.clone().json();
+  ok("a target timed from a LATER step is refused, naming the step",
+    late.status === 400 && String(lateBody.detail).startsWith(`from:${first}`), JSON.stringify(lateBody));
 
-  // A REFUSAL IS 400 AND CARRIES ITS REASON. This is the whole reason flows.ts
-  // validates on write rather than on read: "statusChain names X, which it does
-  // not use" is something the studio can act on while it is still their edit.
-  // A bare code, or the 500 a thrown Error would become, throws that away.
-  const bad = await FLOWS.PUT(jsonReq({
-    template: {
-      id: "A", name: "Ours", stages: ["ticket"], heads: ["ticket"],
-      statusChain: ["project"], billingTrigger: "progress",
-      costDrivers: [], cardinalityOverrides: {},
-    },
-  }), { params: params(slug) });
-  const badBody = await bad.json();
-  ok("a template naming a stage it does not use is refused", bad.status === 400, String(bad.status));
-  ok("...and the reason reaches the studio, in words about their edit",
-    badBody.error === "refused" && badBody.detail.includes("which it does not use"),
-    JSON.stringify(badBody).slice(0, 120));
+  const set = await post({ action: "save", flow: { id: flow.id, targets: { [second]: { days: 4, from: "" } } } });
+  ok("a sound target saves", set.status === 200, String(set.status));
+  const after = await (await get()).json();
+  ok("...and the board reads it back on its step",
+    after.flows.find((fl) => fl.id === flow.id).steps.find((st) => st.type === second).target.days === 4);
 
-  // THE TWO templateProblems DID NOT CHECK until a tenant could type them. Both
-  // are invisible at runtime: a nameless flow cannot be picked from the list an
-  // industry must choose from, and a billingTrigger outside the seven matches
-  // nothing, surfacing later as revenue that never triggered.
-  const nameless = await FLOWS.PUT(jsonReq({
-    template: {
-      id: "Z", name: "", stages: ["ticket"], heads: ["ticket"], statusChain: ["ticket"],
-      billingTrigger: "progress", costDrivers: [], cardinalityOverrides: {},
-    },
-  }), { params: params(slug) });
-  ok("a nameless template is refused", nameless.status === 400, String(nameless.status));
-  const noTrigger = await FLOWS.PUT(jsonReq({
-    template: {
-      id: "Z", name: "Z", stages: ["ticket"], heads: ["ticket"], statusChain: ["ticket"],
-      billingTrigger: "whenever", costDrivers: [], cardinalityOverrides: {},
-    },
-  }), { params: params(slug) });
-  const triggerBody = await noTrigger.json();
-  ok("a billingTrigger outside the seven is refused, and named",
-    noTrigger.status === 400 && String(triggerBody.detail).includes("billingTrigger"),
-    JSON.stringify(triggerBody).slice(0, 120));
+  ok("a studio's last flow cannot be removed",
+    (await (await post({ action: "remove", id: flow.id })).json()).detail === "last-flow");
+  const made = await (await post({ action: "add", from: flow.id, name: "Second flow" })).json();
+  ok("a second flow is a copy, without the first's targets",
+    Boolean(made.id) && (await (await get()).json()).flows.find((fl) => fl.id === made.id).steps.every((st) => st.target.days === null));
+  ok("...and one no deal walks can be removed", (await post({ action: "remove", id: made.id })).status === 200);
 
-  // A GOOD EDIT IS AN OVERRIDE, not a fork: the other six stay built-in.
-  const good = await FLOWS.PUT(jsonReq({
-    template: {
-      id: "A", name: "Contracting (ours)", stages: ["ticket", "quotation", "project"],
-      heads: ["ticket"], statusChain: ["project", "ticket"], billingTrigger: "progress",
-      costDrivers: ["timesheet"], cardinalityOverrides: {},
-    },
-  }), { params: params(slug) });
-  ok("a valid edit is accepted", good.status === 200, String(good.status));
-  const edited = await (await FLOWS.GET(req(), { params: params(slug) })).json();
-  ok("...and editing a built-in does not add an eighth", edited.templates.length === 7);
-  ok("...and the edit is what the studio now reads",
-    edited.templates.find((t) => t.id === "A")?.name === "Contracting (ours)");
-  ok("...while the other six are untouched",
-    edited.templates.find((t) => t.id === "G")?.name === "Recurring Contract");
-
-  // AN INDUSTRY IS CHECKED AGAINST THIS STUDIO'S TEMPLATES, not the built-ins.
-  const badIndustry = await FLOWS.PUT(jsonReq({
-    industry: { key: "made-up", name: "Made Up", primary: "ZZ", secondary: "", note: "" },
-  }), { params: params(slug) });
-  ok("an industry pointing at a template that does not exist is refused",
-    badIndustry.status === 400, String(badIndustry.status));
-  const goodIndustry = await FLOWS.PUT(jsonReq({
-    industry: { key: "made-up", name: "Made Up", primary: "A", secondary: "", note: "ours" },
-  }), { params: params(slug) });
-  ok("...and one pointing at a real template is accepted", goodIndustry.status === 200);
-  // A STUDIO IS SHOWN ITS OWN WORKING SET, NOT THE CATALOGUE (20/09/2026, the
-  // owner: "the user should not see every single industry and Deal flow he
-  // doesn't need"). This asserted twenty-six — the product's twenty-five plus
-  // the studio's own — which is exactly the screen that had to go. The row
-  // THIS studio wrote is what it now sees, and the rest are COUNTED rather
-  // than silently absent. The fixture has no field of work, so before it wrote
-  // one there was nothing to narrow by and it saw all twenty-five (above).
-  const withIndustry = await (await FLOWS.GET(req(), { params: params(slug) })).json();
-  ok("a studio sees the trade it wrote for itself", withIndustry.industries.length === 1
-    && withIndustry.industries[0].key === "made-up",
-  JSON.stringify(withIndustry.industries.map((i) => i.key)));
-  ok("...and is told how many more the product knows", withIndustry.hidden?.industries === 25,
-    String(withIndustry.hidden?.industries));
-  ok("...with the flows those trades use, and no others",
-    withIndustry.templates.length === 1 && withIndustry.templates[0].id === "A",
-    JSON.stringify(withIndustry.templates.map((t) => t.id)));
-
-  // DELETING AN OVERRIDE REVERTS TO THE BUILT-IN — one operation, and which it
-  // is depends only on whether a seed exists underneath.
-  const reverted = await FLOWS.DELETE(req("?template=A"), { params: params(slug) });
-  ok("dropping an override reports that one existed", (await reverted.json()).existed === true);
-  const afterRevert = await (await FLOWS.GET(req(), { params: params(slug) })).json();
-  ok("...and the built-in is back",
-    afterRevert.templates.find((t) => t.id === "A")?.name === "Contracting / Project");
-  const again = await FLOWS.DELETE(req("?template=A"), { params: params(slug) });
-  ok("...and a second drop is a no-op, not an error",
-    again.status === 200 && (await again.json()).existed === false);
-
-  const noSubject = await FLOWS.DELETE(req(), { params: params(slug) });
-  ok("a DELETE naming nothing is refused", noSubject.status === 400, String(noSubject.status));
-
-  // USAGE IS MANAGER-ONLY. Somebody who may read the flows but not change them
-  // is offered no warning to act on, so producing one costs them the whole
-  // engagement scan on every GET — and hands a person with no deal rights a
-  // count of how much work the studio is carrying.
-  const readerRole = await createRole(studio.id, {
-    name: `Flow reader ${rand()}`,
-    permissions: ["administration.settings.view"],
-  });
+  // READING NEEDS engagements.view; CHANGING NEEDS administration.settings.edit.
+  const readerRole = await createRole(studio.id, { name: `Flow reader ${rand()}`, permissions: ["engagements.view"] });
   const reader = await person("Flow reader", null);
   await updateCollaborator(studio.id, reader.collaborator.id, { roleIds: [readerRole.id] });
   await signInAs(reader.user.id);
-  const readerBody = await (await FLOWS.GET(req(), { params: params(slug) })).json();
-  // The same working set a manager sees — narrowing is about what the STUDIO
-  // needs, never about who is reading. What a reader loses is the usage count
-  // below, which exists to warn somebody who is about to change a flow.
-  ok("a reader sees the flows themselves", readerBody.templates?.length === 1,
-    JSON.stringify(readerBody.templates?.map((t) => t.id)));
-  ok("...is told they may not manage them", readerBody.canManage === false);
-  ok("...and is given no count of the studio's deals", readerBody.usage === null,
-    JSON.stringify(readerBody.usage));
+  const readerBoard = await (await get()).json();
+  ok("a deals reader sees the flows, and is told they may not change them",
+    readerBoard.flows?.length >= 1 && readerBoard.canManage === false);
+  const readerWrite = await post({ action: "save", flow: { id: flow.id, targets: { [second]: { days: 9 } } } });
+  ok("...and their change is refused", readerWrite.status === 403, String(readerWrite.status));
 
-  // A member with no role cannot change them. Whether they may READ is
-  // administration.settings.view, which a roleless member does not hold either
-  // — so this asserts the door, not a particular one of the two answers.
   await signInAs(nobody.user.id);
-  const viewer = await FLOWS.GET(req(), { params: params(slug) });
-  ok("a member without settings.view is refused the read, or told they cannot manage",
-    viewer.status === 403 || (await viewer.clone().json()).canManage === false, String(viewer.status));
-  const viewerWrite = await FLOWS.PUT(jsonReq({
-    template: {
-      id: "A", name: "Theirs", stages: ["ticket"], heads: ["ticket"], statusChain: ["ticket"],
-      billingTrigger: "progress", costDrivers: [], cardinalityOverrides: {},
-    },
-  }), { params: params(slug) });
-  ok("...and their write is refused", viewerWrite.status === 403, String(viewerWrite.status));
+  ok("a member with no role is refused the read", (await get()).status === 403);
 
-  // A TRUE non-member learns nothing about the contents, on every verb.
+  // A TRUE non-member learns nothing about the contents, on either verb.
   const flowOutsider = (await createUser({ email: `flow-outsider-${rand()}@test.invalid`, passwordHash: "x" })).user;
   await signInAs(flowOutsider.id);
-  for (const [verb, res] of [
-    ["GET", await FLOWS.GET(req(), { params: params(slug) })],
-    ["PUT", await FLOWS.PUT(jsonReq({ template: { id: "A" } }), { params: params(slug) })],
-    ["DELETE", await FLOWS.DELETE(req("?template=A"), { params: params(slug) })],
-  ]) {
-    ok(`a non-member's ${verb} is refused, not answered`,
-      res.status === 403 || res.status === 404, String(res.status));
+  for (const [verb, res] of [["GET", await get()], ["POST", await post({ action: "remove", id: flow.id })]]) {
+    ok(`a non-member's ${verb} is refused, not answered`, res.status === 403 || res.status === 404, String(res.status));
   }
 
   await signInAs(owner.id);

@@ -4,7 +4,6 @@ import { studioContext } from "@/lib/studios";
 import { requirePermission } from "@/platform/access";
 import { updateStudio } from "@/modules/main/studios";
 import { readMeasures } from "@/platform/db/kpis";
-import { listFlowTemplates } from "@/platform/db/flows";
 import { listSections } from "@/platform/db/sections";
 import { switchboard } from "@/lib/dashboardWidgets";
 import { nextVersions, numberOf, targetProblem, type StudioKpiTargets, type TargetVersion } from "@/modules/main/workKpis";
@@ -15,8 +14,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // A STUDIO'S KPI TARGETS — the owner, 03/10/2026. /super keeps the list of
-// measures; the studio types its own numbers here, studio-wide with an optional
-// override per deal flow.
+// measures; the studio types its own numbers here. NOT FOR DEALS since
+// 05/10/2026: a deal's targets are its flow's steps (Deals → Flows), and the
+// per-flow override this screen carried went with them.
 //
 // STUDIO SETTINGS, NOT A DEPARTMENT'S: a target is read by the front door, the
 // deal page and every kind of work, so it is the studio's ("a setting several
@@ -35,9 +35,7 @@ async function payload(user: User, slug: string) {
   if (context.error) return { context, body: null };
   if (requirePermission(context.access, "administration.settings.view")) return { context: { error: "forbidden" as const }, body: null };
   const studio = context.studio as Record<string, unknown> & { id: string };
-  const [measures, flows, sections] = await Promise.all([
-    readMeasures(), listFlowTemplates(studio.id), listSections(studio.id),
-  ]);
+  const [measures, sections] = await Promise.all([readMeasures(), listSections(studio.id)]);
   const running = new Set(workTypesRunning(switchboard(sections)));
   const targets = targetsOf(studio);
   return {
@@ -54,11 +52,9 @@ async function payload(user: User, slug: string) {
             id: m.id, name: m.name, workType: m.workType, kind: m.kind, per: m.per || "",
             asks: numberOf(m.kind),
             value: now ? now.value : null,
-            byFlow: now ? now.byFlow : {},
             since: now ? now.at : "",
           };
         }),
-      flows: flows.map((t) => ({ id: t.id, name: t.name })),
       canManage: !requirePermission(context.access, "administration.settings.edit"),
     },
   };
@@ -75,12 +71,7 @@ export async function GET(request: Request, ctx: { params: Promise<Record<string
   return Response.json(body);
 }
 
-/**
- * `{ measureId, value }` sets the studio-wide number (null switches the measure
- * off for this studio). `{ measureId, flowId, value }` sets that flow's override
- * (null: the flow is not measured on it); `{ measureId, flowId, clear: true }`
- * removes the override so the studio-wide number applies again.
- */
+/** `{ measureId, value }` sets the studio's number (null switches the measure off for this studio). */
 export async function PUT(request: Request, ctx: { params: Promise<Record<string, string>> }) {
   const user = await currentUser();
   if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
@@ -98,17 +89,9 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
   const measure = (await readMeasures()).find((m) => m.id === measureId && m.active);
   if (!measure) return Response.json({ error: "measure" }, { status: 400 });
 
-  const flowId = String(raw.flowId || "");
-  if (flowId && !(await listFlowTemplates(studio.id)).some((t) => t.id === flowId)) {
-    return Response.json({ error: "flow" }, { status: 400 });
-  }
-  const clear = raw.clear === true;
-  const value = clear ? undefined : raw.value === null || raw.value === "" ? null : Number(raw.value);
-  if (clear && !flowId) return Response.json({ error: "clear-needs-flow" }, { status: 400 });
-  if (value !== undefined) {
-    const problem = targetProblem(measure, value);
-    if (problem) return Response.json({ error: "target", problem }, { status: 400 });
-  }
+  const value = raw.value === null || raw.value === "" ? null : Number(raw.value);
+  const problem = targetProblem(measure, value);
+  if (problem) return Response.json({ error: "target", problem }, { status: 400 });
 
   const by = String((context.collaborator as { id?: unknown })?.id || "");
   const at = new Date().toISOString();
@@ -116,7 +99,7 @@ export async function PUT(request: Request, ctx: { params: Promise<Record<string
   // at the moment of the write, not to what this request read.
   const updated = await updateStudio(studio.id, (row) => {
     const all = targetsOf(row as Record<string, unknown>);
-    return { kpiTargets: { ...all, [measureId]: nextVersions(all[measureId], { ...(flowId ? { flowId } : {}), value }, at, by) } };
+    return { kpiTargets: { ...all, [measureId]: nextVersions(all[measureId], value, at, by) } };
   });
   if (!updated) return Response.json({ error: "notfound" }, { status: 404 });
   const { body } = await payload(user, slug);

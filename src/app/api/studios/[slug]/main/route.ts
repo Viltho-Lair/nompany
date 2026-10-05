@@ -5,6 +5,7 @@ import { readAggregate } from "@/modules/main/executive";
 import { awaitingQueue } from "@/modules/main/awaiting";
 import { firstRunChecklist, firstRunDone, type FirstRunItem } from "@/modules/main/firstRun";
 import { listCollaborators } from "@/platform/auth/collaborators";
+import { listOwnFlows } from "@/platform/db/flows";
 import { loadCatalogues, planOf } from "@/lib/plans";
 import { enabledWidgets, switchboard, widgetAvailable, DASHBOARD_WIDGETS } from "@/lib/dashboardWidgets";
 
@@ -90,8 +91,8 @@ export const GET = route(spec, async (main) => {
   // paid for by an admin on a studio still being set up, never by everybody.
   let setup: FirstRunItem[] | null = null;
   if (!requirePermission(main.access, "administration.settings.edit")) {
-    const people = (await listCollaborators(main.studio.id)).length;
-    const items = firstRunChecklist(main.studio as Record<string, unknown>, people, String(main.studio.slug || ""));
+    const [collaborators, flows] = await Promise.all([listCollaborators(main.studio.id), listOwnFlows(main.studio.id)]);
+    const items = firstRunChecklist(main.studio as Record<string, unknown>, collaborators.length, String(main.studio.slug || ""), flows);
     if (!firstRunDone(items)) setup = items;
   }
 

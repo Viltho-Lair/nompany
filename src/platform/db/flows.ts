@@ -1,16 +1,16 @@
-// FLOW TEMPLATES AND INDUSTRIES A TENANT OWNS — Law 2, "flow templates as data".
+// THE FLOWS A TENANT OWNS — Law 2, "flow templates as data".
 //
-// The seven templates and twenty-five industries in platform/engagement/ are
-// SEEDS. This module is what makes them editable: a studio clones a template,
-// reorders its stages, inserts a checkpoint, adds the industry its trade needs.
-// Adding an industry has to be a row rather than a release, and that only means
-// anything if something stores the row.
+// The seven templates in platform/engagement/ are STARTERS. A studio's first
+// flow is copied from its trade's starter, and from then on the studio adds,
+// removes, reorders and measures its own steps (the owner, 05/10/2026: "I
+// should run nompany, not the flow"). The industries list is read only to pick
+// that starter; a studio no longer edits it.
 //
-// STORED AS OVERRIDES, NEVER AS A FULL COPY. A studio that edits Template A does
-// not fork the other six. Two consequences, both wanted: a later correction to a
-// built-in still reaches every studio that never touched it, and a studio's
-// stored data is exactly what it changed rather than a snapshot of everything
-// that existed the day it first opened the editor.
+// STORED BESIDE THE STARTERS, by id. A studio's flow carrying a starter's id
+// REPLACES that starter for this studio, so an older deal that names "A" walks
+// the studio's own copy of A; a flow with a new id is the studio's alone. The
+// starters stay readable underneath, because a deal written before the studio
+// had flows may name one it never adopted.
 //
 // VALIDATED ON WRITE, NOT ON READ. A template naming a stage the registry does
 // not have renders as nothing — silently, forever, on a screen nobody thinks to
@@ -21,7 +21,7 @@ import { S, REG } from "./keys";
 import { readArr, editArr } from "./store";
 import { FLOW_TEMPLATES, templateProblems } from "../engagement/templates";
 import type { FlowTemplate } from "../engagement/templates";
-import { INDUSTRIES, industryProblems } from "../engagement/industries";
+import { INDUSTRIES } from "../engagement/industries";
 import type { IndustryEntry } from "../engagement/industries";
 import { STAGE_REGISTRY } from "../engagement/registry";
 import { mergeIndustries } from "@/shared/industryCatalogue";
@@ -179,20 +179,6 @@ export async function listIndustries(studioId: string): Promise<IndustryEntry[]>
   return merge(seeds, asIded).map(({ id: _id, ...rest }) => rest as IndustryEntry);
 }
 
-/**
- * THE TRADES THIS STUDIO ITSELF HAS A ROW FOR — its own edits and additions.
- *
- * Told apart from the console's and the code's because the Settings screen
- * narrows to what this studio needs: a trade somebody here deliberately changed
- * is always shown, while one added for the product at large is not (it would be
- * on every studio's screen the day it was added, which is the thing the
- * narrowing exists to stop).
- */
-export async function ownIndustryKeys(studioId: string): Promise<string[]> {
-  const rows = await readArr<IndustryEntry>(S.industries(studioId));
-  return rows.map((r) => r.key);
-}
-
 /** The console's own list, without any studio's edits — what `/super` shows. */
 export async function listPlatformIndustries(): Promise<IndustryEntry[]> {
   const platform = await readArr<IndustryEntry & { id?: string }>(REG.erpIndustries);
@@ -209,88 +195,23 @@ export async function listPlatformIndustries(): Promise<IndustryEntry[]> {
 // specialism with no flow of its own falls back to (defaultTemplateForTrade),
 // so retiring the table changed no studio's flow.
 
-export async function getIndustry(studioId: string, key: string): Promise<IndustryEntry | null> {
-  return (await listIndustries(studioId)).find((i) => i.key === key) || null;
-}
-
 /**
- * Add or edit an industry.
+ * THE STARTER A STUDIO'S FIRST FLOW IS COPIED FROM — its trade's, read once by
+ * `plantStarterFlow` and by `studioDefaultFlowId` before the studio has a flow
+ * of its own. Since 05/10/2026 that is ALL it decides: the studio owns its flows
+ * after the copy, and no table re-routes a deal.
  *
- * REFUSES ONE POINTING AT A TEMPLATE THAT DOES NOT EXIST — including a template
- * this studio deleted. Every deal created in that industry would start on
- * nothing: no stages, no heads, no status chain, and the symptom would be an
- * empty container rather than a message naming the row.
+ * The order, most local first:
  *
- * Checked against THIS STUDIO'S templates, not the built-ins, because that is
- * the list a deal will actually resolve against.
+ *   1. a row the studio wrote for its trade before 05/10/2026 (the retired
+ *      Industries panel) — honoured, because it was that studio's own answer;
+ *   2. its specialism's flow, when the console set one (/super → Industries);
+ *   3. the trade map for its field, joined by `IndustryEntry.field`.
+ *
+ * A DEAL'S OWN "INDUSTRY" IS NOT ASKED, and never usefully was: it is the
+ * CLIENT's segment ("Residential", "Banking"), a different vocabulary from the
+ * trade the map is keyed by, so it matched nothing (found 20/09/2026).
  */
-export async function saveIndustry(studioId: string, industry: IndustryEntry): Promise<void> {
-  if (!industry?.key) throw new Error("industry: a key is required");
-
-  const templateIds = (await listFlowTemplates(studioId)).map((t) => t.id);
-  const problems = industryProblems(templateIds, [industry]);
-  if (problems.length) {
-    throw new Error(`industry-refused: ${problems.join("; ")}`);
-  }
-
-  await editArr<IndustryEntry, void>(S.industries(studioId), (rows) => {
-    const next = rows.filter((r) => r.key !== industry.key);
-    next.push(industry);
-    return { next, result: undefined };
-  });
-}
-
-/** Drop a studio's override, restoring the seeded industry underneath it. */
-export async function deleteIndustry(studioId: string, key: string): Promise<boolean> {
-  return editArr<IndustryEntry, boolean>(S.industries(studioId), (rows) => {
-    const next = rows.filter((r) => r.key !== key);
-    return { next, result: next.length !== rows.length };
-  });
-}
-
-/**
- * The template a new deal in this industry starts on, for THIS studio.
- *
- * "" when the industry is unknown, which stays a real case rather than an error:
- * a studio may have deleted an industry that existing deals still name. The
- * caller decides, and every caller must, because there is no sensible universal
- * default across seven genuinely different flows.
- */
-export async function defaultTemplateForStudio(studioId: string, industryKey: string): Promise<string> {
-  return (await getIndustry(studioId, industryKey))?.primary || "";
-}
-
-/**
- * THE FLOW THIS STUDIO'S OWN TRADE STARTS ON.
- *
- * A DEAL'S "INDUSTRY" IS ITS CLIENT'S, NOT THE STUDIO'S — and that is why the
- * industry map was reaching almost nothing. The engagement's context carries the
- * ticket's `industry`, which comes from the studio's CLIENT-industry taxonomy
- * ("Residential", "Commercial", "Banking"): a way of segmenting customers. The
- * industry map is keyed by TRADE ("construction-and-contracting") — what the
- * STUDIO does. The two never matched, `getIndustry` answered null for every
- * live deal, and every deal fell back to Template A however the map was edited.
- * Found while watching a real deal open, 20/09/2026.
- *
- * So the deal's own industry is still asked first — a studio may legitimately
- * key a row to the way it segments work — and this is what answers when it does
- * not: the studio's field of work, joined to the map by `IndustryEntry.field`,
- * which is the same join `dealSpineFor` already uses at creation to decide the
- * studio's departments. One studio, one trade, one flow its work starts on.
- */
-//
-// AND THE STUDIO'S SPECIALISM NOW HAS ITS OWN ANSWER (29/09/2026). The owner
-// moved "which flow a deal starts on" out of ERP settings' trade table and onto
-// the industry catalogue (/super → Industries), per SPECIALISM — property
-// management and general contracting sit in one industry and walk different
-// flows. The order, most local first:
-//
-//   1. the studio's OWN row for its trade (Studio settings) — a studio that
-//      works its trade differently keeps saying so, as before;
-//   2. its specialism's flow, when the console set one;
-//   3. the trade map for its field (the code's, and whatever the console
-//      stored there before the move) — which is what every studio got until
-//      now, so nothing moves for a studio until somebody sets step 2.
 export async function defaultTemplateForTrade(studioId: string): Promise<string> {
   const studios = await readArr<{ id: string; fieldOfWork?: string; industry?: string }>(REG.studios);
   const studio = studios.find((s) => s.id === studioId);
@@ -311,33 +232,17 @@ export async function defaultTemplateForTrade(studioId: string): Promise<string>
 // ---- which flow a deal walks ------------------------------------------------
 
 /**
- * THE INDUSTRY A DEAL NAMES, under either of the two spellings it may carry.
- *
- * The backfill writes this fact as `industry`; `platform/engagement/context.ts`,
- * which came later, names it `industryRef` and that is what `contributeContext`
- * writes. A backfilled deal that has since been contributed to can hold both,
- * and nothing has reconciled them yet (see docs/functionality/engagements.md).
- * Reading only the newer name makes every pre-template deal look industry-less
- * — silently, because falling through to a default is a plausible answer rather
- * than an error.
- */
-export function industryKeyOf(context: Record<string, unknown> | undefined): string {
-  return String(context?.industryRef || context?.industry || "");
-}
-
-/**
  * WHICH FLOW A DEAL WALKS — the precedence, and nothing else.
  *
  * Pure, and takes the lists already in hand, because it has two callers with
- * very different read patterns: the deal screen resolves ONE deal and wants to
- * pay for the industry lookup only when it must, while the usage scan resolves
- * hundreds and reads every industry once up front. A shared function that did
- * its own reads would force one of them into the other's shape.
+ * very different read patterns: the deal screen resolves ONE deal, while the
+ * flows board resolves hundreds with the lists read once up front.
  *
- * What must not drift is the ORDER: the deal's own templateId, then the default
- * for its industry, then Template A. Two copies of that is two answers to "which
- * flow is this deal on", and the screen showing one while the usage warning
- * counts the other is worse than having no warning.
+ * What must not drift is the ORDER: the deal's own templateId, then the
+ * studio's default flow (`studioDefaultFlowId` — an industry table's answer
+ * until 05/10/2026), then Template A. Two copies of that is two answers to
+ * "which flow is this deal on", and the board counting a deal on one flow
+ * while its page shows another is worse than no board.
  *
  * Template A is the last resort rather than a guess: it is the flow whose chain
  * the previously hardcoded status walk was approximating, so a deal written
@@ -346,8 +251,8 @@ export function industryKeyOf(context: Record<string, unknown> | undefined): str
 export function pickTemplate(
   templates: readonly FlowTemplate[],
   templateId: string,
-  industryPrimary: string,
+  defaultId: string,
 ): FlowTemplate | null {
   const byId = (id: string) => (id ? templates.find((t) => t.id === id) || null : null);
-  return byId(templateId) || byId(industryPrimary) || byId("A");
+  return byId(templateId) || byId(defaultId) || byId("A");
 }

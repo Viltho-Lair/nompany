@@ -132,55 +132,18 @@ ok("nothing changes when every part is on",
 ok("a stage the registry does not know is left for flowProgress to drop",
   stagesRunning(["not-a-stage"], [], STAGE_REGISTRY, () => false).join(",") === "not-a-stage");
 
-console.log("\n== a studio is shown its own trades and flows, not the catalogue");
-
-// THE OWNER, 20/09/2026: "the user should not see every single industry and
-// Deal flow he doesn't need". Every studio's Settings listed all twenty-five
-// trades and all seven flows, so the product's catalogue read as that studio's
-// own configuration. The master list is the console's now (/super → ERP
-// settings); this is what a studio keeps.
-const { narrow } = await import("@/modules/studioFlows");
-const { INDUSTRIES } = await import("@/platform/engagement/industries");
-const contractor = INDUSTRIES.find((i) => i.key === "construction-and-contracting");
-
-const mine = narrow(INDUSTRIES, FLOW_TEMPLATES, contractor.field, null);
-ok("only the studio's own trade is listed",
-  mine.industries.length === 1 && mine.industries[0].key === contractor.key,
-  mine.industries.map((i) => i.key).join(","));
-ok("…with the flows that trade starts on and also runs, and no others",
-  mine.templates.every((t) => t.id === contractor.primary || t.id === contractor.secondary),
-  mine.templates.map((t) => t.id).join(","));
-
-// A FLOW SOMEBODY IS ALREADY WALKING IS NEVER HIDDEN — hiding the flow four
-// live deals are on would hide the thing the screen exists to explain.
-const walking = narrow(INDUSTRIES, FLOW_TEMPLATES, contractor.field, { deals: { C: 4 } });
-ok("a flow live deals walk stays listed", walking.templates.some((t) => t.id === "C"));
-// …but not every trade that happens to start on it: the flow is shared, the
-// trades are not, and keeping them put nine on a contractor's screen.
-ok("…without dragging in every trade that starts on it",
-  walking.industries.length === 1 && walking.industries[0].key === contractor.key,
-  walking.industries.map((i) => i.key).join(","));
-
-// A row THIS studio wrote is always its own business; one added in the console
-// is not, or every studio would see it the day it was added.
-const own = narrow(INDUSTRIES, FLOW_TEMPLATES, contractor.field, null, new Set(["manufacturing"]));
-ok("a trade this studio edited is listed", own.industries.some((i) => i.key === "manufacturing"));
-const added = [...INDUSTRIES, { key: "space-mining", name: "Space mining", primary: "B", secondary: "", note: "", field: "" }];
-ok("a trade added for the product at large is not",
-  !narrow(added, FLOW_TEMPLATES, contractor.field, null).industries.some((i) => i.key === "space-mining"));
-
-// A STUDIO THAT HAS NOT SAID WHAT IT DOES SEES EVERYTHING, which is the honest
-// answer rather than an empty screen.
-const unsaid = narrow(INDUSTRIES, FLOW_TEMPLATES, "", null);
-ok("no trade set means nothing is hidden",
-  unsaid.industries.length === INDUSTRIES.length && unsaid.templates.length === FLOW_TEMPLATES.length);
+// "A studio is shown its own trades and flows, not the catalogue" (20/09/2026)
+// is gone with the screen it tested: since 05/10/2026 a studio HAS its own
+// flows (platform/db/flows `plantStarterFlow`) and sees exactly those, so there
+// is no catalogue left to narrow. tests/deal-store.mjs holds the planting.
 
 console.log("\n== which flow a deal walks is decided once, when it opens");
 
-// The precedence never moves: the deal's own template, then its industry's, then
-// A. What changed on 20/09/2026 is that the deal now HAS one — `freezeTemplate`
-// writes it at the single place a deal is minted, so editing an industry's
-// default stops re-routing live deals that were opened under the old answer.
+// The precedence never moves: the deal's own template, then the studio's
+// default flow (an industry's answer until 05/10/2026), then A. What changed on
+// 20/09/2026 is that the deal now HAS one — `freezeTemplate` writes it at the
+// single place a deal is minted, so changing the default stops re-routing live
+// deals that were opened under the old answer.
 const { readFileSync } = await import("node:fs");
 const engagementStore = readFileSync("src/platform/db/engagement.ts", "utf8");
 ok("a minted deal is given its flow", /await freezeTemplate\(studioId, dealId\)/.test(engagementStore));

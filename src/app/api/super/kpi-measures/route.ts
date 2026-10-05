@@ -1,6 +1,5 @@
 import { route } from "@/platform/http/route";
 import { readMeasures, writeMeasure, dropMeasure } from "@/platform/db/kpis";
-import { STAGE_REGISTRY } from "@/platform/engagement/registry";
 import { BUILTIN_MEASURE_IDS, ITEM_KINDS, PERIOD_KINDS, PERIODS, type WorkMeasure } from "@/modules/main/workKpis";
 import { WORK_TYPES, WORK_TYPE_KEYS, type WorkTypeKey } from "@/modules/main/workTypes";
 
@@ -23,11 +22,11 @@ export const GET = route(spec, async () => ({
   measures: (await readMeasures()).map((m) => ({ ...m, builtIn: BUILTIN_MEASURE_IDS.has(m.id) })),
   // WHAT A MEASURE MAY POINT AT, sent with the list rather than restated in the
   // screen, so it can never offer a step nothing could measure.
-  workTypes: WORK_TYPE_KEYS.map((k) => ({
+  // NOT DEALS (05/10/2026): a deal's targets are its flow's steps, which each
+  // studio sets on its own Flows tab — nompany declares nothing for a deal.
+  workTypes: WORK_TYPE_KEYS.filter((k) => k !== "deal").map((k) => ({
     key: k, name: WORK_TYPES[k].name,
-    steps: WORK_TYPES[k].steps
-      ? WORK_TYPES[k].steps!.map((s) => ({ token: s.token, label: s.en }))
-      : Object.values(STAGE_REGISTRY).map((e) => ({ token: e.type, label: e.label })),
+    steps: (WORK_TYPES[k].steps || []).map((s) => ({ token: s.token, label: s.en })),
   })),
   itemKinds: ITEM_KINDS,
   periodKinds: PERIOD_KINDS,

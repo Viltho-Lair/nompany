@@ -50,17 +50,6 @@ export const canAttach = (type: string, template: FlowTemplate | null): boolean 
   attachability(type, template) !== "unknown";
 
 /**
- * MAY THIS TYPE OPEN A DEAL, under this template?
- *
- * Head-capability is per template, not per type: a `contract` heads a deal in
- * B, C and G and cannot in A, where a contract is something a won quotation
- * produces rather than a starting point. `job` heads only in D. Asking the type
- * alone would have to answer for all seven flows at once.
- */
-export const canHead = (type: string, template: FlowTemplate | null): boolean =>
-  Boolean(template?.heads.includes(type)) && Boolean(STAGE_REGISTRY[type]);
-
-/**
  * The cardinality this type has ON THIS DEAL — the registry's default unless
  * the template narrows it. Template F is the only built-in that does: a
  * logistics job file IS one shipment, where every other flow may carry several.

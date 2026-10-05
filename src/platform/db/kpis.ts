@@ -22,7 +22,6 @@
 // work does not have measures nothing, silently, for ever.
 import { REG } from "./keys";
 import { readArr, editArr } from "./store";
-import { STAGE_REGISTRY } from "../engagement/registry";
 import { measureProblems, mergeMeasures, type WorkMeasure } from "@/modules/main/workKpis";
 
 /** Every measure, the console's rows over the built-ins. */
@@ -38,7 +37,7 @@ export async function readMeasures(): Promise<WorkMeasure[]> {
 export async function writeMeasure(m: WorkMeasure): Promise<void> {
   if (!m?.id) throw new Error("measure: an id is required");
   const others = (await readMeasures()).filter((x) => x.id !== m.id);
-  const problems = measureProblems([...others, m], Object.keys(STAGE_REGISTRY));
+  const problems = measureProblems([...others, m]);
   if (problems.length) throw new Error(`measure-refused: ${problems.join("; ")}`);
   await editArr<WorkMeasure, void>(REG.kpiMeasures, (rows) => ({
     next: rows.some((r) => r.id === m.id) ? rows.map((r) => (r.id === m.id ? m : r)) : [...rows, m],

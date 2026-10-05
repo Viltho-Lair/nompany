@@ -170,10 +170,6 @@ type Strings = {
   kpiDaysAtMost: string;
   kpiPer: (per: string) => string;
   kpiSince: (date: string) => string;
-  kpiByFlow: string;
-  kpiStudioWide: string;
-  kpiNotMeasured: string;
-  kpiUseStudioWide: string;
   kpiBad: string;
   industry: string;
   industryOther: string;
@@ -221,63 +217,6 @@ type Strings = {
   remove: string;
   noLogoToRemove: string;
   logoFormats: string;
-  // THE DEAL-FLOW EDITOR (Law 2 — flow templates are data a studio owns).
-  //
-  // Stage names are NOT here: they are STAGE_REGISTRY tokens and already
-  // translate on display through shared/studio/stages, keyed by the stored
-  // token. A second list of them here would be a second answer to "what is a
-  // quotation called", free to disagree with the one every other screen uses.
-  flowsHeading: string;
-  flowsLead: string;
-  flowsAdminOnly: string;
-  flowsLoadFailed: string;
-  flowBuiltIn: string;
-  flowEdited: string;
-  flowYours: string;
-  flowStagesLabel: string;
-  flowHeadsLabel: string;
-  flowStatusChainLabel: string;
-  flowCostDriversLabel: string;
-  flowBillingLabel: string;
-  flowCardinalityLabel: string;
-  flowAddStage: string;
-  flowMoveUp: string;
-  flowMoveDown: string;
-  flowRemove: string;
-  flowClone: string;
-  flowRevert: string;
-  flowDelete: string;
-  flowNoStages: string;
-  flowRefused: (why: string) => string;
-  flowCardDefault: string;
-  flowOne: string;
-  flowMany: string;
-  flowEdit: string;
-  flowClose: string;
-  flowNameLabel: string;
-  flowStageCount: (n: number) => string;
-  billingNames: Record<string, string>;
-  industriesHeading: string;
-  industriesLead: string;
-  industryPrimary: string;
-  industrySecondary: string;
-  industryNote: string;
-  industryNone: string;
-  industryNameLabel: string;
-  /** What the studio is NOT being shown, and where the rest live. */
-  industriesHidden: (n: number) => string;
-  // The warning before a flow that already has work on it is changed.
-  flowDealCount: (n: number) => string;
-  flowDealsMore: (n: number) => string;
-  flowIndustryCount: (n: number) => string;
-  flowConfirmHeading: string;
-  flowConfirmEdit: (n: number, name: string) => string;
-  flowConfirmRevert: (n: number, name: string) => string;
-  flowConfirmDelete: (n: number, name: string) => string;
-  flowConfirmKept: string;
-  flowConfirmOrphans: (names: string) => string;
-  flowConfirmGo: string;
-  flowStagesLosing: string;
 };
 
 const en: Strings = {
@@ -456,10 +395,6 @@ const en: Strings = {
   kpiDaysAtMost: "days at most",
   kpiPer: (per) => ({ day: "a day", week: "a week", month: "a month" } as Record<string, string>)[per] || per,
   kpiSince: (date) => `Since ${date}`,
-  kpiByFlow: "Different for a deal flow",
-  kpiStudioWide: "Studio-wide",
-  kpiNotMeasured: "Not measured on this flow",
-  kpiUseStudioWide: "Use the studio-wide number",
   kpiBad: "That number doesn't fit this measure.",
   industry: "Type of industry",
   industryOther: "Something else",
@@ -511,63 +446,6 @@ const en: Strings = {
   remove: "Remove",
   noLogoToRemove: "No logo to remove",
   logoFormats: "JPG, PNG or WebP, up to 2 MB.",
-  flowsHeading: "Deal flows",
-  flowsLead: "How work moves through this studio: which stages a deal walks, in what order, and what may start one.",
-  flowsAdminOnly: " Only an admin can change them.",
-  flowsLoadFailed: "The flows could not be loaded.",
-  flowBuiltIn: "Built-in",
-  flowEdited: "Edited",
-  flowYours: "Yours",
-  flowStagesLabel: "Stages, in the order a deal walks them",
-  flowHeadsLabel: "May start a deal",
-  flowStatusChainLabel: "Speaks for the deal — most authoritative first",
-  flowCostDriversLabel: "Counts as cost",
-  flowBillingLabel: "Bills on",
-  flowCardinalityLabel: "How many per deal",
-  flowAddStage: "Add a stage…",
-  flowMoveUp: "Move up",
-  flowMoveDown: "Move down",
-  flowRemove: "Remove",
-  flowClone: "Duplicate",
-  flowRevert: "Revert to built-in",
-  flowDelete: "Delete",
-  flowNoStages: "No stages yet — a deal on this flow would show nothing.",
-  flowRefused: (why) => `That flow was refused: ${why}`,
-  flowCardDefault: "As the stage says",
-  flowOne: "One",
-  flowMany: "Many",
-  flowEdit: "Edit",
-  flowClose: "Close",
-  flowNameLabel: "Name",
-  flowStageCount: (n) => `${n} stage${n === 1 ? "" : "s"}`,
-  billingNames: {
-    progress: "Progress claimed as work completes",
-    shipment: "When the goods leave",
-    delivery: "When the goods arrive",
-    signoff: "When the customer accepts the job",
-    "milestone-or-time": "Milestones, or time spent",
-    pod: "Proof of delivery",
-    calendar: "A period, not an event",
-  },
-  industriesHeading: "Industries",
-  industriesLead: "Which flow a new deal starts on, by the trade it belongs to. The trades this studio works, and what each one starts on.",
-  industryPrimary: "Starts on",
-  industrySecondary: "Also common",
-  industryNote: "Why",
-  industryNone: "— none —",
-  industryNameLabel: "Industry",
-  industriesHidden: (n) => `The product knows ${n} more trade${n === 1 ? "" : "s"}, kept with nompany. Ask for one to be added to this studio.`,
-  flowDealCount: (n) => `${n} deal${n === 1 ? "" : "s"}`,
-  flowDealsMore: (n) => `${n}+ deals`,
-  flowIndustryCount: (n) => `${n} industr${n === 1 ? "y" : "ies"} start here`,
-  flowConfirmHeading: "Work is already on this flow",
-  flowConfirmEdit: (n, name) => `${n} deal${n === 1 ? "" : "s"} walk${n === 1 ? "s" : ""} ${name}. Changing it changes what they show, which stages they still invite, and what may be attached to them from now on.`,
-  flowConfirmRevert: (n, name) => `${n} deal${n === 1 ? "" : "s"} walk${n === 1 ? "s" : ""} ${name}. Reverting it puts them back on the built-in flow, which may not be the one they were started under.`,
-  flowConfirmDelete: (n, name) => `${n} deal${n === 1 ? "" : "s"} walk${n === 1 ? "s" : ""} ${name}. Deleting it leaves them with no flow of their own — they fall back to Contracting / Project.`,
-  flowConfirmKept: "No record is deleted. A stage this flow no longer lists is still shown on the deals that have one, marked as outside the flow.",
-  flowConfirmOrphans: (names) => `These industries start deals here and would be left pointing at nothing: ${names}.`,
-  flowConfirmGo: "I understand — change it",
-  flowStagesLosing: "Stages these deals already have that this flow would stop listing:",
 };
 
 const ar: Strings = {
@@ -747,10 +625,6 @@ const ar: Strings = {
   kpiDaysAtMost: "يومًا حدًا أقصى",
   kpiPer: (per) => ({ day: "يوميًا", week: "أسبوعيًا", month: "شهريًا" } as Record<string, string>)[per] || per,
   kpiSince: (date) => `منذ ${date}`,
-  kpiByFlow: "رقم مختلف لمسار صفقة",
-  kpiStudioWide: "على مستوى الاستوديو",
-  kpiNotMeasured: "غير مُقاس في هذا المسار",
-  kpiUseStudioWide: "استخدم رقم الاستوديو",
   kpiBad: "هذا الرقم لا يناسب هذا المقياس.",
   industry: "نوع النشاط",
   industryOther: "مجال آخر",
@@ -802,63 +676,6 @@ const ar: Strings = {
   remove: "إزالة",
   noLogoToRemove: "لا يوجد شعار لإزالته",
   logoFormats: "JPG أو PNG أو WebP، حتى 2 ميجابايت.",
-  flowsHeading: "مسارات الصفقات",
-  flowsLead: "كيف يسير العمل في هذا الاستوديو: ما المراحل التي تمر بها الصفقة، وبأي ترتيب، وما الذي يمكنه بدؤها.",
-  flowsAdminOnly: " التعديل للمشرف وحده.",
-  flowsLoadFailed: "تعذر تحميل المسارات.",
-  flowBuiltIn: "جاهز",
-  flowEdited: "معدل",
-  flowYours: "خاص بكم",
-  flowStagesLabel: "المراحل، بالترتيب الذي تمر به الصفقة",
-  flowHeadsLabel: "يمكنه بدء صفقة",
-  flowStatusChainLabel: "يتحدث باسم الصفقة — الأعلى أولا",
-  flowCostDriversLabel: "يحتسب تكلفة",
-  flowBillingLabel: "تفوتر عند",
-  flowCardinalityLabel: "كم واحدة لكل صفقة",
-  flowAddStage: "أضف مرحلة…",
-  flowMoveUp: "لأعلى",
-  flowMoveDown: "لأسفل",
-  flowRemove: "إزالة",
-  flowClone: "نسخة",
-  flowRevert: "العودة إلى الجاهز",
-  flowDelete: "حذف",
-  flowNoStages: "لا مراحل بعد — صفقة على هذا المسار لن تعرض شيئا.",
-  flowRefused: (why) => `رفض هذا المسار: ${why}`,
-  flowCardDefault: "حسب المرحلة",
-  flowOne: "واحدة",
-  flowMany: "متعددة",
-  flowEdit: "تعديل",
-  flowClose: "إغلاق",
-  flowNameLabel: "الاسم",
-  flowStageCount: (n) => n === 1 ? "مرحلة واحدة" : n === 2 ? "مرحلتان" : n <= 10 ? `${n} مراحل` : `${n} مرحلة`,
-  billingNames: {
-    progress: "مستخلصات مع تقدم العمل",
-    shipment: "عند خروج البضاعة",
-    delivery: "عند وصول البضاعة",
-    signoff: "عند قبول العميل للعمل",
-    "milestone-or-time": "مراحل إنجاز أو وقت مبذول",
-    pod: "إثبات التسليم",
-    calendar: "فترة زمنية، لا حدث",
-  },
-  industriesHeading: "القطاعات",
-  industriesLead: "على أي مسار تبدأ صفقة جديدة، بحسب المجال الذي تنتمي إليه. المجالات التي يعمل بها هذا الاستوديو، وما يبدأ عليه كل منها.",
-  industryPrimary: "تبدأ على",
-  industrySecondary: "شائع أيضا",
-  industryNote: "السبب",
-  industryNone: "— بلا —",
-  industryNameLabel: "القطاع",
-  industriesHidden: (n) => `يعرف المنتج ${n === 1 ? "قطاعا آخر" : `${n} قطاعات أخرى`} محفوظة لدى نومباني. اطلب إضافة أي منها إلى هذا الاستوديو.`,
-  flowDealCount: (n) => n === 1 ? "صفقة واحدة" : n === 2 ? "صفقتان" : n <= 10 ? `${n} صفقات` : `${n} صفقة`,
-  flowDealsMore: (n) => `أكثر من ${n} صفقة`,
-  flowIndustryCount: (n) => n === 1 ? "قطاع واحد يبدأ هنا" : n === 2 ? "قطاعان يبدآن هنا" : n <= 10 ? `${n} قطاعات تبدأ هنا` : `${n} قطاعا تبدأ هنا`,
-  flowConfirmHeading: "هناك عمل قائم على هذا المسار",
-  flowConfirmEdit: (n, name) => `${n === 1 ? "صفقة واحدة تسير" : n === 2 ? "صفقتان تسيران" : n <= 10 ? `${n} صفقات تسير` : `${n} صفقة تسير`} على ${name}. تعديله يغير ما تعرضه، وما يبقى مطلوبا منها، وما يمكن ربطه بها من الآن.`,
-  flowConfirmRevert: (n, name) => `${n === 1 ? "صفقة واحدة تسير" : n === 2 ? "صفقتان تسيران" : n <= 10 ? `${n} صفقات تسير` : `${n} صفقة تسير`} على ${name}. العودة إلى الجاهز تعيدها إلى المسار الأصلي، وقد لا يكون هو الذي بدأت عليه.`,
-  flowConfirmDelete: (n, name) => `${n === 1 ? "صفقة واحدة تسير" : n === 2 ? "صفقتان تسيران" : n <= 10 ? `${n} صفقات تسير` : `${n} صفقة تسير`} على ${name}. حذفه يتركها بلا مسار خاص — فتعود إلى «المقاولات / المشاريع».`,
-  flowConfirmKept: "لا يحذف أي سجل. المرحلة التي لم يعد المسار يذكرها تبقى ظاهرة على الصفقات التي تملكها، موسومة بأنها خارج المسار.",
-  flowConfirmOrphans: (names) => `هذه القطاعات تبدأ صفقاتها هنا وستبقى تشير إلى لا شيء: ${names}.`,
-  flowConfirmGo: "أفهم ذلك — نفذ التغيير",
-  flowStagesLosing: "مراحل تملكها هذه الصفقات ولن يعود المسار يذكرها:",
 };
 
 const settings = { en, ar };

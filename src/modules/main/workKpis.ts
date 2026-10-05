@@ -284,11 +284,14 @@ export function scorePeriod(
 // ---- refusing a KPI that could not be measured ------------------------------
 
 /**
- * WHAT IS WRONG WITH A DECLARATION, in words about the declaration — the door
- * `kpiProblems` already is for deal KPIs. `dealStages` is the stage registry's
- * types, the steps a deal can be asked to reach.
+ * WHAT IS WRONG WITH A DECLARATION, in words about the declaration.
+ *
+ * A DEAL IS NOT DECLARED HERE (05/10/2026): its targets are its flow's own
+ * steps, set by the studio on the Flows tab (./flowSteps). A deal measure here
+ * would be a second place a deal is judged from, which is the scattering the
+ * owner asked to end.
  */
-export function workKpiProblems(defs: readonly WorkKpi[], dealStages: readonly string[]): string[] {
+export function workKpiProblems(defs: readonly WorkKpi[]): string[] {
   const problems: string[] = [];
   const ids = new Set<string>();
   const byId = new Map(defs.map((d) => [d.id, d]));
@@ -300,9 +303,10 @@ export function workKpiProblems(defs: readonly WorkKpi[], dealStages: readonly s
     if (!text(def.label).trim()) problems.push(`${at}: needs a label — it is what the screen says`);
     const type = WORK_TYPES[def.workType as WorkTypeKey];
     if (!type) { problems.push(`${at}: "${text(def.workType)}" is not a kind of work`); continue; }
+    if (def.workType === "deal") { problems.push(`${at}: a deal's targets are set on its flow's steps (Deals → Flows), not as a measure`); continue; }
     if (![...ITEM_KINDS, ...PERIOD_KINDS].includes(def.kind)) { problems.push(`${at}: unknown kind "${text(def.kind)}"`); continue; }
     if (def.kind === "reach") {
-      const steps = type.steps ? type.steps.map((s) => s.token) : dealStages;
+      const steps = (type.steps || []).map((s) => s.token);
       if (!steps.includes(text(def.step))) problems.push(`${at}: "${text(def.step)}" is not a step of a ${type.name.en.toLowerCase()}`);
       if (def.from !== undefined && text(def.from)) {
         if (!steps.includes(text(def.from))) problems.push(`${at}: "${text(def.from)}" is not a step of a ${type.name.en.toLowerCase()}, so the clock could never start`);
@@ -314,7 +318,7 @@ export function workKpiProblems(defs: readonly WorkKpi[], dealStages: readonly s
       const days = Number(def.days);
       if (!Number.isInteger(days) || days < 1 || days > 3650) problems.push(`${at}: days must be a whole number from 1 to 3650`);
     }
-    if (def.kind === "onTime" && (def.workType === "deal" || def.workType === "counterSale")) {
+    if (def.kind === "onTime" && def.workType === "counterSale") {
       problems.push(`${at}: a ${type.name.en.toLowerCase()} has no due date to be on time for`);
     }
     if (!isItemKind(def.kind)) {
@@ -342,9 +346,9 @@ export function workKpiProblems(defs: readonly WorkKpi[], dealStages: readonly s
 //   3. Changing a target does NOT re-judge past work: every target keeps a dated
 //      history, and a piece of work is judged by the version in force when it
 //      opened.
-// And, asked afterwards: a studio-wide target with an optional OVERRIDE PER
-// DEAL FLOW — a fit-out and a supply-only order may need different delivery
-// times in one company.
+// The per-deal-flow override that followed is GONE with the deal measures
+// (05/10/2026): a deal's targets live on its flow's steps, which the studio
+// owns, so a flow needing different numbers simply has them (./flowSteps).
 
 export const PERIODS = ["day", "week", "month"] as const;
 export type Period = (typeof PERIODS)[number];
@@ -395,11 +399,6 @@ export function withTarget(m: WorkMeasure, n: number): WorkKpi & { name: Measure
  * studio's.
  */
 export const BUILTIN_MEASURES: readonly WorkMeasure[] = [
-  { id: "deal-quoted", name: { en: "Quoted within … days of the enquiry", ar: "تقديم عرض السعر خلال … يومًا من الاستفسار" }, workType: "deal", kind: "reach", step: "quotation", active: true },
-  { id: "deal-contract", name: { en: "Contract signed within … days of the quotation", ar: "توقيع العقد خلال … يومًا من عرض السعر" }, workType: "deal", kind: "reach", step: "contract", from: "quotation", active: true },
-  { id: "deal-delivery", name: { en: "First delivery within … days of the project", ar: "أول توريد خلال … يومًا من بدء المشروع" }, workType: "deal", kind: "reach", step: "delivery", from: "project", active: true },
-  { id: "deal-invoice", name: { en: "First invoice within … days of the project", ar: "أول فاتورة خلال … يومًا من بدء المشروع" }, workType: "deal", kind: "reach", step: "invoice", from: "project", active: true },
-  { id: "deal-quoted-share", name: { en: "Share of deals quoted in time", ar: "نسبة الصفقات التي قُدّم عرضها في الوقت" }, workType: "deal", kind: "share", of: "deal-quoted", per: "month", active: true },
   { id: "job-on-time", name: { en: "Field jobs finished by their scheduled end", ar: "إنجاز المهام الميدانية قبل نهاية موعدها" }, workType: "job", kind: "onTime", active: true },
   { id: "job-on-time-share", name: { en: "Share of field jobs on time", ar: "نسبة المهام الميدانية المنجزة في الوقت" }, workType: "job", kind: "share", of: "job-on-time", per: "month", active: true },
   { id: "job-avg-days", name: { en: "Average days to finish a field job (at most)", ar: "متوسط أيام إنجاز المهمة الميدانية (حدًا أقصى)" }, workType: "job", kind: "avgDays", per: "month", active: true },
@@ -413,20 +412,26 @@ export const BUILTIN_MEASURES: readonly WorkMeasure[] = [
 
 export const BUILTIN_MEASURE_IDS: ReadonlySet<string> = new Set(BUILTIN_MEASURES.map((m) => m.id));
 
-/** The console's rows over the built-ins: a stored row replaces its built-in by id, others are added. */
+/**
+ * The console's rows over the built-ins: a stored row replaces its built-in by
+ * id, others are added. A DEAL measure the console stored before 05/10/2026 is
+ * left out — a deal is judged by its flow's steps now, and reading both would
+ * judge it twice.
+ */
 export function mergeMeasures(stored: readonly WorkMeasure[]): WorkMeasure[] {
-  const byId = new Map(stored.filter((m) => m?.id).map((m) => [m.id, m]));
+  const kept = stored.filter((m) => m?.id && m.workType !== "deal");
+  const byId = new Map(kept.map((m) => [m.id, m]));
   const merged = BUILTIN_MEASURES.map((b) => byId.get(b.id) || b);
-  return [...merged, ...stored.filter((m) => m?.id && !BUILTIN_MEASURE_IDS.has(m.id))];
+  return [...merged, ...kept.filter((m) => !BUILTIN_MEASURE_IDS.has(m.id))];
 }
 
 /**
  * WHAT IS WRONG WITH A LIST OF MEASURES — the declaration checks, asked with a
  * stand-in number, because a measure has none and its shape is what matters.
  */
-export function measureProblems(measures: readonly WorkMeasure[], dealStages: readonly string[]): string[] {
+export function measureProblems(measures: readonly WorkMeasure[]): string[] {
   const stand = (m: WorkMeasure) => withTarget(m, m.kind === "share" ? 0.5 : 1);
-  const out = workKpiProblems(measures.map(stand), dealStages);
+  const out = workKpiProblems(measures.map(stand));
   for (const m of measures) {
     if (!text(m?.name?.en).trim() || !text(m?.name?.ar).trim()) out.push(`measure ${m?.id || "?"}: needs a name in English and Arabic`);
     if (!isItemKind(m?.kind) && !PERIODS.includes(m?.per as Period)) out.push(`measure ${m?.id || "?"}: a period KPI needs a period — day, week or month`);
@@ -446,68 +451,55 @@ export function targetProblem(m: WorkMeasure, n: number | null): string {
 }
 
 /**
- * ONE VERSION OF A STUDIO'S TARGET FOR A MEASURE. `value` is studio-wide (null:
- * not measured); `byFlow` overrides it for a deal flow (null: that flow is not
- * measured on it; absent: the studio-wide number applies).
+ * ONE VERSION OF A STUDIO'S TARGET FOR A MEASURE. `value` null: not measured.
+ * (A `byFlow` map stored before 05/10/2026 is ignored — it held deal-flow
+ * overrides, and deals are judged by their flow's own steps now.)
  */
-export type TargetVersion = { at: string; by: string; value: number | null; byFlow: Record<string, number | null> };
+export type TargetVersion = { at: string; by: string; value: number | null };
 /** measure id → its versions, oldest first. */
 export type StudioKpiTargets = Record<string, TargetVersion[]>;
 
 /**
  * THE NUMBER IN FORCE for a piece of work: the latest version set at or before
- * the moment it opened, the flow's override over the studio-wide figure. Null:
- * not measured — including work that opened before any target was set, which
- * was never asked to meet one.
+ * the moment it opened. Null: not measured — including work that opened before
+ * any target was set, which was never asked to meet one.
  */
-export function targetIn(versions: readonly TargetVersion[] | undefined, flowId: string, at: string): number | null {
+export function targetIn(versions: readonly TargetVersion[] | undefined, at: string): number | null {
   const t = Date.parse(at);
   if (!versions?.length || !Number.isFinite(t)) return null;
   let found: TargetVersion | null = null;
   for (const v of versions) if (Date.parse(v.at) <= t) found = v;
-  if (!found) return null;
-  if (flowId && Object.prototype.hasOwnProperty.call(found.byFlow || {}, flowId)) return found.byFlow[flowId];
-  return found.value;
+  return found ? found.value : null;
 }
 
 /**
  * A CHANGE, APPENDED AS A NEW VERSION — never an edit of the last one, which
- * would re-judge work already measured against it. `flowId` absent sets the
- * studio-wide number; present sets that flow's override, and `undefined` as the
- * value removes the override so the studio-wide number applies again.
- * Unchanged when the result equals the version in force.
+ * would re-judge work already measured against it. Unchanged when the value is
+ * the one in force.
  */
 export function nextVersions(
   versions: readonly TargetVersion[] | undefined,
-  change: { flowId?: string; value: number | null | undefined },
+  value: number | null,
   at: string,
   by: string,
 ): TargetVersion[] {
   const list = [...(versions || [])];
-  const last = list[list.length - 1] || { at: "", by: "", value: null, byFlow: {} };
-  const next: TargetVersion = { at, by, value: last.value, byFlow: { ...(last.byFlow || {}) } };
-  if (change.flowId) {
-    if (change.value === undefined) delete next.byFlow[change.flowId];
-    else next.byFlow[change.flowId] = change.value;
-  } else {
-    next.value = change.value === undefined ? null : change.value;
-  }
-  const same = next.value === last.value && JSON.stringify(next.byFlow) === JSON.stringify(last.byFlow || {});
-  return same && list.length ? list : [...list, next];
+  const last = list[list.length - 1];
+  if (last && last.value === value) return list;
+  return [...list, { at, by, value }];
 }
 
-/** Every KPI in force for a piece of work of this type, on this flow, opened at `at`. */
+/** Every KPI in force for a piece of work of this type, opened at `at`. */
 export function kpisInForce(
   measures: readonly WorkMeasure[],
   targets: StudioKpiTargets,
   workType: WorkTypeKey,
-  flowId: string,
   at: string,
 ) {
   const out: ReturnType<typeof withTarget>[] = [];
   for (const m of measures) {
     if (!m.active || m.workType !== workType) continue;
-    const n = targetIn(targets[m.id], flowId, at);
+    const n = targetIn(targets[m.id], at);
     if (n === null) continue;
     out.push(withTarget(m, n));
   }

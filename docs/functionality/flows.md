@@ -1,238 +1,143 @@
-# Flow templates and industries — the flow editor
-
-## THE STUDIO OWNS ITS FLOWS — the owner, 05/10/2026
-
-*"I should run nompany, not the flow … let the users feel free to improve their own flow based on
-their requirements with less steps and less code."* What follows this section describes the
-editor in Studio settings and the industry table, both of which are being replaced by this:
-
-- **A studio starts with one flow**, copied from its trade's starter the first time its flows
-  are opened (`plantStarterFlow`, `platform/db/flows.ts`) — planted on read inside `editArr`,
-  only into an empty list, and **keeping the starter's id**, so every deal already walking that
-  flow is on the studio's copy without anything being re-pointed. The seven built-ins stay in code
-  as starters and as what an older deal naming one still resolves to.
-- **The studio edits steps and nothing else.** Name, steps in order, each step's target, and
-  which flow is the default. `heads`, `statusChain` and `cardinalityOverrides` follow from the
-  steps (`deriveFlowShape`, `platform/engagement/templates.ts`): kept from the flow's previous
-  version where they still apply, otherwise the first step opens a deal and the built-ins' order
-  of authority (project, contract, job, shipment, quotation, ticket) reports its status.
-- **Each step carries one target** — reach it within N days of the deal opening or of an earlier
-  step (`targets`, dated versions; `modules/main/flowSteps.ts`). A change is appended, never an
-  edit, so a deal is judged by the version in force when it opened. **The suggestion is the
-  studio's own history**: how long its deals took to reach the step, on average, rounded up —
-  offered from three deals or more.
-- **A new deal starts on the studio's default flow** (`studioDefaultFlowId`: the one marked
-  default, else its first, else its trade's starter, else A). A deal that names no flow — written
-  before flows were stored — walks the default too; it used to ask the deal's client industry and
-  an industry table first. **A deal can be moved to another of the studio's flows**
-  (`setDealTemplate` now checks the studio's own list, not the seven built-ins).
-- **A second flow is a copy** of one of the studio's or of a starter; targets are not copied. A
-  flow is **removed** only when no scanned deal walks it, and never the last one; removing the
-  default makes the next one the default.
-
-**The board** — `GET /api/studios/<slug>/main/flows` (`modules/main/dealFlows.ts`), behind
-`engagements.view`: each flow, its steps, and per step the open deals AT it, how many are past the
-step's target, how many reached it under a target and how many in time, and the suggestion. Read
-from the deals' completion snapshots (the newest 500), never by opening records; a deal with no
-snapshot yet is counted as `unread`. A step the reader may not see shows no figures. **Writes**
-— `POST` with `action` `save`, `add`, `remove` or `move` — need
-`administration.settings.edit`, the right the flow editor already used. **No new permission key.**
+# Deal flows — the steps a studio's deals walk, and each step's target
 
 ## What it is
 
-A **flow template** is the shape of the work: which stages a deal walks, in what order,
-which of them may start one, whose status speaks for the deal, what counts as cost, and
-when it bills. An **industry** is the row that picks a template — the trade a deal belongs
-to, and the flow a new deal in that trade starts on.
+A **flow** is the shape of a studio's work: which stages a deal walks, in what order, and how
+long each step should take. A contractor's deal walks ticket → quotation → contract → project →
+deliveries → invoice → payment; a trading company's walks ticket → quotation → order → shipment
+→ invoice.
 
-Seven templates and twenty-five industries ship as **seeds**. Law 2 is that they are
-**data a studio owns**, not a release: a studio clones a template, reorders its stages,
-inserts a checkpoint, or adds the industry its trade needs. Adding an industry has to be a
-row rather than a deploy, and that only means something if a studio can write the row.
+**The studio owns its flows outright** — the owner, 05/10/2026: *"I should run nompany, not the
+flow … let the users feel free to improve their own flow based on their requirements with less
+steps and less code, less complexity and more interaction."* Until that day a flow was run from
+three places by two people: an industry table (nompany's, then a Studio settings panel) chose
+which flow a deal started on, a Studio settings editor carried seven lists per flow (four of
+which nothing read), and a deal's KPIs were measures declared in /super and numbered on a third
+screen. All three are gone; one page replaces them.
 
-The editor is a panel inside **Studio settings** (`/<slug>/administration-settings`).
+## Where it is
+
+**Deals → Flows** (`/<slug>/engagements`, the Flows tab beside Deals). One card per flow:
+
+- its **steps in order**, each with the open deals AT it now, how many are **late** against
+  the step's target, and how many reached it under a target and how many **in time**;
+- each step's **target**: "within [N] days of [the deal opening | an earlier step]", blank =
+  not measured;
+- the **suggestion** beside the box: "Your last 12 deals took 6.2 days on average — set 7?",
+  one click to take;
+- move a step up or down, remove it, add one from the stage registry, rename the flow, make it
+  the one new deals start on, **add a second flow** (a copy of one of the studio's or of a
+  starter, without targets), remove one.
+
+A step the reader may not see (rights, or a department switched off) shows no figures.
 
 ## What it stores
 
-Two arrays per studio, both **overrides, never full copies**:
-
 ```
-s:<sid>:flowTemplates   FlowTemplate[]   only what this studio changed
-s:<sid>:industries      IndustryEntry[]  only what this studio changed
+s:<sid>:flowTemplates   FlowTemplate[]   the studio's own flows
 ```
 
-An override with a seed's id **replaces** it; one with a new id is **appended**. Seed order
-is preserved. Two consequences, both wanted: a later correction to a built-in still reaches
-every studio that never touched it, and a studio's stored data is exactly what it changed
-rather than a snapshot of everything that existed the day it first opened the editor.
+`FlowTemplate` is `{ id, name, stages, statusChain, cardinalityOverrides, targets?, isDefault? }`
+(`platform/engagement/templates.ts`). `targets` is step → dated versions
+`{ at, by, days, from }`, oldest first.
 
-**Deleting an override and reverting a built-in are the same operation**, and which one
-happened depends only on whether a seed exists underneath. There is deliberately no
-separate "revert" — that is what storing overrides buys.
+- **A studio starts with one flow, copied from its trade's starter** the first time its flows
+  are read (`plantStarterFlow`, `platform/db/flows.ts`) — inside `editArr`, only into an EMPTY
+  list, so two first readers plant one flow and a studio with any flow is never re-seeded. The
+  starter is its trade's (`defaultTemplateForTrade`: a row the studio wrote before 05/10/2026,
+  else its specialism's flow from /super → Industries, else the trade map).
+- **The copy keeps the starter's id**, so every deal already walking "A" is on the studio's own A
+  the moment it exists. Nothing is re-pointed.
+- **The seven built-ins stay in code** as starters and as what an older deal naming one the
+  studio never adopted still resolves to (`listFlowTemplates` merges them under the studio's).
 
 ## What it does
 
-`platform/db/flows.ts` merges seeds with overrides and **refuses a template that could not
-work**. `modules/studioFlows.ts` is the authorised door: it checks the right, then turns a
-refusal into an answer. The route is `settings/flows` (GET / PUT / DELETE).
+### The studio edits steps and nothing else
+
+`statusChain` and `cardinalityOverrides` follow from the steps (`deriveFlowShape`): kept from
+the flow's previous version where they still apply; otherwise the built-ins' order of authority
+(project, contract, job, shipment, quotation, ticket) reports the deal's status, then the first
+step. `cardinalityOverrides` stays because attaching a second shipment to a logistics file reads
+it (`membership.ts`). **`heads`, `billingTrigger` and `costDrivers` were deleted on 05/10/2026**
+— nothing in the product read any of them.
 
 ### Validated on write, never on read
 
-A template naming a stage the registry does not have renders as **nothing** — silently,
-forever, on a screen nobody thinks to doubt. Refusing it at the door means the studio hears
-about it while it is still their edit, in words about the edit. `templateProblems` refuses:
+A flow naming a stage the registry does not have renders as nothing, silently. `templateProblems`
+refuses a stage that is not a registry type, a `statusChain` or `cardinalityOverride` naming a
+stage the flow does not use, an empty `statusChain`, and a nameless flow. `saveDealFlow` also
+refuses a repeated step, no steps, and a target the step cannot keep (`stepTargetProblem`): days
+outside 1–3650, or a clock starting at the step itself, at a LATER step, or at one the flow lacks.
+A refusal is a 400 that names the step.
 
-- a stage that is not a registry type;
-- a head that is not one of the template's own stages;
-- a `statusChain` naming a stage the template does not use;
-- a `cardinalityOverride` for a stage it does not carry;
-- no heads at all — nothing could ever start a deal;
-- an empty `statusChain` — no deal could report a status;
-- **no name** — nothing could pick it from the list an industry must choose from;
-- **a `billingTrigger` outside the seven** — it matches nothing, and surfaces later as
-  revenue that never triggered.
+### A target is dated, and a deal keeps the one it opened under
 
-The last two were unchecked while the only templates were the seven written in the repo.
-They became reachable the moment somebody could type one.
+A change is **appended** as a new version (`nextStepTargets`), never an edit; saving the same
+number writes nothing. A deal is judged by the version in force when it **opened**
+(`stepTargetIn`), so changing a number never re-judges work already measured, and a deal opened
+before any target was set is not measured. Judging is `judgeItem` asked a reach question
+(`judgeStep`, `modules/main/flowSteps.ts`) — the same judge field jobs and work orders use:
+**met**, **missed**, **under way**, **waiting** (the start step has not happened), **unknown**.
 
-An industry is checked against **this studio's** templates, not the built-ins, because that
-is the list a deal will actually resolve against.
+### The suggestion is the studio's own history
 
-### The refusal reaches the studio
+How long its deals actually took to reach the step, measured from the start the step's target
+counts from today, averaged and **rounded up** (`suggestDays`) — a target the studio already
+meets about half the time. Offered from **three** deals or more; fewer is an anecdote.
 
-`flows.ts` throws, deliberately — a store returning `{ error }` for a structurally
-impossible template lets a careless caller persist one by ignoring the result. But a thrown
-Error is a 500 over HTTP, and a 500 tells a studio nothing about the edit they just made.
-`studioFlows.ts` catches **only** the known refusal prefixes and returns
-`{ error: "refused", detail }` as a **400**; a genuine fault still throws and is still a
-500. The reasons are the whole value of validating on write, so they are carried through
-verbatim rather than reduced to a code.
+### Which flow a deal walks
 
-### The screen
+- **A new deal starts on the studio's default flow** (`studioDefaultFlowId`: the one marked
+  default, else its first, else its trade's starter, else A), written once at the one place a
+  deal is minted (`freezeTemplate`) and never over an answer the deal already has.
+- **A deal that names no flow** — written before flows were stored — walks the default too
+  (`dealTemplate`, `pickTemplate`). It used to ask the deal's client industry and an industry
+  table first, which matched almost nothing (a client's segment is not a trade).
+- **A deal can be moved** to another of the studio's flows (`action: "move"`); what it holds is
+  kept, and a stage the new flow does not list is shown on the deal, never lost.
+- **One default.** Marking a flow the default unmarks the rest in the same write. Removing the
+  default makes the next flow the default. A flow is removed only when no scanned deal walks it,
+  and never the studio's last.
 
-`StudioFlowEditor.js`. Ordered lists (stages, status chain) get up/down controls rather
-than drag-and-drop — order means two different things here and a keyboard user should not
-need a pointer gesture to express a precedence. Heads and cost drivers are chips, because
-they are memberships and not sequences.
+### The board's figures
 
-**Removing a stage prunes every list that named it.** Leaving them would produce three
-refusals at the door for one edit the studio thinks they made once, and working out that
-the fix is "also remove it from heads" is not the studio's job.
+Read from the deals' **completion snapshots** (the newest 500, `platform/engagement/completion`),
+the same snapshot every deal list reads — never by opening records. A deal is AT the furthest
+step it holds (`readDeal`); a deal whose first stage was called off is counted as called off. A
+deal with no snapshot yet is counted as `unread` and said so; opening it, or the nightly refresh,
+fills it.
 
-It validates as they type, with **the same `templateProblems` the server refuses with** —
-importable because nothing in `platform/engagement` touches a database. Not a replacement
-for the door, which still refuses; the difference is hearing "statusChain names a stage you
-removed" while the stage list is still on screen.
+### Where a step's result shows
 
-**Built-in / Edited / Yours** is worked out on the client by comparing against the seed,
-field by field. The server merges the two and returns one list, which is the right answer
-for every other reader; this screen needs the distinction because "Revert to built-in" and
-"Delete" are the same button doing two very different things.
+On the **deal page**, under "KPIs", one line per measured step: "Quotation within 3 days — under
+way · 2 days left". Absent where the deal's running steps do not include the step (a department
+switched off) or where the reader may not see the step or its start.
 
-### The warning before an edit
+### The route and the rights
 
-Editing a template is not like editing a setting: it changes what every deal on that flow
-shows, which stages it still invites, and what may attach to it from now on. `flowUsage`
-counts how many deals walk each flow; the editor puts that count on the row, repeats it
-above the fields, and asks before saving a change to a flow that already has work on it.
-A flow nothing is on saves without a dialog — asking about an empty flow is how people
-learn to click through the one that matters.
-
-The dialog says plainly that **no record is deleted**. That is true because of the
-off-template rule: a stage a flow no longer lists is still shown on the deals that have
-one, marked as outside the flow. What is at risk is meaning, not data — the same deal read
-through a different flow shows different stages and reports a different status.
-
-Deleting a flow also names **the industries that would be left pointing at nothing**,
-computed on the client because it already holds every industry. `saveIndustry` checks the
-template exists when the INDUSTRY is written, and nothing re-checks when a template is
-dropped, so this dialog is the only place a studio hears about it.
-
-**Which flow a deal walks is `pickTemplate`, shared.** The deal screen resolves one deal
-and pays for the industry lookup only when it must; the usage scan resolves hundreds and
-reads every industry once. They agree only because the precedence lives in one pure
-function — two copies would mean the screen showing one flow while the warning counted
-deals against another.
-
-### Counting per stage
-
-"14 deals walk this flow" says the edit is not free; **"9 of them have a quotation you are
-about to drop"** says whether THIS edit is the expensive one. The dialog names each stage
-being removed that the flow's deals actually hold.
-
-That count comes from `ENG.hasStage`, a set of deal ids per stage type. It was **written by
-`attachRecord` and `promote`, never by `applyDescriptor`** — the path every ticket-minted
-deal takes — and **read by nothing at all**, which is why it survived: a half-written index
-that answers no question produces no wrong answer to notice. The first reader got one, and
-it was confident. `applyDescriptor` now maintains it, for members and for singletons, keyed
-by `SLOT_TYPE` rather than the slot (`approvedQuotation` names a record whose type is
-`quotation`, and the index is keyed by type).
-
-**A deal indexed before that is repaired by re-running the backfill**, which routes through
-`applyDescriptor` and is idempotent — a re-apply neither adds a membership nor drops one:
-
-```bash
-NOMPANY_KEY_PREFIX=<ns> node scripts/migrate/backfill-engagements.mjs --apply
-```
-
-**Until it is repaired, no per-stage number is shown.** `stagesComplete` is checked against
-the ROOTS — every filled singleton is a membership the index must hold — rather than by
-asking whether a deal appears in *at least one* set, which passes a PARTIALLY indexed deal.
-That was not hypothetical: a studio reported `stagesComplete: true` beside `{contract: 2}`
-and no tickets, because a contract had been attached (indexed) to deals whose opening ticket
-never was. A confident number missing half its subject is the failure the flag exists to
-prevent, not one it was catching.
-
-**Capped at 500 deals, newest first.** The warning's job is "this edit reaches work that
-already exists", not a census; a saturated studio reports `500+` rather than a round number
-pretending to be a total. Three round trips whatever the cap: the index, one batched
-`getJSONMany` of the roots, the industries.
-
-**Usage is manager-only**, for the same two reasons the sibling settings route withholds
-its own: somebody who cannot change a flow is offered no warning to act on, and producing
-one would cost them the whole scan on every GET — as well as handing a person with no deal
-rights a count of how much work the studio is carrying.
-
-### Permission
-
-`administration.settings.view` to read, `administration.settings.edit` to write — the same
-right as the rest of Studio settings, and the same one that already governs Service
-Actions, which decide what a ticket may be raised for. **No new permission key**, so the
-123-key matrix is unmoved. This route is hand-rolled rather than built on `route()`,
-because `route()` needs a root section and `administration-settings` is in `NO_SCREEN_YET`
-— declared for ordering only, never planted as a row. The sibling settings routes are
-hand-rolled for the same reason.
+`/api/studios/<slug>/main/flows` (`modules/main/dealFlows.ts`). `GET` is the board, behind
+`engagements.view`. `POST` with `action` `save`, `add`, `remove` or `move` needs
+`administration.settings.edit`. **No new permission key.** The first-run checklist's KPI item
+ticks when any step has a target.
 
 ## Not built yet — do not assume otherwise
 
-- **The board has no screen yet** (05/10/2026): the route and its service are built and checked by
-  `tests/flow-steps-model.mjs`; the page in the Deals area, step results on the deal page and the
-  deal's flow picker are next. **The old editor, the Industries panel, the deal measures in /super
-  and the per-flow KPI override are still there** and are the removals after that.
-- **Moving a deal to another flow needs `administration.settings.edit`** for now — somebody who
-  may change flows. Whether a salesperson picks a deal's flow at opening is still to be decided
-  with the screen.
-
-- **A template id is never reused or renamed, and nothing enforces that.** `freeId` picks
-  the first free letter H–Z for a duplicate, and a studio with more than nineteen clones
-  gets a timestamp id. Deleting a clone frees its letter for the next duplicate, so a deal
-  that stored the old id would resolve to a different flow.
-- **Deleting a template an industry points at is still not REFUSED** — the confirm dialog
-  now names the industries that would be orphaned, but a studio that goes ahead leaves them
-  pointing at nothing. `defaultTemplateForStudio` returns `""` in that case and the deal
-  screen falls back to Template A, so nothing breaks; the industry just stops meaning what
-  it says. Re-pointing those industries in the same write would be the fix.
-- **The per-stage count needs the index to have been backfilled**, and until it has been the
-  screen shows no per-stage numbers at all. `stagesComplete` says whether they can be
-  trusted; see "Counting per stage" above for why a confident zero would be worse than none.
-- **An industry's key cannot be changed** — it is derived from the name on create and shown
-  read-only after. That is deliberate (a deal stores it), but there is no rename-and-migrate
-  path either.
-- **No audit entries.** Editing a flow changes how every deal in the studio is read, and
-  nothing records who changed it or when. The deal context has an audit trail; this does
-  not. The confirm dialog means somebody agreed to the change, and nothing anywhere records
-  that they did.
-- **`cardinalityOverrides` cannot be set for a stage not in the template**, which is correct,
-  but the editor also offers no way to see what the registry default it is overriding
-  actually is — the option reads "As the stage says" without saying what that is.
-- **No import or export.** A studio that has built a flow cannot hand it to another studio.
+- **Not opened in the sandbox yet** (05/10/2026): the database proxy was stopped. The model,
+  the route, the screen and the removals are checked by `tsc`, ESLint, `tests/flow-steps-model`,
+  `work-kpis-model`, `first-run-model`, `flow-progress`, `engagement-model` and `restructure`;
+  `deal-store` and the suite's flow block were rewritten and not run.
+- **No flow picker on the deal page**, and none when a deal is opened. `action: "move"` exists;
+  the screen does not call it yet. Moving needs `administration.settings.edit` for now — whether
+  a salesperson picks a deal's flow is to be decided with that screen.
+- **The board reads the newest 500 deals.** An older deal is not counted, and a flow is refused
+  removal while the scan is capped rather than guessed safe.
+- **A removed step keeps its target history**, so adding it back continues it — deliberate, but
+  nothing shows that history.
+- **No audit entries** for a changed flow or target beyond the `by` and `at` on each target
+  version.
+- **The starter list in /super → Industries still picks a specialism's flow.** It decides only
+  which starter a NEW studio's first flow is copied from; it re-routes nothing.
+- **Stored fields from before 05/10/2026** (`heads`, `billingTrigger`, `costDrivers` on a saved
+  flow; `byFlow` on a KPI target; a studio's own industry rows) are left in place and read by
+  nothing, except an industry row for the studio's own trade, which still chooses its starter.
