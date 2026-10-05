@@ -25,7 +25,7 @@ const has = (v: unknown) => String(v ?? "").trim() !== "";
  * version has a number. Both shapes are dated version lists; a measure's number
  * is `value`, a step's is `days` (./flowSteps).
  */
-export function anyTarget(targets: unknown): boolean {
+function anyTarget(targets: unknown): boolean {
   if (!targets || typeof targets !== "object") return false;
   return Object.values(targets as Record<string, unknown>).some((versions) => {
     if (!Array.isArray(versions) || !versions.length) return false;
