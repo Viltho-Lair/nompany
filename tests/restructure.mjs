@@ -408,7 +408,7 @@ export async function testNoNativeSelectSurvivesInSource(t) {
   // The list rendered as a blank rectangle — a dark studio could not read its
   // own Department dropdown, and nothing failed anywhere.
   //
-  // Every one of them is `SelectMenu` now (src/components/fields/SelectMenu.jsx,
+  // Every one of them is `SelectMenu` now (src/components/fields/SelectMenu.tsx,
   // docs/functionality/dropdowns.md). Nothing about a new <select> would fail
   // either, in any test or either compiler, so grep is the only thing that
   // finds one — the same reason the two key assertions around this one exist.

@@ -26,16 +26,26 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { enGB } from "date-fns/locale/en-GB";
+import type { ComponentProps } from "react";
 
 // Local calendar date, never UTC — a due date keyed "2026-08-22" must read as
 // the 22nd everywhere, which `new Date(iso)` (UTC midnight) breaks west of GMT.
-const toISO = (d) => {
+const toISO = (d: Date | null) => {
   if (!d || Number.isNaN(d.getTime?.() ?? NaN)) return "";
-  const p = (n) => String(n).padStart(2, "0");
+  const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
 
-export default function MuiDate({ value, onChange, disabled, minDate, maxDate }) {
+export type MuiDateProps = {
+  /** yyyy-mm-dd, or "" for none. */
+  value?: string;
+  onChange?: (iso: string) => void;
+  disabled?: boolean;
+  minDate?: string;
+  maxDate?: string;
+};
+
+export default function MuiDate({ value, onChange, disabled, minDate, maxDate }: MuiDateProps) {
   const dateVal = value ? new Date(`${value}T00:00:00`) : null;
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
@@ -50,7 +60,15 @@ export default function MuiDate({ value, onChange, disabled, minDate, maxDate })
           textField: {
             variant: "standard",
             fullWidth: true,
-            InputProps: { disableUnderline: true },
+            // `slotProps.input`, NOT `InputProps` — x-date-pickers v9 drops
+            // `InputProps` SILENTLY (one development warning, nothing else).
+            // Found when the file became TypeScript (05/10/2026): the type
+            // refused the old prop. It had no visible cost, measured in the
+            // sandbox the same day — the field renders MUI's filled input with
+            // its underline pseudo-elements set to `content: none`, focused or
+            // not — so this is the supported spelling of an intent the old one
+            // had stopped carrying, not a fix to something on screen.
+            slotProps: { input: { disableUnderline: true } },
             // Match the Field control's box (text-sm, pt-5 pb-1.5 px-3.5) so the
             // date sits exactly where every other field's value does and the
             // field is the SAME HEIGHT as its neighbours.
@@ -87,11 +105,14 @@ export default function MuiDate({ value, onChange, disabled, minDate, maxDate })
 // The cell renders as text until it is clicked (planner/cells decides that), so
 // this mounts already open — `open` and `autoFocus` are the caller's, and the
 // two shapes differ only in whether the plan runs on working hours or days.
-export function GridDate({ withTime, ...props }) {
-  const Picker = withTime ? DateTimePicker : DatePicker;
+type GridDateProps = ComponentProps<typeof DateTimePicker> & { withTime?: boolean };
+
+export function GridDate({ withTime, ...props }: GridDateProps) {
+  // Two elements rather than one chosen component: the two pickers' props are
+  // different types, and a variable holding either cannot be handed one set.
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
-      <Picker {...props} />
+      {withTime ? <DateTimePicker {...props} /> : <DatePicker {...(props as ComponentProps<typeof DatePicker>)} />}
     </LocalizationProvider>
   );
 }

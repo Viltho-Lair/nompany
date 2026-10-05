@@ -5,7 +5,7 @@ account pages and the `/super` console.
 
 ## What it is
 
-One component, `src/components/fields/SelectMenu.jsx` — a trigger button and a panel of
+One component, `src/components/fields/SelectMenu.tsx` — a trigger button and a panel of
 options that the product draws itself. `Field` renders it for `as="select"`, so the ~60
 fields that go through the one field get it without a call site changing; the ~30 controls
 that were raw `<select>` elements call it directly and pass the same class their select

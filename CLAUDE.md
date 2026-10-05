@@ -251,6 +251,10 @@ ledger in `docs/progress.md`); they are the whole of what `checkJs: false` and t
 refuses one not on `scripts/browser-types-baseline.json`, and `npm run types:browser` holds every
 remaining JavaScript file to its type-error ceiling (checkJs on, `tsconfig.browser.json`). After
 converting a file, `node scripts/browser-types.mjs --record` takes it off the list.
+**A RENAMED FILE CAN LEAVE `next dev` SERVING THE SITE'S 404 PAGE FOR EVERY API ROUTE** (05/10/2026):
+after `.jsx` → `.tsx` renames, a freshly started sandbox answered most `/api/**` with HTML 404
+while the route manifest listed them and the modules imported cleanly in Node. Stop the server
+and delete `.next/dev` (a local build cache) before believing a route is broken.
 
 | Folder | Holds |
 |---|---|
@@ -512,7 +516,7 @@ The requirements below have not weakened; what changed is who checks them and wh
 
   **`LocalizationProvider` LIVES WITH THE PICKER NOW,** not around the planner shell:
   the provider was why `StudioPlanner` imported the adapter, and the adapter is what
-  dragged date-fns in. `MuiDate.jsx` claimed to be "the only place MUI's date code is
+  dragged date-fns in. `MuiDate.tsx` claimed to be "the only place MUI's date code is
   imported" and had not been true since the planner landed; it is true again, and it is
   the rule — **importing `@mui/x-date-pickers` anywhere else puts the 57 KB back, and
   nothing in the build will complain.**

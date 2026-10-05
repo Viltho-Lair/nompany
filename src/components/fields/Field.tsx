@@ -1,8 +1,10 @@
 "use client";
 
 import { useId, useState } from "react";
+import type { HTMLInputTypeAttribute, ReactNode } from "react";
 
 import SelectMenu from "@/components/fields/SelectMenu";
+import type { SelectOption } from "@/components/fields/SelectMenu";
 import { useStudioCurrency } from "@/components/studio2/studioCurrency";
 
 // THE ONE FIELD for every studio form (UI/UX overhaul §2.2 / §3.2).
@@ -33,7 +35,7 @@ import { useStudioCurrency } from "@/components/studio2/studioCurrency";
 
 const BOX_BASE =
   "relative rounded-xl border bg-[var(--geex-inset)] transition-colors";
-const BOX_STATE = (focused, error, disabled) =>
+const BOX_STATE = (focused: boolean, error: ReactNode, disabled: boolean) =>
   error
     ? "border-rose-400 dark:border-rose-500/60"
     : focused
@@ -58,7 +60,7 @@ const CONTROL_RO =
 export const BARE_CONTROL =
   "w-full bg-transparent px-3.5 pt-5 pb-1.5 pe-9 text-sm text-[var(--geex-ink)] outline-none";
 
-function labelClass(floated, focused, error) {
+function labelClass(floated: boolean, focused: boolean, error: ReactNode) {
   const base =
     "pointer-events-none absolute start-3.5 z-10 origin-[left_center] transition-all duration-200 rtl:origin-[right_center]";
   const place = floated
@@ -71,6 +73,38 @@ function labelClass(floated, focused, error) {
       : "text-slate-500 dark:text-slate-400";
   return `${base} ${place} ${tone}`;
 }
+
+export type FieldProps = {
+  label?: ReactNode;
+  value?: string | number | null;
+  onChange?: (value: string) => void;
+  type?: HTMLInputTypeAttribute;
+  as?: "textarea" | "select";
+  options?: readonly SelectOption[];
+  hint?: ReactNode;
+  hintOverlay?: boolean;
+  error?: ReactNode;
+  required?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  prefix?: ReactNode;
+  suffix?: ReactNode;
+  /** `true` for the studio's own currency, or a code for the record's. */
+  currency?: boolean | string;
+  spinner?: boolean;
+  filled?: boolean;
+  children?: ReactNode;
+  min?: string | number;
+  max?: string | number;
+  autoComplete?: string;
+  className?: string;
+  /**
+   * Spread onto the control. Typed loosely ON PURPOSE: the control is an input,
+   * a textarea or the SelectMenu trigger depending on `as`, and callers pass
+   * what that one takes (a step, a pattern, a data attribute).
+   */
+  inputProps?: Record<string, unknown>;
+};
 
 export function Field({
   label,
@@ -102,7 +136,7 @@ export function Field({
   autoComplete,
   className = "",
   inputProps = {},
-}) {
+}: FieldProps) {
   const id = useId();
   const studioCurrency = useStudioCurrency();
   const code = currency === true ? studioCurrency : String(currency || "").trim().toUpperCase();
@@ -138,7 +172,7 @@ export function Field({
   // already supplies its own empty-value option with a real label ("Unassigned",
   // "Studio"), in which case doubling it would add a stray blank row above it.
   const selectOptions =
-    as === "select" && !required && !options.some((o) => (typeof o === "string" ? o : o.value) === "")
+    as === "select" && !required && !options.some((o) => (typeof o === "object" ? o.value : o) === "")
       ? [{ value: "", label: "" }, ...options]
       : options;
 

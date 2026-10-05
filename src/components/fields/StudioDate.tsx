@@ -11,6 +11,7 @@
 //     <StudioDate value={f.deadline} onChange={(iso) => set(iso)} />
 //   </Field>
 import nextDynamic from "next/dynamic";
+import type { MuiDateProps } from "./MuiDate";
 
 const MuiDate = nextDynamic(() => import("./MuiDate"), {
   ssr: false,
@@ -19,6 +20,6 @@ const MuiDate = nextDynamic(() => import("./MuiDate"), {
   loading: () => <div className="px-3.5 pt-5 pb-1.5 text-sm text-transparent">—</div>,
 });
 
-export default function StudioDate(props) {
+export default function StudioDate(props: MuiDateProps) {
   return <MuiDate {...props} />;
 }

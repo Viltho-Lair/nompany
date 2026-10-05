@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { ButtonHTMLAttributes, KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 
 // THE ONE DROPDOWN. Every list the product asks somebody to pick from opens
@@ -67,7 +68,16 @@ const MAX_MENU_H = 288;
 const GAP = 6;
 
 
-function normalise(options) {
+/** An option as a caller writes it: a bare string or number, or a row. */
+export type SelectOption =
+  | string
+  | number
+  | { value?: string | number | null; label?: string | number | null; disabled?: boolean; group?: string | null };
+
+/** An option as the menu holds it. */
+type Row = { value: string; label: string; disabled?: boolean; group?: string };
+
+function normalise(options: readonly SelectOption[]): Row[] {
   return options.map((o) =>
     typeof o === "string" || typeof o === "number"
       ? { value: String(o), label: String(o) }
@@ -78,10 +88,10 @@ function normalise(options) {
 // Rank a search the way the Combo does — a prefix beats a word-start beats a
 // match buried mid-string — so typing "re" answers Real Estate before
 // Healthcare. A plain substring test gets that backwards.
-function rankFilter(rows, query) {
+function rankFilter(rows: Row[], query: string): Row[] {
   const q = query.trim().toLowerCase();
   if (!q) return rows;
-  const rank = (r) => {
+  const rank = (r: Row) => {
     // A row's GROUP is searched too, one rank lower than its own words — typing
     // "construction" should find all seven construction specialisms, and a row
     // whose own name matches should still come first.
@@ -94,12 +104,35 @@ function rankFilter(rows, query) {
   return rows.some((r) => r.group) ? hits : hits.sort((a, b) => rank(a) - rank(b));
 }
 
-function rankText(s, q) {
+function rankText(s: string, q: string) {
   if (s.startsWith(q)) return 0;
   if (s.split(/[\s\-/(,]+/).some((w) => w.startsWith(q))) return 1;
   if (s.includes(q)) return 2;
   return 3;
 }
+
+export type SelectMenuProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "value" | "defaultValue" | "onChange" | "type"> & {
+  value?: string | number | null;
+  defaultValue?: string | number | null;
+  onChange?: (value: string) => void;
+  options?: readonly SelectOption[];
+  disabled?: boolean;
+  required?: boolean;
+  id?: string;
+  name?: string;
+  className?: string;
+  menuClassName?: string;
+  placeholder?: string;
+  chevron?: boolean;
+  invalid?: boolean;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  align?: "start" | "center";
+};
+
+/** Where the panel opens, measured off the trigger. */
+type Placement = { left: number; right: number; width: number; top: number; bottom: number; up: boolean; maxHeight: number };
 
 export default function SelectMenu({
   value: valueProp,
@@ -126,13 +159,13 @@ export default function SelectMenu({
   // data attribute, an onFocus. Field spreads a caller's `inputProps` straight
   // through, so dropping the unrecognised ones would lose them silently.
   ...rest
-}) {
+}: SelectMenuProps) {
   const rows = useMemo(() => normalise(options), [options]);
   // Uncontrolled when no `value` is given, because a <select> is — and some of
   // the console's pages render on the SERVER and hand their picker a
   // `defaultValue` and no handler at all. Made to work rather than made to
   // matter: without it those controls would look right and never move.
-  const [ownValue, setOwnValue] = useState(defaultValue ?? "");
+  const [ownValue, setOwnValue] = useState<string | number>(defaultValue ?? "");
   const controlled = valueProp !== undefined;
   const value = controlled ? valueProp : ownValue;
   const reactId = useId();
@@ -142,7 +175,7 @@ export default function SelectMenu({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(-1);
-  const [rect, setRect] = useState(null);
+  const [rect, setRect] = useState<Placement | null>(null);
   // The panel is portalled to <body>, so it leaves behind any surface that
   // scopes its tokens to a WRAPPER rather than to <html>. `.studio-chrome` is on
   // <html> and follows it out; `/super`'s `.admindek` is a div and does not, so
@@ -151,10 +184,10 @@ export default function SelectMenu({
   const [scope, setScope] = useState("");
   const [dir, setDir] = useState("");
 
-  const triggerRef = useRef(null);
-  const panelRef = useRef(null);
-  const searchRef = useRef(null);
-  const listRef = useRef(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   // The type-ahead buffer — see typeAhead below.
   const typed = useRef({ text: "", at: 0 });
 
@@ -208,7 +241,7 @@ export default function SelectMenu({
   }, []);
 
   const choose = useCallback(
-    (row) => {
+    (row: Row | undefined) => {
       if (!row || row.disabled) return;
       if (!controlled) setOwnValue(row.value);
       onChange?.(row.value);
@@ -224,9 +257,10 @@ export default function SelectMenu({
   // the list somebody is reading.
   useEffect(() => {
     if (!open) return undefined;
-    const onDown = (e) => {
-      if (panelRef.current?.contains(e.target)) return;
-      if (triggerRef.current?.contains(e.target)) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (panelRef.current?.contains(target)) return;
+      if (triggerRef.current?.contains(target)) return;
       closeMenu(false);
     };
     const onMove = () => measure();
@@ -259,13 +293,13 @@ export default function SelectMenu({
   // be a second render for something already known at the keystroke. The list
   // is scrolled home here too, because the highlight may already BE 0 and the
   // effect above would then have nothing to react to.
-  const search = (next) => {
+  const search = (next: string) => {
     setQuery(next);
     setActive(0);
     if (listRef.current) listRef.current.scrollTop = 0;
   };
 
-  const step = (delta) => {
+  const step = (delta: number) => {
     if (!shown.length) return;
     let i = active;
     for (let n = 0; n < shown.length; n += 1) {
@@ -281,8 +315,8 @@ export default function SelectMenu({
   // it moves the highlight. Same buffer, same beat — successive keystrokes
   // inside 700ms compose one query ("de", "dep") instead of each jumping to a
   // different letter.
-  const printable = (e) => e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey;
-  const typeAhead = (key, list) => {
+  const printable = (e: KeyboardEvent<HTMLElement>) => e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey;
+  const typeAhead = (key: string, list: Row[]) => {
     const now = Date.now();
     typed.current = { text: now - typed.current.at < 700 ? typed.current.text + key : key, at: now };
     const q = typed.current.text.toLowerCase();
@@ -291,7 +325,7 @@ export default function SelectMenu({
 
   // One key map for both entry points: the trigger when the list is short
   // enough to have no search box, and the search box when it has one.
-  const onKeyDown = (e) => {
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
     if (!open) {
       if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) { e.preventDefault(); openMenu(); }
       else if (printable(e)) {
