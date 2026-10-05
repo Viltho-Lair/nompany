@@ -247,6 +247,11 @@ that was never approved). Their conversion is its own piece of work now (the dec
 ledger in `docs/progress.md`); they are the whole of what `checkJs: false` and the
 `allowJs` escape hatch are still holding open.
 
+**A NEW BROWSER FILE IS `.ts`/`.tsx` — never `.js`/`.jsx`** (05/10/2026). `tests/restructure.mjs`
+refuses one not on `scripts/browser-types-baseline.json`, and `npm run types:browser` holds every
+remaining JavaScript file to its type-error ceiling (checkJs on, `tsconfig.browser.json`). After
+converting a file, `node scripts/browser-types.mjs --record` takes it off the list.
+
 | Folder | Holds |
 |---|---|
 | `src/shared/**` | Pure values with no dependants — currencies, countries, i18n, slug, departments |
@@ -359,6 +364,7 @@ what actually breaks:
 ```bash
 npx eslint .        # errors are never budgeted; lint:budget is shrink-only
 npx tsc --noEmit
+npm run types:browser   # the JavaScript screens, type-checked on a shrink-only budget
 node tests/<the-model-test-for-what-you-changed>.mjs   # pure, no Postgres
 ```
 

@@ -2274,6 +2274,27 @@ export async function testEveryBuiltinLinkPointsAtARealRegister(t) {
 // harness (the node:assert shape the engagement-*.mjs files use) would only
 // ever show the FIRST mismatch inside each of those loops, hiding how many of
 // e.g. the fifteen mapped targets are actually missing.
+// NO NEW JAVASCRIPT IN THE BROWSER — the owner, 05/10/2026: "finish those off".
+// The browser files under src/components and src/app grew 212 → 306 → 421 while
+// their conversion waited on a Wave 4 that was never approved, because every new
+// screen was still written as JavaScript. scripts/browser-types-baseline.json
+// lists the ones that exist; a .js/.jsx file not on it is a new one, and fails
+// here without running the compiler. The other half holds the list honest: a
+// file converted to .ts/.tsx must leave it (`node scripts/browser-types.mjs
+// --record`), so the list is always the work still to do.
+export async function testNoNewJavaScriptInTheBrowser(t) {
+  const { execFileSync } = await import("node:child_process");
+  const { readFileSync } = await import("node:fs");
+  const baseline = JSON.parse(readFileSync("scripts/browser-types-baseline.json", "utf8")).files;
+  const tracked = execFileSync("git", ["ls-files", "src/components", "src/app"], { encoding: "utf8" })
+    .split("\n").map((p) => p.trim()).filter((p) => /\.(js|jsx)$/.test(p));
+  const fresh = tracked.filter((p) => !(p in baseline));
+  t.equal(fresh.join(", "), "", "no browser file is NEW JavaScript — write it as .ts/.tsx");
+  const have = new Set(tracked);
+  const gone = Object.keys(baseline).filter((p) => !have.has(p));
+  t.equal(gone.join(", "), "", "every file on the JavaScript list still is one — record the list after converting");
+}
+
 function makeHarness() {
   let fails = 0;
   return {
@@ -2343,6 +2364,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       testEveryConsoleDestinationResolvesToARoute,
       testEveryModelTestIsActuallyRun,
       testNoRouteHandsItsBodyToAScalarParameter,
+      testNoNewJavaScriptInTheBrowser,
     ];
     let totalFails = 0;
     for (const test of tests) {
