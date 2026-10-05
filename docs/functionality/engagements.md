@@ -220,6 +220,17 @@ nobody there can take, for a stage the same screen had stopped drawing. `stagesR
 report the deal as further back than it is and invite a step it has taken. Switching a
 department off hides what is not there; it does not unmake what is.
 
+### A deal that was called off has nothing next (05/10/2026)
+
+**"Next on this deal" is the flow's first stage the deal does not hold yet**, and it asked nothing
+else — so a deal whose ticket closed Lost was still told to "Add the Quotation", on production.
+The stage that STARTED the deal (its first held stage in the flow) decides now: when its
+completion is called off — a ticket Closed Lost, Cancelled by Client or Dropped; a contract or
+job cancelled — the deal is over. The deal page shows no next step and says the deal was called
+off (`calledOff` on the response), and Main's work in hand reads it as cancelled rather than
+open, so it leaves the open counts and the KPIs. **A later stage called off does not end a
+deal** — a rejected quotation is re-quoted on a live one.
+
 ### Its flow is chosen when it opens, not re-derived on every read (20/09/2026)
 
 `setDealTemplate` has said since it was written that a deal's flow is stored "precisely so a

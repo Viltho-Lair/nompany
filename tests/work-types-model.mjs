@@ -91,6 +91,11 @@ ok("a called-off stage counts as absent", called.state === "open" && called.prog
 const finished = W.readDeal(snapFlow, both, {}, Object.fromEntries(snapFlow.map((t) => [t, { state: "done", progress: 1 }])));
 ok("every stage done is a done deal", finished.state === "done" && finished.progress === 1);
 ok("without a snapshot it reads as before, by presence", W.readDeal(snapFlow, both).state === "done");
+const lost = W.readDeal(snapFlow, new Set(["ticket", "quotation"]), {}, { ticket: { state: "void", progress: null }, quotation: { state: "started", progress: null } });
+ok("A DEAL WHOSE TICKET CLOSED LOST IS CANCELLED — not open, and not counted as work in hand (05/10/2026)",
+  lost.state === "cancelled" && lost.progress === null && lost.step === -1, JSON.stringify(lost));
+const requote = W.readDeal(snapFlow, new Set(["ticket", "quotation"]), {}, { ticket: { state: "started", progress: null }, quotation: { state: "void", progress: null } });
+ok("...but a LATER stage called off does not end it: a rejected quotation is re-quoted", requote.state === "open");
 
 console.log(fails ? `\nwork types: ${fails} FAILED` : "\nwork types: all passed");
 process.exit(fails ? 1 : 0);

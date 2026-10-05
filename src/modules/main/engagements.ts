@@ -515,7 +515,7 @@ export async function listEngagements(
 export async function engagementBlock(
   ctx: EngagementCtx,
   engId: string,
-): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; statusType: string; templateId: string; templateName: string; locked: boolean; cards: StageCard[]; progress: FlowProgress | null; nextAction: { step: FlowStep & { sectionName: string }; actionable: boolean } | null; kpis: DealKpi[] } } | Refusal | { error: "notfound" | "forbidden" }> {
+): Promise<{ engagement: { id: string; ref: string; context: Record<string, unknown>; status: string; statusType: string; templateId: string; templateName: string; locked: boolean; cards: StageCard[]; progress: FlowProgress | null; nextAction: { step: FlowStep & { sectionName: string }; actionable: boolean } | null; calledOff: boolean; kpis: DealKpi[] } } | Refusal | { error: "notfound" | "forbidden" }> {
   const denied = requirePermission(ctx.access, "engagements.view");
   if (denied) return denied;
 
@@ -614,7 +614,16 @@ export async function engagementBlock(
   // is a deal whose industry named a template this studio has since deleted, or
   // one imported before templates existed. The cards still render from the
   // registry; there is simply no sequence to be at a point in.
-  const next = progress
+  // A DEAL THAT WAS CALLED OFF HAS NO NEXT STEP (05/10/2026). The walk above
+  // only asks which stage the deal does not hold yet, so a deal whose ticket
+  // closed Lost was still told to "Add the Quotation" — inviting work on a deal
+  // that is over. The stage that STARTED the deal (its first held stage in the
+  // flow) decides: when that is called off — a ticket Closed Lost, a contract
+  // cancelled — the deal is. A later stage called off does not end it: a
+  // rejected quotation is re-quoted on a live deal.
+  const head = running.find((t) => present.has(t));
+  const calledOff = Boolean(head && stages[head]?.state === "void");
+  const next = progress && !calledOff
     ? nextActionFor(progress, (key) => !requirePermission(ctx.access, key as PermissionKey))
     : null;
   // WHAT THE STUDIO CALLS THE SCREEN THE NEXT STEP IS TAKEN ON. Without it the
@@ -680,6 +689,7 @@ export async function engagementBlock(
       cards,
       progress,
       nextAction,
+      calledOff,
       // WHAT THE WORK IS JUDGED ON, beside where it has got to. The clock is
       // resolved here and passed down, so one read reports every KPI against
       // the same instant — two of them measured milliseconds apart could

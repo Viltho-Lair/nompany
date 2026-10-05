@@ -28,6 +28,8 @@ type Strings = CommonStrings & {
   nextStepDo: (stage: string) => string;
   /** Nothing outstanding is a real answer, not an empty one. */
   flowComplete: string;
+  /** A deal whose first stage was called off — a ticket Closed Lost — has nothing next. */
+  dealCalledOff: string;
   /**
    * A stage the deal stepped over. NEVER worded as a warning: the owner's rule
    * is that a missing link does not stop the company, and a red banner over a
@@ -138,6 +140,7 @@ const en: Strings = {
   nextStepIn: (section) => `in ${section}`,
   nextStepDo: (stage) => `Add the ${stage}`,
   flowComplete: "Everything this flow asks for is on the deal.",
+  dealCalledOff: "This deal was called off — there is nothing next to do on it.",
   skipped: (n) => (n === 1 ? "One earlier stage was skipped" : `${n} earlier stages were skipped`),
   notInThisFlow: "Outside this flow",
   kpis: "What this is measured on",
@@ -239,6 +242,7 @@ const ar: Strings = {
   nextStepIn: (section) => `في ${section}`,
   nextStepDo: (stage) => `أضف ${stage}`,
   flowComplete: "كل ما يطلبه هذا المسار موجود على الصفقة.",
+  dealCalledOff: "ألغيت هذه الصفقة — لا يوجد ما يلزم فعله عليها بعد الآن.",
   skipped: (n) => (n === 1 ? "تم تخطي مرحلة سابقة واحدة" : `تم تخطي ${n} مراحل سابقة`),
   notInThisFlow: "خارج هذا المسار",
   kpis: "ما تقاس به هذه الصفقة",

@@ -207,6 +207,15 @@ export function readDeal(
   completion: Readonly<Record<string, StageState>> | null = null,
 ): WorkReading {
   if (!running.length) return UNKNOWN;
+  // A DEAL WHOSE FIRST STAGE WAS CALLED OFF IS OVER (05/10/2026) — a ticket
+  // Closed Lost ends the deal, and reading it as open put a lost deal in the
+  // work in hand and in every KPI's open count. A LATER stage called off does
+  // not end it (a rejected quotation is re-quoted), which is why only the
+  // first held stage decides. The deal page asks the same (./engagements).
+  const head = running.find((t) => present.has(t));
+  if (head && completion?.[head]?.state === "void") {
+    return { state: "cancelled", step: -1, steps: running.length, progress: null, held: false, label: null, token: head };
+  }
   const held = (t: string) => present.has(t) && completion?.[t]?.state !== "void";
   let step = -1;
   running.forEach((t, i) => { if (held(t)) step = i; });

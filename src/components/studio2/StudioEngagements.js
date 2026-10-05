@@ -862,10 +862,12 @@ function EngagementDetail({ slug, block, loading, error }) {
           )}
         </div>
       )}
+      {/* A DEAL CALLED OFF IS OVER, and says so — not "everything is on the
+          deal", which reads as finished work. */}
       {block.progress && !block.nextAction && (
-        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{tr.flowComplete}</p>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">{block.calledOff ? tr.dealCalledOff : tr.flowComplete}</p>
       )}
-      {block.progress?.behind?.length > 0 && (
+      {!block.calledOff && block.progress?.behind?.length > 0 && (
         <p className="mb-4 text-xs text-slate-400 dark:text-slate-500">
           {tr.skipped(block.progress.behind.length)} — {block.progress.behind
             .map((b) => stageLabel(b.type, b.label, locale)).join(", ")}
