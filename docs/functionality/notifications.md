@@ -298,6 +298,12 @@ are `shared/notificationInbox`, one rule for both bells.
 
 ## Not built yet
 
+- **Instant email and push are not retried.** They are sent after the response
+  (`after()`); if the send fails or the function ends first, that one email or push is
+  lost. The bell's row is written before either, and the daily summary is unaffected.
+  A durable outbox would sit under `platform/notify/deliver` without changing anything
+  above it — not needed while email is off by default and `EMAILS_ENABLED` is off.
+
 - **A formatted quantity carries the producer's language.** "3 days" is
   assembled by the producer, so an Arabic bell reads "Sara طلب إجازة 3 days."
   Two of the fifteen templates are affected: `leave.requested`'s `{days}` and

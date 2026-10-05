@@ -241,10 +241,11 @@ when the code looks cleaner afterwards.
 ## Where the code lives
 
 The `src/lib` split is done, and every folder below is TypeScript. What is left in
-JavaScript is the **306 browser files** under `src/components` and `src/app` (measured
-17/09/2026; this said 235), which
-convert with the UI work in Wave 4 — that is the whole of what `checkJs: false` and
-the `allowJs` escape hatch are still holding open.
+JavaScript is the **421 browser files** under `src/components` and `src/app` (measured
+05/10/2026; this said 306, and 235 before that — it kept GROWING while it waited on a Wave 4
+that was never approved). Their conversion is its own piece of work now (the decision
+ledger in `docs/progress.md`); they are the whole of what `checkJs: false` and the
+`allowJs` escape hatch are still holding open.
 
 | Folder | Holds |
 |---|---|
@@ -873,8 +874,10 @@ audit log, security round 2 (session digests at rest, console MFA), notification
 **W7 speed refactors are done** (R2 took reconciliation off the read path — see the section-list note below — plus a backfill CLI,
 R6 `lastSeenAt`/`lastLoginAt` off `g:users` onto `u:<id>:activity` — the hottest CAS contention
 gone, R9 `getProfile` N+1 → one `MGET`), all on `main`. The recurring Gate-A month-end
-**date-drift** is fixed (vacation fixtures are clock-relative now). **Open Wave 2 remnants:**
-the email/fan-out outbox. **The `sweepOrphans` rewrite (M-10), soft-delete tombstones,
+**date-drift** is fixed (vacation fixtures are clock-relative now). **Wave 2 has no open remnant**: the
+email/fan-out outbox it listed was overtaken by the notifications rebuild (29/09/2026), which
+sends email and push after the response; that they are not retried is one line in
+`notifications.md`'s "Not built yet". **The `sweepOrphans` rewrite (M-10), soft-delete tombstones,
 `schemaVersion` on stored documents and the media `--reclaim` step were dropped on 07/09/2026**
 — four planned changes that existed only as intentions, each of which would have touched
 deletion, the cascade or the stored shape of every document. `deletedAt` left
@@ -886,12 +889,12 @@ shipped — the same paragraph's own "Media has left Redis" above contradicted i
 **Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, every
 department in `src/modules/<name>/` with a Zod schema each, and every route file converted
 (**226 today, all `route.ts`, none left in JavaScript** — measured 17/09/2026; this said
-199, and 170 before that). What remains is `checkJs` over the
-**306** browser `.js` files (re-measured 17/09/2026; this said 265) and the `app/` restructure, deferred into Wave 4. (Both counts
+199, and 170 before that). What remains is the
+**421** browser `.js`/`.jsx` files (re-measured 05/10/2026; this said 306, and 265 before), now converted as their own piece of work rather than waiting on Wave 4. (Both counts
 are measured — `find src/app/api -name 'route.*'` and `find src/components src/app -name
 '*.js' -o -name '*.jsx'`. They said 99 and 212 for long enough to be quoted as facts;
-`tsconfig.strict.json`'s own comment still says 212, which is the same drift one layer down.) **Wave 4 (UI/UX)** is not started — a proposal in
-`w4-dashboards-and-motion.md` awaiting approval. **Wave 5 (SQL) was overtaken by the ERP
+`tsconfig.strict.json`'s own comment still says 212, which is the same drift one layer down.) **Wave 4 (UI/UX) is superseded** (05/10/2026) — a proposal in
+`w4-dashboards-and-motion.md` never approved as a wave, most of it built section by section since. **Wave 5 (SQL) was overtaken by the ERP
 program's P1** and is no longer a separate wave: the store swap it described is on `main`,
 under `NOMPANY_DB`, with the Postgres half written and proven. What remains of it is the
 cutover, which is a network problem rather than a code one.

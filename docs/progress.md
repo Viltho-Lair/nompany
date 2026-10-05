@@ -23,7 +23,7 @@ abstraction is extracted from real screens rather than guessed at.
 | **The cutover** | Production runs Postgres through the Cloud Run gateway, live 02/09/2026, proven by a write rather than assumed. **Redis is gone entirely** — no `REDIS_URL` anywhere, nothing in `src` reads it | ✅ done |
 | **P2** | The approval engine — a chain chosen at runtime, invariant 7 enforced twice. Two document types: bills, then bids. Chains live on the STUDIO record (`platform/approval/store`), not in Finance's settings | ✅ on `main` |
 | **P4a** | Section-by-section depth, five sections hand-built | ✅ on `main` 07/09/2026 |
-| **P4b** | The record engine — the abstraction, extracted from the screens P4a built | 🟡 phase 1 on `main` |
+| **P4b** | The record engine — the abstraction, extracted from the screens P4a built | 🟡 26 built-in types, links between records and rules on `main`; **studios authoring their own types is the open part** |
 
 ### P4a, slice by slice
 
@@ -1386,7 +1386,17 @@ rate that routed an approval is stored on the record.
 
 All five, slice by slice, in the table further up this file.
 
-### P4b — the record engine 🟡 phase 1 on `main`
+### P4b — the record engine 🟡 built-in types done; studio-authored types open
+
+**Measured 05/10/2026, because this heading said "phase 1" for weeks after it stopped being
+true:** the engine carries **26 built-in types** (`platform/engine/builtins.ts`) across
+Engineering, Quality & HSE, Assets, Field Operations, Logistics, Manufacturing, HR and
+Inventory; a `reference` field links one record to another and is resolved on read; a rule
+raises a record by itself (a rejected test raises the NCR); and a new built-in reaches an
+existing studio on its next engine request, with no script. **What is open is phase 3, below:
+a studio declaring its own types and rules on a screen** — the same principle the deal flows
+followed on 05/10/2026, that a studio runs its own setup rather than nompany.
+`docs/functionality/record-engine.md` is the file. What follows is the phase 1 record.
 
 A record type declared as data; the engine supplies list, card, create and edit, workflow,
 attachments, comments, audit, live updates and permission filtering. **Roughly 50 of the
@@ -1405,12 +1415,9 @@ goldens. `docs/functionality/record-engine.md` is the file.
 declaring its own types through a screen, which is the whole reason the declaration is a
 row, and which brings type deletion and the orphaned-grant report with it.
 
-**THE ROLLOUT CONSEQUENCE:** `seedBuiltinTypes` runs inside `createStudio` and nowhere
-else, so no existing studio has the built-in type and no read path can catch it up — the
-catch-up would be gated on `engine.transmittal.view`, which no existing role holds.
-`scripts/migrate/seed-builtin-types.mjs` is the way in (dry-run by default, additive,
-idempotent, and `plant-sections.mjs` first on an old studio). **It has not been run against
-live or the sandbox.**
+**The rollout consequence phase 1 recorded here — no existing studio could get a built-in type
+without `scripts/migrate/seed-builtin-types.mjs` — no longer holds:** built-ins catch up on
+engine requests (`record-engine.md`, "Not built yet", says exactly when).
 
 Bespoke screens the spec says it must never be stretched to cover: BOQ grid, Gantt, cost
 sheet, dispatch board, shop-floor terminal, MRP and capacity planner, mobile field view,
@@ -1421,7 +1428,6 @@ hand** — the BOQ grid and the Gantt — which is the line holding where the sp
 
 | Item | State |
 |---|---|
-| **Templates B–G activation** — one real deal per template, end to end | ⬜ only Template A is exercised |
 | Readiness — performance pass, onboarding, spreadsheet import, docs | ⬜ |
 
 ## Engagement storage model — the current build
@@ -1526,77 +1532,19 @@ Every service module reads and writes through `repo()`. `readCol`, `addRow`,
 
 ---
 
-## Waves 3–4 ⬜
+## Waves 3–4 — superseded (05/10/2026)
 
-**W3** TypeScript + departmental modules — 🟡 the server side is done.
+Both were the August platform plan, before the section-by-section programme above replaced
+it. The full text is in `git log -p -- docs/progress.md`.
 
-| Step | State |
-|---|---|
-| `shared/` | ✅ TypeScript |
-| `platform/access` | ✅ typed, `PermissionKey` union |
-| `platform/db` | ✅ 8 files, reads generic over `unknown` |
-| `platform/{http,realtime,notify,relations}` | ✅ typed |
-| `platform/auth` | ✅ 13 files, 9 record types named |
-| Twelve departments | ✅ moved to `src/modules/<name>/`, typed, Zod schema each |
-| What was left of `src/lib` | ✅ typed, and on the ratchet |
-| `src/app/api/**/route.ts` | ✅ 99 files, both configs clean |
-| `noImplicitAny` over every `.ts`/`.tsx` | ✅ the ratchet reaches `src/**` |
-
-`npx tsc --noEmit` and the strict config are both clean over every file the
-server runs: 270 TypeScript files against 212 JavaScript, and every one of the
-212 is a browser file.
-
-**The API routes are converted.** The first attempt produced 994 errors, the
-second 314; both times the bulk was one thing said four different ways, and
-naming it was the whole job:
-
-- `moduleContext` is generic over its department, so `financeContext` hands a
-  route a FinanceContext rather than the bare ModuleContext.
-- `route()`'s `context` is matched against `ContextError` by name, so `A` infers
-  the context alone instead of the union the wrapper has already narrowed.
-- **A `string` error does not discriminate a union.** `if (result.error)` cannot
-  remove an arm whose `error` is a `string` — the empty string is one — so every
-  success field after the guard read as missing. `refused()` in `platform/http`
-  is the same runtime test as a type guard, and it is what 40 routes now use.
-- `ContextError`, `Refusal`, `LimitResult`, `ResendResult`, `ChallengeResult`,
-  `LoginResult`, `SuperLoginResult`, `JoinDecision`, `AcceptResult`,
-  `ExchangeSnapshot`: ten services that answered "either-or" as one object with
-  everything optional now answer it as two arms.
-
-`checkJs` is what is left, and that is the 212 browser files.
-
-**The strictness ratchet is finished for TypeScript.** `tsconfig.strict.json`'s
-`include` is now `src/**/*`: every `.ts` and `.tsx` in the tree is graded with
-`noImplicitAny` on, and the folder list is gone because there was nothing left
-to add. It arrived one folder at a time — platform, then people and hr, then
-main/projects/finance/tasks, then sales/technical/operations/inventory/quality,
-then `src/lib` — 753 findings in all. What keeps the file alive is `checkJs`,
-which is the 212 remaining `.js` files, every one a browser file: they convert
-with W4 and this config and `allowJs` go with them.
-
-`next-env.d.ts` had to join the include: overriding `include` drops the base
-config's, and that file is what augments `fetch`'s options with Next's
-`next: { revalidate }` — without it `app/api/fonts/route.ts` failed under the
-strict config and nowhere else, which reads as a bug in the route.
-
-
-**W4** UI/UX system — independent, can run alongside. Briefed in full on
-22/08/2026 and researched in **`w4-dashboards-and-motion.md`**, which is a
-proposal awaiting approval; nothing in it is built.
-
-The brief: rebuild Finance around AP/AR/GL/FA, turn every department page into a
-data-dense dashboard, port nine animation techniques from the marketing site,
-rewire `/super` / `/account` / studio routing, and — carried from earlier —
-remove every placeholder field, translate the studio and the main site into real
-Arabic with working RTL, render every date dd/mm/yyyy, redesign the login page,
-and write the operator documentation the product has never had.
-
-Analysis is a **paid** capability, tiered `basic` / `simple` / `moderate` /
-`advanced`; packages and tiers are both paid services in future. Every widget
-carries its rung, and `analyticsLevelOf()` is the one function the entitlement
-model will later replace.
-
----
+- **W3, TypeScript:** the server side is done — every module, every route and `src/lib`,
+  under `noImplicitAny`. What was left is the browser code under `src/components` and
+  `src/app`, **421 `.js`/`.jsx` files against 411 `.ts`/`.tsx`** (measured 05/10/2026).
+  Its conversion is now its own piece of work, recorded in the decision ledger.
+- **W4, the UI system:** a 22/08 proposal (`w4-dashboards-and-motion.md`) never approved as
+  a wave. Most of what it asked for was built section by section since — Arabic with working
+  right-to-left, dd/mm/yyyy dates, Finance around AP/AR/GL, department dashboards, the /super
+  rework.
 
 ---
 
