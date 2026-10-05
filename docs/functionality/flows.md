@@ -123,10 +123,15 @@ ticks when any step has a target.
 
 ## Not built yet — do not assume otherwise
 
-- **Not opened in the sandbox yet** (05/10/2026): the database proxy was stopped. The model,
-  the route, the screen and the removals are checked by `tsc`, ESLint, `tests/flow-steps-model`,
-  `work-kpis-model`, `first-run-model`, `flow-progress`, `engagement-model` and `restructure`;
-  `deal-store` and the suite's flow block were rewritten and not run.
+- **Opened in the sandbox 05/10/2026**, in English and Arabic: the Flows tab listing the
+  studio's three flows with deals per step; targets typed and saved (Quotation within 3 days;
+  Invoice within 14 days of Project, the clock menu offering only earlier steps); the add-a-flow
+  dialog; and a new deal opened on the default flow reading "Under way · Quotation within 3 days ·
+  3 days left" and "Waiting to start · Invoice within 14 days of Project". It found one fault,
+  fixed: the target boxes each took the full width and stacked. **Not seen:** a late count or a
+  suggestion — the sandbox's deals are all at their first step, so none has reached a measured step
+  and three are needed for a suggestion. `deal-store` and the suite's flow block were rewritten
+  and not run.
 - **No flow picker on the deal page**, and none when a deal is opened. `action: "move"` exists;
   the screen does not call it yet. Moving needs `administration.settings.edit` for now — whether
   a salesperson picks a deal's flow is to be decided with that screen.

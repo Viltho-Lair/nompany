@@ -33,6 +33,12 @@ const draftOf = (flow) => ({
 
 const sameDraft = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
+// THE SHARED INPUT, WITHOUT ITS FULL WIDTH. `input` carries `w-full`, and a
+// width added after it loses or wins by stylesheet order rather than by being
+// written later — so the target row stacked a box per line. Inline controls
+// here start from this instead.
+const inline = input.replace("w-full ", "").replace("py-2.5", "py-1.5");
+
 export default function DealFlowsBoard({ slug }) {
   const locale = useStudioLocale();
   const tr = dealFlowsDict(locale);
@@ -135,7 +141,7 @@ export default function DealFlowsBoard({ slug }) {
             {canManage ? (
               <input
                 aria-label={tr.name}
-                className={`${input} max-w-sm font-display text-base font-700`}
+                className={`${inline} w-full max-w-sm font-display text-base font-700`}
                 value={current.name}
                 onChange={(e) => edit({ name: e.target.value })}
               />
@@ -198,14 +204,14 @@ export default function DealFlowsBoard({ slug }) {
                         type="number" min={1} max={3650} inputMode="numeric"
                         aria-label={`${tr.target} — ${word(type, s?.label)}`}
                         placeholder="—"
-                        className={`${input} w-20 text-center`}
+                        className={`${inline} w-20 text-center`}
                         value={t.days}
                         onChange={(e) => setTarget(type, { days: e.target.value })}
                       />
                       <span className="text-xs text-slate-500 dark:text-slate-400">{tr.daysOf}</span>
                       <SelectMenu
                         aria-label={tr.daysOf}
-                        className={`${input} w-auto min-w-[9rem]`}
+                        className={`${inline} min-w-[10rem]`}
                         value={t.from}
                         disabled={t.days === ""}
                         onChange={(v) => setTarget(type, { from: v })}
@@ -241,7 +247,7 @@ export default function DealFlowsBoard({ slug }) {
           <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 dark:border-white/5">
             <SelectMenu
               aria-label={tr.addStep}
-              className={`${input} w-auto min-w-[12rem]`}
+              className={`${inline} min-w-[12rem]`}
               value=""
               placeholder={`+ ${tr.addStep}`}
               onChange={(v) => v && edit({ stages: [...current.stages, v] })}
