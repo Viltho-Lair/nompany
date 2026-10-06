@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { accountDict } from "@/shared/account";
 
@@ -19,6 +20,18 @@ export default function PasswordInput({
   labelClassName = "landing-label",
   ariaInvalid,
   children,
+}: {
+  id: string;
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  autoComplete?: string;
+  required?: boolean;
+  className?: string;
+  labelText: ReactNode;
+  labelClassName?: string;
+  ariaInvalid?: boolean;
+  /** Anything drawn under the field — the strength meter on sign-up. */
+  children?: ReactNode;
 }) {
   const tr = accountDict(useAccountLocale());
   const [shown, setShown] = useState(false);

@@ -57,8 +57,8 @@ const SERVER = /error:\s*"([a-z-]+)"/g;
 const CLIENT = /data\.error === "([a-z-]+)"/g;
 
 const cases = [
-  { fn: "login", screen: "src/components/public/LoginForm.js" },
-  { fn: "resetPassword", screen: "src/components/public/ForgotFlow.js" },
+  { fn: "login", screen: "src/components/public/LoginForm.tsx" },
+  { fn: "resetPassword", screen: "src/components/public/ForgotFlow.tsx" },
 ];
 
 console.log("== every refusal the server sends, the screen names");

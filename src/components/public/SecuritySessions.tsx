@@ -14,9 +14,15 @@ import { STACK, ROW, ROW_LABEL, ROW_VALUE } from "@/components/public/accountKit
 // this account has used and which may skip the emailed code; this says which of
 // them is signed in RIGHT NOW, and signs any of the others out — the answer to
 // "I left myself signed in somewhere".
+/** One signed-in session, as `/api/identity/sessions` lists it. */
+type Session = {
+  id: string; deviceType?: string; label?: string; current?: boolean; till?: boolean;
+  location?: string; lastActiveAt?: string;
+};
+
 export default function SecuritySessions() {
   const t = securityDict(useAccountLocale());
-  const [sessions, setSessions] = useState(null);
+  const [sessions, setSessions] = useState<Session[] | null>(null);
   const [busy, setBusy] = useState("");
 
   const load = useCallback(async () => {
@@ -32,7 +38,7 @@ export default function SecuritySessions() {
     return () => { alive = false; };
   }, []);
 
-  async function end(id) {
+  async function end(id: string) {
     setBusy(id);
     await fetch("/api/identity/sessions", {
       method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }),
@@ -63,7 +69,7 @@ export default function SecuritySessions() {
                 )}
               </span>
               <span className={ROW_VALUE}>
-                {[t.deviceType[s.deviceType] || "", s.location, s.lastActiveAt ? t.lastActive(fmtDateTime(s.lastActiveAt)) : ""]
+                {[(t.deviceType as Record<string, string>)[s.deviceType || ""] || "", s.location, s.lastActiveAt ? t.lastActive(fmtDateTime(s.lastActiveAt)) : ""]
                   .filter(Boolean).join(" · ")}
               </span>
             </div>

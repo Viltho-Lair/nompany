@@ -5,6 +5,7 @@ import { useAccountLocale } from "@/components/public/locale";
 import { notificationSettingsDict } from "@/shared/notificationSettings";
 import { NOTICE_CATEGORIES } from "@/shared/notificationKinds";
 import { EMAIL_MODES, DEFAULT_PREFS } from "@/shared/notificationPrefs";
+import type { NotificationPrefs } from "@/shared/notificationPrefs";
 import { useReload } from "@/components/studio2/useReload";
 import { cn } from "@/lib/utils";
 import { STACK, ROW, ROW_LABEL, ROW_VALUE, BTN, INPUT, BANNER_GOOD, BANNER_BAD, H2, SUB } from "@/components/public/accountKit";
@@ -22,7 +23,7 @@ import SelectMenu from "@/components/fields/SelectMenu";
 export default function NotificationSettings() {
   const locale = useAccountLocale();
   const tr = notificationSettingsDict(locale);
-  const [prefs, setPrefs] = useState(null);
+  const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   const [state, setState] = useState("");
 
   const load = useCallback(async () => {
@@ -35,12 +36,15 @@ export default function NotificationSettings() {
   }, [locale]);
   useReload(load);
 
-  const set = (patch) => { setState(""); setPrefs((p) => ({ ...p, ...patch })); };
-  const setChannel = (cat, key, value) => set({
-    channels: { ...prefs.channels, [cat]: { ...prefs.channels[cat], [key]: value } },
-  });
+  const set = (patch: Partial<NotificationPrefs>) => { setState(""); setPrefs((p) => (p ? { ...p, ...patch } : p)); };
+  type Category = keyof NotificationPrefs["channels"];
+  const setChannel = (cat: Category, key: "email" | "push", value: boolean) => {
+    if (!prefs) return;
+    set({ channels: { ...prefs.channels, [cat]: { ...prefs.channels[cat], [key]: value } } });
+  };
 
   async function save() {
+    if (!prefs) return;
     setState("saving");
     let timezone = prefs.timezone;
     try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || timezone; } catch { /* keep the stored one */ }
@@ -144,7 +148,7 @@ export default function NotificationSettings() {
             <SelectMenu
               className={cn(INPUT, "w-48")}
               value={prefs.locale}
-              onChange={(v) => set({ locale: v })}
+              onChange={(v) => set({ locale: v === "ar" ? "ar" : "en" })}
               aria-label={tr.languageTitle}
               options={[{ value: "en", label: "English" }, { value: "ar", label: "العربية" }]}
             />

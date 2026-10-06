@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { accountDict, tooManyAttemptsIn } from "@/shared/account";
 import Link from "next/link";
@@ -18,7 +19,7 @@ const input = FIELD;
 const label = LABEL;
 const primary = `${PRIMARY} w-full`;
 
-export default function ForgotFlow({ locale, initialEmail = "" }) {
+export default function ForgotFlow({ locale, initialEmail = "" }: { locale: string; initialEmail?: string }) {
   const tr = accountDict(useAccountLocale());
   const [stage, setStage] = useState(initialEmail ? "reset" : "request");
   const [email, setEmail] = useState(initialEmail);
@@ -28,7 +29,7 @@ export default function ForgotFlow({ locale, initialEmail = "" }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
-  const codeRef = useRef(null);
+  const codeRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (stage === "reset") codeRef.current?.focus(); }, [stage]);
 
@@ -36,7 +37,7 @@ export default function ForgotFlow({ locale, initialEmail = "" }) {
   const mismatch = confirm.length > 0 && password !== confirm;
   const canReset = code.trim().length >= 4 && strength.ok && password === confirm && confirm.length > 0;
 
-  async function request(e) {
+  async function request(e?: FormEvent) {
     e?.preventDefault();
     setBusy(true); setError("");
     try {
@@ -50,7 +51,7 @@ export default function ForgotFlow({ locale, initialEmail = "" }) {
     finally { setBusy(false); }
   }
 
-  async function reset(e) {
+  async function reset(e?: FormEvent) {
     e?.preventDefault();
     if (!canReset) return;
     setBusy(true); setError("");

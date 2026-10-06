@@ -1,5 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect } from "react";
+import type { ReactNode } from "react";
+import type { Locale } from "@/shared/locale";
 import { defaultLocale } from "@/shared/locale";
 import { readLocale, rememberLocale } from "@/lib/langCookie";
 
@@ -14,7 +16,7 @@ import { readLocale, rememberLocale } from "@/lib/langCookie";
 // studio's. The value is four bytes; the import graph is what matters.
 const AccountLocale = createContext(defaultLocale);
 
-export function AccountLocaleProvider({ locale, children }) {
+export function AccountLocaleProvider({ locale, children }: { locale: Locale; children?: ReactNode }) {
   // THE LANGUAGE A PERSON IS READING THE SITE IN IS THE ONE THE STUDIO OPENS IN.
   // The studio has no locale in its URL and reads only the `lang` cookie, and the
   // cookie used to be written only when somebody pressed a LangMenu — so arriving
@@ -23,7 +25,7 @@ export function AccountLocaleProvider({ locale, children }) {
   // disagreed about a language the person had plainly chosen. Every page under
   // /[locale] renders this provider, so syncing here covers them all at once.
   useEffect(() => {
-    if (locale && readLocale("") !== locale) rememberLocale(locale);
+    if (locale && readLocale(undefined) !== locale) rememberLocale(locale);
   }, [locale]);
   return <AccountLocale.Provider value={locale || defaultLocale}>{children}</AccountLocale.Provider>;
 }

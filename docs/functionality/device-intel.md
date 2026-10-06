@@ -4,7 +4,7 @@ Fingerprint identifies the browser on the **sign-in and sign-up pages only**, an
 uses what it says for three things: binding a trusted device to its browser, refusing bots,
 and counting failed passwords and new accounts per device. Nothing else reads it.
 
-Code: `platform/auth/deviceIntel.ts` (server), `components/public/deviceIntel.js` (browser),
+Code: `platform/auth/deviceIntel.ts` (server), `components/public/deviceIntel.ts` (browser),
 `shared/deviceIntel.ts` (the public key, region and cookie). The sessions and trusted devices
 it strengthens are in `sessions-and-devices.md`.
 

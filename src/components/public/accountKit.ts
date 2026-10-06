@@ -29,4 +29,4 @@ export const BANNER_GOOD = "rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emer
 // A studio address is Latin letters, digits and hyphens (SLUG_RE in keys.ts),
 // which is why this is not shared/slug's slugify: that one keeps Arabic for
 // public detail pages, and an Arabic studio address would only be refused.
-export const slugify = (s) => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+export const slugify = (s: unknown) => String(s || "").toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");

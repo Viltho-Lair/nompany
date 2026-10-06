@@ -1,4 +1,5 @@
 
+import type { ReactElement } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { accountDict } from "@/shared/account";
 import { GHOST } from "@/components/landing/site/pages/auth/ui";
@@ -21,10 +22,10 @@ const MicrosoftMark = () => (
   </svg>
 );
 
-const MARKS = { google: GoogleMark, microsoft: MicrosoftMark };
-const LABELS = { google: "Google", microsoft: "Microsoft" };
+const MARKS: Record<string, () => ReactElement> = { google: GoogleMark, microsoft: MicrosoftMark };
+const LABELS: Record<string, string> = { google: "Google", microsoft: "Microsoft" };
 
-export default function SocialButtons({ providers = [], mode = "login" }) {
+export default function SocialButtons({ providers = [], mode = "login" }: { providers?: string[]; mode?: "login" | "signup" }) {
   const tr = accountDict(useAccountLocale());
   if (!providers.length) return null;
   const verb = mode === "signup" ? tr.signUp : tr.continueWith;

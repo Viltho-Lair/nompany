@@ -16,8 +16,10 @@ import {
 // lazy boundary (CLAUDE.md, the bundle budget), and it is started once and
 // reused by every call on the page.
 
-let agent = null;
-let pending = null;
+type Agent = Awaited<ReturnType<(typeof import("@fingerprint/agent"))["start"]>>;
+
+let agent: Promise<Agent> | null = null;
+let pending: Promise<string> | null = null;
 let startedAt = 0;
 
 // Refreshed well inside the server's window, so an event is never judged stale
@@ -34,7 +36,7 @@ function startAgent() {
   return agent;
 }
 
-function writeEvent(eventId) {
+function writeEvent(eventId: string) {
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
   document.cookie = `${DEVICE_EVENT_COOKIE}=${encodeURIComponent(eventId)}; Path=/; Max-Age=${DEVICE_EVENT_MAX_AGE_SEC}; SameSite=Lax${secure}`;
 }
@@ -49,8 +51,8 @@ export function identifyDevice() {
   if (pending && Date.now() - startedAt < REFRESH_AFTER_MS) return pending;
   startedAt = Date.now();
   pending = startAgent()
-    .then((fp) => fp.get({ timeout: 8000 }))
-    .then((result) => {
+    .then((fp: Agent) => fp.get({ timeout: 8000 }))
+    .then((result: { event_id: string; visitor_id?: string }) => {
       writeEvent(result.event_id);
       // The installation check asks for this line; production keeps its console quiet.
       if (process.env.NODE_ENV !== "production") {
@@ -59,7 +61,7 @@ export function identifyDevice() {
       }
       return result.event_id;
     })
-    .catch((error) => {
+    .catch((error: { code?: string; message?: string }) => {
       // An ad blocker is the usual reason, and the sign-in carries on without it.
       console.warn("[fingerprint] device not identified:", error?.code || error?.message || error);
       pending = null;
@@ -74,5 +76,5 @@ export function identifyDevice() {
  * when it is not, a slow agent costs the person at most `ms`.
  */
 export function deviceEventReady(ms = 3000) {
-  return Promise.race([identifyDevice(), new Promise((resolve) => setTimeout(() => resolve(""), ms))]);
+  return Promise.race([identifyDevice(), new Promise<string>((resolve) => setTimeout(() => resolve(""), ms))]);
 }

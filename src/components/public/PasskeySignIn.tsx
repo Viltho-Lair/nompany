@@ -10,7 +10,7 @@ import { ERROR, GHOST } from "@/components/landing/site/pages/auth/ui";
 // browser offers this site's passkeys, the person unlocks one, and the server
 // checks the signature. The WebAuthn library is loaded only when the button is
 // pressed, so the sign-in page pays nothing for it until then.
-export default function PasskeySignIn({ onDone }) {
+export default function PasskeySignIn({ onDone }: { onDone: (out: { slug?: string; next?: string }) => void }) {
   const t = securityDict(useAccountLocale());
   const [supported, setSupported] = useState(false);
   const [busy, setBusy] = useState(false);

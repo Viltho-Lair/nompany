@@ -2,7 +2,7 @@
 
 // Small client control for the 404 page — steps back in history when possible,
 // otherwise falls back to the provided home href.
-export default function BackButton({ label, fallbackHref, className }) {
+export default function BackButton({ label, fallbackHref, className }: { label: string; fallbackHref?: string; className?: string }) {
   const onClick = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
       window.history.back();

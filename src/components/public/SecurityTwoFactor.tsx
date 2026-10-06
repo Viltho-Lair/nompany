@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { FormEvent } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { securityDict } from "@/shared/security";
 import { Icon } from "@/components/studio2/icons";
@@ -13,13 +14,16 @@ import { STACK, ROW, ROW_LABEL, ROW_VALUE, INPUT, LABEL, BTN, BTN_GHOST } from "
 // QR and stores nothing; the person scans it and sends back one code the app
 // produced, with their password; only then is it stored, and the ten recovery
 // codes are shown — once. Turning it off needs a code too.
-export default function SecurityTwoFactor({ hasPassword }) {
+/** What `/api/identity/two-factor` answers: whether it is on, and while enrolling the secret to scan. */
+type TwoFactorInfo = { enabled?: boolean; recoveryLeft?: number; qr?: string; secret?: string };
+
+export default function SecurityTwoFactor({ hasPassword }: { hasPassword?: boolean }) {
   const t = securityDict(useAccountLocale());
-  const [info, setInfo] = useState(null);       // GET's answer
+  const [info, setInfo] = useState<TwoFactorInfo | null>(null);       // GET's answer
   const [mode, setMode] = useState("");         // "" | "enrol" | "disable"
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
-  const [codes, setCodes] = useState(null);     // recovery codes, shown once
+  const [codes, setCodes] = useState<string[] | null>(null);     // recovery codes, shown once
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,12 +42,12 @@ export default function SecurityTwoFactor({ hasPassword }) {
 
   function close() { setMode(""); setCode(""); setPassword(""); setError(""); }
 
-  async function enable(e) {
+  async function enable(e: FormEvent) {
     e.preventDefault();
     setBusy(true); setError("");
     const res = await fetch("/api/identity/two-factor", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ secret: info.secret, code: code.trim(), password }),
+      body: JSON.stringify({ secret: info?.secret, code: code.trim(), password }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -52,7 +56,7 @@ export default function SecurityTwoFactor({ hasPassword }) {
     setCodes(data.recoveryCodes || []);
   }
 
-  async function disable(e) {
+  async function disable(e: FormEvent) {
     e.preventDefault();
     setBusy(true); setError("");
     const res = await fetch("/api/identity/two-factor", {
@@ -77,7 +81,7 @@ export default function SecurityTwoFactor({ hasPassword }) {
           </span>
           <div className="flex min-w-0 flex-col justify-center">
             <span className={ROW_LABEL}>{t.twoFactorTitle}</span>
-            <span className={ROW_VALUE}>{info.enabled ? t.twoFactorOn(info.recoveryLeft) : t.twoFactorOff}</span>
+            <span className={ROW_VALUE}>{info.enabled ? t.twoFactorOn(info.recoveryLeft ?? 0) : t.twoFactorOff}</span>
           </div>
           {!codes && (
             <button type="button" onClick={() => { close(); setMode(info.enabled ? "disable" : "enrol"); }}

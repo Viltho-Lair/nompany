@@ -21,23 +21,23 @@ import { STACK, ROW, ROW_LABEL, ROW_VALUE, BTN, BTN_GHOST, BANNER_GOOD, BANNER_B
 // browser has no push at all, so the screen says how to add nompany to the Home
 // Screen instead of offering a button that cannot work.
 
-const toBytes = (b64url) => {
+const toBytes = (b64url: string) => {
   const s = atob(String(b64url).replace(/-/g, "+").replace(/_/g, "/"));
   return Uint8Array.from(s, (c) => c.charCodeAt(0));
 };
-const sameKey = (a, b64url) => {
+const sameKey = (a: ArrayBuffer | null, b64url: string) => {
   if (!a) return false;
   const x = new Uint8Array(a);
   const y = toBytes(b64url);
   return x.length === y.length && x.every((v, i) => v === y[i]);
 };
 // The id the server gives a device: the first 16 hex of SHA-256(endpoint).
-async function deviceIdOf(endpoint) {
+async function deviceIdOf(endpoint: string) {
   const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(endpoint));
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
 }
 // "Chrome on Windows" — for the person's own list, nothing more.
-function labelOf(ua) {
+function labelOf(ua: string) {
   const browser = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox"
     : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Browser";
   const os = /iPhone|iPad|iPod/.test(ua) ? "iOS" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows"
@@ -45,21 +45,25 @@ function labelOf(ua) {
   return os ? `${browser} · ${os}` : browser;
 }
 
+/** A device this person receives push on, and the server's current key. */
+type PushDevice = { id: string; keyId?: string; label?: string; createdAt?: string; lastUsedAt?: string };
+type PushInfo = { publicKey: string; keyId?: string; devices: PushDevice[] };
+
 export default function PushDevices() {
   const locale = useAccountLocale();
   const tr = notificationSettingsDict(locale);
-  const [info, setInfo] = useState(null);
+  const [info, setInfo] = useState<PushInfo | null>(null);
   const [thisId, setThisId] = useState("");
   const [state, setState] = useState("");
 
   const env = typeof window === "undefined" ? {} : {
     supported: "serviceWorker" in navigator && "PushManager" in window && "Notification" in window,
     ios: /iPhone|iPad|iPod/.test(navigator.userAgent),
-    standalone: window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true,
+    standalone: window.matchMedia?.("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true,
     permission: "Notification" in window ? Notification.permission : "default",
   };
 
-  const register = useCallback(async (publicKey) => {
+  const register = useCallback(async (publicKey: string) => {
     const reg = await navigator.serviceWorker.register(`/sw.js?locale=${locale}`);
     await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
@@ -93,7 +97,7 @@ export default function PushDevices() {
         const sub = await reg?.pushManager.getSubscription();
         if (sub) {
           const id = await deviceIdOf(sub.endpoint);
-          const known = out.devices.find((d) => d.id === id && d.keyId === out.keyId);
+          const known = (out.devices as PushDevice[]).find((d) => d.id === id && d.keyId === out.keyId);
           if (known) setThisId(id);
           else {
             setThisId(await register(out.publicKey));
@@ -111,6 +115,7 @@ export default function PushDevices() {
     try {
       const answer = await Notification.requestPermission();
       if (answer !== "granted") { setState("denied"); return; }
+      if (!info) return;
       setThisId(await register(info.publicKey));
       setState("on");
       await load();
@@ -119,7 +124,7 @@ export default function PushDevices() {
     }
   }
 
-  async function remove(id) {
+  async function remove(id: string) {
     await fetch(`/api/account/push?id=${encodeURIComponent(id)}`, { method: "DELETE" });
     if (id === thisId) {
       try { await (await (await navigator.serviceWorker.getRegistration("/"))?.pushManager.getSubscription())?.unsubscribe(); } catch { /* removed server-side either way */ }

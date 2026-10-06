@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { securityDict } from "@/shared/security";
 import { pinProblem, IDLE_CHOICES } from "@/shared/pin";
@@ -14,9 +15,12 @@ import { STACK, ROW, ROW_LABEL, ROW_VALUE, INPUT, LABEL, BTN, BTN_GHOST } from "
 // (docs/functionality/sessions-and-devices.md). Setting or removing the PIN
 // asks for the account password where the account has one; the timeout needs a
 // PIN, because nothing else could unlock what it locks.
+/** What `/api/identity/security` answers about the screen lock. */
+type LockInfo = { hasPassword?: boolean; hasPin?: boolean; pinSetAt?: string; idleMinutes?: number };
+
 export default function SecurityLock() {
   const t = securityDict(useAccountLocale());
-  const [info, setInfo] = useState(null);
+  const [info, setInfo] = useState<LockInfo | null>(null);
   const [mode, setMode] = useState("");          // "" | "set" | "remove"
   const [pin, setPin] = useState("");
   const [again, setAgain] = useState("");
@@ -32,12 +36,12 @@ export default function SecurityLock() {
     return () => { alive = false; };
   }, []);
 
-  const REFUSAL = {
+  const REFUSAL: Record<string, string> = {
     "pin-format": t.pinFormat, "pin-weak": t.pinWeak, "pin-is-password": t.pinIsPassword,
     invalid: t.passwordWrong, "pin-required": t.idleNeedsPin,
   };
 
-  async function send(method, body) {
+  async function send(method: "PUT" | "DELETE" | "PATCH" | "POST", body: Record<string, unknown>) {
     setBusy(true); setError("");
     const res = await fetch("/api/identity/security", {
       method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -49,14 +53,14 @@ export default function SecurityLock() {
     return true;
   }
 
-  async function savePin(e) {
+  async function savePin(e: FormEvent) {
     e.preventDefault();
     const problem = pinProblem(pin);
     if (problem) { setError(problem === "weak" ? t.pinWeak : t.pinFormat); return; }
     if (pin !== again) { setError(t.pinMismatch); return; }
     if (await send("PUT", { pin, password })) close();
   }
-  async function dropPin(e) {
+  async function dropPin(e: FormEvent) {
     e.preventDefault();
     if (await send("DELETE", { password })) close();
   }

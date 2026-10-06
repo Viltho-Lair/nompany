@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
+
 // Shared editorial page header for public interior pages: small wide-tracked
 // eyebrow, large uppercase title, and an optional lead paragraph.
-export default function EditorialHeader({ eyebrow, title, lead }) {
+export default function EditorialHeader({ eyebrow, title, lead }: { eyebrow?: ReactNode; title: ReactNode; lead?: ReactNode }) {
   return (
     <section className="border-b border-steel-400/15 bg-white dark:border-white/10 dark:bg-[#0b1633]">
       <div className="container-page pb-12 pt-36 sm:pt-44">

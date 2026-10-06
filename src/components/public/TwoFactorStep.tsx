@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { FormEvent } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { securityDict } from "@/shared/security";
 // The public site's dark glass (27/09/2026): class strings only.
@@ -9,14 +10,14 @@ import { CHECKBOX, CODE_BOX, ERROR, HINT, PRIMARY, STEP_TITLE, TEXT_BUTTON } fro
 // THE AUTHENTICATOR STEP OF A SIGN-IN (platform/auth/twoFactor.ts): the app's
 // six digits, or a recovery code. It finishes the paused sign-in the HttpOnly
 // cookie names.
-export default function TwoFactorStep({ onDone, onRestart }) {
+export default function TwoFactorStep({ onDone, onRestart }: { onDone: (out: { slug?: string; next?: string }) => void; onRestart: () => void }) {
   const t = securityDict(useAccountLocale());
   const [code, setCode] = useState("");
   const [trust, setTrust] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function submit(e) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     if (!code.trim()) return;
     setBusy(true); setError("");

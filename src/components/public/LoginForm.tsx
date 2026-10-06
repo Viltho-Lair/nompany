@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { accountDict, tooManyAttemptsIn } from "@/shared/account";
 import Link from "next/link";
@@ -22,7 +23,7 @@ import { CHECKBOX, ERROR, FIELD, GHOST, HINT, LABEL, LINK, PRIMARY, STEP, STEP_T
 // The eye that reveals the password, sized to sit in the field's trailing
 // gutter. tabIndex -1 so a keyboard user tabbing out of the password lands on
 // the submit button, not on a visibility toggle.
-function RevealEye({ shown, onToggle }) {
+function RevealEye({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
   const tr = accountDict(useAccountLocale());
   return (
     <button
@@ -54,7 +55,7 @@ function RevealEye({ shown, onToggle }) {
 // not "you got it wrong" — because telling someone their password is wrong when
 // the real problem is that they tried too often sends them resetting a password
 // that was fine.
-function Alert({ kind, children }) {
+function Alert({ kind, children }: { kind?: string; children?: ReactNode }) {
   const warn = kind === "wait";
   return (
     <div
@@ -76,7 +77,7 @@ function Alert({ kind, children }) {
 
 // Risk-based sign-in: password first, then a one-time code ONLY when this
 // browser isn't already trusted. A recognised device goes straight through.
-export default function LoginForm({ locale, dict, providers = [] }) {
+export default function LoginForm({ locale, dict, providers = [] }: { locale: string; dict?: { auth?: Record<string, string> }; providers?: string[] }) {
   const tr = accountDict(useAccountLocale());
   const t = dict?.auth || {};
   // The device's touch points and screen size, read by whichever route opens
@@ -101,7 +102,7 @@ export default function LoginForm({ locale, dict, providers = [] }) {
       .catch(() => {});
     return () => { alive = false; };
   }, []);
-  const [error, setError] = useState(null);           // { kind, message } | null
+  const [error, setError] = useState<{ kind: string; message: string } | null>(null);
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -139,11 +140,11 @@ export default function LoginForm({ locale, dict, providers = [] }) {
     return () => { alive = false; };
   }, [sec]);
 
-  async function onSubmit(e) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null); setNotice(""); setLoading(true);
     try {
-      // The server reads Fingerprint's event off a cookie (deviceIntel.js).
+      // The server reads Fingerprint's event off a cookie (deviceIntel.ts).
       await deviceEventReady();
       const res = await fetch("/api/identity/login", {
         method: "POST",

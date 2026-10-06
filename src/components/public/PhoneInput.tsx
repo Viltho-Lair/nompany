@@ -20,17 +20,24 @@ const POP_H = 300;
 // The browser language does not change under a page, so there is nothing to subscribe to.
 const noSubscription = () => () => {};
 
-export default function PhoneInput({ value, onChange, autoFocus = false, error = "" }) {
+type Country = (typeof COUNTRIES)[number];
+
+export default function PhoneInput({ value, onChange, autoFocus = false, error = "" }: {
+  value: string;
+  onChange: (phone: string) => void;
+  autoFocus?: boolean;
+  error?: string;
+}) {
   const tr = accountDict(useAccountLocale());
   const init = useMemo(() => parsePhone(value), []); // seed once from the stored value
   const [code, setCode] = useState(init.code);
   const [number, setNumber] = useState(init.number);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [pos, setPos] = useState(null);
-  const triggerRef = useRef(null);
-  const popRef = useRef(null);
-  const searchRef = useRef(null);
+  const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   // NO COUNTRY IS ASSUMED. An unchosen field shows the visitor's own region
   // when the browser names one. The server snapshot is "" because the server
@@ -40,7 +47,7 @@ export default function PhoneInput({ value, onChange, autoFocus = false, error =
   const browserLocale = useSyncExternalStore(noSubscription, () => navigator.language, () => "");
   const country = COUNTRIES.find((c) => c.code === (code || countryFromLocale(browserLocale))) || null;
   const dial = country ? country.dial : "";
-  const emit = (prefix, num) => onChange(`${prefix} ${String(num).trim()}`.trim());
+  const emit = (prefix: string, num: string) => onChange(`${prefix} ${String(num).trim()}`.trim());
 
   const place = () => {
     const r = triggerRef.current?.getBoundingClientRect();
@@ -58,8 +65,8 @@ export default function PhoneInput({ value, onChange, autoFocus = false, error =
     const on = () => place();
     window.addEventListener("scroll", on, true);
     window.addEventListener("resize", on);
-    const onDoc = (e) => { if (!triggerRef.current?.contains(e.target) && !popRef.current?.contains(e.target)) { setOpen(false); setQuery(""); } };
-    const onKey = (e) => { if (e.key === "Escape") { setOpen(false); setQuery(""); } };
+    const onDoc = (e: MouseEvent) => { const t = e.target as Node; if (!triggerRef.current?.contains(t) && !popRef.current?.contains(t)) { setOpen(false); setQuery(""); } };
+    const onKey = (e: globalThis.KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); setQuery(""); } };
     document.addEventListener("mousedown", onDoc);
     window.addEventListener("keydown", onKey);
     return () => {
@@ -79,10 +86,10 @@ export default function PhoneInput({ value, onChange, autoFocus = false, error =
     const s = query.trim().toLowerCase();
     if (!s) return COUNTRIES;
     const bare = s.replace(/^\+/, "");
-    const scored = [];
+    const scored: { c: (typeof COUNTRIES)[number]; rank: number }[] = [];
     for (const c of COUNTRIES) {
       const name = c.name.toLowerCase();
-      let rank;
+      let rank: number;
       if (name.startsWith(s)) rank = 0;
       else if (c.code.toLowerCase() === s) rank = 1;
       else if (name.split(/[\s-]+/).some((w) => w.startsWith(s))) rank = 2;
@@ -94,7 +101,7 @@ export default function PhoneInput({ value, onChange, autoFocus = false, error =
     return scored.sort((a, b) => a.rank - b.rank || a.c.name.localeCompare(b.c.name)).map((x) => x.c);
   }, [query]);
 
-  const pick = (c) => { setCode(c.code); setOpen(false); setQuery(""); emit(c.dial, number); };
+  const pick = (c: Country) => { setCode(c.code); setOpen(false); setQuery(""); emit(c.dial, number); };
 
   return (
     <div className="relative">

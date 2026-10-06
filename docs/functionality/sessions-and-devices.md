@@ -23,7 +23,7 @@ Every sign-in records the device it came from, as one of three types:
 
 **The type is decided from the user agent AND from two facts the sign-in page measures**:
 how many touch points the screen has and its short side. The sign-in and sign-up pages
-write them into a ten-minute cookie (`nc_dh`, `components/public/deviceHints.js`), so the
+write them into a ten-minute cookie (`nc_dh`, `components/public/deviceHints.ts`), so the
 password route, the emailed-code route and a Google or Microsoft callback all read the same
 thing. The user agent alone filed every Android tablet as a Phone and every iPad as a
 Computer (Safari on an iPad has described itself as a Mac since iPadOS 13); an iPad is now a

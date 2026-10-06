@@ -1,7 +1,7 @@
 // DEVICE INTELLIGENCE — what Fingerprint says about the browser signing in.
 //
 // The sign-in and sign-up pages run Fingerprint's agent and leave the event id
-// in a cookie (`components/public/deviceIntel.js`). Here the server asks
+// in a cookie (`components/public/deviceIntel.ts`). Here the server asks
 // Fingerprint's Server API about THAT EVENT, with the secret key, and believes
 // only the answer: a visitor id the browser reported itself would be whatever
 // an attacker typed. docs/functionality/device-intel.md is the file.

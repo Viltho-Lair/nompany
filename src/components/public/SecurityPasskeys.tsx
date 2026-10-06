@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { securityDict } from "@/shared/security";
 import { Icon } from "@/components/studio2/icons";
@@ -11,9 +12,12 @@ import { STACK, ROW, ROW_LABEL, ROW_VALUE, INPUT, LABEL, BTN, BTN_GHOST } from "
 // THIS PERSON'S PASSKEYS (platform/auth/passkeys.ts): the list, adding one, and
 // removing one. Adding and removing ask for the account password where there
 // is one. The WebAuthn library is loaded only when a passkey is being made.
-export default function SecurityPasskeys({ hasPassword }) {
+/** A registered passkey, as `/api/identity/passkeys` lists it. */
+type Passkey = { id: string; name?: string; createdAt?: string; lastUsedAt?: string; device?: string; synced?: boolean };
+
+export default function SecurityPasskeys({ hasPassword }: { hasPassword?: boolean }) {
   const t = securityDict(useAccountLocale());
-  const [keys, setKeys] = useState(null);
+  const [keys, setKeys] = useState<Passkey[] | null>(null);
   const [mode, setMode] = useState("");        // "" | "add" | <id being removed>
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -30,9 +34,9 @@ export default function SecurityPasskeys({ hasPassword }) {
 
   function close() { setMode(""); setName(""); setPassword(""); setError(""); }
 
-  const fail = (code) => setError(code === "invalid" ? t.passwordWrong : t.somethingWrong);
+  const fail = (code?: string) => setError(code === "invalid" ? t.passwordWrong : t.somethingWrong);
 
-  async function add(e) {
+  async function add(e: FormEvent) {
     e.preventDefault();
     if (typeof window.PublicKeyCredential !== "function") { setError(t.passkeyUnsupported); return; }
     setBusy(true); setError("");
@@ -55,7 +59,7 @@ export default function SecurityPasskeys({ hasPassword }) {
     } finally { setBusy(false); }
   }
 
-  async function remove(e) {
+  async function remove(e: FormEvent) {
     e.preventDefault();
     setBusy(true); setError("");
     const res = await fetch("/api/identity/passkeys", {

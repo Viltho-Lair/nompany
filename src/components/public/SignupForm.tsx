@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { accountDict } from "@/shared/account";
 import Link from "next/link";
@@ -19,7 +20,7 @@ const label = LABEL;
 
 // Sign-up is OTP-first: the account is created, but no session exists until the
 // emailed code is entered — so an unproven address can never be signed in.
-export default function SignupForm({ locale, dict, providers = [] }) {
+export default function SignupForm({ locale, dict, providers = [] }: { locale: string; dict?: { auth?: Record<string, string> }; providers?: string[] }) {
   const tr = accountDict(useAccountLocale());
   const t = dict?.auth || {};
   // The device's touch points and screen size, for the session it will open.
@@ -29,13 +30,13 @@ export default function SignupForm({ locale, dict, providers = [] }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const strength = checkPassword(form.password);
   const mismatch = form.confirm.length > 0 && form.password !== form.confirm;
   const canSubmit = form.fullName && form.email && strength.ok && form.password === form.confirm && form.confirm.length > 0;
 
-  async function onSubmit(e) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
     // The server enforces the same policy; this just avoids a pointless round-trip.
     if (!strength.ok) { setError(tr.passwordDoesnMeetRequirements); return; }

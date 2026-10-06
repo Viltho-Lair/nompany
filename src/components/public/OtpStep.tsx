@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { useAccountLocale } from "@/components/public/locale";
 import { accountDict } from "@/shared/account";
 import { deviceEventReady } from "@/components/public/deviceIntel";
@@ -17,7 +18,14 @@ const box = CODE_BOX;
 // `submitLabel` has NO default any more: it used to be "Verify", which is the
 // one word on the screen that would have stayed English in an Arabic session.
 // Both callers pass their own.
-export default function OtpStep({ email, onVerified, onError, trustPrompt = true, submitLabel }) {
+export default function OtpStep({ email, onVerified, onError, trustPrompt = true, submitLabel }: {
+  email: string;
+  /** The verify route's answer — where to go next, among other things. */
+  onVerified?: (data: Record<string, unknown>) => void;
+  onError?: (code: string) => void;
+  trustPrompt?: boolean;
+  submitLabel?: string;
+}) {
   const tr = accountDict(useAccountLocale());
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   // UNTICKED. It defaulted to ON, and nobody had chosen that: every person who
@@ -32,7 +40,7 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [cooldown, setCooldown] = useState(0);
-  const refs = useRef([]);
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
   const code = digits.join("");
 
   useEffect(() => { refs.current[0]?.focus(); }, []);
@@ -48,7 +56,7 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
 
-  function setAt(i, value) {
+  function setAt(i: number, value: string) {
     const v = value.replace(/\D/g, "");
     setDigits((prev) => {
       const next = [...prev];
@@ -62,13 +70,13 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
       return next;
     });
   }
-  function onKeyDown(e, i) {
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>, i: number) {
     if (e.key === "Backspace" && !digits[i] && i > 0) refs.current[i - 1]?.focus();
     if (e.key === "ArrowLeft") refs.current[i - 1]?.focus();
     if (e.key === "ArrowRight") refs.current[i + 1]?.focus();
   }
 
-  const MESSAGES = {
+  const MESSAGES: Record<string, string> = {
     invalid: tr.codeIsnRightCheck,
     expired: tr.codeExpiredSendNew,
     locked: tr.tooManyAttemptsSendNew,
@@ -76,7 +84,7 @@ export default function OtpStep({ email, onVerified, onError, trustPrompt = true
     notfound: tr.accountNoLongerExists,
   };
 
-  async function submit(value) {
+  async function submit(value: string) {
     setBusy(true); setError(""); setNotice("");
     try {
       // Refreshed if the code took long to arrive: this is the request that
