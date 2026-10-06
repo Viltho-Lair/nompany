@@ -59,7 +59,7 @@ it. The KPI rows stay the free floor.
 
 **A dashboard loads when it is shown.** Each department screen imports its dashboard through a
 client-side `next/dynamic` boundary, so a tenant page that is not on a dashboard does not carry
-the dashboards or the chart kit in its first load (see `HeavyScreens.jsx` for why the same call
+the dashboards or the chart kit in its first load (see `HeavyScreens.tsx` for why the same call
 in the Server Component page would defer nothing).
 
 **Arabic reads right-to-left on the axis too.** Month and weekday labels come from `Intl` in the

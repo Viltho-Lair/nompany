@@ -1,0 +1,1253 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { hrDict } from "@/shared/studio/hr";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import { panel, label, btn, btnGhost, th, stripeOn, stripeOff, Dialog, Toolbar, Empty, fmtDate, StatTile } from "@/components/studio2/ui";
+import { Field } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
+import { initialsOf } from "@/lib/initials";
+import { StatusPill } from "@/components/studio2/StatusPill";
+import { Icon } from "@/components/studio2/icons";
+import { PanelBar, usePanelParam } from "@/components/studio2/PanelBar";
+import nextDynamic from "next/dynamic";
+import { useReload } from "@/components/studio2/useReload";
+import { manpowerDict } from "@/shared/studio/manpower";
+import { countLeaveDays } from "@/modules/hr/leaveBalance";
+import { IDENTITY_DOCUMENT_TYPES, identityDocumentLabel } from "@/shared/identityDocuments";
+import type {
+  listDepartments, listHrRoles, listVacations, libraryRolesFor, leaveView, headcount as headcountOf,
+} from "@/modules/hr/hr";
+import type { Certification, EmployeeView, ExpiringDocument } from "@/modules/hr/types";
+
+type Strings = ReturnType<typeof hrDict>;
+type Department = Awaited<ReturnType<typeof listDepartments>>[number];
+type HrRole = Awaited<ReturnType<typeof listHrRoles>>[number];
+// ONE ROW OF `listEmployees`. Its inferred type is no use here: the
+// collaborator row it reads from is an open record, so every field it copies
+// (`c.alias || "Unnamed"`) comes out `{}`. `EmployeeView` is the module's own
+// statement of the shape, and the fields it leaves open are the ones that
+// function's body assembles.
+type Employee = EmployeeView & {
+  employeeCode: string; dateOfJoin: string; mobile: string; exitDate: string;
+  employmentStatus: string; certificationIds: string[];
+  documentType: string; documentExpiry: string; hasDocumentImage: boolean; documentImage: string;
+  leaveAllowances: Record<string, number | string | null | undefined>;
+};
+type LeaveRow = Awaited<ReturnType<typeof listVacations>>[number];
+type Headcount = ReturnType<typeof headcountOf>;
+type LeaveView = ReturnType<typeof leaveView>;
+type LibraryResult = Extract<Awaited<ReturnType<typeof libraryRolesFor>>, { results: unknown }>["results"][number];
+// THE /hr BODY. The route assembles it inline rather than through one service
+// function, so its parts are derived one by one from the functions it calls.
+type HrData = {
+  canManage: boolean;
+  canViewDashboard: boolean;
+  canAssignRoles: boolean;
+  canSeeDocumentImages: boolean;
+  canRequestLeave: boolean;
+  nav: Record<string, unknown> | null;
+  manage?: Record<string, boolean>;
+  me: { collaboratorId: string };
+  departments: Department[];
+  roles: HrRole[];
+  certifications: Certification[];
+  employees: Employee[];
+  vacations: LeaveRow[];
+  expiring: ExpiringDocument[];
+  headcount: Headcount;
+  leave: LeaveView;
+  vocabulary: { leaveTypes: string[]; leaveStatuses: string[]; expiryWindowDays: number };
+};
+type Payload = Record<string, unknown>;
+type Send = (kind: string, method: string, payload: Payload) => Promise<boolean>;
+// A refusal from any HR write: the code, and whatever detail that code carries.
+type Refusal = { error?: string; from?: string; to?: string; status?: string; exitDate?: string; people?: number };
+type FormField = {
+  key: string; label: string; value?: string | number; required?: boolean; area?: boolean;
+  type?: string; placeholder?: string; options?: { value: string; text: string }[];
+};
+
+// THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
+// import, so every tenant page carried every department's dashboard and the
+// whole chart kit in its first load; a client module's `import()` is a real
+// lazy boundary (see HeavyScreens.tsx for why a Server Component's is not).
+const HrDashboard = nextDynamic(() => import("@/components/studio2/HrDashboard"), {
+  loading: () => <ScreenSkeleton />,
+});
+
+// BEHIND A REAL LAZY BOUNDARY, like every other secondary tab: this is a
+// client module, so `import()` here survives to runtime.
+const PayrollPanel = nextDynamic(() => import("@/components/studio2/PayrollPanel"),
+  { loading: () => <ScreenSkeleton /> });
+const AttendancePanel = nextDynamic(() => import("@/components/studio2/AttendancePanel"),
+  { loading: () => <ScreenSkeleton /> });
+const ManpowerPanel = nextDynamic(() => import("@/components/studio2/ManpowerPanel"),
+  { loading: () => <ScreenSkeleton /> });
+const LifecyclePanel = nextDynamic(() => import("@/components/studio2/LifecyclePanel"),
+  { loading: () => <ScreenSkeleton /> });
+
+const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
+const td = "py-3 pe-3 align-middle";
+
+// Leave-request colours now live in the shared StatusPill map (kind "leave").
+// Cancelled is the dimmer `muted` slate, kept distinct from the neutral default.
+
+// Dates are dd/mm/yyyy everywhere in this product.
+const fmt = fmtDate;
+
+// HUMAN RESOURCES. The employee record IS the collaborator row, so this screen
+// edits the person who is already in the studio rather than creating a parallel
+// people list — someone's department exists only here, inside this studio.
+//
+// That is the one place this differs from the Old System, which creates an
+// employee and mints them a login. Here a person arrives by JOINING the studio
+// and an admin approving them; HR then describes who they are, rather than
+// bringing them into being. So there is no "add employee" — there is nobody to
+// add who is not already here.
+//
+// `view` is the ACTIVE SUB-SECTION key, and HR has FIVE of them since
+// 17/09/2026: the parent renders the dashboard, and Employees, Lifecycle, Time &
+// attendance, Leave and Payroll each render their own screen. What is left as
+// TABS of Employees is what answers to the same right this screen does — People,
+// Roles, Certifications and the manpower plan; a tab for a right somebody might
+// not hold is a tab that opens on an empty answer, which is what the other three
+// were.
+//
+// THERE IS NO DEPARTMENTS TAB. A department is a top-level section, so there is
+// nothing to create and nothing to delete — the list is derived from the studio
+// the moment it loads. And Positions became Roles: a job title and the access
+// that job implies were two lists for one idea, and only one of them decided
+// anything.
+//
+// `initial` is the /hr body the studio page answered in its own render — one read
+// for every HR view — so the screen paints at once; absent, it fetches as before.
+export default function StudioHr({ slug, view = "hr", initial }: { slug: string; view?: string; initial?: unknown }) {
+  const locale = useStudioLocale();
+  const tr = hrDict(locale);
+  // The page's first payload is the same /hr body, handed over untyped.
+  const [data, setData] = useState<HrData | null>((initial as HrData | null | undefined) ?? null);
+  // The active panel is remembered in ?tab= so a refresh or a deep link reopens
+  // the same one; the switch itself is an in-place flip via the bottom PanelBar.
+  const [tab, setTab] = usePanelParam("tab", "people",
+    ["people", "roles", "certifications", "manpower"]);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/hr`, { cache: "no-store" });
+    if (!res.ok) { setError(tr.accessHumanResourcesStudio); return; }
+    setData(await res.json());
+    // `tr` IS STABLE — `hrDict` returns one of two module-level objects, so
+    // naming it costs no extra reload and keeps the lint budget shrinking.
+  }, [slug, tr]);
+  useReload(load, initial);
+  // HR records change from more than one desk — stay current.
+  useLiveUpdates(slug, "hr", load);
+
+  const send: Send = useCallback(async (kind: string, method: string, payload: Payload) => {
+    setError(""); setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/hr/${kind}`, {
+      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    const out: Refusal = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setError(
+        out.error === "read-only" ? tr.viewOnlyAccessHuman
+        : out.error === "duplicate" ? tr.nameAlreadyUse
+        : out.error === "in-use" ? inUseMessage(out)
+        : out.error === "protected" ? tr.adminComesStudioCan
+        : out.error === "role-forbidden" ? roleForbiddenMessage(out, tr)
+        : out.error === "escalation" ? tr.canOnlyGiveSomebody
+        : out.error === "department" ? tr.sectionIsnPartStudio
+        : out.error === "document-expiry" ? tr.documentExpiryRequired
+        : out.error === "document-type" || out.error === "document-image" ? tr.documentRefused
+        : out.error === "forbidden-field" ? tr.documentImageForbidden
+        : out.error === "overlap" ? `That overlaps leave already booked ${fmt(out.from)} – ${fmt(out.to)}.`
+        : out.error === "already-decided" ? `That request was already ${String(out.status || "").toLowerCase()}.`
+        : out.error === "range" ? tr.endDateCanBefore
+        : out.error === "no-working-days" ? tr.noWorkingDays
+        // LEAVE FOR SOMEBODY WHO HAS GONE. The refusal carries their last day
+        // where one was recorded, because "they left" and "they left on the
+        // 15th" send the person asking to two different places.
+        : out.error === "not-employed" ? tr.notEmployed(out.exitDate || "")
+        : out.error === "forbidden" ? tr.can
+        : tr.didnSave
+      );
+      return false;
+    }
+    await load();
+    return true;
+  }, [slug, load, tr]);
+
+  if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingHumanResources} />;
+
+  const { canManage: canManageParent, departments, roles, certifications, employees, vacations, expiring, headcount, vocabulary, me, nav } = data;
+  // MANAGE IS ASKED OF THE SCREEN BEING SHOWN. `view` is the section key, and
+  // the map is keyed the same way, so a sub-section grant answers for its own
+  // screen and the parent's answer no longer stands in for all of them.
+  const canManage = data.manage?.[view] ?? canManageParent;
+
+  const banner = error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
+
+  if (view === "hr") {
+    return (
+      <div className="space-y-6">
+        {banner}
+        {/* The HR dashboard counts everybody and every expiring document, so it
+            answers to hr.dashboard.view rather than to the Employees grant. */}
+        {data.canViewDashboard === false
+          ? <Empty title={tr.dashboardIsnYoursSee} body={tr.studioKeepsModuleDashboards} />
+          : <HrDashboard slug={slug} nav={nav} departments={departments}
+              headcount={headcount} expiring={expiring} vacations={vacations}
+              windowDays={vocabulary.expiryWindowDays} />}
+      </div>
+    );
+  }
+
+  // THE FOUR SUB-SECTIONS THAT ARE NOT EMPLOYEES, each a screen of its own since
+  // 17/09/2026. They were tabs here, which meant a payroll clerk holding
+  // `hr.payroll` and nothing else opened the EMPLOYEES screen to reach their own
+  // work — and the tab strip below offered them six more they could not use.
+  //
+  // THE ROWS DID NOT MOVE. Attendance, pay and leave are still filed under
+  // `hr-employees` and the HR root; these panels read them through the sections
+  // that own them, which is why each still fetches exactly what it did as a tab.
+  if (view === "hr-lifecycle") return <div className="space-y-6">{banner}<LifecyclePanel slug={slug} locale={locale} /></div>;
+  if (view === "hr-time") return <div className="space-y-6">{banner}<AttendancePanel slug={slug} locale={locale} /></div>;
+  if (view === "hr-payroll") return <div className="space-y-6">{banner}<PayrollPanel slug={slug} locale={locale} /></div>;
+  if (view === "hr-leave") {
+    return (
+      <div className="space-y-6">
+        {banner}
+        <Leave slug={slug} rows={vacations} employees={employees} types={vocabulary.leaveTypes} leave={data.leave}
+          canManage={canManage} canRequest={data.canRequestLeave !== false} meId={me.collaboratorId} busy={busy} send={send} />
+      </div>
+    );
+  }
+
+  const panelItems = [
+    { key: "people", label: `People (${employees.length})` },
+    { key: "roles", label: `Roles (${roles.length})` },
+    { key: "certifications", label: `Certifications (${certifications.length})` },
+    // LEAVE, ATTENDANCE AND PAYROLL ARE NOT TABS ANY MORE. Each answers to its
+    // own right and each is a sub-section of its own since 17/09/2026, so a
+    // payroll clerk holding `hr.payroll` alone opens Payroll rather than opening
+    // Employees and finding six tabs they may not use. Their rows are still
+    // filed where they always were; only the nav entry moved.
+    //
+    // A PLAN IS A DEMAND, NOT AN ASSIGNMENT, which is why it sits in HR beside
+    // the roles it counts rather than on a project screen — and why it STAYED a
+    // tab when the other three left: it answers to `hr.employees`, the same
+    // right as this screen, so a sub-section of its own would hold no right
+    // anybody could be granted separately (invariant 16).
+    { key: "manpower", label: manpowerDict(locale).tab },
+  ];
+
+  // pb-20 keeps the last rows clear of the fixed PanelBar, the way StudioOperations
+  // spaces its own bottom bar.
+  return (
+    <div className="space-y-6 pb-20">
+      {banner}
+
+      {/* The old top pill-tab strip moved to the shared bottom PanelBar; the
+          view-only badge stays up top-right where the header used to hold it. */}
+      {!canManage && (
+        <div className="flex justify-end">
+          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>
+        </div>
+      )}
+
+      {/* THE HEADCOUNT IS THE PEOPLE TAB'S, not every tab's. It sat above all
+          seven — attendance, payroll, leave — where it answered nobody's
+          question and pushed each screen's own content down. Three of those
+          seven are their own sub-sections now and never reach this screen. */}
+      {tab === "people" && (
+        <Overview headcount={headcount} departments={departments} expiring={expiring} windowDays={vocabulary.expiryWindowDays} />
+      )}
+
+      {tab === "manpower" && <ManpowerPanel slug={slug} locale={locale} />}
+
+      {tab === "people" && (
+        <People employees={employees} departments={departments} roles={roles}
+          certifications={certifications} canManage={canManage} canAssignRoles={data.canAssignRoles}
+          canSeeDocumentImages={Boolean(data.canSeeDocumentImages)}
+          slug={slug} busy={busy} leaveRules={data.leave?.rules?.leave || {}}
+          onSave={(collaboratorId, patch) => send("employees", "PUT", { collaboratorId, patch })} />
+      )}
+      {tab === "roles" && (
+        <Roles rows={roles} departments={departments} slug={slug} canManage={canManage}
+          canAssignRoles={data.canAssignRoles} busy={busy} send={send} />
+      )}
+      {tab === "certifications" && (
+        <Certifications rows={certifications} employees={employees} canManage={canManage} busy={busy} send={send} />
+      )}
+
+      <PanelBar items={panelItems} active={tab} onSelect={setTab} />
+    </div>
+  );
+}
+
+function inUseMessage(out: Refusal) {
+  const n = out.people || 0;
+  return `Still held by ${n} ${n === 1 ? "person" : "people"} — reassign them first.`;
+}
+
+// The two ways an access change is refused here, and they are different
+// problems: one is about handing access out, the other about taking it away.
+// The dictionary comes in as an argument: module scope, no hook to read.
+function roleForbiddenMessage(out: Refusal, tr: Strings) {
+  const n = out.people || 0;
+  return n > 0
+    ? tr.roleHeldBy(n)
+    : tr.roleIsAccessChange;
+}
+
+// ---- overview --------------------------------------------------------------
+function Overview({ headcount, departments, expiring, windowDays }: {
+  headcount: Headcount; departments: Department[]; expiring: ExpiringDocument[]; windowDays: number;
+}) {
+  const locale = useStudioLocale();
+  const tr = hrDict(locale);
+  // The per-department breakdown panel was removed on the owner's instruction
+  // (18/09/2026); only the staffed COUNT survives, on the Departments tile.
+  const staffed = departments.filter((d) => (headcount.byDepartment[d.id] || 0) > 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatTile label={tr.people} value={headcount.total} />
+        <StatTile label={tr.departments} value={departments.length}
+          sub={tr.staffedOf(staffed.length, departments.length)} />
+        <StatTile label={tr.unassigned} value={headcount.unassigned}
+          tone={headcount.unassigned > 0 ? "text-amber-600 dark:text-amber-400" : ""}
+          sub={headcount.unassigned > 0 ? tr.unassignedHint : tr.everyonePlaced} />
+      </div>
+
+      {expiring.length > 0 && (
+        <section className="rounded-geex border border-amber-300/60 bg-amber-50 p-5 dark:border-amber-500/30 dark:bg-amber-500/10">
+          <p className="font-display text-sm font-700 text-amber-800 dark:text-amber-200">{tr.expiringWithin(windowDays)}</p>
+          <ul className="mt-2 space-y-1 text-sm text-amber-800 dark:text-amber-200">
+            {expiring.map((e) => (
+              <li key={`${e.collaboratorId}-${e.kind}`}>
+                <span className="font-600">{e.alias}</span> — {identityDocumentLabel(e.kind, locale)} · {e.daysLeft < 0 ? tr.expiredAgo(Math.abs(e.daysLeft)) : tr.expiresIn(e.daysLeft)} ({fmt(e.date)})
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+// ---- people ----------------------------------------------------------------
+function People({ employees, departments, roles, certifications, canManage, canAssignRoles, canSeeDocumentImages, slug, busy, leaveRules, onSave }: {
+  employees: Employee[]; departments: Department[]; roles: HrRole[]; certifications: Certification[];
+  canManage: boolean; canAssignRoles: boolean; canSeeDocumentImages: boolean; slug: string; busy: boolean;
+  leaveRules: LeaveView["rules"]["leave"];
+  onSave: (collaboratorId: string, patch: Payload) => Promise<boolean>;
+}) {
+  const tr = hrDict(useStudioLocale());
+  const [editing, setEditing] = useState<Employee | null>(null);
+  const [query, setQuery] = useState("");
+  const closeEditing = useCallback(() => setEditing(null), []);
+  const certName = useMemo(() => Object.fromEntries(certifications.map((c) => [c.id, c.name])), [certifications]);
+
+  // Keep the open editor on the freshly loaded row after a save.
+  useEffect(() => {
+    setEditing((cur) => (cur ? employees.find((e) => e.id === cur.id) || null : null));
+  }, [employees]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return employees;
+    return employees.filter((e) =>
+      `${e.alias} ${e.employeeCode || ""} ${e.departmentName || ""} ${(e.roleNames || []).join(" ")} ${e.mobile || ""}`.toLowerCase().includes(q));
+  }, [employees, query]);
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <Field label={tr.searchNameCodeDepartment} type="search" className="w-full sm:max-w-xs"
+          value={query} onChange={setQuery} />
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {filtered.length} of {employees.length}.
+        </p>
+      </div>
+
+      {editing && (
+        <Dialog title={editing.alias} description={tr.employmentDetailsApplyInside} onClose={closeEditing} width="max-w-[820px]">
+          <EmployeeEditor person={editing} departments={departments} roles={roles}
+            certifications={certifications} canAssignRoles={canAssignRoles} canSeeDocumentImages={canSeeDocumentImages} slug={slug}
+            leaveRules={leaveRules} busy={busy} onCancel={closeEditing}
+            onSave={async (patch) => { if (await onSave(editing.id, patch)) setEditing(null); }} />
+        </Dialog>
+      )}
+
+      {employees.length === 0 ? (
+        <Empty title={tr.nobodyHereYet} body={tr.peopleArriveJoiningStudio} />
+      ) : filtered.length === 0 ? (
+        <Empty title={tr.nobodyMatches} body={tr.noOneHereMatches} />
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {filtered.map((e) => {
+            const certs = (e.certificationIds || []).map((id) => certName[id]).filter(Boolean);
+            // Somebody with no department has not been placed yet.
+            const unassigned = !e.departmentId;
+            return (
+              // Only the stripe COLOUR here, not the shared stripe's tint: the
+              // panel already paints a background, and two same-specificity
+              // background utilities would be settled by stylesheet order rather
+              // than by intent.
+              <section key={e.id} className={`${panel} border-s-4 ${unassigned ? "border-s-amber-400 dark:border-s-amber-500/70" : "border-s-transparent"}`}>
+                <div className="flex items-start gap-4">
+                  {/* THE FACE COMES OFF THE ACCOUNT, carried on every read
+                      rather than copied onto the studio's row — so somebody
+                      who changes their picture has changed it here too.
+                      Initials remain the answer for anyone who has not set
+                      one, which is most people on the day they arrive. */}
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-500/10 font-display text-lg font-800 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
+                    {e.photo
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      ? <img src={e.photo} alt="" className="h-full w-full object-cover" />
+                      : initialsOf(e.alias)}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{e.alias}</h3>
+                      {e.role === "owner" && <span className="rounded-full bg-brand-700 px-2 py-0.5 text-[11px] font-600 text-white">owner</span>}
+                      {/* No "admin" badge here any more. It read a flag that
+                          duplicated what somebody's roles say, and HR is not
+                          where access is described anyway — People is. */}
+                    </div>
+                    <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
+                      {[e.employeeCode, (e.roleNames || []).join(", "), e.departmentName].filter(Boolean).join("  ·  ")
+                        || <span className="text-amber-700 dark:text-amber-300">{tr.notPlacedYet}</span>}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      Mobile: {e.mobile || "—"} · Joined: {fmt(e.dateOfJoin)}
+                    </p>
+                    {certs.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {certs.map((name) => (
+                          <span key={name} className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-600 text-brand-700 dark:text-brand-300">{name}</span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-2"><Documents person={e} /></div>
+                  </div>
+
+                  {canManage && (
+                    <button className={btnGhost} onClick={() => setEditing(e)}>{tr.edit}</button>
+                  )}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+// Which document somebody holds and when it lapses are shown to everybody who
+// may read the record; the picture only to whoever the server handed it to.
+function Documents({ person }: { person: Employee }) {
+  const locale = useStudioLocale();
+  const tr = hrDict(locale);
+  if (!person.documentType) return <span className="text-xs text-slate-400">{tr.noDocumentsFile}</span>;
+  return (
+    <span className="text-xs text-slate-600 dark:text-slate-300">
+      <span className="font-600">{identityDocumentLabel(person.documentType, locale)}</span>
+      {person.documentExpiry && <span className="text-slate-400"> · {tr.expires} {fmt(person.documentExpiry)}</span>}
+      {person.documentImage
+        ? <> · <a href={person.documentImage} target="_blank" rel="noreferrer" className="font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.viewImage}</a></>
+        : person.hasDocumentImage ? <span className="text-slate-400"> · {tr.imageOnFile}</span> : null}
+    </span>
+  );
+}
+
+function EmployeeEditor({ person, departments, roles, certifications, canAssignRoles, canSeeDocumentImages, slug, leaveRules = {}, busy, onCancel, onSave }: {
+  person: Employee; departments: Department[]; roles: HrRole[]; certifications: Certification[];
+  canAssignRoles: boolean; canSeeDocumentImages: boolean; slug: string;
+  leaveRules?: LeaveView["rules"]["leave"]; busy: boolean; onCancel: () => void; onSave: (patch: Payload) => void;
+}) {
+  const locale = useStudioLocale();
+  const tr = hrDict(locale);
+  const ruledTypes = Object.keys(leaveRules);
+  const [form, setForm] = useState({
+    // THIS PERSON'S OWN ALLOWANCES, as text so a blank stays blank ("use the
+    // studio's rule") rather than becoming a nought.
+    leaveAllowances: Object.fromEntries(ruledTypes.map((t) => [t, person.leaveAllowances?.[t] != null ? String(person.leaveAllowances[t]) : ""])),
+    departmentId: person.departmentId || "",
+    roleIds: person.roleIds || [],
+    employeeCode: person.employeeCode || "",
+    dateOfJoin: person.dateOfJoin || "",
+    mobile: person.mobile || "",
+    documentType: person.documentType || "",
+    documentExpiry: person.documentExpiry || "",
+    documentImage: person.documentImage || "",
+    certificationIds: person.certificationIds || [],
+  });
+  // THE PICTURE IS SENT ONLY WHEN IT WAS CHANGED HERE. Somebody who may edit the
+  // record but not see the picture is handed none, and sending that blank back
+  // would delete a picture they were never shown.
+  const [imageChanged, setImageChanged] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const needsExpiry = Boolean(form.documentType) && !form.documentExpiry;
+  async function uploadImage(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setUploadError(tr.documentImageType); return; }
+    setUploading(true); setUploadError("");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      // PRIVATE and filed under this studio: an identity document is served
+      // only to the studio's members, and only after the media route checks.
+      const res = await fetch(`/api/media?kind=private&slug=${encodeURIComponent(slug)}`, { method: "POST", body });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok || !out.url) throw new Error("upload");
+      setForm((f) => ({ ...f, documentImage: out.url }));
+      setImageChanged(true);
+    } catch { setUploadError(tr.documentImageFailed); }
+    finally { setUploading(false); }
+  }
+  // Somebody may hold more than one, and any one of them is enough to act — so
+  // this is a list, exactly as it is on the access screen.
+  const toggleRole = (id: string) => setForm((f) => ({
+    ...f,
+    roleIds: f.roleIds.includes(id) ? f.roleIds.filter((x) => x !== id) : [...f.roleIds, id],
+  }));
+
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* THE STUDIO'S OWN DEPARTMENTS, not the product's sections. This list
+            used to be the nav — fifteen entries plus a control, four of them screens
+            that render nothing — and is the register under Master data now.
+            Placing somebody is HR's; maintaining the list is not. */}
+        <Field label={tr.department} as="select" value={form.departmentId}
+          onChange={(v) => setForm((f) => ({ ...f, departmentId: v }))}
+          options={departments.map((d) => ({ value: d.id, label: d.name }))}
+          hint={tr.studioSectionsWhereThey} />
+        <Field label={tr.employeeCode} value={form.employeeCode} hint={tr.eGEmp014}
+          onChange={(v) => setForm((f) => ({ ...f, employeeCode: v }))} />
+        <Field label={tr.dateJoining} filled={!!form.dateOfJoin}>
+          <StudioDate value={form.dateOfJoin} onChange={(iso) => setForm((f) => ({ ...f, dateOfJoin: iso }))} />
+        </Field>
+        <Field label={tr.mobile} value={form.mobile} onChange={(v) => setForm((f) => ({ ...f, mobile: v }))} />
+      </div>
+
+      {/* ROLE, which is what "position" used to be — except this one decides
+          what they may actually do, because it is the same role Access grants
+          against. Putting somebody in one is therefore an ACCESS act: it is
+          offered only to somebody who may hand access out, and the server
+          refuses it either way rather than trusting the screen. */}
+      <div className="mt-6 rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.role}</p>
+          {/* This used to read the People screen's nav key off the nav map —
+              People is never a nav key at all (sectionNav only keys real
+              SECTION_DEFS entries), so the link could never render for
+              anyone. It was never supposed to check nav in the first place:
+              what each role may do is defined on Access, not People, exactly
+              as the link text already said before the href pointed somewhere
+              else — and whether this person may open Access is
+              canAssignRoles, already threaded into this component for the
+              same "may hand access out" gate the comment above describes. */}
+          {canAssignRoles && (
+            <a href={`/${slug}/access`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">
+              {tr.whatEachRoleMayDo}
+            </a>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          {canAssignRoles
+            ? tr.whatPersonWhatLets
+            : tr.rolesShownHereBut}
+        </p>
+        {roles.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-400">{tr.noRolesDefinedYet}</p>
+        ) : (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {roles.map((r) => {
+              const on = form.roleIds.includes(r.id);
+              return (
+                <button key={r.id} type="button" disabled={!canAssignRoles}
+                  title={r.description || r.name}
+                  onClick={() => toggleRole(r.id)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-600 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${on
+                    ? "bg-brand-600 text-white"
+                    : "border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"}`}>
+                  {r.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
+        <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.identityDocuments}</p>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.documentLead}</p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label={tr.documentType} as="select" value={form.documentType}
+            onChange={(v) => setForm((f) => ({ ...f, documentType: v, ...(v ? {} : { documentExpiry: "", documentImage: "" }) }))}
+            options={[{ value: "", label: tr.noDocument }, ...IDENTITY_DOCUMENT_TYPES.map((t) => ({ value: t, label: identityDocumentLabel(t, locale) }))]} />
+          {form.documentType && (
+            <Field label={`${tr.documentExpiry} *`} filled={!!form.documentExpiry}
+              hint={needsExpiry ? tr.documentExpiryRequired : undefined}>
+              <StudioDate value={form.documentExpiry} onChange={(iso) => setForm((f) => ({ ...f, documentExpiry: iso }))} />
+            </Field>
+          )}
+          {form.documentType && canSeeDocumentImages && (
+            <div>
+              <p className={label}>{tr.documentImage}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {form.documentImage
+                  ? <a href={form.documentImage} target="_blank" rel="noreferrer" className="block">
+                      {/* A PRIVATE file: the media route checks the reader's
+                          membership on every read, which next/image's optimiser,
+                          fetching without the reader's cookies, cannot pass. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={form.documentImage} alt={tr.documentImage} className="h-16 w-24 rounded-md border border-slate-200 object-cover dark:border-white/10" />
+                    </a>
+                  : person.hasDocumentImage && !imageChanged
+                    ? <span className="text-xs text-slate-500 dark:text-slate-400">{tr.imageOnFile}</span>
+                    : null}
+                <label className={`${btnGhost} cursor-pointer`}>
+                  {uploading ? tr.uploadingImage : form.documentImage || (person.hasDocumentImage && !imageChanged) ? tr.replaceImage : tr.uploadImage}
+                  <input type="file" accept="image/*" className="hidden" disabled={uploading}
+                    onChange={(e) => { uploadImage(e.target.files?.[0]); e.target.value = ""; }} />
+                </label>
+                {(form.documentImage || (person.hasDocumentImage && !imageChanged)) && (
+                  <button type="button" className={btnGhost}
+                    onClick={() => { setForm((f) => ({ ...f, documentImage: "" })); setImageChanged(true); }}>
+                    {tr.removeImage}
+                  </button>
+                )}
+              </div>
+              {uploadError && <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{uploadError}</p>}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {ruledTypes.length > 0 && (
+        <div className="mt-6 rounded-xl border border-slate-200/70 p-4 dark:border-white/10">
+          <p className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.allowanceHeading}</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.allowanceLead}</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {ruledTypes.map((t) => (
+              <Field key={t} label={t} value={form.leaveAllowances[t] ?? ""} hint={tr.allowanceDefault(leaveRules[t].days)}
+                onChange={(v) => setForm((f) => ({ ...f, leaveAllowances: { ...f.leaveAllowances, [t]: v } }))} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {certifications.length > 0 && (
+        <div className="mt-6">
+          <label className={label}>{tr.certificationsHeld}</label>
+          <div className="flex flex-wrap gap-2">
+            {certifications.map((c) => {
+              const on = form.certificationIds.includes(c.id);
+              return (
+                <button key={c.id} type="button"
+                  onClick={() => setForm((f) => ({
+                    ...f,
+                    certificationIds: on ? f.certificationIds.filter((x) => x !== c.id) : [...f.certificationIds, c.id],
+                  }))}
+                  className={`rounded-full px-3 py-1.5 text-xs font-600 transition-colors ${on
+                    ? "bg-brand-600 text-white"
+                    : "border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"}`}>
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        {/* roleIds is left OUT of the payload entirely for somebody who may not
+            assign them. Sending it unchanged would be refused rather than
+            ignored, which would make saving a phone number fail for anybody
+            holding HR and nothing else. */}
+        <button className={btn} disabled={busy || uploading || needsExpiry}
+          onClick={() => {
+            const { roleIds, documentImage, ...rest } = form;
+            onSave({ ...rest, ...(canAssignRoles ? { roleIds } : {}), ...(imageChanged ? { documentImage } : {}) });
+          }}>
+          {busy ? tr.saving : tr.save}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </>
+  );
+}
+
+// ---- roles ------------------------------------------------------------------
+// WHAT REPLACED POSITIONS, and it is the same row Access grants against.
+//
+// A position was a job title with a description; a role is a job title with a
+// description AND the permissions that title implies. Keeping both meant every
+// studio wrote its jobs down twice and only one copy decided anything — so
+// somebody could be a "Sales Engineer" by position and hold no access at all,
+// with nothing on either screen to say the two were unrelated.
+//
+// The split is by QUESTION rather than by list. HR names the job, because that
+// is an HR fact. Access says what the job may do, because handing out
+// permissions is its own right and must not be reachable through an HR grant.
+// Each row here says which half has been done.
+function Roles({ rows, departments, slug, canManage, canAssignRoles, busy, send }: {
+  rows: HrRole[]; departments: Department[]; slug: string; canManage: boolean; canAssignRoles: boolean;
+  busy: boolean; send: Send;
+}) {
+  const tr = hrDict(useStudioLocale());
+  const [form, setForm] = useState<{ row: HrRole | null } | null>(null);
+  const [confirming, setConfirming] = useState("");
+  const [picker, setPicker] = useState<{ id: string; name: string } | null>(null);
+  const closeForm = useCallback(() => setForm(null), []);
+  // DEPARTMENTS FOLD — the owner, 24/09/2026. Seeded departments bring up to
+  // ten pre-built roles each, so a studio with a dozen departments was a page of
+  // a hundred rows to scroll past. Each department opens on a click and starts
+  // closed; Studio-wide (Admin, one row) and "not in a department" (something
+  // somebody must fix) start open, because hiding either hides the one row that
+  // matters. Adding pre-built roles opens the department it added to.
+  const [open, setOpen] = useState(() => new Set(["studio", "orphaned"]));
+  const toggle = (key: string) => setOpen((s) => {
+    const next = new Set(s);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  // GROUPED BY DEPARTMENT, because that is what a role now belongs to. A flat
+  // list of a hundred job titles is the thing this change exists to end.
+  //
+  // THREE GROUPS, AND THE THIRD IS THE INTERESTING ONE. Studio-wide holds Admin.
+  // Each department holds its own. And "not in a department" holds anything left
+  // over — a role whose department was deleted keeps its id, and a row that
+  // appears in no group at all is a row nobody can see or fix.
+  const byDepartment = new Map<string, HrRole[]>((departments || []).map((d) => [d.id, []]));
+  const studioWide: HrRole[] = [];
+  const orphaned: HrRole[] = [];
+  for (const role of rows) {
+    const id = String(role.departmentId || "");
+    if (!id) studioWide.push(role);
+    else if (byDepartment.has(id)) byDepartment.get(id)!.push(role);
+    else orphaned.push(role);
+  }
+
+  const groups = [
+    { key: "studio", label: tr.rolesStudioWide, hint: tr.rolesStudioWideHint, rows: studioWide, departmentId: "" },
+    ...(departments || []).map((d) => ({
+      key: d.id, label: d.name, hint: "", rows: byDepartment.get(d.id) || [], departmentId: d.id,
+    })),
+    ...(orphaned.length
+      ? [{ key: "orphaned", label: tr.rolesNotPlaced, hint: "", rows: orphaned, departmentId: "" }]
+      : []),
+  ];
+
+  return (
+    <>
+      <Toolbar canManage={canManage} label={tr.addRole} onAdd={() => setForm({ row: null })} />
+
+      {picker && (
+        <LibraryPicker
+          slug={slug}
+          department={picker}
+          busy={busy}
+          tr={tr}
+          onClose={() => setPicker(null)}
+          onAdd={async (names: string[]) => {
+            const ok = await send("roles", "POST", {
+              action: "add-library", departmentId: picker.id, names,
+            });
+            if (ok) { setOpen((s) => new Set(s).add(picker.id)); setPicker(null); }
+          }}
+        />
+      )}
+
+      {form && (
+        <Dialog title={form.row ? `Rename ${form.row.name}` : tr.newRole}
+          description={tr.namingJobHrWhat}
+          onClose={closeForm} width="max-w-[560px]">
+          <SimpleForm busy={busy} onCancel={closeForm}
+            fields={[
+              { key: "name", label: tr.name, required: true, value: form.row?.name || "", placeholder: "Job title" },
+              { key: "description", label: tr.description, area: true, value: form.row?.description || "" },
+            ]}
+            onSave={async (values: Payload) => {
+              if (await send("roles", form.row ? "PUT" : "POST", form.row ? { ...values, id: form.row.id } : values)) setForm(null);
+            }} />
+        </Dialog>
+      )}
+
+      {groups.map((group) => { const isOpen = open.has(group.key); return (
+      <section key={group.key} className={`${panel} mt-4`}>
+        <div className={`flex flex-wrap items-center justify-between gap-3 ${isOpen ? "mb-3" : ""}`}>
+          <div className="min-w-0">
+            <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">
+              <button type="button" onClick={() => toggle(group.key)} aria-expanded={isOpen}
+                className="inline-flex items-center gap-2 text-start">
+                <Icon name={isOpen ? "chevronDown" : "chevronRight"} className="h-4 w-4 shrink-0 text-slate-400 rtl:-scale-x-100" />
+                <span>{group.label} <span className="text-sm font-500 text-slate-400">· {group.rows.length}</span></span>
+              </button>
+            </h3>
+            {group.hint && <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{group.hint}</p>}
+          </div>
+          {/* THE LIBRARY IS OFFERED PER DEPARTMENT, never studio-wide: a
+              pre-built role is defined by the department it belongs to, and
+              "add Site Engineer to nowhere" is not a thing the catalogue can
+              answer. */}
+          {canManage && group.departmentId && (
+            <button className={btnGhost} onClick={() => setPicker({ id: group.departmentId, name: group.label })}>
+              {tr.addFromLibrary}
+            </button>
+          )}
+        </div>
+        {!isOpen ? null : group.rows.length === 0 ? (
+          <p className="py-2 text-sm text-slate-500 dark:text-slate-400">{tr.noRolesInDepartment}</p>
+        ) : (
+        <ul className="divide-y divide-slate-100 dark:divide-white/5">
+          {group.rows.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-600 text-slate-900 dark:text-white">{r.name}</span>
+                  {/* Admin is the studio's own, not something anybody created —
+                      which is why it cannot be renamed or deleted here. */}
+                  {r.wildcard && (
+                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-700 text-amber-700 dark:text-amber-300">
+                      {tr.builtInEverything}
+                    </span>
+                  )}
+                  {/* Where the row came from. A pre-built role arrived with the
+                      access its archetype carries; a role typed here started
+                      empty, which is why only the second gets the amber
+                      "no access granted yet" note below. */}
+                  {r.source === "library" && (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">
+                      {tr.prebuiltRole}
+                    </span>
+                  )}
+                  <span className="text-xs text-slate-400">
+                    {r.held} held
+                  </span>
+                  {/* The half HR does not do. A job nobody has given any access
+                      to is not broken, but it is unfinished, and saying so here
+                      is the only place anybody would notice. */}
+                  {!r.wildcard && r.permissionCount === 0 && (
+                    <span className="text-xs font-600 text-amber-700 dark:text-amber-300">{tr.noAccessGrantedYet}</span>
+                  )}
+                </div>
+                {r.description && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{r.description}</p>}
+              </div>
+              {canManage && !r.wildcard && (
+                <div className="flex gap-2">
+                  <button className={btnGhost} onClick={() => setForm({ row: r })}>{tr.rename}</button>
+                  {/* DELETING A HELD ROLE TAKES ACCESS OFF PEOPLE, so the count
+                      is on the button before it is pressed rather than in a
+                      message afterwards. A role nobody holds costs nothing and
+                      deletes on one press. */}
+                  {confirming === r.id ? (
+                    <>
+                      <button className={btnDanger} disabled={busy}
+                        onClick={async () => { await send("roles", "DELETE", { id: r.id }); setConfirming(""); }}>
+                        {r.held > 0
+                          ? `Delete — ${r.held} ${r.held === 1 ? tr.personLoses : tr.peopleLose} this access`
+                          : tr.deleteGood}
+                      </button>
+                      <button className={btnGhost} onClick={() => setConfirming("")}>{tr.keep}</button>
+                    </>
+                  ) : (
+                    <button className={btnDanger} disabled={busy} onClick={() => setConfirming(r.id)}>{tr.delete}</button>
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+        )}
+      </section>
+      ); })}
+
+      <section className={panel}>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          What each role is allowed to do is set on the access screen
+          {/* Same defect as the Role panel above: this used to read the
+              People screen's nav key off the nav map, which is never a nav
+              key at all, so the link could never render — and the text right
+              here already names the access screen, not People. The false
+              branch's own copy (an admin can open it) is the tell that
+              canAssignRoles was always the intended gate. */}
+          {canAssignRoles ? <> — <a href={`/${slug}/access`} className="font-600 underline">{tr.open}</a></> : ", which an admin can open"}.
+        </p>
+      </section>
+    </>
+  );
+}
+
+// ---- the role library picker -----------------------------------------------
+//
+// THE CATALOGUE NEVER CROSSES THE WIRE. It is ~3,000 job titles and a few
+// hundred kilobytes against a 1634 KB client budget; this asks the server for
+// twenty matches at a time and holds nothing else. Gate A asserts that no
+// client file imports the library itself, which is what stops somebody
+// 'simplifying' this into a static import.
+//
+// ALREADY-HELD TITLES ARE SHOWN AND DISABLED rather than filtered out. A
+// picker that silently drops what you already have reads as a search that
+// cannot find it.
+function LibraryPicker({ slug, department, busy, tr, onClose, onAdd }: {
+  slug: string; department: { id: string; name: string }; busy: boolean; tr: Strings;
+  onClose: () => void; onAdd: (names: string[]) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [chosen, setChosen] = useState<string[]>([]);
+
+  // ONE STATE FOR THE ANSWER, TAGGED WITH THE QUESTION IT ANSWERS, so "still
+  // loading" is DERIVED rather than stored: it is the answer on hand not being
+  // the one for the query on screen. A separate `loading` flag set at the top
+  // of the effect renders twice before the fetch has even started, which is
+  // what react-hooks/set-state-in-effect flags — and the lint budget here only
+  // ever shrinks, so a new warning is a build failure rather than a note.
+  //
+  // Tagging also fixes a race the flag could not see: a slow response for an
+  // earlier query sets `view.key` to that earlier query, which does NOT match
+  // what is typed, so it reads as still-loading instead of being shown as the
+  // answer to a question nobody asked.
+  const [view, setView] = useState<{ key: string; results: LibraryResult[]; reason: string }>({ key: "", results: [], reason: "" });
+
+  const key = `${department.id}|${q}`;
+  const loading = view.key !== key;
+  const { results, reason } = view;
+
+  useEffect(() => {
+    let live = true;
+    const url = `/api/studios/${slug}/hr/roles/library`
+      + `?department=${encodeURIComponent(department.id)}&q=${encodeURIComponent(q)}`;
+    fetch(url, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((out) => { if (live) setView({ key, results: out.results || [], reason: out.reason || "" }); })
+      // A FAILED FETCH STILL ANSWERS THE QUERY. Leaving the tag unset would
+      // leave `loading` true for ever, and the picker sitting on an ellipsis.
+      .catch(() => { if (live) setView({ key, results: [], reason: "" }); });
+    return () => { live = false; };
+  }, [slug, department.id, q, key]);
+
+  const toggle = (name: string) => setChosen((c) =>
+    c.includes(name) ? c.filter((n) => n !== name) : [...c, name]);
+
+  return (
+    <Dialog title={`${tr.addFromLibrary} — ${department.name}`}
+      description={tr.namingJobHrWhat} onClose={onClose} width="max-w-[560px]">
+      <Field label={tr.librarySearchPlaceholder} value={q} onChange={setQ} />
+
+      <div className="mt-3 max-h-[320px] overflow-y-auto rounded-xl border border-slate-200 dark:border-white/10">
+        {loading && results.length === 0 ? (
+          <p className="px-3 py-4 text-sm text-slate-500 dark:text-slate-400">…</p>
+        ) : results.length === 0 ? (
+          // WHICH NARROWING IS MISSING, rather than "no matches". An empty
+          // picker with no explanation reads as a broken search; the two
+          // reasons each name the screen that fixes them.
+          <p className="px-3 py-4 text-sm text-slate-500 dark:text-slate-400">
+            {reason === "no-industry" ? tr.libraryNeedsIndustry
+              : reason === "no-code" ? tr.libraryNeedsCode
+              : tr.noMatchingTitles}
+          </p>
+        ) : results.map((r) => (
+          <label key={r.name}
+            className={`flex items-center gap-2.5 px-3 py-2 text-sm ${r.held
+              ? "cursor-default text-slate-400"
+              : "cursor-pointer text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/5"}`}>
+            <input type="checkbox" className="h-4 w-4 shrink-0 accent-brand-600"
+              disabled={r.held} checked={r.held || chosen.includes(r.name)}
+              onChange={() => toggle(r.name)} />
+            <span className="min-w-0 flex-1 truncate">{r.name}</span>
+            {r.held && <span className="shrink-0 text-xs">{tr.alreadyAdded}</span>}
+          </label>
+        ))}
+      </div>
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button className={btnGhost} onClick={onClose}>{tr.cancel}</button>
+        <button className={btn} disabled={busy || chosen.length === 0}
+          onClick={() => onAdd(chosen)}>
+          {tr.addSelected(chosen.length)}
+        </button>
+      </div>
+    </Dialog>
+  );
+}
+
+// ---- certifications --------------------------------------------------------
+function Certifications({ rows, employees, canManage, busy, send }: {
+  rows: Certification[]; employees: Employee[]; canManage: boolean; busy: boolean; send: Send;
+}) {
+  const tr = hrDict(useStudioLocale());
+  const [form, setForm] = useState<{ row: Certification | null } | null>(null);
+  const closeForm = useCallback(() => setForm(null), []);
+  const held = (id: string) => employees.filter((e) => (e.certificationIds || []).includes(id)).length;
+
+  return (
+    <>
+      <Toolbar canManage={canManage} label={tr.addCertification} onAdd={() => setForm({ row: null })} />
+
+      {form && (
+        <Dialog title={form.row ? `Edit ${form.row.name}` : tr.newCertification} onClose={closeForm} width="max-w-[560px]">
+          <SimpleForm busy={busy} onCancel={closeForm}
+            fields={[
+              { key: "name", label: tr.name, required: true, value: form.row?.name || "" },
+              { key: "issuer", label: tr.issuer, value: form.row?.issuer || "" },
+              { key: "validityMonths", label: tr.validMonths, type: "number", value: form.row?.validityMonths || "" },
+              { key: "notes", label: tr.notes, area: true, value: form.row?.notes || "" },
+            ]}
+            onSave={async (values: Payload) => {
+              if (await send("certifications", form.row ? "PUT" : "POST", form.row ? { ...values, id: form.row.id } : values)) setForm(null);
+            }} />
+        </Dialog>
+      )}
+
+      {rows.length === 0 ? <Empty title={tr.noCertificationsYet} body={tr.defineQualificationsPeopleHold} /> : (
+        <section className={panel}>
+          <ul className="divide-y divide-slate-100 dark:divide-white/5">
+            {rows.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-600 text-slate-900 dark:text-white">{c.name}</span>
+                    {c.issuer && <span className="text-xs text-slate-500 dark:text-slate-400">{c.issuer}</span>}
+                    {c.validityMonths > 0 && <span className="text-xs text-slate-400">valid {c.validityMonths} months</span>}
+                    <span className="text-xs text-slate-400">· {held(c.id)} held</span>
+                  </div>
+                  {c.notes && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{c.notes}</p>}
+                </div>
+                {canManage && (
+                  <div className="flex gap-2">
+                    <button className={btnGhost} onClick={() => setForm({ row: c })}>{tr.edit}</button>
+                    <button className={btnDanger} disabled={busy} onClick={() => send("certifications", "DELETE", { id: c.id })}>{tr.delete}</button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
+  );
+}
+
+// ---- leave -----------------------------------------------------------------
+function Leave({ slug, rows, employees, types, leave, canManage, canRequest, meId, busy, send }: {
+  slug: string; rows: LeaveRow[]; employees: Employee[]; types: string[]; leave: LeaveView;
+  canManage: boolean; canRequest: boolean; meId: string; busy: boolean; send: Send;
+}) {
+  const tr = hrDict(useStudioLocale());
+  const [asking, setAsking] = useState(false);
+  const closeAsk = useCallback(() => setAsking(false), []);
+
+  return (
+    <>
+      {/* ONLY TO WHOEVER MAY ASK (`hr.vacations.create`), the right the server
+          checks — offered to everybody, it was refused on save. */}
+      {canRequest && (
+        <div className="flex justify-end">
+          <button className={btn} onClick={() => setAsking(true)}>{tr.requestLeave}</button>
+        </div>
+      )}
+
+      {asking && (
+        <Dialog title={tr.requestLeave} description={canManage ? tr.bookYourselfSomebodyManage : tr.goesWhoeverManagesHr}
+          onClose={closeAsk} width="max-w-[620px]">
+          <LeaveForm types={types} employees={employees} leave={leave} canManage={canManage} meId={meId} busy={busy}
+            onCancel={closeAsk}
+            onSave={async (form: Payload) => { if (await send("vacations", "POST", form)) setAsking(false); }} />
+        </Dialog>
+      )}
+
+      <LeaveBalances leave={leave} employees={employees} tr={tr} />
+
+      {rows.length === 0 ? <Empty title={tr.noLeaveBooked} body={canManage ? tr.requestsPeopleArriveHere : tr.ownLeaveRequestsAppear} /> : (
+        <section className={panel}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-white/10">
+                  {[tr.person, tr.type, tr.from, tr.to, tr.days, tr.status].map((head) => (
+                    <th key={head} className={`${th} ps-2 text-start`}>{head}</th>
+                  ))}
+                  <th className={`${th} text-end`} />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((v) => (
+                  // A request nobody has decided on yet is the one needing action.
+                  <tr key={v.id} className={`border-s-4 border-b border-slate-100 last:border-b-0 dark:border-white/5 ${v.status === "Pending" ? stripeOn : stripeOff}`}>
+                    <td className={`${td} ps-2 font-600 text-slate-900 dark:text-white`}>{v.alias}</td>
+                    <td className={`${td} ps-2 text-slate-600 dark:text-slate-300`}>{v.type}</td>
+                    <td className={`${td} ps-2 text-slate-600 dark:text-slate-300`}>{fmt(v.from)}</td>
+                    <td className={`${td} ps-2 text-slate-600 dark:text-slate-300`}>{fmt(v.to)}</td>
+                    <td className={`${td} ps-2 tabular-nums text-slate-600 dark:text-slate-300`}>{v.days}</td>
+                    <td className={`${td} ps-2`}>
+                      <StatusPill kind="leave" status={v.status} />
+                    </td>
+                    <td className={`${td} text-end`}>
+                      {v.status === "Pending" && (
+                        <span className="flex flex-wrap justify-end gap-2">
+                          {/* APPROVED OR DECLINED ON THE APPROVALS PAGE (19/09/2026). */}
+                          {v.approval?.status === "Pending" && (
+                            <a href={`/${slug}/approvals`} className="self-center text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.leaveWaitingApproval}</a>
+                          )}
+                          {v.collaboratorId === meId && (
+                            <button className={btnGhost} disabled={busy} onClick={() => send("vacations", "PUT", { id: v.id, status: "Cancelled" })}>{tr.cancel}</button>
+                          )}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+// WHAT EVERY VISIBLE PERSON HAS LEFT this year, per ruled leave type — the
+// answer the product had no way to give before tier 6 (leaveBalance.ts).
+function LeaveBalances({ leave, employees, tr }: { leave: LeaveView; employees: Employee[]; tr: Strings }) {
+  const ruled = Object.keys(leave?.rules?.leave || {});
+  if (!ruled.length) return <p className="text-sm text-slate-500 dark:text-slate-400">{tr.balancesNone}</p>;
+  const people = employees.filter((e) => (leave.balances?.[e.id] || []).length);
+  if (!people.length) return null;
+  const heads = [tr.person, tr.type, tr.allowance, tr.carried, tr.taken, tr.pendingCol, tr.remaining];
+  return (
+    <section className={panel}>
+      <h3 className="font-display text-base font-700 text-slate-900 dark:text-white">{tr.balancesHeading}</h3>
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.balancesLead(leave.year)}</p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[640px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 dark:border-white/10">
+              {heads.map((h, i) => <th key={h} className={`${th} ps-2 ${i > 1 ? "text-end" : "text-start"}`}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {people.flatMap((e) => leave.balances[e.id].map((b) => (
+              <tr key={`${e.id}-${b.type}`} className="border-b border-slate-100 last:border-b-0 dark:border-white/5">
+                <td className={`${td} ps-2 font-600 text-slate-900 dark:text-white`}>{e.alias}</td>
+                <td className={`${td} ps-2 text-slate-600 dark:text-slate-300`}>{b.type}</td>
+                {[b.allowance, b.carried, b.taken, b.pending].map((n, i) => (
+                  <td key={i} className={`${td} ps-2 text-end tabular-nums text-slate-600 dark:text-slate-300`}>{n}</td>
+                ))}
+                <td className={`${td} ps-2 text-end tabular-nums font-700 ${b.remaining < 0 ? "text-rose-600 dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>{b.remaining}</td>
+              </tr>
+            )))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+function LeaveForm({ types, employees, leave, canManage, meId, busy, onSave, onCancel }: {
+  types: string[]; employees: Employee[]; leave: LeaveView; canManage: boolean; meId: string; busy: boolean;
+  onSave: (form: Payload) => void; onCancel: () => void;
+}) {
+  const tr = hrDict(useStudioLocale());
+  const [form, setForm] = useState({ collaboratorId: "", type: types[0], from: "", to: "", reason: "" });
+  // COUNTED THE WAY THE SERVER WILL COUNT IT — the same pure function, with the
+  // studio's open days when its rules count working days.
+  const days = form.from ? countLeaveDays(form.from, form.to || form.from, leave?.openDays || null) : 0;
+  const backwards = Boolean(form.from && form.to && form.to < form.from);
+  // What this request leaves of the allowance, when the type keeps a balance.
+  const balance = (leave?.balances?.[form.collaboratorId || meId] || []).find((b) => b.type === form.type);
+
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {canManage && (
+          <Field label={tr.person} as="select" value={form.collaboratorId}
+            onChange={(v) => setForm((f) => ({ ...f, collaboratorId: v }))}
+            options={employees.filter((e) => e.id !== meId).map((e) => ({ value: e.id, label: e.alias }))} />
+        )}
+        <Field label={tr.type} as="select" value={form.type} onChange={(v) => setForm((f) => ({ ...f, type: v }))} options={types} />
+        <Field label={tr.from} filled={!!form.from}>
+          <StudioDate value={form.from} onChange={(iso) => setForm((f) => ({ ...f, from: iso }))} />
+        </Field>
+        <Field label={tr.to} filled={!!form.to}>
+          <StudioDate value={form.to} onChange={(iso) => setForm((f) => ({ ...f, to: iso }))} />
+        </Field>
+      </div>
+      <Field label={tr.reason} as="textarea" className="mt-4" value={form.reason} onChange={(v) => setForm((f) => ({ ...f, reason: v }))} />
+
+      <p className={`mt-3 text-xs ${backwards ? "text-rose-600 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}`}>
+        {backwards ? tr.endDateBeforeStart
+          : days > 0 ? tr.thatIsNDays(days)
+          : form.from ? tr.noWorkingDays
+          : tr.pickStartDate}
+      </p>
+      {balance && days > 0 && !backwards && (
+        <p className={`mt-1 text-xs ${balance.afterPending - days < 0 ? "text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}>
+          {tr.leaveLeft(balance.afterPending - days)}
+        </p>
+      )}
+
+      <div className="mt-5 flex gap-3">
+        <button className={btn} disabled={busy || !form.from || backwards} onClick={() => onSave(form)}>{busy ? tr.sending : tr.submit}</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </>
+  );
+}
+
+// ---- shared bits -----------------------------------------------------------
+// One form shape covers departments, positions and certifications — they differ
+// only in their fields, so there is no reason for three near-identical forms.
+function SimpleForm({ fields, busy, onCancel, onSave }: {
+  fields: FormField[]; busy: boolean; onCancel: () => void; onSave: (values: Payload) => void;
+}) {
+  const tr = hrDict(useStudioLocale());
+  const [values, setValues] = useState<Record<string, string | number>>(() => Object.fromEntries(fields.map((f) => [f.key, f.value ?? ""])));
+  const ready = fields.filter((f) => f.required).every((f) => String(values[f.key] || "").trim());
+
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {fields.map((f) => (
+          <div key={f.key} className={f.area ? "sm:col-span-2" : ""}>
+            {f.options ? (
+              <Field label={f.label} required={f.required} as="select" value={values[f.key]}
+                onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))}
+                options={f.options.filter((o) => o.value !== "").map((o) => ({ value: o.value, label: o.text }))} />
+            ) : f.area ? (
+              <Field label={f.label} required={f.required} as="textarea" value={values[f.key]}
+                onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))} />
+            ) : f.type === "date" ? (
+              <Field label={f.label} required={f.required} filled={!!values[f.key]}>
+                <StudioDate value={String(values[f.key])} onChange={(iso) => setValues((s) => ({ ...s, [f.key]: iso }))} />
+              </Field>
+            ) : (
+              <Field label={f.label} required={f.required} type={f.type || "text"} hint={f.placeholder || undefined}
+                value={values[f.key]} onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))} />
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 flex gap-3">
+        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : tr.save}</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </>
+  );
+}

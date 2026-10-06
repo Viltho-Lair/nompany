@@ -2,7 +2,7 @@
 
 **Where:** Finance → Receivables → Debit notes · `modules/finance/debitNotes.ts` (the rules,
 pure), `debitNoteService.ts` (raise, issue, cancel), `ledger.ts` `postDebitNote`,
-`app/api/studios/[slug]/finance/debit-notes`, `components/studio2/DebitNotesPanel.js`,
+`app/api/studios/[slug]/finance/debit-notes`, `components/studio2/DebitNotesPanel.tsx`,
 `tests/debit-note-model.mjs`.
 
 ## What it is

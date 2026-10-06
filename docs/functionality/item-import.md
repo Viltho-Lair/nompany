@@ -13,7 +13,7 @@ person: attach a file, match its columns, check what will happen, import in batc
 |---|---|
 | `src/shared/xlsx.ts` | `readXlsx`: reads an .xlsx in the browser with no library |
 | `src/modules/inventory/itemImport.ts` | The column aliases, `itemRows`, `planItemImport` and the CSV writers; pure, shared by the screen and the server |
-| `src/components/studio2/ItemImport.js` | The dialog, loaded only when the button is pressed |
+| `src/components/studio2/ItemImport.tsx` | The dialog, loaded only when the button is pressed |
 | `src/shared/studio/itemImport.ts` | The dialog's words, English and Arabic |
 | `src/app/api/studios/[slug]/inventory/items/import/route.ts` | `POST` one batch, `DELETE` undo a whole import |
 | `src/modules/inventory/inventory.ts` | `importItems`, `undoItemImport` |

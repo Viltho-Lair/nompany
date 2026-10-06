@@ -59,7 +59,7 @@ that one of the three is missing when you can only ever see your own hour.
 | `src/app/super/(console)/broadcast/page.tsx` | The route — renders the editor inside the console chrome |
 | `src/app/super/(console)/ConsoleChrome.tsx` | The grouped sidebar and the header every console screen shares |
 | `src/components/super/NovaCredentials.tsx` | The AI key form — shared with the Nova switchboard, not copied |
-| `src/components/studio2/DailyGreeting.jsx` | The band — rotation, dots, dismissal |
+| `src/components/studio2/DailyGreeting.tsx` | The band — rotation, dots, dismissal |
 | `src/components/super/GreetingEditor.tsx` | The register: a row per message, opening into its editor |
 | `.greeting-band` in `src/app/globals.css` | The two gradient layers and the shadow |
 

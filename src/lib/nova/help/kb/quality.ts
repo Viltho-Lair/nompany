@@ -310,7 +310,7 @@ export const quality: HelpModule = {
       keywords: ["where are permits", "field operations permits", "one register", "أين التصاريح", "تصاريح العمليات الميدانية", "سجل واحد"],
       related: ["quality-hse-permits.schedule-tab"],
     },
-    // Checked against src/components/studio2/PermitsPanel.js (PermitForm, the New
+    // Checked against src/components/studio2/PermitsPanel.tsx (PermitForm, the New
     // permit / Edit permit dialog: Title, required; Type, required, from the
     // studio's permit types; Permit number; Issued by; Location; Project; Valid
     // from; Valid to; Already issued, on a new permit only; Covers, the studio's
@@ -320,7 +320,7 @@ export const quality: HelpModule = {
     // refusals are createPermit's, editPermit's, movePermit's
     // (permitMoveProblem in src/modules/operations/permitModel.ts) and
     // removePermit's in src/modules/operations/operations.ts, worded by
-    // src/components/studio2/operationsRefusal.js.
+    // src/components/studio2/operationsRefusal.ts.
     {
       id: "quality-hse-permits.fields", topic: "dept.quality-hse-permits", kind: "fields", open: "quality-hse-permits",
       q: { en: "What do I need to record a permit?", ar: "ماذا أحتاج لتسجيل تصريح؟" },
@@ -723,7 +723,7 @@ export const quality: HelpModule = {
       keywords: ["ITP status", "draft", "issued", "approved", "superseded", "حالة الخطة", "مسودة", "صادر", "معتمد", "مستبدل"],
       related: ["quality-hse.itp-revise"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's
     // New / Edit dialog, drawn from the type's fields in order: Title, required;
     // Project; Discipline; Revision; Hold and witness points, required; Acceptance
     // criteria) and the `itp` declaration in src/platform/engine/builtins.ts, with
@@ -822,7 +822,7 @@ export const quality: HelpModule = {
       keywords: ["rejected test", "NCR", "failed inspection", "automatic", "اختبار مرفوض", "عدم مطابقة", "فحص فاشل", "تلقائي"],
       related: ["quality-hse.ncr-auto", "quality-hse.no-ncr-raised"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's
     // New / Edit dialog, in declaration order: Reference, required; Against ITP;
     // Location or element; Inspected; Inspector; Result; Findings) and the
     // `testreport` declaration in src/platform/engine/builtins.ts, with FIELD_MAX
@@ -950,7 +950,7 @@ export const quality: HelpModule = {
       keywords: ["automatic NCR", "raised automatically", "found by test", "تقرير تلقائي", "أنشئ تلقائيا", "رصد في الاختبار"],
       related: ["quality-hse.rejected-test"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's
     // New / Edit dialog, in declaration order: Title, required; What was found,
     // required; Severity; Raised; Root cause; Corrective action; Action due; Found
     // by test, a picker over the test records) and the `ncr` declaration in
@@ -1114,7 +1114,7 @@ export const quality: HelpModule = {
       keywords: ["incident process", "investigation", "incident status", "مسار الحادث", "التحقيق", "حالة الحادث"],
       related: ["quality-hse.incident-report"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's
     // New / Edit dialog, in declaration order: Title, required; Date, required;
     // Kind; Days lost; What happened, required; Immediate action) and the
     // `incident` declaration in src/platform/engine/builtins.ts, with FIELD_MAX in
@@ -1215,7 +1215,7 @@ export const quality: HelpModule = {
       keywords: ["toolbox talk", "safety briefing", "tailgate meeting", "حديث السلامة", "اجتماع السلامة", "إحاطة السلامة"],
       related: ["quality-hse.toolbox-fields"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's
     // New / Edit dialog, in declaration order: Topic, required; Held; Presenter;
     // Attendees; Notes) and the `toolbox` declaration in
     // src/platform/engine/builtins.ts, with FIELD_MAX in
@@ -1298,7 +1298,7 @@ export const quality: HelpModule = {
       },
       keywords: ["audit status", "planned", "in progress", "reported", "حالة التدقيق", "مخطط", "قيد التنفيذ", "تم الإبلاغ"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's
     // New / Edit dialog, in declaration order: Title, required; Scope; Auditor;
     // Standard; Planned; Findings) and the `audit` declaration in
     // src/platform/engine/builtins.ts, with FIELD_MAX in
@@ -1390,7 +1390,7 @@ export const quality: HelpModule = {
       keywords: ["certificate status", "valid", "expiring", "expired", "withdrawn", "حالة الشهادة", "سارية", "منتهية", "مسحوب"],
       related: ["quality-hse.certification"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's
     // New / Edit dialog, in declaration order: Certificate, required; Held by;
     // Kind; Issued by; Issued; Expires; Certificate number) and the
     // `certification` declaration in src/platform/engine/builtins.ts, with

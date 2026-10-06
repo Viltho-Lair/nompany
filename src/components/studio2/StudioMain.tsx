@@ -1,0 +1,163 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { Icon } from "@/components/studio2/icons";
+import { panel, h2, sub, microLabel, fmtDate, StatTile, tileRow } from "@/components/studio2/ui";
+import { mainDict } from "@/shared/studio/main";
+import { useStudioLocale as useLocale } from "@/components/studio2/locale";
+import { useReload } from "@/components/studio2/useReload";
+import nextDynamic from "next/dynamic";
+import { useMoney } from "@/components/studio2/studioCurrency";
+import WorkInHand from "@/components/studio2/WorkInHand";
+import FinishSetup from "@/components/studio2/FinishSetup";
+import type { MainContext, headlines as mainHeadlines, recent as mainRecent } from "@/modules/main/main";
+import type { FirstRunItem } from "@/modules/main/firstRun";
+import type { MainExecutive } from "@/components/studio2/MainDashboard";
+
+/** What GET /api/studios/<slug>/main answers — its route assembles these parts
+ *  (the handler is wrapped by `route()`, so its return cannot be named whole). */
+export type MainPayload = {
+  studio: { name: string; slug: string };
+  me: { alias: string; collaboratorId: string };
+  nav: MainContext["nav"];
+  headlines: Awaited<ReturnType<typeof mainHeadlines>>;
+  recent: Awaited<ReturnType<typeof mainRecent>>;
+  executive: MainExecutive;
+  setup: FirstRunItem[] | null;
+};
+
+// THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
+// import, so every tenant page carried every department's dashboard and the
+// whole chart kit in its first load; a client module's `import()` is a real
+// lazy boundary (see HeavyScreens.tsx for why a Server Component's is not).
+const MainDashboard = nextDynamic(() => import("@/components/studio2/MainDashboard"), {
+  loading: () => <ScreenSkeleton />,
+});
+
+// MAIN — the studio's front door: what is happening across the whole place, for
+// the person looking at it.
+//
+// Every figure comes from a section this person can actually see. A tile for a
+// section they were not granted is ABSENT, not zero — a zero would be a claim
+// about a place they have no access to, and the API does not even read it.
+
+const FEED_ICON: Record<string, string> = { ticket: "ticket", quotation: "report", project: "blueprint", approval: "verified" };
+
+// `initial` IS THIS SCREEN'S OWN ROUTE BODY, answered inside the studio page's
+// render, so the front door paints with its figures rather than a second
+// skeleton. Absent — refused, or over the payload ceiling — it fetches as before.
+export default function StudioMain({ slug, initial }: { slug: string; initial?: MainPayload | null }) {
+  const money = useMoney();
+  const locale = useLocale();
+  const tr = mainDict(locale);
+  // The feed names the KIND of record that moved. A fixed four, defined by the
+  // code and not by any tenant, so they translate.
+  const FEED_WORD: Record<string, string> = { ticket: tr.feedTicket, quotation: tr.feedQuotation, project: tr.feedProject, approval: tr.feedApproval };
+  const [data, setData] = useState<MainPayload | null>(initial ?? null);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/main`, { cache: "no-store" });
+    if (!res.ok) { setError(tr.loadFailed); return; }
+    setData(await res.json());
+  }, [slug, tr]);
+  useReload(load, initial);
+  // The front door reflects every desk, so it watches the busiest of them.
+  useLiveUpdates(slug, "crm-sales", load);
+  useLiveUpdates(slug, "approvals", load);
+  useLiveUpdates(slug, "projects", load);
+
+  if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
+
+  const { studio, me, headlines, recent, nav, executive, setup } = data;
+  const href = (key: string) => (nav?.[key] ? `/${slug}/${key}` : "");
+
+  // Only the figures this person is entitled to. `null` means the section was
+  // never read, so the tile simply is not here.
+  const tiles = [
+    { key: "approvals", label: tr.needsYou, value: headlines.awaitingMe, tone: (headlines.awaitingMe ?? 0) > 0 ? "text-brand-700 dark:text-brand-300" : "" },
+    { key: "crm-sales-tickets", label: tr.openTickets, value: headlines.openTickets },
+    { key: "quotations-rfq", label: tr.openRfqs, value: headlines.openRfqs },
+    { key: "quotations-register", label: tr.liveQuotations, value: headlines.liveQuotations },
+    { key: "projects-list", label: tr.projectsRunning, value: headlines.liveProjects },
+    { key: "finance-receivables", label: tr.outstanding, value: headlines.outstanding === null ? null : money(headlines.outstanding) },
+    { key: "inventory-stock", label: tr.trackedItems, value: headlines.lowStock },
+    { key: "hr-employees", label: tr.headcount, value: headlines.headcount },
+  ].filter((tile) => tile.value !== null && tile.value !== undefined);
+
+  // The top-level sections, as a way in. Sub-sections are reached from their
+  // parent, so listing them here would just be the sidebar twice.
+
+  return (
+    <div className="space-y-6">
+      {/* NO PANEL AROUND THE GREETING — the owner's instruction, 17/09/2026. The
+          tiles are cards already; a white box around cards was a frame for a
+          frame. The greeting and the tiles sit on the page itself. */}
+      <section>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className={h2}>{me.alias ? tr.welcomeNamed(me.alias) : tr.welcome}</h2>
+            <p className={sub}>{tr.today(studio.name)}</p>
+          </div>
+          <span className="text-sm font-500 text-slate-400 dark:text-slate-500">
+            {fmtDate(new Date())}
+          </span>
+        </div>
+
+        {tiles.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+            {tr.nothingShared}
+          </p>
+        ) : (
+          <div className={`mt-4 ${tileRow}`}>
+            {tiles.map((tile) => (
+              <StatTile key={tile.label} label={tile.label} value={tile.value} tone={tile.tone} href={href(tile.key)} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* FINISH SETTING UP — a new studio's first steps, while any are left. */}
+      <FinishSetup slug={slug} items={setup} />
+
+      {/* THE WORK IN HAND — every kind of work the studio runs, read one way
+          (the owner's decision C, 03/10/2026). Draws nothing when there is no
+          lane this reader may see. */}
+      <WorkInHand slug={slug} />
+
+      {/* "YOUR SECTIONS" IS GONE — the owner's instruction, 10/09/2026: a list of
+          links to the departments the sidebar already lists, beside it, said
+          nothing the sidebar did not. The activity feed takes the whole row. */}
+      <section className={panel}>
+          <p className={microLabel}>{tr.recentActivity}</p>
+          {recent.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-400">{tr.nothingMoved}</p>
+          ) : (
+            <ul className="mt-2 divide-y divide-slate-100 dark:divide-white/5">
+              {recent.map((r) => (
+                <li key={`${r.kind}-${r.id}`} className="flex items-center gap-3 py-2.5">
+                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-500/10 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300">
+                    <Icon name={FEED_ICON[r.kind] || "dot"} className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    {/* The feed keeps only rows with a label, so this is never empty. */}
+                    <span className="block truncate text-sm font-600 text-slate-900 dark:text-white">{String(r.label)}</span>
+                    <span className="block truncate text-xs text-slate-400 dark:text-slate-500">
+                      {FEED_WORD[r.kind]}{r.meta ? ` · ${r.meta}` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{fmtDate(r.at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+
+      {executive && <MainDashboard slug={slug} executive={executive} />}
+    </div>
+  );
+}

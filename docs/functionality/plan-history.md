@@ -19,7 +19,7 @@ a plan reorganised overnight left no trace of having been: no version, no author
 | `src/platform/db/keys.ts` | `PLAN.history(studioId, planId)` |
 | `.../operations/planner/[planId]/history/route.ts` | GET, through the planner app's door |
 | `.../projects/[projectId]/plans/[planId]/history/route.ts` | GET, through the project's door |
-| `src/components/studio2/PlanHistory.jsx` | The panel, its own lazy chunk |
+| `src/components/studio2/PlanHistory.tsx` | The panel, its own lazy chunk |
 
 ## One entry per editing session, never one per autosave
 

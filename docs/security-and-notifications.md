@@ -139,7 +139,7 @@ The **delivery machinery is finished and well built**. What is missing is what f
 | Real-time | per-user channel `nt:u:<UserID>`, SSE, one `EventSource` per tab · **done** |
 | Read state | `markRead`, scoped to the caller inside the atomic write · **done** |
 | Cascade | reaped by `cascadeDeleteCollaborator` and the studio prefix · **done** |
-| Studio bell | `NotificationBell.js` — unread badge, merge of fetched + streamed, mark-all-read, offline indicator · **done** |
+| Studio bell | `NotificationBell.tsx` — unread badge, merge of fetched + streamed, mark-all-read, offline indicator · **done** |
 | Console bell | `super/_components/Header.js` + `useSuperNotifications` · **done** |
 | Console list page | `/super/application/notifications` · **done** |
 

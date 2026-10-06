@@ -12,9 +12,9 @@ import type { HelpModule } from "../types";
 // written from the code on 23/09/2026), and every fact in that chapter was
 // carried here or checked and dropped. Two of its sentences were corrected
 // against the screens rather than copied: the lead score is shown only on the
-// panel of leads waiting to be assigned (LeadParts.js draws the chip nowhere
+// panel of leads waiting to be assigned (LeadParts.tsx draws the chip nowhere
 // else), and the Cities suggestions reach a ticket only while no country is
-// chosen (ClientBlock.jsx offers the country's own city list once one is).
+// chosen (ClientBlock.tsx offers the country's own city list once one is).
 //
 // DRAWN FROM THE CODE, not from the docs. Where docs/functionality/ and the
 // screens disagree, the screens win. Every `fields` entry names, in a comment
@@ -300,7 +300,7 @@ export const crmSales: HelpModule = {
       keywords: ["deal won", "after winning", "open project", "campaign credit", "بعد الفوز", "صفقة رابحة", "فتح مشروع", "الحملة"],
       related: ["crm-sales-pipeline.win-deal", "crm-sales-orders.create"],
     },
-    // Checked against src/components/studio2/StudioSales.js (TicketForm: statusOptions,
+    // Checked against src/components/studio2/StudioSales.tsx (TicketForm: statusOptions,
     // closingWithReason, `ready`) and SalesTicketSchema (status, lostReason, closedAt)
     // in src/modules/sales/schema.ts; the refusals are stageProblem in
     // src/modules/sales/pipeline.ts.
@@ -530,8 +530,8 @@ export const crmSales: HelpModule = {
       keywords: ["po approved", "project number", "client po", "billing", "اعتماد أمر الشراء", "رقم المشروع", "أمر شراء العميل", "الفوترة"],
       related: ["crm-sales-tickets.submit-po", "crm-sales-pipeline.win-deal"],
     },
-    // Checked against src/components/studio2/StudioSales.js (TicketForm) and
-    // src/components/studio2/ClientBlock.jsx, and SalesTicketSchema / SiteSchema in
+    // Checked against src/components/studio2/StudioSales.tsx (TicketForm) and
+    // src/components/studio2/ClientBlock.tsx, and SalesTicketSchema / SiteSchema in
     // src/modules/sales/schema.ts; the required fields are createTicket's refusals in
     // src/modules/sales/sales.ts.
     {
@@ -570,7 +570,7 @@ export const crmSales: HelpModule = {
       keywords: ["new ticket", "create deal", "raise ticket", "required fields", "ticket form", "تذكرة جديدة", "إنشاء صفقة", "رفع تذكرة", "حقول مطلوبة", "نموذج التذكرة"],
       related: ["crm-sales-tickets.save-disabled", "crm-sales-tickets.edit-fields"],
     },
-    // Checked against src/components/studio2/StudioSales.js (TicketForm with `row`
+    // Checked against src/components/studio2/StudioSales.tsx (TicketForm with `row`
     // set: statusOptions, the Urgency select, closingWithReason, campaignLocked) and
     // SalesTicketSchema in src/modules/sales/schema.ts; editTicket in
     // src/modules/sales/sales.ts.
@@ -598,7 +598,7 @@ export const crmSales: HelpModule = {
       keywords: ["edit ticket", "urgency", "status", "change ticket", "تعديل التذكرة", "الاستعجال", "الحالة", "تغيير التذكرة"],
       related: ["crm-sales-tickets.edit", "crm-sales-tickets.client-locked"],
     },
-    // Checked against src/components/studio2/StudioTicketProfile.js (PoForm and
+    // Checked against src/components/studio2/StudioTicketProfile.tsx (PoForm and
     // submitPo) and submitTicketPo in src/modules/sales/sales.ts (no Zod schema; the
     // service cleans the body and refuses one with neither a file nor a description).
     {
@@ -933,7 +933,7 @@ export const crmSales: HelpModule = {
       keywords: ["privacy", "encrypted", "data protection", "customer data", "الخصوصية", "مشفرة", "حماية البيانات", "بيانات العميل"],
       related: ["crm-sales-clients.different-figures"],
     },
-    // Checked against src/components/studio2/StudioSales.js (ClientForm, ClientLogoField,
+    // Checked against src/components/studio2/StudioSales.tsx (ClientForm, ClientLogoField,
     // RowList) and ClientSchema in src/modules/sales/schema.ts; the name and duplicate
     // refusals are createClient / editClient in src/modules/sales/sales.ts.
     {
@@ -968,7 +968,7 @@ export const crmSales: HelpModule = {
       keywords: ["add client", "new customer", "customer form", "company name", "إضافة عميل", "عميل جديد", "نموذج العميل", "اسم الشركة"],
       related: ["crm-sales-clients.add", "crm-sales-clients.duplicate", "crm-sales-clients.contact-fields"],
     },
-    // Checked against src/components/studio2/StudioSales.js (ClientForm's contacts
+    // Checked against src/components/studio2/StudioSales.tsx (ClientForm's contacts
     // RowList) and ContactSchema in src/modules/sales/schema.ts; cleanContacts in
     // src/modules/sales/sales.ts keeps 20 and drops a row with no name, email or phone.
     {
@@ -985,7 +985,7 @@ export const crmSales: HelpModule = {
       keywords: ["contact person", "add contact", "position", "phone", "جهة اتصال", "إضافة جهة اتصال", "المنصب", "الهاتف"],
       related: ["crm-sales-clients.contacts-dropped", "crm-sales-settings.positions"],
     },
-    // Checked against src/components/studio2/StudioSales.js (ClientForm's locations
+    // Checked against src/components/studio2/StudioSales.tsx (ClientForm's locations
     // RowList) and SiteSchema in src/modules/sales/schema.ts; cleanLocations in
     // src/modules/sales/sales.ts keeps 20.
     {
@@ -1002,7 +1002,7 @@ export const crmSales: HelpModule = {
       keywords: ["site", "add location", "map link", "city", "موقع", "إضافة موقع", "رابط الخريطة", "المدينة"],
       related: ["crm-sales-clients.contacts-dropped", "crm-sales-settings.cities"],
     },
-    // Checked against src/components/studio2/StudioCustomer.js (the Agreed rates dialog
+    // Checked against src/components/studio2/StudioCustomer.tsx (the Agreed rates dialog
     // and saveRates) and CustomerRateSchema in src/modules/sales/schema.ts; cleanRates
     // and MAX_RATES (500) in src/shared/pricing.ts.
     {
@@ -1289,7 +1289,7 @@ export const crmSales: HelpModule = {
       keywords: ["team performance", "salesperson", "channel", "scatter", "direct sales", "أداء الفريق", "مندوب المبيعات", "القناة", "بيع مباشر"],
       related: ["crm-sales-insights.locked"],
     },
-    // Checked against src/components/studio2/CustomerInsightsDashboard.jsx (the Send
+    // Checked against src/components/studio2/CustomerInsightsDashboard.tsx (the Send
     // customers to Sales dialog) and sendToSales in src/modules/sales/insights.ts (no
     // Zod schema; the service cleans the body: customers, campaignId, note).
     {
@@ -1430,7 +1430,7 @@ export const crmSales: HelpModule = {
       keywords: ["variation status", "draft", "submitted", "approved", "rejected", "حالة التغيير", "مسودة", "مقدمة", "معتمدة", "مرفوضة"],
       related: ["crm-sales-contracts.follow-variation", "crm-sales-contracts.value-unchanged"],
     },
-    // Checked against src/components/studio2/StudioContracts.js (the variation Dialog)
+    // Checked against src/components/studio2/StudioContracts.tsx (the variation Dialog)
     // and ChangeOrderSchema in src/modules/sales/changeOrderSchema.ts; created by
     // createChangeOrder in src/modules/sales/changeOrders.ts, always as a draft.
     {
@@ -1617,7 +1617,7 @@ export const crmSales: HelpModule = {
       keywords: ["order total", "vat", "zero-rated", "exempt", "tax", "إجمالي الأمر", "ضريبة القيمة المضافة", "نسبة الصفر", "معفى", "الضريبة"],
       related: ["crm-sales-orders.line-fields", "crm-sales-orders.no-vat"],
     },
-    // Checked against src/components/studio2/StudioOrders.js (the order Dialog and
+    // Checked against src/components/studio2/StudioOrders.tsx (the order Dialog and
     // linkOptions) and SalesOrderSchema in src/modules/sales/orderSchema.ts; the
     // required title and deal are createOrder's refusals, and the deal list is
     // orderPickers (open or won deals only), in src/modules/sales/orders.ts.
@@ -1655,7 +1655,7 @@ export const crmSales: HelpModule = {
       keywords: ["new order", "order form", "deal", "call-off", "from quotation", "أمر جديد", "نموذج الأمر", "الصفقة", "سحب على عقد", "من عرض السعر"],
       related: ["crm-sales-orders.line-fields", "crm-sales-orders.no-deal", "crm-sales-orders.save-refused"],
     },
-    // Checked against src/components/studio2/StudioOrders.js (the line rows; the Tax
+    // Checked against src/components/studio2/StudioOrders.tsx (the line rows; the Tax
     // select only when VAT % is above 0) and OrderLineSchema in
     // src/modules/sales/orderSchema.ts.
     {

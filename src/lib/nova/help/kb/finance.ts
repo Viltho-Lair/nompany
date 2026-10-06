@@ -94,7 +94,7 @@ export const finance: HelpModule = {
       keywords: ["finance dashboard", "overview", "DSO", "aging", "collection rate", "لوحة المالية", "نظرة عامة", "أعمار الديون", "نسبة التحصيل", "أيام التحصيل"],
       related: ["finance.commercial-fields", "finance.dashboard-hidden"],
     },
-    // Checked against src/components/studio2/StudioFinance.js (FinanceProjects and
+    // Checked against src/components/studio2/StudioFinance.tsx (FinanceProjects and
     // Commercials) and the PUT in src/app/api/studios/[slug]/finance/projects/route.ts.
     {
       id: "finance.commercial-fields", topic: "dept.finance", kind: "fields", open: "finance",
@@ -258,7 +258,7 @@ export const finance: HelpModule = {
       keywords: ["close checklist", "month end checklist", "before closing", "قائمة الإقفال", "قائمة نهاية الشهر", "قبل الإقفال"],
       related: ["finance-ledger.close-month", "finance-settings.month-end-tasks"],
     },
-    // Checked against src/components/studio2/StudioLedger.js (EntryForm) and
+    // Checked against src/components/studio2/StudioLedger.tsx (EntryForm) and
     // JournalEntrySchema / JournalLineSchema in src/modules/finance/schema.ts.
     {
       id: "finance-ledger.entry-fields", topic: "dept.finance-ledger", kind: "fields", open: "finance-ledger",
@@ -274,7 +274,7 @@ export const finance: HelpModule = {
       keywords: ["journal entry form", "manual entry", "debit", "credit", "memo", "نموذج القيد", "قيد يدوي", "مدين", "دائن", "بيان"],
       related: ["finance-ledger.manual-entry", "finance-ledger.post-refused"],
     },
-    // Checked against src/components/studio2/StudioLedger.js (AccountForm) and
+    // Checked against src/components/studio2/StudioLedger.tsx (AccountForm) and
     // AccountSchema in src/modules/finance/schema.ts.
     {
       id: "finance-ledger.account-fields", topic: "dept.finance-ledger", kind: "fields", open: "finance-ledger",
@@ -290,7 +290,7 @@ export const finance: HelpModule = {
       keywords: ["new account", "account code", "account type", "parent account", "حساب جديد", "رمز الحساب", "نوع الحساب", "الحساب الأصل"],
       related: ["finance-ledger.accounts", "finance-ledger.money-flag"],
     },
-    // Checked against src/components/studio2/SchedulesPanel.js and the checks in
+    // Checked against src/components/studio2/SchedulesPanel.tsx and the checks in
     // src/modules/finance/schedules.ts (no Zod schema; the service cleans the body).
     {
       id: "finance-ledger.schedule-fields", topic: "dept.finance-ledger", kind: "fields", open: "finance-ledger",
@@ -306,7 +306,7 @@ export const finance: HelpModule = {
       keywords: ["new schedule", "deferral", "prepaid", "recognition", "جدول جديد", "تأجيل", "مدفوع مقدماً", "اعتراف"],
       related: ["finance-ledger.schedules", "finance-ledger.run-schedules"],
     },
-    // Checked against src/components/studio2/AllocationsPanel.js and the checks in
+    // Checked against src/components/studio2/AllocationsPanel.tsx and the checks in
     // src/modules/finance/allocations.ts (no Zod schema; the service cleans the body).
     {
       id: "finance-ledger.allocation-fields", topic: "dept.finance-ledger", kind: "fields", open: "finance-ledger",
@@ -593,7 +593,7 @@ export const finance: HelpModule = {
       keywords: ["credit note", "refund", "return", "credit memo", "إشعار دائن", "استرداد", "مرتجع", "مذكرة دائنة"],
       related: ["finance-receivables.credit-note-issue"],
     },
-    // Checked against src/components/studio2/StudioFinance.js (InvoiceForm and
+    // Checked against src/components/studio2/StudioFinance.tsx (InvoiceForm and
     // LineItemsEditor) and InvoiceSchema / InvoiceLineSchema in src/modules/finance/schema.ts.
     {
       id: "finance-receivables.invoice-fields", topic: "dept.finance-receivables", kind: "fields", common: true, open: "finance-receivables",
@@ -627,7 +627,7 @@ export const finance: HelpModule = {
       keywords: ["invoice", "new invoice", "bill a client", "sales invoice", "فاتورة", "فاتورة جديدة", "فاتورة مبيعات", "فوترة"],
       related: ["finance-receivables.issue-pay", "finance-tax.vat-rate", "finance-receivables.due-days"],
     },
-    // Checked against src/components/studio2/StudioFinance.js (PaymentForm and
+    // Checked against src/components/studio2/StudioFinance.tsx (PaymentForm and
     // MoneyAccountField) and PaymentSchema in src/modules/finance/schema.ts.
     {
       id: "finance-receivables.payment-fields", topic: "dept.finance-receivables", kind: "fields", open: "finance-receivables",
@@ -643,7 +643,7 @@ export const finance: HelpModule = {
       keywords: ["record payment", "receipt", "customer payment", "payment method", "تسجيل دفعة", "سند قبض", "دفعة عميل", "طريقة الدفع"],
       related: ["finance-receivables.issue-pay", "finance-receivables.payment-refused"],
     },
-    // Checked against src/components/studio2/CreditPanel.js and the limit handling
+    // Checked against src/components/studio2/CreditPanel.tsx and the limit handling
     // in src/modules/finance/credit.ts and creditService.ts (no Zod schema).
     {
       id: "finance-receivables.credit-fields", topic: "dept.finance-receivables", kind: "fields", open: "finance-receivables",
@@ -879,7 +879,7 @@ export const finance: HelpModule = {
       keywords: ["payment terms", "net 30", "on receipt", "due date", "شروط الدفع", "صافي 30", "عند الاستلام", "تاريخ الاستحقاق"],
       related: ["finance-payables.bill-fields", "finance-payables.not-in-run"],
     },
-    // Checked against src/components/studio2/StudioFinance.js (BillForm and
+    // Checked against src/components/studio2/StudioFinance.tsx (BillForm and
     // LineItemsEditor) and BillSchema / InvoiceLineSchema in src/modules/finance/schema.ts.
     {
       id: "finance-payables.bill-fields", topic: "dept.finance-payables", kind: "fields", open: "finance-payables",
@@ -921,7 +921,7 @@ export const finance: HelpModule = {
       keywords: ["bill", "supplier invoice", "vendor bill", "purchase invoice", "new bill", "فاتورة مورد", "فاتورة شراء", "مورد", "فاتورة مورد جديدة"],
       related: ["finance-payables.approve", "finance-payables.terms"],
     },
-    // Checked against src/components/studio2/StudioFinance.js (BillPaymentForm and
+    // Checked against src/components/studio2/StudioFinance.tsx (BillPaymentForm and
     // MoneyAccountField) and PaymentSchema in src/modules/finance/schema.ts.
     {
       id: "finance-payables.bill-payment-fields", topic: "dept.finance-payables", kind: "fields", open: "finance-payables",
@@ -937,7 +937,7 @@ export const finance: HelpModule = {
       keywords: ["pay bill", "supplier payment", "record payment", "دفع فاتورة مورد", "دفعة مورد", "تسجيل دفعة"],
       related: ["finance-payables.approve", "finance-payables.pay-refused"],
     },
-    // Checked against src/components/studio2/StudioFinance.js (Expenses and
+    // Checked against src/components/studio2/StudioFinance.tsx (Expenses and
     // SimpleForm) and ExpenseSchema in src/modules/finance/schema.ts with
     // createExpense in src/modules/finance/finance.ts.
     {
@@ -954,7 +954,7 @@ export const finance: HelpModule = {
       keywords: ["expense", "new expense", "petty cash", "receipt", "spend", "مصروف", "مصروف جديد", "عهدة نقدية", "إيصال", "إنفاق"],
       related: ["finance-payables.record-expense", "finance-settings.master-lists"],
     },
-    // Checked against src/components/studio2/ClaimsPanel.js (ClaimForm) and the
+    // Checked against src/components/studio2/ClaimsPanel.tsx (ClaimForm) and the
     // checks in src/modules/finance/claims.ts and claimsService.ts (no Zod schema).
     {
       id: "finance-payables.claim-fields", topic: "dept.finance-payables", kind: "fields", open: "finance-payables",
@@ -970,7 +970,7 @@ export const finance: HelpModule = {
       keywords: ["expense claim form", "claim lines", "receipt", "reimbursement", "نموذج المطالبة", "أسطر المطالبة", "إيصال", "استرداد"],
       related: ["finance-payables.claims", "finance-settings.categories"],
     },
-    // Checked against src/components/studio2/ClaimsPanel.js (Advances) and
+    // Checked against src/components/studio2/ClaimsPanel.tsx (Advances) and
     // giveAdvance / returnAdvance in src/modules/finance/claimsService.ts.
     {
       id: "finance-payables.advance-fields", topic: "dept.finance-payables", kind: "fields", open: "finance-payables",
@@ -986,7 +986,7 @@ export const finance: HelpModule = {
       keywords: ["staff advance", "cash advance", "float", "imprest", "سلفة موظف", "سلفة نقدية", "عهدة", "سلفة مستديمة"],
       related: ["finance-payables.advances"],
     },
-    // Checked against src/components/studio2/PaymentRunPanel.js and
+    // Checked against src/components/studio2/PaymentRunPanel.tsx and
     // src/modules/finance/paymentRun.ts / paymentRunService.ts (no Zod schema).
     {
       id: "finance-payables.run-fields", topic: "dept.finance-payables", kind: "fields", open: "finance-payables",
@@ -1002,7 +1002,7 @@ export const finance: HelpModule = {
       keywords: ["payment run form", "due by", "pay on", "batch", "نموذج دفعة السداد", "مستحقة حتى", "تاريخ الدفع", "دفعة"],
       related: ["finance-payables.payment-run", "finance-payables.not-in-run"],
     },
-    // Checked against src/components/studio2/StudioFinance.js (ReleaseHoldForm) and
+    // Checked against src/components/studio2/StudioFinance.tsx (ReleaseHoldForm) and
     // holdRelease on BillSchema in src/modules/finance/schema.ts.
     {
       id: "finance-payables.release-fields", topic: "dept.finance-payables", kind: "fields", open: "finance-payables",
@@ -1261,7 +1261,7 @@ export const finance: HelpModule = {
       keywords: ["letter of guarantee", "bank guarantee", "LG", "margin", "performance bond", "خطاب ضمان", "ضمان بنكي", "تأمين نقدي", "ضمان حسن التنفيذ"],
       related: ["finance-cash.guarantee-fields", "finance-cash.release-guarantee"],
     },
-    // Checked against src/components/studio2/TreasuryPanel.js (Move money) and the
+    // Checked against src/components/studio2/TreasuryPanel.tsx (Move money) and the
     // transfer checks in src/modules/finance/treasuryService.ts (no Zod schema).
     {
       id: "finance-cash.transfer-fields", topic: "dept.finance-cash", kind: "fields", open: "finance-cash",
@@ -1277,7 +1277,7 @@ export const finance: HelpModule = {
       keywords: ["transfer form", "move money", "from account", "to account", "نموذج التحويل", "تحويل الأموال", "من حساب", "إلى حساب"],
       related: ["finance-cash.transfer"],
     },
-    // Checked against src/components/studio2/TreasuryPanel.js (Add a cheque) and the
+    // Checked against src/components/studio2/TreasuryPanel.tsx (Add a cheque) and the
     // cheque checks in src/modules/finance/treasury.ts (no Zod schema).
     {
       id: "finance-cash.cheque-fields", topic: "dept.finance-cash", kind: "fields", open: "finance-cash",
@@ -1293,7 +1293,7 @@ export const finance: HelpModule = {
       keywords: ["cheque form", "check", "PDC", "post-dated cheque", "cheque number", "نموذج الشيك", "شيك", "شيك مؤجل", "رقم الشيك"],
       related: ["finance-cash.cheques", "finance-cash.cheque-refused"],
     },
-    // Checked against src/components/studio2/TreasuryPanel.js (Add a guarantee) and
+    // Checked against src/components/studio2/TreasuryPanel.tsx (Add a guarantee) and
     // the guarantee checks in src/modules/finance/treasury.ts (no Zod schema).
     {
       id: "finance-cash.guarantee-fields", topic: "dept.finance-cash", kind: "fields", open: "finance-cash",
@@ -1309,7 +1309,7 @@ export const finance: HelpModule = {
       keywords: ["guarantee form", "LG", "beneficiary", "cash margin", "expiry", "نموذج الضمان", "خطاب ضمان", "المستفيد", "تأمين نقدي", "تاريخ الانتهاء"],
       related: ["finance-cash.guarantees"],
     },
-    // Checked against src/components/studio2/ReconciliationPanel.js (Import a
+    // Checked against src/components/studio2/ReconciliationPanel.tsx (Import a
     // statement) and the CSV reader in src/modules/finance/reconciliation.ts.
     {
       id: "finance-cash.import-fields", topic: "dept.finance-cash", kind: "fields", open: "finance-cash",
@@ -1325,7 +1325,7 @@ export const finance: HelpModule = {
       keywords: ["import statement", "CSV", "bank export", "upload statement", "استيراد كشف", "ملف CSV", "تصدير البنك", "رفع الكشف"],
       related: ["finance-cash.reconcile", "finance-cash.bank-feed"],
     },
-    // Checked against src/components/studio2/ReconciliationPanel.js (Add line) and
+    // Checked against src/components/studio2/ReconciliationPanel.tsx (Add line) and
     // the statement-line checks in src/modules/finance/reconciliation.ts.
     {
       id: "finance-cash.statement-line-fields", topic: "dept.finance-cash", kind: "fields", open: "finance-cash",
@@ -1341,7 +1341,7 @@ export const finance: HelpModule = {
       keywords: ["add statement line", "manual line", "typed statement", "إضافة بند كشف", "بند يدوي", "كشف مكتوب"],
       related: ["finance-cash.reconcile"],
     },
-    // Checked against src/components/studio2/ReconciliationPanel.js (rules form) and
+    // Checked against src/components/studio2/ReconciliationPanel.tsx (rules form) and
     // the bank-rule handling in src/modules/finance/reconciliationService.ts.
     {
       id: "finance-cash.rule-fields", topic: "dept.finance-cash", kind: "fields", open: "finance-cash",
@@ -1557,7 +1557,7 @@ export const finance: HelpModule = {
       keywords: ["paid from", "funded by", "asset funding", "opening asset", "مدفوع من", "مصدر التمويل", "تمويل الأصل", "أصل افتتاحي"],
       related: ["finance-assets.put-on-books", "finance-assets.off-books"],
     },
-    // Checked against src/components/studio2/StudioFinance.js (AssetForm and
+    // Checked against src/components/studio2/StudioFinance.tsx (AssetForm and
     // FundingFields) and FixedAssetSchema in src/modules/finance/schema.ts.
     {
       id: "finance-assets.fields", topic: "dept.finance-assets", kind: "fields", common: true, open: "finance-assets",
@@ -1573,7 +1573,7 @@ export const finance: HelpModule = {
       keywords: ["new asset", "add asset", "capitalise", "asset form", "أصل جديد", "إضافة أصل", "رسملة", "نموذج الأصل"],
       related: ["finance-assets.funding", "finance-assets.off-books"],
     },
-    // Checked against src/components/studio2/StudioFinance.js (DisposeForm) and
+    // Checked against src/components/studio2/StudioFinance.tsx (DisposeForm) and
     // disposedOn / disposalProceeds on FixedAssetSchema in src/modules/finance/schema.ts.
     {
       id: "finance-assets.dispose-fields", topic: "dept.finance-assets", kind: "fields", open: "finance-assets",
@@ -1589,7 +1589,7 @@ export const finance: HelpModule = {
       keywords: ["disposal form", "sale proceeds", "scrap", "write off", "نموذج الاستبعاد", "متحصلات البيع", "إتلاف", "شطب"],
       related: ["finance-assets.dispose"],
     },
-    // Checked against src/components/studio2/LeasesPanel.js and the checks in
+    // Checked against src/components/studio2/LeasesPanel.tsx and the checks in
     // src/modules/finance/leases.ts (no Zod schema; the service cleans the body).
     {
       id: "finance-assets.lease-fields", topic: "dept.finance-assets", kind: "fields", open: "finance-assets",
@@ -1770,7 +1770,7 @@ export const finance: HelpModule = {
       keywords: ["zakat", "ZATCA", "zakat base", "zakat worksheet", "الزكاة", "هيئة الزكاة", "الوعاء الزكوي", "ورقة عمل الزكاة"],
       related: ["finance-tax.zakat-fields", "finance-tax.zakat-steps"],
     },
-    // Checked against src/components/studio2/TaxReturnPanel.js (TaxReturnPanel and
+    // Checked against src/components/studio2/TaxReturnPanel.tsx (TaxReturnPanel and
     // FileReturn) and fileTaxReturn in src/modules/finance/taxFiling.ts (no Zod schema).
     {
       id: "finance-tax.file-fields", topic: "dept.finance-tax", kind: "fields", open: "finance-tax",
@@ -1786,7 +1786,7 @@ export const finance: HelpModule = {
       keywords: ["file return form", "authority reference", "tax period", "نموذج تقديم الإقرار", "مرجع الهيئة", "الفترة الضريبية"],
       related: ["finance-tax.file-return"],
     },
-    // Checked against src/components/studio2/ZakatPanel.js and
+    // Checked against src/components/studio2/ZakatPanel.tsx and
     // src/modules/finance/zakat.ts / zakatService.ts (no Zod schema).
     {
       id: "finance-tax.zakat-fields", topic: "dept.finance-tax", kind: "fields", open: "finance-tax",
@@ -1802,7 +1802,7 @@ export const finance: HelpModule = {
       keywords: ["zakat worksheet", "zakatable share", "zakat adjustments", "ورقة عمل الزكاة", "الحصة الخاضعة للزكاة", "تعديلات الزكاة"],
       related: ["finance-tax.zakat", "finance-tax.zakat-steps"],
     },
-    // Checked against src/components/studio2/TaxReturnPanel.js (RecordAnswer) and the
+    // Checked against src/components/studio2/TaxReturnPanel.tsx (RecordAnswer) and the
     // einvoice object on InvoiceSchema in src/modules/finance/schema.ts.
     {
       id: "finance-tax.einvoice-answer-fields", topic: "dept.finance-tax", kind: "fields", open: "finance-tax",
@@ -2040,7 +2040,7 @@ export const finance: HelpModule = {
       keywords: ["group books", "consolidation", "multi company", "intercompany", "دفاتر المجموعة", "توحيد القوائم", "عدة شركات", "بين الشركات"],
       related: ["finance-reports.group-fields", "finance-reports.group-refused"],
     },
-    // Checked against src/components/studio2/StudioFinance.js (GroupBooks) and
+    // Checked against src/components/studio2/StudioFinance.tsx (GroupBooks) and
     // src/modules/finance/groupService.ts (no Zod schema; a platform-level record).
     {
       id: "finance-reports.group-fields", topic: "dept.finance-reports", kind: "fields", open: "finance-reports",
@@ -2170,7 +2170,7 @@ export const finance: HelpModule = {
       keywords: ["monthly phasing", "copy budget", "budget approval", "budget version", "توزيع شهري", "نسخ الموازنة", "اعتماد الموازنة", "نسخة الموازنة", "غير متوفر"],
       related: ["finance-budgets.create"],
     },
-    // Checked against src/components/studio2/BudgetsPanel.js and the checks in
+    // Checked against src/components/studio2/BudgetsPanel.tsx and the checks in
     // src/modules/finance/budgets.ts (no Zod schema; the service cleans the body).
     {
       id: "finance-budgets.fields", topic: "dept.finance-budgets", kind: "fields", open: "finance-budgets",
@@ -2265,7 +2265,7 @@ export const finance: HelpModule = {
       keywords: ["finance settings", "configuration", "finance options", "إعدادات المالية", "تهيئة", "ضبط", "خيارات المالية"],
       related: ["finance-settings.where", "finance-settings.payment-hold", "finance-settings.master-lists"],
     },
-    // Checked against src/components/studio2/FinanceSettingsPanel.js (withholding
+    // Checked against src/components/studio2/FinanceSettingsPanel.tsx (withholding
     // table) and withholdingProblems / cleanWithholding in src/modules/finance/withholding.ts.
     {
       id: "finance-settings.withholding-fields", topic: "dept.finance-settings", kind: "fields", open: "finance-settings",
@@ -2281,7 +2281,7 @@ export const finance: HelpModule = {
       keywords: ["withholding rule form", "rate", "threshold", "نموذج قاعدة الاستقطاع", "النسبة", "الحد الأدنى"],
       related: ["finance-settings.withholding"],
     },
-    // Checked against src/components/studio2/FinanceSettingsPanel.js (payment hold)
+    // Checked against src/components/studio2/FinanceSettingsPanel.tsx (payment hold)
     // and holdProblems / cleanHold in src/modules/finance/hold.ts.
     {
       id: "finance-settings.hold-fields", topic: "dept.finance-settings", kind: "fields", open: "finance-settings",

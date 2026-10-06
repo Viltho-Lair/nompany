@@ -27,7 +27,7 @@
    appearance without touching one of those call sites, and no class changes
    meaning on the way. Retiring the names is a later, mechanical pass.
 
-   SHAPE comes from the Studio (src/components/studio2/StudioFrame.js + ui.js):
+   SHAPE comes from the Studio (src/components/studio2/StudioFrame.tsx + ui.tsx):
    a floating geex-radius rail, geex-radius cards on a tinted page, pill
    buttons, uppercase micro-labels, Cabin. Not Material, not the template.
 

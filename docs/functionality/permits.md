@@ -44,7 +44,7 @@ studio has.
 
 ## The Schedule screen's Permits tab
 
-**One panel** (`components/studio2/PermitsPanel.js`) draws the register wherever it is reached.
+**One panel** (`components/studio2/PermitsPanel.tsx`) draws the register wherever it is reached.
 Where the studio has the Quality & HSE register and the reader may open it, the tab says permits
 are kept there and links to it; otherwise — a studio not yet planted, or somebody holding permits
 only through Tracking — it still shows the register, so nobody loses the way to their permits in
@@ -61,7 +61,7 @@ permit right. The register's screen gated on "create OR edit" and drew Delete fo
 
 **A move is judged against the row being written** (`movePermit`, invariant 8): the legal-move
 check runs again inside the function patch, so Close and Cancel pressed at once cannot both win.
-**Refusals are words on both screens** — `components/studio2/operationsRefusal.js`, one function
+**Refusals are words on both screens** — `components/studio2/operationsRefusal.ts`, one function
 for the two, where the register printed the token ("controlled", "forbidden") and the tab
 collapsed everything unlisted to "That didn't save." A permit's expiry ("expires … (n days)")
 and "no." are the dictionary's too. "Today" for validity is the studio's (`shared/timezone`).

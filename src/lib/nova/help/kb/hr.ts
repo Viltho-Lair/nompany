@@ -201,7 +201,7 @@ export const hr: HelpModule = {
       keywords: ["manpower", "workforce", "capacity", "staffing", "القوى العاملة", "تخطيط", "احتياج", "نقص"],
       related: ["hr-employees.manpower-howto", "hr-employees.manpower-limits"],
     },
-    // Checked against src/components/studio2/StudioHr.js (People → EmployeeEditor)
+    // Checked against src/components/studio2/StudioHr.tsx (People → EmployeeEditor)
     // and saveEmployment in src/modules/hr/hr.ts (no Zod schema: the employee is
     // the collaborator row, whose HR fields are HR_DEFAULTS in
     // src/platform/auth/collaborators.ts).
@@ -241,7 +241,7 @@ export const hr: HelpModule = {
       keywords: ["add employee", "new employee", "hire", "onboard", "employee details", "إضافة موظف", "موظف جديد", "تعيين", "بيانات الموظف"],
       related: ["hr.where-people-come-from", "hr-employees.documents", "hr-lifecycle.contract-fields"],
     },
-    // Checked against src/components/studio2/StudioHr.js (Certifications →
+    // Checked against src/components/studio2/StudioHr.tsx (Certifications →
     // SimpleForm) and CertificationSchema in src/modules/hr/schema.ts.
     {
       id: "hr-employees.certification-fields", topic: "dept.hr-employees", kind: "fields", open: "hr-employees",
@@ -257,7 +257,7 @@ export const hr: HelpModule = {
       keywords: ["certification", "qualification", "licence", "ticket", "شهادة", "مؤهل", "رخصة", "شهادة جديدة"],
       related: ["hr-employees.certifications", "hr-employees.cert-in-use"],
     },
-    // Checked against src/components/studio2/StudioHr.js (Roles → SimpleForm)
+    // Checked against src/components/studio2/StudioHr.tsx (Roles → SimpleForm)
     // and createHrRole in src/modules/hr/hr.ts (no Zod schema for a role here;
     // the row is the Access screen's role).
     {
@@ -274,7 +274,7 @@ export const hr: HelpModule = {
       keywords: ["add role", "new role", "job title", "position", "إضافة دور", "دور جديد", "مسمى وظيفي", "وظيفة"],
       related: ["hr-employees.add-role", "hr-employees.library", "hr-employees.no-access-granted"],
     },
-    // Checked against src/components/studio2/ManpowerPanel.js and
+    // Checked against src/components/studio2/ManpowerPanel.tsx and
     // manpowerProblems in src/modules/hr/manpower.ts.
     {
       id: "hr-employees.manpower-fields", topic: "dept.hr-employees", kind: "fields", open: "hr-employees",
@@ -612,7 +612,7 @@ export const hr: HelpModule = {
       keywords: ["end of service", "gratuity", "settlement", "EOSB", "final settlement", "مكافأة نهاية الخدمة", "تسوية نهائية", "مستحقات", "المستحقات النهائية"],
       related: ["hr-lifecycle.exit", "hr-lifecycle.pay-settlement", "hr-payroll.statutory"],
     },
-    // Checked against src/components/studio2/LifecyclePanel.jsx (ContractDialog)
+    // Checked against src/components/studio2/LifecyclePanel.tsx (ContractDialog)
     // and contractProblems / cleanContract in src/modules/hr/lifecycle.ts (the
     // EmploymentContract type there; lifecycle keeps no Zod schema).
     {
@@ -647,7 +647,7 @@ export const hr: HelpModule = {
       keywords: ["contract", "new contract", "fixed term", "permanent", "employment contract", "عقد", "عقد جديد", "محدد المدة", "دائم", "عقد عمل"],
       related: ["hr-lifecycle.new-contract", "hr-lifecycle.amend", "hr-lifecycle.country-rules"],
     },
-    // Checked against src/components/studio2/LifecyclePanel.jsx (ContractDialog
+    // Checked against src/components/studio2/LifecyclePanel.tsx (ContractDialog
     // with `prior`) and createContract in src/modules/hr/lifecycleService.ts.
     {
       id: "hr-lifecycle.amend-fields", topic: "dept.hr-lifecycle", kind: "fields", open: "hr-lifecycle",
@@ -663,7 +663,7 @@ export const hr: HelpModule = {
       keywords: ["amend contract", "contract change", "amendment", "new terms", "تعديل العقد", "تغيير العقد", "ملحق", "شروط جديدة"],
       related: ["hr-lifecycle.amend", "hr-lifecycle.superseded"],
     },
-    // Checked against src/components/studio2/LifecyclePanel.jsx (MoveDialog,
+    // Checked against src/components/studio2/LifecyclePanel.tsx (MoveDialog,
     // move "giveNotice") and moveEmployment in src/modules/hr/lifecycleService.ts.
     {
       id: "hr-lifecycle.notice-fields", topic: "dept.hr-lifecycle", kind: "fields", open: "hr-lifecycle",
@@ -679,7 +679,7 @@ export const hr: HelpModule = {
       keywords: ["give notice", "notice period", "resignation letter", "notice form", "تقديم إشعار", "فترة الإشعار", "خطاب استقالة", "نموذج الإشعار"],
       related: ["hr-lifecycle.give-notice", "hr-lifecycle.settlement"],
     },
-    // Checked against src/components/studio2/LifecyclePanel.jsx (MoveDialog,
+    // Checked against src/components/studio2/LifecyclePanel.tsx (MoveDialog,
     // move "exit", and SettlementPreview) and moveEmployment / settlementFor in
     // src/modules/hr/lifecycleService.ts.
     {
@@ -696,7 +696,7 @@ export const hr: HelpModule = {
       keywords: ["exit form", "last working day", "leaving date", "termination form", "نموذج انتهاء الخدمة", "آخر يوم عمل", "تاريخ المغادرة", "نموذج إنهاء الخدمة"],
       related: ["hr-lifecycle.exit", "hr-lifecycle.settlement-hidden"],
     },
-    // Checked against src/components/studio2/LifecyclePanel.jsx (MoveDialog for
+    // Checked against src/components/studio2/LifecyclePanel.tsx (MoveDialog for
     // every other move) and MOVES in src/modules/hr/lifecycle.ts.
     {
       id: "hr-lifecycle.move-fields", topic: "dept.hr-lifecycle", kind: "fields", open: "hr-lifecycle",
@@ -1034,7 +1034,7 @@ export const hr: HelpModule = {
       keywords: ["month summary", "days worked", "not marked", "attendance report", "ملخص الشهر", "أيام العمل", "لم يسجل", "تقرير الحضور"],
       related: ["hr-time.check-month"],
     },
-    // Checked against src/components/studio2/AttendancePanel.js and
+    // Checked against src/components/studio2/AttendancePanel.tsx and
     // attendanceProblems / cleanAttendance in src/modules/hr/attendance.ts
     // (AttendanceRow there; attendance keeps no Zod schema).
     {
@@ -1215,7 +1215,7 @@ export const hr: HelpModule = {
       keywords: ["pending", "approved", "declined", "cancelled", "leave status", "معلق", "معتمد", "مرفوض", "ملغى", "حالة الإجازة"],
       related: ["hr-leave.approve", "hr-leave.cancel"],
     },
-    // Checked against src/components/studio2/StudioHr.js (Leave → LeaveForm) and
+    // Checked against src/components/studio2/StudioHr.tsx (Leave → LeaveForm) and
     // requestVacation in src/modules/hr/hr.ts with VacationSchema in
     // src/modules/hr/schema.ts.
     {
@@ -1232,7 +1232,7 @@ export const hr: HelpModule = {
       keywords: ["leave form", "request leave", "leave dates", "نموذج الإجازة", "طلب إجازة", "تواريخ الإجازة"],
       related: ["hr-leave.request", "hr-leave.refused"],
     },
-    // Checked against src/components/studio2/EmploymentRulesPanel.js (the leave
+    // Checked against src/components/studio2/EmploymentRulesPanel.tsx (the leave
     // table) and employmentRuleProblems in src/modules/hr/leaveBalance.ts.
     {
       id: "hr-leave.rules-fields", topic: "dept.hr-leave", kind: "fields", open: "administration-settings",
@@ -1504,7 +1504,7 @@ export const hr: HelpModule = {
       keywords: ["bank file", "CSV", "salary transfer", "WPS", "SIF", "ملف البنك", "تحويل الرواتب", "حماية الأجور", "ملف الرواتب"],
       related: ["hr-payroll.bank-file", "hr-payroll.no-bank-file", "hr-payroll.wps"],
     },
-    // Checked against src/components/studio2/PayrollPanel.js (the Pay for …
+    // Checked against src/components/studio2/PayrollPanel.tsx (the Pay for …
     // dialog) and payProblems / cleanPay in src/modules/hr/payroll.ts
     // (PayRecord there; payroll keeps no Zod schema).
     {
@@ -1537,7 +1537,7 @@ export const hr: HelpModule = {
       keywords: ["pay record", "basic salary", "allowance", "deduction", "IBAN", "سجل الراتب", "راتب أساسي", "بدل", "استقطاع"],
       related: ["hr-payroll.set-pay", "hr-payroll.component-fields"],
     },
-    // Checked against src/components/studio2/PayrollPanel.js (the components
+    // Checked against src/components/studio2/PayrollPanel.tsx (the components
     // rows of the pay dialog) and payProblems in src/modules/hr/payroll.ts.
     {
       id: "hr-payroll.component-fields", topic: "dept.hr-payroll", kind: "fields", open: "hr-payroll",
@@ -1553,7 +1553,7 @@ export const hr: HelpModule = {
       keywords: ["allowance", "deduction", "housing allowance", "insurable", "بدل", "استقطاع", "بدل سكن", "خاضعة للتأمينات"],
       related: ["hr-payroll.pay-fields", "hr-payroll.statutory"],
     },
-    // Checked against src/components/studio2/PayrollPanel.js (Month + Prepare
+    // Checked against src/components/studio2/PayrollPanel.tsx (Month + Prepare
     // run) and prepareRun in src/modules/hr/payrollService.ts.
     {
       id: "hr-payroll.run-fields", topic: "dept.hr-payroll", kind: "fields", open: "hr-payroll",
@@ -1583,7 +1583,7 @@ export const hr: HelpModule = {
       keywords: ["before payroll", "prepare run", "payroll checklist", "month", "قبل الرواتب", "تجهيز دورة", "قائمة الرواتب", "الشهر"],
       related: ["hr-payroll.run", "hr-payroll.duplicate"],
     },
-    // Checked against src/components/studio2/EmploymentRulesPanel.js (Social
+    // Checked against src/components/studio2/EmploymentRulesPanel.tsx (Social
     // security and End of service blocks) and statutoryProblems in
     // src/modules/hr/statutory.ts.
     {
@@ -1614,7 +1614,7 @@ export const hr: HelpModule = {
       keywords: ["social security rates", "GOSI", "end of service rule", "gratuity formula", "نسب الضمان الاجتماعي", "التأمينات", "قاعدة نهاية الخدمة", "معادلة المكافأة"],
       related: ["hr-payroll.statutory", "hr-lifecycle.settlement"],
     },
-    // Checked against src/components/studio2/EmploymentRulesPanel.js (the
+    // Checked against src/components/studio2/EmploymentRulesPanel.tsx (the
     // Salary file block) and the wps rules in src/modules/hr/statutory.ts.
     {
       id: "hr-payroll.wps-fields", topic: "dept.hr-payroll", kind: "fields", open: "administration-settings",

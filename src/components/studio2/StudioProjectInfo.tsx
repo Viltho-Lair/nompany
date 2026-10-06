@@ -1,0 +1,235 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { projectsDict } from "@/shared/studio/projects";
+import Link from "next/link";
+import { Icon } from "@/components/studio2/icons";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import { panel, h2, sub, fmtDate } from "@/components/studio2/ui";
+import { StatusPill } from "@/components/studio2/StatusPill";
+import { useReload } from "@/components/studio2/useReload";
+import type { ReactNode } from "react";
+import type {
+  listProjects, approvedQuotations, projectPeople, listProjectClients, listOvertimes,
+  overtimeDirectory, readProjectsSettings, PROJECT_STAGES,
+} from "@/modules/projects/projects";
+import type { listProjectSheets } from "@/modules/inventory/inventory";
+import type { sectionNav, manageMap } from "@/lib/studios";
+
+// THE /projects GET BODY, field by field from the services its route returns
+// (src/app/api/studios/[slug]/projects/route.ts). The route wraps a plain
+// object, so there is no single function to take the return type of; each
+// field is derived from the one that answers it instead.
+//
+// THREE FIELDS ARE NARROWED HERE rather than derived, because their services
+// build them from rows whose type is open: `projectPeople` and
+// `overtimeDirectory` map `listCollaborators` rows (every value `unknown`),
+// `approvedQuotations` maps stored quotation rows the same way, and `Overtime`
+// is a loose schema that does not declare the names `createOvertime` stamps on
+// each entry. The values are the strings named below.
+type DirectoryPerson = { id: string; alias: string; departmentId: string; departmentName: string };
+export type ProjectsBody = {
+  canManage: boolean;
+  canViewDashboard: boolean;
+  canManageList: boolean;
+  canWriteInventoryColumns: boolean;
+  canManageOvertimes: boolean;
+  canManageSettings: boolean;
+  canViewList: boolean;
+  canRequisition: boolean;
+  canViewCosts: boolean;
+  canViewBilling: boolean;
+  canViewReports: boolean;
+  nav: ReturnType<typeof sectionNav>;
+  manage: ReturnType<typeof manageMap>;
+  projects: Awaited<ReturnType<typeof listProjects>>;
+  sheets: Awaited<ReturnType<typeof listProjectSheets>>;
+  approvedQuotations: (Omit<Awaited<ReturnType<typeof approvedQuotations>>[number], "id" | "number" | "total" | "clientName">
+    & { id: string; number: string; total: number; clientName: string })[];
+  people: (Omit<Awaited<ReturnType<typeof projectPeople>>[number], "id" | "alias"> & { id: string; alias: string })[];
+  clients: Awaited<ReturnType<typeof listProjectClients>>;
+  overtimes: (Awaited<ReturnType<typeof listOvertimes>>[number] & {
+    projectName?: string; personName?: string; departmentName?: string; from?: string; to?: string;
+  })[];
+  directory: Omit<Awaited<ReturnType<typeof overtimeDirectory>>, "people"> & { people: DirectoryPerson[] };
+  settings: ReturnType<typeof readProjectsSettings>;
+  // `currency` is not sent by the route today; deriveProject reads it anyway.
+  studioDefaults: { country: string; city: string; currency?: string };
+  vocabulary: { stages: typeof PROJECT_STAGES; industries: string[] };
+};
+export type ProjectRow = ProjectsBody["projects"][number];
+export type ProjectClient = ProjectsBody["clients"][number];
+
+// ONE PROJECT'S INFORMATION, in one place. This used to live inline in
+// StudioProjectProfile.js; it was lifted out so the full-screen project board
+// (StudioProjectBoard) can show the SAME project facts in its right sidebar
+// without a second copy that drifts (house rule: never duplicate). Both the
+// legacy profile and the board read the one /projects endpoint a project is a
+// row of, and render these sections from it.
+//
+// EVERY UPSTREAM RECORD IS A KEY, NOT A COPY — the row carries ticketId, rfqId
+// and quotationId, and the lineage section follows them.
+
+const card = `${panel} min-h-0`;
+
+// ---- data ------------------------------------------------------------------
+// The board and the legacy profile both need the projects payload plus the two
+// live channels a project changes on (its own, and Approvals — the number
+// arrives when the client's PO is approved). One hook, one fetch.
+//
+// `initial` is that payload when the studio page already answered it in its own
+// render; the first fetch is then skipped, and every reload is as before.
+export function useProjectData(slug: string, initial?: ProjectsBody) {
+  const tr = projectsDict(useStudioLocale());
+  const [data, setData] = useState<ProjectsBody | null>(initial ?? null);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/projects`, { cache: "no-store" });
+    if (!res.ok) { setError(tr.accessProjectsStudio); return; }
+    setData(await res.json());
+  }, [slug, tr]);
+
+  useReload(load, initial);
+  useLiveUpdates(slug, "projects", load);
+  // An approved Client PO issues the project number shown here.
+  useLiveUpdates(slug, "approvals", load);
+
+  return { data, error, reload: load };
+}
+
+// Pure derivation — no React — so the same numbers reach both surfaces.
+export function deriveProject(data: ProjectsBody | null | undefined, projectId: string) {
+  const project = data?.projects?.find((p) => p.id === projectId) || null;
+  const people = Object.fromEntries(
+    (data?.directory?.people || []).map((p) => [p.id, p.alias]),
+  );
+  const currency = data?.studioDefaults?.currency || "";
+  const nav = data?.nav || {};
+  // The project's Main sheet is what this side reads — the quotation as it was
+  // sold. Bulk is a procurement view and belongs to Inventory.
+  const mine = (data?.sheets || []).filter((s) => s.projectId === projectId);
+  const hasSheet = mine.length > 0;
+  const lineCount = (mine.find((s) => s.kind === "main") || mine[0])?.lineCount || 0;
+  // The project's client, read from Sales (the projects payload joins it), so the
+  // client box can draw the same logo and contacts the Sales ticket shows.
+  const client = (data?.clients || []).find((c) => c.id === project?.clientId) || null;
+  return { project, people, currency, nav, mine, hasSheet, lineCount, client };
+}
+
+// ---- sections --------------------------------------------------------------
+
+// `action` is the decision this box leads to — the project plan button, handed
+// in by the board rather than imported here, so the information module stays
+// clear of the plans API. It reads facts first and the thing to do last.
+export function ProjectSection({ project, people, action = null }: {
+  project: ProjectRow;
+  people: Record<string, string>;
+  action?: ReactNode;
+}) {
+  const tr = projectsDict(useStudioLocale());
+  return (
+    <section className={card}>
+      <h2 className={h2}>{tr.project}</h2>
+      <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        {/* BLANK UNTIL FINANCE ISSUES IT, and said so rather than shown as an
+            empty cell — a project without a number is a normal state here. */}
+        <Field label={tr.number} value={project.number || <span className="text-amber-700 dark:text-amber-300">{tr.notIssuedYet}</span>} mono />
+        <Field label={tr.stage} value={<StatusPill kind="project" status={project.stage} />} />
+        <Field label={tr.handler} value={people[project.managerCollaboratorId] || tr.unassigned2} />
+        {/* NOT VALUE. What a project is worth is Finance's figure and Finance's
+            screen; a project box that carries it invites the number to be read
+            (and quoted) from a place nothing reconciles. Progress stands here
+            instead — it was on the left rail that this box absorbed, and it
+            would otherwise have gone with it. */}
+        <Field label={tr.progress} value={`${project.progress ?? 0}%`} mono />
+        {/* `receivedDate` is stamped at create (openProject) but is not declared on ProjectSchema. */}
+        <Field label={tr.received} value={fmtDate((project as ProjectRow & { receivedDate?: string }).receivedDate)} />
+        <Field label={tr.start} value={fmtDate(project.startDate)} />
+        <Field label={tr.end} value={fmtDate(project.endDate)} />
+        <Field label={tr.site} value={project.location} />
+      </dl>
+      {project.notes && (
+        <p className="mt-4 whitespace-pre-wrap border-t border-slate-100 pt-4 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
+          {project.notes}
+        </p>
+      )}
+      {action && (
+        <div className="mt-4 border-t border-slate-100 pt-4 dark:border-white/10">{action}</div>
+      )}
+    </section>
+  );
+}
+
+export function WhatWasSoldSection({ slug, projectId, hasSheet, lineCount }: {
+  slug: string; projectId: string; hasSheet: boolean; lineCount: number;
+}) {
+  const tr = projectsDict(useStudioLocale());
+  return (
+    <section className={card}>
+      <h2 className={h2}>{tr.whatSold}</h2>
+      {!hasSheet ? (
+        <p className={sub}>
+          {tr.nothingToShowQuotationLines}
+        </p>
+      ) : (
+        <Link href={`/${slug}/projects-list/${projectId}/quotation`}
+          className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200/70 px-4 py-3 text-sm transition-colors hover:border-brand-500 hover:bg-slate-50 dark:border-white/10 dark:hover:border-brand-500/40 dark:hover:bg-white/5">
+          <span className="font-600 text-slate-900 dark:text-white">{tr.openQuotationViewer}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            {lineCount} {lineCount === 1 ? "line" : "lines"} · installation and programming are yours to mark
+          </span>
+          <Icon name="chevronRight" className="ms-auto h-4 w-4 shrink-0 text-slate-300 rtl:-scale-x-100" />
+        </Link>
+      )}
+    </section>
+  );
+}
+
+// THE CLIENT BOX — the company this project is for, drawn the same way the Sales
+// ticket profile draws it: logo (initials when there is none), name, and the
+// primary contact. The client is read from Sales through the projects payload,
+// so this is one reading of that record, not a second copy. Falls back to the
+// project's own clientName when the viewer has no Sales grant to read the rest.
+export function ClientSection({ client, clientName }: { client: ProjectClient | null; clientName?: string }) {
+  const tr = projectsDict(useStudioLocale());
+  const name = client?.name || clientName || "";
+  const contact = (client?.contacts || [])[0] || {};
+  const hasContact = contact.name || contact.phone || contact.email;
+  return (
+    <section className={card}>
+      <div className="flex flex-col items-center text-center">
+        <span className="inline-flex h-24 w-32 items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white p-2 dark:border-white/10 dark:bg-white/5">
+          {client?.logo
+            /* eslint-disable-next-line @next/next/no-img-element */
+            ? <img src={client.logo} alt="" className="h-full w-full object-contain" />
+            : <span className="font-display text-2xl font-800 text-brand-700 dark:text-brand-300">
+                {(name || "?").slice(0, 2).toUpperCase()}
+              </span>}
+        </span>
+        <p className="mt-2 font-600 text-slate-900 dark:text-white">{name || "—"}</p>
+      </div>
+      {hasContact && (
+        <dl className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
+          <Field label={tr.contactPerson} value={contact.name} />
+          <Field label={tr.number} value={contact.phone} />
+          <Field label={tr.email} value={contact.email} />
+        </dl>
+      )}
+    </section>
+  );
+}
+
+// ---- helpers ---------------------------------------------------------------
+
+export function Field({ label, value, mono }: { label: ReactNode; value: ReactNode; mono?: boolean }) {
+  return (
+    <div>
+      <dt className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className={`mt-0.5 text-sm text-slate-800 dark:text-slate-100 ${mono ? "font-mono" : ""}`}>
+        {value || <span className="text-slate-400">—</span>}
+      </dd>
+    </div>
+  );
+}

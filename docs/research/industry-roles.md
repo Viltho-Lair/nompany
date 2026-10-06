@@ -12,7 +12,7 @@ Compiled 05/09/2026.
 
 ### 1.1 The list on `/administration-settings`
 
-The dropdown on the Studio settings screen (`StudioSettings.js`, label
+The dropdown on the Studio settings screen (`StudioSettings.tsx`, label
 `tr.industry`) is fed by `data.options.fields`, which the service-actions route
 sets to `FIELDS_OF_WORK` — the keys of `FIELD_ACTION_MATRIX` in
 `src/shared/fieldsOfWork.ts`. **Twenty-five fields, plus `Other`** (free text,

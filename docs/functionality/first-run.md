@@ -24,7 +24,7 @@ Four items, in the order a new owner would do them, each linking to where it is 
   holding `administration.settings.edit`, and only while something is left. Nobody else pays for
   the extra read of the studio's people.
 - **Hide** is the viewer's own convenience, kept in their browser per studio
-  (`FinishSetup.js`). A private window or blocked storage shows the list again.
+  (`FinishSetup.tsx`). A private window or blocked storage shows the list again.
 
 `tests/first-run-model.mjs` holds the rules. **Opened in the sandbox 04/10/2026**: a studio with no country
 and no logo, two people and a KPI target read "2 of 4 done" with team and targets ticked; Hide removed

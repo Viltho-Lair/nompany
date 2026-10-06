@@ -69,7 +69,7 @@ its own recomputation exactly as the server does.
 **Every studio screen shows the studio's currency (2026-09-27).** An audit of every money figure
 found almost none in it: `money(n)` was called without a currency on ~370 lines, so a figure
 showed two decimals and no code. The studio layout now provides the studio's currency as React
-context (`components/studio2/studioCurrency.js`), and a screen formats through `useMoney()`:
+context (`components/studio2/studioCurrency.tsx`), and a screen formats through `useMoney()`:
 `money(n, currency?)` uses the RECORD's currency when given (a bill in euros shows in euros) and
 the studio's otherwise, and always appends the code — `1,200.000 JOD`. Context rather than a
 module variable because the screens server-render: a module variable on the server is shared by

@@ -1,0 +1,38 @@
+import type { Pickers } from "@/modules/procurement/pickers";
+// DROPDOWN OPTIONS FROM `referencePickers` (modules/procurement/pickers.ts).
+//
+// One place that decides how a supplier, a project or a cost code is LABELLED,
+// so a bill, a requisition and a subcontract name the same project the same way.
+// Client-safe: plain functions over the payload the server already sent.
+
+export const supplierOptions = (pickers: Pickers | null | undefined) =>
+  (pickers?.suppliers || []).map((s) => ({ value: s.id, label: s.name }));
+
+export const projectOptions = (pickers: Pickers | null | undefined) =>
+  (pickers?.projects || []).map((p) => ({
+    value: p.id,
+    label: [p.number, p.title].filter(Boolean).join(" · ") || p.id,
+  }));
+
+// A COST CODE BELONGS TO ONE PROJECT, so the list is that project's alone — and
+// empty until a project is chosen, because a code from another job would file
+// the money against the wrong budget.
+export const costCodeOptions = (pickers: Pickers | null | undefined, projectId: string | null | undefined) =>
+  (pickers?.costCodes || [])
+    .filter((c) => projectId && c.projectId === projectId)
+    .map((c) => ({ value: c.id, label: [c.code, c.name].filter(Boolean).join(" · ") }));
+
+// A NAME WHERE THE REGISTER HAS ONE, the id where it does not — a supplier since
+// deleted still has orders, and an id is a worse answer than a name but a far
+// better one than nothing.
+export const supplierName = (pickers: Pickers | null | undefined, id: string | null | undefined) =>
+  (pickers?.suppliers || []).find((s) => s.id === id)?.name || id || "";
+
+// A CAMPAIGN, labelled by its reference and name (21/09/2026) — what a bill or
+// an expense names when the cost belongs to a piece of marketing. Only open
+// campaigns are offered; the server decides which those are.
+export const campaignOptions = (pickers: Pickers | null | undefined) =>
+  (pickers?.campaigns || []).map((c) => ({
+    value: c.id,
+    label: [c.reference, c.name].filter(Boolean).join(" · ") || c.id,
+  }));

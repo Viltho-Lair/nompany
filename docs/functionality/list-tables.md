@@ -6,7 +6,7 @@ columns.
 
 ## What it is
 
-One component, `src/components/studio2/StudioDataGrid.jsx`, wrapping MUI's Data Grid in
+One component, `src/components/studio2/StudioDataGrid.tsx`, wrapping MUI's Data Grid in
 studio tokens. It gives every list the same sortable headers, the same client-side paging,
 the same empty state and the same row hover. It is **loaded through `nextDynamic` at every
 use site, never statically** — `@mui/x-data-grid` is heavy and the studio's largest chunk is
@@ -15,7 +15,7 @@ actually rendering one ever fetches. Each use site pairs it with `StudioDataGrid
 sized to that screen's default column count, so the box does not resize when the chunk lands.
 
 Above it sit `Toolbar`, `FilterButton`, `FilterPanel` and `ColumnPicker` from
-`src/components/studio2/ui.js`, and behind those, `useTablePrefs` in the same file.
+`src/components/studio2/ui.tsx`, and behind those, `useTablePrefs` in the same file.
 
 Three screens use all of it: Sales' tickets, Technical's quotations, Projects' list.
 

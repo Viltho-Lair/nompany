@@ -319,7 +319,7 @@ export const procurement: HelpModule = {
       keywords: ["part estimated", "dash", "blank estimate", "no amount", "مقدر جزئيا", "شرطة", "تقدير فارغ", "بلا مبلغ"],
       related: ["procurement-requisitions.submit", "procurement-requisitions.who-approves"],
     },
-    // Checked against src/components/studio2/StudioRequisitions.js (the Raise a
+    // Checked against src/components/studio2/StudioRequisitions.tsx (the Raise a
     // requisition / Edit requisition dialog: What is needed, required; Why it is
     // needed; Needed by; Expected supplier; Project; Cost code; the lines grid of
     // Description, Unit, Qty, Est. unit cost and Registered item) and
@@ -654,7 +654,7 @@ export const procurement: HelpModule = {
       keywords: ["compare quotes", "cheapest", "fastest", "bid comparison", "مقارنة العروض", "الأرخص", "الأسرع", "جدول المقارنة"],
       related: ["procurement-rfq.award"],
     },
-    // Checked against src/components/studio2/StudioRfq.js (the Ask for quotes /
+    // Checked against src/components/studio2/StudioRfq.tsx (the Ask for quotes /
     // Edit request dialog: What is being quoted, required; Quotes wanted by;
     // Suppliers asked, ticked from the register; the lines grid of Description,
     // Unit and Qty) and RfqSchema / RfqLineSchema in
@@ -686,7 +686,7 @@ export const procurement: HelpModule = {
       keywords: ["RFQ form", "ask for quotes", "quotes wanted by", "suppliers asked", "نموذج طلب العروض", "طلب عروض", "موعد استلام العروض", "الموردون المدعوون"],
       related: ["procurement-rfq.ask"],
     },
-    // Checked against src/components/studio2/StudioRfq.js (the Record a quote
+    // Checked against src/components/studio2/StudioRfq.tsx (the Record a quote
     // dialog: Quote from, required; Received on; Held until; Lead time (weeks);
     // a price per line in the column the screen heads Est. unit cost) and
     // SupplierQuoteSchema / QuoteLineSchema in src/modules/procurement/rfqSchema.ts
@@ -718,7 +718,7 @@ export const procurement: HelpModule = {
       keywords: ["record quote", "supplier price", "validity", "lead time", "تسجيل عرض", "سعر المورد", "صلاحية العرض", "مدة التوريد"],
       related: ["procurement-rfq.compare"],
     },
-    // Checked against src/components/studio2/StudioRfq.js (the Award dialog,
+    // Checked against src/components/studio2/StudioRfq.tsx (the Award dialog,
     // titled Award to and the supplier: Why this supplier, required only when the
     // quote is not the cheapest comparable one) and RfqSchema's awardReason (max
     // 1000) in src/modules/procurement/rfqSchema.ts; the refusals are awardRfq's
@@ -865,7 +865,7 @@ export const procurement: HelpModule = {
       keywords: ["original due date", "promised date", "slipped", "re-promised", "الاستحقاق الأصلي", "التاريخ الموعود", "تأجيل", "إعادة الوعد"],
       related: ["procurement-suppliers.performance", "procurement-expediting.no-date"],
     },
-    // Checked against src/components/studio2/StudioExpediting.js (the Record a
+    // Checked against src/components/studio2/StudioExpediting.tsx (the Record a
     // chase dialog: What they said; New promised date) and recordChase in
     // src/modules/procurement/chase.ts (note max 1000, a date, one of the two
     // required), which appends a ChaseRecord (src/modules/procurement/expediting.ts)
@@ -986,7 +986,7 @@ export const procurement: HelpModule = {
       keywords: ["certified to date", "retention held", "net certified", "over valued", "المعتمد حتى تاريخه", "المحتجز", "الصافي", "تقييم زائد"],
       related: ["procurement-subcontracts.certificate"],
     },
-    // Checked against src/components/studio2/StudioSubcontracts.js (the New
+    // Checked against src/components/studio2/StudioSubcontracts.tsx (the New
     // subcontract / Edit subcontract dialog: Package, required; Scope;
     // Subcontractor, required; Agreed value; Project; Cost code; Retention %;
     // Retention released; Starts; Ends) and SubcontractSchema in
@@ -1025,7 +1025,7 @@ export const procurement: HelpModule = {
       keywords: ["new subcontract", "agreed value", "retention", "package", "عقد باطن جديد", "القيمة المتفق عليها", "الاحتجاز", "الحزمة"],
       related: ["procurement-subcontracts.certificate"],
     },
-    // Checked against src/components/studio2/StudioSubcontracts.js (the New
+    // Checked against src/components/studio2/StudioSubcontracts.tsx (the New
     // certificate dialog: Period ending; Work valued to date; Back-charges, each
     // What is being deducted and Amount) and PaymentCertificateSchema /
     // BackChargeSchema in src/modules/procurement/subcontractSchema.ts
@@ -1172,7 +1172,7 @@ export const procurement: HelpModule = {
       keywords: ["bill", "invoice", "payables", "match to purchase order", "فاتورة المورد", "الذمم الدائنة", "مطابقة بأمر الشراء", "فاتورة"],
       related: ["finance-payables.bill-fields", "procurement-receiving.flags"],
     },
-    // Checked against src/components/studio2/StudioReceiving.js (the Book in
+    // Checked against src/components/studio2/StudioReceiving.tsx (the Book in
     // dialog: Supplier's note number; Arrived on; Accepted and Rejected per order
     // line, with Still due beside each; Notes) and GoodsReceipt in
     // src/modules/procurement/receivingSchema.ts; the refusals are receiveOrder's
@@ -1290,8 +1290,8 @@ export const procurement: HelpModule = {
       keywords: ["supplier row", "on time", "rating", "documents", "صف المورد", "الالتزام بالموعد", "التقييم", "المستندات"],
       related: ["procurement-suppliers.performance", "procurement-suppliers.qualification"],
     },
-    // Checked against src/components/studio2/VendorRegister.js (VendorForm, opened
-    // by Add supplier and by Edit on StudioSuppliers.js: Name, required; Contact;
+    // Checked against src/components/studio2/VendorRegister.tsx (VendorForm, opened
+    // by Add supplier and by Edit on StudioSuppliers.tsx: Name, required; Contact;
     // Email; Phone; Item types, each a Type and its Weeks, added with Add type;
     // Notes) and createVendor / editVendor in src/modules/inventory/inventory.ts
     // (name max 160, contact 120, email 160, phone 40, notes 1000, a name already
@@ -1325,7 +1325,7 @@ export const procurement: HelpModule = {
       keywords: ["add supplier", "new vendor", "supplier form", "vendor", "إضافة مورد", "مورد جديد", "نموذج المورد", "مورد"],
       related: ["procurement-suppliers.import", "procurement-suppliers.about"],
     },
-    // Checked against src/components/studio2/VendorRegister.js (VendorImport:
+    // Checked against src/components/studio2/VendorRegister.tsx (VendorImport:
     // the copy-prompt box, Attach file, Import) and VENDOR_CSV_FIELDS /
     // parseItemTypes in src/modules/inventory/vendorCsv.ts (the headings each
     // column is recognised by, "Type:weeks; Type" in one cell); importVendors in
@@ -1357,7 +1357,7 @@ export const procurement: HelpModule = {
       keywords: ["CSV", "import columns", "supplier import", "item types", "ملف CSV", "أعمدة الاستيراد", "استيراد الموردين", "أنواع الأصناف"],
       related: ["procurement-suppliers.import"],
     },
-    // Checked against src/components/studio2/StudioSuppliers.js (the Assess
+    // Checked against src/components/studio2/StudioSuppliers.tsx (the Assess
     // dialog: Decision, with Not assessed, Approved, Suspended and Rejected; Why)
     // and assessmentProblem / APPROVAL_STATUSES in
     // src/modules/procurement/supplierModel.ts; assessSupplier in
@@ -1383,7 +1383,7 @@ export const procurement: HelpModule = {
       keywords: ["assess form", "decision", "reason", "suspend", "نموذج التقييم", "القرار", "السبب", "إيقاف"],
       related: ["procurement-suppliers.assess"],
     },
-    // Checked against src/components/studio2/StudioSuppliers.js (the Documents
+    // Checked against src/components/studio2/StudioSuppliers.tsx (the Documents
     // dialog: per document What it is, Reference, Issued, Expires, and Attach the
     // file / Open the file / Remove; Add document) and documentProblem /
     // cleanDocuments in src/modules/procurement/supplierModel.ts; the list is
@@ -1414,7 +1414,7 @@ export const procurement: HelpModule = {
       keywords: ["supplier document", "trade licence", "insurance", "expiry", "مستند المورد", "سجل تجاري", "تأمين", "تاريخ الانتهاء"],
       related: ["procurement-suppliers.documents"],
     },
-    // Checked against src/components/studio2/StudioSuppliers.js (the Add
+    // Checked against src/components/studio2/StudioSuppliers.tsx (the Add
     // scorecard dialog: Period ending; Workmanship, Health & safety and
     // Responsiveness, each Not scored or 1 to 5; Note) and SupplierScorecardSchema
     // in src/modules/procurement/supplierSchema.ts; the refusals are

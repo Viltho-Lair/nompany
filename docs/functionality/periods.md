@@ -119,7 +119,7 @@ by opening the screen, which is the only instrument that could.
 - **The journal is a list, not a register.** It cannot be filtered, searched or cut by a
   dimension on screen, though the route already computes a breakdown when asked.
 - **The hand-keyed entry form has no dimensions.** The Journal tab's New entry form
-  (`EntryForm`, `StudioLedger.js`, shown to a holder of `finance.ledger.post`) posts a
+  (`EntryForm`, `StudioLedger.tsx`, shown to a holder of `finance.ledger.post`) posts a
   balanced entry of any number of lines — date, memo, account, debit or credit — but offers no
   project, deal, cost code or department on a line, although `postEntry` accepts them. (This
   line said there was no form at all, which stopped being true when `EntryForm` shipped.)

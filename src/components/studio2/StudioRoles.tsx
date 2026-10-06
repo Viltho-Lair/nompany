@@ -1,0 +1,600 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { peopleDict } from "@/shared/studio/people";
+import { areaGroup, areaLabel, extraLabel } from "@/shared/studio/access";
+import { panel, h2, sub, input, label, btn, btnGhost, Empty } from "@/components/studio2/ui";
+import SelectMenu from "@/components/fields/SelectMenu";
+import { Field } from "@/components/fields/Field";
+import { LEVEL_VERBS, SCOPES, levelsFor, levelOf, keysForLevel } from "@/platform/access";
+import { useReload } from "@/components/studio2/useReload";
+import { Icon } from "@/components/studio2/icons";
+import type { Area, Level, Scope, Explanation } from "@/platform/access";
+import type { Role } from "@/modules/people/schema";
+import type { Department } from "@/modules/administration/types";
+
+type Strings = ReturnType<typeof peopleDict>;
+// THE /roles BODY (its GET, inline in the route): the studio's roles, the areas
+// it may grant, its departments and whether the reader may edit.
+type RolesData = { roles: Role[]; areas: Area[]; departments: Department[]; canEdit: boolean };
+// A draft is a role being given access — the stored role, or a blank one when
+// the studio has none left to give.
+type Draft = Partial<Role> & { permissions: string[]; scopes: Record<string, Scope> };
+type Person = { id: string; alias?: string };
+type Extra = NonNullable<Area["extra"]>[number];
+
+// THE ACCESS EDITOR.
+//
+// Defining what a job may do is rare and careful; assigning it is frequent and
+// quick. They are opposite jobs, so they are separate screens — this is the
+// rare one.
+//
+// IT NO LONGER NAMES THE ROLE. A role is a job title, and job titles are HR's:
+// they are the list that used to be called Positions. What happens here is
+// giving one of those jobs its ACCESS — so the button says "Create access", and
+// where there was a free-text Name there is now a dropdown of the roles that
+// exist. Typing a name here was how the two lists drifted apart in the first
+// place: whoever wrote "Sales Engineer" on this screen and whoever wrote it on
+// the HR one produced two rows that never met.
+//
+// Never a hundred checkboxes. Areas are collapsed and summarised in words, and
+// each opens to a LADDER: none / view / edit / full, one control per row rather
+// than four boxes. Powers that do not nest inside a ladder get their own line,
+// so granting "lock a quotation" is a deliberate act instead of one tick among
+// a hundred identical ones.
+
+// A FUNCTION OF THE DICTIONARY: declared beside the component, so it cannot
+// read a hook of its own.
+const ladderLabel = (tr: Strings): Record<Level, string> => ({ none: tr.ladderNone, view: tr.ladderView, edit: tr.ladderEdit, full: tr.ladderFull });
+// The four verbs a permission key ends in. The KEY is stored; these are how
+// the "why" checker reads one out loud.
+const verbLabel = (tr: Strings): Record<string, string> => ({ view: tr.verbView, create: tr.verbCreate, edit: tr.verbEdit, delete: tr.verbDelete });
+
+// `initial` is the /roles body the studio page answered in its own render, so the
+// editor paints with the roles; absent, it fetches on mount exactly as before.
+export default function StudioRoles({ slug, initial }: { slug: string; initial?: unknown }) {
+  const locale = useStudioLocale();
+  const tr = peopleDict(locale);
+  // The page's first payload is this route's own body, handed over untyped.
+  const [data, setData] = useState<RolesData | null>((initial as RolesData | null | undefined) ?? null);
+  // Fetched here rather than passed down: this is a client component and the
+  // page that renders it is a server one, so asking is cheaper than plumbing.
+  const [people, setPeople] = useState<Person[]>([]);
+  const [editing, setEditing] = useState<Draft | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  // DEPARTMENTS FOLD, as they do on HR's Roles tab — the owner, 24/09/2026.
+  // Each department starts closed; Studio-wide (Admin) and "not in a
+  // department" (something to fix) start open. Held here rather than in the
+  // list so coming back from the editor keeps what was open.
+  const [openGroups, setOpenGroups] = useState(() => new Set(["studio", "orphaned"]));
+  const toggleGroup = (key: string) => setOpenGroups((s) => {
+    const next = new Set(s);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/roles`, { cache: "no-store" });
+    if (!res.ok) { setError(tr.couldnLoadRoles); return; }
+    setData(await res.json());
+  }, [slug]);
+  useReload(load, initial);
+  useEffect(() => {
+    fetch(`/api/studios/${slug}/collaborators`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setPeople(d?.collaborators || []))
+      .catch(() => {});
+  }, [slug]);
+
+  async function save(role: Draft) {
+    setBusy(true); setError("");
+    const res = await fetch(`/api/studios/${slug}/roles`, {
+      method: role.id ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(role),
+    });
+    setBusy(false);
+    if (!res.ok) {
+      const out = await res.json().catch(() => ({}));
+      // The one refusal worth explaining properly: you cannot write a role
+      // containing something you cannot do yourself.
+      setError(out.error === "escalation"
+        ? tr.canOnlyPutThings
+        : tr.didnSave);
+      return;
+    }
+    setEditing(null);
+    await load();
+  }
+
+  // No remove() here. Deleting a role is deleting a job title, which is HR's —
+  // and HR's is the one that refuses while somebody still holds it. The DELETE
+  // endpoint on /roles is still there and still guarded; this screen simply
+  // stopped being a second door onto it.
+
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingRoles} />;
+  const { roles = [], areas = [], departments = [], canEdit } = data;
+
+  // GROUPED BY DEPARTMENT, the same shape the HR roles tab uses — so the two
+  // screens describe one org chart rather than two.
+  //
+  // GROUPING ONLY. Every permission key stays grantable inside every group: a
+  // department'''s sectionKeys decide where its work LIVES, not what its roles
+  // may reach. Constraining the grid by department would be a second mechanism
+  // deciding access, free to disagree with the roles that already decide it —
+  // which is the duplication this catalogue keeps deleting.
+  const byDepartment = new Map<string, Role[]>(departments.map((d) => [d.id, []]));
+  const studioWide: Role[] = [];
+  const orphaned: Role[] = [];
+  for (const role of roles) {
+    const id = String(role.departmentId || "");
+    if (!id) studioWide.push(role);
+    else if (byDepartment.has(id)) byDepartment.get(id)!.push(role);
+    else orphaned.push(role);
+  }
+  const groups = [
+    ...(studioWide.length ? [{ key: "studio", label: tr.rolesStudioWide, rows: studioWide }] : []),
+    ...departments
+      .map((d) => ({ key: d.id, label: d.name, rows: byDepartment.get(d.id) || [] }))
+      .filter((g) => g.rows.length > 0),
+    // A role whose department was deleted keeps its id. Hiding it would leave
+    // access granted to a row nobody can find, which is worse than untidy.
+    ...(orphaned.length ? [{ key: "orphaned", label: tr.rolesNotPlaced, rows: orphaned }] : []),
+  ];
+
+  if (editing) {
+    return (
+      <RoleEditor
+        role={editing} roles={roles} areas={areas} busy={busy} error={error}
+        onCancel={() => { setEditing(null); setError(""); }}
+        onSave={save}
+      />
+    );
+  }
+
+  // Every role that could still be given access, which is all of them bar the
+  // wildcard — Admin already holds everything by definition.
+  const grantable = roles.filter((r) => !r.wildcard);
+
+  return (
+    <section className={panel}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className={h2}>{tr.access}</h2>
+          <p className={sub}>
+            {tr.whatEachRoleAllowed}
+          </p>
+        </div>
+        {canEdit && (
+          // Deliberately NOT "new role". Nothing is created here — a role that
+          // exists is picked and given its access, which is why the editor
+          // opens on a dropdown rather than an empty name field.
+          <button className={btn} disabled={grantable.length === 0}
+            title={grantable.length === 0 ? tr.everyRoleAlreadyAccess : ""}
+            onClick={() => setEditing({ ...(grantable[0] || {}), permissions: [...(grantable[0]?.permissions || [])], scopes: { ...(grantable[0]?.scopes || {}) } })}>
+            {tr.createAccess}
+          </button>
+        )}
+      </div>
+
+      {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
+
+      {canEdit && people.length > 0 && <WhyPanel slug={slug} people={people} areas={areas} />}
+
+      {roles.length === 0 ? (
+        <Empty title={tr.noRolesYet} body={tr.studiosStartAdminManager} />
+      ) : (
+        groups.map((group) => { const isOpen = openGroups.has(group.key); return (
+        <div key={group.key} className="mt-6">
+          <h3 className="font-display text-sm font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <button type="button" onClick={() => toggleGroup(group.key)} aria-expanded={isOpen}
+              className="inline-flex items-center gap-2 text-start uppercase">
+              <Icon name={isOpen ? "chevronDown" : "chevronRight"} className="h-4 w-4 shrink-0 rtl:-scale-x-100" />
+              <span>{group.label} <span className="font-500 text-slate-400">· {group.rows.length}</span></span>
+            </button>
+          </h3>
+        {isOpen && (
+        <ul className="mt-2 divide-y divide-slate-100 dark:divide-white/5">
+          {group.rows.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center gap-3 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-600 text-slate-900 dark:text-white">
+                  {r.name}
+                  {r.wildcard && (
+                    <span className="ms-2 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-700 text-amber-700 dark:text-amber-300">
+                      {tr.everythingIncludingFuture}
+                    </span>
+                  )}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{r.description}</p>
+              </div>
+              <span className="shrink-0 text-xs text-slate-400">
+                {r.wildcard ? "—"
+                  : (r.permissions || []).length === 0
+                    ? <span className="font-600 text-amber-700 dark:text-amber-300">{tr.noAccessYet}</span>
+                    : `${r.permissions.length} ${tr.nPermissions}`}
+              </span>
+              {canEdit && (
+                <span className="flex shrink-0 gap-2">
+                  {/* NO DELETE HERE ANY MORE. A role is a job title, and
+                      deleting one is HR's — where the check that nobody still
+                      holds it lives. Two delete paths with two different guards
+                      is how somebody ends up pointing at a role that is gone,
+                      which reads as no access at all and looks like a bug. */}
+                  <button className={btnGhost} onClick={() => setEditing({ ...r })}>{tr.editAccess}</button>
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+        )}
+        </div>
+        ); })
+      )}
+    </section>
+  );
+}
+
+function RoleEditor({ role, roles = [], areas, busy, error, onCancel, onSave }: {
+  role: Draft; roles?: Role[]; areas: Area[]; busy: boolean; error: string;
+  onCancel: () => void; onSave: (draft: Draft) => void;
+}) {
+  const locale = useStudioLocale();
+  const tr = peopleDict(locale);
+  const [draft, setDraft] = useState<Draft>(() => ({
+    ...role,
+    permissions: [...(role.permissions || [])],
+    scopes: { ...(role.scopes || {}) },
+  }));
+  const [open, setOpen] = useState("");
+
+  // SWITCHING ROLE SWITCHES EVERYTHING. The permissions and scopes on screen
+  // belong to the role named above them, so picking a different one loads that
+  // role's own — carrying the ticks across would be this screen quietly
+  // proposing to give one job another job's access.
+  const pickRole = (id: string) => {
+    const next = roles.find((r) => r.id === id);
+    if (!next) return;
+    setDraft({ ...next, permissions: [...(next.permissions || [])], scopes: { ...(next.scopes || {}) } });
+    setOpen("");
+  };
+
+  const held = useMemo(() => new Set(draft.permissions), [draft.permissions]);
+  const groups = useMemo(() => {
+    const out = new Map<string, Area[]>();
+    for (const a of areas) {
+      if (!out.has(a.group)) out.set(a.group, []);
+      out.get(a.group)!.push(a);
+    }
+    return [...out.entries()];
+  }, [areas]);
+
+  // Setting a level REWRITES that area's ladder keys and leaves its extras
+  // alone — an "also allow" is not part of the ladder, so moving the ladder
+  // must not silently revoke it.
+  const setLevel = (area: Area, level: Level) => setDraft((d) => {
+    const ladder = new Set(LEVEL_VERBS.full.map((v) => `${area.key}.${v}`));
+    const kept = d.permissions.filter((k) => !ladder.has(k));
+    return { ...d, permissions: [...kept, ...keysForLevel(area, level)] };
+  });
+
+  const toggleExtra = (area: Area, x: Extra) => setDraft((d) => {
+    const key = `${area.key}.${x.key}`;
+    return {
+      ...d,
+      permissions: d.permissions.includes(key)
+        ? d.permissions.filter((k) => k !== key)
+        : [...d.permissions, key],
+    };
+  });
+
+  const setScope = (area: Area, scope: Scope) =>
+    setDraft((d) => ({ ...d, scopes: { ...d.scopes, [area.key]: scope } }));
+
+  // The read-back. Access screens are dangerous because you cannot tell what you
+  // just did, so this says it in sentences as you tick.
+  const summary = useMemo(() => {
+    const can: string[] = [];
+    const cannot: string[] = [];
+    for (const a of areas) {
+      const lvl = levelOf(a, held);
+      const extras = (a.extra || []).filter((x) => held.has(`${a.key}.${x.key}`))
+        .map((x) => extraLabel(a.key, x.key, x.label, locale).toLowerCase());
+      const named = `${areaGroup(a.group, locale)} — ${areaLabel(a.key, a.label, locale)}`;
+      if (lvl === "none" && !extras.length) { cannot.push(named); continue; }
+      const words = lvl === "none" ? [] : [ladderLabel(tr)[lvl].toLowerCase()];
+      can.push(`${named}: ${[...words, ...extras].join(", ")}`);
+    }
+    return { can, cannot };
+  }, [areas, held]);
+
+  if (draft.wildcard) {
+    return (
+      <section className={panel}>
+        <h2 className={h2}>{draft.name}</h2>
+        <p className={sub}>
+          {tr.roleHoldsEveryPermission}
+        </p>
+        <div className="mt-4">
+          <Field label={tr.description} value={draft.description || ""}
+            onChange={(v) => setDraft((d) => ({ ...d, description: v }))} />
+        </div>
+        <div className="mt-5 flex gap-3">
+          <button className={btn} disabled={busy} onClick={() => onSave(draft)}>{tr.save}</button>
+          <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    // `minmax(0,1fr)`, NOT `1fr`: a bare 1fr column is at least as wide as its
+    // widest content, and the one-line summary on each collapsed group (every
+    // area and its level) is very wide — `truncate` cannot shorten a line whose
+    // column has already grown to fit it, so the editor pushed the page sideways.
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr),20rem]">
+      <section className={panel}>
+        <h2 className={h2}>{tr.accessFor} {draft.name || tr.aRole}</h2>
+        <p className={sub}>{tr.everythingJobMayAreas}</p>
+
+        {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            {/* NOT A NAME FIELD. Roles are named in Human Resources; this picks
+                which of them is being granted access, so the two screens can
+                never end up describing two different "Sales Engineer"s. */}
+            <label className={label}>{tr.role}</label>
+            <RolePicker roles={roles.filter((r) => !r.wildcard)} value={draft.id} onPick={pickRole} />
+            <p className="mt-1 text-[11px] text-slate-400">
+              {tr.namedInHumanResources}
+            </p>
+          </div>
+          <div>
+            <Field label={tr.description} value={draft.description || ""} hint={tr.raisesWorksTickets}
+              onChange={(v) => setDraft((d) => ({ ...d, description: v }))} />
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-2">
+          {groups.map(([group, list]) => {
+            const isOpen = open === group;
+            const line = list
+              .map((a) => `${areaLabel(a.key, a.label, locale)}: ${ladderLabel(tr)[levelOf(a, held)].toLowerCase()}`)
+              .join(" · ");
+            return (
+              <div key={group} className="rounded-geex border border-slate-200/70 dark:border-white/10">
+                <button type="button" onClick={() => setOpen(isOpen ? "" : group)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-start">
+                  <span className="font-600 text-slate-900 dark:text-white">{areaGroup(group, locale)}</span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-slate-500 dark:text-slate-400">{line}</span>
+                  <span className="text-slate-400">{isOpen ? "−" : "+"}</span>
+                </button>
+
+                {isOpen && (
+                  <div className="border-t border-slate-100 px-4 py-3 dark:border-white/5">
+                    {list.map((a) => (
+                      <div key={a.key} className="border-b border-slate-100 py-3 last:border-b-0 dark:border-white/5">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="min-w-[9rem] text-sm text-slate-700 dark:text-slate-200">{areaLabel(a.key, a.label, locale)}</span>
+                          {/* Only the rungs this area HAS. An area with no delete
+                              has no "full" distinct from "edit", and offering
+                              both would be two buttons doing the same thing. */}
+                          <span className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
+                            {levelsFor(a).map((lvl) => {
+                              const active = levelOf(a, held) === lvl;
+                              return (
+                                <button key={lvl} type="button" aria-pressed={active}
+                                  onClick={() => setLevel(a, lvl)}
+                                  className={`rounded-full px-3 py-1 text-xs font-600 transition-colors ${
+                                    active ? "bg-brand-700 text-white" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                                  }`}>
+                                  {ladderLabel(tr)[lvl]}
+                                </button>
+                              );
+                            })}
+                          </span>
+
+                          {/* Scope only where it means something. A disabled
+                              control on every row teaches people to ignore it. */}
+                          {a.scoped && (
+                            <SelectMenu className={`${input} w-auto`} value={draft.scopes[a.key] || "own"}
+                              aria-label={`${areaLabel(a.key, a.label, locale)} ${tr.scope}`}
+                              onChange={(v) => setScope(a, v as Scope)}
+                              options={SCOPES.map((s) => ({
+                                value: s,
+                                label: s === "own" ? tr.ownRecords : s === "department" ? tr.department : tr.everyone,
+                              }))}
+                            />
+                          )}
+                        </div>
+
+                        {(a.extra || []).length > 0 && (
+                          <div className="mt-2 flex flex-wrap items-center gap-4 ps-1">
+                            <span className="text-xs text-slate-400">{tr.alsoAllow}</span>
+                            {(a.extra || []).map((x) => (
+                              <label key={x.key} className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+                                <input type="checkbox" className="h-4 w-4 accent-brand-600"
+                                  checked={held.has(`${a.key}.${x.key}`)}
+                                  onChange={() => toggleExtra(a, x)} />
+                                {extraLabel(a.key, x.key, x.label, locale)}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 flex gap-3">
+          <button className={btn} disabled={busy || !draft.id} onClick={() => onSave(draft)}>
+            {busy ? tr.saving : tr.saveAccess}
+          </button>
+          <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+        </div>
+      </section>
+
+      <aside className={`${panel} h-fit lg:sticky lg:top-4`}>
+        <h3 className="font-display text-sm font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          {draft.name?.trim() || tr.thisRole} {tr.canSuffix}
+        </h3>
+        {summary.can.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-400">{tr.nothingYet}</p>
+        ) : (
+          <ul className="mt-2 space-y-1.5 text-sm text-slate-700 dark:text-slate-200">
+            {summary.can.map((line) => <li key={line}>{line}</li>)}
+          </ul>
+        )}
+        <p className="mt-5 text-xs text-slate-400">
+          {tr.cannotTouchNAreas(summary.cannot.length)}
+        </p>
+      </aside>
+    </div>
+  );
+}
+
+// A SEARCH-AND-SELECT over the studio's roles, in place of the name field that
+// used to be here.
+//
+// Searchable rather than a plain <select> because the list grows with the
+// studio: a company with thirty job titles cannot find one in a native dropdown
+// without scrolling past twenty-nine, and this is the control that decides
+// WHICH job is about to have its permissions rewritten — picking the wrong one
+// by a slip of the scroll wheel is the expensive mistake on this screen.
+//
+// A role that has no access yet is marked, because those are the ones somebody
+// arriving here is usually looking for.
+function RolePicker({ roles, value, onPick }: { roles: Role[]; value: string | undefined; onPick: (id: string) => void }) {
+  const locale = useStudioLocale();
+  const tr = peopleDict(locale);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const box = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+
+  const chosen = roles.find((r) => r.id === value);
+  const q = query.trim().toLowerCase();
+  const shown = q ? roles.filter((r) => `${r.name} ${r.description || ""}`.toLowerCase().includes(q)) : roles;
+
+  return (
+    <div ref={box} className="relative">
+      <button type="button" aria-haspopup="listbox" aria-expanded={open}
+        onClick={() => { setOpen((v) => !v); setQuery(""); }}
+        className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2 text-start text-sm text-slate-900 transition-colors hover:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:text-white">
+        <span className="truncate">{chosen?.name || tr.pickRole}</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-[var(--geex-surface)] p-1 shadow-lg dark:border-white/15">
+          <input autoFocus className={`${input} mb-1`} aria-label={tr.searchRoles}
+            value={query} onChange={(e) => setQuery(e.target.value)} />
+          <ul role="listbox" className="max-h-60 overflow-auto">
+            {shown.length === 0 && (
+              <li className="px-3 py-2 text-sm text-slate-400">{tr.nothingMatchesRolesNamed}</li>
+            )}
+            {shown.map((r) => (
+              <li key={r.id}>
+                <button type="button" role="option" aria-selected={r.id === value}
+                  onClick={() => onPick(r.id)}
+                  className={`flex w-full flex-col gap-0.5 rounded-lg px-3 py-2 text-start hover:bg-slate-50 dark:hover:bg-white/5 ${
+                    r.id === value ? "bg-brand-500/10" : ""}`}>
+                  <span className="flex items-center gap-2 text-sm font-600 text-slate-800 dark:text-slate-100">
+                    {r.name}
+                    {(r.permissions || []).length === 0 && (
+                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-700 text-amber-700 dark:text-amber-300">
+                        no access yet
+                      </span>
+                    )}
+                  </span>
+                  {r.description && <span className="truncate text-xs text-slate-500 dark:text-slate-400">{r.description}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// "Why can't Sara lock a quotation?" — the question people actually ask.
+//
+// It exists because the answer is otherwise unknowable without reading the
+// database, and because a permission system nobody can interrogate is one
+// people work around instead of using.
+function WhyPanel({ slug, people, areas }: { slug: string; people: Person[]; areas: Area[] }) {
+  const locale = useStudioLocale();
+  const tr = peopleDict(locale);
+  const [who, setWho] = useState("");
+  const [key, setKey] = useState("");
+  const [answer, setAnswer] = useState<Explanation | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Every action, named the way somebody would say it rather than as a key.
+  const actions = useMemo(() => areas.flatMap((a) => {
+    const named = `${areaGroup(a.group, locale)} — ${areaLabel(a.key, a.label, locale)}`;
+    return [
+      ...a.verbs.map((v) => ({ key: `${a.key}.${v}`, label: `${named}: ${verbLabel(tr)[v] || v}` })),
+      ...(a.extra || []).map((x) => ({
+        key: `${a.key}.${x.key}`,
+        label: `${named}: ${extraLabel(a.key, x.key, x.label, locale).toLowerCase()}`,
+      })),
+    ];
+  }), [areas, tr, locale]);
+
+  async function ask() {
+    if (!who || !key) return;
+    setBusy(true); setAnswer(null);
+    const res = await fetch(`/api/studios/${slug}/access-check`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collaboratorId: who, permission: key }),
+    });
+    setBusy(false);
+    setAnswer(res.ok ? await res.json() : { allowed: false, reason: tr.couldnCheck });
+  }
+
+  return (
+    <div className="mt-5 rounded-geex border border-slate-200/70 p-4 dark:border-white/10">
+      <p className="text-sm font-600 text-slate-700 dark:text-slate-200">{tr.checkWhatSomeoneCan}</p>
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <SelectMenu className={`${input} w-auto`} value={who} aria-label={tr.person}
+          onChange={(v) => { setWho(v); setAnswer(null); }}
+          options={[{ value: "", label: tr.who }, ...people.map((p) => ({ value: p.id, label: p.alias || tr.unnamed }))]}
+        />
+        <SelectMenu className={`${input} w-auto max-w-full`} value={key} aria-label={tr.action}
+          onChange={(v) => { setKey(v); setAnswer(null); }}
+          options={[{ value: "", label: tr.what }, ...actions.map((a) => ({ value: a.key, label: a.label }))]}
+        />
+        <button className={btnGhost} disabled={busy || !who || !key} onClick={ask}>
+          {busy ? tr.checking : tr.check}
+        </button>
+      </div>
+      {answer && (
+        <p className={`mt-3 text-sm ${answer.allowed ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-300"}`}>
+          <span className="font-700">{answer.allowed ? tr.allowed : tr.denied}</span>
+          {answer.reason}
+        </p>
+      )}
+    </div>
+  );
+}

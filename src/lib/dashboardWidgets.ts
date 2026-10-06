@@ -123,7 +123,7 @@ export const REPORT_SOURCES: readonly string[] = [
 // "technical.rfq-funnel" below happens to start with the exact substring of
 // the P0 restructure's retired RFQ permission key — a widget key is not a
 // permission key. tests/restructure.mjs's KNOWN_COLLISIONS allowlist knows
-// about this one (and its consumer in TechnicalDashboard.jsx).
+// about this one (and its consumer in TechnicalDashboard.tsx).
 export const DASHBOARD_WIDGETS: WidgetDef[] = [
   // Main (the executive overview — the free headline tiles & feed are NOT here;
   // the registry governs paid widgets, the floor is always shown)

@@ -3,7 +3,7 @@
 **Status:** approved in conversation (2026-08-29), ready for an implementation plan.
 **Supersedes nothing.** Extends `openProject` (`src/modules/projects/projects.ts`), the
 engagement spine (`src/platform/db/engagement.ts`, `src/platform/engagement/backfill.ts`)
-and the Projects list screen (`src/components/studio2/StudioProjects.js`).
+and the Projects list screen (`src/components/studio2/StudioProjects.tsx`).
 Builds on `2026-08-26-engagement-storage-model-design.md` §3.4 (deterministic engagement
 ids) and `2026-08-27-engagements-view-design.md`.
 

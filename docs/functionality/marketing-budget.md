@@ -8,7 +8,7 @@ it did. This puts Finance's own records beside the plan, and then says what the 
 Section `marketing-budget`, under Marketing. It owns **no collection** — the costs are bills and
 expenses, read where Finance files them. Code: `src/modules/marketing/spend.ts` (the arithmetic,
 pure, shared with the screen, `tests/marketing-spend-model.mjs`), `modules/marketing/budget.ts`
-(what counts as spend, and the conversion), `components/studio2/StudioMarketingBudget.js` (the
+(what counts as spend, and the conversion), `components/studio2/StudioMarketingBudget.tsx` (the
 screen), `shared/studio/marketingBudget.ts` (the words, English and Arabic).
 
 ## Nothing is spent from Marketing

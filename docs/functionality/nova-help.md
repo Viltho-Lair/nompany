@@ -146,7 +146,7 @@ Re-check against those when a form changes.
 | Support route | `POST /api/studios/<slug>/nova/help/support` |
 | Console | `/super/nova/questions`; `GET/PATCH /api/super/nova-questions` |
 | Storage | `REG.novaHelpQuestions` (capped at 1,000, newest first) and `REG.novaHelpAliases` (`src/lib/data/novaHelp.ts`) |
-| UI | `components/studio2/nova/useNovaHelp.js` and `NovaHelpCards.jsx`, mounted in `NovaLauncher` |
+| UI | `components/studio2/nova/useNovaHelp.tsx` and `NovaHelpCards.tsx`, mounted in `NovaLauncher` |
 | Words | `src/shared/studio/novaHelp.ts` |
 | Test | `tests/help-model.mjs` |
 

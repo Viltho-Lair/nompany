@@ -15,7 +15,7 @@ This document is organised to mirror the checklist, section for section, so ever
 | `loading.js` files | **0** | No progressive loading anywhere |
 | `<Suspense>` boundaries | **0** | Same |
 | Skeletons in the 12 studio modules | **0** | The checklist's headline requirement is unmet |
-| Largest module component | `StudioSales.js`, 69 KB, one file | Tables, dialogs, filters and fetching all in one client bundle |
+| Largest module component | `StudioSales.tsx`, 69 KB, one file | Tables, dialogs, filters and fetching all in one client bundle |
 | Colour token systems | **4, disjoint** | §1 |
 | Spacing / elevation / radius / type scales as tokens | **none** | §1 |
 | shadcn primitives present | 13 of ~40 needed | §2 |
@@ -128,7 +128,7 @@ Two density modes, which is the checklist's dense-vs-spacious distinction made r
 [data-density="comfortable"] { --pad-cell: 12px 16px; --pad-card: 24px; --row-h: 48px; --gap: 16px; }
 ```
 
-Operational screens (Tickets, Stock, AWB, Task board) default to `compact`; client-facing and settings screens to `comfortable`; the user can override it per studio and it persists via the existing `loadPref`/`savePref` helpers in `studio2/ui.js`.
+Operational screens (Tickets, Stock, AWB, Task board) default to `compact`; client-facing and settings screens to `comfortable`; the user can override it per studio and it persists via the existing `loadPref`/`savePref` helpers in `studio2/ui.tsx`.
 
 Layout grid: 12 columns, 24px gutters, content max 1440px, forms max 720px, prose max 72ch.
 
@@ -189,7 +189,7 @@ The taxonomy below is the checklist's, with each item's current state and its as
 
 | Component | State | Owner |
 |---|---|---|
-| Button (5 variants × 3 sizes × 5 states) | class strings in `studio2/ui.js` | shadcn |
+| Button (5 variants × 3 sizes × 5 states) | class strings in `studio2/ui.tsx` | shadcn |
 | Badge / status pill | 4 ad-hoc maps (`URGENCY_BADGE`, `URGENCY_TONE`, `URGENCY_DOT`, `TONE`) | shadcn — **one** `<StatusPill tone>` |
 | Avatar | present | shadcn ✔ |
 | Tooltip | present | shadcn ✔ |
@@ -214,10 +214,10 @@ The taxonomy below is the checklist's, with each item's current state and its as
 |---|---|---|
 | **Dense data table** — pagination, filtering, sorting, column pick, sticky header, row selection | hand-rolled **per module**, ~8 copies, none paginated | **MUI Data Grid** for the dense operational grids (Tickets, Stock, AWB, Employees, Invoices); shadcn `<Table>` for short static lists |
 | Kanban board | `StudioTasks.js` with `@dnd-kit` | keep, extract to `ui/patterns/Board` |
-| Statistic summary card | `StatTile` in `studio2/ui.js` | promote to `ui/patterns/StatCard` |
+| Statistic summary card | `StatTile` in `studio2/ui.tsx` | promote to `ui/patterns/StatCard` |
 | Charts | hand-rolled SVG (`FunnelChart`, `BarBreakdown`, `TimelineChart`, `ScatterChart`) | keep — small, dependency-free, already good |
 | **Empty state** | `Empty` exists, used inconsistently | one `<EmptyState>` with icon / title / body / action |
-| Sheet viewer | `StudioSheetViewer.js`, 43 KB | keep as a pattern; it is genuinely bespoke |
+| Sheet viewer | `StudioSheetViewer.tsx`, 43 KB | keep as a pattern; it is genuinely bespoke |
 
 Adopting MUI Data Grid is the single largest UI decision here, and it is the checklist's own recommendation (*"Excellent for dense, internal administrative interfaces"*). It also delivers, for free, three things the audit says are missing: pagination (gap #7), full keyboard grid navigation (§4.2), and virtualisation for large row counts.
 
@@ -225,7 +225,7 @@ Adopting MUI Data Grid is the single largest UI decision here, and it is the che
 
 | Component | State | Owner |
 |---|---|---|
-| Modal / dialog | `Dialog` in `studio2/ui.js` | shadcn |
+| Modal / dialog | `Dialog` in `studio2/ui.tsx` | shadcn |
 | **Side sheet / drawer** | `drawer.jsx` exists, barely used | shadcn — the right home for quick edits that today open a full modal |
 | **Toast / snackbar** | **none anywhere** | shadcn (Sonner) — see §7 |
 | Popover | present | shadcn ✔ |
@@ -237,7 +237,7 @@ Adopting MUI Data Grid is the single largest UI decision here, and it is the che
 
 | Component | State | Owner |
 |---|---|---|
-| Collapsible sidebar | `StudioFrame.js` — good, DB-driven | keep, extract |
+| Collapsible sidebar | `StudioFrame.tsx` — good, DB-driven | keep, extract |
 | **Breadcrumbs** | **none** — and the router has 4-segment URLs (`/<slug>/sales-tickets/<id>/quotations/<qid>`) with no way back | shadcn — **high value, low cost** |
 | Tabs | ad hoc per module | shadcn |
 | **Command palette (⌘K)** | none | shadcn (cmdk) — see §8 |
@@ -359,7 +359,7 @@ The checklist wants power users to work **entirely** by keyboard. Required:
 - `aria-busy` on skeleton regions.
 - Every icon-only button needs an `aria-label` — `NotificationBell` already does this correctly and is the pattern to copy.
 
-**RTL.** ~~`stylis-plugin-rtl` is not installed~~ — installed and wired 22/08/2026: `MuiRtlProvider` gives an Arabic studio a second Emotion cache with `[prefixer, rtlPlugin]`, keeping `enableCssLayer` so the mirrored rules stay inside `@layer mui`, and it is loaded through `dynamic()` so an English tenant never fetches it. What is left is smaller than this said. **Counted, because the guess was wrong.** This finding used to say logical and physical properties were mixed throughout, citing 57 uses in `StudioSales.js` against 9 in `StudioFinance.js` — but those were counts of the LOGICAL ones, and the difference is just that one file is bigger than the other. Scanned properly there are **41 genuine physical utilities in the whole app**, and the studio holds exactly one: a `left-1/2` paired with `-translate-x-1/2`, which is centring and is correct. The studio's only real defect was a toggle knob pinned to `left-`, so an Arabic switch read inverted; that is fixed. Where the 41 actually are: 20 on the landing, 16 in the vendored shadcn primitives, 2 in `/super`'s CatalogEditor, 2 in Quality outside the editor, 1 in the studio. Gate A holds the line at 41 and it can only come down. The document editor's own alignment controls are excluded outright — an author clicking "align left" means left, and that is a property of the document rather than of the interface.
+**RTL.** ~~`stylis-plugin-rtl` is not installed~~ — installed and wired 22/08/2026: `MuiRtlProvider` gives an Arabic studio a second Emotion cache with `[prefixer, rtlPlugin]`, keeping `enableCssLayer` so the mirrored rules stay inside `@layer mui`, and it is loaded through `dynamic()` so an English tenant never fetches it. What is left is smaller than this said. **Counted, because the guess was wrong.** This finding used to say logical and physical properties were mixed throughout, citing 57 uses in `StudioSales.tsx` against 9 in `StudioFinance.tsx` — but those were counts of the LOGICAL ones, and the difference is just that one file is bigger than the other. Scanned properly there are **41 genuine physical utilities in the whole app**, and the studio holds exactly one: a `left-1/2` paired with `-translate-x-1/2`, which is centring and is correct. The studio's only real defect was a toggle knob pinned to `left-`, so an Arabic switch read inverted; that is fixed. Where the 41 actually are: 20 on the landing, 16 in the vendored shadcn primitives, 2 in `/super`'s CatalogEditor, 2 in Quality outside the editor, 1 in the studio. Gate A holds the line at 41 and it can only come down. The document editor's own alignment controls are excluded outright — an author clicking "align left" means left, and that is a property of the document rather than of the interface.
 
 ---
 

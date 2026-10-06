@@ -1,0 +1,244 @@
+"use client";
+
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
+import type { Notice } from "@/shared/notificationInbox";
+
+/** One change on the stream: what happened, and where. Boards may ignore it and refetch. */
+export type LiveEvent = { type?: string; scope?: string; section?: string; collection?: string; rowId?: string } & Record<string, unknown>;
+type Handler = (event: LiveEvent) => void;
+export type Live = {
+  slug: string;
+  status: string;
+  connection: number;
+  subscribe: (watch: string, handler: Handler) => () => void;
+  notifications: Notice[];
+  setNotifications: Dispatch<SetStateAction<Notice[]>>;
+};
+import { watchKeysFor } from "@/platform/realtime/livePatch";
+
+// ONE LIVE CONNECTION PER TAB.
+//
+// Boards do not open connections; this does, once, and hands out subscriptions.
+// That is not tidiness — it is a hard browser limit. Over HTTP/1.1 a browser
+// allows only SIX connections to a domain, shared across every tab, and an open
+// EventSource occupies one for as long as it lives. useLiveUpdates is called 63
+// times across 38 files and FOUR times on the customer page alone (measured
+// 07/09/2026; this said 21, and had said it since the model was flat), so a
+// connection per hook would spend half the budget on one page and starve the
+// app's ordinary requests — including the very refetches these events trigger.
+//
+// So: one EventSource, and an in-memory fan-out to however many boards are
+// listening. The subscriber list is the same idea as the server-side bus, for
+// the same reason.
+//
+// WHAT THE SERVER SENDS
+//   ready   the log position — also stamped as the frame id, so the browser
+//           always has a Last-Event-ID to resume from
+//   change  something moved: { section, scope, collection, … }, never any data
+//   notif   a notification addressed to this person
+//   bye     an expected close (recycle / reauthorize / revoked)
+//
+// WHAT THIS ADDS ON TOP OF EventSource
+//   • Hidden tabs disconnect. The polling version this replaces spent nothing
+//     on a background tab, and that property was worth keeping: an open
+//     connection holds a serverless invocation, so a wall of forgotten tabs is
+//     a real cost. After a minute out of sight it lets go, and reconnects from
+//     its cursor the moment it is looked at again.
+//   • A fatal close is not retried forever. EventSource reconnects on its own
+//     after a dropped connection, but gives up permanently on an HTTP error —
+//     an expired session, say. That case is retried here with backoff, so the
+//     tab recovers on its own once signing in again, instead of sitting dead.
+
+const LiveContext = createContext<Live | null>(null);
+
+// How long a tab may be hidden before the connection is released.
+const HIDDEN_GRACE_MS = 60_000;
+// Manual retry schedule for a connection the browser refused to retry itself.
+const BACKOFF_MS = [3_000, 8_000, 20_000, 45_000];
+
+export function useLive() {
+  return useContext(LiveContext);
+}
+
+// Hand one event to everybody listening on exactly this key. Module scope, not a
+// closure inside the provider: it reads only what it is given, so `fire` can
+// keep its empty dependency array honestly rather than closing over a function
+// redefined on every render.
+function tell(listeners: Map<string, Set<Handler>>, watch: string, event: LiveEvent) {
+  const set = listeners.get(watch);
+  if (!set) return;
+  for (const handler of [...set]) {
+    try {
+      handler(event);
+    } catch (e) {
+      // One board throwing must not stop the others being told.
+      console.error(`[live] listener failed for ${watch}:`, e);
+    }
+  }
+}
+
+export default function LiveProvider({ slug, children }: { slug: string; children?: ReactNode }) {
+  // "connecting" until the first `ready`; "offline" only once a fatal close has
+  // happened, so the UI never cries wolf over an ordinary reconnect.
+  const [status, setStatus] = useState("connecting");
+  const [notifications, setNotifications] = useState<Notice[]>([]);
+  // HOW MANY TIMES THE STREAM HAS SAID `ready`. `status` alone cannot tell the
+  // bell to re-read: an ordinary reconnect (the server recycles every four
+  // minutes) goes live -> live, React sees no change, and anything sent while
+  // the connection did not exist stayed invisible until a manual refresh. A
+  // counter changes on every connect, recycles included.
+  const [connection, setConnection] = useState(0);
+
+  // Everything the connection needs lives in refs: none of it should re-render
+  // a board, and none of it should restart the connection when it changes.
+  const source = useRef<EventSource | null>(null);
+  const cursor = useRef("");
+  const listeners = useRef(new Map<string, Set<Handler>>()); // watch key → Set<handler>
+  const attempt = useRef(0);
+  const timers = useRef<{ hide: ReturnType<typeof setTimeout> | undefined; retry: ReturnType<typeof setTimeout> | undefined }>({ hide: undefined, retry: undefined });
+
+  // ---- fan-out ---------------------------------------------------------------
+  // A SECTION'S EVENT ALSO REACHES WHOEVER IS WATCHING ITS PARENT, and the rule
+  // for which keys those are lives in `watchKeysFor` — pure, beside `decide`,
+  // where the Node suite can actually assert it. Read the note there for why the
+  // match used to be `===` and what that cost.
+  //
+  // It widens nothing a caller may not hear. The stream route has already
+  // decided, per event, that this connection may know about that section; this
+  // only decides which of the tab's OWN boards are told.
+  const fire = useCallback((watch: string, event: LiveEvent) => {
+    for (const key of watchKeysFor(watch)) tell(listeners.current, key, event);
+  }, []);
+
+  const subscribe = useCallback((watch: string, handler: Handler) => {
+    let set = listeners.current.get(watch);
+    if (!set) listeners.current.set(watch, (set = new Set<Handler>()));
+    set.add(handler);
+    return () => {
+      set?.delete(handler);
+      if (!set?.size) listeners.current.delete(watch);
+    };
+  }, []);
+
+  // ---- the connection --------------------------------------------------------
+  useEffect(() => {
+    if (!slug) return undefined;
+    let alive = true;
+
+    const clearRetry = () => {
+      clearTimeout(timers.current.retry);
+      timers.current.retry = undefined;
+    };
+
+    function disconnect() {
+      source.current?.close();
+      source.current = null;
+    }
+
+    function connect() {
+      if (!alive || source.current) return;
+      clearRetry();
+
+      // The cursor rides in the query string here, not in Last-Event-ID: this
+      // is a connection WE are opening (first load, or waking a hidden tab), and
+      // a fresh EventSource has no Last-Event-ID to send. The browser's own
+      // reconnects use the header, and the server accepts either.
+      const qs = cursor.current ? `?since=${encodeURIComponent(cursor.current)}` : "";
+      const es = new EventSource(`/api/studios/${slug}/stream${qs}`);
+      source.current = es;
+
+      es.addEventListener("ready", (m: MessageEvent) => {
+        if (!alive) return;
+        attempt.current = 0;
+        try {
+          cursor.current = JSON.parse(m.data).cursor || cursor.current;
+        } catch {
+          /* keep whatever cursor we had */
+        }
+        setStatus("live");
+        setConnection((c) => c + 1);
+      });
+
+      es.addEventListener("change", (m: MessageEvent) => {
+        if (!alive) return;
+        let e: LiveEvent;
+        try {
+          e = JSON.parse(m.data);
+        } catch {
+          return;
+        }
+        if (m.lastEventId) cursor.current = m.lastEventId;
+        // People/permission changes are studio-wide and carry no section;
+        // section events carry the key of the section they happened in. Same
+        // matching rule the polling version used.
+        fire(e.scope === "people" ? "people" : e.section || "", e);
+      });
+
+      es.addEventListener("notif", (m: MessageEvent) => {
+        if (!alive) return;
+        try {
+          const n = JSON.parse(m.data) as Notice;
+          setNotifications((prev) => (prev.some((p) => p.id === n.id) ? prev : [n, ...prev].slice(0, 100)));
+        } catch {
+          /* ignore a frame we cannot read */
+        }
+      });
+
+      // An expected close. The browser reconnects by itself for `recycle` and
+      // `reauthorize`; `revoked` means this person no longer belongs here, and
+      // the reconnect will be turned away — which is the enforcement, not a bug.
+      es.addEventListener("bye", () => {});
+
+      es.onerror = () => {
+        if (!alive) return;
+        // CONNECTING means the browser is already retrying on its own — the
+        // ordinary end of a recycled connection. Nothing to do and nothing to
+        // report; saying "offline" here would flash a warning every 4 minutes.
+        if (es.readyState === EventSource.CONNECTING) return;
+
+        // CLOSED means the browser has given up for good (an HTTP error, most
+        // often an expired session). It will never retry, so we must.
+        disconnect();
+        setStatus("offline");
+        const wait = BACKOFF_MS[Math.min(attempt.current++, BACKOFF_MS.length - 1)];
+        timers.current.retry = setTimeout(connect, wait);
+      };
+    }
+
+    // ---- hidden tabs ---------------------------------------------------------
+    const onVisibility = () => {
+      clearTimeout(timers.current.hide);
+      if (document.hidden) {
+        timers.current.hide = setTimeout(() => {
+          disconnect();
+          clearRetry();
+          setStatus("connecting");
+        }, HIDDEN_GRACE_MS);
+      } else if (!source.current) {
+        // Back in view: reconnect from the cursor, so the gap is replayed
+        // rather than skipped.
+        attempt.current = 0;
+        connect();
+      }
+    };
+
+    connect();
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      alive = false;
+      document.removeEventListener("visibilitychange", onVisibility);
+      clearTimeout(timers.current.hide);
+      clearRetry();
+      disconnect();
+    };
+  }, [slug, fire]);
+
+  const value = useMemo<Live>(
+    () => ({ slug, status, connection, subscribe, notifications, setNotifications }),
+    [slug, status, connection, subscribe, notifications],
+  );
+
+  return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
+}

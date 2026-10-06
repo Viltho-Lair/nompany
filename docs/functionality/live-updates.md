@@ -1,8 +1,8 @@
 # Live updates — how a board learns that somebody else changed something
 
-**The connection:** `src/components/studio2/LiveProvider.js` — one `EventSource` per tab,
-opened by `StudioFrame` inside `src/app/studio/layout.js` so it survives navigation.
-**The hooks:** `useLiveUpdates.js` (refetch) and `useLiveRows.js` (patch one row).
+**The connection:** `src/components/studio2/LiveProvider.tsx` — one `EventSource` per tab,
+opened by `StudioFrame` inside `src/app/studio/layout.tsx` so it survives navigation.
+**The hooks:** `useLiveUpdates.tsx` (refetch) and `useLiveRows.ts` (patch one row).
 **The server half:** `/api/studios/<slug>/stream` (route), `platform/realtime/events.ts`
 (the log), `platform/realtime/bus.ts` (the doorbell).
 **The record:** none. An event says *what changed*, never any data.

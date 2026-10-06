@@ -1,0 +1,363 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { useReload } from "@/components/studio2/useReload";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { assetsDict } from "@/shared/studio/assets";
+import { fmtDate } from "@/lib/format";
+import { engineWords } from "@/shared/studio/engineTypes";
+import { Field } from "@/components/fields/Field";
+import StudioDate from "@/components/fields/StudioDate";
+import { useMoney } from "@/components/studio2/studioCurrency";
+import type { ReactNode } from "react";
+import type { listAllocations, utilisationReport } from "@/modules/assets/allocations";
+import type { Allocation } from "@/modules/assets/utilisation";
+import type { listEngagements } from "@/modules/main/engagements";
+
+// The /assets/allocations GET body: the register and the utilisation report,
+// each less its refusal.
+// The allocation rows are stored rows typed open; the service reads them as
+// `Allocation` (it casts the same way), plus the project a hire was booked through.
+type AllocBody = Omit<Exclude<Awaited<ReturnType<typeof listAllocations>>, { error: string }>, "allocations"> & {
+  allocations: (Allocation & { projectId?: string })[];
+  utilisation: Exclude<Awaited<ReturnType<typeof utilisationReport>>, { error: string }> | null;
+};
+type Deal = Exclude<Awaited<ReturnType<typeof listEngagements>>, { error: string }>["engagements"][number];
+// The allocate dialog; the rate box holds what was typed until it is saved.
+type AllocDraft = { assetId: string; dealId: string; projectId: string; from: string; to: string; dailyRate: number | string };
+
+// WHICH MACHINE IS ON WHICH JOB — the screen `assets.utilisation` never had.
+//
+// THE RIGHT, THE MODULE AND THE ROUTE ALL EXISTED AND NOTHING RENDERED THEM.
+// `assets/allocations` serves the register and the utilisation report together,
+// `allocationProblem` refuses double-booking, `utilisation` charges each job the
+// rate copied when the machine went out — and no component in the product
+// fetched any of it. A studio could allocate plant only by calling the API by
+// hand, which means in practice that nobody did: the equipment register's
+// `hireRate` had been stored since the register shipped and read by nothing.
+//
+// Found by sweeping every route under /api/studios/[slug] for a component that
+// fetches it. A route with no caller fails nothing — it answers correctly to
+// anyone who asks, and the only symptom is a right on the access grid that
+// cannot be exercised (invariant 16, from the screen end rather than the
+// catalogue end).
+//
+// THE JOB PICKER DEGRADES RATHER THAN REFUSING. Engagements are a right of
+// their own (`engagements.view`), and a plant manager who may book machines is
+// frequently not somebody who may read the commercial spine. So the picker is
+// attempted and falls back to a plain reference field when it is refused, which
+// is the honest shape: the allocation is still writable, it just cannot offer a
+// list the reader is not allowed to see.
+//
+// `initial` is the /assets/allocations body the studio page answered in its own
+// render, so the board paints at once; absent, it fetches on mount as before.
+// The job picker is NOT part of it — it stays the optional second read below.
+export default function StudioPlantAllocation({ slug, initial }: { slug: string; initial?: AllocBody }) {
+  const money = useMoney();
+  const locale = useStudioLocale();
+  const tr = assetsDict(locale);
+  const [data, setData] = useState<AllocBody | null>(initial ?? null);
+  const [deals, setDeals] = useState<Deal[] | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState<AllocDraft | null>(null);
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/assets/allocations`, { cache: "no-store" });
+    if (!res.ok) { setError(tr.noAccessTo(tr.title)); return; }
+    setData(await res.json());
+  }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
+  useReload(load, initial);
+
+  // OPTIONAL, AND ITS FAILURE IS NOT AN ERROR. `null` means "not offered" and an
+  // array means "offered" — distinguished deliberately, because an empty array
+  // would render an empty dropdown and read as "there are no jobs" to somebody
+  // who simply may not see them.
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const res = await fetch(`/api/studios/${slug}/main/engagements`, { cache: "no-store" });
+      if (!live || !res.ok) return;
+      const out = await res.json().catch(() => null);
+      if (live && out?.engagements) setDeals(out.engagements);
+    })();
+    return () => { live = false; };
+  }, [slug]);
+
+  // WATCHED AT `assets`, WHERE ALLOCATIONS ARE WRITTEN — not at `engine-equipment`
+  // where the machines live. A watch key names the section the rows are written
+  // under (invariant 14), and `assetAllocations` is on the Assets ROOT.
+  useLiveUpdates(slug, "assets", load);
+
+  // THE WHOLE SCREEN BECOMES THE ERROR ONLY WHEN THERE IS NOTHING TO SHOW.
+  // This returned early on ANY error, so one refused save — a clash, a
+  // missing date — replaced the entire board with a sentence and the reader
+  // lost the form they were filling in. With data in hand the refusal goes to
+  // the banner below instead.
+  if (!data) {
+    return error
+      ? <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>
+      : <ScreenSkeleton />;
+  }
+
+  const {
+    allocations = [], assets = [], projects = [], utilisation = null, currency = "",
+    canCreate = false, canDelete = false,
+  } = data;
+  // MONEY THROUGH THE SHARED HELPER, to the studio currency's decimals — a
+  // bare `toLocaleString()` cut a dinar's third decimal and grouped digits by
+  // the browser's locale rather than the reader's.
+  // THE REGISTER'S STATUS WORD, translated as the Equipment register shows it.
+  const statusWord = engineWords({ key: "equipment", origin: "builtin" }, locale).word;
+  const nameOf = (id: string) => assets.find((a) => a.id === id)?.name || id;
+  // A DEAL THE READER CANNOT NAME IS NOT PRINTED AS ITS ID. With the deal list
+  // refused, the job is the project the hire was booked through; failing that,
+  // a sentence rather than an internal engagement id.
+  const projectOfDeal = new Map(allocations.filter((a) => a.projectId).map((a) => [a.dealId, a.projectId]));
+  const projectLabel = (pid: string | undefined) => {
+    const found = projects.find((x) => x.id === pid);
+    return found ? [found.number, found.title].filter(Boolean).join(" \u00b7 ") : "";
+  };
+  const dealOf = (id: string) => deals?.find((d) => d.id === id)?.ref
+    || projectLabel(projectOfDeal.get(id))
+    || tr.unknownJob;
+
+  async function send(method: string, body: unknown) {
+    setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/assets/allocations`, {
+      method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const out = await res.json().catch(() => ({ error: "failed" }));
+    setBusy(false);
+    if (out?.error) {
+      // The server's refusal token, said in the reader's language. `refuse` is
+      // keyed by the exact token `allocationProblem` returns, so a new rule
+      // there surfaces as an untranslated token rather than a wrong sentence.
+      setError(({
+        from: tr.refuseFrom, order: tr.refuseOrder, asset: tr.refuseAsset,
+        // `clash` is the token `allocationProblem` returns for a double booking.
+        // This key read `overlap`, which nothing returns, so the one refusal
+        // that matters most showed the raw word "clash" in both languages.
+        deal: tr.refuseDeal, clash: tr.refuseOverlap,
+        unavailable: tr.refuseUnavailable(statusWord(out.status || "")),
+        forbidden: tr.refuseForbidden, notfound: tr.refuseNotFound,
+        // AN UNKNOWN TOKEN GETS A SENTENCE, never itself — "forbidden" printed
+        // as a word is a refusal nobody reading it can act on.
+      } as Record<string, string>)[out.error] || tr.refuseFailed);
+      return;
+    }
+    setError("");
+    setDraft(null);
+    await load();
+  }
+
+  const cell = "px-3 py-2 text-sm";
+  const head = "px-3 py-2 text-start text-[12px] uppercase tracking-wide font-600 text-slate-400 dark:text-slate-500";
+
+  // THE EMPTY STATE POINTS AT THE REGISTER, not at this screen. Allocation reads
+  // the equipment records; with none, there is nothing to allocate and "no
+  // allocations" would send somebody looking for an Add button that cannot help.
+  if (assets.length === 0) {
+    return (
+      <div className="rounded-geex border border-slate-200/70 bg-white p-8 dark:border-white/10 dark:bg-[#111117]">
+        <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.noFleet}</h2>
+        <p className="mt-2 max-w-xl text-sm text-slate-500 dark:text-slate-400">{tr.noFleetBody}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display text-xl font-800 text-slate-900 dark:text-white">{tr.title}</h2>
+        <p className="mt-1 max-w-3xl text-sm text-slate-500 dark:text-slate-400">{tr.lead}</p>
+      </div>
+
+      {error && (
+        <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>
+      )}
+
+      {utilisation && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Tile label={tr.totalCost} value={<span className="num">{money(utilisation.cost)}</span>} />
+          <Tile label={tr.totalDays} value={<span className="num">{utilisation.days}</span>} />
+          {/* SHOWN EVEN WHEN NOUGHT, because "we charge for everything we run"
+              is a real and reassuring answer, and hiding the row would make its
+              absence indistinguishable from the metric not existing. */}
+          <Tile label={tr.unrated} value={<span className="num">{utilisation.unratedDays}</span>} hint={tr.unratedHint} />
+        </div>
+      )}
+
+      <section className="rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#111117]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.allocations}</h3>
+          {canCreate && !draft && (
+            <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white"
+              onClick={() => setDraft({ assetId: "", dealId: "", projectId: "", from: "", to: "", dailyRate: "" })}>
+              {tr.allocate}
+            </button>
+          )}
+        </div>
+
+        {/* EVERY CONTROL THROUGH `Field`, which is the house rule and a
+            standing instruction: a form whose controls are hand-rolled is a form
+            whose labels and heights do not line up with the rest of the product.
+            `tests/restructure.mjs` refuses a native <select> in source, which is
+            what caught the first draft of this screen. */}
+        {draft && (
+          <div className="mt-4 grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-5 dark:border-white/15">
+            <Field label={tr.asset} as="select" required value={draft.assetId}
+              onChange={(v) => {
+                // THE REGISTER'S RATE IS OFFERED, NOT IMPOSED. It prefills so
+                // the common case is one click, and stays editable because a
+                // machine can go out at a negotiated rate — and whatever is
+                // typed is what gets COPIED onto the allocation, which is the
+                // number that job is charged forever after.
+                const a = assets.find((x) => x.id === v);
+                setDraft({ ...draft, assetId: v, dailyRate: a?.hireRate || "" });
+              }}
+              // A MACHINE THAT CANNOT GO OUT IS OFFERED DISABLED, with its
+              // status in the reader's language — the server refuses it
+              // (`bookable`), and the picker says so before Save does.
+              options={assets.map((a) => ({
+                value: a.id,
+                label: [a.name, a.assetTag, a.status ? statusWord(a.status) : ""].filter(Boolean).join(" \u00b7 "),
+                disabled: a.bookable === false,
+              }))} />
+
+            {/* THE JOB PICKER DEGRADES TO THE PROJECTS rather than refusing.
+                `deals` is null when `engagements.view` was refused — see the
+                fetch above. That reader used to get a text box wanting a deal's
+                internal id; a project is the job a machine goes to, and
+                `allocateAsset` resolves it to the project's deal. */}
+            {deals ? (
+              <Field label={tr.deal} as="select" required value={draft.dealId}
+                onChange={(v) => setDraft({ ...draft, dealId: v })}
+                options={deals.map((d) => ({ value: d.id, label: `${d.ref} \u00b7 ${d.clientName || d.title}` }))} />
+            ) : (
+              <Field label={tr.deal} as="select" required value={draft.projectId}
+                onChange={(v) => setDraft({ ...draft, projectId: v })}
+                options={projects.map((p) => ({ value: p.id, label: [p.number, p.title].filter(Boolean).join(" · ") || p.id }))} />
+            )}
+
+            {/* THE SHARED DATE PICKER, not a native `type="date"` — the native
+                control spoke the browser's language and its own date order. */}
+            <Field label={tr.from} required filled={!!draft.from}>
+              <StudioDate value={draft.from} onChange={(v) => setDraft({ ...draft, from: v })} />
+            </Field>
+            {/* A BLANK `to` IS A FACT — the machine is still out — so the hint
+                says so rather than the field looking unfinished. */}
+            <Field label={tr.to} hint={tr.stillOut} filled={!!draft.to}>
+              <StudioDate value={draft.to} onChange={(v) => setDraft({ ...draft, to: v })} />
+            </Field>
+            <Field currency label={tr.dailyRate} type="number" value={draft.dailyRate} hint={tr.dailyRateHint}
+              onChange={(v) => setDraft({ ...draft, dailyRate: v })} />
+
+            <div className="flex items-end gap-2 sm:col-span-5">
+              <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white disabled:opacity-50"
+                disabled={busy} onClick={() => send("POST", { ...draft, dailyRate: Number(draft.dailyRate) || 0 })}>
+                {busy ? tr.saving : tr.save}
+              </button>
+              <button className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-600 text-slate-700 dark:border-white/15 dark:text-slate-200"
+                onClick={() => { setDraft(null); setError(""); }}>{tr.cancel}</button>
+            </div>
+          </div>
+        )}
+
+        {allocations.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-400 dark:text-slate-500">{tr.noAllocations}</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[42rem]">
+              <thead><tr>
+                <th className={head}>{tr.asset}</th>
+                <th className={head}>{tr.deal}</th>
+                <th className={head}>{tr.from}</th>
+                <th className={head}>{tr.to}</th>
+                <th className={head}>{tr.dailyRate}</th>
+                <th />
+              </tr></thead>
+              <tbody>
+                {allocations.map((a) => (
+                  <tr key={a.id} className="border-t border-slate-100 dark:border-white/10">
+                    <td className={cell}>{nameOf(a.assetId)}</td>
+                    <td className={cell}>{dealOf(a.dealId)}</td>
+                    <td className={cell}>{fmtDate(a.from)}</td>
+                    {/* A BLANK `to` IS A FACT, not a missing value: the machine
+                        is still out. Rendering an em dash would read as data
+                        somebody forgot to enter. */}
+                    <td className={cell}>{a.to ? fmtDate(a.to) : <span className="text-slate-400 dark:text-slate-500">{tr.stillOut}</span>}</td>
+                    <td className={`${cell} num`}>{Number(a.dailyRate) > 0 ? money(a.dailyRate) : "—"}</td>
+                    <td className={cell}>
+                      {canDelete && (
+                        <button className="text-slate-400 hover:text-rose-500" aria-label={tr.remove}
+                          disabled={busy} onClick={() => send("DELETE", { id: a.id })}>×</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {utilisation && utilisation.byAsset.length > 0 && (
+        <section className="grid gap-4 lg:grid-cols-2">
+          <Report title={tr.byDeal} rows={utilisation.deals.map((d) => ({
+            key: d.dealId, label: dealOf(d.dealId), days: d.days, cost: d.cost,
+          }))} tr={tr} head={head} cell={cell} money={money} />
+          <Report title={tr.byAsset} rows={utilisation.byAsset.map((a) => ({
+            key: a.assetId, label: nameOf(a.assetId), days: a.days, cost: a.cost,
+          }))} tr={tr} head={head} cell={cell} money={money} />
+        </section>
+      )}
+    </div>
+  );
+}
+
+function Tile({ label, value, hint }: { label: ReactNode; value: ReactNode; hint?: string }) {
+  return (
+    <div className="rounded-geex border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-[#111117]" title={hint}>
+      <p className="text-[12px] uppercase tracking-wide text-slate-400 dark:text-slate-500">{label}</p>
+      <p className="mt-1 font-display text-2xl font-800 text-slate-900 dark:text-white">{value}</p>
+    </div>
+  );
+}
+
+function Report({ title, rows, tr, head, cell, money }: {
+  title: string;
+  rows: { key: string; label: string; days: number; cost: number }[];
+  tr: ReturnType<typeof assetsDict>;
+  head: string;
+  cell: string;
+  money: ReturnType<typeof useMoney>;
+}) {
+  return (
+    <div className="rounded-geex border border-slate-200/70 bg-white p-6 dark:border-white/10 dark:bg-[#111117]">
+      <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{title}</h3>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full">
+          <thead><tr>
+            <th className={head}>{title}</th>
+            <th className={head}>{tr.days}</th>
+            <th className={head}>{tr.cost}</th>
+          </tr></thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="border-t border-slate-100 dark:border-white/10">
+                <td className={cell}>{r.label}</td>
+                <td className={`${cell} num`}>{r.days}</td>
+                <td className={`${cell} num`}>{money(r.cost)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

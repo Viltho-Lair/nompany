@@ -23,8 +23,8 @@ The pieces:
 | `src/modules/main/insights.ts` | The derivations — rows in, insights out. Server-side; reads. |
 | `src/shared/studio/insights.ts` | The wire shape, `rankForView`, and the sentences in EN/AR |
 | `src/app/api/studios/[slug]/nova/insights/route.ts` | `GET`, gated on membership *and* on the Nova package |
-| `src/components/studio2/NovaBubble.jsx` | The bubble: geometry, rhythm, the two actions |
-| `src/components/studio2/NovaLauncher.jsx` | Mounts it, and takes "Ask Nova about this" into the chat |
+| `src/components/studio2/NovaBubble.tsx` | The bubble: geometry, rhythm, the two actions |
+| `src/components/studio2/NovaLauncher.tsx` | Mounts it, and takes "Ask Nova about this" into the chat |
 | `src/modules/main/awaiting.ts` | `taskQueueFrom` — one definition of "waiting on me", shared |
 | `src/app/globals.css` | `@keyframes nova-bubble-in` |
 

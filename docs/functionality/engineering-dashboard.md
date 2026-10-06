@@ -4,7 +4,7 @@
 **The figures:** `src/modules/engineering/model.ts` (pure, `tests/engineering-dashboard.mjs`).
 **The service:** `src/modules/engineering/dashboard.ts` (`engineeringContext`, `engineeringDashboard`).
 **The route:** `/api/studios/<slug>/engineering/dashboard` (GET only).
-**The screen:** `EngineeringDashboard.jsx`. Built 13/09/2026.
+**The screen:** `EngineeringDashboard.tsx`. Built 13/09/2026.
 
 ## Why it exists
 

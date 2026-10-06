@@ -18,11 +18,11 @@ import type { HelpModule } from "../types";
 // Paused one straight to Completed (CAMPAIGN_MOVES in modules/marketing/
 // model.ts); an event needs a start as well as a name (eventsService.ts);
 // events ARE drawn on the calendar, which events.md listed as not built until
-// 27/09/2026 (StudioMarketingCalendar.js, planning.ts); a form is opened and
+// 27/09/2026 (StudioMarketingCalendar.tsx, planning.ts); a form is opened and
 // closed with buttons, not a "who can answer" select, and its name, company,
-// phone and email mapping appears only once it has a rule (StudioFormEditor.js,
+// phone and email mapping appears only once it has a rule (StudioFormEditor.tsx,
 // Settings); and the partner form asks the owner and whether the arrangement
-// is running BEFORE what was agreed (StudioMarketingPartners.js).
+// is running BEFORE what was agreed (StudioMarketingPartners.tsx).
 //
 // THREE BOUNDARIES THE ANSWERS HOLD. Leads stay Sales tickets: Marketing sends
 // and reads them, and never assigns or works them (leads.md). Marketing-budget
@@ -194,7 +194,7 @@ export const marketing: HelpModule = {
            ar: "يصل العميل المحتمل كتذكرة مبيعات في مرحلة عميل محتمل، غير مسندة، تذكر الحملة مصدرا لها بصفة دائمة. ويسنده مدير المبيعات ويتابعه المندوب، وتحدد مهلة العميل المحتمل الخاصة بالحملة متى يعد متأخرا. وأثناء انتظاره تقيمه المبيعات بما يعرف عنه، ومن ذلك هل أرسلته الحملة. ولا يرى التسويق إلا الأعداد على الحملة، لا المندوب المسؤول عن العميل ولا مرحلته." },
       keywords: ["lead", "sales ticket", "lead score", "assign", "عميل محتمل", "تذكرة مبيعات", "تقييم العميل", "إسناد"],
       related: ["crm-sales-tickets.assign-lead", "crm-sales-tickets.lead-score"] },
-    // Checked against src/components/studio2/StudioCampaigns.js (the campaign
+    // Checked against src/components/studio2/StudioCampaigns.tsx (the campaign
     // Dialog, in order: Name*, Description, Objective*, Part of, Plan,
     // Channels, Starts, Ends, Owner, Budget, Lead deadline, the brief, the
     // targets, the tracked link) and CampaignSchema in
@@ -207,7 +207,7 @@ export const marketing: HelpModule = {
                 ar: ["الاسم (مطلوب)", "الوصف", "الهدف (مطلوب): التعريف بالعلامة أو جذب عملاء محتملين أو المبيعات أو إطلاق منتج أو الاحتفاظ بالعملاء أو فعالية أو أخرى", "جزء من: حملة أخرى، أو حملة مستقلة", "الخطة", "القنوات: أي من خمس عشرة قناة، مثل البريد الإلكتروني ووسائل التواصل وإعلانات البحث والفعاليات والمطبوعات", "تبدأ وتنتهي", "المسؤول", "الميزانية، بعملة الاستوديو", "مهلة العميل المحتمل، بالساعات من 1 إلى 168", "الموجز: لمن هي موجهة، وما الذي نقوله لهم، وما الذي نعرضه، وما الذي يجعلها ناجحة", "العملاء المحتملون المتوقعون والعملاء المتوقعون والإيراد المتوقع", "عنوان صفحة الهبوط ووسوم UTM الخمسة"] },
       keywords: ["new campaign", "create campaign", "budget", "brief", "حملة جديدة", "إنشاء حملة", "ميزانية", "موجز"],
       related: ["marketing-campaigns.create", "marketing-campaigns.tracked-link"] },
-    // Checked against src/components/studio2/StudioCampaigns.js (the Send a lead
+    // Checked against src/components/studio2/StudioCampaigns.tsx (the Send a lead
     // to Sales Dialog: Person or company*, Contact name, Phone, Email, What they
     // want, Notes) and sendLead in src/modules/marketing/campaigns.ts.
     { id: "marketing-campaigns.lead-fields", topic: "dept.marketing-campaigns", kind: "fields", open: "marketing-campaigns",
@@ -360,7 +360,7 @@ export const marketing: HelpModule = {
            ar: "لا يفتح النموذج الذي ينشئ عملاء محتملين أو يطلب بريدا أو هاتفا دون سؤال موافقة مطلوب. وعندما يحدده أحد يكتب البريد والهاتف اللذان أعطاهما في سجل الموافقات على أنهما مسموحان، مع نص السؤال نفسه دليلا. ويكتب سواء أصبحت الإجابة عميلا محتملا أم لا، ولا يكتب إطلاقا إذا كانت الجماهير والموافقات معطلة." },
       keywords: ["consent question", "opt in", "tick box", "privacy", "سؤال الموافقة", "الاشتراك", "مربع الموافقة", "الخصوصية"],
       related: ["marketing-audiences.from-forms", "marketing-forms.cannot-open"] },
-    // Checked against src/components/studio2/StudioForms.js (the New form
+    // Checked against src/components/studio2/StudioForms.tsx (the New form
     // Dialog: Form name*, Language of the form) and MarketingFormSchema in
     // src/modules/marketing/schema.ts; createForm in forms.ts refuses.
     { id: "marketing-forms.new-fields", topic: "dept.marketing-forms", kind: "fields", open: "marketing-forms",
@@ -371,7 +371,7 @@ export const marketing: HelpModule = {
                 ar: ["اسم النموذج (مطلوب)", "لغة النموذج: الإنجليزية أو العربية"] },
       keywords: ["new form", "form name", "language", "نموذج جديد", "اسم النموذج", "اللغة"],
       related: ["marketing-forms.create"] },
-    // Checked against src/components/studio2/StudioFormEditor.js (QuestionCard:
+    // Checked against src/components/studio2/StudioFormEditor.tsx (QuestionCard:
     // the question, the help text under More, the picture, Question type, the
     // type's own controls, Required) and the page-and-question shape cleaned by
     // src/modules/marketing/formsModel.ts.
@@ -383,7 +383,7 @@ export const marketing: HelpModule = {
                 ar: ["السؤال", "نص مساعد (اختياري)، تحت المزيد", "صورة (اختيارية)، حتى 4 ميغابايت", "نوع السؤال", "عناصر التحكم الخاصة بالنوع، مثل الخيارات أو الصفوف والأعمدة أو مدى المقياس وتسمياته", "مطلوب"] },
       keywords: ["question card", "required", "help text", "picture", "بطاقة السؤال", "مطلوب", "نص مساعد", "صورة"],
       related: ["marketing-forms.question-types"] },
-    // Checked against src/components/studio2/StudioFormEditor.js (FileEditor:
+    // Checked against src/components/studio2/StudioFormEditor.tsx (FileEditor:
     // Accept only these kinds of file, Files per answer, Largest file) and
     // FILE_KINDS / FILE_MB_CHOICES / MAX_FILES_PER_ANSWER in
     // src/modules/marketing/formsModel.ts.
@@ -395,7 +395,7 @@ export const marketing: HelpModule = {
                 ar: ["قبول هذه الأنواع فقط: مستند أو جدول بيانات أو عرض تقديمي أو PDF أو صورة أو فيديو أو صوت", "عدد الملفات لكل إجابة: من 1 إلى 10", "أكبر حجم للملف: 1 أو 2 أو 4 ميغابايت"] },
       keywords: ["file question", "upload size", "file types", "سؤال الملف", "حجم الرفع", "أنواع الملفات"],
       related: ["marketing-forms.files"] },
-    // Checked against src/components/studio2/StudioFormEditor.js (Settings, in
+    // Checked against src/components/studio2/StudioFormEditor.tsx (Settings, in
     // order: Who can answer, Share, What an answer sets off, Language of the
     // form, Campaign, the name / company / phone / email mapping, Thank-you
     // message, Stops taking answers after, Files this form may hold) and
@@ -408,7 +408,7 @@ export const marketing: HelpModule = {
                 ar: ["لغة النموذج", "الحملة: تحسب الإجابات لها وتطبق مهلة عملائها المحتملين", "اسم الشخص والشركة والهاتف والبريد الإلكتروني: أي إجابة تمثل كلا منها", "رسالة الشكر، تظهر بعد أن يرسل أحدهم إجاباته", "يتوقف عن استقبال الإجابات بعد: تاريخ إغلاق اختياري", "حجم الملفات المسموح لهذا النموذج: 100 أو 500 أو 2000 ميغابايت"] },
       keywords: ["form settings", "thank you message", "closing date", "campaign", "إعدادات النموذج", "رسالة الشكر", "تاريخ الإغلاق", "الحملة"],
       related: ["marketing-forms.rules", "marketing-forms.closing-date"] },
-    // Checked against src/components/studio2/StudioFormEditor.js (Actions: When
+    // Checked against src/components/studio2/StudioFormEditor.tsx (Actions: When
     // a question, the operator, this answer, then Hand it to) and ACTION_OPS /
     // cleanSettings in src/modules/marketing/formsModel.ts.
     { id: "marketing-forms.rule-fields", topic: "dept.marketing-forms", kind: "fields", open: "marketing-forms",
@@ -629,7 +629,7 @@ export const marketing: HelpModule = {
            ar: "الميزانية سقف الخطة. و«ما وزع على الحملات» هو ما يسمح لحملاتها مجتمعة، مع احتساب الحملة الفرعية ضمن أمها؛ و«غير الموزع بعد» هو الفرق. و«المصروف» رقم المالية لتلك الحملات، و«المتبقي» الميزانية ناقصا المصروف. ويقاس العملاء المحتملون والإيراد المتوقعون مقابل الحملات المنسوبة إلى الخطة، والخطة بلا ميزانية تذكر ذلك بدلا من عرض أصفار." },
       keywords: ["plan figures", "allocated", "remaining", "envelope", "أرقام الخطة", "الموزع", "المتبقي", "السقف"],
       related: ["marketing-planning.plans"] },
-    // Checked against src/components/studio2/StudioMarketingPlans.js (the plan
+    // Checked against src/components/studio2/StudioMarketingPlans.tsx (the plan
     // Dialog: Name, Period, then From and To for custom dates or Any day in the
     // period, What this period is for, Owner, Budget, Leads expected, Revenue
     // expected) and MarketingPlanSchema in src/modules/marketing/schema.ts.
@@ -699,7 +699,7 @@ export const marketing: HelpModule = {
            ar: "تشفر العناوين عند حفظها تماما كبيانات العملاء، بينما يبقى النص الذي وافقوا عليه مقروءا كدليل. والعنوان الواحد صاحب واحد: فيطابق البريد دون اعتبار لحالة الأحرف ورقم الهاتف بأرقامه، فالسحب المسجل على كتابة ما يشمل الأخرى. ولا يستطيع أحد تغيير أو حذف أي شيء في السجل." },
       keywords: ["encrypted", "privacy", "sealed", "security", "مشفر", "الخصوصية", "الحماية", "الأمان"],
       related: ["marketing-audiences.append-only"] },
-    // Checked against src/components/studio2/StudioAudiences.js (the Record a
+    // Checked against src/components/studio2/StudioAudiences.tsx (the Record a
     // consent or a withdrawal Dialog: Kind of address, State, Address*, When they
     // decided, What they agreed to, Note) and ConsentSchema in
     // src/modules/marketing/schema.ts; recordConsent in audiences.ts refuses.
@@ -771,7 +771,7 @@ export const marketing: HelpModule = {
            ar: "تتبع وقت بدء الفعالية وانتهائها بتوقيت الخادم، فيرى الجميع الإجابة نفسها أينما كانوا. والفعالية بلا وقت انتهاء لحظة، وتنتهي بمجرد مرور وقت بدئها. وتعرض البطاقة أيضا عدد المسجلين والمقاعد المتبقية أو مقدار الزيادة عن السعة." },
       keywords: ["upcoming", "on now", "finished", "seats left", "قادمة", "جارية الآن", "منتهية", "المقاعد المتبقية"],
       related: ["marketing-events.about"] },
-    // Checked against src/components/studio2/StudioMarketingEvents.js (the event
+    // Checked against src/components/studio2/StudioMarketingEvents.tsx (the event
     // Dialog, in order: Name, Kind, Starts, Ends, Where, Capacity, Owner,
     // Registration form, Campaign, Description) and MarketingEventSchema in
     // src/modules/marketing/schema.ts; eventProblem in events.ts refuses.
@@ -843,7 +843,7 @@ export const marketing: HelpModule = {
            ar: "النوع هو الغرض من الأصل لا البرنامج الذي صنعه: تصميم أو نص أو مقطع أو شعار أو مستند أو أخرى. فتصميم الحملة تصميم سواء كان PNG أو PDF. واترك الحملة فارغة لملفات العلامة الخاصة بالاستوديو التي لا تخص حملة بعينها." },
       keywords: ["asset kind", "artwork", "logo", "brand files", "نوع الأصل", "تصميم", "شعار", "ملفات العلامة"],
       related: ["marketing-content.fields"] },
-    // Checked against src/components/studio2/StudioMarketingContent.js (the
+    // Checked against src/components/studio2/StudioMarketingContent.tsx (the
     // asset Dialog: Name, What it is, Campaign, Version, File on create only,
     // Notes) and MarketingAssetSchema in src/modules/marketing/schema.ts;
     // assetProblem in assets.ts refuses.
@@ -911,7 +911,7 @@ export const marketing: HelpModule = {
            ar: "تسرد كل قيم utm_source الواردة إلى نماذجك التي لا يملكها أي شريك، الأكثر تكرارا أولا، مع عدد الواصلين. وكثيرا ما تكشف شريكا لم يكن أحد يعرف بوجوده. أضفه شريكا بذلك الوسم فتحتسب الوصولات له." },
       keywords: ["unclaimed tags", "unknown source", "referrer", "وسوم غير مملوكة", "مصدر مجهول", "المحيل"],
       related: ["marketing-partners.give-tag"] },
-    // Checked against src/components/studio2/StudioMarketingPartners.js (the
+    // Checked against src/components/studio2/StudioMarketingPartners.tsx (the
     // partner Dialog, in order: Name, Kind, Their link tag, Contact, Email,
     // Phone, Website, Owner, Working with them / Ended, What was agreed, Notes)
     // and MarketingPartnerSchema in src/modules/marketing/schema.ts;

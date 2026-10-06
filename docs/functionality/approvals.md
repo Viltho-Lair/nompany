@@ -116,7 +116,7 @@ is the authority. Two rights exist, held by the owner and Admins and given to ot
 
 **The code:** `modules/approvals/` — `model.ts` (the rules, pure, `tests/approvals-model.mjs`),
 `registry.ts` (the types — a new one is a row there plus its button), `approvals.ts` (the store).
-Screen: `components/studio2/StudioApprovals.js`.
+Screen: `components/studio2/StudioApprovals.tsx`.
 
 **The old board's items were converted on 19/09/2026** and the board's stored rows removed from
 every studio. What it had left became approvals of their own types, and the hand-written ones

@@ -53,7 +53,7 @@
 // the IDENTICAL 32-chunk list, so referencing any one screen loads all of them.
 // TipTap/ProseMirror (158 KB, reached only through two dynamic boundaries),
 // date-fns with the MUI pickers (98 KB) and the Gantt shell are all in the
-// route's first load. `page.js` is a Server Component, where `next/dynamic`
+// route's first load. `page.tsx` is a Server Component, where `next/dynamic`
 // defers the SERVER render and creates no client lazy boundary; Turbopack then
 // groups the route's client references into one chunk group. The split changed
 // the file layout — 307 KB to 197 to 158, all of it real — and changed nothing
@@ -275,7 +275,7 @@ const MAX_CHUNK_GZIP_KB = 250;
 // because that is what every route pays.
 //
 // Some of the +3 is a MOVE rather than growth: the vendor register left
-// StudioInventory for VendorRegister.js, so the inventory chunk lost what the
+// StudioInventory for VendorRegister.tsx, so the inventory chunk lost what the
 // supplier chunk gained, and only the duplicated module boundary is new.
 //
 // Set at 1684 rather than 1682 deliberately. Three kilobytes of headroom still
@@ -648,7 +648,7 @@ const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
 // argues for and the reason the per-route gate is the one to act on. The board
 // landed with `nextDynamic` called from StudioReports — a SERVER COMPONENT,
 // where it defers the server render and creates NO client boundary, exactly as
-// HeavyScreens.jsx warns. Measured: the route was 710 and the budget refused
+// HeavyScreens.tsx warns. Measured: the route was 710 and the budget refused
 // it. Moving the board into HeavyScreens, whose `import()` survives to runtime,
 // took the route to 708 and left the total where it was. Two kilobytes off the
 // number every tenant page waits for, nothing onto the one nobody waits for.

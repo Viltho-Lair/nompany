@@ -54,7 +54,7 @@ guide bans them; nompany uses `Donut`/`Radial` deliberately).
 ## 2. The shape, top to bottom
 
 ```
-StudioMain.js (client)
+StudioMain.tsx (client)
   ├─ free floor  ──────────────  headline StatTiles + recent feed   (unchanged, always shown)
   └─ Dashboard  ───────────────  gated executive widgets
         reads  /api/studios/[slug]/main

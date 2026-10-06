@@ -6,7 +6,7 @@ there is no package manifest to read the terms off.
 
 ## Phosphor Icons — MIT
 
-`src/components/studio2/icons.art.js` holds SVG path data extracted from
+`src/components/studio2/icons.art.ts` holds SVG path data extracted from
 [Phosphor Icons](https://phosphoricons.com) by `scripts/generate-icons.mjs`,
 which reads it out of the `@phosphor-icons/core` devDependency. The artwork is
 copied in rather than imported so the client bundle carries the paths alone and

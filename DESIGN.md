@@ -19,7 +19,7 @@ Three layers, app-wide. Reach for them in this order:
 3. **MUI** — for complex behaviour that isn't worth rebuilding (data grids,
    pickers, menus, autocomplete). Core only (`@mui/material` + emotion); no
    icons package — the studio has its own set in
-   [`icons.js`](src/components/studio2/icons.js).
+   [`icons.tsx`](src/components/studio2/icons.tsx).
 
 ### How the three coexist
 
@@ -75,7 +75,7 @@ returns `null` on this route (`isBare`, the same idiom as the contact page), so
 only the site `Nav` sits above it.
 
 [`AccountHome`](src/components/public/AccountHome.tsx) matches the studio's
-**People & requests** screen ([`StudioPeople`](src/components/studio2/StudioPeople.js)) —
+**People & requests** screen ([`StudioPeople`](src/components/studio2/StudioPeople.tsx)) —
 the page that carries the company code and the join-request flow, so both halves
 of "join a studio" read as one design:
 
@@ -116,7 +116,7 @@ page is standalone:
 
 The Studio uses the **Old System's Geex control-panel design**, rendered in this
 project's own `brand-*`/`steel-*` palette rather than the Old System's navy.
-Built in [`StudioFrame`](src/components/studio2/StudioFrame.js):
+Built in [`StudioFrame`](src/components/studio2/StudioFrame.tsx):
 
 | Element | Spec |
 | --- | --- |
@@ -130,7 +130,7 @@ Built in [`StudioFrame`](src/components/studio2/StudioFrame.js):
 
 The nav is **DB-driven** — sections come from the tenant, so unlike the Old
 System there is no hardcoded route list. Section keys map to icons in
-[`icons.js`](src/components/studio2/icons.js) (ported from the Old System's set),
+[`icons.tsx`](src/components/studio2/icons.tsx) (ported from the Old System's set),
 falling back to a neutral dot for anything unrecognised.
 
 ### `html.studio-chrome` is set server-side
@@ -263,7 +263,7 @@ adds keys to `STUDIO_AR` (~1,228 keys). **Outstanding, non-module:** the queued
 
 ### Studio icons (nav + notifications)
 
-Five icons added to [`icons.js`](src/components/studio/icons.js) (24×24, `currentColor`, stroke style):
+Five icons added to [`icons.tsx`](src/components/studio/icons.js) (24×24, `currentColor`, stroke style):
 
 | Icon | Where used |
 | --- | --- |

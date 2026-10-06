@@ -240,16 +240,16 @@ when the code looks cleaner afterwards.
 
 ## Where the code lives
 
-The `src/lib` split is done, and every folder below is TypeScript. What is left in
-JavaScript is the **421 browser files** under `src/components` and `src/app` (measured
-05/10/2026; this said 306, and 235 before that — it kept GROWING while it waited on a Wave 4
-that was never approved). Their conversion is its own piece of work now (the decision
-ledger in `docs/progress.md`); they are the whole of what `checkJs: false` and the
-`allowJs` escape hatch are still holding open.
+The `src/lib` split is done, and every folder below is TypeScript. **So is every browser
+file under `src/components` and `src/app` — zero `.js`/`.jsx` left, measured 06/10/2026**
+(there were 421 on 05/10/2026; the count kept GROWING while it waited on a Wave 4 that was
+never approved, and was converted as its own piece of work — the decision ledger in
+`docs/progress.md`). `checkJs: false` and `allowJs` now hold open only `src/proxy.js` and
+`src/lib/langCookie.js`, which were never on the browser list.
 
 **A NEW BROWSER FILE IS `.ts`/`.tsx` — never `.js`/`.jsx`** (05/10/2026). `tests/restructure.mjs`
 refuses one not on `scripts/browser-types-baseline.json`, and `npm run types:browser` holds every
-remaining JavaScript file to its type-error ceiling (checkJs on, `tsconfig.browser.json`). After
+remaining JavaScript file to its type-error ceiling — the list is empty now, so the ceiling is 0 (checkJs on, `tsconfig.browser.json`). After
 converting a file, `node scripts/browser-types.mjs --record` takes it off the list.
 **RESTART `next dev` AFTER RENAMING A FILE** (05/10/2026). Tailwind v3's content watcher keeps the
 OLD path and `stat`s it on the next change, so `globals.css` fails with `ENOENT … index.jsx` —
@@ -434,7 +434,7 @@ The requirements below have not weakened; what changed is who checks them and wh
   every time.** Five secondary tabs — bins, batches, the unit registry, the
   dispatch board, the mobile field view — cost the studio route 687 → 697 KB of
   FIRST LOAD when imported statically. Their importers are client modules, so
-  `nextDynamic` there is a real boundary (HeavyScreens.jsx explains why the same
+  `nextDynamic` there is a real boundary (HeavyScreens.tsx explains why the same
   call in a Server Component is not): route 692, total 1869. Five kilobytes off
   the number every tenant page waits for, four onto the one nobody waits for. Read them as a measurement with a date and re-measure at the commit you
   are writing. `scripts/bundle-budget.mjs` holds
@@ -483,7 +483,7 @@ The requirements below have not weakened; what changed is who checks them and wh
   that route carries the identical 32-chunk list in the client reference manifest, so
   referencing one screen loads all of them: TipTap/ProseMirror (158 KB, behind two
   dynamic boundaries), date-fns with the MUI pickers (98 KB) and the Gantt shell are
-  all first load. `page.js` is a **Server Component**, where `next/dynamic` defers the
+  all first load. `page.tsx` is a **Server Component**, where `next/dynamic` defers the
   SERVER render and creates no client lazy boundary; Turbopack then groups the route's
   client references into one chunk group. The 307 → 197 → 158 KB wins were real changes
   to the file layout and changed nothing about what is downloaded. Moving work to
@@ -492,8 +492,8 @@ The requirements below have not weakened; what changed is who checks them and wh
 
   **AND THAT IS THE FIX, MEASURED: the studio's first load went to 679 KB, down
   from 962** (687 today — the section-register and safety panels, 08/09/2026).
-  `src/components/studio2/HeavyScreens.jsx` is a **client** module, so its `import()`
-  survives to runtime; `page.js` imports the four heaviest screens from it — the
+  `src/components/studio2/HeavyScreens.tsx` is a **client** module, so its `import()`
+  survives to runtime; `page.tsx` imports the four heaviest screens from it — the
   document editor (TipTap/ProseMirror, 158 KB) and the planner (which pulls
   `@mui/x-date-pickers` and date-fns, 98 KB) — and every one of those chunks is async
   now. **`ssr: false` was tried and reverted:** both variants build to byte-identical
@@ -901,8 +901,8 @@ shipped — the same paragraph's own "Media has left Redis" above contradicted i
 **Wave 3 (TypeScript) is done server-side** — every `.ts`/`.tsx` under `noImplicitAny`, every
 department in `src/modules/<name>/` with a Zod schema each, and every route file converted
 (**226 today, all `route.ts`, none left in JavaScript** — measured 17/09/2026; this said
-199, and 170 before that). What remains is the
-**421** browser `.js`/`.jsx` files (re-measured 05/10/2026; this said 306, and 265 before), now converted as their own piece of work rather than waiting on Wave 4. (Both counts
+199, and 170 before that). The
+browser files are done too: **0** `.js`/`.jsx` under `src/components` and `src/app` (06/10/2026; 421 the day before), converted as their own piece of work rather than waiting on Wave 4. (Both counts
 are measured — `find src/app/api -name 'route.*'` and `find src/components src/app -name
 '*.js' -o -name '*.jsx'`. They said 99 and 212 for long enough to be quoted as facts;
 `tsconfig.strict.json`'s own comment still says 212, which is the same drift one layer down.) **Wave 4 (UI/UX) is superseded** (05/10/2026) — a proposal in

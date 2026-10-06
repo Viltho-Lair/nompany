@@ -1,0 +1,1517 @@
+"use client";
+
+import { CURRENCIES_FROM_EXCHANGE_API, searchCurrencies, currency as currencyOf, fmtRate } from "@/shared/currencies";
+import { allTimezones } from "@/shared/timezone";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { Icon } from "@/components/studio2/icons";
+import { useFocusTrap } from "@/components/studio2/useFocusTrap";
+import Combo from "@/components/studio2/Combo";
+import { COUNTRY_NAMES, codeOfCountry } from "@/shared/countries";
+import { citiesFor } from "@/lib/cities";
+import { CurrencySymbol } from "@/components/Currency";
+import { locales, LANGUAGE_NAMES } from "@/shared/locale";
+import { settingsDict } from "@/shared/studio/settings";
+import { fmtDate } from "@/lib/format";
+import { Field } from "@/components/fields/Field";
+import SelectMenu from "@/components/fields/SelectMenu";
+import { OTHER_FIELD } from "@/shared/fieldsOfWork";
+import { OTHER_INDUSTRY, industryLabel, industryOptions } from "@/shared/industryPick";
+import { useStudioLocale } from "@/components/studio2/locale";
+import SettingsFold from "@/components/studio2/SettingsFold";
+import SigningPinSetting from "@/components/security/SigningPinSetting";
+import EmploymentRulesPanel from "@/components/studio2/EmploymentRulesPanel";
+import OfficialValuesPanel from "@/components/studio2/OfficialValuesPanel";
+import { officialValuesDict } from "@/shared/studio/officialValues";
+import { useReload } from "@/components/studio2/useReload";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { isFiledOnlySection } from "@/platform/db/keys";
+import type { Locale } from "@/shared/locale";
+import type { EmploymentRules } from "@/modules/hr/leaveBalance";
+import type { StatutoryRules } from "@/modules/hr/statutory";
+import type { EmploymentApplies, payPresetFor } from "@/shared/compliance/rules";
+import type { TradeSuggestion } from "@/shared/tradeSections";
+import type { pickCatalogue } from "@/shared/industryPick";
+import type { WorkMeasure, numberOf } from "@/modules/main/workKpis";
+
+type Strings = ReturnType<typeof settingsDict>;
+type DayHours = { open: boolean; from: string; to: string };
+type Hours = Record<string, DayHours>;
+type LegalRow = { key: string; value: string };
+// THE /settings BODY. The route builds it in local helpers (`clean`,
+// `sectionRows`, `favouriteRates`) rather than exported services, so the parts
+// with a module behind them are derived and the rest is the shape those helpers
+// write — only the fields this screen reads.
+type StudioView = {
+  name: string; logo: string; country: string; city: string; location: string;
+  currency: string; timezone: string; vatRate: number | string; language: Locale;
+  workingHours: Hours | null;
+  showcaseConsent: { at: string; by: string } | null;
+  legalInfo: LegalRow[];
+  favoriteCurrencies: string[];
+  signingPin: boolean;
+  employmentRules: EmploymentRules & StatutoryRules;
+  employmentPreset: ReturnType<typeof payPresetFor>;
+  employmentApplies: EmploymentApplies;
+  leaveTypes: string[];
+  deletionRequestedAt: string;
+  deletionFinalisesAt: string;
+};
+type SectionRowView = {
+  id: string; key: string; name: string; parentId: string | null;
+  enabled: boolean; noScreen: boolean; inDevelopment: boolean; required: boolean;
+};
+type Fx = { base: string; rates: Record<string, number | null>; updatedAt: number; stale: boolean };
+type SettingsBody = {
+  studio: StudioView; fx: Fx | null; canManage: boolean; sections: SectionRowView[];
+  tradeSuggestion: TradeSuggestion | null; isOwner: boolean;
+};
+// `true`, or the server's own reason — see `save` below.
+type SaveResult = true | { error: string; detail: string };
+type Save = (patch: Record<string, unknown>) => Promise<SaveResult>;
+// The industry route's body (its local `payload`).
+type IndustryData = {
+  fieldOfWork: string; fieldOfWorkOther: string; industry: string; needsIndustry: boolean;
+  suggestedIndustry: string; industries: ReturnType<typeof pickCatalogue>; canManage: boolean;
+};
+// One measure as the KPI route sends it (its local `payload`).
+type KpiRow = Pick<WorkMeasure, "id" | "name" | "workType" | "kind"> & {
+  per: string; asks: ReturnType<typeof numberOf>; value: number | null; since: string;
+};
+type KpiData = { measures: KpiRow[]; canManage: boolean };
+
+// THE SCREEN'S WORDS, HANDED DOWN RATHER THAN THREADED.
+//
+// Eleven components in this file need them — every dialog, every row, the
+// countdown — and none of them need anything else from their parent. Passing
+// a `t` prop through all eleven would be eleven signatures changed to carry
+// one value that never varies within a render, and the next dialog added here
+// would be the one somebody forgets. A context is the shape of the fact: one
+// value, set once at the top, read wherever it is wanted.
+// English is the default so a component rendered outside the provider — in a
+// test, say — still has words rather than crashing on undefined.
+const T = createContext(settingsDict("en"));
+const useT = () => useContext(T);
+
+// Studio settings — the studio's own identity, reached from the sidebar where
+// "My account" used to sit. The account itself is still one click away, behind
+// the header avatar; this is the studio, which is a different thing entirely.
+//
+// The rows deliberately copy /account's Personal info: a grouped stack where
+// each row is an icon slot, a label, the current value, and the whole row is the
+// control. Somebody who has set their own picture already knows how this works.
+
+// Same geometry as the account hub's stack: 20px outer corners, 4px inside, 2px
+// between rows, 56px min-height.
+const STACK = "flex flex-col gap-[2px]";
+const ROW =
+  "flex min-h-[56px] w-full items-center gap-3 rounded-[4px] bg-[var(--geex-surface)] px-4 py-3 text-start first:rounded-t-[20px] last:rounded-b-[20px]";
+const ROW_TAP = "transition-colors hover:bg-slate-50 dark:hover:bg-white/5";
+const ROW_LABEL = "text-base font-500 leading-normal text-slate-900 dark:text-white";
+const ROW_VALUE = "truncate text-sm leading-[1.4286] text-slate-500 dark:text-slate-400";
+const BTN = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
+const BTN_GHOST = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
+const INPUT = "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/15 dark:bg-[#0c0c11] dark:text-white";
+// The currencies a studio is likely to price in. Free text is still allowed —
+// the list is a shortcut, not a restriction.
+// KEYS ONLY. The day NAMES moved into the dictionary — they are the one part
+// of a working week that is language and not data, and a list of pairs here
+// meant the Arabic week could only ever have been a second list beside it.
+const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DEFAULT_HOURS: Hours = Object.fromEntries(DAYS.map((d) => [d, { open: !["fri", "sat"].includes(d), from: "09:00", to: "17:00" }]));
+const hoursSummary = (h: Hours | null | undefined, words: Strings) => {
+  if (!h) return words.hoursNotSet;
+  const open = DAYS.filter((d) => h[d]?.open);
+  if (open.length === 0) return words.hoursClosedAll;
+  const first = open[0];
+  const same = open.every((d) => h[d].from === h[first].from && h[d].to === h[first].to);
+  const span = h[first];
+  return same
+    ? `${words.days(open.length)} · ${span.from}–${span.to}`
+    : `${words.days(open.length)} · ${words.hoursVaries}`;
+};
+
+const BANNER_BAD = "rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300";
+const BANNER_WARN = "rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200";
+
+// `initial` is the /settings body the studio page answered in its own render,
+// read into the same state the loader fills, so the screen paints with the
+// studio rather than a loading line. Absent, it fetches on mount as before.
+export default function StudioSettings({ slug, locale = "en", initial: given }: { slug: string; locale?: string; initial?: unknown }) {
+  // The page's first payload is this route's own body, handed over untyped.
+  const initial = given as Partial<SettingsBody> | undefined;
+  // Resolved on the server and handed down with the rest of the screen's
+  // props, so Settings opens in the reader's language on its first paint
+  // rather than after a swap.
+  const tr = settingsDict(locale);
+  const [studio, setStudio] = useState<StudioView | null>(initial?.studio ?? null);
+  const [canManage, setCanManage] = useState(Boolean(initial?.canManage));
+  const [fx, setFx] = useState<Fx | null>(initial?.fx || null);
+  const [logoOpen, setLogoOpen] = useState(false);
+  const [hoursOpen, setHoursOpen] = useState(false);
+  const [isOwner, setIsOwner] = useState(Boolean(initial?.isOwner));
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [sections, setSections] = useState<SectionRowView[]>(Array.isArray(initial?.sections) ? initial.sections : []);
+  // WHAT THE STUDIO'S TRADE WOULD SWITCH, from the same read as `sections`.
+  const [suggestion, setSuggestion] = useState<TradeSuggestion | null>(initial?.tradeSuggestion || null);
+  const [loading, setLoading] = useState(initial === undefined);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/settings`, { cache: "no-store" });
+    if (res.ok) {
+      const d: SettingsBody = await res.json();
+      setStudio(d.studio);
+      setCanManage(Boolean(d.canManage));
+      setFx(d.fx || null);
+      setIsOwner(Boolean(d.isOwner));
+      setSections(Array.isArray(d.sections) ? d.sections : []);
+      setSuggestion(d.tradeSuggestion || null);
+    }
+    setLoading(false);
+  }, [slug]);
+
+  useReload(load, initial);
+
+  // One writer for every row, so a saved value is re-read from the server
+  // rather than assumed — the API cleans what it stores.
+  const save: Save = useCallback(async (patch: Record<string, unknown>): Promise<SaveResult> => {
+    setError("");
+    const res = await fetch(`/api/studios/${slug}/settings`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
+    });
+    if (!res.ok) {
+      // THE SERVER'S OWN REASON, handed back as well as shown. Every other
+      // caller here wants a boolean; a refused credential has to say which
+      // field is wrong, and "could not save" sends somebody hunting.
+      const body = await res.json().catch(() => ({}));
+      setError(tr.saveFailed);
+      return { error: body.error || "failed", detail: body.detail || "" };
+    }
+    await load();
+    return true;
+  }, [slug, load, tr]);
+
+  if (loading) return <ScreenSkeleton loadingLabel={tr.loading} />;
+  if (!studio) return <p className={BANNER_BAD}>{tr.loadFailed}</p>;
+
+  return (
+    <T.Provider value={tr}>
+    <div className="mx-auto w-full max-w-[640px] py-2">
+      <h2 className="font-display text-[1.75rem] font-500 leading-[1.2857] text-slate-900 dark:text-white">{tr.title}</h2>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+        {tr.intro(studio.name)}
+        {!canManage && tr.adminOnly}
+      </p>
+
+      {error && <p className={`${BANNER_BAD} mt-4`}>{error}</p>}
+
+      <div className={`${STACK} mt-4`}>
+        {/* Logo: icon on the left, the logo itself at the RIGHT end of the row.
+            The row borrows Personal info's geometry, but NOT its circle — a
+            profile picture is a face and crops well, a company mark does not. */}
+        <button
+          type="button"
+          disabled={!canManage}
+          onClick={() => setLogoOpen(true)}
+          aria-haspopup="dialog"
+          className={`${ROW} ${canManage ? ROW_TAP : "cursor-default"}`}
+        >
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+            <Icon name="gallery" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col justify-center">
+            <span className={ROW_LABEL}>{tr.logo}</span>
+            <span className={ROW_VALUE}>
+              {studio.logo ? tr.logoSet : tr.logoDefault}
+            </span>
+          </span>
+          {/* A tile, not a circle: this is a company's mark and it is shown
+              WHOLE. Contained rather than cropped, so a wide wordmark keeps both
+              ends and the tile's own shape stops mattering. */}
+          <span className="ms-auto inline-flex h-10 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-geex-sm dark:bg-white/5">
+            {studio.logo
+              /* A stored data URI, so next/image would only get in the way. */
+              /* eslint-disable-next-line @next/next/no-img-element */
+              ? <img src={studio.logo} alt="" className="h-full w-full object-contain" />
+              /* eslint-disable-next-line @next/next/no-img-element */
+              : <img src="/brand/logo-icon.png" alt="" className="h-full w-full object-contain" />}
+          </span>
+        </button>
+
+        {/* Where the studio is. Country and city are also what a new sales
+            ticket starts from, so they are the studio's default location and
+            not merely a description of it. */}
+        {/* THE COUNTRY IS THE OWNER'S TO CHOOSE (18/09/2026): it decides which
+            official values exist and what prints on every legal document. The
+            server refuses anybody else; the row says so rather than offering an
+            edit that would be refused. */}
+        <EditRow
+          icon="locations" label={tr.country} value={studio.country} canManage={canManage && isOwner}
+          hint={canManage && !isOwner ? officialValuesDict(locale).ownerChoosesCountry : ""}
+          onSave={(v) => save({ country: v, ...(v !== studio.country ? { city: "" } : {}) })}
+          render={(draft, set) => (
+            <Combo value={draft} onChange={set} options={COUNTRY_NAMES} inputClassName={INPUT} />
+          )}
+        />
+        <EditRow
+          icon="locations" label={tr.city} value={studio.city} canManage={canManage}
+          hint={studio.country ? "" : tr.cityNeedsCountry}
+          onSave={(v) => save({ city: v })}
+          render={(draft, set) => (
+            <Combo value={draft} onChange={set} options={citiesFor(codeOfCountry(studio.country))} inputClassName={INPUT} />
+          )}
+        />
+        <EditRow
+          icon="location" label={tr.location} value={studio.location} canManage={canManage}
+          onSave={(v) => save({ location: v })}
+          render={(draft, set) => (
+            <input className={INPUT} value={draft} onChange={(e) => set(e.target.value)} />
+          )}
+        />
+
+        <EditRow
+          icon="cash" label={tr.currency} canManage={canManage}
+          value={studio.currency
+            ? <span className="inline-flex items-center gap-2"><CurrencySymbol code={studio.currency} /> {studio.currency}</span>
+            : ""}
+          editValue={studio.currency || ""}
+          hint={tr.currencyUnset}
+          onSave={(v) => save({ currency: v })}
+          render={(draft, set) => (
+            /* The full ExchangeRate-API list, the same vocabulary the
+               favourites are picked from — and a real select, because a
+               free-typed currency is one nothing can be priced against. */
+            <SelectMenu className={INPUT} value={draft} onChange={set} aria-label={tr.currency}
+              options={[{ value: "", label: tr.currencyNone },
+                ...CURRENCIES_FROM_EXCHANGE_API.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))]}
+            />
+          )}
+        />
+
+        {/* WHERE THE STUDIO'S CLOCK IS. Here and nowhere else (the owner,
+            22/09/2026): several sections ask which day it is — a shop's
+            offers, a per-day cap, a shift report — and a section keeping its
+            own answer is a second clock free to disagree with this one.
+            A real select, for the currency's reason: a free-typed zone is one
+            `Intl` refuses, and the refusal would land on the wrong day. */}
+        <EditRow
+          icon="clock" label={tr.timezone} canManage={canManage}
+          value={studio.timezone || ""}
+          editValue={studio.timezone || ""}
+          hint={tr.timezoneUnset}
+          onSave={(v) => save({ timezone: v })}
+          render={(draft, set) => (
+            <SelectMenu className={INPUT} value={draft} onChange={set} aria-label={tr.timezone}
+              options={[{ value: "", label: tr.timezoneNone },
+                ...allTimezones().map((z) => ({ value: z, label: z }))]}
+            />
+          )}
+        />
+
+        {/* THE STUDIO'S VAT RATE. Empty is a real answer — not registered — so
+            the hint says what that means rather than "not set": no document
+            carries tax and Finance shows no return. */}
+        <EditRow
+          icon="cash" label={tr.vatRate} canManage={canManage}
+          value={studio.vatRate ? `${studio.vatRate}%` : ""}
+          editValue={studio.vatRate ? String(studio.vatRate) : ""}
+          hint={tr.vatRateUnset}
+          onSave={(v) => save({ vatRate: v })}
+          render={(draft, set) => (
+            <>
+              <input className={INPUT} value={draft} inputMode="decimal" aria-label={tr.vatRate}
+                onChange={(e) => set(e.target.value)} />
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{tr.vatRateSet}</p>
+            </>
+          )}
+        />
+
+        <EditRow
+          icon="globe" label={tr.language} canManage={canManage}
+          value={LANGUAGE_NAMES[studio.language] || LANGUAGE_NAMES.en}
+          editValue={studio.language || "en"}
+          hint={tr.languageHint}
+          onSave={(v) => save({ language: v })}
+          render={(draft, set) => (
+            /* THE STUDIO'S DEFAULT, NOT A CEILING. This sets the language a
+               colleague reads the studio in before they have chosen one of
+               their own; the header's language menu is the override, and it
+               belongs to the person rather than to the company (see
+               preferredLocale in shared/locale).
+
+               It stays admin-only because it is still a decision ABOUT the
+               studio — it is what everyone who never opens the menu will see,
+               which for most people is everyone. */
+            <SelectMenu className={INPUT} value={draft} onChange={set} aria-label={tr.language}
+              options={locales.map((code) => ({ value: code, label: LANGUAGE_NAMES[code] }))}
+            />
+          )}
+        />
+
+        <button
+          type="button" disabled={!canManage} onClick={() => setHoursOpen(true)} aria-haspopup="dialog"
+          className={`${ROW} ${canManage ? ROW_TAP : "cursor-default"}`}
+        >
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+            <Icon name="overtime" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col justify-center">
+            <span className={ROW_LABEL}>{tr.workingHours}</span>
+            <span className={ROW_VALUE}>{hoursSummary(studio.workingHours, tr)}</span>
+          </span>
+          {canManage && <Icon name="chevronRight" className="ms-auto h-5 w-5 shrink-0 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />}
+        </button>
+
+        {/* BEING NAMED ON nompany.com IS THIS STUDIO'S DECISION TO MAKE.
+            A switch here and nothing else: we cannot give this on a customer's
+            behalf, and nothing we do elsewhere implies it. Turning it off takes
+            the company off the public site on the next read — the feed derives
+            from this record rather than from a published copy, so there is no
+            list to be forgotten on.
+
+            IT DOES NOT PUBLISH ANYTHING BY ITSELF, and the row says so rather
+            than letting somebody switch it on, look at the site and find
+            nothing. Appearing also needs us to feature them, which is decided
+            in the console; a studio agreeing makes it possible, not done. */}
+        <div className={ROW}>
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+            <Icon name="globe" className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col justify-center">
+            <span className={ROW_LABEL}>{tr.showcase}</span>
+            <span className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+              {tr.showcaseLead}
+            </span>
+            {studio.showcaseConsent?.at && (
+              <span className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                {tr.showcaseSince(fmtDate(studio.showcaseConsent.at))} · {tr.showcasePending}
+              </span>
+            )}
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={Boolean(studio.showcaseConsent?.at)}
+            aria-label={tr.showcase}
+            disabled={!canManage}
+            onClick={() => save({ showcaseConsent: !studio.showcaseConsent?.at })}
+            className={`relative ms-auto h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${studio.showcaseConsent?.at ? "bg-brand-600" : "bg-slate-200 dark:bg-white/15"} ${canManage ? "" : "opacity-50"}`}
+          >
+            {/* START AND END, NOT LEFT AND RIGHT — the same reason the working
+                hours switch gives: pinned to `left-`, a toggle reads inverted
+                in an Arabic studio, which is the worst way for one to be wrong. */}
+            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${studio.showcaseConsent?.at ? "end-0.5" : "start-0.5"}`} />
+          </button>
+        </div>
+      </div>
+
+      <FavouriteCurrencies
+        codes={Array.isArray(studio.favoriteCurrencies) ? studio.favoriteCurrencies : []}
+        base={studio.currency || ""}
+        fx={fx}
+        canManage={canManage}
+        onSave={save}
+      />
+
+      <StudioSections
+        slug={slug}
+        rows={sections}
+        canManage={canManage}
+        suggestion={suggestion}
+        onSaved={load}
+      />
+
+      {/* OFFICIAL VALUES, per the selected country — keyed on the country so a
+          change on the row above remounts it with the new country's fields. */}
+      <OfficialValuesPanel key={studio.country || "none"} slug={slug} locale={locale} country={studio.country || ""} />
+
+      <LegalInfo
+        rows={Array.isArray(studio.legalInfo) ? studio.legalInfo : []}
+        canManage={canManage}
+        onSave={save}
+      />
+
+      {/* WHO APPROVES WHAT, AND ABOVE WHAT AMOUNT, is Approvals settings' since
+          19/09/2026 — steps of named people, per type. The four amount chains
+          that were edited here moved there, one type at a time.
+          THE PIN ON A SIGNATURE — whether every signer must type theirs. */}
+      <SigningPinSetting value={studio.signingPin} canManage={canManage} onSave={save} locale={locale} />
+
+      {/* THE EMPLOYMENT RULES — leave allowances, carry-over, how leave days are
+          counted. Keyed on what the server stored so a save re-seeds the editor
+          from what was kept. */}
+      <EmploymentRulesPanel
+        key={JSON.stringify(studio.employmentRules || {})}
+        rules={studio.employmentRules || {}}
+        leaveTypes={studio.leaveTypes || []}
+        country={studio.country || ""}
+        preset={studio.employmentPreset || null}
+        // WHAT THIS COUNTRY ACTUALLY HAS, from its own file — the panel draws
+        // no block the country does not run (20/09/2026).
+        applies={studio.employmentApplies || undefined}
+        canManage={canManage}
+        onSave={save}
+        tr={tr}
+      />
+
+      {/* Its own fetch/save cycle against the industry route — the general
+          settings PUT does not write the trade. */}
+      <IndustrySetting slug={slug} onTradeSaved={load} />
+
+      {/* KPI TARGETS — the studio's own numbers for the measures /super lists.
+          A deal's targets are not here: they are its flow's steps, on the
+          Deals screen's Flows tab (05/10/2026), and so is the flow itself. */}
+      <KpiTargets slug={slug} />
+
+      {/* ENDING THE STUDIO. Kept apart from the settings above and framed in red,
+          because it is not a setting — it is the end of the thing the settings
+          describe. Owner only, and reversible for thirty days. */}
+      {isOwner && (
+        <SettingsFold tone="danger" heading={tr.deleteHeading} defaultOpen={Boolean(studio.deletionRequestedAt)}>
+          {studio.deletionRequestedAt ? (
+            <>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{tr.deleteScheduled}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <Countdown until={studio.deletionFinalisesAt} />
+                <button
+                  className={BTN}
+                  onClick={() => save({ requestDeletion: false })}
+                >
+                  {tr.cancelDeletion}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{tr.deleteLead(studio.name)}</p>
+              <button
+                className="mt-3 rounded-full bg-rose-600 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-rose-700"
+                onClick={() => setConfirmDelete(true)}
+              >
+                {tr.deleteStudio}
+              </button>
+            </>
+          )}
+        </SettingsFold>
+      )}
+
+      {confirmDelete && (
+        <ConfirmDelete
+          name={studio.name}
+          onClose={() => setConfirmDelete(false)}
+          onConfirm={async () => { await save({ requestDeletion: true }); setConfirmDelete(false); }}
+        />
+      )}
+
+      {hoursOpen && (
+        <HoursDialog
+          slug={slug}
+          hours={studio.workingHours || DEFAULT_HOURS}
+          onClose={() => setHoursOpen(false)}
+          onSaved={load}
+        />
+      )}
+
+      {logoOpen && (
+        <LogoDialog
+          slug={slug}
+          logo={studio.logo}
+          onClose={() => setLogoOpen(false)}
+          onSaved={load}
+        />
+      )}
+    </div>
+    </T.Provider>
+  );
+}
+
+// How long is left, counted down live. A date alone ("3 September") makes
+// somebody work out whether they still have time; a running clock does not.
+function Countdown({ until }: { until: string }) {
+  const tr = useT();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const left = Math.max(0, Date.parse(until || "") - now);
+  if (!Number.isFinite(left)) return null;
+  const d = Math.floor(left / 86400000);
+  const h = Math.floor((left % 86400000) / 3600000);
+  const m = Math.floor((left % 3600000) / 60000);
+  const sec = Math.floor((left % 60000) / 1000);
+  return (
+    <span className="inline-flex items-baseline gap-1 rounded-full bg-rose-500/10 px-3 py-1.5 font-mono text-sm font-600 tabular-nums text-rose-700 dark:text-rose-300">
+      {d}d {String(h).padStart(2, "0")}:{String(m).padStart(2, "0")}:{String(sec).padStart(2, "0")}
+      <span className="font-sans text-xs font-500 opacity-70">{tr.timeLeft}</span>
+    </span>
+  );
+}
+
+// The alert. It states the thirty days plainly, because that is the part that
+// makes the decision reversible and the part somebody needs to have read.
+function ConfirmDelete({ name, onClose, onConfirm }: { name: string; onClose: () => void; onConfirm: () => Promise<void> }) {
+  const tr = useT();
+  const [busy, setBusy] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, true);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-label={tr.deleteStudio}>
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div ref={panelRef} className="relative w-full max-w-[480px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
+        <div className="px-6 pt-6">
+          <h3 className="font-display text-lg font-700 text-rose-700 dark:text-rose-300">{tr.confirmDeleteTitle(name)}</h3>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            {tr.confirmLead}<strong>{tr.confirmDays}</strong>{tr.confirmRest}
+          </p>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{tr.confirmReversible}</p>
+        </div>
+        <div className="flex gap-3 px-6 pb-6 pt-5">
+          <button
+            className="rounded-full bg-rose-600 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-rose-700 disabled:opacity-60"
+            disabled={busy}
+            onClick={async () => { setBusy(true); await onConfirm(); setBusy(false); }}
+          >
+            {busy ? tr.scheduling : tr.scheduleDeletion}
+          </button>
+          <button className={BTN_GHOST} onClick={onClose}>{tr.keepStudio}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The studio's legal identity, as PAIRS it names itself — CR number, VAT
+// number, whatever its jurisdiction expects. Fixed fields would mean guessing a
+// country and being wrong for every other one.
+//
+// Edited as a whole and saved once, like the working week: this is one block of
+// information, and saving it row by row would let it sit half-updated.
+// ONE SECTION'S ROW, hoisted out of `StudioSections` rather than declared in
+// its body: a component defined inside a render is a NEW type on every render,
+// so React unmounts and remounts the whole subtree each time — here that is the
+// entire section list on every toggle. It recurses one level for children,
+// which is the only nesting the nav has.
+//
+// A SECTION'S SUB-SECTIONS ARE FOLDED UNDER IT, closed by default. Unfolded,
+// the list ran to fifty-odd switches — CRM & Sales alone carries eleven — and
+// the owner found it too long to read. The root keeps its own switch on its row
+// (switching it still carries every child, see `setBranch`); the chevron only
+// shows or hides the children, the way the fold around this whole panel does.
+// A root with no children keeps a blank of the chevron's width, so every name
+// starts in the same column.
+function SectionRow({ row, depth, tr, kids, canManage, busy, failed, onToggle }: {
+  row: SectionRowView; depth: number; tr: Strings; kids: Map<string, SectionRowView[]>;
+  canManage: boolean; busy: string; failed: string; onToggle: (row: SectionRowView) => void;
+}) {
+  // A section with no screen can be turned OFF (tidying is allowed) and not back
+  // ON, which is exactly what the route refuses.
+  // A section still being built (/super → Sections) is held off for every
+  // studio: shown, so nobody wonders where it went, and not switchable.
+  const locked = row.required || row.inDevelopment || (row.noScreen && !row.enabled);
+  const note = row.required ? tr.sectionsRequired : row.inDevelopment ? tr.sectionsInDevelopment : row.noScreen ? tr.sectionsNotReady : "";
+  const children = depth ? [] : (kids.get(row.id) || []);
+  const [open, setOpen] = useState(false);
+  const panelId = `section-kids-${row.id}`;
+  return (
+    <>
+      <div className={`flex items-center gap-3 py-1.5 ${depth ? "ps-7" : ""}`}>
+        {!depth && (children.length ? (
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={panelId}
+            aria-label={tr.sectionsShowSubs(row.name)}
+            onClick={() => setOpen((v) => !v)}
+            className="-m-1 shrink-0 rounded p-1 text-slate-400 transition-colors hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:text-slate-500 dark:hover:text-slate-300"
+          >
+            <Icon name="chevronDown" className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+        ) : <span className="w-4 shrink-0" aria-hidden="true" />)}
+        <span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">{row.name}</span>
+        {note && <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">{note}</span>}
+        {failed === row.id && <span className="shrink-0 text-xs text-rose-600">{tr.sectionsRefused}</span>}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={Boolean(row.enabled)}
+          aria-label={row.name}
+          disabled={!canManage || locked || busy === row.id}
+          onClick={() => onToggle(row)}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${row.enabled ? "bg-brand-600" : "bg-slate-200 dark:bg-white/15"} ${canManage && !locked ? "" : "opacity-50"}`}
+        >
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${row.enabled ? "end-0.5" : "start-0.5"}`} />
+        </button>
+      </div>
+      {children.length > 0 && (
+        <div id={panelId} hidden={!open}>
+          {children.map((kid) => (
+            <SectionRow key={kid.id} row={kid} depth={1} tr={tr} kids={kids}
+              canManage={canManage} busy={busy} failed={failed} onToggle={onToggle} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// THE TRADE'S SET, EDITABLE. Every section the trade may judge, ticked where
+// the trade uses it; the person ticks what else they want, unticks what they
+// don't, and Apply sends exactly that. It used to be two read-only lines naming
+// only what would move — "Turn off: Manufacturing & Production, Logistics &
+// Fleet" — which the owner read as the product showing something other than the
+// trade they had picked.
+//
+// ITS OWN COMPONENT SO THE TICKS ARE ITS OWN STATE, seeded from the trade once
+// per offer. The parent keys it by the offer, so a new one (the trade changed,
+// or an apply landed) remounts it with fresh ticks — rather than an effect
+// copying props into state after every render.
+function TradeChecklist({ choices, nameOf, busy, failed, onApply }: {
+  choices: TradeSuggestion["choices"]; nameOf: Map<string, string>; busy: boolean; failed: boolean;
+  onApply: (picked: string[]) => void;
+}) {
+  const tr = useT();
+  const [picked, setPicked] = useState(() => new Set(choices.filter((c) => c.suggested).map((c) => c.key)));
+  const flip = (key: string) => setPicked((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  return (
+    <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-white/10 dark:bg-white/5">
+      <p className="text-slate-600 dark:text-slate-300">{tr.sectionsSuggestLead}</p>
+      <div className="mt-2 grid gap-x-4 sm:grid-cols-2">
+        {choices.map(({ key }) => (
+          <label key={key}
+            className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/5">
+            <input
+              type="checkbox"
+              className="h-4 w-4 shrink-0 accent-brand-600"
+              checked={picked.has(key)}
+              disabled={busy}
+              onChange={() => flip(key)}
+            />
+            <span className="min-w-0 flex-1 truncate">{nameOf.get(key) || key}</span>
+          </label>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <button type="button" className={BTN} disabled={busy} onClick={() => onApply([...picked])}>{tr.sectionsSuggestApply}</button>
+        {failed && <span className="text-xs text-rose-600 dark:text-rose-300">{tr.sectionsSuggestFailed}</span>}
+      </div>
+    </div>
+  );
+}
+
+// WHICH SECTIONS THIS STUDIO USES. `enabled` has sat on every section row since
+// sections became rows, and `visibleSections` has always filtered on it — a
+// disabled section is hidden whatever rights the reader holds. Nothing could
+// SET it, so a contractor with no factory carried Manufacturing in the sidebar
+// because the product ships fifteen sections and assumed all fifteen applied.
+//
+// It has its own PUT (one section at a time) rather than joining the general
+// settings save, for the reason IndustrySetting and the flow editor have theirs:
+// the write refuses three sections by name and every section with no screen,
+// and a refusal has to reach the row it belongs to rather than the page banner.
+//
+// THE THREE FLAGS COME FROM THE SERVER, never from a list kept here. `required`
+// and `noScreen` are exactly what the route refuses; a second copy in the
+// browser would be free to disagree the first time either changed, and the
+// disagreement would show as a switch that looks live and does nothing.
+function StudioSections({ slug, rows: stored, canManage, suggestion, onSaved }: {
+  slug: string; rows: SectionRowView[]; canManage: boolean; suggestion: TradeSuggestion | null;
+  onSaved: () => Promise<unknown>;
+}) {
+  const tr = useT();
+  // A FILED-ONLY SECTION (keys.ts) IS NOT OFFERED: it opens nothing, so its
+  // switch would look live and do nothing — and switching it off would hide the
+  // service contracts filed under it from the screen that shows them.
+  const rows = useMemo(() => stored.filter((r) => !isFiledOnlySection(r.key)), [stored]);
+  // THE SIDEBAR IS SERVER-RENDERED, so re-reading the settings payload is only
+  // half the update: this screen would show the switch in its new position
+  // while the nav beside it still listed the section that had just been turned
+  // off, until the next full navigation. `router.refresh()` re-runs the layout
+  // that computes `visibleSections`, which is where the answer actually lives.
+  const router = useRouter();
+  const [busy, setBusy] = useState("");
+  const [failed, setFailed] = useState("");
+
+  // One level of nesting, which is all the nav allows. A child whose parent is
+  // not in the list still renders at the top rather than vanishing — the list
+  // is the studio's own rows, and a row nobody can see is a row nobody can fix.
+  const byParent = useMemo(() => {
+    const kids = new Map<string, SectionRowView[]>();
+    for (const r of rows) if (r.parentId) {
+      if (!kids.has(r.parentId)) kids.set(r.parentId, []);
+      kids.get(r.parentId)!.push(r);
+    }
+    return kids;
+  }, [rows]);
+  const ids = useMemo(() => new Set(rows.map((r) => r.id)), [rows]);
+  const roots = rows.filter((r) => !r.parentId || !ids.has(r.parentId));
+
+  async function toggle(row: SectionRowView) {
+    setBusy(row.id);
+    setFailed("");
+    const res = await fetch(`/api/studios/${slug}/settings/sections`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: row.id, enabled: !row.enabled }),
+    });
+    setBusy("");
+    if (!res.ok) { setFailed(row.id); return; }
+    await onSaved();
+    router.refresh();
+  }
+
+  // THE TRADE'S SET, APPLIED AS TICKED. `on` is the person's ticks, not the
+  // trade's; `shown` is what the list drew, and the route moves nothing it did
+  // not. Names are the rows' own, the same ones the switches below carry.
+  const nameOf = useMemo(() => new Map(rows.map((r) => [r.key, r.name])), [rows]);
+  const choices = suggestion?.choices || [];
+  async function applyTrade(picked: string[]) {
+    setBusy("trade");
+    setFailed("");
+    const res = await fetch(`/api/studios/${slug}/settings/sections`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "apply-trade", on: picked, shown: choices.map((c) => c.key) }),
+    });
+    setBusy("");
+    if (!res.ok) { setFailed("trade"); return; }
+    await onSaved();
+    router.refresh();
+  }
+
+  if (!rows.length) return null;
+
+  return (
+    <SettingsFold heading={tr.sectionsHeading} lead={tr.sectionsLead}>
+      {/* OFFERED, NEVER APPLIED BY ITSELF. The trade gate runs once, at
+          creation; after that a section only moves when somebody here says so. */}
+      {canManage && suggestion && (suggestion.off.length > 0 || suggestion.on.length > 0) && choices.length > 0 && (
+        <TradeChecklist
+          key={choices.map((c) => `${c.key}:${c.suggested ? 1 : 0}`).join("|")}
+          choices={choices} nameOf={nameOf}
+          busy={busy === "trade"} failed={failed === "trade"} onApply={applyTrade}
+        />
+      )}
+      <div className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
+        {roots.map((row) => (
+          <SectionRow key={row.id} row={row} depth={0} tr={tr} kids={byParent}
+            canManage={canManage} busy={busy} failed={failed} onToggle={toggle} />
+        ))}
+      </div>
+    </SettingsFold>
+  );
+}
+
+function LegalInfo({ rows, canManage, onSave }: { rows: LegalRow[]; canManage: boolean; onSave: Save }) {
+  const tr = useT();
+  const [draft, setDraft] = useState<LegalRow[]>(() => (rows.length ? rows.map((r) => ({ ...r })) : [{ key: "", value: "" }]));
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const set = (i: number, patch: Partial<LegalRow>) => {
+    setDraft((d) => d.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+    setSaved(false);
+  };
+  const add = () => { setDraft((d) => [...d, { key: "", value: "" }]); setSaved(false); };
+  const remove = (i: number) => { setDraft((d) => (d.length === 1 ? [{ key: "", value: "" }] : d.filter((_, j) => j !== i))); setSaved(false); };
+
+  async function save() {
+    setBusy(true);
+    // Blank rows are the form's, not the record's — an empty pair left at the
+    // bottom is somewhere to type, not something to store.
+    // `save` answers `true` or the server's reason, never `false`, so a refusal
+    // still marks this saved — the page banner is what reports it.
+    const ok: unknown = await onSave({ legalInfo: draft.filter((r) => r.key.trim()) });
+    setBusy(false);
+    setSaved(ok !== false);
+  }
+
+  return (
+    <SettingsFold heading={tr.legalHeading} lead={tr.legalLead}>
+
+      <div className="mt-4 space-y-2">
+        {draft.map((row, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              className={`${INPUT} sm:w-56`}
+              value={row.key}
+              disabled={!canManage}
+              aria-label={tr.legalLabelFor(i + 1)}
+              onChange={(e) => set(i, { key: e.target.value })}
+            />
+            <input
+              className={INPUT}
+              value={row.value}
+              disabled={!canManage}
+              aria-label={tr.legalValueFor(i + 1)}
+              onChange={(e) => set(i, { value: e.target.value })}
+            />
+            {canManage && (
+              <button type="button" aria-label={tr.removeNamed(row.key || tr.rowNumber(i + 1))}
+                className="shrink-0 px-1.5 text-slate-400 transition-colors hover:text-rose-600"
+                onClick={() => remove(i)}>×</button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {canManage && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button className={BTN} onClick={save} disabled={busy}>{busy ? tr.saving : saved ? tr.saved : tr.save}</button>
+          <button className={BTN_GHOST} onClick={add}>{tr.addAnother}</button>
+        </div>
+      )}
+    </SettingsFold>
+  );
+}
+
+// THE STUDIO'S INDUSTRY — the specialism it chose from the console's catalogue
+// (/super → Industries), and through it the field of work its departments and
+// deal flows start from. Its own fetch/save cycle onto `.../settings/industry`,
+// because the general settings PUT does not write the trade.
+//
+// SERVICE ACTIONS ARE GONE (03/10/2026, the owner): the twenty-action pool this
+// panel used to edit is removed from studios, tickets and items. Changing the
+// industry re-seeds nothing now, so it saves at once — the confirm dialog
+// existed to show which actions a change would add and retire.
+function IndustrySetting({ slug, onTradeSaved }: { slug: string; onTradeSaved?: () => unknown }) {
+  const tr = useT();
+  const locale = useStudioLocale();
+  const router = useRouter();
+  const [data, setData] = useState<IndustryData | null>(null); // GET body: industry, fieldOfWork, industries, canManage…
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  // The "Other" free-typed label, edited apart from `data` so typing does not
+  // get clobbered by a refresh until it is explicitly saved.
+  const [otherDraft, setOtherDraft] = useState("");
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/settings/industry`, { cache: "no-store" });
+    if (res.ok) {
+      const d: IndustryData = await res.json();
+      setData(d);
+      setOtherDraft(d.fieldOfWorkOther || "");
+    }
+    setLoading(false);
+  }, [slug]);
+
+  useReload(load);
+
+  // THE STUDIO-WIDE ALERT LINKS HERE (`#industry`). The section loads its own
+  // data after the page has painted, so the browser's own jump to the anchor
+  // finds nothing yet; this makes it once the section exists.
+  const jumped = useRef(false);
+  useEffect(() => {
+    if (!data || jumped.current || typeof window === "undefined" || window.location.hash !== "#industry") return;
+    jumped.current = true;
+    document.getElementById("industry")?.scrollIntoView({ block: "start" });
+  }, [data]);
+
+  async function put(patch: { industry: string; fieldOfWorkOther: string }) {
+    setBusy(true); setError("");
+    const res = await fetch(`/api/studios/${slug}/settings/industry`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch),
+    });
+    setBusy(false);
+    if (!res.ok) { setError(tr.saveFailed); return false; }
+    const d: IndustryData = await res.json();
+    setData(d);
+    setOtherDraft(d.fieldOfWorkOther || "");
+    // THE TRADE MOVED, so the Sections panel's offer is stale: it rides on the
+    // page's own settings read, which this component does not share.
+    onTradeSaved?.();
+    // The "choose your industry" line above every screen is drawn by the
+    // server layout, so it stays until the layout is asked again.
+    router.refresh();
+    return true;
+  }
+
+  function requestIndustryChange(industry: string) {
+    if (!data || !industry || (industry === data.industry && !data.needsIndustry)) return;
+    put({ industry, fieldOfWorkOther: industry === OTHER_INDUSTRY ? otherDraft : "" });
+  }
+
+  if (loading) {
+    // SHAPED LIKE THE SECTION AS IT SETTLES — folded: a heading and one line of
+    // description with nothing under it — so the page does not jump when the
+    // real section lands (§ progressive loading).
+    return (
+      <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10" aria-busy="true">
+        <div className="skel skel-text w-40" />
+        <div className="skel skel-text mt-3 w-2/3" />
+      </section>
+    );
+  }
+  if (!data) return <p className={`${BANNER_BAD} mt-8`}>{tr.actionsLoadFailed}</p>;
+
+  return (
+    <SettingsFold id="industry" heading={tr.actionsHeading} attention={!!error || data.needsIndustry}
+      lead={<>{tr.actionsLead}{!data.canManage && tr.actionsAdminOnly}</>}>
+
+      {error && <p className={`${BANNER_BAD} mt-3`}>{error}</p>}
+
+      {data.needsIndustry && (
+        <div className={`${BANNER_WARN} mt-4`} role="status">
+          <p className="font-600">{tr.industryUpdateTitle}</p>
+          <p className="mt-1">{tr.industryUpdateBody(data.fieldOfWork === OTHER_FIELD ? (data.fieldOfWorkOther || OTHER_FIELD) : data.fieldOfWork)}</p>
+          {data.canManage && data.suggestedIndustry && data.suggestedIndustry !== OTHER_INDUSTRY && (
+            <button className={`${BTN} mt-3`} disabled={busy} onClick={() => requestIndustryChange(data.suggestedIndustry)}>
+              {tr.industryUseSuggestion(industryLabel(data.industries, data.suggestedIndustry, locale))}
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="mt-4">
+        <Field
+          as="select"
+          label={tr.industry}
+          value={data.industry || ""}
+          onChange={requestIndustryChange}
+          disabled={!data.canManage || busy}
+          options={industryOptions(data.industries, locale, tr.industryOther, data.industry)}
+          inputProps={{ searchPlaceholder: tr.industrySearch }}
+        />
+      </div>
+
+      {data.industry === OTHER_INDUSTRY && (
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <Field
+            className="min-w-[220px] flex-1"
+            label={tr.ownLabel}
+            value={otherDraft}
+            onChange={setOtherDraft}
+            disabled={!data.canManage || busy}
+          />
+          {data.canManage && otherDraft !== (data.fieldOfWorkOther || "") && (
+            <button className={BTN_GHOST} disabled={busy} onClick={() => put({ industry: OTHER_INDUSTRY, fieldOfWorkOther: otherDraft })}>
+              {busy ? tr.saving : tr.saveLabel}
+            </button>
+          )}
+        </div>
+      )}
+    </SettingsFold>
+  );
+}
+
+// KPI TARGETS — the owner, 03/10/2026: /super lists what can be measured, and a
+// studio types its own numbers here. One row per measure the studio's kinds of
+// work cover; blank is "not measured". Deals are not here: their targets are
+// their flow's steps (Deals → Flows, 05/10/2026), which is also where the
+// per-flow number this panel used to carry went. Its own fetch/save cycle onto
+// `.../settings/kpis`.
+//
+// A SAVE IS A NEW DATED VERSION on the server, never an edit: work that opened
+// before the change keeps being judged by the number it opened under.
+//
+// A SHARE IS TYPED AS A PERCENTAGE and stored as a fraction: "90" here is 0.9
+// there, because a person thinks in percent and the arithmetic in fractions.
+function KpiTargets({ slug }: { slug: string }) {
+  const tr = useT();
+  const locale = useStudioLocale();
+  const [data, setData] = useState<KpiData | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/settings/kpis`, { cache: "no-store" });
+    if (!res.ok) { setFailed(true); return; }
+    setData(await res.json());
+  }, [slug]);
+  useReload(load);
+
+  const words = (w: KpiRow["name"] | null | undefined) => (w ? (locale === "ar" ? w.ar : w.en) : "");
+  const shown = (m: KpiRow, n: number | null | undefined) => (n === null || n === undefined ? "" : m.asks === "share" ? String(Math.round(n * 100)) : String(n));
+  const stored = (m: KpiRow, text: string) => {
+    if (String(text).trim() === "") return null;
+    const n = Number(text);
+    return m.asks === "share" ? n / 100 : n;
+  };
+  const unit = (m: KpiRow) => (m.asks === "days" ? tr.kpiDays
+    : m.asks === "avgDays" ? `${tr.kpiDaysAtMost} · ${tr.kpiPer(m.per)}`
+      : m.asks === "share" ? `${tr.kpiPercent} · ${tr.kpiPer(m.per)}`
+        : m.per ? tr.kpiPer(m.per) : "");
+  async function put(body: { measureId: string; value: number | null }) {
+    setBusy(body.measureId); setError("");
+    const res = await fetch(`/api/studios/${slug}/settings/kpis`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    setBusy("");
+    const out = await res.json().catch(() => ({}));
+    if (!res.ok) { setError(out.error === "target" ? tr.kpiBad : tr.saveFailed); return false; }
+    setData(out);
+    setDrafts({});
+    return true;
+  }
+
+  if (failed) return <p className={`${BANNER_BAD} mt-8`}>{tr.kpiLoadFailed}</p>;
+  if (!data) {
+    return (
+      <section className="mt-8 rounded-geex border border-slate-200/70 p-5 dark:border-white/10" aria-busy="true">
+        <div className="skel skel-text w-40" />
+        <div className="skel skel-text mt-3 w-2/3" />
+      </section>
+    );
+  }
+
+  // One number input, with its own draft so typing does not save on every key.
+  // RENDER FUNCTIONS, NOT COMPONENTS: a component declared inside this one is a
+  // new type on every render, so React would remount the input on each
+  // keystroke and the box would lose focus mid-number.
+  const numberCell = (m: KpiRow, value: number | null) => {
+    const k = m.id;
+    const draft = drafts[k] ?? shown(m, value);
+    const changed = draft !== shown(m, value);
+    return (
+      <span className="flex items-center gap-2">
+        <input
+          className="w-24 rounded-lg border border-slate-200 bg-[var(--geex-inset)] px-2.5 py-1.5 text-sm tabular-nums dark:border-white/15"
+          inputMode="decimal" value={draft} placeholder={tr.kpiOff} disabled={!data.canManage || busy === k}
+          aria-label={words(m.name)}
+          onChange={(e) => setDrafts((d) => ({ ...d, [k]: e.target.value }))}
+        />
+        <span className="text-xs text-slate-500 dark:text-slate-400">{unit(m)}</span>
+        {data.canManage && changed && (
+          <button className={BTN_GHOST} disabled={busy === k}
+            onClick={() => put({ measureId: m.id, value: stored(m, draft) })}>
+            {busy === k ? tr.saving : tr.save}
+          </button>
+        )}
+      </span>
+    );
+  };
+
+  // On-time measures have no number: they are on or off.
+  const toggle = (m: KpiRow, value: number | null) => (
+    <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+      <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={value === 1}
+        disabled={!data.canManage || busy === m.id}
+        onChange={(e) => put({ measureId: m.id, value: e.target.checked ? 1 : null })} />
+      {tr.kpiMeasureOn}
+    </label>
+  );
+
+  const cell = (m: KpiRow, value: number | null) => (m.asks === null ? toggle(m, value) : numberCell(m, value));
+
+  return (
+    <SettingsFold id="kpis" heading={tr.kpiHeading} attention={!!error} lead={tr.kpiLead}>
+      {error && <p className={`${BANNER_BAD} mt-3`}>{error}</p>}
+      {data.measures.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{tr.kpiNone}</p>
+      ) : (
+        <ul className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
+          {data.measures.map((m) => (
+            <li key={m.id} className="py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block text-sm font-600 text-slate-900 dark:text-white">{words(m.name)}</span>
+                  {m.since && <span className="block text-xs text-slate-400">{tr.kpiSince(fmtDate(m.since))}</span>}
+                </span>
+                {cell(m, m.value)}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </SettingsFold>
+  );
+}
+
+// The currencies this studio actually deals in, picked out of the full
+// ExchangeRate-API list in lib/currencies — 166 codes, held as a static
+// vocabulary rather than fetched, so the picker opens instantly and works
+// offline. Names and countries change about once a decade; RATES are the part
+// that moves, and they live elsewhere.
+//
+// Only CODES are stored. A saved list never goes stale when a name changes, and
+// a code the vocabulary does not know is dropped on the way in rather than kept
+// as a label nobody can price against.
+function FavouriteCurrencies({ codes, base, fx, canManage, onSave }: {
+  codes: string[]; base: string; fx: Fx | null; canManage: boolean; onSave: Save;
+}) {
+  const tr = useT();
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [picked, setPicked] = useState(codes);
+  const [busy, setBusy] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, open);
+
+  const results = useMemo(() => searchCurrencies(query).slice(0, 60), [query]);
+  const has = (code: string) => picked.includes(code);
+  const toggle = (code: string) =>
+    setPicked((p) => (p.includes(code) ? p.filter((c) => c !== code) : [...p, code]));
+
+  async function save() {
+    setBusy(true);
+    const ok: unknown = await onSave({ favoriteCurrencies: picked });
+    setBusy(false);
+    if (ok !== false) setOpen(false);
+  }
+
+  return (
+    <SettingsFold heading={tr.favHeading}
+      lead={<>{tr.favLeadPrefix}{base ? <><CurrencySymbol code={base} /> {base}</> : tr.favStudioCurrency}.</>}>
+
+      {/* ONE ROW PER CURRENCY, each showing what one unit of the studio's own
+          money buys. Chips side by side said which currencies mattered but not
+          what they were worth, which is the thing somebody opens this to see. */}
+      {codes.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-400">{tr.favNone}</p>
+      ) : !base ? (
+        <p className="mt-3 text-sm text-slate-400">{tr.favNeedsBase}</p>
+      ) : (
+        <ul className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
+          {codes.map((code) => {
+            const rate = fx?.rates?.[code];
+            return (
+              <li key={code} className="flex items-center gap-3 py-2.5">
+                <span className="w-14 shrink-0 font-mono text-xs font-700 text-slate-700 dark:text-slate-200">{code}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-slate-600 dark:text-slate-300">{currencyOf(code).name}</span>
+                <span className="shrink-0 text-sm tabular-nums text-slate-500 dark:text-slate-400">
+                  {code === base ? (
+                    <span className="text-slate-400">{tr.favBase}</span>
+                  ) : rate == null ? (
+                    <span className="text-slate-400">{tr.favNoRate}</span>
+                  ) : (
+                    <>
+                      1 <CurrencySymbol code={base} /> ={" "}
+                      <span className="font-600 text-slate-700 dark:text-slate-200">{fmtRate(rate)}</span>{" "}
+                      <CurrencySymbol code={code} />
+                    </>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {base && fx && fx.updatedAt > 0 && (
+        <p className="mt-3 text-xs text-slate-400">
+          {tr.ratesAsOf(fmtDate(fx.updatedAt * 1000))}
+          {fx.stale ? tr.ratesStale : "."}
+        </p>
+      )}
+
+      {canManage && (
+        <button className={`${BTN_GHOST} mt-4`} onClick={() => { setPicked(codes); setQuery(""); setOpen(true); }}>
+          {codes.length ? tr.changeChoice : tr.chooseCurrencies}
+        </button>
+      )}
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={tr.favHeading}>
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
+          <div ref={panelRef} className="relative flex max-h-[80vh] w-full max-w-[520px] flex-col overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
+            <div className="flex items-center gap-3 px-6 pt-5">
+              <h4 className="font-display text-lg font-700 text-slate-900 dark:text-white">{tr.favHeading}</h4>
+              <button type="button" onClick={() => setOpen(false)} aria-label={tr.close}
+                className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:hover:bg-white/5">
+                <Icon name="close" className="h-[18px] w-[18px]" />
+              </button>
+            </div>
+            <div className="px-6 pt-3">
+              {/* Code, name OR country — somebody looking for the riyal may know
+                  any of the three. */}
+              <input className={INPUT} value={query} autoFocus
+                aria-label={tr.searchCurrencies} onChange={(e) => setQuery(e.target.value)} />
+              <p className="mt-2 text-xs text-slate-400">
+                {tr.chosenAvailable(picked.length, CURRENCIES_FROM_EXCHANGE_API.length)}
+              </p>
+            </div>
+            <ul className="mt-3 flex-1 overflow-y-auto px-6">
+              {results.length === 0 && <li className="py-6 text-center text-sm text-slate-400">{tr.noMatches}</li>}
+              {results.map((c) => (
+                <li key={c.code}>
+                  <label className="flex cursor-pointer items-center gap-3 border-b border-slate-100 py-2 last:border-b-0 dark:border-white/5">
+                    <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={has(c.code)} onChange={() => toggle(c.code)} />
+                    <span className="w-12 shrink-0 font-mono text-xs font-700 text-slate-700 dark:text-slate-200">{c.code}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-slate-700 dark:text-slate-200">{c.name}</span>
+                    <span className="hidden shrink-0 text-xs text-slate-400 sm:block">{c.country}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-3 border-t border-slate-100 px-6 py-4 dark:border-white/10">
+              <button className={BTN} onClick={save} disabled={busy}>{busy ? tr.saving : tr.save}</button>
+              <button className={BTN_GHOST} onClick={() => setOpen(false)}>{tr.cancel}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </SettingsFold>
+  );
+}
+
+// A row that edits ONE value in place. Pressing it opens the editor beneath the
+// label rather than in a dialog: these are single fields, and a modal for one
+// field is more ceremony than the change deserves.
+// WHAT IS SHOWN IS NOT ALWAYS WHAT IS EDITED, and `editValue` is where the two
+// part company. Most rows display the stored string and edit the same string.
+// Two do not: Currency SHOWS a symbol beside a code (a React element) and
+// Language SHOWS "English" while the record holds "en" — so seeding the draft
+// from the display value handed the editor an element and a display name to
+// save back. It survived because a native <select> silently falls back to its
+// first option when its value matches none, which LOOKS like a working control
+// with nothing chosen; the product's own listbox shows the truth, which is an
+// empty trigger. The fallback was hiding it, not preventing it.
+function EditRow({ icon, label, value, editValue, canManage, hint, onSave, render }: {
+  icon: string; label: string; value: ReactNode; editValue?: string; canManage: boolean; hint?: string;
+  onSave: (value: string) => Promise<unknown>;
+  render: (draft: string, set: (value: string) => void) => ReactNode;
+}) {
+  const tr = useT();
+  // Every row that SHOWS something other than a string passes `editValue`, so
+  // without one the value is the stored string itself.
+  const seed = editValue !== undefined ? editValue : typeof value === "string" ? value : "";
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(seed || "");
+  const [busy, setBusy] = useState(false);
+
+  function start() { setDraft(seed || ""); setOpen(true); }
+  async function commit() {
+    setBusy(true);
+    const ok = await onSave(String(draft || "").trim());
+    setBusy(false);
+    if (ok !== false) setOpen(false);
+  }
+
+  if (open) {
+    return (
+      <div className={`${ROW} flex-col items-stretch`}>
+        <div className="flex w-full items-center gap-3">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+            <Icon name={icon} className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+          </span>
+          <span className={ROW_LABEL}>{label}</span>
+        </div>
+        <div className="mt-3 w-full ps-[52px]">
+          {render(draft, setDraft)}
+          <div className="mt-3 flex gap-3">
+            <button className={BTN} onClick={commit} disabled={busy}>{busy ? tr.saving : tr.save}</button>
+            <button className={BTN_GHOST} onClick={() => setOpen(false)}>{tr.cancel}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" disabled={!canManage} onClick={start}
+      className={`${ROW} ${canManage ? ROW_TAP : "cursor-default"}`}>
+      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center">
+        <Icon name={icon} className="h-[18px] w-[18px] text-slate-400 dark:text-slate-500" />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col justify-center">
+        <span className={ROW_LABEL}>{label}</span>
+        <span className={ROW_VALUE}>{value || hint || tr.notSet}</span>
+      </span>
+      {canManage && <Icon name="chevronRight" className="ms-auto h-5 w-5 shrink-0 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />}
+    </button>
+  );
+}
+
+// Seven days, each with its own switch and span. Edited as a whole and saved
+// once: a week is one decision, and saving day by day would let the record sit
+// half-changed.
+function HoursDialog({ slug, hours, onClose, onSaved }: {
+  slug: string; hours: Hours; onClose: () => void; onSaved: () => unknown;
+}) {
+  const tr = useT();
+  const [draft, setDraft] = useState(() => structuredClone(hours));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, true);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  const set = (day: string, patch: Partial<DayHours>) => setDraft((d) => ({ ...d, [day]: { ...d[day], ...patch } }));
+
+  async function save() {
+    setBusy(true); setErr("");
+    const res = await fetch(`/api/studios/${slug}/settings`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workingHours: draft }),
+    });
+    setBusy(false);
+    if (!res.ok) { setErr(tr.hoursSaveFailed); return; }
+    onSaved(); onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={tr.workingHours}>
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div ref={panelRef} className="relative w-full max-w-[520px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
+        <div className="flex items-center gap-3 px-6 pt-5">
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{tr.workingHours}</h3>
+          <button type="button" onClick={onClose} aria-label={tr.close}
+            className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:hover:bg-white/5">
+            <Icon name="close" className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+        <p className="px-6 pt-1 text-sm text-slate-500 dark:text-slate-400">{tr.hoursLead}</p>
+
+        <div className="max-h-[52vh] space-y-2 overflow-y-auto px-6 py-5">
+          {DAYS.map((key) => {
+            const name = tr.dayNames[key];
+            const row = draft[key] || { open: false, from: "09:00", to: "17:00" };
+            return (
+              <div key={key} className="flex items-center gap-3">
+                <button
+                  type="button" role="switch" aria-checked={row.open} aria-label={name}
+                  onClick={() => set(key, { open: !row.open })}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 ${row.open ? "bg-brand-600" : "bg-slate-200 dark:bg-white/15"}`}
+                >
+                  {/* START AND END, NOT LEFT AND RIGHT. A toggle's knob sits at
+                      the START when off and the END when on, and in Arabic that
+                      is the other way round on the screen. Pinned to `left-` it
+                      read inverted in an RTL studio — off looking on — which is
+                      the worst way for a switch to be wrong. `end-0.5` also
+                      retires the magic 22px, which was the 44px track minus the
+                      20px knob minus the offset. */}
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${row.open ? "end-0.5" : "start-0.5"}`} />
+                </button>
+                <span className="w-24 shrink-0 text-sm font-500 text-slate-900 dark:text-white">{name}</span>
+                {row.open ? (
+                  <span className="flex items-center gap-2">
+                    <input type="time" className={`${INPUT} w-28`} value={row.from} onChange={(e) => set(key, { from: e.target.value })} aria-label={tr.fromLabel(name)} />
+                    <span className="text-slate-400">–</span>
+                    <input type="time" className={`${INPUT} w-28`} value={row.to} onChange={(e) => set(key, { to: e.target.value })} aria-label={tr.toLabel(name)} />
+                  </span>
+                ) : (
+                  <span className="text-sm text-slate-400">{tr.closed}</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {err && <p className={`${BANNER_BAD} mx-6 mb-4`}>{err}</p>}
+
+        <div className="flex gap-3 px-6 pb-6">
+          <button className={BTN} onClick={save} disabled={busy}>{busy ? tr.saving : tr.saveHours}</button>
+          <button className={BTN_GHOST} onClick={onClose}>{tr.cancel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The same dialog shape as the account hub's profile picture: a large preview,
+// Change, and Remove.
+function LogoDialog({ slug, logo, onClose, onSaved }: {
+  slug: string; logo: string; onClose: () => void; onSaved: () => unknown;
+}) {
+  const tr = useT();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(panelRef, true);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+
+  async function save(value: string) {
+    const res = await fetch(`/api/studios/${slug}/settings`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ logo: value }),
+    });
+    if (!res.ok) throw new Error("save");
+  }
+
+  async function upload(file: File | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setErr(tr.pickImage); return; }
+    if (file.size > 2 * 1024 * 1024) { setErr(tr.imageTooBig); return; }
+    setBusy(true); setErr("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const up = await fetch("/api/media", { method: "POST", body: form });
+      const media = await up.json().catch(() => ({}));
+      if (!up.ok || !media.url) throw new Error(media.error || "upload");
+      await save(media.url);
+      onSaved(); onClose();
+    } catch { setErr(tr.uploadFailed); }
+    finally { setBusy(false); }
+  }
+
+  async function remove() {
+    setBusy(true); setErr("");
+    try { await save(""); onSaved(); onClose(); }
+    catch { setErr(tr.removeFailed); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={tr.logo}>
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div ref={panelRef} className="relative w-full max-w-[512px] overflow-hidden rounded-geex bg-[var(--geex-surface)] shadow-geex">
+        <div className="flex items-center gap-3 px-6 pt-5">
+          <h3 className="font-display text-lg font-700 text-slate-900 dark:text-white">{tr.logo}</h3>
+          <button type="button" onClick={onClose} aria-label={tr.close}
+            className="ms-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 dark:hover:bg-white/5">
+            <Icon name="close" className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+        <p className="px-6 pt-1 text-sm text-slate-500 dark:text-slate-400">{tr.logoLead}</p>
+
+        {/* A WIDE frame, because the preview has to tell the truth about how the
+            logo will sit: contained and whole. A square preview would quietly
+            imply the mark gets cropped to one. */}
+        <div className="flex justify-center px-6 py-6">
+          <span className="inline-flex h-[136px] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-geex border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+            {logo
+              /* eslint-disable-next-line @next/next/no-img-element */
+              ? <img src={logo} alt="" className="h-full w-full object-contain" />
+              /* eslint-disable-next-line @next/next/no-img-element */
+              : <img src="/brand/logo-icon.png" alt="" className="h-full w-full object-contain opacity-70" />}
+          </span>
+        </div>
+
+        {err && <p className={`${BANNER_BAD} mx-6 mb-4`}>{err}</p>}
+
+        <div className="flex flex-wrap justify-center gap-3 px-6">
+          <input ref={fileRef} type="file" accept="image/*" className="hidden"
+            onChange={(e) => upload(e.target.files?.[0])} />
+          <button type="button" className={BTN} disabled={busy} onClick={() => fileRef.current?.click()}>
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name="camera" className="h-4 w-4" /> {busy ? tr.uploading : tr.change}
+            </span>
+          </button>
+          <button type="button" className={BTN_GHOST} disabled={busy || !logo} onClick={remove}
+            title={logo ? "" : tr.noLogoToRemove}>
+            {tr.remove}
+          </button>
+        </div>
+        <p className="px-6 pb-6 pt-4 text-center text-xs text-slate-400">{tr.logoFormats}</p>
+      </div>
+    </div>
+  );
+}

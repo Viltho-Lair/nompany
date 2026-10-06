@@ -17,7 +17,7 @@ consume that list:
   this item needs once it lands", chosen from `studio.serviceActions`
   (`cleanScope` in `inventory.ts`).
 - **Projects** — `requirementWeights` is a completion-% split keyed by service
-  action, which must total 100 (`projects.ts`, `StudioProjects.js`).
+  action, which must total 100 (`projects.ts`, `StudioProjects.tsx`).
 
 An empty free-text list means every studio starts from nothing and invents its own
 vocabulary, and a separate **Sales services catalogue** (`ServiceSchema` /
@@ -169,7 +169,7 @@ retire, don't rewrite; carry, don't copy; break nothing.
 
 ### 5.4 Studio Settings — the editor, rewritten
 
-The current free-text `ServiceActions` component (`StudioSettings.js`) is replaced
+The current free-text `ServiceActions` component (`StudioSettings.tsx`) is replaced
 by a **field-of-work-driven** panel:
 
 1. **Type of industry** — a `Field as="select"` over `FIELDS_OF_WORK` + "Other".
@@ -284,7 +284,7 @@ Every test names the defect it guards (house rule):
 |---|---|
 | `src/shared/fieldsOfWork.ts` | **new** — the 25 fields, 20 actions, matrix, "Other" |
 | `src/app/api/studios/[slug]/settings/route.ts` | allowlist `fieldOfWork`, `fieldOfWorkOther`, `retiredServiceActions`; `clean*`; usage map in GET |
-| `src/components/studio2/StudioSettings.js` | replace `ServiceActions` with the field-of-work-driven panel + alerts |
+| `src/components/studio2/StudioSettings.tsx` | replace `ServiceActions` with the field-of-work-driven panel + alerts |
 | `src/modules/inventory/inventory.ts` | `cleanScope` known set = active ∪ retired |
 | `tests/suite.mjs` + `tests/goldens/*settings*` | the tests above; re-recorded goldens |
 

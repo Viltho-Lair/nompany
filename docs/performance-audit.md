@@ -51,7 +51,7 @@ Every Redis command is one round trip. The application's read paths are **chains
 | Same 15 keys, one batch | 1 | **180 ms** | 175 ms |
 | **Reduction available** | | **7.9×** | |
 
-### Studio shell (`app/studio/[[...segments]]/page.js`)
+### Studio shell (`app/studio/[[...segments]]/page.tsx`)
 
 Adds the questionnaire gate, `loadCatalogues()`, the profile read and `chatUsage`:
 

@@ -179,7 +179,7 @@ ok("ended once the period from handover has passed",
 // the second calculation survived, so the wiring is asserted from the source.
 import { readFileSync } from "node:fs";
 const src = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-const screen = src("src/components/studio2/StudioProjects.js");
+const screen = src("src/components/studio2/StudioProjects.tsx");
 const sla = src("src/modules/projects/sla.ts");
 ok("the project list's tag reads closurePosition",
   /closurePosition/.test(screen) && /supportTag\(/.test(screen));

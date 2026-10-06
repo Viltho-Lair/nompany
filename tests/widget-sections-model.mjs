@@ -90,8 +90,8 @@ console.log("\n== every dashboard asks the whole gate");
 const dashDir = "src/components/studio2";
 // The Reports board is a dashboard by another name.
 const dashboards = [
-  ...readdirSync(dashDir).filter((f) => /Dashboard\.jsx$/.test(f) && f !== "MainDashboard.jsx"),
-  "ExecutiveBoard.js",
+  ...readdirSync(dashDir).filter((f) => /Dashboard\.tsx$/.test(f) && f !== "MainDashboard.tsx"),
+  "ExecutiveBoard.tsx",
 ];
 const tierOnly = [];
 const gated = new Set();
@@ -110,10 +110,10 @@ ok("every department widget is drawn through the gate", ungated.length === 0, un
 // so a switchboard built from it finds no row for a switched-off part and
 // answers "on". That shipped in slice 2 and the sandbox caught it: Pipeline off,
 // its charts still drawn.
-const layout = readFileSync("src/app/studio/layout.js", "utf8");
+const layout = readFileSync("src/app/studio/layout.tsx", "utf8");
 ok("the studio layout builds the switched-off list from allSections",
   /switchboard\(\s*allSections\b/.test(layout) && /switchedOff=\{switchedOff\}/.test(layout));
-const frame = readFileSync("src/components/studio2/StudioFrame.js", "utf8");
+const frame = readFileSync("src/components/studio2/StudioFrame.tsx", "utf8");
 ok("the frame hands the provider that list, not its visible sections",
   /<AnalyticsLevelProvider[^>]*switchedOff=\{switchedOff\}/.test(frame) && !/<AnalyticsLevelProvider[^>]*sections=/.test(frame));
 
@@ -229,12 +229,12 @@ const TRIMMED = [
   ["src/app/api/studios/[slug]/finance/route.ts", ['on("finance-receivables")', 'on("finance-payables")', 'on("finance-reports")', "seeMargins ? await profitability"]],
   ["src/app/api/studios/[slug]/hr/route.ts", ['on("hr-employees")', "employeesOn ? listEmployees"]],
   // The dashboard's way-in cards: a switched-off part is not offered at all.
-  ["src/components/studio2/InventoryDashboard.jsx", ["].filter((s) => sectionOn(s.key))"]],
-  ["src/components/studio2/StudioFinance.js", ['useSectionOn()("finance-receivables")', "[slug, cashOn]"]],
+  ["src/components/studio2/InventoryDashboard.tsx", ["].filter((s) => sectionOn(s.key))"]],
+  ["src/components/studio2/StudioFinance.tsx", ['useSectionOn()("finance-receivables")', "[slug, cashOn]"]],
   ["src/modules/maintenance/dashboard.ts", ['on("maintenance-orders")', 'on("maintenance-requests")', 'on("maintenance-plans")', 'on("maintenance-contracts")']],
   ["src/modules/procurement/dashboard.ts", ['on("procurement-requisitions")', 'on("finance-payables")']],
   ["src/modules/engineering/dashboard.ts", ["switchboard(ctx.sections)"]],
-  ["src/components/studio2/FinanceDashboard.jsx", ['sectionOn("finance-payables")', 'sectionOn("finance-assets")', "[slug, payablesOn, assetsOn]"]],
+  ["src/components/studio2/FinanceDashboard.tsx", ['sectionOn("finance-payables")', 'sectionOn("finance-assets")', "[slug, payablesOn, assetsOn]"]],
 ];
 for (const [file, needles] of TRIMMED) {
   const text = readFileSync(file, "utf8");

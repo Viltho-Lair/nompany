@@ -1,0 +1,268 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { plannerDict } from "@/shared/studio/planner";
+import { sectionName } from "@/shared/studio/sections";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { fmtDate } from "@/lib/format";
+import PlannerPresetsDialog from "@/components/studio2/PlannerPresetsDialog";
+import PlannerTemplatesPanel from "@/components/studio2/PlannerTemplatesPanel";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import type { PlanSummary } from "@/modules/operations/planner";
+
+// The /operations/planner GET body (its route returns these three fields).
+type PlannerListBody = { plans?: PlanSummary[]; canEdit?: boolean; presets?: Record<string, unknown> };
+
+// THE /projects-planner APP LANDING. A full-screen list of the studio's plans,
+// rendered outside StudioFrame (the studio route early-returns it). Each plan is
+// a card linking to `/${slug}/projects-planner/${plan.id}`, where StudioPlanner
+// opens the ported scheduler. This chrome is nompany's own — it wears the Geex
+// look (--geex-* tokens, font-display, rounded-geex), unlike the planner surface
+// itself which keeps the source app's light design.
+
+// A FUNCTION OF THE DICTIONARY — module scope, see StudioRoles.
+const planStatus = (tr: ReturnType<typeof plannerDict>) => ({
+  on_track: { label: tr.statusOnTrack, chip: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
+  at_risk: { label: tr.statusAtRisk, chip: "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" },
+  off_track: { label: tr.statusOffTrack, chip: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" },
+  on_hold: { label: tr.statusOnHold, chip: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300" },
+});
+
+// WHAT THE LIST DRAWS FROM A PLANNER BODY — one function, so the fetch below and
+// the `initial` the page hands down cannot shape the same answer two ways.
+const stateFrom = (payload: PlannerListBody) => ({
+  loading: false,
+  error: false,
+  plans: Array.isArray(payload.plans) ? payload.plans : [],
+  canEdit: Boolean(payload.canEdit),
+  // The new-plan defaults, seeded into every plan the studio creates.
+  // May be `{}` when the studio has never configured them; the editor
+  // falls back to the app defaults for any absent field.
+  presets: payload.presets && typeof payload.presets === "object" ? payload.presets : {},
+});
+
+// `initial` is the /operations/planner body the studio page answered in its own
+// render, so the plans paint at once; absent, it fetches on mount as before.
+export default function StudioPlannerList({ slug, initial }: { slug: string; initial?: PlannerListBody }) {
+  const locale = useStudioLocale();
+  const tr = plannerDict(locale);
+  const router = useRouter();
+  const [state, setState] = useState<ReturnType<typeof stateFrom>>(() => (initial
+    ? stateFrom(initial)
+    : { loading: true, error: false, plans: [], canEdit: false, presets: {} }));
+  // THE SLUG THE PAGE ALREADY ANSWERED FOR is skipped by value rather than by a
+  // one-shot flag, so React's development double-effect skips both runs; a
+  // different slug clears it and fetches as before.
+  const skip = useRef(initial !== undefined ? slug : null);
+  const [creating, setCreating] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(false);
+
+  // EXTERNAL PLANS ARE BORN HERE. A project's plan comes from the project; this
+  // is the other origin — the planner app starting a schedule of its own. POST
+  // mints an empty plan and we go straight into it, the way opening a project's
+  // plan does.
+  async function createPlan() {
+    if (creating || !state.canEdit) return;
+    setCreating(true);
+    try {
+      const res = await fetch(`/api/studios/${slug}/operations/planner`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+      const payload = res.ok ? await res.json() : null;
+      if (payload?.planId) {
+        router.push(`/${slug}/projects-planner/${payload.planId}`);
+        return;
+      }
+    } catch {
+      /* fall through to re-enable the button */
+    }
+    setCreating(false);
+  }
+
+  useEffect(() => {
+    if (slug === skip.current) return;
+    skip.current = null;
+    let alive = true;
+    setState((s) => ({ ...s, loading: true, error: false }));
+    (async () => {
+      try {
+        const res = await fetch(`/api/studios/${slug}/operations/planner`, {
+          cache: "no-store",
+        });
+        if (!alive) return;
+        if (!res.ok) {
+          setState({ loading: false, error: true, plans: [], canEdit: false, presets: {} });
+          return;
+        }
+        const payload = await res.json();
+        setState(stateFrom(payload));
+      } catch {
+        if (alive) setState({ loading: false, error: true, plans: [], canEdit: false, presets: {} });
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [slug]);
+
+  return (
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[var(--geex-page)] text-[var(--geex-ink)]">
+      {/* ---- top bar ---- */}
+      <header className="flex shrink-0 items-center gap-3 border-b border-slate-200/70 bg-[var(--geex-surface)] px-4 py-3 dark:border-white/10">
+        {/* THE PLANNER MOVED TO PROJECTS (keys.ts's SECTION_DEFS: "the planner is
+            project scheduling... it sat under Operations only because that is
+            where it was built"). This back link pointed at "/operations" — a
+            section key that no longer exists — so it silently landed on
+            whichever section happened to be `sections[0]` instead of Projects.
+            `sectionName` is the same lookup the sidebar and SectionDashboard
+            already use for a section's own translated label, so this stays in
+            step with the catalogue rather than carrying a second hardcoded
+            English string nothing localized to Arabic. */}
+        <Link
+          href={`/${slug}/projects`}
+          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5"
+        >
+          <span aria-hidden="true" className="rtl:-scale-x-100">
+            ←
+          </span>{" "}
+          {sectionName("projects", "Projects", locale)}
+        </Link>
+
+        <div className="min-w-0">
+          <p className="truncate font-display text-base font-800 text-[var(--geex-ink)]">
+            {tr.plans}
+          </p>
+          <p className="truncate text-xs text-[var(--geex-muted)]">
+            {tr.projectSchedules}
+          </p>
+        </div>
+
+        {state.canEdit && (
+          <div className="ms-auto flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPresetsOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 font-display text-sm font-600 text-[var(--geex-muted)] transition-colors hover:bg-slate-50 dark:border-white/15 dark:hover:bg-white/5"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M4 6h11M4 12h7M4 18h11" strokeLinecap="round" />
+                <circle cx="18" cy="6" r="2" />
+                <circle cx="14" cy="12" r="2" />
+                <circle cx="18" cy="18" r="2" />
+              </svg>
+              {tr.defaults}
+            </button>
+            <button
+              type="button"
+              onClick={createPlan}
+              disabled={creating}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-brand-700 px-4 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span aria-hidden="true" className="text-base leading-none">+</span>
+              {creating ? tr.creating : tr.newPlan}
+            </button>
+          </div>
+        )}
+      </header>
+
+      {/* ---- body: plans, with the template editor as a right-hand column ---- */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex min-h-full flex-col lg:flex-row">
+          <div className="min-w-0 flex-1 p-4 sm:p-6">
+            {state.loading ? (
+              <ScreenSkeleton />
+            ) : state.error ? (
+              <div className="grid h-full place-items-center p-8">
+                <p className="max-w-sm text-center text-sm text-rose-600 dark:text-rose-300">
+                  {tr.plansCouldNotLoad}
+                </p>
+              </div>
+            ) : state.plans.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {state.plans.map((plan) => (
+                  <li key={plan.id}>
+                    <PlanCard slug={slug} plan={plan} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {state.canEdit && !state.error && <PlannerTemplatesPanel slug={slug} />}
+        </div>
+      </div>
+
+      {presetsOpen && state.canEdit && (
+        <PlannerPresetsDialog
+          slug={slug}
+          presets={state.presets}
+          canEdit={state.canEdit}
+          onClose={() => setPresetsOpen(false)}
+          onSaved={(next) => setState((s) => ({ ...s, presets: next }))}
+        />
+      )}
+    </div>
+  );
+}
+
+function PlanCard({ slug, plan }: { slug: string; plan: PlanSummary }) {
+  const tr = plannerDict(useStudioLocale());
+  const byStatus = planStatus(tr);
+  const status = byStatus[plan.status] ?? byStatus.on_track;
+  return (
+    <Link
+      href={`/${slug}/projects-planner/${plan.id}`}
+      className="flex h-full flex-col gap-3 rounded-geex border border-slate-200 bg-[var(--geex-surface)] p-4 shadow-geex-sm transition-colors hover:border-brand-300 dark:border-white/10 dark:hover:border-brand-500/40"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 truncate font-display text-[15px] font-700 text-[var(--geex-ink)]">
+          {plan.name || tr.untitledPlan2}
+        </p>
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-600 ${status.chip}`}
+        >
+          {status.label}
+        </span>
+      </div>
+
+      {plan.projectTitle && (
+        <p className="truncate text-xs text-[var(--geex-muted)]">
+          {plan.projectTitle}
+        </p>
+      )}
+
+      <div className="mt-auto flex items-center justify-between gap-2 text-[11px] text-[var(--geex-faint)]">
+        <span>{tr.updated}</span>
+        <span className="font-mono tabular-nums">{fmtDate(plan.updatedAt)}</span>
+      </div>
+    </Link>
+  );
+}
+
+function EmptyState() {
+  const tr = plannerDict(useStudioLocale());
+  return (
+    <div className="mx-auto flex max-w-md flex-col items-center justify-center gap-3 py-20 text-center">
+      <div className="grid h-12 w-12 place-items-center rounded-geex bg-[var(--geex-inset)] text-[var(--geex-faint)]">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M3 6h18M3 12h12M3 18h8" strokeLinecap="round" />
+        </svg>
+      </div>
+      <div>
+        <h2 className="font-display text-[15px] font-700 text-[var(--geex-ink)]">
+          {tr.noPlansYet}
+        </h2>
+        <p className="mt-1 text-[13px] text-[var(--geex-muted)]">
+          {tr.usePlanStart} <span className="font-600">{tr.newPlan}</span> {tr.toStartExternal}{" "}
+          <span className="font-600">{tr.projectPlan}</span> {tr.plansFromEitherAppear}
+        </p>
+      </div>
+    </div>
+  );
+}

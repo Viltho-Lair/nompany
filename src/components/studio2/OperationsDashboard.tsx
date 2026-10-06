@@ -1,0 +1,273 @@
+"use client";
+
+// THE OPERATIONS DASHBOARD (UI/UX overhaul, Operations analytics). Drawn on the
+// data the Operations screen already holds — its locations, its permits (each
+// already carrying a derived `state` and `daysLeft`), and its shifts — so it
+// fetches nothing of its own and drops into StudioOperations with one line, the
+// way FinanceDashboard drops into StudioFinance.
+//
+// Everything here is DERIVED INLINE from those lists; Operations has no
+// analytics module, and there is nothing to import that the screen has not
+import { useStudioLocale } from "@/components/studio2/locale";
+import { operationsDict } from "@/shared/studio/operations";
+// already been handed. The permit `state`/`daysLeft` are the server's, computed
+// once per read, so the dashboard and the permit list can never disagree about
+// whether a permit is expiring.
+//
+// ANALYTICS IS PAID, so each widget is gated by the per-component SELECTION model:
+// `useWidgetGate()` answers whether this studio's tier includes a given widget
+// key, and a widget it does not sees the locked teaser instead of the number. The
+// top StatRow is the free floor everyone gets.
+
+import { StatTile, fmtDate, fmtWeekday } from "@/components/studio2/ui";
+import { Widget, StatRow, DashGrid, DashEmpty } from "@/components/dashboard";
+import { BarChart, BarList, Donut, ChartFrame, HeatGrid } from "@/components/charts";
+import { monthsAround, countByMonth, monthLabel, rankTotals, peak, share } from "@/components/dashboard/series";
+import { useWidgetGate, useSectionOn } from "@/components/studio2/analyticsLevel";
+import type { PermitRow, PermitLocation } from "@/components/studio2/PermitsPanel";
+import type { listShifts } from "@/modules/operations/operations";
+
+type ShiftRow = Awaited<ReturnType<typeof listShifts>>[number];
+
+// A permit state maps to a slice colour once, so the donut, the timeline pills
+// and any future legend cannot disagree about which hue "Expired" is.
+const PERMIT_COLOR: Record<string, string> = {
+  Valid: "rgb(var(--chart-2))",
+  Expiring: "rgb(var(--chart-4))",
+  Expired: "rgb(var(--chart-3))",
+  "Not yet valid": "rgb(var(--chart-5))",
+};
+const PERMIT_STATE_ORDER: string[] = ["Valid", "Expiring", "Expired", "Not yet valid"];
+
+const PERMIT_PILL: Record<string, string> = {
+  Valid: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+  Expiring: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  Expired: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
+  "Not yet valid": "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
+};
+
+function tally<R>(rows: R[], keyOf: (r: R) => string | undefined) {
+  const out = new Map<string, number>();
+  for (const r of rows) {
+    const k = keyOf(r);
+    if (!k) continue;
+    out.set(k, (out.get(k) || 0) + 1);
+  }
+  return out;
+}
+
+export default function OperationsDashboard({
+  locations = [],
+  permits = [],
+  shifts = [],
+  window = { from: "", to: "" },
+  summary = { shiftsThisWeek: 0 },
+  windowDays = 60,
+}: {
+  locations?: PermitLocation[];
+  permits?: PermitRow[];
+  shifts?: ShiftRow[];
+  window?: { from: string; to: string };
+  summary?: { shiftsThisWeek: number };
+  windowDays?: number;
+  /** Passed by StudioOperations and read by nothing here: every widget is gated by `useWidgetGate`. */
+  level?: unknown;
+}) {
+  const locale = useStudioLocale();
+  const tr = operationsDict(locale);
+  // Tier AND the studio's switches: a card whose section is off is not drawn.
+  const gate = useWidgetGate();
+  const sectionOn = useSectionOn();
+
+  const active = permits.filter((p) => p.state === "Valid").length;
+  const expiringSoon = permits.filter((p) => p.state === "Expiring").length;
+  const expired = permits.filter((p) => p.state === "Expired").length;
+  const attention = expiringSoon + expired;
+
+  // Permits by state — held to a fixed order so a state keeps its colour and
+  // place from one render to the next.
+  const byState = tally(permits, (p) => p.state);
+  const stateSlices = PERMIT_STATE_ORDER
+    .filter((s) => (byState.get(s) || 0) > 0)
+    .map((s) => ({ label: s, value: byState.get(s) || 0, color: PERMIT_COLOR[s] }));
+
+  // Permits by type — a count of each kind, most common first.
+  const byType = [...tally(permits, (p) => p.type)].sort((a, b) => b[1] - a[1]);
+  const typeMax = byType.reduce((m, [, n]) => Math.max(m, n), 0) || 1;
+
+  // Shifts by location across every scheduled shift. A shift with no location
+  // is its own row so the gap is visible rather than dropped.
+  const byLocation = [...tally(shifts, (s) => s.locationName || tr.noLocation)]
+    .sort((a, b) => b[1] - a[1]);
+  const locMax = byLocation.reduce((m, [, n]) => Math.max(m, n), 0) || 1;
+
+  // Shifts across this week's rota window. Stepped in UTC — the same zone the
+  // server builds `window` in — so no viewer's timezone drops or repeats a day.
+  const days: { iso: string; count: number }[] = [];
+  if (window.from) {
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(`${window.from}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + i);
+      const iso = d.toISOString().slice(0, 10);
+      days.push({ iso, count: shifts.filter((s) => s.date === iso).length });
+    }
+  }
+  const anyShiftsThisWeek = days.some((d) => d.count > 0);
+
+  // Permit validity timeline — everything with an end date, soonest first, so
+  // what lapses next is at the top.
+  const timeline = permits
+    .filter((p) => p.validTo)
+    .sort((a, b) => (a.validTo || "").localeCompare(b.validTo || ""))
+    .slice(0, 8);
+
+
+  // ---- the richer half (10/09/2026) ---------------------------------------
+  const rtl = locale === "ar";
+  // THE STUDIO'S TODAY, not the browser's UTC one. `window.from` is the day the
+  // server's rota window starts on, worked out in the studio's time zone
+  // (shared/timezone) — so the months below turn over on the studio's calendar,
+  // for a manager reading from another country just as for the site.
+  const asOf = window.from || new Date().toISOString().slice(0, 10);
+  // THE ROTA AS A GRID — location down the side, this week's days across. The
+  // same shifts the week chart counts, split by where they are, so a site with
+  // nobody on it on Thursday is a pale cell rather than a number to hunt for.
+  const weekIsos = days.map((x) => x.iso);
+  const inWeek = shifts.filter((s) => weekIsos.includes(s.date as string));
+  const heatRows = rankTotals(inWeek, (s) => s.locationName || tr.noLocation, () => 1, 6, null).map((r) => ({
+    label: r.label,
+    values: weekIsos.map((iso) => inWeek.filter((s) => s.date === iso && (s.locationName || tr.noLocation) === r.label).length),
+  }));
+  // WHAT LAPSES WHEN, this month and the five after — the validity timeline
+  // lists the next eight permits; this shows the shape of the months beyond.
+  const expiryMonths = monthsAround(0, 5, asOf);
+  const expiryByMonth = countByMonth(permits.filter((p) => p.validTo), (p) => p.validTo, expiryMonths);
+  const hoursByLocation = rankTotals(shifts, (s) => s.locationName || tr.noLocation, (s) => Number(s.hours) || 0, 8, tr.dashOther);
+  // STATE WITHIN EACH KIND. The donut says how many permits have lapsed; this
+  // says WHICH KIND of authorisation keeps lapsing.
+  const stateTypes = rankTotals(permits, (p) => p.type || "—", () => 1, 6, null).map((r) => r.label);
+  const stateSeries = PERMIT_STATE_ORDER.map((state) => ({
+    name: state,
+    color: PERMIT_COLOR[state],
+    data: stateTypes.map((type) => permits.filter((p) => (p.type || "—") === type && p.state === state).length),
+  })).filter((s) => s.data.some(Boolean));
+  return (
+    <div className="space-y-5">
+      {/* Basic — the summary everyone gets, before any detail. */}
+      <StatRow>
+        <StatTile label={tr.locations} value={locations.length} />
+        {sectionOn("quality-hse-permits") && (
+          <StatTile label={tr.activePermits} value={active}
+            tone={active > 0 ? "text-emerald-600 dark:text-emerald-400" : ""} />
+        )}
+        {sectionOn("quality-hse-permits") && (
+          <StatTile label={tr.permitsExpiring} value={attention}
+            tone={attention > 0 ? (expired > 0 ? "text-rose-600 dark:text-rose-400" : "text-amber-700 dark:text-amber-300") : ""} />
+        )}
+        {sectionOn("field-service") && (
+          <StatTile label={tr.shiftsWeek} value={summary.shiftsThisWeek} />
+        )}
+      </StatRow>
+
+      <DashGrid>
+        {/* Simple */}
+        <Widget title={tr.permitsStatus} hint={tr.validExpiringExpired} {...gate("operations.permits-by-status")} lockedWhat={tr.permitsStatus}>
+          {stateSlices.length ? (
+            <div className="flex items-center justify-center py-2">
+              <Donut size={168} data={stateSlices}
+                center={<div className="text-center"><p className="num text-lg font-800 text-slate-900 dark:text-white">{permits.length}</p><p className="text-[11px] text-slate-400">permits</p></div>} />
+            </div>
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noPermitsRecordedYet}</p>}
+        </Widget>
+
+        <Widget title={tr.shiftsLocation} hint={tr.acrossEveryScheduledShift} {...gate("operations.shifts-by-location")} lockedWhat={tr.shiftsLocation}>
+          {byLocation.length ? (
+            <BarList items={byLocation.map(([name, n]) => ({
+              label: name,
+              value: Math.round((n / locMax) * 100),
+              display: <span className="num">{n}</span>,
+            }))} />
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.nothingScheduledYet}</p>}
+        </Widget>
+
+        <Widget title={tr.shiftsWeek} hint={tr.coverageAcrossRotaWindow} span={2} {...gate("operations.shifts-this-week")} lockedWhat={tr.shiftsWeek}>
+          {anyShiftsThisWeek ? (
+            <ChartFrame labels={days.map((d) => fmtWeekday(d.iso, false, locale))} height={200}>
+              <BarChart height={200}
+                labels={days.map((d) => d.iso)}
+                series={[{ name: tr.seriesShifts, data: days.map((d) => d.count), color: "rgb(var(--chart-1))" }]} />
+            </ChartFrame>
+          ) : (
+            <p className="py-8 text-center text-sm text-slate-400">
+              {tr.noShiftsScheduled} {window.from ? tr.forWindow(fmtDate(window.from), fmtDate(window.to)) : tr.thisWeek}.
+            </p>
+          )}
+        </Widget>
+
+        {/* Moderate */}
+        <Widget title={tr.validityTimeline} hint={tr.soonestLapseWindow(windowDays)} {...gate("operations.validity-timeline")} lockedWhat={tr.validityTimeline}>
+          {timeline.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-400">{tr.noPermitsCarryEnd}</p>
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-white/5">
+              {timeline.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span className="min-w-0 truncate text-slate-700 dark:text-slate-200">
+                    <span className="num text-xs text-slate-400">{p.reference}</span> {p.title}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="num text-xs text-slate-400">{fmtDate(p.validTo)}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-600 ${PERMIT_PILL[p.state] || PERMIT_PILL["Not yet valid"]}`}>{p.state}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Widget>
+
+        <Widget title={tr.permitsType} hint={tr.whatKindAuthorisation} {...gate("operations.permits-by-type")} lockedWhat={tr.permitsType}>
+          {byType.length ? (
+            <BarList items={byType.map(([type, n]) => ({
+              label: type,
+              value: Math.round((n / typeMax) * 100),
+              display: <span className="num">{n}</span>,
+            }))} />
+          ) : <p className="py-8 text-center text-sm text-slate-400">{tr.noPermitsRecordedYet}</p>}
+        </Widget>
+
+        {/* ---- the richer half (10/09/2026) ---- */}
+        <Widget title={tr.dashShiftHeat} hint={tr.dashShiftHeatHint} span={2} {...gate("operations.shift-heat")} lockedWhat={tr.dashShiftHeat}>
+          {heatRows.length ? (
+            <HeatGrid columns={days.map((x) => fmtWeekday(x.iso, false, locale))} rows={heatRows} />
+          ) : <DashEmpty text={tr.nothingScheduledYet} />}
+        </Widget>
+
+        <Widget title={tr.dashPermitExpiry} hint={tr.dashPermitExpiryHint} {...gate("operations.permit-expiry")} lockedWhat={tr.dashPermitExpiry}>
+          {expiryByMonth.some(Boolean) ? (
+            <ChartFrame labels={expiryMonths.map((m) => monthLabel(m, locale))} height={180}>
+              <BarChart height={180} rtl={rtl} labels={expiryMonths}
+                series={[{ name: tr.dashSeriesPermits, data: expiryByMonth, color: "rgb(var(--chart-4))" }]} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.noPermitsCarryEnd} />}
+        </Widget>
+
+        <Widget title={tr.dashHoursByLocation} hint={tr.dashHoursByLocationHint} {...gate("operations.hours-by-location")} lockedWhat={tr.dashHoursByLocation}>
+          {hoursByLocation.length ? (
+            <BarList items={hoursByLocation.map((r) => ({
+              label: r.label, value: share(r.value, peak(hoursByLocation)),
+              display: <span className="num">{tr.dashHoursUnit(r.value)}</span>,
+            }))} />
+          ) : <DashEmpty text={tr.nothingScheduledYet} />}
+        </Widget>
+
+        <Widget title={tr.dashStateByType} hint={tr.dashStateByTypeHint} span={2} {...gate("operations.state-by-type")} lockedWhat={tr.dashStateByType}>
+          {stateSeries.length ? (
+            <ChartFrame labels={stateTypes} height={200} legend={stateSeries.map((s) => ({ name: s.name, color: s.color }))}>
+              <BarChart height={200} stacked rtl={rtl} labels={stateTypes} series={stateSeries} />
+            </ChartFrame>
+          ) : <DashEmpty text={tr.noPermitsRecordedYet} />}
+        </Widget>
+      </DashGrid>
+    </div>
+  );
+}

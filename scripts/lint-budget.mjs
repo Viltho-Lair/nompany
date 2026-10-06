@@ -84,7 +84,10 @@ import { execFileSync } from "node:child_process";
 // 100 → 95 on 19/09/2026: the Tasks board left the product for Approvals, and
 // the warnings its screen and module carried went with them — measured 95 on
 // the tree that removed it, and the ceiling comes down to it, not banked.
-const MAX_WARNINGS = 95;
+// 95 → 91 on 06/10/2026: typing the studio screens took props no component
+// read (`level` on four dashboards, `services` on TicketForm) and the hooks
+// that existed only to feed them — measured 91, and the ceiling follows.
+const MAX_WARNINGS = 91;
 
 let report;
 try {

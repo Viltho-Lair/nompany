@@ -15,9 +15,9 @@ import type { HelpModule } from "../types";
 // the Client purchase order approval is approved on the Approvals page, not by
 // "Finance's process" (effects.ts, CLIENT_PO_APPROVAL); the direct form asks
 // for no support period, and the quotation form asks for no dates (NewProject
-// in StudioProjects.js — the studio's default support period is used); the
+// in StudioProjects.tsx — the studio's default support period is used); the
 // tabs are called Cost breakdown, Payment schedule, Site reports and Closing
-// out on screen (ProjectHubTabs.jsx); raising a claim's invoice needs Finance's
+// out on screen (ProjectHubTabs.tsx); raising a claim's invoice needs Finance's
 // Receivables create right, not a cash right (claims route, createInvoice);
 // requirement weights were saved and read by NOTHING — `scaledWeights` had no
 // caller, and a project's progress is its plan's completion; and the resource
@@ -378,7 +378,7 @@ export const projects: HelpModule = {
       keywords: ["project sheets", "main sheet", "bulk sheet", "inventory", "كشوف المشروع", "الكشف الرئيسي", "الكشف المجمع", "المخزون"],
       related: ["projects.other-departments"],
     },
-    // Checked against src/components/studio2/StudioProjects.js (NewProject →
+    // Checked against src/components/studio2/StudioProjects.tsx (NewProject →
     // DirectProject, "New client work": Client, required; Title, required; the
     // ClientBlock contact and site; Type of industry; Description of the work;
     // Project manager; Project value; Start; Target end) and ProjectSchema in
@@ -420,7 +420,7 @@ export const projects: HelpModule = {
       keywords: ["new project", "direct project", "new client work", "open project", "مشروع جديد", "مشروع مباشر", "عمل جديد لعميل", "فتح مشروع"],
       related: ["projects-list.quotation-fields", "tendering-register.handover", "projects.project-number"],
     },
-    // Checked against src/components/studio2/StudioProjects.js (NewProject →
+    // Checked against src/components/studio2/StudioProjects.tsx (NewProject →
     // FromQuotation: Approved quotation, required; Project manager; Location)
     // and quotationSource in src/modules/projects/projects.ts (refuses
     // "quotation", "not-approved", "already"; title, client and value come from
@@ -447,7 +447,7 @@ export const projects: HelpModule = {
       keywords: ["from quotation", "approved quotation", "open project", "مشروع من عرض سعر", "عرض سعر معتمد", "فتح مشروع"],
       related: ["projects-list.open-from-quotation", "projects-list.not-approved"],
     },
-    // Checked against src/components/studio2/StudioProjects.js (ProjectDetail,
+    // Checked against src/components/studio2/StudioProjects.tsx (ProjectDetail,
     // the dialog Edit details opens: Client, Value and Support read-only;
     // Progress; Stage; Manager; Location, saved on leaving the field; Start;
     // Target end; Support period (days), saved on leaving the field; Delete
@@ -778,7 +778,7 @@ export const projects: HelpModule = {
       keywords: ["earned value", "EV", "CPI", "SPI", "EAC", "القيمة المكتسبة", "مؤشر التكلفة", "مؤشر الجدول", "على هذا المعدل"],
       related: ["projects-list.forecast", "projects-list.ev-missing", "projects.progress"],
     },
-    // Checked against src/components/studio2/StudioProjectCosts.js (the Add a
+    // Checked against src/components/studio2/StudioProjectCosts.tsx (the Add a
     // cost code / Edit cost code dialog: Code, required; Description, required;
     // Budget; Notes) and ProjectCostSchema in src/modules/projects/schema.ts
     // (code max 40, name max 200, budget, notes max 1000); the refusals are
@@ -1045,7 +1045,7 @@ export const projects: HelpModule = {
       keywords: ["claim status", "draft", "submitted", "certified", "حالة المستخلص", "مسودة", "مقدم", "معتمد"],
       related: ["projects-list.certify-claim", "projects-list.open-claim"],
     },
-    // Checked against src/components/studio2/StudioProjectBilling.js (the Add a
+    // Checked against src/components/studio2/StudioProjectBilling.tsx (the Add a
     // milestone / Edit milestone dialog: Code, required; Due; Milestone,
     // required; Amount; % of value, add only; Notes) and ProjectMilestoneSchema
     // in src/modules/projects/schema.ts (code max 40, name max 200, amount,
@@ -1079,7 +1079,7 @@ export const projects: HelpModule = {
       keywords: ["milestone form", "amount", "due date", "percent of value", "نموذج البند", "المبلغ", "تاريخ الاستحقاق", "% من القيمة"],
       related: ["projects-list.billing", "projects-list.duplicate-milestone"],
     },
-    // Checked against src/components/studio2/StudioProjectBilling.js (the
+    // Checked against src/components/studio2/StudioProjectBilling.tsx (the
     // Retention terms dialog: Retention %; Release date) and saveRetention in
     // src/modules/projects/milestones.ts (refuses "percent" outside 0 to 100),
     // ProjectSchema.retentionPercent/retentionReleaseDate in schema.ts.
@@ -1103,7 +1103,7 @@ export const projects: HelpModule = {
       keywords: ["retention terms", "retention percent", "release date", "شروط الاحتجاز", "نسبة الاحتجاز", "تاريخ الإفراج"],
       related: ["projects-list.retention", "projects-list.retention-refused"],
     },
-    // Checked against src/components/studio2/ProgressClaimsPanel.js (Period
+    // Checked against src/components/studio2/ProgressClaimsPanel.tsx (Period
     // ending and New claim; per line, Done to date while a draft) and
     // ProgressClaimSchema / ProgressClaimLineSchema in
     // src/modules/projects/schema.ts; the refusals are openClaim's, editClaim's
@@ -1128,7 +1128,7 @@ export const projects: HelpModule = {
       keywords: ["claim form", "period ending", "done to date", "quantity", "نموذج المستخلص", "نهاية الفترة", "المنجز حتى تاريخه", "الكمية"],
       related: ["projects-list.progress-claims", "projects-list.claim-below-previous"],
     },
-    // Checked against src/components/studio2/ProgressClaimsPanel.js (Record the
+    // Checked against src/components/studio2/ProgressClaimsPanel.tsx (Record the
     // certificate: Certified to date per line, with the hint that a line left
     // alone is certified as applied for) and moveClaim in
     // src/modules/projects/claims.ts (certifiedQty defaults to claimedQty).
@@ -1432,7 +1432,7 @@ export const projects: HelpModule = {
       keywords: ["observed", "timesheets", "labour check", "headcount", "المرصود", "الكشوف", "مطابقة العمالة", "العدد"],
       related: ["projects-list.reports-not-yet"],
     },
-    // Checked against src/components/studio2/StudioSiteReports.js (the New
+    // Checked against src/components/studio2/StudioSiteReports.tsx (the New
     // report dialog: Day reported on; Weather; Labour on site rows of Trade and
     // On site; Plant rows of Plant, On site and Idle; Delays and disruption
     // rows of What happened, Hours lost and Cause; Progress; Visitors;
@@ -1614,7 +1614,7 @@ export const projects: HelpModule = {
       keywords: ["support period", "warranty", "defects liability", "days left", "مدة الدعم", "الضمان", "فترة ضمان العيوب", "الأيام المتبقية"],
       related: ["projects-settings.support-period", "projects-list.record-closure"],
     },
-    // Checked against src/components/studio2/StudioProjectClosure.js (Practical
+    // Checked against src/components/studio2/StudioProjectClosure.tsx (Practical
     // completion; Handed over; Support period (days); Final account agreed; Save)
     // and ProjectSchema's closure dates in src/modules/projects/schema.ts; the
     // refusals are closureProblem's in src/modules/projects/closureModel.ts.
@@ -1770,7 +1770,7 @@ export const projects: HelpModule = {
       keywords: ["matrix", "list", "totals", "per person", "المصفوفة", "القائمة", "الإجماليات", "لكل شخص"],
       related: ["projects-overtimes.export", "projects-overtimes.edit"],
     },
-    // Checked against src/components/studio2/StudioProjects.js (AddOvertime:
+    // Checked against src/components/studio2/StudioProjects.tsx (AddOvertime:
     // Project, required; Date; From; To; the department filter; People,
     // ticked) and createOvertime in src/modules/projects/projects.ts (refuses
     // "project", "date", "times", "people"; hours derived by hoursBetween in
@@ -1799,7 +1799,7 @@ export const projects: HelpModule = {
       keywords: ["overtime form", "from to", "people", "department filter", "نموذج العمل الإضافي", "من وإلى", "الأشخاص", "تصفية القسم"],
       related: ["projects-overtimes.add", "projects-settings.overtime-department"],
     },
-    // Checked against src/components/studio2/StudioProjects.js (EditOvertime:
+    // Checked against src/components/studio2/StudioProjects.tsx (EditOvertime:
     // Project; Person, which keeps a departed member as "no longer a member";
     // Date; From; To; Delete) and updateOvertime in
     // src/modules/projects/projects.ts (refuses "project", "people", "date",
@@ -2052,7 +2052,7 @@ export const projects: HelpModule = {
       keywords: ["task details", "inspector", "duration", "predecessor", "تفاصيل المهمة", "لوحة التفاصيل", "المدة", "السوابق"],
       related: ["projects-planner.link-tasks", "projects-planner.statuses"],
     },
-    // Checked against src/components/studio2/PlannerPresetsDialog.jsx (the
+    // Checked against src/components/studio2/PlannerPresetsDialog.tsx (the
     // New-plan defaults dialog: Default zoom; Default colour-by; Reset to app
     // defaults; Save defaults) and the planner route's presets, saved under
     // projects.planner.edit.

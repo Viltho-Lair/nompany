@@ -1,0 +1,289 @@
+"use client";
+
+// PLANNING & CALENDAR (22/09/2026) — what runs when, across channels.
+//
+// THE QUESTION IT ANSWERS is not "what is on" — the register answers that — but
+// "what is on AT ONCE". Four email campaigns overlapping in one week look
+// reasonable on four separate rows and unreasonable in one inbox, and this is
+// the only screen where the collision is visible.
+//
+// IT CHANGES NOTHING. Every bar is a campaign; its dates are edited in the
+// register, which is one click away on each bar. A calendar somebody could drag
+// would be a second writer of the same field.
+
+import { useCallback, useState } from "react";
+import Link from "next/link";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { useReload } from "@/components/studio2/useReload";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { panel, h2, sub, btnGhost, fmtDate } from "@/components/studio2/ui";
+import { Field } from "@/components/fields/Field";
+import { marketingCalendarDict } from "@/shared/studio/marketingCalendar";
+import { marketingDeptDict } from "@/shared/studio/marketingDept";
+import { marketingPlansDict } from "@/shared/studio/marketingPlans";
+import StudioMarketingPlans from "@/components/studio2/StudioMarketingPlans";
+import type { marketingCalendar } from "@/modules/marketing/planning";
+import type { Bar, Marker } from "@/modules/marketing/calendar";
+
+// The route spreads the service's answer into `{ ok, ...result }`.
+type CalendarBody = Exclude<Awaited<ReturnType<typeof marketingCalendar>>, { error: string }>;
+
+const SPANS = ["4", "8", "12", "26"];
+
+// A campaign's bar takes the colour of its STATUS, not its channel: a channel
+// can be several (a bar would have to pick one anyway) and what somebody scans
+// for is whether a thing is live.
+const STATUS_TONE: Record<string, string> = {
+  Active: "bg-emerald-500",
+  Planned: "bg-sky-500",
+  Paused: "bg-amber-500",
+  Draft: "bg-slate-400",
+  Completed: "bg-slate-300 dark:bg-white/20",
+};
+
+/**
+ * THE SECTION'S TWO HALVES (22/09/2026). The calendar reads campaigns and
+ * writes nothing; the plan above them is this section's own record. One screen
+ * with a tab strip rather than two nav rows, because a plan and the weeks it
+ * covers are one question asked twice and a second sidebar entry would hold no
+ * separately grantable right (invariant 16) — both answer to
+ * `marketing.planning`.
+ *
+ * THE UNCHOSEN TAB IS NOT MOUNTED, so opening the calendar costs no read of
+ * the plans and vice versa. Each half fetches its own.
+ */
+// `initial` IS THE CALENDAR'S OWN ROUTE BODY (its default window, weeks=12 and
+// no `from`), answered inside the studio page's render so the board paints at once.
+// IT IS SPENT ON THE FIRST TAB SWITCH: the calendar unmounts behind the plans
+// tab, and remounting it with the page's body would show that snapshot and skip
+// the fetch, so coming back reads fresh exactly as it always did.
+export default function StudioMarketingPlanning({ slug, initial }: { slug: string; initial?: CalendarBody | null }) {
+  const locale = useStudioLocale();
+  const tr = marketingPlansDict(locale);
+  const [tab, setTab] = useState("calendar");
+  const [first, setFirst] = useState<CalendarBody | null | undefined>(initial);
+  return (
+    <div className="space-y-4">
+      <div role="tablist" aria-label={tr.title} className="flex gap-2 border-b border-slate-200 dark:border-white/10">
+        {[["calendar", tr.tabCalendar], ["plans", tr.tabPlans]].map(([key, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => { setTab(key); setFirst(undefined); }}
+            className={`-mb-px border-b-2 px-4 py-2 font-display text-sm font-600 transition-colors ${
+              tab === key
+                ? "border-brand-600 text-slate-900 dark:text-white"
+                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === "plans" ? <StudioMarketingPlans slug={slug} /> : <CalendarBoard slug={slug} initial={first} />}
+    </div>
+  );
+}
+
+function CalendarBoard({ slug, initial }: { slug: string; initial?: CalendarBody | null }) {
+  const locale = useStudioLocale();
+  const tr = marketingCalendarDict(locale);
+  const dept = marketingDeptDict(locale);
+  const [from, setFrom] = useState("");
+  const [weeks, setWeeks] = useState("12");
+  const [data, setData] = useState<CalendarBody | null>(initial ?? null);
+  const [error, setError] = useState("");
+
+  const params = `weeks=${weeks}${from ? `&from=${from}` : ""}`;
+  const reload = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/marketing/calendar?${params}`, { cache: "no-store" });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { setError(tr.refuse[body.error] || body.error || tr.failed); return; }
+    setError("");
+    setData(body);
+  }, [slug, params, tr]);
+
+  useReload(reload, initial);
+
+  if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
+
+  const { bars = [], load = [], week = {} as Partial<CalendarBody["week"]>, unscheduled = [], weeks: columns = [], events = [] } = data;
+  // Grouped once rather than filtered per column: the ruler is redrawn on every
+  // shift of the window, and a filter inside the map is that work squared.
+  const eventsByWeek = new Map<string, Marker[]>();
+  for (const e of events) eventsByWeek.set(e.week, [...(eventsByWeek.get(e.week) || []), e]);
+  const shift = (n: number) => setFrom(addWeeks(data.from, n));
+
+  return (
+    <div className="space-y-4">
+      <section className={panel}>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 max-w-2xl">
+            <h2 className={h2}>{tr.title}</h2>
+            <p className={sub}>{tr.sub}</p>
+          </div>
+          <Link className={btnGhost} href={`/${slug}/marketing-campaigns`}>{tr.openRegister}</Link>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-end gap-2">
+          <button type="button" className={btnGhost} onClick={() => shift(-4)}>{tr.back}</button>
+          <button type="button" className={btnGhost} onClick={() => setFrom("")}>{tr.today}</button>
+          <button type="button" className={btnGhost} onClick={() => shift(4)}>{tr.forward}</button>
+          <div className="min-w-[10rem]">
+            <Field label={tr.span} as="select" value={weeks} onChange={setWeeks}
+              options={SPANS.map((s) => ({ value: s, label: tr.spans[s] }))} />
+          </div>
+        </div>
+
+        {/* WHAT NEEDS A PERSON THIS WEEK, above the chart: somebody opening the
+            calendar on a Monday should not have to read a timeline to find it. */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Summary title={tr.startingThisWeek} rows={week.starting} slug={slug} empty={tr.nothingStarting} />
+          <Summary title={tr.endingThisWeek} rows={week.ending} slug={slug} empty={tr.nothingEnding} />
+          {/* ONLY WHERE EVENTS WERE READ AT ALL. A reader who may not open
+              Events is not shown an empty box implying nothing is on. */}
+          {data.showsEvents && (
+            <div className="rounded-xl bg-slate-50 p-3 dark:bg-white/5">
+              <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{tr.eventsThisWeek}</p>
+              {(week.events || []).length === 0 ? (
+                <p className="mt-1 text-xs text-slate-400">{tr.nothingOn}</p>
+              ) : (
+                (week.events || []).map((e) => (
+                  <p key={e.id} className="mt-1 truncate text-xs text-slate-700 dark:text-slate-200">
+                    <Link href={`/${slug}/marketing-events`} className="hover:underline">{e.name}</Link>
+                    <span className="ms-1 text-slate-400">{fmtDate(e.on)}</span>
+                  </p>
+                ))
+              )}
+            </div>
+          )}
+          <div className="rounded-xl bg-slate-50 p-3 dark:bg-white/5">
+            <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{tr.crowded}</p>
+            {(week.crowded || []).length === 0 ? (
+              <p className="mt-1 text-xs text-slate-400">{tr.nothingCrowded}</p>
+            ) : (
+              <>
+                {(week.crowded || []).map((c) => (
+                  <p key={c.channel} className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                    {tr.crowdedOn(dept.channelName(c.channel), c.n)}
+                  </p>
+                ))}
+                <p className="mt-1 text-[11px] text-slate-400">{tr.crowdedHint}</p>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className={panel}>
+        {bars.length === 0 ? (
+          <div className="py-10 text-center">
+            <p className="text-sm text-slate-500 dark:text-slate-400">{tr.none}</p>
+            <p className="mt-1 text-xs text-slate-400">{tr.noneHint}</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              {/* The week ruler. Every column is a Monday, so a bar never starts
+                  between two labels. */}
+              <div className="flex border-b border-slate-200/70 pb-2 text-[11px] text-slate-500 dark:border-white/10 dark:text-slate-400">
+                {columns.map((day, i) => {
+                  // EVENTS SIT UNDER THE WEEK THEY FALL IN, as markers rather
+                  // than bars: a campaign OCCUPIES weeks and an event is a
+                  // point, so a day-wide bar would be an unreadable sliver and
+                  // a week-wide one would claim a week for an hour.
+                  const onThisWeek = eventsByWeek.get(day) || [];
+                  return (
+                    <div key={day} className="flex-1 border-s border-slate-100 ps-1 dark:border-white/5">
+                      {fmtDate(day)}
+                      <span className="block text-slate-400">{tr.running(load[i]?.running || 0)}</span>
+                      {onThisWeek.map((e) => (
+                        <span key={e.id} title={`${e.name} · ${fmtDate(e.on)}`}
+                          className="mt-0.5 block truncate rounded bg-violet-100 px-1 text-[10px] text-violet-800 dark:bg-violet-500/15 dark:text-violet-200">
+                          {e.name}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <ul className="mt-3 space-y-2">
+                {bars.map((b) => (
+                  <li key={b.id}>
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <Link href={`/${slug}/marketing-campaigns`} className="font-600 text-[var(--geex-ink)] hover:underline">
+                        {b.name}
+                      </Link>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        {[b.reference, dept.status(b.status), (b.channels || []).map((c) => dept.channelName(c)).join(" · ")]
+                          .filter(Boolean).join(" — ")}
+                      </span>
+                    </div>
+                    <div className="relative mt-1 h-3 rounded-full bg-slate-100 dark:bg-white/5">
+                      <span
+                        className={`absolute h-3 rounded-full ${STATUS_TONE[b.status] || STATUS_TONE.Draft}`}
+                        style={{ insetInlineStart: `${b.offset * 100}%`, width: `${Math.max(1, b.length * 100)}%` }}
+                        title={`${b.startOn}${b.endOn ? ` → ${b.endOn}` : ""}`}
+                      />
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-slate-400">
+                      {[
+                        b.cutStart ? tr.cutStart : "",
+                        b.openEnded ? tr.openEnded : "",
+                        b.cutEnd ? tr.cutEnd : "",
+                      ].filter(Boolean).join(" · ")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {unscheduled.length > 0 && (
+        <section className={panel}>
+          <h3 className="font-display text-base font-800 text-[var(--geex-ink)]">{tr.unscheduled}</h3>
+          <p className={sub}>{tr.unscheduledHint}</p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {unscheduled.map((c) => (
+              <li key={c.id}>
+                <Link href={`/${slug}/marketing-campaigns`}
+                  className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15">
+                  <span className="font-600">{c.name}</span>
+                  <span className="text-slate-500 dark:text-slate-400">{dept.status(c.status)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function Summary({ title, rows = [], slug, empty }: { title: string; rows?: readonly Bar[]; slug: string; empty: string }) {
+  return (
+    <div className="rounded-xl bg-slate-50 p-3 dark:bg-white/5">
+      <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{title}</p>
+      {rows.length === 0 ? (
+        <p className="mt-1 text-xs text-slate-400">{empty}</p>
+      ) : (
+        rows.map((b) => (
+          <p key={b.id} className="mt-1 truncate text-xs text-slate-700 dark:text-slate-200">
+            <Link href={`/${slug}/marketing-campaigns`} className="hover:underline">{b.name}</Link>
+          </p>
+        ))
+      )}
+    </div>
+  );
+}
+
+/** Move the window by whole weeks, so the columns stay Mondays. */
+function addWeeks(day: string, n: number) {
+  const t = Date.parse(`${String(day).slice(0, 10)}T00:00:00Z`);
+  return Number.isFinite(t) ? new Date(t + n * 7 * 86400000).toISOString().slice(0, 10) : "";
+}

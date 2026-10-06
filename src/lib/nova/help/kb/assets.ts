@@ -423,7 +423,7 @@ export const assets: HelpModule = {
       keywords: ["location", "site", "where is the machine", "master data", "الموقع", "مكان الآلة", "أين الآلة", "البيانات الأساسية"],
       related: ["admin.master.locations", "assets.plant-about"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's New
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's New
     // and Edit dialog, titled Equipment register, which draws the declared fields
     // in order: Name, required; Asset tag; Category, a select; Serial; Acquired,
     // a date; Internal hire rate, a number; Location) and the `equipment`
@@ -690,7 +690,7 @@ export const assets: HelpModule = {
       keywords: ["overdue calibration", "late", "past due", "days late", "معايرة متأخرة", "متأخر", "تجاوز الاستحقاق", "أيام التأخر"],
       related: ["assets.registers-summary", "assets.calibration-still-valid"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's New
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's New
     // and Edit dialog, titled Calibration, which draws the declared fields in
     // order: Instrument, required; Asset tag; Certificate; Calibrated, a date;
     // Next due, a date; Calibrated by; Machine, a reference picker over the
@@ -982,7 +982,7 @@ export const assets: HelpModule = {
       keywords: ["under repair", "book broken machine", "status in list", "قيد الإصلاح", "حجز آلة معطلة", "الحالة في القائمة"],
       related: ["assets.plant-refused", "assets.equipment-status"],
     },
-    // Checked against src/components/studio2/StudioPlantAllocation.js (the Put a
+    // Checked against src/components/studio2/StudioPlantAllocation.tsx (the Put a
     // machine on a job form: Machine, required, a select showing name, tag and
     // status, a machine that cannot go out greyed; Job, required, a select of
     // deals, or of projects when deals are refused; Out, required, the shared date

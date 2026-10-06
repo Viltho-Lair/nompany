@@ -1,0 +1,2527 @@
+"use client";
+
+import { Fragment, useCallback, useEffect, useState } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import { paymentRunDict } from "@/shared/studio/paymentRun";
+import { claimsDict } from "@/shared/studio/claims";
+import { leasesDict } from "@/shared/studio/leases";
+import { groupDict } from "@/shared/studio/group";
+import { financeDict } from "@/shared/studio/finance";
+import { taxRegistrationDict } from "@/shared/studio/taxRegistration";
+import TaxRegistrationFields from "@/components/studio2/TaxRegistrationFields";
+import { documentsDict } from "@/shared/studio/documents";
+import Link from "next/link";
+import FinanceSettingsPanel from "@/components/studio2/FinanceSettingsPanel";
+import nextDynamic from "next/dynamic";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import RecordLink from "@/components/studio2/RecordLink";
+import { StudioDataGridSkeleton } from "@/components/studio2/StudioDataGrid.skeleton";
+import { linkToProject, linkIf } from "@/modules/main/studioLinks";
+import { Field } from "@/components/fields/Field";
+import { supplierOptions, projectOptions, costCodeOptions, campaignOptions } from "@/components/studio2/pickerOptions";
+import StudioDate from "@/components/fields/StudioDate";
+import { useAnalyticsLevel, useSectionOn } from "@/components/studio2/analyticsLevel";
+import { assetRegister } from "@/modules/finance/analytics";
+import {
+  stripeOn, stripeOff, Dialog, ColumnPicker, prefKey, loadPref, savePref, fmtDate,
+  btnRow, btnRowPrimary, btnRowDanger,
+} from "@/components/studio2/ui";
+import { StatusPill } from "@/components/studio2/StatusPill";
+import { useReload } from "@/components/studio2/useReload";
+import { treasuryDict } from "@/shared/studio/treasury";
+import { creditNotesDict } from "@/shared/studio/creditNotes";
+import { debitNotesDict } from "@/shared/studio/debitNotes";
+import { taxDict, taxCategoryOptions } from "@/shared/studio/tax";
+import { documentTotals } from "@/shared/documentTotals";
+import TaxTag from "@/components/studio2/TaxTag";
+import FinanceSetupNotice from "@/components/studio2/FinanceSetupNotice";
+import { ledgerDict } from "@/shared/studio/ledger";
+import { useMoney } from "@/components/studio2/studioCurrency";
+import type {
+  listInvoices, listExpenses, profitability as projectProfitability, billableProjects, summarise, saleItems,
+} from "@/modules/finance/finance";
+import type { listBillsForScreen } from "@/modules/finance/payables";
+import type { listAssets, depreciationRun } from "@/modules/finance/assets";
+import type { groupView, consolidated } from "@/modules/finance/groupService";
+import type { ProfitAndLoss, BalanceSheet, CashFlow } from "@/modules/finance/statements";
+import type { setupFor } from "@/modules/finance/setup";
+import type { WithholdingRule } from "@/modules/finance/withholding";
+import type { HoldSettings } from "@/modules/finance/hold";
+import type { dunningDaysFor } from "@/modules/finance/creditService";
+import type { readCloseTasks } from "@/modules/finance/closeChecklist";
+import type { Pickers } from "@/modules/procurement/pickers";
+import type { TaxRegistration } from "@/shared/taxRegistration";
+import type { LedgerView } from "@/components/studio2/StudioLedger";
+import type { TreasuryView } from "@/components/studio2/TreasuryPanel";
+import type { BudgetsView } from "@/components/studio2/BudgetsPanel";
+import type { FinanceSettingsSaved } from "@/components/studio2/FinanceSettingsPanel";
+
+// ---- what each route answers ------------------------------------------------
+// The finance routes assemble their bodies inline from service calls, so each
+// is put together here from those same calls rather than restated by hand.
+// `nav` and `manage` are `unknown` on the module context; these are the two
+// readings this screen makes of them.
+type Nav = { projects?: unknown } | null | undefined;
+type Manage = Record<string, boolean | undefined> | null | undefined;
+type Setup = ReturnType<typeof setupFor>;
+type MoneyAccount = { id: string; code: string; name: string };
+// `projectRows` reads the projects untyped, so every field it copies comes back
+// `unknown` (or `{}` after an `|| ""`). These are the fields it copies, as the
+// strings the rows store.
+type Stringed<T, K extends PropertyKey> = Omit<T, K> & { [P in K]: string };
+type ProjectField = "id" | "number" | "title" | "clientName";
+type CashView = Setup & {
+  canManage: boolean;
+  canViewDashboard: boolean;
+  nav: Nav;
+  manage: Manage;
+  invoices: Awaited<ReturnType<typeof listInvoices>>;
+  expenses: Awaited<ReturnType<typeof listExpenses>>;
+  projects: Stringed<Awaited<ReturnType<typeof billableProjects>>[number], ProjectField>[];
+  milestones: NonNullable<Pickers["milestones"]>;
+  items: Awaited<ReturnType<typeof saleItems>>;
+  profitability: Stringed<Awaited<ReturnType<typeof projectProfitability>>[number],
+    ProjectField | "stage" | "quotationNumber" | "poNumber" | "projectNumber" | "managerAlias" | "location" | "endDate">[];
+  summary: ReturnType<typeof summarise>;
+  canManageReceivables: boolean;
+  canManageExpenses: boolean;
+  // THE ROUTE SENDS NO PICKERS — see `campaigns` on the Expenses tab.
+  pickers?: Pickers;
+  vocabulary: {
+    invoiceStatuses: readonly string[];
+    moneyAccounts: MoneyAccount[];
+    expenseCategories: string[];
+    paymentMethods: string[];
+    withholdingRules: WithholdingRule[];
+    defaultVatRate: number;
+    vatEnabled: boolean;
+  };
+};
+type InvoiceRow = CashView["invoices"][number];
+type ExpenseRow = CashView["expenses"][number];
+type ProfitRow = CashView["profitability"][number];
+type SaleItem = CashView["items"][number];
+type BillsView = Setup & {
+  canManage: boolean;
+  manage: Manage;
+  nav: Nav;
+  bills: Awaited<ReturnType<typeof listBillsForScreen>>;
+  pickers: Pickers;
+  vocabulary: {
+    billStatuses: readonly string[];
+    billTerms: readonly string[];
+    paymentMethods: string[];
+    defaultVatRate: number;
+    vatEnabled: boolean;
+    moneyAccounts: MoneyAccount[];
+    withholdingRules: WithholdingRule[];
+  };
+};
+type BillRow = BillsView["bills"][number];
+type AssetsView = Setup & {
+  canManage: boolean;
+  manage: Manage;
+  nav: Nav;
+  assets: Exclude<Awaited<ReturnType<typeof listAssets>>, { error: string }>["assets"];
+  vocabulary: {
+    assetMethods: readonly string[];
+    fundingSources: readonly string[];
+    bills: { id: string; reference: string; vendorName: string }[];
+  };
+};
+type AssetRow = AssetsView["assets"][number];
+type DepreciationRunView = Exclude<Awaited<ReturnType<typeof depreciationRun>>, { error: string }>;
+type ReportsView = Setup & {
+  profitAndLoss: ProfitAndLoss;
+  balanceSheet: BalanceSheet;
+  cashFlow: CashFlow;
+};
+type GroupView = Exclude<Awaited<ReturnType<typeof groupView>>, { error: string }> & {
+  consolidation: Exclude<Awaited<ReturnType<typeof consolidated>>, { error: string }> | null;
+  consolidationError: string | null;
+};
+type SettingsView = {
+  dunningDays: ReturnType<typeof dunningDaysFor>;
+  closeTasks: ReturnType<typeof readCloseTasks>;
+  cashCategories: string[];
+  withholdingRules: WithholdingRule[];
+  paymentHold: HoldSettings;
+  canManage: boolean;
+};
+type FinanceTr = ReturnType<typeof financeDict>;
+type LedgerTr = ReturnType<typeof ledgerDict>;
+type Money = ReturnType<typeof useMoney>;
+// WHAT A FINANCE WRITE ANSWERED — whichever route was called, success or
+// refusal, read a field at a time by `message` and `postingWarning`. Open on
+// purpose: the routes answer different shapes and these readers take any.
+type Answer = Record<string, any>;
+type CashSend = (kind: string, method: string, payload: Record<string, unknown>) => Promise<boolean>;
+type ResourceSend = (method: string, payload: Record<string, unknown>) => Promise<boolean>;
+// A LINE AS TYPED: quantity and price are the text in their boxes until saved.
+type DraftLine = { description: string; qty: string; unitPrice: string; taxCategory?: string; itemId?: string };
+type StatementRow = { accountId?: string; code: string; name: string; amount: number };
+
+// THE DASHBOARD LOADS WHEN IT IS SHOWN, not with this screen. It was a static
+// import, so every tenant page carried every department's dashboard and the
+// whole chart kit in its first load; a client module's `import()` is a real
+// lazy boundary (see HeavyScreens.tsx for why a Server Component's is not).
+const FinanceDashboard = nextDynamic(() => import("@/components/studio2/FinanceDashboard"), {
+  loading: () => <ScreenSkeleton />,
+});
+
+// THE LEDGER IS ITS OWN SCREEN and arrives lazily: it is one of four views
+// this module switches between, and only one of them is open at a time.
+const StudioLedger = nextDynamic(() => import("@/components/studio2/StudioLedger"));
+const TreasuryPanel = nextDynamic(() => import("@/components/studio2/TreasuryPanel"));
+const CreditPanel = nextDynamic(() => import("@/components/studio2/CreditPanel"));
+const PaymentRunPanel = nextDynamic(() => import("@/components/studio2/PaymentRunPanel"));
+const ClaimsPanel = nextDynamic(() => import("@/components/studio2/ClaimsPanel"));
+const BudgetsPanel = nextDynamic(() => import("@/components/studio2/BudgetsPanel"));
+const LeasesPanel = nextDynamic(() => import("@/components/studio2/LeasesPanel"));
+// Cash & Bank's and Tax's panels, lazily for the reason the others are.
+const ReconciliationPanel = nextDynamic(() => import("@/components/studio2/ReconciliationPanel"));
+const TaxReturnPanel = nextDynamic(() => import("@/components/studio2/TaxReturnPanel"));
+// Only a studio whose country levies zakat draws anything here.
+const ZakatPanel = nextDynamic(() => import("@/components/studio2/ZakatPanel"));
+// The credit notes and the door that issues them (18/09/2026) — behind the same boundary.
+const CreditNotesPanel = nextDynamic(() => import("@/components/studio2/CreditNotesPanel"));
+// The debit notes (04/10/2026), the mirror — raised here as well as issued.
+const DebitNotesPanel = nextDynamic(() => import("@/components/studio2/DebitNotesPanel"));
+
+const panel = "rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-6 dark:border-white/10";
+const label = "mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400";
+const btn = "rounded-full bg-brand-700 px-4 py-2 font-display text-sm font-600 text-white transition-colors hover:bg-brand-950 disabled:opacity-60";
+const btnGhost = "rounded-full border border-slate-200 px-4 py-2 font-display text-sm font-600 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5";
+const btnDanger = "rounded-full border border-rose-200 px-4 py-2 font-display text-sm font-600 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-500/30 dark:text-rose-300 dark:hover:bg-rose-500/10";
+const th = "pb-3 text-start text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
+const td = "py-3 pe-3 align-middle";
+
+// Invoice / bill / asset status colours now live in the shared StatusPill map
+// (kinds "invoice", "bill", "asset"). A bill's Approved wears the brand accent to
+// read as "authorised"; Disputed is amber, a warning rather than the rose of
+// Cancelled — see StatusPill.tsx.
+
+// The tenant's locale and dd/mm/yyyy, via the one formatter. `fmtDate` already
+// treats a date-only string as local midnight, so the `T00:00:00` guard moved
+// into it — see companySettings.
+const fmt = fmtDate;
+// Through shared/money, which shows a currency's own decimals: this was fixed
+// at two places and hid the third decimal of every dinar amount.
+
+// The dense-table grid, loaded in its own async chunk (never folded into this
+// department's initial bundle) — see StudioDataGrid's header. The skeleton
+// reserves the exact box for eight columns while that chunk arrives.
+const StudioDataGrid = nextDynamic(() => import("@/components/studio2/StudioDataGrid"), {
+  ssr: false,
+  loading: () => <StudioDataGridSkeleton columns={8} pageSize={10} />,
+});
+
+// FINANCE — the department's shell dispatches to a screen per SUB-SECTION key.
+// A thin dispatcher on purpose: it calls no hooks itself, so switching between
+// screens (each of which owns its own fetch and hooks) never trips the rules of
+// hooks, and Payables/Assets never pay for the Cash screen's `/finance` fetch.
+//   finance            → dashboard + project profitability (FinanceCash)
+//   finance-cash       → invoices / expenses / profitability tabs (FinanceCash)
+//   finance-payables   → Accounts Payable (bills)          [FINANCE 1b]
+//   finance-assets     → Fixed Assets                      [FINANCE 1b]
+//   finance-ledger     → the trial balance, journal and statements
+//
+// `finance-ledger` HAD NO BRANCH AND FELL THROUGH TO THE CASH SCREEN, which is
+// the defect StudioLedger's own header describes: a studio granted
+// `finance.ledger.view` opened a page of INVOICES, while the trial balance, the
+// journal and both statements were computed by a route nothing called. Same
+// shape as the project `/costs` bug — a section that silently renders the wrong
+// screen is how a right ends up exercising nothing (invariant 16) — and the
+// fall-through was individually valid at both ends, which is why nothing failed.
+//   finance-settings   → the cash categories and withholding rules
+//
+// `finance-settings` HAD NO BRANCH EITHER, and it is the same defect one screen
+// further on: the nav row marked "Settings" fell through to the Cash screen, so
+// a studio granted `finance.settings.view` opened a page of INVOICES while
+// `saveFinanceSettings` — complete, validated and guarded since the module was
+// written — had no caller anywhere in the product. Its own route comment says
+// so in as many words. Found by sweeping every studio API route for a component
+// that fetches it; `tsc` cannot see a route nobody calls, and a menu entry that
+// opens the wrong screen looks like a screen rather than like a bug.
+//
+// FINANCE SPLIT INTO EIGHT (18/09/2026, the owner's Finance plan), and three of
+// the new screens own nothing: Receivables shows the invoices stored under
+// Cash, Tax reads the documents, Reports reads the journal. Cash & Bank keeps
+// the `finance-cash` key and shows the money itself.
+//   finance-receivables → invoices and credit notes (FinanceCash, two tabs)
+//   finance-payables    → bills and expenses (PayablesAndExpenses)
+//   finance-cash        → money accounts, forecast, cheques, reconciliation
+//   finance-tax         → the VAT return and the withheld tax to claim
+//   finance-reports     → P&L, balance sheet, cash flow, project margins
+//   finance-budgets     → budgets and their variance (BudgetsPanel)
+//
+// `initial` IS THE BODY OF THE ONE GET THIS VIEW OPENS ON, answered inside the
+// studio page's render, so the screen paints with its rows rather than a
+// second skeleton. It goes to that one sub-screen and no other — each reads a
+// different route, and a body handed to the wrong one would be drawn as if it
+// were its own. Tax has no single read (two panels, two routes), so it takes
+// none. Absent — refused, or over the ceiling — every screen fetches as before.
+// `initial` is whichever body the page answered for THIS view, so each branch
+// reads it as that view's own.
+export default function StudioFinance({ slug, view = "finance", initial }: { slug: string; view?: string; initial?: unknown }) {
+  const locale = useStudioLocale();
+  if (view === "finance-payables") return <PayablesAndExpenses slug={slug} initial={initial as BillsView | undefined} />;
+  if (view === "finance-assets") return <Assets slug={slug} initial={initial as AssetsView | undefined} />;
+  if (view === "finance-ledger") return <StudioLedger slug={slug} initial={initial as LedgerView | undefined} />;
+  if (view === "finance-settings") return <FinanceSettings slug={slug} initial={initial as SettingsView | undefined} />;
+  if (view === "finance-cash") return <CashAndBank slug={slug} initial={initial as TreasuryView | undefined} />;
+  if (view === "finance-tax") return <FinanceTax slug={slug} />;
+  if (view === "finance-reports") return <FinanceReports slug={slug} initial={initial as ReportsView | undefined} />;
+  if (view === "finance-budgets") return <BudgetsPanel slug={slug} locale={locale} initial={initial as BudgetsView | undefined} />;
+  if (view === "finance-receivables") return <Receivables slug={slug} initial={initial as CashView | undefined} />;
+  return <FinanceCash slug={slug} view={view} initial={initial as CashView | undefined} />;
+}
+
+// THE PAGE'S BODY SEEDS A TABBED SCREEN'S OPENING TAB ONCE. Switching tabs
+// unmounts the panel, and remounting it still holding `initial` would paint the
+// page's old answer and skip the fetch — a fresh mount hands useReload a fresh
+// loader to skip. So the first switch spends it, and every later mount fetches
+// exactly as it always did.
+function useSeed<T>(initial: T | undefined) {
+  const [seed, setSeed] = useState<T | undefined>(initial);
+  const spend = useCallback(() => setSeed(undefined), []);
+  return [seed, spend] as const;
+}
+
+// ONE TAB BAR for the split's small screens, the look the Cash screen's has.
+function TabBar({ tabs, tab, setTab }: { tabs: [string, string][]; tab: string; setTab: (k: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1 rounded-full bg-slate-100 p-1 dark:bg-white/5">
+      {tabs.map(([k, text]) => (
+        <button key={k} type="button" onClick={() => setTab(k)}
+          className={`rounded-full px-4 py-2 text-sm font-600 transition-colors ${tab === k ? "bg-[var(--geex-surface)] text-brand-950 shadow-sm dark:text-white" : "text-slate-500 dark:text-slate-400"}`}>
+          {text}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// CASH & BANK — the money itself: every bank and till, transfers, where the
+// balance is going, cheques, guarantees, and the reconciliation that checks
+// the book against the bank. Reconciling answers to the ledger's right (it is
+// a statement about the books) and says so when the reader lacks it.
+function CashAndBank({ slug, initial }: { slug: string; initial?: TreasuryView }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const [tab, setTab] = useState("treasury");
+  const [seed, spend] = useSeed(initial);
+  const pick = (k: string) => { spend(); setTab(k); };
+  return (
+    <div className="space-y-6">
+      <TabBar tabs={[["treasury", treasuryDict(locale).tab], ["reconcile", tr.tabReconcile]]} tab={tab} setTab={pick} />
+      {/* THE TREASURY TAB RENDERED NOTHING from the split (f0b64c1c) until
+          18/09/2026: the bar offered it and no branch drew it, so Cash & Bank
+          opened on an empty page. */}
+      {tab === "treasury" && <TreasuryPanel slug={slug} locale={locale} initial={seed} />}
+      {tab === "reconcile" && <ReconciliationPanel slug={slug} locale={locale} />}
+    </div>
+  );
+}
+
+// TAX — the VAT return and what the studio can reclaim. Read-only: both are
+// computed from the documents.
+function FinanceTax({ slug }: { slug: string }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  return (
+    <div className="space-y-6">
+      <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.taxTitle}</h2>
+      <TaxReturnPanel slug={slug} locale={locale} />
+      <ZakatPanel slug={slug} locale={locale} />
+    </div>
+  );
+}
+
+// THE FROM/TO QUERY BOTH REPORT SCREENS SEND, and only the dates that are
+// whole dates — a half-typed field stays off the wire rather than reaching the
+// server as a range it has to refuse. ONE COPY, because the Reports screen's
+// own copy had lost its backslashes (`/^d{4}-…/` matches "dddd", never a
+// date), so its From/To filters were never sent at all while Group books'
+// copy, a hundred lines below, worked.
+function datedQuery(range: { from: string; to: string }) {
+  return new URLSearchParams(Object.entries(range).filter(([, v]) => /^\d{4}-\d{2}-\d{2}$/.test(v))).toString();
+}
+
+// REPORTS — the statements from the ledger, and what each project made. The
+// statements come from `/finance/reports` on `finance.reports.view`; the
+// project margins from the same read the dashboard uses.
+function FinanceReports({ slug, initial }: { slug: string; initial?: ReportsView }) {
+  const money = useMoney();
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const lt = ledgerDict(locale);
+  const [tab, setTab] = useState("pl");
+  const [data, setData] = useState<ReportsView | null>(initial ?? null);
+  const [error, setError] = useState("");
+  // THE WINDOW every statement is read over; the balance sheet is as at its end.
+  const [range, setRange] = useState({ from: "", to: "" });
+  const load = useCallback(async () => {
+    const qs = datedQuery(range);
+    const res = await fetch(`/api/studios/${slug}/finance/reports${qs ? `?${qs}` : ""}`, { cache: "no-store" });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { setError(tr.noAccessThis); return; }
+    setError(""); setData(body);
+  }, [slug, tr, range]);
+  useReload(load, initial);
+  // The statements move with every posting, which lands under the ledger.
+  useLiveUpdates(slug, "finance-ledger", load);
+
+  if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingFinance} />;
+  const { profitAndLoss: pl = {} as ProfitAndLoss, balanceSheet: bs = {} as BalanceSheet, cashFlow: cf = null } = data;
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.reportsTitle}</h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.reportsLead}</p>
+      </div>
+      <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
+      <TabBar tabs={[["pl", lt.pl], ["bs", lt.bs], ["cf", lt.cashFlow], ["group", groupDict(locale).tab], ["projects", tr.reportsProjects]]} tab={tab} setTab={setTab} />
+      {tab !== "projects" && (
+        <div className="flex flex-wrap gap-2">
+          <Field label={lt.from} type="date" className="w-44" value={range.from} onChange={(v) => setRange((r) => ({ ...r, from: v }))} />
+          <Field label={lt.to} type="date" className="w-44" value={range.to} onChange={(v) => setRange((r) => ({ ...r, to: v }))} />
+        </div>
+      )}
+      {tab === "pl" && (
+        <Statement tr={lt}
+          groups={[[lt.income, pl.income, pl.totalIncome], [lt.expenses, pl.expense, pl.totalExpense]]}
+          total={pl.profit} totalLabel={lt.profit} />
+      )}
+      {/* THE RETAINED RESULT IS SHOWN rather than folded into equity: no
+          account holds it until a year-end moves it. */}
+      {tab === "bs" && (
+        <Statement tr={lt}
+          groups={[[lt.assets, bs.asset, bs.totalAssets], [lt.liabilities, bs.liability, bs.totalLiabilities],
+            [lt.equity, bs.equity, bs.totalEquity]]}
+          total={bs.totalAssets} totalLabel={lt.assets}
+          note={bs.balanced ? lt.retained(bs.retainedResult) : lt.outBy(bs.difference)} />
+      )}
+      {/* CASH FLOW: opening, the three classes, closing — and it says so when
+          the four do not add up rather than printing a closing figure that
+          does not follow from the rest. */}
+      {tab === "cf" && cf && (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400">{lt.cashFlowLead}</p>
+          <p className="flex justify-between text-sm font-600 text-slate-900 dark:text-white">
+            <span>{lt.openingCash}</span><span className="num">{money(cf.opening)}</span>
+          </p>
+          <Statement tr={lt}
+            groups={[[lt.operating, cf.operating, cf.totalOperating], [lt.investing, cf.investing, cf.totalInvesting],
+              [lt.financing, cf.financing, cf.totalFinancing]]}
+            total={cf.net} totalLabel={lt.netCash}
+            note={cf.reconciles ? "" : lt.cashFlowOff} />
+          <p className="flex justify-between border-t-2 border-slate-200 pt-2 font-display text-sm font-700 text-slate-900 dark:border-white/10 dark:text-white">
+            <span>{lt.closingCash}</span><span className="num">{money(cf.closing)}</span>
+          </p>
+        </div>
+      )}
+      {tab === "group" && <GroupBooks slug={slug} range={range} />}
+      {tab === "projects" && <FinanceCash slug={slug} view="finance-reports" only={["projects"]} embedded />}
+    </div>
+  );
+}
+
+// RECEIVABLES — the invoices and credit notes (FinanceCash), and beside them
+// what each customer owes against its credit limit and who is due a reminder.
+function Receivables({ slug, initial }: { slug: string; initial?: CashView }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const [tab, setTab] = useState("documents");
+  const [seed, spend] = useSeed(initial);
+  const pick = (k: string) => { spend(); setTab(k); };
+  return (
+    <div className="space-y-6">
+      <TabBar tabs={[["documents", tr.tabInvoices], ["credit", tr.tabCredit], ["dunning", tr.tabDunning]]} tab={tab} setTab={pick} />
+      {tab === "documents" && <FinanceCash slug={slug} view="finance-receivables" initial={seed} />}
+      {tab !== "documents" && <CreditPanel slug={slug} locale={locale} tab={tab} />}
+    </div>
+  );
+}
+
+// THE GROUP'S BOOKS (modules/finance/groupService) — several studios one
+// person owns, read as one. The owner forms the group here; anybody who may
+// read every member's reports sees the consolidation, over the same window.
+function GroupBooks({ slug, range }: { slug: string; range: { from: string; to: string } }) {
+  const money = useMoney();
+  const locale = useStudioLocale();
+  const g = groupDict(locale);
+  const lt = ledgerDict(locale);
+  const [data, setData] = useState<GroupView | null>(null);
+  const [problem, setProblem] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [name, setName] = useState("");
+  const [adding, setAdding] = useState("");
+  const load = useCallback(async () => {
+    const qs = datedQuery(range);
+    const res = await fetch(`/api/studios/${slug}/finance/group${qs ? `?${qs}` : ""}`, { cache: "no-store" });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { setProblem(g.problem(String(body.error || ""))); return; }
+    setProblem(""); setData(body);
+  }, [slug, range, g]);
+  useReload(load);
+  const act = async (payload: Record<string, unknown>) => {
+    setBusy(true); setProblem("");
+    const res = await fetch(`/api/studios/${slug}/finance/group`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setProblem(g.problem(String(body.error || ""))); return; }
+    await load();
+  };
+  if (!data) return problem ? <p className="text-sm text-rose-600 dark:text-rose-300">{problem}</p> : <ScreenSkeleton />;
+  const { group, isOwner, members = [], joinable = [], consolidation: c, consolidationError } = data;
+  return (
+    <div className="space-y-5">
+      <div>
+        <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{group ? group.name : g.title}</h3>
+        <p className="mt-1 max-w-3xl text-sm text-slate-500 dark:text-slate-400">{g.lead}</p>
+      </div>
+      {problem && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{problem}</p>}
+      {!group && !isOwner && <p className="text-sm text-slate-400">{g.none}</p>}
+      {!group && isOwner && (
+        <div className="flex flex-wrap items-end gap-2">
+          <p className="w-full text-sm text-slate-500 dark:text-slate-400">{g.noneOwner}</p>
+          <Field label={g.name} className="w-64" value={name} onChange={setName} />
+          <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-600 text-white disabled:opacity-50" disabled={busy || !name.trim()}
+            onClick={() => act({ action: "create", name })}>{g.create}</button>
+        </div>
+      )}
+      {group && isOwner && (
+        <div className="space-y-2 rounded-geex border border-slate-200/70 p-4 dark:border-white/10">
+          <p className="text-xs font-600 text-slate-500 dark:text-slate-400">{g.members}</p>
+          <ul className="space-y-1">
+            {members.map((m) => (
+              <li key={m.id} className="flex flex-wrap items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                <span>{m.name}</span>
+                <button className="ms-auto rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 dark:border-white/15 dark:text-slate-300" disabled={busy}
+                  onClick={() => act({ action: "remove", studioId: m.id })}>{g.remove}</button>
+              </li>
+            ))}
+          </ul>
+          {joinable.length > 0 && (
+            <div className="flex flex-wrap items-end gap-2">
+              <Field label={g.addWhich} as="select" className="w-64" value={adding} onChange={setAdding}
+                options={joinable.map((s) => ({ value: s.id, label: s.name }))} />
+              <button className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-600 text-slate-700 disabled:opacity-50 dark:border-white/15 dark:text-slate-200"
+                disabled={busy || !adding} onClick={async () => { await act({ action: "add", studioId: adding }); setAdding(""); }}>{g.add}</button>
+            </div>
+          )}
+        </div>
+      )}
+      {group && consolidationError && <p className="text-sm text-amber-700 dark:text-amber-300">{g.problem(consolidationError)}</p>}
+      {c && (
+        <div className="space-y-4">
+          <h4 className="font-display text-sm font-700 text-slate-900 dark:text-white">{g.consolidated(c.currency)}</h4>
+          <ul className="space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+            {c.members.map((m) => <li key={m.studioId}>{g.memberLine(m.name, m.currency, m.rate, money(m.profit))}</li>)}
+          </ul>
+          {c.missingRate.length > 0 && <p className="text-sm text-amber-700 dark:text-amber-300">{g.missingRate(c.missingRate.join(", "))}</p>}
+          <Statement tr={lt}
+            groups={[[lt.income, c.profitAndLoss.income, c.profitAndLoss.totalIncome], [lt.expenses, c.profitAndLoss.expense, c.profitAndLoss.totalExpense]]}
+            total={c.profitAndLoss.profit} totalLabel={g.profit} />
+          <Statement tr={lt}
+            groups={[[lt.assets, c.balanceSheet.asset, c.balanceSheet.totalAssets], [lt.liabilities, c.balanceSheet.liability, c.balanceSheet.totalLiabilities],
+              [lt.equity, c.balanceSheet.equity, c.balanceSheet.totalEquity]]}
+            total={c.balanceSheet.totalAssets} totalLabel={lt.assets}
+            note={[lt.retained(c.balanceSheet.retainedResult), g.eliminated(money(c.balanceSheet.eliminated.dueFrom), money(c.balanceSheet.eliminated.dueTo)),
+              c.balanceSheet.intercompanyDifference ? g.intercompanyOff(money(c.balanceSheet.intercompanyDifference)) : c.balanceSheet.balanced ? g.balanced : lt.outBy(c.balanceSheet.difference)].join(" ")} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// PAYABLES & EXPENSES — bills and the money already spent, two rights on one
+// screen. A reader holding only the expenses right is refused the bills and
+// lands on Expenses rather than on the refusal.
+function PayablesAndExpenses({ slug, initial }: { slug: string; initial?: BillsView }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const [tab, setTab] = useState("bills");
+  const [seed, spend] = useSeed(initial);
+  const pick = (k: string) => { spend(); setTab(k); };
+  return (
+    <div className="space-y-6">
+      <TabBar tabs={[["bills", tr.tabBills], ["run", paymentRunDict(locale).tab], ["expenses", tr.tabExpenses], ["claims", claimsDict(locale).tab]]} tab={tab} setTab={pick} />
+      {/* A READER REFUSED THE BILLS lands on Claims (anybody may hold the right to
+          claim), and one refused Claims too lands on Expenses. */}
+      {tab === "bills" && <Payables slug={slug} initial={seed} onDenied={() => pick("claims")} />}
+      {tab === "run" && <PaymentRunPanel slug={slug} locale={locale} />}
+      {tab === "claims" && <ClaimsPanel slug={slug} locale={locale} onDenied={() => setTab("expenses")} />}
+      {tab === "expenses" && <FinanceCash slug={slug} view="finance-payables" only={["expenses"]} embedded />}
+    </div>
+  );
+}
+
+// FINANCE'S OWN SETTINGS. Its own fetch rather than a tab on the Cash screen,
+// for the reason the dispatch above gives about Payables and Assets: somebody
+// who may configure Finance should not pay for the invoice list to do it, and
+// `finance.settings.view` is a right of its own precisely because the two are
+// different powers.
+function FinanceSettings({ slug, initial }: { slug: string; initial?: SettingsView }) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const [data, setData] = useState<SettingsView | null>(initial ?? null);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/finance/settings`, { cache: "no-store" });
+    if (!res.ok) { setError(tr.accessFinanceStudio); return; }
+    setData(await res.json());
+  }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
+  useReload(load, initial);
+
+  if (error) return <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>;
+  if (!data) return <ScreenSkeleton />;
+
+  // THE SERVER'S ANSWER IS WHAT IS SHOWN, never a local optimistic copy: the PUT
+  // returns the cleaned rules (rates clamped, thresholds floored, duplicates
+  // dropped), and a studio that typed 5.005 should see what was actually
+  // stored rather than what they typed.
+  const save = async (body: Record<string, unknown>): Promise<FinanceSettingsSaved> => {
+    const res = await fetch(`/api/studios/${slug}/finance/settings`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const out = await res.json().catch(() => ({ error: "failed" }));
+    if (!res.ok || out.error) return out.error ? out : { error: "failed" };
+    setData((d) => ({ ...d, ...out }) as SettingsView);
+    return out;
+  };
+
+  return (
+    <FinanceSettingsPanel
+      categories={data.cashCategories || []}
+      rules={data.withholdingRules || []}
+      hold={data.paymentHold || null}
+      dunning={data.dunningDays || []}
+      closeTasks={data.closeTasks || []}
+      canManage={Boolean(data.canManage)}
+      locale={locale}
+      onSave={save}
+    />
+  );
+}
+
+// FINANCE. Every number here is derived — invoice totals from their lines, the
+// amount paid from the payments recorded against them, project cost from
+// purchase orders plus booked expenses.
+// `only` NAMES THE TABS A SCREEN SHOWS of the ones this read serves — two on
+// Receivables, one when Expenses or the project margins are embedded in
+// another screen, which also drops the summary and the setup notice there.
+function FinanceCash({ slug, view = "finance", only = ["invoices", "credit-notes", "debit-notes"], embedded = false, initial }: {
+  slug: string; view?: string; only?: string[]; embedded?: boolean; initial?: CashView;
+}) {
+  const money = useMoney();
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const [data, setData] = useState<CashView | null>(initial ?? null);
+  const [tab, setTab] = useState(only[0]);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const level = useAnalyticsLevel();
+  // Whether the studio runs Receivables. The route reads no invoice while it is
+  // off; the flag is a dependency of `load` so switching it back on (the shell
+  // refreshes after a toggle) asks for the rows again.
+  const cashOn = useSectionOn()("finance-receivables");
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/finance`, { cache: "no-store" });
+    if (!res.ok) { setError(tr.accessFinanceStudio); return; }
+    setData(await res.json());
+  }, [slug, cashOn]);
+  useReload(load, initial);
+  // Invoices and expenses land from elsewhere — reflect them live.
+  useLiveUpdates(slug, "finance", load);
+
+  const send = useCallback(async (kind: string, method: string, payload: Record<string, unknown>) => {
+    setError(""); setBusy(true);
+    const ask = async (body: Record<string, unknown>): Promise<[Response, Answer]> => {
+      const r = await fetch(`/api/studios/${slug}/finance/${kind}`, {
+        method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      return [r, await r.json().catch(() => ({}))];
+    };
+    let [res, out] = await ask(payload);
+    // OVER THE CUSTOMER'S CREDIT: the server refused and says by how much; the
+    // issuer may insist, and their name goes on the invoice.
+    if (!res.ok && (out.error === "credit-limit" || out.error === "credit-hold")
+      && window.confirm(tr.creditRefused(out as Parameters<FinanceTr["creditRefused"]>[0]))) {
+      [res, out] = await ask({ ...payload, overrideCredit: true });
+    }
+    setBusy(false);
+    if (!res.ok) { setError(message(out, tr, money)); return false; }
+    await load();
+    const warning = postingWarning(out, tr);
+    if (warning) setError(warning);
+    return true;
+  }, [slug, load, money]);
+
+  if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingFinance} />;
+
+  const { invoices, expenses, projects, profitability, summary, vocabulary, nav } = data;
+  // MANAGE IS ASKED OF THE RIGHT BEHIND THE TAB, not of the screen: Payables &
+  // Expenses answers to two rights, and a bill clerk is not an expense clerk.
+  const canManage = tab === "expenses" ? Boolean(data.canManageExpenses) : Boolean(data.canManageReceivables);
+
+
+  const tabs = ([
+    ["invoices", `Invoices (${invoices.length})`],
+    ["expenses", `Expenses (${expenses.length})`],
+    ["projects", `Profitability (${profitability.length})`],
+    // WHAT WAS GIVEN BACK ON AN INVOICE — including the drafts a signed return raises.
+    ["credit-notes", creditNotesDict(locale).tab],
+    // WHAT WAS ADDED TO AN INVOICE AFTER IT WENT OUT.
+    ["debit-notes", debitNotesDict(locale).tab],
+  ] as [string, string][]).filter(([k]) => only.includes(k));
+
+  if (view === "finance") {
+    return (
+      <div className="space-y-6">
+        {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+        {/* The money summary across every project — the sharpest case for a
+            dashboard right of its own. */}
+        {data.canViewDashboard === false ? <Empty title={tr.dashboardIsnYoursSee} body={tr.studioKeepsModuleDashboards} /> : (
+          <>
+            <FinanceDashboard invoices={invoices} expenses={expenses} level={level} slug={slug} />
+            {/* THE MARGINS ARE CASH'S: built from its invoices and expenses,
+                which the route does not read while Cash is switched off. */}
+            {profitability.length > 0 && (
+              <FinanceProjects rows={profitability} slug={slug} nav={nav} canManage={Boolean(data.canManageReceivables)} busy={busy}
+                onSave={(payload: Record<string, unknown>) => send("projects", "PUT", payload)} />
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+
+      {!embedded && <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />}
+      {!embedded && <Summary summary={summary} />}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {tabs.length > 1 ? <TabBar tabs={tabs} tab={tab} setTab={setTab} /> : <span />}
+        {!canManage && tab !== "projects" && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
+      </div>
+
+      {tab === "invoices" && (
+        <Invoices rows={invoices} projects={projects} milestones={data.milestones || []} items={data.items || []} vocab={vocabulary} slug={slug} nav={nav}
+          canManage={canManage} busy={busy} send={send} />
+      )}
+      {tab === "expenses" && (
+        <Expenses rows={expenses} projects={projects} campaigns={(data.pickers || {}).campaigns || []}
+          categories={vocabulary.expenseCategories} accounts={vocabulary.moneyAccounts}
+          slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
+      )}
+      {tab === "projects" && <Profitability rows={profitability} slug={slug} nav={nav} />}
+      {tab === "treasury" && <TreasuryPanel slug={slug} locale={locale} />}
+      {tab === "credit-notes" && <CreditNotesPanel slug={slug} locale={locale} canManage={canManage} />}
+      {tab === "debit-notes" && <DebitNotesPanel slug={slug} locale={locale} canManage={canManage} invoices={invoices} />}
+    </div>
+  );
+}
+
+// THE DICTIONARY COMES IN AS AN ARGUMENT. This is module scope — there is no
+// component here to read the locale from — and every caller already has it.
+// THE BOOKS' ANSWER, WHEN IT WAS NO. A document can save and its ledger entry
+// be refused — a closed month, a chart short an account — and the route hands
+// that back as `posting: { posted: false, reason }`. Both sends below threw it
+// away, so the books went an entry short with the screen reporting success.
+// THE WITHHELD TAX IS A SECOND ENTRY with its own answer — a payment can post
+// and the move of the client's withheld tax be refused — so either refusal is
+// said, the payment's first.
+// AND THE TAX AUTHORITY'S, where issuing submitted the invoice (Saudi Arabia,
+// 03/10/2026): a rejection, or ZATCA not reached, is said on the spot rather
+// than left for somebody to find on the Tax screen.
+function postingWarning(out: Answer, tr: FinanceTr) {
+  const refused = [out?.posting, out?.withholding].find((p) => p && p.posted === false);
+  const sub = out?.einvoiceSubmission;
+  const einvoice = sub && sub.outcome && sub.outcome !== "accepted"
+    ? `${tr.einvSubmitted(sub.outcome)}${sub.message ? ` (${sub.message})` : ""}` : "";
+  return [refused ? tr.notPosted(String(refused.reason || "")) : "", einvoice].filter(Boolean).join(" ");
+}
+
+// `money` is the calling screen's (useMoney), so an amount in a refusal is in
+// the studio's currency like every other figure on the screen.
+function message(out: Answer, tr: FinanceTr, money: Money) {
+  if (out.error === "read-only") return tr.mReadOnly;
+  if (out.error === "issued") return tr.mIssued;
+  if (out.error === "has-payments") return tr.mHasPayments;
+  if (out.error === "overpayment") return tr.mOverpayment(money(out.outstanding));
+  if (out.error === "derived-status") return tr.mDerivedStatus;
+  if (out.error === "not-issued") return tr.mNotIssued;
+  if (out.error === "cancelled") return tr.mCancelled;
+  if (out.error === "lines") return tr.mLines;
+  if (out.error === "client") return tr.mClient;
+  if (out.error === "amount") return tr.mAmount;
+  // ---- fixed assets --------------------------------------------------------
+  if (out.error === "on-the-books") return tr.mOnTheBooks;
+  if (out.error === "bank-account") return tr.mBankAccount;
+  if (out.error === "funding") return tr.mFunding;
+  if (out.error === "period") return tr.mPeriod;
+  // ---- accounts payable ----------------------------------------------------
+  if (out.error === "vendor") return tr.mVendor;
+  if (out.error === "same-signer") return tr.mSameSigner;
+  if (out.error === "no-studio-currency") return tr.approvalNoStudioCurrency;
+  if (out.error === "unquoted") return tr.approvalUnquoted;
+  if (out.error === "not-configured") return tr.approvalNotConfigured;
+  if (out.error === "no-approver") return tr.approvalNoApprover;
+  if (out.error === "approval-pending") return tr.approvalPendingEdit;
+  if (out.error === "not-received") return tr.approvalNotReceived;
+  if (out.error === "locked") return tr.mLocked;
+  if (out.error === "already") return tr.mAlready;
+  if (out.error === "not-approved") return tr.mNotApproved;
+  if (out.error === "has-history") return tr.mHasHistory;
+  if (out.error === "status") return tr.mStatus;
+  // ---- fixed assets --------------------------------------------------------
+  if (out.error === "name") return tr.mName;
+  if (out.error === "cost") return tr.mCost;
+  if (out.error === "life") return tr.mLife;
+  if (out.error === "disposed") return tr.mDisposed;
+  if (out.error === "already-disposed") return tr.mAlreadyDisposed(fmt(out.on));
+  if (out.error === "before-acquired") return tr.mBeforeAcquired;
+  // ---- ZATCA: a business invoice is cleared before it is issued (04/10/2026) --
+  if (out.error === "einvoice-not-cleared") return tr.mNotCleared(String(out.detail || ""));
+  if (out.error === "einvoice-unreached") return tr.mClearanceUnreached;
+  if (out.error === "einvoice-busy" || out.error === "einvoice-problem") return tr.einvProblem(String(out.detail || out.error));
+  return tr.mDidntSave;
+}
+
+// ---- summary ---------------------------------------------------------------
+function Summary({ summary }: { summary: CashView["summary"] }) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const cells: [string, string, string][] = [
+    [tr.sumInvoiced, money(summary.invoiced), ""],
+    [tr.sumCollected, money(summary.collected), "text-emerald-600 dark:text-emerald-400"],
+    [tr.sumOutstanding, money(summary.outstanding), ""],
+    [tr.sumOverdue, money(summary.overdue), summary.overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""],
+    // NO EXPENSES TILE: this summary heads Receivables since the split
+    // (18/09/2026), and what was spent is Payables & Expenses' figure.
+  ];
+  return (
+    <section className={panel}>
+      <div className="flex flex-wrap gap-8">
+        {cells.map(([name, value, tone]) => (
+          <div key={name}>
+            <p className={`font-display text-2xl font-800 ${tone || "text-slate-900 dark:text-white"}`}>{value}</p>
+            <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{name}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ---- invoices --------------------------------------------------------------
+function Invoices({ rows, projects, milestones = [], items = [], vocab, slug, nav, canManage, busy, send }: {
+  rows: InvoiceRow[]; projects: CashView["projects"]; milestones?: CashView["milestones"]; items?: SaleItem[];
+  vocab: CashView["vocabulary"]; slug: string; nav: Nav; canManage: boolean; busy: boolean; send: CashSend;
+}) {
+  const money = useMoney();
+  const dt = documentsDict(useStudioLocale());
+  const tr = financeDict(useStudioLocale());
+  const [drafting, setDrafting] = useState(false);
+  const [paying, setPaying] = useState<InvoiceRow | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+
+  return (
+    <>
+      {canManage && !drafting && !paying && <button className={btn} onClick={() => setDrafting(true)}>{tr.newInvoice}</button>}
+
+      {drafting && (
+        <InvoiceForm projects={projects} milestones={milestones} items={items} rules={vocab.withholdingRules || []} defaultVat={vocab.defaultVatRate ?? 0} vatOn={!!vocab.vatEnabled} busy={busy}
+          onCancel={() => setDrafting(false)}
+          onSave={async (v) => { if (await send("invoices", "POST", v)) setDrafting(false); }} />
+      )}
+
+      {paying && (
+        <PaymentForm invoice={paying} methods={vocab.paymentMethods} accounts={vocab.moneyAccounts} busy={busy}
+          onCancel={() => setPaying(null)}
+          onSave={async (p) => { if (await send("invoices", "PUT", { id: paying.id, payment: p })) setPaying(null); }} />
+      )}
+
+      {rows.length === 0 ? <Empty title={tr.noInvoicesYet} body={tr.invoiceBillsClientProject} /> : (
+        <section className={panel}>
+          {/* The dense list is a Data Grid now — sortable columns, client-side
+              paging — but every cell reproduces the hand-rolled table it
+              replaced: the reference toggles the same detail panel (below the
+              grid, because the community Data Grid has no master-detail row),
+              money stays tabular via `.num`, dates go through `fmt`, the status
+              is the shared StatusPill, and the same four row actions gate on
+              `canManage`. No column and no action was dropped. */}
+          <StudioDataGrid
+            rows={rows}
+            getRowId={(r) => r.id}
+            ariaLabel={tr.invoices}
+            emptyLabel={tr.noInvoicesMatch}
+            emptyIcon="invoice"
+            columns={[
+              {
+                field: "reference", headerName: tr.invoice, minWidth: 130, flex: 0.9,
+                renderCell: ({ row }) => (
+                  <button type="button" className="num text-xs text-brand-700 hover:underline dark:text-brand-300"
+                    onClick={() => setOpen(open === row.id ? null : row.id)}>
+                    {row.reference}
+                  </button>
+                ),
+              },
+              {
+                field: "clientName", headerName: tr.client, minWidth: 140, flex: 1,
+                renderCell: ({ row }) => <span className="text-slate-900 dark:text-white">{row.clientName}</span>,
+              },
+              {
+                field: "projectNumber", headerName: tr.project, minWidth: 120, flex: 0.8,
+                renderCell: ({ row }) => (row.projectNumber
+                  ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, row.projectId)) as string} title={tr.openProject}>{row.projectNumber}</RecordLink>
+                  : <span className="text-slate-400">—</span>),
+              },
+              {
+                field: "dueDate", headerName: tr.due, minWidth: 150, flex: 0.9,
+                renderCell: ({ row }) => (
+                  <span className={row.overdue ? "font-600 text-rose-600 dark:text-rose-400" : "text-slate-600 dark:text-slate-300"}>
+                    {fmt(row.dueDate)}{row.overdue && tr.overdueSuffix2}
+                  </span>
+                ),
+              },
+              {
+                field: "total", headerName: tr.total, type: "number", minWidth: 120, flex: 0.7,
+                align: "right", headerAlign: "right",
+                renderCell: ({ row }) => <span className="num font-600 text-slate-900 dark:text-white">{money(row.total, row.currency)}</span>,
+              },
+              {
+                field: "paid", headerName: tr.paid, type: "number", minWidth: 110, flex: 0.7,
+                align: "right", headerAlign: "right",
+                renderCell: ({ row }) => <span className="num text-slate-600 dark:text-slate-300">{money(row.paid, row.currency)}</span>,
+              },
+              {
+                field: "status", headerName: tr.status, minWidth: 110, flex: 0.6,
+                renderCell: ({ row }) => <StatusPill kind="invoice" status={row.status} />,
+              },
+              {
+                field: "actions", headerName: "", minWidth: 280, flex: 1.2, sortable: false,
+                align: "right", headerAlign: "right",
+                // PRINT IS A READER'S ACT, so it is drawn for everybody who can
+                // see the row; the rest are a manager's. A draft prints with its
+                // DRAFT stamp rather than not at all — somebody checking the
+                // layout before sending is the commonest reason to press it.
+                renderCell: ({ row }) => (
+                  <span className="flex items-center justify-end gap-2">
+                    <Link className={btnRow} href={`/${slug}/print/invoice/${row.id}`}>{dt.print}</Link>
+                    {canManage && row.status === "Draft" && <button className={btnRowPrimary} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Sent" })}>{tr.send}</button>}
+                    {canManage && row.status === "Sent" && <button className={btnRowPrimary} onClick={() => setPaying(row)}>{tr.recordPayment}</button>}
+                    {canManage && row.status !== "Cancelled" && row.status !== "Paid" && row.paid === 0 && (
+                      <button className={btnRow} disabled={busy} onClick={() => send("invoices", "PUT", { id: row.id, status: "Cancelled" })}>{tr.cancel}</button>
+                    )}
+                    {canManage && row.status === "Draft" && <button className={btnRowDanger} disabled={busy} onClick={() => send("invoices", "DELETE", { id: row.id })}>{tr.delete}</button>}
+                  </span>
+                ),
+              },
+            ]}
+          />
+          {/* The invoice detail — line items, totals and payments — the reference
+              button expands. Rendered under the grid rather than as an inline
+              row, which the community Data Grid cannot do. */}
+          {open != null && (() => {
+            const inv = rows.find((r) => r.id === open);
+            if (!inv) return null;
+            return (
+              <div className="mt-4 rounded-xl bg-slate-50 p-4 dark:bg-white/5">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="num text-xs text-slate-500 dark:text-slate-400">{inv.reference}</p>
+                  <button type="button" className="text-xs font-600 text-slate-500 hover:text-brand-700 dark:text-slate-400 dark:hover:text-brand-300" onClick={() => setOpen(null)}>{tr.close}</button>
+                </div>
+                <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+                  {inv.lines.map((l, i) => (
+                    <li key={i} className="flex justify-between gap-4">
+                      <span>{l.description} × {l.qty}<TaxTag category={l.taxCategory} /></span>
+                      <span className="num">{money(l.qty * l.unitPrice, inv.currency)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <DocumentTotals doc={inv} />
+                {(inv.payments || []).length > 0 && (
+                  <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
+                    <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.payments}</p>
+                    <ul className="mt-1 space-y-0.5 text-sm text-slate-600 dark:text-slate-300">
+                      {(inv.payments || []).map((p) => (
+                        <li key={p.id} className="flex justify-between gap-4">
+                          <span>{fmt(p.date)} · {p.method}{p.reference ? ` · ${p.reference}` : ""}</span>
+                          <span className="num">{money(p.amount, inv.currency)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </section>
+      )}
+    </>
+  );
+}
+
+// A DOCUMENT'S TOTALS, for an invoice and a bill alike — one block, so the two
+// cannot drift. When the lines carry more than one rate, what was taxed at each
+// is listed under the subtotal: a VAT figure that is not the subtotal times the
+// rate needs its working shown.
+function DocumentTotals({ doc }: { doc: InvoiceRow | BillRow }) {
+  const money = useMoney();
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const tax = taxDict(locale);
+  const mixed = (doc.breakdown || []).length > 1;
+  const row = "flex justify-between gap-4 text-slate-500 dark:text-slate-400";
+  return (
+    <div className="mt-3 space-y-0.5 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
+      <p className={row}><span>{tr.subtotal}</span><span className="num">{money(doc.subtotal, doc.currency)}</span></p>
+      {mixed && doc.breakdown.map((b) => (
+        <p key={b.category + ":" + b.rate} className={row + " ps-3 text-xs"}>
+          <span>{tax.breakdownRow(b.category, b.rate)}</span><span className="num">{money(b.taxable, doc.currency)}</span>
+        </p>
+      ))}
+      <p className={row}><span>VAT {doc.vatRate}%</span><span className="num">{money(doc.vat, doc.currency)}</span></p>
+      <p className="flex justify-between gap-4 font-700 text-slate-900 dark:text-white"><span>{tr.total}</span><span className="num">{money(doc.total, doc.currency)}</span></p>
+      {doc.outstanding > 0 && doc.status !== "Draft" && (
+        <p className={row}><span>{tr.outstanding}</span><span className="num">{money(doc.outstanding, doc.currency)}</span></p>
+      )}
+    </div>
+  );
+}
+
+// THE ONE LINE-ITEMS EDITOR, shared by the invoice and the bill forms — a bill's
+// lines are an invoice's lines (same shape, same server-side cleaning), so the
+// two must not drift. Owns the row map/add/remove; the caller owns the state and
+// reads `filledLines`/`linesSubtotal` off it for the total.
+const EMPTY_LINE: DraftLine = { description: "", qty: "1", unitPrice: "", taxCategory: "standard" };
+export const filledLines = (lines: DraftLine[]) => lines.filter((l) => l.description.trim() && Number(l.qty) > 0);
+export const linesSubtotal = (lines: DraftLine[]) => filledLines(lines).reduce((s, l) => s + Number(l.qty) * (Number(l.unitPrice) || 0), 0);
+
+// `vatOn`: a studio with no VAT rate taxes nothing, so it is asked no category.
+// `items`: an INVOICE's lines may name what they sell (18/09/2026), which is
+// what a return against the invoice puts back on the shelf. A bill passes none.
+function LineItemsEditor({ lines, setLines, vatOn = false, items = [] }: {
+  lines: DraftLine[]; setLines: Dispatch<SetStateAction<DraftLine[]>>; vatOn?: boolean; items?: SaleItem[];
+}) {
+  const locale = useStudioLocale();
+  const tr = financeDict(locale);
+  const tax = taxDict(locale);
+  const setLine = (i: number, k: keyof DraftLine, v: string) => setLines((ls) => ls.map((l, n) => (n === i ? { ...l, [k]: v } : l)));
+  // PICKING AN ITEM FILLS WHAT IS BLANK — its name, its price, its tax
+  // category — and overwrites nothing somebody typed.
+  const pickItem = (i: number, id: string) => setLines((ls) => ls.map((l, n) => {
+    if (n !== i) return l;
+    const item = items.find((x) => x.id === id);
+    if (!item) return { ...l, itemId: "" };
+    return {
+      ...l, itemId: id,
+      description: l.description.trim() ? l.description : item.name,
+      unitPrice: String(l.unitPrice).trim() ? l.unitPrice : String(item.sellPrice || ""),
+      taxCategory: l.taxCategory && l.taxCategory !== "standard" ? l.taxCategory : (item.taxCategory || "standard"),
+    };
+  }));
+  return (
+    <div className="mt-5 space-y-3">
+      {lines.map((l, i) => (
+        <div key={i} className="flex flex-wrap items-end gap-3">
+          {items.length > 0 && (
+            <div className="w-56">
+              <Field label={tr.lineItem} as="select" value={l.itemId || ""} onChange={(v) => pickItem(i, v)}
+                options={[{ value: "", label: tr.noItem }, ...items.map((x) => ({ value: x.id, label: x.sku ? `${x.name} · ${x.sku}` : x.name }))]} />
+            </div>
+          )}
+          <div className="min-w-[220px] flex-1">
+            <Field label={tr.description} value={l.description} onChange={(v) => setLine(i, "description", v)} />
+          </div>
+          <div className="w-24">
+            <Field label={tr.qty} type="number" value={l.qty} onChange={(v) => setLine(i, "qty", v)} />
+          </div>
+          <div className="w-32">
+            <Field currency label={tr.unitPrice} type="number" value={l.unitPrice} onChange={(v) => setLine(i, "unitPrice", v)} />
+          </div>
+          {vatOn && (
+            <div className="w-36">
+              <Field label={tax.category} as="select" required value={l.taxCategory || "standard"}
+                onChange={(v) => setLine(i, "taxCategory", v)} options={taxCategoryOptions(locale)} />
+            </div>
+          )}
+          {lines.length > 1 && <button className={btnGhost} onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))}>{tr.remove}</button>}
+        </div>
+      ))}
+      <button className={btnGhost} onClick={() => setLines((ls) => [...ls, { ...EMPTY_LINE }])}>{tr.addLine}</button>
+    </div>
+  );
+}
+
+// WHICH WITHHOLDING RULE A DOCUMENT FALLS UNDER — offered only when the studio
+// has rules, and on both sides: a client withholding from an invoice, the
+// studio withholding from a supplier's bill. Until 18/09/2026 neither form had
+// it, so withholding could be set only through the API.
+function WithholdingField({ rules = [], value, onChange }: { rules?: WithholdingRule[]; value?: string; onChange: (v: string) => void }) {
+  const tr = financeDict(useStudioLocale());
+  if (!rules.length) return null;
+  return (
+    <Field label={tr.withholding} as="select" value={value || ""} onChange={onChange}
+      options={[{ value: "", label: tr.whtNone }, ...rules.map((r) => ({ value: r.label, label: tr.whtApplies(r.label, r.rate) }))]} />
+  );
+}
+
+function InvoiceForm({ projects, milestones = [], items = [], rules = [], defaultVat, vatOn, busy, onCancel, onSave }: {
+  projects: CashView["projects"]; milestones?: CashView["milestones"]; items?: SaleItem[]; rules?: WithholdingRule[];
+  defaultVat: number; vatOn: boolean; busy: boolean; onCancel: () => void; onSave: (v: Record<string, unknown>) => unknown;
+}) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const [head, setHead] = useState({ projectId: "", milestoneId: "", clientName: "", vatRate: String(defaultVat), issueDate: "", dueDate: "", withholdingLabel: "" });
+  // THE PROJECT'S OWN MILESTONES. An invoice naming one is what marks that
+  // milestone billed on the payment schedule; with no field for it, every
+  // project invoice read as "unattributed" and no milestone ever came off.
+  const milestoneOptions = milestones
+    .filter((m) => head.projectId && m.projectId === head.projectId)
+    .map((m) => ({ value: m.id, label: [m.code, m.name].filter(Boolean).join(" · ") }));
+  const [lines, setLines] = useState([{ ...EMPTY_LINE }]);
+  // THE BUYER'S TAX REGISTRATION, opened only for a business customer — most
+  // invoices go to people who have none, and eight empty fields on every one
+  // would read as eight things missing. Not sent at all while closed, so a
+  // project invoice takes the project client's own (modules/finance createInvoice).
+  const [buyerOpen, setBuyerOpen] = useState(false);
+  const [buyerTax, setBuyerTax] = useState<TaxRegistration | null>(null);
+  const taxTr = taxRegistrationDict(useStudioLocale());
+
+  const filled = filledLines(lines);
+  const project = projects.find((p) => p.id === head.projectId);
+  const ready = filled.length > 0 && (head.projectId || head.clientName.trim());
+  // THE SAME CALCULATION THE SERVER RUNS, so a zero-rated line shows untaxed
+  // before it is saved rather than after.
+  const { total } = documentTotals({ lines: filled, vatRate: vatOn ? head.vatRate : 0 });
+
+  return (
+    <section className={`${panel} border-brand-500/40`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.newInvoice}</h3>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Field label={tr.project} as="select" value={head.projectId}
+          onChange={(v) => setHead((h) => ({ ...h, projectId: v, milestoneId: "" }))}
+          options={projects.map((p) => ({ value: p.id, label: `${p.number} · ${p.clientName}` }))} />
+        {milestoneOptions.length > 0 && (
+          <Field label={tr.milestone} as="select" value={head.milestoneId}
+            onChange={(v) => setHead((h) => ({ ...h, milestoneId: v }))}
+            options={milestoneOptions} />
+        )}
+        <Field label={tr.client} value={head.clientName} hint={project?.clientName || undefined}
+          onChange={(v) => setHead((h) => ({ ...h, clientName: v }))} />
+        {/* NO VAT FIELD FOR A STUDIO WITH NO RATE — it carries no tax (shared/vat). */}
+        {vatOn && <Field label={tr.vat} type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />}
+        <Field label={tr.dueDate} filled={!!head.dueDate}>
+          <StudioDate value={head.dueDate} onChange={(iso) => setHead((h) => ({ ...h, dueDate: iso }))} />
+        </Field>
+        <WithholdingField rules={rules} value={head.withholdingLabel} onChange={(v) => setHead((h) => ({ ...h, withholdingLabel: v }))} />
+      </div>
+
+      {buyerOpen
+        ? <TaxRegistrationFields value={buyerTax} onChange={setBuyerTax} help={taxTr.invoiceHelp} note={taxTr.projectFallback} />
+        : <button type="button" className={`${btnGhost} mt-4`} onClick={() => setBuyerOpen(true)}>{taxTr.addForInvoice}</button>}
+
+      <LineItemsEditor lines={lines} setLines={setLines} vatOn={vatOn} items={items} />
+
+      <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+        {tr.total} <span className="font-mono font-700 text-slate-900 dark:text-white">{money(total)}</span>
+        <span className="text-xs"> {tr.recalculatedServerWhenSave}</span>
+      </p>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className={btn} disabled={busy || !ready}
+          onClick={() => onSave({ ...head, vatRate: Number(head.vatRate) || 0, lines: filled, ...(buyerOpen ? { buyerTax } : {}) })}>
+          {busy ? tr.saving : tr.saveDraft2}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </section>
+  );
+}
+
+// WHICH OF THE STUDIO'S MONEY ACCOUNTS — drawn only when there is a choice, so
+// a studio with one bank sees the form it always saw. The bank (1010) is the
+// default, as it is for every payment recorded before there was a choice.
+const defaultMoneyAccount = (accounts: MoneyAccount[] = []) => (accounts.find((a) => a.code === "1010") || accounts[0])?.id || "";
+function MoneyAccountField({ accounts = [], value, onChange }: { accounts?: MoneyAccount[]; value: string; onChange: (v: string) => void }) {
+  const tr = financeDict(useStudioLocale());
+  if (accounts.length < 2) return null;
+  return (
+    <Field label={tr.throughAccount} as="select" value={value} onChange={onChange}
+      options={accounts.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))} />
+  );
+}
+
+function PaymentForm({ invoice, methods, accounts = [], busy, onCancel, onSave }: {
+  invoice: InvoiceRow; methods: string[]; accounts?: MoneyAccount[]; busy: boolean;
+  onCancel: () => void; onSave: (p: Record<string, unknown>) => unknown;
+}) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const [form, setForm] = useState({ amount: String(invoice.outstanding), date: "", method: methods[0], reference: "", accountId: defaultMoneyAccount(accounts) });
+
+  return (
+    <section className={`${panel} border-brand-500/40`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Record payment — {invoice.reference}</h3>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(invoice.outstanding, invoice.currency)} outstanding of {money(invoice.total, invoice.currency)}.</p>
+      {invoice.withheld?.applies && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.withheldNote(money(invoice.withheld.amount, invoice.currency), invoice.withheld.label)}</p>}
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Field currency={invoice.currency || true} label={tr.amount} type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
+        <Field label={tr.date} filled={!!form.date}>
+          <StudioDate value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
+        </Field>
+        <Field label={tr.method} as="select" value={form.method} onChange={(v) => setForm((f) => ({ ...f, method: v }))} options={methods} />
+        <Field label={tr.reference} value={form.reference} onChange={(v) => setForm((f) => ({ ...f, reference: v }))} />
+        <MoneyAccountField accounts={accounts} value={form.accountId} onChange={(v) => setForm((f) => ({ ...f, accountId: v }))} />
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className={btn} disabled={busy || !(Number(form.amount) > 0)} onClick={() => onSave({ ...form, amount: Number(form.amount) })}>
+          {busy ? tr.recording : tr.record}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </section>
+  );
+}
+
+// ---- expenses --------------------------------------------------------------
+type FormField = {
+  key: string; label: string; required?: boolean; type?: string; area?: boolean;
+  value: string | number; options?: { value: string; text: string }[];
+};
+function Expenses({ rows, projects, campaigns = [], categories, accounts = [], slug, nav, canManage, busy, send }: {
+  rows: ExpenseRow[]; projects: CashView["projects"]; campaigns?: NonNullable<Pickers["campaigns"]>; categories: string[];
+  accounts?: MoneyAccount[]; slug: string; nav: Nav; canManage: boolean; busy: boolean; send: CashSend;
+}) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<ExpenseRow | null>(null);
+
+  const fields = (row: ExpenseRow | null): FormField[] => [
+    { key: "description", label: tr.description, required: true, value: row?.description || "" },
+    { key: "amount", label: tr.amount, type: "number", required: true, value: row?.amount || "" },
+    { key: "category", label: tr.category, value: row?.category || categories[0], options: categories.map((c) => ({ value: c, text: c })) },
+    { key: "date", label: tr.date, type: "date", value: row?.date || "" },
+    { key: "projectId", label: tr.project, value: row?.projectId || "",
+      options: [{ value: "", text: "— general —" }, ...projects.map((p) => ({ value: p.id, text: p.number }))] },
+    // AND WHICH CAMPAIGN, where the studio runs any (21/09/2026).
+    ...(campaigns.length > 0 ? [{ key: "campaignId", label: tr.campaign, value: row?.campaignId || "",
+      options: [{ value: "", text: tr.noCampaign }, ...campaignOptions({ campaigns }).map((c) => ({ value: c.value, text: c.label }))] }] : []),
+    { key: "notes", label: tr.notes, area: true, value: row?.notes || "" },
+    // THE ACCOUNT IT LEFT FROM, only when there is more than one to choose.
+    ...(accounts.length > 1 ? [{ key: "accountId", label: tr.throughAccount, value: row?.accountId || defaultMoneyAccount(accounts),
+      options: accounts.map((a) => ({ value: a.id, text: `${a.code} ${a.name}` })) }] : []),
+  ];
+
+  return (
+    <>
+      {canManage && !adding && !editing && <button className={btn} onClick={() => setAdding(true)}>{tr.addExpense}</button>}
+      {(adding || editing) && (
+        <SimpleForm title={editing ? tr.editExpense : tr.newExpense} busy={busy} fields={fields(editing)}
+          onCancel={() => { setAdding(false); setEditing(null); }}
+          onSave={async (v) => { if (await send("expenses", editing ? "PUT" : "POST", editing ? { ...v, id: editing.id } : v)) { setAdding(false); setEditing(null); } }} />
+      )}
+
+      {rows.length === 0 ? <Empty title={tr.noExpensesYet} body={tr.expensesWhatWorkCost} /> : (
+        <section className={panel}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-white/10">
+                  {[tr.colDate, tr.colDescription, tr.colCategory, tr.colProject, tr.colPaidBy, tr.colAmount, ""].map((h, i) => (
+                    <th key={h} className={`${th} ${i >= 5 ? "text-end" : ""}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((e) => (
+                  <tr key={e.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
+                    <td className={`${td} text-slate-500 dark:text-slate-400`}>{fmt(e.date)}</td>
+                    <td className={td}>
+                      <span className="font-mono text-xs text-slate-400">{e.reference}</span>
+                      <span className="ms-2 font-600 text-slate-900 dark:text-white">{e.description || "—"}</span>
+                    </td>
+                    <td className={`${td} text-slate-600 dark:text-slate-300`}>{e.category}</td>
+                    <td className={td}>
+                      {e.projectNumber
+                        ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, e.projectId || "")) as string} title={tr.openProject}>{e.projectNumber}</RecordLink>
+                        : <span className="text-slate-400">{tr.general}</span>}
+                    </td>
+                    <td className={`${td} text-slate-600 dark:text-slate-300`}>{e.paidByAlias || "—"}</td>
+                    <td className={`${td} text-end font-600 text-slate-900 dark:text-white`}>{money(e.amount)}</td>
+                    <td className={`${td} text-end`}>
+                      {canManage && (
+                        <span className="flex flex-wrap justify-end gap-2">
+                          <button className={btnGhost} onClick={() => setEditing(e)}>{tr.edit}</button>
+                          <button className={btnDanger} disabled={busy} onClick={() => send("expenses", "DELETE", { id: e.id })}>{tr.delete}</button>
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+// ---- profitability ---------------------------------------------------------
+function Profitability({ rows, slug, nav }: { rows: ProfitRow[]; slug: string; nav: Nav }) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  if (rows.length === 0) return <Empty title={tr.noProjectsMeasureYet} body={tr.onceQuotationBecomesProject} />;
+  return (
+    <section className={panel}>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        {tr.valueFromQuotationCost}
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 dark:border-white/10">
+              {[tr.project, tr.value, tr.sumInvoiced, tr.sumCollected, tr.materials, tr.sumExpenses, tr.margin].map((h, i) => (
+                <th key={h} className={`${th} ${i >= 1 ? "text-end" : ""}`}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((p) => (
+              <tr key={p.id} className="border-b border-slate-100 last:border-0 dark:border-white/5">
+                <td className={td}>
+                  <RecordLink href={linkIf(nav?.projects, linkToProject(slug, p.id)) as string} title={tr.openProject}>{p.number}</RecordLink>
+                  <span className="ms-2 text-slate-600 dark:text-slate-300">{p.clientName}</span>
+                </td>
+                <td className={`${td} text-end text-slate-900 dark:text-white`}>{money(p.value)}</td>
+                <td className={`${td} text-end text-slate-600 dark:text-slate-300`}>
+                  {money(p.invoiced)}
+                  {p.uninvoiced > 0 && <span className="block text-xs text-amber-600 dark:text-amber-400">{money(p.uninvoiced)} unbilled</span>}
+                </td>
+                <td className={`${td} text-end text-slate-600 dark:text-slate-300`}>{money(p.collected)}</td>
+                <td className={`${td} text-end text-slate-600 dark:text-slate-300`}>{money(p.materials)}</td>
+                <td className={`${td} text-end text-slate-600 dark:text-slate-300`}>{money(p.expenses)}</td>
+                <td className={`${td} text-end font-700 ${p.margin < 0 ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  {money(p.margin)}
+                  <span className="block text-xs font-400 text-slate-400">{p.marginPct}%</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+// ---- shared bits -----------------------------------------------------------
+function SimpleForm({ title, fields, busy, onCancel, onSave }: {
+  title: string; fields: FormField[]; busy: boolean; onCancel: () => void; onSave: (v: Record<string, string | number>) => unknown;
+}) {
+  const tr = financeDict(useStudioLocale());
+  const [values, setValues] = useState<Record<string, string | number>>(() => Object.fromEntries(fields.map((f) => [f.key, f.value ?? ""])));
+  const ready = fields.filter((f) => f.required).every((f) => String(values[f.key] ?? "").trim());
+
+  return (
+    <section className={`${panel} border-brand-500/40`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        {fields.map((f) => (
+          <div key={f.key} className={f.area ? "sm:col-span-2" : ""}>
+            {f.options ? (
+              <Field label={f.label} required={f.required} as="select" value={values[f.key]}
+                onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))}
+                options={f.options.filter((o) => o.value !== "").map((o) => ({ value: o.value, label: o.text }))} />
+            ) : f.area ? (
+              <Field label={f.label} required={f.required} as="textarea" value={values[f.key]}
+                onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))} />
+            ) : f.type === "date" ? (
+              <Field label={f.label} required={f.required} filled={!!values[f.key]}>
+                <StudioDate value={values[f.key] as string} onChange={(iso) => setValues((s) => ({ ...s, [f.key]: iso }))} />
+              </Field>
+            ) : (
+              <Field label={f.label} required={f.required} type={f.type || "text"} value={values[f.key]}
+                onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))} />
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className={btn} disabled={busy || !ready} onClick={() => onSave(values)}>{busy ? tr.saving : tr.save}</button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </section>
+  );
+}
+
+function Empty({ title, body }: { title: ReactNode; body?: ReactNode }) {
+  return (
+    <div className={`${panel} text-center`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{title}</h3>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{body}</p>
+    </div>
+  );
+}
+
+// ONE FETCH/SEND SHAPE for the Payables and Assets screens, so the two do not
+// each carry a copy of the load/subscribe/mutate dance the Cash screen already
+// runs. Each screen owns its own route (`bills`/`assets`), reflects the same
+// live "finance" channel, and reports errors through the shared `message()`.
+//
+// `initial` is that route's body when the studio page answered it in its own
+// render; the hook then starts from it and skips the first fetch.
+function useFinanceResource<T>(slug: string, kind: string, initial: T | undefined) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const [data, setData] = useState<T | null>(initial ?? null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/finance/${kind}`, { cache: "no-store" });
+    if (!res.ok) { setError(tr.noAccessThis); return; }
+    setData(await res.json()); setError("");
+  }, [slug, kind, tr]);
+  useReload(load, initial);
+  // Bills and assets can land from elsewhere (a PO answered, a disposal) — reflect
+  // them live, on the same one EventSource the tab already holds (invariant 14).
+  useLiveUpdates(slug, "finance", load);
+
+  const send = useCallback(async (method: string, payload: Record<string, unknown>) => {
+    setError(""); setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/finance/${kind}`, {
+      method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(message(out, tr, money)); return false; }
+    // AFTER THE RELOAD, because `load` clears the error on success and would
+    // wipe the warning the moment it was shown.
+    await load();
+    const warning = postingWarning(out, tr);
+    if (warning) setError(warning);
+    return true;
+  }, [slug, kind, load, money]);
+
+  return { data, error, busy, send, load };
+}
+
+// ============================================================================
+// ACCOUNTS PAYABLE (FINANCE 1b) — bills we owe vendors, the AP mirror of
+// invoices. A bill's totals ARE an invoice's totals and its lines ARE an
+// invoice's lines, so both forms share LineItemsEditor and both aging reports
+// share agingOf — the two sides can never disagree about the arithmetic.
+// ============================================================================
+// A FUNCTION OF THE DICTIONARY — module scope cannot read a hook. The keys are
+// the stored terms; only what they are CALLED changes.
+const termLabel = (tr: FinanceTr): Record<string, string> => ({
+  "on-receipt": tr.termOnReceipt2, "net-0": tr.termNet02, "net-15": tr.termNet152,
+  "net-30": tr.termNet302, "net-60": tr.termNet602,
+});
+
+// WHERE A BILL'S APPROVAL HAS GOT TO — read from the approval itself, which is
+// answered on the Approvals page (19/09/2026). A workflow that waits silently
+// waits forever: without this the only visible difference between "waiting on
+// the second step" and "nobody has asked" was the absence of a button.
+function BillApproval({ slug, bill }: { slug: string; bill: BillRow }) {
+  const tr = financeDict(useStudioLocale());
+  const a = bill.approval;
+  if (!a) return null;
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-3 text-sm dark:border-white/10">
+      <span className={a.rejected ? "text-rose-600 dark:text-rose-300" : "text-slate-600 dark:text-slate-300"}>
+        {a.rejected ? tr.approvalRejected(a.reason) : a.approved ? tr.approvalOf(a.granted, a.required) : `${tr.approvalWaiting} · ${tr.approvalOf(a.granted, a.required)}`}
+      </span>
+      <a href={`/${slug}/approvals`} className="text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.approvalOpen}</a>
+    </div>
+  );
+}
+
+function Payables({ slug, onDenied, initial }: { slug: string; onDenied?: () => void; initial?: BillsView }) {
+  const tr = financeDict(useStudioLocale());
+  const { data, error, busy, send } = useFinanceResource<BillsView>(slug, "bills", initial);
+  // REFUSED THE BILLS (an expenses-only clerk): hand the screen to Expenses.
+  useEffect(() => { if (error && !data) onDenied?.(); }, [error, data, onDenied]);
+
+  if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingAccountsPayable} />;
+
+  const canManage = data.manage?.["finance-payables"] ?? data.canManage;
+  const { bills = [], vocabulary = {} as BillsView["vocabulary"] } = data;
+
+  return (
+    <div className="space-y-6">
+      <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
+      {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+      <PayablesSummary bills={bills} />
+      <div className="flex items-center justify-end">
+        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
+      </div>
+      <Bills slug={slug} rows={bills} vocab={vocabulary} canManage={canManage} busy={busy} send={send}
+        pickers={data.pickers || {}} />
+    </div>
+  );
+}
+
+function PayablesSummary({ bills }: { bills: BillRow[] }) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const live = bills.filter((b) => b.status !== "Cancelled" && b.status !== "Draft");
+  const billed = live.reduce((s, b) => s + (b.total || 0), 0);
+  const outstanding = live.reduce((s, b) => s + (b.outstanding || 0), 0);
+  const overdue = bills.filter((b) => b.overdue).reduce((s, b) => s + (b.outstanding || 0), 0);
+  const awaiting = bills.filter((b) => b.status === "Received").length;
+  const cells: [string, string, string][] = [
+    [tr.apBilled, money(billed), ""],
+    [tr.apOutstanding, money(outstanding), ""],
+    [tr.apOverdue, money(overdue), overdue > 0 ? "text-rose-600 dark:text-rose-400" : ""],
+    [tr.apAwaitingApproval, String(awaiting), awaiting > 0 ? "text-amber-600 dark:text-amber-400" : ""],
+  ];
+  return (
+    <section className={panel}>
+      <div className="flex flex-wrap gap-8">
+        {cells.map(([name, value, tone]) => (
+          <div key={name}>
+            <p className={`font-display text-2xl font-800 tabular-nums ${tone || "text-slate-900 dark:text-white"}`}>{value}</p>
+            <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{name}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Bills({ slug, rows, vocab, canManage, busy, send, pickers = {} }: {
+  slug: string; rows: BillRow[]; vocab: BillsView["vocabulary"]; canManage: boolean; busy: boolean; send: ResourceSend; pickers?: Pickers;
+}) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const [drafting, setDrafting] = useState(false);
+  const [editing, setEditing] = useState<BillRow | null>(null);
+  const [paying, setPaying] = useState<BillRow | null>(null);
+  const [releasing, setReleasing] = useState<BillRow | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const terms = vocab.billTerms || Object.keys(termLabel(tr));
+  const methods = vocab.paymentMethods || [tr.bankTransfer];
+
+  // Keep an open form on the freshly loaded row after a save.
+  useEffect(() => { setEditing((cur) => (cur ? rows.find((r) => r.id === cur.id) || null : null)); }, [rows]);
+  useEffect(() => { setPaying((cur) => (cur ? rows.find((r) => r.id === cur.id) || null : null)); }, [rows]);
+
+  const form = drafting || editing;
+
+  return (
+    <>
+      {canManage && !form && !paying && <button className={btn} onClick={() => setDrafting(true)}>{tr.newBill}</button>}
+
+      {form && (
+        <BillForm bill={editing} terms={terms} rules={vocab.withholdingRules || []} defaultVat={vocab.defaultVatRate ?? 0} vatOn={!!vocab.vatEnabled} busy={busy} pickers={pickers}
+          onCancel={() => { setDrafting(false); setEditing(null); }}
+          onSave={async (v) => {
+            const ok = editing
+              ? await send("PUT", { id: editing.id, ...v })
+              : await send("POST", v);
+            if (ok) { setDrafting(false); setEditing(null); }
+          }} />
+      )}
+
+      {releasing && (
+        <ReleaseHoldForm bill={releasing} busy={busy}
+          onCancel={() => setReleasing(null)}
+          onSave={async (reason) => { if (await send("PUT", { id: releasing.id, release: { reason } })) setReleasing(null); }} />
+      )}
+
+      {paying && (
+        <BillPaymentForm bill={paying} hold={paying.hold} methods={methods} accounts={vocab.moneyAccounts} busy={busy}
+          onCancel={() => setPaying(null)}
+          onSave={async (p) => { if (await send("PUT", { id: paying.id, payment: p })) setPaying(null); }} />
+      )}
+
+      {rows.length === 0 ? <Empty title={tr.noBillsYet} body={tr.billWhatOweVendor} /> : (
+        <section className={panel}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-white/10">
+                  {[tr.colBill, tr.colVendor, tr.colDue, tr.total, tr.colOutstanding, tr.colStatus, ""].map((h, i) => (
+                    <th key={h} className={`${th} ${i >= 3 && i <= 4 ? "text-end" : i === 6 ? "text-end" : ""}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((b) => {
+                  const noHistory = (b.payments || []).length === 0;
+                  const editable = ["Draft", "Received", "Disputed"].includes(b.status) && noHistory;
+                  // THE SERVER SAYS WHETHER THIS PERSON MAY ASK, not the status:
+                  // a received bill nobody has asked about, or one whose last
+                  // request was turned down. Answering is the Approvals page's.
+                  const askable = !!b.canRequestApproval;
+                  // ONLY AN APPROVED BILL IS PAID — the server refuses anything
+                  // else (`recordBillPayment`), so the button is not offered on a
+                  // bill still waiting for its signature.
+                  const payable = b.status === "Approved" && b.outstanding > 0;
+                  return (
+                    <Fragment key={b.id}>
+                      <tr className="border-b border-slate-100 last:border-0 dark:border-white/5">
+                        <td className={td}>
+                          <button type="button" className="font-mono text-xs text-brand-700 hover:underline dark:text-brand-300"
+                            onClick={() => setOpen(open === b.id ? null : b.id)}>
+                            {b.reference}
+                          </button>
+                        </td>
+                        <td className={`${td} text-slate-900 dark:text-white`}>{b.vendorName}</td>
+                        <td className={`${td} ${b.overdue ? "font-600 text-rose-600 dark:text-rose-400" : "text-slate-600 dark:text-slate-300"}`}>
+                          {b.dueDate ? fmt(b.dueDate) : "—"}{b.overdue && " · overdue"}
+                        </td>
+                        <td className={`${td} text-end font-600 tabular-nums text-slate-900 dark:text-white`}>{money(b.total, b.currency)}</td>
+                        <td className={`${td} text-end tabular-nums text-slate-600 dark:text-slate-300`}>{money(b.outstanding, b.currency)}</td>
+                        <td className={td}>
+                          <StatusPill kind="bill" status={b.status} />
+                          <HoldPill hold={b.hold} tr={tr} />
+                          {/* THE STATE THE STATUS CANNOT CARRY: a received bill
+                              waiting on its approval, and how far it has got. */}
+                          {b.approval?.status === "Pending" && (
+                            <span className="ms-2 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-600 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                              {tr.approvalOf(b.approval.granted, b.approval.required)}
+                            </span>
+                          )}
+                        </td>
+                        <td className={`${td} text-end`}>
+                          {canManage && (
+                            <span className="flex flex-wrap justify-end gap-2">
+                              {b.status === "Draft" && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Received" })}>{tr.markReceived}</button>}
+                              {askable && (
+                                <button className={btn} disabled={busy} onClick={() => send("PUT", { id: b.id, requestApproval: true })}>
+                                  {tr.approvalRequest}
+                                </button>
+                              )}
+                              {/* A HELD BILL OFFERS RELEASE, NOT PAYMENT: the pay door would refuse it,
+                                  and a button that always fails reads as a broken screen. */}
+                              {payable && !b.hold?.held && <button className={btn} onClick={() => setPaying(b)}>{tr.recordPayment}</button>}
+                              {/* A HELD BILL'S RELEASE IS ASKED FOR HERE and given on the
+                                  Approvals page (19/09/2026); the server says when asking applies. */}
+                              {payable && b.canRequestRelease && <button className={btnGhost} disabled={busy} onClick={() => setReleasing(b)}>{tr.holdRelease}</button>}
+                              {b.releaseApproval?.status === "Pending" && (
+                                <a href={`/${slug}/approvals`} className="self-center text-xs font-600 text-brand-700 hover:underline dark:text-brand-300">{tr.holdReleasePending}</a>
+                              )}
+                              {editable && <button className={btnGhost} onClick={() => setEditing(b)}>{tr.edit}</button>}
+                              {b.status === "Received" && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Disputed" })}>{tr.dispute}</button>}
+                              {["Received", "Disputed"].includes(b.status) && noHistory && <button className={btnGhost} disabled={busy} onClick={() => send("PUT", { id: b.id, status: "Cancelled" })}>{tr.cancel}</button>}
+                              {editable && <button className={btnDanger} disabled={busy} onClick={() => send("DELETE", { id: b.id })}>{tr.delete}</button>}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                      {open === b.id && (
+                        <tr className="border-b border-slate-100 dark:border-white/5">
+                          <td colSpan={7} className="py-4">
+                            <div className="rounded-xl bg-slate-50 p-4 dark:bg-white/5">
+                              <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+                                {(b.lines || []).map((l, i) => (
+                                  <li key={i} className="flex justify-between gap-4">
+                                    <span>{l.description} × {l.qty}<TaxTag category={l.taxCategory} /></span>
+                                    <span className="num">{money(l.qty * l.unitPrice, b.currency)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              <DocumentTotals doc={b} />
+                              <p className="mt-3 text-xs text-slate-400">
+                                {tr.billedOn} {b.billDate ? fmt(b.billDate) : "—"} · {tr.termsLabel} {termLabel(tr)[String(b.terms)] || b.terms || "—"}
+                              </p>
+                              {b.notes && <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{b.notes}</p>}
+                              <BillApproval slug={slug} bill={b} />
+                              {(b.payments || []).length > 0 && (
+                                <div className="mt-3 border-t border-slate-200 pt-3 dark:border-white/10">
+                                  <p className="text-xs font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.payments}</p>
+                                  <ul className="mt-1 space-y-0.5 text-sm text-slate-600 dark:text-slate-300">
+                                    {(b.payments || []).map((p, i) => (
+                                      <li key={p.id || i} className="flex justify-between gap-4">
+                                        <span>{fmt(p.date)} · {p.method}{p.note ? ` · ${p.note}` : ""}</span>
+                                        <span className="num">{money(p.amount, b.currency)}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+function BillForm({ bill, terms, rules = [], defaultVat, vatOn, busy, pickers = {}, onCancel, onSave }: {
+  bill: BillRow | null; terms: readonly string[]; rules?: WithholdingRule[]; defaultVat: number; vatOn: boolean; busy: boolean;
+  pickers?: Pickers; onCancel: () => void; onSave: (v: Record<string, unknown>) => unknown;
+}) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const editing = !!bill;
+  const [head, setHead] = useState({
+    // WHO IS OWED, WHAT ORDER THIS ANSWERS, AND WHAT IT IS SPENT ON. The form
+    // took a typed name and nothing else, so a bill entered here reached no
+    // project's cost and gave the payment hold no supplier or order to check.
+    vendorId: bill?.vendorId || "",
+    orderId: bill?.orderId || "",
+    projectId: bill?.projectId || "",
+    costCodeId: bill?.costCodeId || "",
+    campaignId: bill?.campaignId || "",
+    vendorName: bill?.vendorName || "",
+    vatRate: String(bill?.vatRate ?? defaultVat ?? 0),
+    terms: bill?.terms || terms[0] || "on-receipt",
+    billDate: bill?.billDate || "",
+    dueDate: bill?.dueDate || "",
+    notes: bill?.notes || "",
+    withholdingLabel: bill?.withholdingLabel || "",
+  });
+  const [lines, setLines] = useState<DraftLine[]>(
+    bill?.lines?.length
+      ? bill.lines.map((l) => ({ description: l.description || "", qty: String(l.qty ?? "1"), unitPrice: String(l.unitPrice ?? ""), taxCategory: l.taxCategory || "standard" }))
+      : [{ ...EMPTY_LINE }],
+  );
+
+  const filled = filledLines(lines);
+  const ready = head.vendorName.trim() && filled.length > 0;
+  const { total } = documentTotals({ lines: filled, vatRate: vatOn ? head.vatRate : 0 });
+  const body = (status?: string) => ({
+    ...head, vatRate: Number(head.vatRate) || 0, lines: filled, ...(status ? { status } : {}),
+  });
+
+  return (
+    <section className={`${panel} border-brand-500/40`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{editing ? `Edit bill — ${bill.reference}` : tr.newBill}</h3>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* PICKING FROM THE REGISTER FILLS THE NAME, which stays editable — a
+            supplier nobody has registered can still be billed by name. */}
+        <Field label={tr.supplierFromRegister} as="select" value={head.vendorId}
+          onChange={(v) => {
+            const s = (pickers.suppliers || []).find((x) => x.id === v);
+            setHead((h) => ({ ...h, vendorId: v, vendorName: s ? s.name : h.vendorName, orderId: "" }));
+          }}
+          options={supplierOptions(pickers)} />
+        <Field label={tr.vendor} required value={head.vendorName} onChange={(v) => setHead((h) => ({ ...h, vendorName: v }))} />
+        <WithholdingField rules={rules} value={head.withholdingLabel} onChange={(v) => setHead((h) => ({ ...h, withholdingLabel: v }))} />
+        {/* THE ORDER THIS BILL ANSWERS — the third leg of the match. Choosing
+            one carries its project and cost code across where none is set,
+            the inheritance the cost report already applies. */}
+        <Field label={tr.purchaseOrder} as="select" value={head.orderId}
+          onChange={(v) => {
+            const o = (pickers.orders || []).find((x) => x.id === v);
+            setHead((h) => ({
+              ...h, orderId: v,
+              projectId: h.projectId || o?.projectId || "",
+              costCodeId: h.costCodeId || (h.projectId && h.projectId !== o?.projectId ? "" : o?.costCodeId || ""),
+            }));
+          }}
+          options={(pickers.orders || [])
+            .filter((o) => !head.vendorId || o.vendorId === head.vendorId)
+            .map((o) => ({ value: o.id, label: o.reference }))} />
+        <Field label={tr.project} as="select" value={head.projectId}
+          onChange={(v) => setHead((h) => ({ ...h, projectId: v, costCodeId: "" }))}
+          options={projectOptions(pickers)} />
+        <Field label={tr.costCode} as="select" value={head.costCodeId}
+          onChange={(v) => setHead((h) => ({ ...h, costCodeId: v }))}
+          options={costCodeOptions(pickers, head.projectId)} />
+        {/* WHICH CAMPAIGN IT BELONGS TO — the one field Budget & Spend reads
+            (modules/marketing/budget). Offered only where the studio runs
+            Marketing, because a picker with nothing in it teaches nothing. */}
+        {(pickers.campaigns || []).length > 0 && (
+          <Field label={tr.campaign} as="select" value={head.campaignId}
+            onChange={(v) => setHead((h) => ({ ...h, campaignId: v }))}
+            options={[{ value: "", label: tr.noCampaign }, ...campaignOptions(pickers)]} />
+        )}
+        <Field label={tr.terms} as="select" value={head.terms} onChange={(v) => setHead((h) => ({ ...h, terms: v }))}
+          options={terms.map((term) => ({ value: term, label: termLabel(tr)[term] || term }))} />
+        {/* NO VAT FIELD FOR A STUDIO WITH NO RATE — it carries no tax (shared/vat). */}
+        {vatOn && <Field label={tr.vat} type="number" value={head.vatRate} onChange={(v) => setHead((h) => ({ ...h, vatRate: v }))} />}
+        <Field label={tr.billDate} filled={!!head.billDate}>
+          <StudioDate value={head.billDate} onChange={(iso) => setHead((h) => ({ ...h, billDate: iso }))} />
+        </Field>
+        <Field label={tr.dueDate} filled={!!head.dueDate}>
+          <StudioDate value={head.dueDate} onChange={(iso) => setHead((h) => ({ ...h, dueDate: iso }))} />
+        </Field>
+        <div className="sm:col-span-2 lg:col-span-3">
+          <Field label={tr.notes} as="textarea" value={head.notes} onChange={(v) => setHead((h) => ({ ...h, notes: v }))} />
+        </div>
+      </div>
+
+      <LineItemsEditor lines={lines} setLines={setLines} vatOn={vatOn} />
+
+      <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+        {tr.total} <span className="num font-700 text-slate-900 dark:text-white">{money(total)}</span>
+        <span className="text-xs"> {tr.recalculatedServerWhenSave}</span>
+      </p>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className={btn} disabled={busy || !ready} onClick={() => onSave(body(editing ? undefined : tr.received))}>
+          {busy ? tr.saving : editing ? tr.save : tr.recordBill}
+        </button>
+        {!editing && (
+          <button className={btnGhost} disabled={busy || !ready} onClick={() => onSave(body("Draft"))}>{tr.saveDraft}</button>
+        )}
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </section>
+  );
+}
+
+// THE PAYMENT HOLD ON A BILL ROW. Drawn only when it says something: nothing for
+// a studio with the hold off, nothing for a bill with no reason against it. The
+// reasons are the server's tokens, worded here — the rule statuses follow.
+function HoldPill({ hold, tr }: { hold: BillRow["hold"]; tr: FinanceTr }) {
+  if (!hold || hold.mode === "off" || !hold.reasons?.length) return null;
+  const why = hold.reasons.map((r) => tr.holdReasons[r] || r).join(" · ");
+  const [label, tone] = hold.released
+    ? [tr.holdReleased, "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300"]
+    : hold.held
+      ? [tr.holdHeld, "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"]
+      : [tr.holdWarn, "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"];
+  return (
+    <span title={why} className={`ms-2 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-600 ${tone}`}>
+      {label}: {why}
+    </span>
+  );
+}
+
+// ASKING FOR A HELD PAYMENT TO BE RELEASED — a reason and nothing else. The
+// server refuses an empty one; the release is given on the Approvals page, and
+// whoever gives it may not then record the payment.
+function ReleaseHoldForm({ bill, busy, onCancel, onSave }: { bill: BillRow; busy: boolean; onCancel: () => void; onSave: (reason: string) => unknown }) {
+  const tr = financeDict(useStudioLocale());
+  const [reason, setReason] = useState("");
+  const why = (bill.hold?.reasons || []).map((r) => tr.holdReasons[r] || r).join(" · ");
+  return (
+    <section className={`${panel} border-rose-500/40`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.holdRelease} — {bill.reference}</h3>
+      <p className="mt-1 text-sm text-rose-600 dark:text-rose-300">{why}</p>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.holdReleaseLead}</p>
+      <div className="mt-4">
+        <Field label={tr.holdReleaseReason} value={reason} onChange={setReason} />
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className={btn} disabled={busy || !reason.trim()} onClick={() => onSave(reason.trim())}>
+          {busy ? tr.holdReleasing : tr.holdRelease}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </section>
+  );
+}
+
+function BillPaymentForm({ bill, hold, methods, accounts = [], busy, onCancel, onSave }: {
+  bill: BillRow; hold: BillRow["hold"]; methods: string[]; accounts?: MoneyAccount[]; busy: boolean;
+  onCancel: () => void; onSave: (p: Record<string, unknown>) => unknown;
+}) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const [form, setForm] = useState({ amount: String(bill.outstanding), date: "", method: methods[0], note: "", accountId: defaultMoneyAccount(accounts) });
+  return (
+    <section className={`${panel} border-brand-500/40`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">Record payment — {bill.reference}</h3>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{money(bill.outstanding, bill.currency)} outstanding of {money(bill.total, bill.currency)} to {bill.vendorName}.</p>
+      {bill.withheld?.applies && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.withheldNote(money(bill.withheld.amount, bill.currency), bill.withheld.label)}</p>}
+      {/* WARN MODE SAYS SO HERE, where the money is about to move: the row's pill
+          is easy to scroll past, and this is the last place the reason can land. */}
+      {hold && !hold.held && !hold.released && hold.reasons?.length > 0 && (
+        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+          {tr.holdPayWarning} {hold.reasons.map((r) => tr.holdReasons[r] || r).join(" · ")}
+        </p>
+      )}
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Field currency={bill.currency || true} label={tr.amount} type="number" value={form.amount} onChange={(v) => setForm((f) => ({ ...f, amount: v }))} />
+        <Field label={tr.date} filled={!!form.date}>
+          <StudioDate value={form.date} onChange={(iso) => setForm((f) => ({ ...f, date: iso }))} />
+        </Field>
+        <Field label={tr.method} as="select" value={form.method} onChange={(v) => setForm((f) => ({ ...f, method: v }))} options={methods} />
+        <Field label={tr.note} value={form.note} onChange={(v) => setForm((f) => ({ ...f, note: v }))} />
+        <MoneyAccountField accounts={accounts} value={form.accountId} onChange={(v) => setForm((f) => ({ ...f, accountId: v }))} />
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className={btn} disabled={busy || !(Number(form.amount) > 0)} onClick={() => onSave({ ...form, amount: Number(form.amount) })}>
+          {busy ? tr.recording : tr.record}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
+// FIXED ASSETS (FINANCE 1b) — the PPE register. Depreciation is DERIVED on the
+// server (never stored), so every number a row shows — book value, accumulated,
+// monthly charge — arrives ready; the screen only lays it out.
+// ============================================================================
+// The STORED value is the hyphenated key; the words beside it are display.
+const assetMethodLabel = (tr: FinanceTr): Record<string, string> => ({ "straight-line": tr.straightLine, "reducing-balance": tr.reducingBalance });
+
+// FIXED ASSETS: the register and its depreciation, and — IFRS 16, step 6 —
+// the leases on the balance sheet, each tab its own read.
+function Assets({ slug, initial }: { slug: string; initial?: AssetsView }) {
+  const locale = useStudioLocale();
+  const [tab, setTab] = useState("register");
+  const [seed, spend] = useSeed(initial);
+  const pick = (k: string) => { spend(); setTab(k); };
+  const lt = leasesDict(locale);
+  return (
+    <div className="space-y-6">
+      <TabBar tabs={[["register", lt.tabRegister], ["leases", lt.tab]]} tab={tab} setTab={pick} />
+      {tab === "register" ? <AssetRegisterScreen slug={slug} initial={seed} /> : <LeasesPanel slug={slug} locale={locale} />}
+    </div>
+  );
+}
+
+function AssetRegisterScreen({ slug, initial }: { slug: string; initial?: AssetsView }) {
+  const tr = financeDict(useStudioLocale());
+  const { data, error, busy, send, load } = useFinanceResource<AssetsView>(slug, "assets", initial);
+
+  if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loadingFixedAssets} />;
+
+  const canManage = data.manage?.["finance-assets"] ?? data.canManage;
+  const { assets = [], vocabulary = {} as AssetsView["vocabulary"], nav } = data;
+
+  return (
+    <div className="space-y-6">
+      {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+      <FinanceSetupNotice items={data.setup} slug={slug} canFix={data.canFixSetup} />
+      <AssetsSummary assets={assets} />
+      <div className="flex items-center justify-end">
+        {!canManage && <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-600 text-slate-500 dark:bg-white/5 dark:text-slate-400">{tr.viewOnly}</span>}
+      </div>
+      <AssetRegister rows={assets} vocab={vocabulary} slug={slug} nav={nav} canManage={canManage} busy={busy} send={send} />
+      {assets.length > 0 && <DepreciationRun slug={slug} canManage={canManage} onPosted={load} />}
+    </div>
+  );
+}
+
+// THE MONTH'S DEPRECIATION, PREVIEWED BEFORE IT IS POSTED. The register has
+// always computed the write-down; this is what puts it in the book. It writes
+// one entry per asset, so the list is shown first and posting is its own act.
+// Last month by default — the one a studio is closing.
+function DepreciationRun({ slug, canManage, onPosted }: { slug: string; canManage: boolean; onPosted?: () => unknown }) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const [period, setPeriod] = useState(() => {
+    const d = new Date();
+    d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1);
+    return d.toISOString().slice(0, 7);
+  });
+  const [run, setRun] = useState<DepreciationRunView | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const ask = async (post: boolean) => {
+    setBusy(true); setError("");
+    const res = await fetch(`/api/studios/${slug}/finance/assets`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ depreciation: { period, post } }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(message(out, tr, money)); return; }
+    setRun(out.run);
+    if (post) await onPosted?.();
+  };
+
+  const due = (run?.rows || []).filter((r) => r.state === "due");
+  return (
+    <section className={panel}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.depRunTitle}</h3>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.depRunLead}</p>
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <Field label={tr.depMonth} type="month" className="w-44" value={period} onChange={(v) => { setPeriod(v); setRun(null); }} />
+        <button className={btnGhost} disabled={busy || !period} onClick={() => ask(false)}>{tr.depPreview}</button>
+        {canManage && run && due.length > 0 && (
+          <button className={btn} disabled={busy} onClick={() => ask(true)}>{busy ? tr.saving : tr.depPost}</button>
+        )}
+      </div>
+      {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
+      {run && (run.rows.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{tr.depNothing}</p>
+      ) : (
+        <ul className="mt-3 divide-y divide-slate-100 text-sm dark:divide-white/5">
+          {run.rows.map((r) => (
+            <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span>
+                <span className="font-mono text-xs text-brand-700 dark:text-brand-300">{r.reference}</span>
+                <span className="ms-2 text-slate-900 dark:text-white">{r.name}</span>
+              </span>
+              <span className="flex items-center gap-3">
+                <span className={`text-xs ${r.state === "off-books" || r.state === "refused" ? "text-amber-700 dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}>
+                  {tr.depState(r.state)}{r.state === "refused" && (r.posting as { reason?: string } | undefined)?.reason ? ` — ${(r.posting as { reason?: string }).reason}` : ""}
+                </span>
+                <span className="num w-28 text-end text-slate-900 dark:text-white">{r.state === "off-books" ? "—" : money(r.due)}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ))}
+    </section>
+  );
+}
+
+function AssetsSummary({ assets }: { assets: AssetRow[] }) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const reg = assetRegister(assets);
+  const cells: [string, string, string][] = [
+    [tr.cost, money(reg.totalCost), ""],
+    [tr.depreciation, money(reg.totalAccumulated), ""],
+    [tr.netBookValue, money(reg.netBookValue), "text-emerald-600 dark:text-emerald-400"],
+    [tr.inService, String(reg.count), ""],
+    [tr.disposed, String(reg.disposedCount), reg.disposedCount > 0 ? "text-slate-400" : ""],
+  ];
+  return (
+    <section className={panel}>
+      <div className="flex flex-wrap gap-8">
+        {cells.map(([name, value, tone]) => (
+          <div key={name}>
+            <p className={`font-display text-2xl font-800 tabular-nums ${tone || "text-slate-900 dark:text-white"}`}>{value}</p>
+            <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{name}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AssetRegister({ rows, vocab, canManage, busy, send }: {
+  rows: AssetRow[]; vocab: AssetsView["vocabulary"]; slug?: string; nav?: Nav; canManage: boolean; busy: boolean; send: ResourceSend;
+}) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<AssetRow | null>(null);
+  const [disposing, setDisposing] = useState<AssetRow | null>(null);
+  const [booking, setBooking] = useState<AssetRow | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const methods = vocab.assetMethods || Object.keys(assetMethodLabel(tr));
+
+  useEffect(() => { setEditing((cur) => (cur ? rows.find((r) => r.id === cur.id) || null : null)); }, [rows]);
+  useEffect(() => { setDisposing((cur) => (cur ? rows.find((r) => r.id === cur.id) || null : null)); }, [rows]);
+
+  const form = adding || editing;
+
+  return (
+    <>
+      {canManage && !form && !disposing && <button className={btn} onClick={() => setAdding(true)}>{tr.newAsset}</button>}
+
+      {form && (
+        <AssetForm asset={editing} methods={methods} vocab={vocab} busy={busy}
+          onCancel={() => { setAdding(false); setEditing(null); }}
+          onSave={async (v) => {
+            const ok = editing ? await send("PUT", { id: editing.id, ...v }) : await send("POST", v);
+            if (ok) { setAdding(false); setEditing(null); }
+          }} />
+      )}
+
+      {booking && (
+        <BookAssetForm asset={booking} vocab={vocab} busy={busy}
+          onCancel={() => setBooking(null)}
+          onSave={async (v) => { if (await send("PUT", { id: booking.id, ...v })) setBooking(null); }} />
+      )}
+
+      {disposing && (
+        <DisposeForm asset={disposing} busy={busy}
+          onCancel={() => setDisposing(null)}
+          onSave={async (v) => { if (await send("PUT", { id: disposing.id, dispose: v })) setDisposing(null); }} />
+      )}
+
+      {rows.length === 0 ? <Empty title={tr.noAssetsYet} body={tr.fixedAssetSomethingBought} /> : (
+        <section className={panel}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[880px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-white/10">
+                  {[tr.colAsset, tr.colCategory, tr.cost, tr.colBookValue, tr.colMonthly, tr.colStatus, ""].map((h, i) => (
+                    <th key={h} className={`${th} ${i >= 2 && i <= 4 ? "text-end" : i === 6 ? "text-end" : ""}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((a) => (
+                  <Fragment key={a.id}>
+                    <tr className="border-b border-slate-100 last:border-0 dark:border-white/5">
+                      <td className={td}>
+                        <button type="button" className="text-start" onClick={() => setOpen(open === a.id ? null : a.id)}>
+                          <span className="font-mono text-xs text-brand-700 hover:underline dark:text-brand-300">{a.reference}</span>
+                          <span className="ms-2 font-600 text-slate-900 dark:text-white">{a.name}</span>
+                        </button>
+                      </td>
+                      <td className={`${td} text-slate-600 dark:text-slate-300`}>{a.category || "—"}</td>
+                      <td className={`${td} text-end tabular-nums text-slate-900 dark:text-white`}>{money(a.cost)}</td>
+                      <td className={`${td} text-end tabular-nums text-slate-600 dark:text-slate-300`}>{money(a.bookValue)}</td>
+                      <td className={`${td} text-end tabular-nums text-slate-500 dark:text-slate-400`}>{a.disposed ? "—" : money(a.monthlyDepreciation)}</td>
+                      <td className={td}>
+                        <StatusPill kind="asset" status={a.disposed ? "disposed" : "service"}
+                          label={a.disposed ? tr.disposed2 : a.fullyDepreciated ? tr.fullyDepreciated : tr.service} />
+                        {/* NOT ON THE BOOKS IS SAID, not implied: the register's
+                            cost and book value are the schedule's, and the ledger
+                            holds none of it until somebody says how it was paid. */}
+                        {!a.onBooks && !a.disposed && (
+                          <span className="mt-1 block w-fit whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-600 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">{tr.offBooks}</span>
+                        )}
+                      </td>
+                      <td className={`${td} text-end`}>
+                        {canManage && (
+                          <span className="flex flex-wrap justify-end gap-2">
+                            {!a.disposed && !a.onBooks && <button className={btnGhost} onClick={() => setBooking(a)}>{tr.putOnBooks}</button>}
+                            {!a.disposed && <button className={btnGhost} onClick={() => setEditing(a)}>{tr.edit}</button>}
+                            {!a.disposed && <button className={btnGhost} onClick={() => setDisposing(a)}>{tr.dispose}</button>}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                    {open === a.id && (
+                      <tr className="border-b border-slate-100 dark:border-white/5">
+                        <td colSpan={7} className="py-4">
+                          <div className="grid gap-3 rounded-xl bg-slate-50 p-4 text-sm dark:bg-white/5 sm:grid-cols-3 lg:grid-cols-4">
+                            <Detail label={tr.acquired} value={a.acquiredOn ? fmt(a.acquiredOn) : "—"} />
+                            <Detail label={tr.method} value={assetMethodLabel(tr)[a.method] || a.method || "—"} />
+                            <Detail label={tr.usefulLife} value={`${a.usefulLifeMonths} months`} />
+                            <Detail label={tr.monthsElapsed} value={String(a.monthsElapsed)} />
+                            <Detail label={tr.salvageValue} value={money(a.salvageValue || 0)} num />
+                            <Detail label={tr.accumulated} value={money(a.accumulated)} num />
+                            <Detail label={tr.bookValue} value={money(a.bookValue)} num />
+                            <Detail label={tr.monthlyCharge} value={a.disposed ? "—" : money(a.monthlyDepreciation)} num />
+                            {a.disposed && <Detail label={tr.disposed} value={a.disposedOn ? fmt(a.disposedOn) : "—"} />}
+                            {a.disposed && <Detail label={tr.proceeds} value={money(a.disposalProceeds || 0)} num />}
+                            {a.disposed && a.gainOnDisposal != null && (
+                              <Detail label={a.gainOnDisposal >= 0 ? tr.gainDisposal : tr.lossDisposal}
+                                value={money(Math.abs(a.gainOnDisposal))} num
+                                tone={a.gainOnDisposal >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"} />
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+function Detail({ label: name, value, num, tone }: { label: string; value: string; num?: boolean; tone?: string }) {
+  return (
+    <div>
+      <p className="text-xs font-600 uppercase tracking-wide text-slate-400 dark:text-slate-500">{name}</p>
+      <p className={`font-600 ${num ? "tabular-nums" : ""} ${tone || "text-slate-900 dark:text-white"}`}>{value}</p>
+    </div>
+  );
+}
+
+// HOW AN ASSET WAS PAID FOR — asked, never defaulted. The empty choice keeps
+// it off the books, which is the honest state for "nobody has said yet".
+function FundingFields({ value, billId, vocab, onChange }: {
+  value: string; billId: string; vocab: Partial<AssetsView["vocabulary"]>; onChange: (fundedBy: string, billId: string) => void;
+}) {
+  const tr = financeDict(useStudioLocale());
+  const sources = vocab.fundingSources || ["bank", "payable", "bill", "opening"];
+  const bills = vocab.bills || [];
+  return (
+    <>
+      <Field label={tr.paidFrom} as="select" value={value} hint={tr.paidFromHint}
+        onChange={(v) => onChange(v, v === "bill" ? billId : "")}
+        options={[{ value: "", label: tr.fundLabel("") }, ...sources
+          .filter((f) => f !== "bill" || bills.length > 0)
+          .map((f) => ({ value: f, label: tr.fundLabel(f) }))]} />
+      {value === "bill" && (
+        <Field label={tr.whichBill} as="select" required value={billId} onChange={(v) => onChange("bill", v)}
+          options={[{ value: "", label: "—" }, ...bills.map((b) => ({ value: b.id, label: `${b.reference} — ${b.vendorName}` }))]} />
+      )}
+    </>
+  );
+}
+
+function BookAssetForm({ asset, vocab, busy, onCancel, onSave }: {
+  asset: AssetRow; vocab: AssetsView["vocabulary"]; busy: boolean; onCancel: () => void; onSave: (v: Record<string, unknown>) => unknown;
+}) {
+  const tr = financeDict(useStudioLocale());
+  const [fundedBy, setFundedBy] = useState("");
+  const [billId, setBillId] = useState("");
+  const ready = fundedBy && (fundedBy !== "bill" || billId);
+  return (
+    <section className={`${panel} border-brand-500/40`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.putOnBooks} — {asset.reference}</h3>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{tr.putOnBooksLead}</p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <FundingFields value={fundedBy} billId={billId} vocab={vocab} onChange={(f, b) => { setFundedBy(f); setBillId(b); }} />
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className={btn} disabled={busy || !ready}
+          onClick={() => onSave({ fundedBy, ...(fundedBy === "bill" ? { fundedByBillId: billId } : {}) })}>
+          {busy ? tr.saving : tr.putOnBooks}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </section>
+  );
+}
+
+function AssetForm({ asset, methods, vocab = {}, busy, onCancel, onSave }: {
+  asset: AssetRow | null; methods: readonly string[]; vocab?: Partial<AssetsView["vocabulary"]>; busy: boolean;
+  onCancel: () => void; onSave: (v: Record<string, unknown>) => unknown;
+}) {
+  const tr = financeDict(useStudioLocale());
+  const editing = !!asset;
+  const [f, setF] = useState({
+    name: asset?.name || "",
+    category: asset?.category || "",
+    cost: asset?.cost != null ? String(asset.cost) : "",
+    salvageValue: asset?.salvageValue != null ? String(asset.salvageValue) : "",
+    usefulLifeMonths: asset?.usefulLifeMonths != null ? String(asset.usefulLifeMonths) : "",
+    method: asset?.method || methods[0] || "straight-line",
+    acquiredOn: asset?.acquiredOn || "",
+    fundedBy: asset?.fundedBy || "",
+    fundedByBillId: asset?.fundedByBillId || "",
+  });
+  const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
+  const ready = f.name.trim() && Number(f.cost) > 0 && Number(f.usefulLifeMonths) > 0
+    && (f.fundedBy !== "bill" || f.fundedByBillId);
+  // SENT ONLY WHEN IT CHANGED: the server re-posts the acquisition whenever it
+  // is given one, and an unchanged source is not a correction.
+  const fundingChanged = f.fundedBy && (f.fundedBy !== (asset?.fundedBy || "") || f.fundedByBillId !== (asset?.fundedByBillId || ""));
+
+  return (
+    <section className={`${panel} border-brand-500/40`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{editing ? `Edit asset — ${asset.reference}` : tr.newAsset}</h3>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label={tr.name} required value={f.name} onChange={(v) => set("name", v)} />
+        <Field label={tr.category} value={f.category} onChange={(v) => set("category", v)} />
+        <Field label={tr.method} as="select" value={f.method} onChange={(v) => set("method", v)}
+          options={methods.map((m) => ({ value: m, label: assetMethodLabel(tr)[m] || m }))} />
+        <Field currency label={tr.cost} required type="number" value={f.cost} onChange={(v) => set("cost", v)} />
+        <Field currency label={tr.salvageValue} type="number" value={f.salvageValue} hint={tr.whatWorthEndLife} onChange={(v) => set("salvageValue", v)} />
+        <Field label={tr.usefulLifeMonths} required type="number" value={f.usefulLifeMonths} onChange={(v) => set("usefulLifeMonths", v)} />
+        <Field label={tr.acquired2} filled={!!f.acquiredOn}>
+          <StudioDate value={f.acquiredOn} onChange={(iso) => set("acquiredOn", iso)} />
+        </Field>
+        <FundingFields value={f.fundedBy} billId={f.fundedByBillId} vocab={vocab}
+          onChange={(fundedBy, fundedByBillId) => setF((p) => ({ ...p, fundedBy, fundedByBillId }))} />
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className={btn} disabled={busy || !ready}
+          onClick={() => onSave({
+            name: f.name, category: f.category, method: f.method, acquiredOn: f.acquiredOn,
+            cost: Number(f.cost) || 0,
+            salvageValue: Number(f.salvageValue) || 0,
+            usefulLifeMonths: Math.max(0, Math.floor(Number(f.usefulLifeMonths) || 0)),
+            ...(fundingChanged ? { fundedBy: f.fundedBy, ...(f.fundedBy === "bill" ? { fundedByBillId: f.fundedByBillId } : {}) } : {}),
+          })}>
+          {busy ? tr.saving : tr.save}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </section>
+  );
+}
+
+function DisposeForm({ asset, busy, onCancel, onSave }: {
+  asset: AssetRow; busy: boolean; onCancel: () => void; onSave: (v: { disposedOn: string; disposalProceeds: number }) => unknown;
+}) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const [f, setF] = useState({ disposedOn: "", disposalProceeds: "" });
+  const proceeds = Number(f.disposalProceeds) || 0;
+  // A live ESTIMATE against today's book value; the server recomputes the book
+  // value at the disposal date and returns the exact gain/loss on the row.
+  const estimate = proceeds - (asset.bookValue || 0);
+
+  return (
+    <section className={`${panel} border-brand-500/40`}>
+      <h3 className="font-display text-lg font-800 text-slate-900 dark:text-white">{tr.dispose} — {asset.reference}</h3>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        {tr.currentBookValue} <span className="num font-600 text-slate-900 dark:text-white">{money(asset.bookValue)}</span>{tr.disposalStopsDepreciation}
+      </p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label={tr.disposalDate} filled={!!f.disposedOn}>
+          <StudioDate value={f.disposedOn} onChange={(iso) => setF((p) => ({ ...p, disposedOn: iso }))} />
+        </Field>
+        <Field currency label={tr.proceeds} type="number" value={f.disposalProceeds} onChange={(v) => setF((p) => ({ ...p, disposalProceeds: v }))} />
+      </div>
+      <p className={`mt-4 text-sm font-600 ${estimate >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+        Estimated {estimate >= 0 ? "gain" : "loss"} <span className="num">{money(Math.abs(estimate))}</span>
+        <span className="text-xs font-400 text-slate-400"> {tr.exactFigureComputedDisposal}</span>
+      </p>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button className={btn} disabled={busy || !f.disposedOn}
+          onClick={() => onSave({ disposedOn: f.disposedOn, disposalProceeds: proceeds })}>
+          {busy ? tr.disposing : tr.dispose}
+        </button>
+        <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
+      </div>
+    </section>
+  );
+}
+
+
+// Deliberately empty of analytics for now — the parent section is a place.
+// The Old System's Finance view of the work: every project as a commercial
+// record — what it is worth, what has been invoiced against it, and the two
+// numbers Finance itself issues. Columns beyond the core set are opt-in, because
+// the core ones are what somebody chasing money actually reads.
+type FinanceColumn = { key: string; labelKey: keyof FinanceTr; core: boolean; money?: boolean; end?: boolean; date?: boolean };
+const FINANCE_COLUMNS: FinanceColumn[] = [
+  { key: "poNumber", labelKey: "colPoNumber", core: true },
+  { key: "quotationNumber", labelKey: "colQuotation", core: true },
+  { key: "title", labelKey: "colProject", core: true },
+  { key: "clientName", labelKey: "colClient", core: true },
+  { key: "value", labelKey: "colValue", core: true, money: true, end: true },
+  { key: "projectNumber", labelKey: "colProjectNumber", core: true },
+  { key: "managerAlias", labelKey: "colManager", core: true },
+  { key: "number", labelKey: "colRef", core: false },
+  { key: "stage", labelKey: "colStage", core: false },
+  { key: "location", labelKey: "colLocation", core: false },
+  { key: "endDate", labelKey: "colTargetEnd", core: false, date: true },
+  { key: "invoiced", labelKey: "colInvoiced", core: false, money: true, end: true },
+  { key: "collected", labelKey: "colCollected", core: false, money: true, end: true },
+  { key: "uninvoiced", labelKey: "colUninvoiced", core: false, money: true, end: true },
+  { key: "cost", labelKey: "colCost", core: false, money: true, end: true },
+  { key: "margin", labelKey: "colMargin", core: false, money: true, end: true },
+];
+// KEY AND FLAGS ARE LANGUAGE-INDEPENDENT, the label is not — which is why the
+// list stores a dictionary key and the label is attached at render. A saved
+// column preference is a list of `key`, so it survives a language switch.
+const withLabels = (tr: FinanceTr) => FINANCE_COLUMNS.map((c) => ({ ...c, label: tr[c.labelKey] as string }));
+
+const DEFAULT_FINANCE_COLUMNS = FINANCE_COLUMNS.filter((c) => c.core).map((c) => c.key);
+
+function FinanceProjects({ rows, slug, nav, canManage, busy, onSave }: {
+  rows: ProfitRow[]; slug: string; nav: Nav; canManage: boolean; busy: boolean; onSave: (payload: Record<string, unknown>) => Promise<boolean>;
+}) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const [query, setQuery] = useState("");
+  const [poFilter, setPoFilter] = useState("all");
+  const [columns, setColumns] = useState<string[]>(DEFAULT_FINANCE_COLUMNS);
+  const [showColumns, setShowColumns] = useState(false);
+  const [editing, setEditing] = useState<ProfitRow | null>(null);
+  const closeEditing = useCallback(() => setEditing(null), []);
+
+  const colsKey = prefKey("finance", slug, "cols");
+  useEffect(() => {
+    const saved = loadPref<unknown>(colsKey, null);
+    setColumns(Array.isArray(saved) && saved.length
+      ? saved.filter((k): k is string => FINANCE_COLUMNS.some((c) => c.key === k))
+      : DEFAULT_FINANCE_COLUMNS);
+  }, [colsKey]);
+  const toggleCol = (key: string) => setColumns((prev) => {
+    const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+    savePref(colsKey, next);
+    return next;
+  });
+  const resetCols = () => { setColumns(DEFAULT_FINANCE_COLUMNS); savePref(colsKey, DEFAULT_FINANCE_COLUMNS); };
+
+  // Keep the open editor on the freshly loaded row after a save.
+  useEffect(() => {
+    setEditing((cur) => (cur ? rows.find((r) => r.id === cur.id) || null : null));
+  }, [rows]);
+
+  const shown = rows.filter((r) => {
+    if (poFilter === "issued" && !r.poNumber) return false;
+    if (poFilter === "awaiting" && r.poNumber) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return `${r.title} ${r.clientName} ${r.number} ${r.poNumber} ${r.projectNumber} ${r.quotationNumber}`.toLowerCase().includes(q);
+  });
+
+  const cell = (r: ProfitRow, c: FinanceColumn): ReactNode => {
+    const v = (r as Record<string, unknown>)[c.key];
+    if (c.money) return money(v as number);
+    if (c.date) return fmt(v);
+    return (v || "—") as ReactNode;
+  };
+  const visible = withLabels(tr).filter((c) => columns.includes(c.key));
+
+  if (rows.length === 0) {
+    return <Empty title={tr.nothingAccountYet} body={tr.projectsOpenApprovedQuotation} />;
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <Field label={tr.searchProjectClientPo} type="search" className="w-full sm:max-w-xs"
+          value={query} onChange={setQuery} />
+        <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
+          {[["all", tr.all], ["issued", tr.poIssued], ["awaiting", tr.awaitingPo]].map(([k, text]) => (
+            <button key={k} type="button" onClick={() => setPoFilter(k)}
+              className={`rounded-full px-3.5 py-1.5 text-sm font-600 transition-colors ${poFilter === k ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`}>
+              {text}
+            </button>
+          ))}
+        </div>
+        <button type="button" className={btnGhost} onClick={() => setShowColumns(true)}>{tr.columns}</button>
+      </div>
+
+      {showColumns && (
+        <ColumnPicker title={tr.financeColumns} columns={withLabels(tr)} selected={columns}
+          onToggle={toggleCol} onReset={resetCols} onClose={() => setShowColumns(false)} />
+      )}
+
+      {editing && (
+        <Dialog title={editing.title} description={`${editing.clientName || "—"} · ${money(editing.value)}`}
+          onClose={closeEditing} width="max-w-[560px]">
+          <Commercials row={editing} busy={busy} canManage={canManage} onCancel={closeEditing}
+            onSave={async (patch) => { if (await onSave({ id: editing.id, ...patch })) setEditing(null); }} />
+        </Dialog>
+      )}
+
+      <p className="text-sm text-slate-500 dark:text-slate-400">{tr.nProjectsOf(shown.length, rows.length)}</p>
+
+      <section className={panel}>
+        {shown.length === 0 ? (
+          <p className="py-10 text-center text-sm text-slate-400">{tr.nothingMatches}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-white/10">
+                  {visible.map((c) => (
+                    <th key={c.key} className={`${th} ps-2 ${c.end ? "text-end" : "text-start"}`}>{c.label}</th>
+                  ))}
+                  <th className={`${th} text-end`} />
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((r) => (
+                  // A project with no PO number yet is the one Finance is
+                  // waiting on, so it carries the stripe.
+                  <tr key={r.id} className={`border-s-4 border-b border-slate-100 last:border-b-0 dark:border-white/5 ${r.poNumber ? stripeOff : stripeOn}`}>
+                    {visible.map((c) => (
+                      <td key={c.key} className={`${td} ps-2 ${c.end ? "text-end tabular-nums" : ""} ${c.key === "title" ? "font-600 text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-300"}`}>
+                        {c.key === "number"
+                          ? <RecordLink href={linkIf(nav?.projects, linkToProject(slug, r.id)) as string} title={tr.openProject}>{r.number}</RecordLink>
+                          : cell(r, c)}
+                      </td>
+                    ))}
+                    <td className={`${td} text-end`}>
+                      <button className={btnGhost} onClick={() => setEditing(r)}>{canManage ? tr.edit : tr.view}</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+// The two numbers Finance issues. Everything else about the project belongs to
+// Projects and is shown here read-only, so this dialog cannot become a back door
+// into editing somebody else's record.
+function Commercials({ row, busy, canManage, onSave, onCancel }: {
+  row: ProfitRow; busy: boolean; canManage: boolean; onSave: (patch: { poNumber: string; projectNumber: string }) => unknown; onCancel: () => void;
+}) {
+  const money = useMoney();
+  const tr = financeDict(useStudioLocale());
+  const [poNumber, setPoNumber] = useState(row.poNumber || "");
+  const [projectNumber, setProjectNumber] = useState(row.projectNumber || "");
+
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={tr.quotation} value={row.quotationNumber || "—"} disabled inputProps={{ readOnly: true }} />
+        <Field label={tr.manager} value={row.managerAlias || "—"} disabled inputProps={{ readOnly: true }} />
+        <Field label={tr.poNumber} value={poNumber} disabled={!canManage} hint={tr.issuedApproval}
+          onChange={(v) => setPoNumber(v)} />
+        <Field label={tr.projectNumber} value={projectNumber} disabled={!canManage} hint={tr.enteredFinance}
+          onChange={(v) => setProjectNumber(v)} />
+      </div>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-4">
+        {([[tr.colValue, row.value], [tr.colInvoiced, row.invoiced], [tr.colCollected, row.collected], [tr.colMargin, row.margin]] as [string, number][]).map(([name, v]) => (
+          <div key={name} className="rounded-xl border border-slate-200 bg-[var(--geex-inset)] p-3 dark:border-white/15">
+            <p className={label}>{name}</p>
+            <p className="font-display text-base font-800 tabular-nums text-slate-900 dark:text-white">{money(v)}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 flex gap-3">
+        {canManage && (
+          <button className={btn} disabled={busy} onClick={() => onSave({ poNumber, projectNumber })}>
+            {busy ? tr.saving : tr.save}
+          </button>
+        )}
+        <button className={btnGhost} onClick={onCancel}>{tr.close}</button>
+      </div>
+    </>
+  );
+}
+
+// ONE COMPONENT FOR BOTH STATEMENTS. They differ in what the sections are
+// called and what the closing figure means; the shape — named sections of
+// accounts with a total each — is identical, and two copies would be two places
+// a rounding choice could drift.
+function Statement({ groups, total, totalLabel, note, tr }: {
+  groups: [string, StatementRow[] | undefined, number | undefined][]; total: number | undefined; totalLabel: string; note?: string; tr: LedgerTr;
+}) {
+  const money = useMoney();
+  return (
+    <section className="space-y-4">
+      {groups.map(([name, rows, groupTotal]) => (
+        <div key={name}>
+          <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{name}</h3>
+          {(rows || []).length === 0 ? (
+            <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">{tr.nothingHere}</p>
+          ) : (
+            <ul className="mt-1 space-y-0.5">
+              {(rows || []).map((r) => (
+                <li key={r.accountId || r.code} className="flex justify-between text-sm text-slate-600 dark:text-slate-300">
+                  <span>
+                    <span className="font-mono text-xs text-slate-400 dark:text-slate-500">{r.code}</span> {r.name}
+                  </span>
+                  <span className="num">{money(r.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-1 flex justify-between border-t border-slate-100 pt-1 text-sm font-600 text-slate-900 dark:border-white/5 dark:text-white">
+            <span>{name}</span><span className="num">{money(groupTotal)}</span>
+          </p>
+        </div>
+      ))}
+      <p className="flex justify-between border-t-2 border-slate-200 pt-2 font-display text-sm font-700 text-slate-900 dark:border-white/10 dark:text-white">
+        <span>{totalLabel}</span><span className="num">{money(total)}</span>
+      </p>
+      {note && <p className="text-xs text-slate-400 dark:text-slate-500">{note}</p>}
+    </section>
+  );
+}

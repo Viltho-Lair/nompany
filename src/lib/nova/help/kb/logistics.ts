@@ -15,7 +15,7 @@ import type { HelpModule } from "../types";
 // PER ORDER, not per charge (`basis` on the landed-cost record, saveLandedCost);
 // a shipment cannot be linked to a project from the screen at all — the API
 // takes `projectId` and the Shipments dialog offers no field for it
-// (StudioInventory.js, Shipment), so `logistics-shipments.about` no longer
+// (StudioInventory.tsx, Shipment), so `logistics-shipments.about` no longer
 // promises it; the insurance and inspection end dates ARE read by something —
 // the Logistics page's register summary lists a vehicle whose date has passed
 // (`DEADLINE_RE` in platform/engine/summary.ts matches `endson`) — though
@@ -30,17 +30,17 @@ import type { HelpModule } from "../types";
 // built yet" is answered here as NOT AVAILABLE YET, never as a feature.
 //
 // THE TRAPS PARTICULAR TO THIS DEPARTMENT:
-//   - Shipments is `logistics-shipments`, but its screen is StudioInventory.js
+//   - Shipments is `logistics-shipments`, but its screen is StudioInventory.tsx
 //     and its words are Inventory's dictionary (`shared/studio/inventory.ts`).
 //     Its view-only refusal said "this part of Inventory" until 27/09/2026;
 //     it names shipments now (`mReadOnlyLogistics`), and the entry keeps its id.
 //   - Landed cost is not a section: it is a panel on the Logistics ROOT page
-//     (LandedCostPanel.js), filed under `logistics`, reading purchase orders
+//     (LandedCostPanel.tsx), filed under `logistics`, reading purchase orders
 //     where they are filed (`inventory-sheets`). PURCHASE ORDERS STAY UNDER
 //     INVENTORY and are raised in Procurement; nothing here may pretend
 //     Logistics raises them.
 //   - Deliveries, trips and vehicles are ENGINE registers (`delivery`, `trip`,
-//     `vehicle` in platform/engine/builtins.ts), drawn by StudioRecords.js. Their
+//     `vehicle` in platform/engine/builtins.ts), drawn by StudioRecords.tsx. Their
 //     sections are `engine-delivery`, `engine-trip`, `engine-vehicle`, which are
 //     NOT in SECTION_DEFS — so their topics carry no sectionKey and no entry may
 //     `open` them. Their rights are `engine.<type>.<verb>`, shown on the Access
@@ -354,7 +354,7 @@ export const logistics: HelpModule = {
       keywords: ["shipments list", "last event", "carrier", "route", "قائمة الشحنات", "آخر حدث", "الناقل", "المسار"],
       related: ["logistics-shipments.carrier-page", "logistics-shipments.details"],
     },
-    // Checked against src/components/studio2/StudioInventory.js (Awb: the AWB
+    // Checked against src/components/studio2/StudioInventory.tsx (Awb: the AWB
     // number field with its "Prefix + 8 digits" hint and the Track button,
     // disabled until parseAwb says valid) and trackShipment in
     // src/modules/inventory/awbTracking.ts with parseAwb in
@@ -378,7 +378,7 @@ export const logistics: HelpModule = {
       keywords: ["track waybill", "AWB number", "new shipment", "تتبع بوليصة", "رقم البوليصة", "شحنة جديدة"],
       related: ["logistics-shipments.track", "logistics-shipments.waybill"],
     },
-    // Checked against src/components/studio2/StudioInventory.js (Shipment: the
+    // Checked against src/components/studio2/StudioInventory.tsx (Shipment: the
     // Record a milestone box — Status, required, a select of AWB_STATUS starting
     // at RCS; When, datetime, now if blank; Station; Flight; Note) and
     // updateShipment in src/modules/inventory/awbTracking.ts (code must be in
@@ -410,7 +410,7 @@ export const logistics: HelpModule = {
       keywords: ["milestone", "shipment status", "flight", "station", "مرحلة", "محطة", "حالة الشحنة", "رحلة جوية"],
       related: ["logistics-shipments.statuses", "logistics-shipments.milestone-wrong"],
     },
-    // Checked against src/components/studio2/StudioInventory.js (Airlines: the
+    // Checked against src/components/studio2/StudioInventory.tsx (Airlines: the
     // Add airline / Edit form — Prefix (3 digits), digits only; IATA code,
     // "2-letter airline code", upper-cased, max 3; Airline name; Tracking URL
     // template, tokens {AWB} {PREFIX} {SERIAL}; Save airline disabled until the
@@ -672,7 +672,7 @@ export const logistics: HelpModule = {
       keywords: ["purchase orders", "costed", "not costed", "order list", "أوامر الشراء", "مكلف", "غير مكلف", "قائمة الأوامر"],
       related: ["procurement-orders.about", "logistics.landed-record"],
     },
-    // Checked against src/components/studio2/LandedCostPanel.js (OrderCharges:
+    // Checked against src/components/studio2/LandedCostPanel.tsx (OrderCharges:
     // Spread, a select of By value / By quantity with its hint; then per charge
     // row Charge, maxLength 60, and Amount, a number, min 0; Add a charge; Save;
     // Clear this order's charges) and chargeProblem in
@@ -943,7 +943,7 @@ export const logistics: HelpModule = {
       keywords: ["delivery status", "out for delivery", "failed", "returned", "حالة التسليم", "خرج للتسليم", "تعذر", "مرتجع"],
       related: ["logistics.deliveries-failed", "logistics.deliveries-overdue"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register
+    // Checked against src/components/studio2/StudioRecords.tsx (the register
     // dialog, which draws every declared field in order) and the `delivery`
     // declaration in src/platform/engine/builtins.ts (reference, customer,
     // address longtext, promisedOn date, deliveredOn date, receivedBy, notes
@@ -1081,7 +1081,7 @@ export const logistics: HelpModule = {
       keywords: ["trip status", "in progress", "completed", "cancelled", "حالة الرحلة", "قيد التنفيذ", "مكتمل", "ملغى"],
       related: ["logistics.trips-cancel"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register
+    // Checked against src/components/studio2/StudioRecords.tsx (the register
     // dialog) and the `trip` declaration in src/platform/engine/builtins.ts
     // (title, required; driver; vehicle; departsOn date; origin; destination;
     // distanceKm number; statuses Planned, In progress, Completed, Cancelled),
@@ -1184,7 +1184,7 @@ export const logistics: HelpModule = {
       keywords: ["vehicle status", "in service", "off road", "sold", "حالة المركبة", "في الخدمة", "خارج الخدمة", "مباع"],
       related: ["logistics.fleet-expiry", "logistics.fleet-sold"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register
+    // Checked against src/components/studio2/StudioRecords.tsx (the register
     // dialog; a select that is not required offers a blank) and the `vehicle`
     // declaration in src/platform/engine/builtins.ts (plate, required; kind
     // select Van, Truck, Pickup, Car, Trailer, Plant; make; insuranceEndsOn

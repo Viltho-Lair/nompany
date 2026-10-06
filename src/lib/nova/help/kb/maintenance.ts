@@ -368,7 +368,7 @@ export const maintenance: HelpModule = {
       keywords: ["machine stopped", "machine down", "downtime", "out of use", "الآلة متوقفة", "توقفت الآلة", "التوقف", "خارج الخدمة"],
       related: ["maintenance-orders.downtime", "maintenance-requests.fields"],
     },
-    // Checked against src/components/studio2/StudioWorkRequests.js (the Report a
+    // Checked against src/components/studio2/StudioWorkRequests.tsx (the Report a
     // fault / Edit the report dialog: What is wrong, required; Details; Priority,
     // required; Machine; Place; The machine has stopped; Photos) and
     // WorkRequestSchema in src/modules/maintenance/schema.ts (title max 200,
@@ -404,7 +404,7 @@ export const maintenance: HelpModule = {
       keywords: ["request form", "report form", "priority", "photos", "نموذج البلاغ", "نموذج الطلب", "أولوية", "صور"],
       related: ["maintenance-requests.raise", "maintenance-requests.machine-stopped"],
     },
-    // Checked against src/components/studio2/StudioWorkRequests.js (the Accept
+    // Checked against src/components/studio2/StudioWorkRequests.tsx (the Accept
     // dialog, Turn it into a work order: Priority, required; Due; Assigned to)
     // and acceptRequest in src/modules/maintenance/maintenance.ts, which copies
     // the report's title, details, machine, place and photos onto a corrective
@@ -673,7 +673,7 @@ export const maintenance: HelpModule = {
       keywords: ["parts cost", "spare parts cost", "unit cost", "repair cost", "تكلفة القطع", "تكلفة قطع الغيار", "تكلفة الوحدة", "تكلفة الإصلاح"],
       related: ["maintenance-orders.parts", "maintenance.not-yet"],
     },
-    // Checked against src/components/studio2/StudioWorkOrders.js (the New work
+    // Checked against src/components/studio2/StudioWorkOrders.tsx (the New work
     // order / Edit work order dialog, in its on-screen order; Customer's unit is
     // drawn only when the installed-base picker has rows) and WorkOrderSchema in
     // src/modules/maintenance/schema.ts; the coercion and refusals are
@@ -719,7 +719,7 @@ export const maintenance: HelpModule = {
       keywords: ["new work order", "work order form", "corrective", "preventive", "inspection", "أمر عمل جديد", "نموذج أمر العمل", "تصحيحي", "وقائي", "فحص"],
       related: ["maintenance-orders.create", "maintenance-orders.types"],
     },
-    // Checked against src/components/studio2/StudioWorkOrders.js (the Complete
+    // Checked against src/components/studio2/StudioWorkOrders.tsx (the Complete
     // dialog, What was done?: What was done, required; Problem, Cause and Remedy
     // only for corrective work, Problem required; Back in service only while the
     // machine is down) and WorkOrderSchema's resolution, failure and upAt in
@@ -751,7 +751,7 @@ export const maintenance: HelpModule = {
       keywords: ["complete work order", "what was done", "resolution", "close out", "إنجاز أمر العمل", "ما أنجز", "الحل", "إنهاء العمل"],
       related: ["maintenance-orders.cant-complete", "maintenance-orders.failure-codes"],
     },
-    // Checked against src/components/studio2/StudioWorkOrders.js (the Put on
+    // Checked against src/components/studio2/StudioWorkOrders.tsx (the Put on
     // hold dialog, Why is it waiting?: Reason, required) and HOLD_REASONS in
     // src/modules/maintenance/model.ts; WorkOrderSchema.holdReason in schema.ts.
     {
@@ -768,7 +768,7 @@ export const maintenance: HelpModule = {
       keywords: ["on hold", "hold reason", "waiting on parts", "paused work", "معلق", "سبب التعليق", "بانتظار قطع", "إيقاف العمل"],
       related: ["maintenance-orders.statuses", "maintenance-orders.work"],
     },
-    // Checked against src/components/studio2/StudioWorkOrders.js (the Log time
+    // Checked against src/components/studio2/StudioWorkOrders.tsx (the Log time
     // dialog: Who, Date, Hours, Time spent, all required; Note) and
     // LabourEntrySchema in src/modules/maintenance/schema.ts; the refusals are
     // labourProblem's in model.ts and addLabour's in maintenance.ts.
@@ -798,7 +798,7 @@ export const maintenance: HelpModule = {
       keywords: ["time entry", "log time form", "hours", "travel", "waiting", "قيد الوقت", "نموذج تسجيل الوقت", "الساعات", "تنقل", "انتظار"],
       related: ["maintenance-orders.time", "maintenance-orders.time-refused"],
     },
-    // Checked against src/components/studio2/StudioWorkOrders.js (PartsDialog:
+    // Checked against src/components/studio2/StudioWorkOrders.tsx (PartsDialog:
     // Movement, required; Item; Quantity, required) and moveForWorkOrder in
     // src/modules/inventory/inventory.ts, which writes a MovementSchema row
     // (src/modules/inventory/schema.ts) with the order as its source;
@@ -1181,7 +1181,7 @@ export const maintenance: HelpModule = {
       keywords: ["customer unit", "installed base", "service contract", "SLA plan", "وحدة العميل", "المعدات المركبة", "عقد الخدمة", "خطة العقد"],
       related: ["maintenance-contracts.kept-by-plans", "field-service.installed-base"],
     },
-    // Checked against src/components/studio2/StudioPmPlans.js (the New plan /
+    // Checked against src/components/studio2/StudioPmPlans.tsx (the New plan /
     // Edit plan dialog, the fields every plan shows, in their on-screen order;
     // Customer's unit and Service contract are drawn only when their pickers
     // have rows) and PmPlanSchema in src/modules/maintenance/schema.ts; the
@@ -1227,7 +1227,7 @@ export const maintenance: HelpModule = {
       keywords: ["new plan", "plan form", "checklist", "priority", "خطة جديدة", "نموذج الخطة", "قائمة التحقق", "الأولوية"],
       related: ["maintenance-plans.calendar-fields", "maintenance-plans.meter-fields", "maintenance-plans.condition-fields"],
     },
-    // Checked against src/components/studio2/StudioPmPlans.js (the calendar
+    // Checked against src/components/studio2/StudioPmPlans.tsx (the calendar
     // branch: How often, required; First due / Next due, required; Raise it
     // days early) and PmPlanSchema's frequency, nextDue and leadDays; the
     // frequencies are PLAN_FREQUENCIES (src/modules/operations/planSchedule.ts),
@@ -1254,7 +1254,7 @@ export const maintenance: HelpModule = {
       keywords: ["calendar plan", "how often", "frequency", "first due", "خطة التقويم", "التكرار", "أول استحقاق", "كل شهر"],
       related: ["maintenance-plans.create", "maintenance-plans.lead-days"],
     },
-    // Checked against src/components/studio2/StudioPmPlans.js (the meter branch:
+    // Checked against src/components/studio2/StudioPmPlans.tsx (the meter branch:
     // Meter, Every and Next due at, all required) and PmPlanSchema's meterUnit,
     // meterEvery and nextDueReading; METER_UNITS in
     // src/modules/maintenance/meters.ts; the refusals are planProblem's
@@ -1283,7 +1283,7 @@ export const maintenance: HelpModule = {
       keywords: ["meter plan", "running hours", "kilometres", "cycles", "خطة العداد", "ساعات التشغيل", "الكيلومترات", "الدورات"],
       related: ["maintenance-plans.meter", "maintenance-assets.readings"],
     },
-    // Checked against src/components/studio2/StudioPmPlans.js (the measurement
+    // Checked against src/components/studio2/StudioPmPlans.tsx (the measurement
     // branch: What is measured and Unit, required; Low limit; High limit) and
     // PmPlanSchema's conditionLabel (max 60), conditionUnit (max 12), limitLow
     // and limitHigh; the refusals are conditionPlanProblem's in
@@ -1542,7 +1542,7 @@ export const maintenance: HelpModule = {
       keywords: ["contracts list", "contract register", "visits done", "call-outs used", "قائمة العقود", "سجل العقود", "الزيارات المنجزة", "البلاغات المستخدمة"],
       related: ["maintenance-contracts.visit-states"],
     },
-    // Checked against src/components/studio2/StudioServiceContracts.js (the New
+    // Checked against src/components/studio2/StudioServiceContracts.tsx (the New
     // contract / Edit contract dialog, in its on-screen order; Project is drawn
     // only when the project list is readable and Customer's units covered only
     // when the installed base is) and SlaSchema in
@@ -1597,7 +1597,7 @@ export const maintenance: HelpModule = {
       keywords: ["new contract", "contract form", "visits", "term", "cover", "عقد جديد", "نموذج العقد", "زيارات", "مدة العقد", "التغطية"],
       related: ["maintenance-contracts.create", "maintenance-contracts.save-refused"],
     },
-    // Checked against src/components/studio2/StudioServiceContracts.js (the Log
+    // Checked against src/components/studio2/StudioServiceContracts.tsx (the Log
     // a call-out dialog: What the customer called about, required; Priority, required; Due;
     // Customer's unit only when the contract covers more than one; Assigned to;
     // Details) and raiseCallOut in src/modules/maintenance/maintenance.ts, which
@@ -1856,7 +1856,7 @@ export const maintenance: HelpModule = {
       keywords: ["meter", "condition point", "gauge", "reading", "difference", "عداد", "نقطة القياس", "مقياس", "قراءة", "الفرق"],
       related: ["maintenance-assets.readings", "maintenance-assets.condition-reading"],
     },
-    // Checked against src/components/studio2/StudioMachines.js (the Meter
+    // Checked against src/components/studio2/StudioMachines.tsx (the Meter
     // reading dialog: Meter, Reading and Read at, required; The meter was
     // replaced or reset; Note) and MeterReadingSchema in
     // src/modules/maintenance/schema.ts; the refusals are readingProblem's in
@@ -1887,7 +1887,7 @@ export const maintenance: HelpModule = {
       keywords: ["meter reading form", "hour meter", "odometer", "reset", "نموذج قراءة العداد", "عداد الساعات", "عداد المسافة", "إعادة ضبط"],
       related: ["maintenance-assets.readings", "maintenance-assets.reading-refused"],
     },
-    // Checked against src/components/studio2/StudioMachines.js (the condition
+    // Checked against src/components/studio2/StudioMachines.tsx (the condition
     // reading dialog: the band shown above; Reading and Read at, required; Note)
     // and ConditionReadingSchema in src/modules/maintenance/schema.ts; the
     // refusals are conditionReadingProblem's in

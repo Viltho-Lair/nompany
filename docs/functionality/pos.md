@@ -14,8 +14,8 @@
 
 `modules/sales/pos.ts` (service), `modules/sales/posModel.ts` (the till's arithmetic),
 `modules/sales/posReports.ts` (periods, filters, totals, what sold, the CSV — pure),
-`components/studio2/StudioPos.js` (the till), `PosDashboard.jsx`, `StudioPosSales.js`,
-`StudioPosShifts.js`, `StudioPosSettings.js`, `posParts.js` (the printed slip, the shift report
+`components/studio2/StudioPos.tsx` (the till), `PosDashboard.tsx`, `StudioPosSales.tsx`,
+`StudioPosShifts.tsx`, `StudioPosSettings.tsx`, `posParts.tsx` (the printed slip, the shift report
 and the period picker, shared), routes under `/api/studios/<slug>/pos`.
 
 ## Nothing moved, and nobody lost access
@@ -192,7 +192,7 @@ itself.
 
 **Where:** Point of Sale → Returns (`pos-returns`), `modules/sales/posReturns.ts` (service),
 `modules/sales/posReturnModel.ts` (the arithmetic, pure, run by the screen and the server),
-`components/studio2/StudioPosReturns.js`, `/api/studios/<slug>/pos/returns`. Numbered `RTN`.
+`components/studio2/StudioPosReturns.tsx`, `/api/studios/<slug>/pos/returns`. Numbered `RTN`.
 **Filed under `pos-returns` itself** (`posReturns`), unlike the till's records.
 
 - **Find the sale by its receipt**: the box takes a scanned barcode (the receipt prints its
@@ -259,7 +259,7 @@ not change prices.
   added.
 - **An exact code or name adds itself, without Enter** (the owner, 2026-09-18). When the text in
   the scan field is exactly ONE item's barcode, SKU or full name (case-insensitive), the item is
-  added once typing pauses for 350 ms (`AUTO_ADD_PAUSE_MS`, `StudioPos.js`) — not on the keystroke
+  added once typing pauses for 350 ms (`AUTO_ADD_PAUSE_MS`, `StudioPos.tsx`) — not on the keystroke
   that first matches, because a code can begin a longer one (`123` / `1234`, "Test material 10" /
   "…100"). A scanner types far faster than the pause. Two items answering to the same text add
   nothing; the list stays open.

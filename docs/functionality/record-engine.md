@@ -5,7 +5,7 @@
 **The schemas:** `schema.ts`. **The sections:** `sections.ts`. **The seed:** `builtins.ts`.
 **The service:** `records.ts`. **The context:** `context.ts`.
 **The route:** `/api/studios/<slug>/records/<typeKey>` — one, for every type.
-**The screen:** `src/components/studio2/StudioRecords.js` — one, for every type.
+**The screen:** `src/components/studio2/StudioRecords.tsx` — one, for every type.
 **The backfill:** `scripts/migrate/seed-builtin-types.mjs`.
 
 ## What it is

@@ -86,7 +86,7 @@ MRR), **adoption** (sign-ups, active studios, module usage, traffic) and **suppo
 to `dashboard/analytics` rather than survivors of a cull.
 
 **The studio ships every department to every route.**
-`src/app/studio/[[...segments]]/page.js` is one catch-all that imports all twenty
+`src/app/studio/[[...segments]]/page.tsx` is one catch-all that imports all twenty
 screens eagerly. That is why the largest shared chunk is **305 KB gzipped against a
 400 KB ceiling** — every route pays for every department. Adding charts and motion
 on top of that budget without splitting first would breach it.
@@ -564,8 +564,8 @@ needs care and a visual pass in both directions.
 language, it sets it. `/super`'s Shell already carries a `dir` in its own state, so
 the console is closer than the studio.
 
-**Logical properties are applied unevenly.** `StudioSales.js` uses `ps-`/`pe-`/`ms-`
-fifty-seven times; `StudioFinance.js` nine. The rest are physical `pl-`/`pr-`/`ml-`
+**Logical properties are applied unevenly.** `StudioSales.tsx` uses `ps-`/`pe-`/`ms-`
+fifty-seven times; `StudioFinance.tsx` nine. The rest are physical `pl-`/`pr-`/`ml-`
 and will not mirror. Since every screen is being rewritten for §5's component split
 anyway, the rule is simply enforced there — and worth an ESLint rule so it does not
 drift back.
@@ -589,7 +589,7 @@ live in the same chrome.
 The survey counted 17 raw `toLocaleDateString` calls and one genuine bug. Doing it
 turned up a second, worse thing the survey missed: **a duplicate formatter**.
 
-`components/studio2/ui.js` carried its own `fmtDate` — `(v) => String(v).slice(0, 10)`
+`components/studio2/ui.tsx` carried its own `fmtDate` — `(v) => String(v).slice(0, 10)`
 — which rendered **yyyy-mm-dd, not the dd/mm/yyyy the product uses everywhere else**,
 and a `fmtDateTime` hard-coded to `en-GB`. Ten studio screens imported them. So the
 studio was not bypassing the tenant locale in seventeen scattered places; it was doing
@@ -597,7 +597,7 @@ it through one shared helper that had quietly forked from the real one. Both now
 re-export `@/lib/format`, and the ten screens are correct without an import line
 changing.
 
-**The genuine bug** (moved to `StudioSettings.js:514` since the survey): the FX "rates
+**The genuine bug** (moved to `StudioSettings.tsx:514` since the survey): the FX "rates
 as of" line called `toLocaleDateString()` with no locale, so it rendered mm/dd/yyyy in
 a US browser. Routed through `fmtDate`.
 
@@ -985,7 +985,7 @@ deep-dive. Technique 8 (Nova) lands with step 8 as chrome only.
 ### 9.1 Step 1: the split, and what it actually was
 
 NOT route segments — one `dynamic()` per department on the existing catch-all.
-The studio is a single page (`app/studio/[[...segments]]/page.js`): the proxy
+The studio is a single page (`app/studio/[[...segments]]/page.tsx`): the proxy
 rewrites `/<slug>/…` onto it and a switch at the bottom picks a department.
 Real folder segments would have meant thirteen copies of that resolution — the
 slug lookup, the membership gate, the questionnaire redirect, the visibility

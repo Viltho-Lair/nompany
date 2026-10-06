@@ -8,7 +8,7 @@ in the inbox of whoever receives all four.
 Section `marketing-planning`. It **owns no collection**: every bar is a campaign, read where the
 register keeps it. Code: `src/modules/marketing/calendar.ts` (the arithmetic, pure, shared with
 the screen, `tests/marketing-calendar-model.mjs`), `modules/marketing/planning.ts` (the read),
-`components/studio2/StudioMarketingCalendar.js`, `shared/studio/marketingCalendar.ts`.
+`components/studio2/StudioMarketingCalendar.tsx`, `shared/studio/marketingCalendar.ts`.
 
 ## What it shows
 

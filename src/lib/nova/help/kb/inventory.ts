@@ -388,7 +388,7 @@ export const inventory: HelpModule = {
       keywords: ["template", "import template", "Excel template", "نموذج الاستيراد", "قالب", "ملف نموذجي"],
       related: ["inventory-items.import", "inventory-items.import-mapping"],
     },
-    // Checked against src/components/studio2/StudioInventory.js (ItemForm, the
+    // Checked against src/components/studio2/StudioInventory.tsx (ItemForm, the
     // Add item / Edit dialog: Name, required; Model number; SKU; Unit, required;
     // Vendor; Type of item, from the vendor's own list; Category; Unit cost with
     // Currency, required select defaulting to Studio; Sell price with margin
@@ -446,7 +446,7 @@ export const inventory: HelpModule = {
       keywords: ["add item", "new item", "item form", "إضافة صنف", "صنف جديد", "نموذج الصنف"],
       related: ["inventory-items.add", "inventory-items.refused", "inventory-items.categories"],
     },
-    // Checked against src/components/studio2/ItemImport.js (the column matching
+    // Checked against src/components/studio2/ItemImport.tsx (the column matching
     // step: one select per field, and the Update and Add suppliers options) and
     // ITEM_FIELDS / ITEM_ALIASES in src/modules/inventory/itemImport.ts (only
     // Name is required for a new item, TEMPLATE_REQUIRED); the words are
@@ -489,7 +489,7 @@ export const inventory: HelpModule = {
       keywords: ["import columns", "column mapping", "match columns", "Odoo", "مطابقة الأعمدة", "أعمدة الاستيراد", "استيراد"],
       related: ["inventory-items.import", "inventory-items.import-refused"],
     },
-    // Checked against src/components/studio2/ItemCategoriesPanel.jsx (the Add a
+    // Checked against src/components/studio2/ItemCategoriesPanel.tsx (the Add a
     // category / Add inside / Edit form: Name; Name in Arabic; Inside) and
     // src/modules/administration/itemCategories.ts (names capped at 80, four
     // levels, `duplicate`, `name`, `parent`, `cycle`, `depth`, `has-children`),
@@ -684,7 +684,7 @@ export const inventory: HelpModule = {
       keywords: ["pending adjustment", "waiting approval", "approval steps", "تسوية معلقة", "بانتظار الاعتماد", "خطوات الاعتماد"],
       related: ["inventory-stock.adjust-waiting", "inventory.adjust-approval-settings"],
     },
-    // Checked against src/components/studio2/StudioInventory.js (AdjustForm, the
+    // Checked against src/components/studio2/StudioInventory.tsx (AdjustForm, the
     // Adjust stock dialog: Quantity, required, never 0; Reason, with the hint
     // e.g. stock-take correction; the on-hand-would-become line) and
     // adjustStock in src/modules/inventory/inventory.ts (reason capped at 300,
@@ -712,7 +712,7 @@ export const inventory: HelpModule = {
       keywords: ["adjust form", "adjustment quantity", "reason", "نموذج التسوية", "كمية التسوية", "السبب"],
       related: ["inventory-stock.adjust", "inventory-stock.adjust-waiting"],
     },
-    // Checked against src/components/studio2/StudioInventory.js (SerialsForm,
+    // Checked against src/components/studio2/StudioInventory.tsx (SerialsForm,
     // the Serial numbers dialog: Serial(s), comma or newline separated, with
     // Add; reserved units struck through and not removable; Save serials) and
     // cleanSerials / editItem in src/modules/inventory/inventory.ts (each serial
@@ -865,7 +865,7 @@ export const inventory: HelpModule = {
       keywords: ["bin", "shelf", "rack", "bin location", "رف", "موقع فرعي", "خانة", "مكان الصنف"],
       related: ["inventory.bins-move", "inventory.bins-fields"],
     },
-    // Checked against src/components/studio2/BinsPanel.js (the Add bin row: Code,
+    // Checked against src/components/studio2/BinsPanel.tsx (the Add bin row: Code,
     // required; Description; Location, required, from Master data) and
     // binProblems / cleanBin in src/modules/inventory/bins.ts (CODE_RE: 1-16
     // letters, digits and - . /, unique per location case-insensitively;
@@ -893,7 +893,7 @@ export const inventory: HelpModule = {
       keywords: ["new bin", "bin code", "رمز الموقع الفرعي", "إنشاء موقع فرعي", "موقع فرعي جديد"],
       related: ["inventory.bins-add", "inventory.bins-refused"],
     },
-    // Checked against src/components/studio2/BinsPanel.js (the move row opened by
+    // Checked against src/components/studio2/BinsPanel.tsx (the move row opened by
     // Move on a bin: Item, required, only items some bin or Not in a bin holds;
     // From, Not in a bin or another bin; Quantity, more than 0; the destination
     // is the bin the row was opened on) and moveStock in
@@ -1025,7 +1025,7 @@ export const inventory: HelpModule = {
       keywords: ["FEFO", "first expired first out", "picking", "ما ينتهي أولا يصرف أولا", "صرف الدفعات", "التقاط"],
       related: ["inventory.batches-gaps"],
     },
-    // Checked against src/components/studio2/BatchesPanel.js (the Add batch row:
+    // Checked against src/components/studio2/BatchesPanel.tsx (the Add batch row:
     // Item, required; Lot number, required; Received, date; Expires, date) and
     // batchProblems in src/modules/inventory/batches.ts (LOT_RE: 1-24
     // characters starting with a letter or digit, then letters, digits and
@@ -1055,7 +1055,7 @@ export const inventory: HelpModule = {
       keywords: ["new batch", "lot number", "دفعة جديدة", "رقم الدفعة", "تشغيلة"],
       related: ["inventory.batches-add", "inventory.batches-refused"],
     },
-    // Checked against src/components/studio2/BatchesPanel.js (the assign row
+    // Checked against src/components/studio2/BatchesPanel.tsx (the assign row
     // opened by Assign on a batch: From, No batch or another batch of the same
     // item; Quantity, more than 0) and moveStock with the batchId field in
     // src/modules/inventory/binService.ts, called by the batches route's
@@ -1144,7 +1144,7 @@ export const inventory: HelpModule = {
     // src/platform/engine/builtins.ts (fields Count, text, required; Location,
     // text; Counted, date; Counted by, text; Variances found, longtext; Notes,
     // longtext; statuses and transitions), rendered by the generic register in
-    // src/components/studio2/StudioRecords.js; FIELD_MAX in
+    // src/components/studio2/StudioRecords.tsx; FIELD_MAX in
     // src/platform/engine/types.ts caps text at 200 and long text at 2000, and
     // requiredProblem there is the only refusal. Arabic labels from
     // src/shared/studio/engineTypes.ts.

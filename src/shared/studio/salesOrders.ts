@@ -64,6 +64,7 @@ type Strings = CommonStrings & {
   refuseNotFound: string;
   refuseNoSection: string;
   refuseTitle: string;
+  actions: string;
 };
 
 const en: Strings = {
@@ -121,6 +122,7 @@ const en: Strings = {
   refuseNotFound: "This order no longer exists. Somebody may have deleted it; reload the list.",
   refuseNoSection: "Sales orders are not switched on in this studio.",
   refuseTitle: "Give the order a title.",
+  actions: "Actions",
 };
 
 const ar: Strings = {
@@ -178,6 +180,7 @@ const ar: Strings = {
   refuseNotFound: "هذا الأمر لم يعد موجودا. ربما حذفه أحدهم؛ أعد تحميل القائمة.",
   refuseNoSection: "أوامر البيع غير مفعّلة في هذا الاستوديو.",
   refuseTitle: "أعط الأمر عنوانا.",
+  actions: "إجراءات",
 };
 
 const salesOrders = { en, ar };

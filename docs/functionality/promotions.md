@@ -1,7 +1,7 @@
 # Promotions — what takes money off a sale at the till (22/09/2026)
 
 **Where:** Point of Sale → Promotions (`pos-promotions`), behind `pos.promotions`.
-`modules/sales/posPromotions.ts` (service), `components/studio2/StudioPosPromotions.js` (screen),
+`modules/sales/posPromotions.ts` (service), `components/studio2/StudioPosPromotions.tsx` (screen),
 `/api/studios/<slug>/pos/promotions` (route), `shared/studio/posPromotions.ts` (words).
 Numbered `PRM` (`administration/numbering`).
 

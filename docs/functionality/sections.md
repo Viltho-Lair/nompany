@@ -183,8 +183,8 @@ being hypothetical.
 ## What opening one looks like
 
 **The shell is a layout and the screen is a page**, and that split is what a section click costs.
-`src/app/studio/layout.js` resolves the studio, the person and their sections and renders
-`StudioFrame`; `[[...segments]]/page.js` renders only the screen inside it. A layout persists
+`src/app/studio/layout.tsx` resolves the studio, the person and their sections and renders
+`StudioFrame`; `[[...segments]]/page.tsx` renders only the screen inside it. A layout persists
 across the navigations below it, so clicking a section re-renders the screen alone — the sidebar
 is not rebuilt, not re-sent in the RSC payload, and not remounted.
 
@@ -198,7 +198,7 @@ Measured in the sandbox, warm, against the real database:
 Before the split the page did all fourteen on every click. The four it sheds — the plan
 catalogues, the profile, the chat allowance — exist to draw sidebar furniture, so a screen that
 does not draw the sidebar should not pay for them. The remaining ten are the irreducible core:
-who you are, which studio, what you may open. `src/app/studio/_shell.js` holds both halves as
+who you are, which studio, what you may open. `src/app/studio/_shell.ts` holds both halves as
 React `cache()`d functions, which is what lets the layout and the page share one resolution on a
 full load; the repo's own `withRequestCache` cannot, because a layout and a page are two separate
 `withRequest` scopes.
@@ -219,7 +219,7 @@ reader still hears which screen is loading.
 
 **Which skeleton depends on what is coming.** `ScreenSkeleton` reserves a department
 dashboard — title, figures, chart, table — and that is what the section screens and Main use.
-The record and viewer screens would be a lie in that shape, so `RecordSkeleton.jsx` holds the
+The record and viewer screens would be a lie in that shape, so `RecordSkeleton.tsx` holds the
 three they need: a record profile (the ticket screen — a details card beside a reserved 320px
 column), a document of lines (the quotation viewer and the project sheet), and a bare table for
 the two Live views, which draw their own header. The project board's is the odd one and worth

@@ -17,8 +17,8 @@ import type { HelpModule } from "../types";
 // promotions.md and the screens disagree, the screens win. Three sentences were
 // corrected against the code rather than copied: a return asks which till pays
 // for EVERY money refund, card and transfer included, not only cash
-// (StudioPosReturns.js, requestReturn in modules/sales/posReturns.ts); the till
-// ID is typed BEFORE the name on Settings (StudioPosSettings.js); and a
+// (StudioPosReturns.tsx, requestReturn in modules/sales/posReturns.ts); the till
+// ID is typed BEFORE the name on Settings (StudioPosSettings.tsx); and a
 // coupon's code alphabet leaves out L as well as 0, O, 1 and I
 // (COUPON_ALPHABET). The Sales, Shift history and dashboard periods and the
 // download times read the STUDIO's time zone since 27/09/2026, the same clock
@@ -216,7 +216,7 @@ export const pos: HelpModule = {
            ar: "يسرد جانب الدفع العروض التي استحقتها السلة مع ما يخصمه كل منها، ويذكر العرض الخاص ببند على ذلك البند أيضا. وتخصم عروض المتجر أولا قبل أي خصم يمنحه الكاشير، وتطبع في سطر مستقل في الإيصال. ويفتح زر العروض العروض التي يختارها الكاشير، والعروض التي طبقها الصندوق، وخانة القسيمة." },
       keywords: ["offers at till", "promotion applied", "discount line", "عروض الصندوق", "عرض مطبق", "سطر الخصم"],
       related: ["pos-till.choose-offer", "pos-promotions.about"] },
-    // Checked against src/components/studio2/StudioPos.js (OpenShift: the one
+    // Checked against src/components/studio2/StudioPos.tsx (OpenShift: the one
     // number field and the Open a shift button) and PosShift in
     // src/modules/sales/pos.ts; the refusals are openShift's there.
     { id: "pos-till.open-shift-fields", topic: "dept.pos-till", kind: "fields", open: "pos-till",
@@ -227,7 +227,7 @@ export const pos: HelpModule = {
                 ar: ["النقد في الدرج عند البدء: صفر أو أكثر، وقيمته الافتراضية 0"] },
       keywords: ["open shift", "opening float", "float", "start of day", "فتح وردية", "رصيد الافتتاح", "بداية اليوم"],
       related: ["pos-till.shift"] },
-    // Checked against src/components/studio2/StudioPos.js (ScanBox, Basket and
+    // Checked against src/components/studio2/StudioPos.tsx (ScanBox, Basket and
     // DiscountInput: the scan box, then each line's quantity, price and
     // discount, with the % button that switches to an amount) and PosLine /
     // PosDiscount in src/modules/sales/posModel.ts.
@@ -239,7 +239,7 @@ export const pos: HelpModule = {
                 ar: ["امسح أو ابحث: باركود، أو جزء من اسم الصنف أو رمزه", "الكمية", "السعر: يكتب فقط لصنف بلا سعر أو لتغييره", "الخصم: نسبة، أو مبلغ بعد الضغط على زر %"] },
       keywords: ["basket line", "quantity", "line discount", "change price", "بند السلة", "الكمية", "خصم البند", "تغيير السعر"],
       related: ["pos-till.give-discount", "pos-till.discount"] },
-    // Checked against src/components/studio2/StudioPos.js (the aside: Discount
+    // Checked against src/components/studio2/StudioPos.tsx (the aside: Discount
     // on the whole basket, Customer's phone, the Payment rows with Cash / Card /
     // Transfer, Amount and Reference, and Split the payment) and PosPayment /
     // PosDiscount in src/modules/sales/posModel.ts; createSale in pos.ts refuses.
@@ -251,7 +251,7 @@ export const pos: HelpModule = {
                 ar: ["خصم على السلة كلها: نسبة أو مبلغ", "هاتف العميل (اختياري)، ويترك فارغا للعميل العابر", "الدفع: نقدا أو بطاقة أو تحويل", "المبلغ", "المرجع، للبطاقة أو التحويل", "تقسيم الدفع، لإضافة طريقة أخرى"] },
       keywords: ["payment", "split payment", "change", "reference", "الدفع", "تقسيم الدفع", "الباقي", "المرجع"],
       related: ["pos-till.split-payment", "pos-till.refused"] },
-    // Checked against src/components/studio2/StudioPos.js (OffersDialog: the
+    // Checked against src/components/studio2/StudioPos.tsx (OffersDialog: the
     // Coupon code field and Add coupon, shown only once a customer is known)
     // and PosCoupon in src/modules/sales/posPromotions.ts.
     { id: "pos-till.coupon-fields", topic: "dept.pos-till", kind: "fields", open: "pos-till",
@@ -262,7 +262,7 @@ export const pos: HelpModule = {
                 ar: ["هاتف العميل، في جانب الدفع", "رمز القسيمة، في نافذة العروض"] },
       keywords: ["coupon", "voucher", "promo code", "redeem", "قسيمة", "كوبون", "رمز خصم", "صرف"],
       related: ["pos-till.coupon", "pos-till.coupon-refused"] },
-    // Checked against src/components/studio2/StudioPos.js (CloseShift: Cash
+    // Checked against src/components/studio2/StudioPos.tsx (CloseShift: Cash
     // counted in the drawer, with the currency, and Notes) and PosShift in
     // src/modules/sales/pos.ts; closeShift there refuses.
     { id: "pos-till.close-shift-fields", topic: "dept.pos-till", kind: "fields", open: "pos-till",
@@ -567,7 +567,7 @@ export const pos: HelpModule = {
            ar: "تسرد قائمة بانتظار الاعتماد كل مرتجع لم يرد عليه بعد، مع عدد خطوات الاعتماد الموقعة ورابط لفتحه في الموافقات. وتحتها تسرد المرتجعات ما حسم منها بحالة مسترد أو مرفوض، مع من طلبه ومن حسمه. والمرتجع المرفوض يحرر الوحدات التي حجزها." },
       keywords: ["return status", "waiting", "refunded", "turned down", "حالة المرتجع", "بانتظار الاعتماد", "مسترد", "مرفوض"],
       related: ["pos-returns.follow"] },
-    // Checked against src/components/studio2/StudioPosReturns.js (the Receipt or
+    // Checked against src/components/studio2/StudioPosReturns.tsx (the Receipt or
     // invoice number box, the Coming back column, Why is it coming back?, Paid
     // from the till, Refund by and Reference) and PosReturn in
     // src/modules/sales/posReturns.ts; requestReturn there refuses.
@@ -675,7 +675,7 @@ export const pos: HelpModule = {
            ar: "يعرض للأيام التي تختارها، بأيام الاستوديو نفسه، عدد مرات استخدام كل عرض وما خصمه وعدد العملاء الذين استخدموه، مع الرموز المصدرة والمستخدمة ونسبة استخدامها. ويفصل الاستخدام حسب اليوم وحسب الصندوق، ويسرد العملاء الأكثر توفيرا. والعرض الذي شمل أربعة بنود في بيع واحد يعد استخداما واحدا، ولا يعيد المرتجع الاستخدام." },
       keywords: ["promotion report", "times used", "take-up", "savings", "تقرير العروض", "مرات الاستخدام", "نسبة الاستخدام", "التوفير"],
       related: ["pos-promotions.about"] },
-    // Checked against src/components/studio2/posPromotionParts.js (OfferEditor,
+    // Checked against src/components/studio2/posPromotionParts.tsx (OfferEditor,
     // the preset buttons and The offer section: Name, Name in Arabic,
     // Description, Starts, Ends) and Promotion / promotionProblems in
     // src/modules/sales/posPromotionsModel.ts.
@@ -687,7 +687,7 @@ export const pos: HelpModule = {
                 ar: ["ابدأ من: اشتر كذا واحصل على كذا، أو نسبة خصم على نوع أو مورد، أو أنفق ووفر، أو سعر ثابت لمجموعة، أو بقسيمة فقط", "الاسم (مطلوب)", "الاسم بالعربية", "الوصف", "يبدأ (مطلوب)، تاريخ ووقت", "ينتهي، ويترك فارغا لعرض بلا تاريخ انتهاء"] },
       keywords: ["new offer", "offer name", "start date", "preset", "عرض جديد", "اسم العرض", "تاريخ البدء", "قالب"],
       related: ["pos-promotions.create", "pos-promotions.refused-save"] },
-    // Checked against src/components/studio2/posPromotionParts.js (What it takes
+    // Checked against src/components/studio2/posPromotionParts.tsx (What it takes
     // off: each Tier with Reached at, Value, Benefit, Applies to and the
     // benefit's own value) and PromotionTier / promotionProblems in
     // src/modules/sales/posPromotionsModel.ts.
@@ -699,7 +699,7 @@ export const pos: HelpModule = {
                 ar: ["يتحقق عند: دائما، أو عدد من الوحدات، أو مبلغ منفق", "القيمة، للوحدات أو المبلغ", "الفائدة: نسبة خصم، أو مبلغ خصم، أو سعر ثابت للوحدة، أو صنف مجاني، أو اشتر كذا واحصل على كذا مجانا، أو سعر واحد للمجموعة، أو مضاعف النقاط", "يطبق على: كل سطر مطابق، أو أرخص سطر مطابق، أو صنف محدد", "قيمة الفائدة: النسبة أو المبلغ أو السعر أو اشتر ومجانا أو المضاعف أو الصنف"] },
       keywords: ["benefit", "tier", "percentage off", "free item", "bundle price", "الفائدة", "الشريحة", "نسبة خصم", "صنف مجاني"],
       related: ["pos-promotions.tiers"] },
-    // Checked against src/components/studio2/posPromotionParts.js (What earns
+    // Checked against src/components/studio2/posPromotionParts.tsx (What earns
     // it: each Condition and the value it asks for) and PromotionCondition /
     // promotionProblems in src/modules/sales/posPromotionsModel.ts.
     { id: "pos-promotions.condition-fields", topic: "dept.pos-promotions", kind: "fields", open: "pos-promotions",
@@ -710,7 +710,7 @@ export const pos: HelpModule = {
                 ar: ["وجود أحد هذه الأصناف في السلة، أو عدم وجود أي منها: الأصناف", "صنف من أحد خطوط المورد هذه: خطوط الموردين", "صنف من أحد هؤلاء الموردين: الموردون", "صنف في إحدى هذه الفئات: الفئات", "هذا العدد من الوحدات على الأقل: الوحدات ووحدة العد", "هذا المبلغ على الأقل: المبلغ", "حمل العميل أحد هذه الوسوم: الوسوم", "الدفع بإحدى هذه الطرق: طرق الدفع"] },
       keywords: ["condition", "minimum spend", "customer tag", "payment method", "الشرط", "حد أدنى للإنفاق", "وسم العميل", "طريقة الدفع"],
       related: ["pos-promotions.categories"] },
-    // Checked against src/components/studio2/posPromotionParts.js (Advanced:
+    // Checked against src/components/studio2/posPromotionParts.tsx (Advanced:
     // Where and when, Who earns it, Limits, How it applies) and Promotion in
     // src/modules/sales/posPromotionsModel.ts; planProblem in posPromotions.ts
     // gates the days and hours.
@@ -722,7 +722,7 @@ export const pos: HelpModule = {
                 ar: ["الصناديق: التي يعمل عليها، وعدم اختيار أي منها يعني كل الصناديق", "القناة: عند الصندوق أو عبر الإنترنت أو الاثنتان", "الأيام والساعات، من وإلى", "أول شراء له فقط", "العملاء الذين يحملون أحد هذه الوسوم", "أقصى ما يخصمه من بيع واحد", "عدد المرات إجمالا ولكل عميل ويوميا", "يطبق على: السطور المطابقة أو البيع كله", "الترتيب: الأقل أولا", "لا شيء بعده", "يختاره الكاشير", "يلزمه إدخال قسيمة"] },
       keywords: ["advanced", "schedule", "limits", "tills", "priority", "متقدم", "جدول", "الحدود", "الصناديق", "الترتيب"],
       related: ["pos-promotions.schedule", "pos-promotions.pricing-order"] },
-    // Checked against src/components/studio2/posPromotionParts.js (the Coupons
+    // Checked against src/components/studio2/posPromotionParts.tsx (the Coupons
     // tab: Which offer, then Make codes with Kind, Code or How many, Prefix,
     // Customer, Times in total, Times per customer, Expires and Once only) and
     // PosCoupon / createCoupons in src/modules/sales/posPromotions.ts.
@@ -868,7 +868,7 @@ export const pos: HelpModule = {
            ar: "الصناديق (إضافة وإيقاف وإعادة استخدام وربط جهاز وفك ربطه)، وهل تشمل أسعار الرف الضريبة، وتذييل الإيصال، وأكبر خصم يمنحه الكاشير، ومتى يعد العرض قريب الانتهاء. وعرض الإعدادات وتعديلها صلاحيتان منفصلتان، ومن دون صلاحية التعديل تكون الشاشة للعرض فقط. ويفتح الصندوق نفسه من الشريط الجانبي، ولا يوجد رابط من الكاونتر إلى الإعدادات لأنه للبيع. أما العملة ونسبة الضريبة والمنطقة الزمنية فهي للاستوديو، وتضبط في إعدادات الاستوديو." },
       keywords: ["pos settings", "receipt footer", "tax included", "إعدادات نقطة البيع", "تذييل الإيصال", "شامل الضريبة"],
       related: ["pos-settings.tills", "pos-settings.tax"] },
-    // Checked against src/components/studio2/StudioPosSettings.js (the Tills
+    // Checked against src/components/studio2/StudioPosSettings.tsx (the Tills
     // panel: Till ID, then Till name, then Add a till) and PosTerminal /
     // saveTerminal in src/modules/sales/pos.ts.
     { id: "pos-settings.till-fields", topic: "dept.pos-settings", kind: "fields", open: "pos-settings",
@@ -879,7 +879,7 @@ export const pos: HelpModule = {
                 ar: ["رقم الصندوق (اختياري)", "اسم الصندوق (مطلوب)"] },
       keywords: ["add till", "till id", "till name", "إضافة صندوق", "رقم الصندوق", "اسم الصندوق"],
       related: ["pos-settings.tills"] },
-    // Checked against src/components/studio2/StudioPosSettings.js (the pricing
+    // Checked against src/components/studio2/StudioPosSettings.tsx (the pricing
     // panel: Shelf prices include tax, Receipt footer, Largest discount a cashier
     // may give, Warn about an offer ending, then Save) and savePosSettings's
     // checks in src/modules/sales/pos.ts.

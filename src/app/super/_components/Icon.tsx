@@ -5,7 +5,7 @@ import { Icon as StudioIcon, iconNames } from "@/components/studio2/icons";
 //
 // This file used to hold ninety `d` strings — a second hand-rolled icon library
 // with the same 24-grid, the same 1.7 stroke and the same `currentColor` rule as
-// src/components/studio2/icons.js. Nothing imported both, so the two could drift
+// src/components/studio2/icons.tsx. Nothing imported both, so the two could drift
 // for a year without anyone seeing it, and the console would slowly stop looking
 // like the product it administers one glyph at a time. The marks it owned that
 // the Studio lacked have moved into that file (see CONSOLE_MARKS there); this is
@@ -44,7 +44,7 @@ export default function Icon({ name, className = "h-4 w-4" }: { name: string; cl
   if (process.env.NODE_ENV !== "production" && !iconNames.includes(resolved)) {
     throw new Error(
       `Icon: no mark named "${name}"${resolved === name ? "" : ` (aliased to "${resolved}")`}. ` +
-        "Add it to src/components/studio2/icons.js — do not introduce a second icon set.",
+        "Add it to src/components/studio2/icons.tsx — do not introduce a second icon set.",
     );
   }
 

@@ -1,0 +1,294 @@
+// PREVENTIVE PLANS — work that comes round on a calendar.
+//
+// A plan says what, where, how often and who; the daily run raises a work order
+// from it when it falls due, one open at a time, carrying its checklist. This
+// screen keeps the plans and shows what each has done — the order it has open,
+// when it was last finished, and how often it was finished on time. All three
+// are derived from the orders, never stored on the plan.
+"use client";
+import { useState } from "react";
+import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, fmtDate } from "@/components/studio2/ui";
+import { Field } from "@/components/fields/Field";
+import { PRIORITIES } from "@/modules/maintenance/model";
+import { PLAN_MOVES, SCHEDULE_MODES, PLAN_TRIGGERS, planProblem } from "@/modules/maintenance/schedule";
+import {
+  useMaintenance, Chip, priorityTone, Links, PeoplePicker, pickOptions,
+} from "@/components/studio2/maintenanceParts";
+import type { listPlans } from "@/modules/maintenance/maintenance";
+
+type PlansBody = Exclude<Awaited<ReturnType<typeof listPlans>>, { error: string }>;
+type Plan = PlansBody["plans"][number];
+/**
+ * THE PLAN DIALOG'S FIELDS, as the inputs hold them. The numbers a stored plan
+ * carries come back into the dialog as they were stored — a number, or blank
+ * where nothing was set — which is why those few are `number | string`.
+ */
+type PlanForm = {
+  id?: string; title: string; description: string; type: string; priority: string;
+  assetId: string; locationId: string; assignedToCollaboratorIds: string[];
+  installedId: string; slaId: string;
+  frequency: string; scheduleMode: string; nextDue: string; leadDays: string;
+  estimatedHours: number | string; checklist: string;
+  trigger: string; meterUnit: string; meterEvery: string; nextDueReading: number | string;
+  conditionLabel: string; conditionUnit: string; limitLow: number | string; limitHigh: number | string;
+};
+
+const STATUS_TONE: Record<string, string> = {
+  Active: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300",
+  Paused: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300",
+  Retired: "bg-slate-100 text-slate-500 dark:bg-white/5 dark:text-slate-400",
+};
+const MOVE_ACTION: Record<string, string> = { Active: "resume", Paused: "pause", Retired: "retire" };
+
+// `initial` is this screen's own GET body from the studio page (useMaintenance).
+export default function StudioPmPlans({ slug, initial }: { slug: string; initial?: PlansBody }) {
+  const { tr, data, error, busy, send, reload } = useMaintenance<PlansBody>(slug, "maintenance/plans", initial);
+  // The plans are this section's rows; what each has open, last finished and
+  // its compliance are derived from the orders it raised, written under Work
+  // orders — so an order moving there has to move this list.
+  useLiveUpdates(slug, "maintenance-plans", reload);
+  useLiveUpdates(slug, "maintenance-orders", reload);
+  const [form, setForm] = useState<PlanForm | null>(null);
+
+  if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
+  if (!data) return <ScreenSkeleton loadingLabel={tr.loading} />;
+
+  const { plans = [], pickers = {} as PlansBody["pickers"], frequencies = [], meterUnits = [], compliance, asOf, canCreate, canEdit, canDelete } = data;
+  const priorities = PRIORITIES.map((p) => ({ value: p, label: tr.priorityName(p) }));
+  const types = ["preventive", "inspection"].map((t) => ({ value: t, label: tr.typeName(t) }));
+
+  const openForm = (p: Plan | null) => setForm(p
+    ? {
+      id: p.id, title: p.title, description: p.description, type: p.type, priority: p.priority,
+      assetId: p.assetId, locationId: p.locationId, assignedToCollaboratorIds: p.assignedToCollaboratorIds || [],
+      installedId: p.installedId || "", slaId: p.slaId || "",
+      frequency: p.frequency, scheduleMode: p.scheduleMode, nextDue: p.nextDue, leadDays: String(p.leadDays ?? 0),
+      estimatedHours: p.estimatedHours ?? "", checklist: (p.checklist || []).join("\n"),
+      trigger: p.trigger || "calendar", meterUnit: p.meterUnit || "hours",
+      meterEvery: p.meterEvery ? String(p.meterEvery) : "", nextDueReading: p.nextDueReading ?? "",
+      conditionLabel: p.conditionLabel || "", conditionUnit: p.conditionUnit || "",
+      limitLow: p.limitLow ?? "", limitHigh: p.limitHigh ?? "",
+    }
+    : {
+      title: "", description: "", type: "preventive", priority: "normal", assetId: "", locationId: "",
+      installedId: "", slaId: "",
+      assignedToCollaboratorIds: [], frequency: "Monthly", scheduleMode: "fixed", nextDue: asOf, leadDays: "0",
+      estimatedHours: "", checklist: "", trigger: "calendar", meterUnit: "hours", meterEvery: "", nextDueReading: "",
+      conditionLabel: "", conditionUnit: "", limitLow: "", limitHigh: "",
+    });
+
+  const payload = (f: PlanForm) => ({
+    ...f,
+    leadDays: Number(f.leadDays) || 0,
+    checklist: String(f.checklist || "").split("\n").map((s) => s.trim()).filter(Boolean),
+    meterEvery: Number(f.meterEvery) || 0,
+    // BLANK STAYS BLANK — the server refuses it rather than reading nought.
+    nextDueReading: String(f.nextDueReading ?? "").trim() === "" ? "" : Number(f.nextDueReading),
+    // AND ON EITHER LIMIT, where blank means "this side does not matter" while
+    // nought is a real limit — a freezer's ceiling is below zero.
+    limitLow: String(f.limitLow ?? "").trim() === "" ? "" : Number(f.limitLow),
+    limitHigh: String(f.limitHigh ?? "").trim() === "" ? "" : Number(f.limitHigh),
+  });
+  // THE SAME RULE THE SERVER REFUSES WITH, so Save is offered only when it would
+  // be accepted.
+  const blocked = form ? planProblem(payload(form)) : null;
+
+  const save = async () => {
+    if (!form) return;
+    const { id, ...rest } = payload(form);
+    const done = id ? await send("PUT", { ...rest, id }) : await send("POST", rest);
+    if (done) setForm(null);
+  };
+
+  return (
+    <div className="space-y-6">
+      {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className={h2}>{tr.plans}</h2>
+          <p className={sub}>{tr.plansSub}</p>
+          {compliance?.percent != null && (
+            <p className="mt-2 text-sm tabular-nums text-slate-600 dark:text-slate-300">
+              {tr.studioCompliance(compliance.percent, compliance.total)}
+            </p>
+          )}
+        </div>
+        {canCreate && <button type="button" className={btn} onClick={() => openForm(null)}>{tr.newPlan}</button>}
+      </div>
+
+      {!plans.length ? (
+        <Empty title={tr.noPlans} body={tr.noPlansBody} />
+      ) : (
+        <div className="space-y-3">
+          {plans.map((p) => (
+            <section key={p.id} className={panel}>
+              <p className="flex flex-wrap items-center gap-2 text-slate-900 dark:text-white">
+                <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{p.reference}</span>
+                <span className="font-600">{p.title}</span>
+                <Chip tone={STATUS_TONE[p.status]}>{tr.planStatus(p.status)}</Chip>
+                <Chip tone={priorityTone(p.priority)}>{tr.priorityName(p.priority)}</Chip>
+              </p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                {/* A CONDITION POINT IS ON NO SCHEDULE, so it shows its BAND
+                    where the others show their interval — and no fixed/floating,
+                    which would be a choice that decides nothing here. */}
+                {p.trigger === "condition"
+                  ? `${tr.typeName(p.type)} · ${tr.bandOf(p.limitLow ?? null, p.limitHigh ?? null, p.conditionUnit || "")}`
+                  : `${tr.typeName(p.type)} · ${p.trigger === "meter" ? tr.everyMeter(p.meterEvery as number, p.meterUnit as string) : tr.frequencyName(p.frequency)} · ${tr.modeName(p.scheduleMode)}`}
+              </p>
+              <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                {p.status !== "Retired" && p.trigger === "meter" && (
+                  <span>
+                    {tr.nextAt(p.nextDueReading as number, p.meterUnit as string)} · {p.currentReading != null ? tr.nowAt(p.currentReading, p.meterUnit as string) : tr.noReading}
+                  </span>
+                )}
+                {/* WHERE THE GAUGE STANDS. Nothing read is NOT "in range". */}
+                {p.status !== "Retired" && p.trigger === "condition" && (
+                  <span className={p.condition?.breach ? "font-600 text-rose-600 dark:text-rose-300" : ""}>
+                    {p.conditionLabel}: {p.condition
+                      ? `${tr.pointAt(p.condition.value, p.conditionUnit || "")} · ${p.condition.breach ? tr.breachName(p.condition.breach) : tr.inRange}`
+                      : tr.noPointReading}
+                  </span>
+                )}
+                {p.status !== "Retired" && p.trigger !== "meter" && p.trigger !== "condition" && <span>{tr.nextDue}: {fmtDate(p.nextDue)}</span>}
+                <span>{p.lastDoneOn ? tr.lastDone(fmtDate(p.lastDoneOn)) : tr.neverDone}</span>
+                <span>{p.compliance?.percent != null ? tr.complianceOf(p.compliance.percent, p.compliance.total) : tr.complianceNone}</span>
+              </p>
+              {p.openOrder && (
+                <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-300">{tr.openNow(p.openOrder.reference, tr.status(p.openOrder.status))}</p>
+              )}
+              <Links asset={p.asset} location={p.location} installed={p.installed} contract={p.contract} tr={tr} />
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                <span className="text-slate-400">{tr.assignedTo}:</span>{" "}
+                {(p.assignees || []).length ? p.assignees.map((a) => a.alias || a.id).join("، ") : tr.nobody}
+              </p>
+              {(p.checklist || []).length > 0 && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-sm font-600 text-slate-600 dark:text-slate-300">{tr.checklist} ({p.checklist.length})</summary>
+                  <ol className="mt-1 list-decimal ps-6 text-sm text-slate-600 dark:text-slate-300">
+                    {p.checklist.map((step, i) => <li key={i}>{step}</li>)}
+                  </ol>
+                </details>
+              )}
+
+              {(canEdit || canDelete) && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {canEdit && (PLAN_MOVES[p.status as keyof typeof PLAN_MOVES] || []).map((to) => (
+                    <button key={to} type="button" disabled={busy}
+                      className={to === "Retired" ? btnRowDanger : btnRow}
+                      onClick={() => send("PUT", { id: p.id, action: MOVE_ACTION[to] })}>
+                      {to === "Active" ? tr.resume : to === "Paused" ? tr.pause : tr.retire}
+                    </button>
+                  ))}
+                  {canEdit && p.status !== "Retired" && (
+                    <button type="button" className={btnGhost} disabled={busy} onClick={() => openForm(p)}>{tr.edit}</button>
+                  )}
+                  {canDelete && !p.raised && (
+                    <button type="button" className={btnRowDanger} disabled={busy}
+                      onClick={() => send("DELETE", { id: p.id })}>{tr.remove}</button>
+                  )}
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+      )}
+
+      {form && (
+        <Dialog title={form.id ? tr.editPlan : tr.newPlan} onClose={() => setForm(null)} width="max-w-[760px]">
+          <div className="space-y-4">
+            <Field label={tr.planName} required value={form.title}
+              onChange={(v) => setForm((f) => ({ ...f!, title: v }))} inputProps={{ maxLength: 200 }} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={tr.trigger} as="select" required value={form.trigger}
+                onChange={(v) => setForm((f) => ({ ...f!, trigger: v }))}
+                options={PLAN_TRIGGERS.map((x) => ({ value: x, label: tr.triggerName(x) }))} />
+              {/* FIXED OR FLOATING DECIDES NOTHING FOR A CONDITION POINT: it
+                  has no next due date to move either way. */}
+              {form.trigger !== "condition" && (
+                <Field label={tr.scheduleMode} as="select" required value={form.scheduleMode}
+                  onChange={(v) => setForm((f) => ({ ...f!, scheduleMode: v }))}
+                  options={SCHEDULE_MODES.map((x) => ({ value: x, label: tr.modeName(x) }))} />
+              )}
+              {form.trigger === "condition" ? (
+                <>
+                  <Field label={tr.conditionLabel} required value={form.conditionLabel}
+                    onChange={(v) => setForm((f) => ({ ...f!, conditionLabel: v }))} inputProps={{ maxLength: 60 }} />
+                  {/* TYPED, NOT PICKED: any fixed list of units would be wrong
+                      for somebody, and a point's unit is the studio's own data. */}
+                  <Field label={tr.conditionUnit} required value={form.conditionUnit} hint={tr.conditionUnitHint}
+                    onChange={(v) => setForm((f) => ({ ...f!, conditionUnit: v }))} inputProps={{ maxLength: 12 }} />
+                  {/* NO `min`: minus forty is a reading, and a cold store's
+                      whole band sits below nought. */}
+                  <Field label={tr.limitLow} type="number" value={form.limitLow} hint={tr.limitHint}
+                    onChange={(v) => setForm((f) => ({ ...f!, limitLow: v }))} inputProps={{ step: "any" }} />
+                  <Field label={tr.limitHigh} type="number" value={form.limitHigh}
+                    onChange={(v) => setForm((f) => ({ ...f!, limitHigh: v }))} inputProps={{ step: "any" }} />
+                </>
+              ) : form.trigger === "meter" ? (
+                <>
+                  <Field label={tr.meterUnit} as="select" required value={form.meterUnit}
+                    onChange={(v) => setForm((f) => ({ ...f!, meterUnit: v }))}
+                    options={meterUnits.map((x) => ({ value: x, label: tr.unitName(x) }))} />
+                  <Field label={tr.meterEvery} type="number" required value={form.meterEvery}
+                    onChange={(v) => setForm((f) => ({ ...f!, meterEvery: v }))} inputProps={{ min: 0, step: "any" }} />
+                  <Field label={tr.nextDueReading} type="number" required value={form.nextDueReading}
+                    onChange={(v) => setForm((f) => ({ ...f!, nextDueReading: v }))} inputProps={{ min: 0, step: "any" }} />
+                </>
+              ) : (
+                <>
+                  <Field label={tr.frequency} as="select" required value={form.frequency}
+                    onChange={(v) => setForm((f) => ({ ...f!, frequency: v }))}
+                    options={frequencies.map((x) => ({ value: x, label: tr.frequencyName(x) }))} />
+                  <Field label={form.id ? tr.nextDue : tr.firstDue} type="date" required value={form.nextDue}
+                    onChange={(v) => setForm((f) => ({ ...f!, nextDue: v }))} />
+                  <Field label={tr.leadDays} type="number" value={form.leadDays} hint={tr.leadDaysHint}
+                    onChange={(v) => setForm((f) => ({ ...f!, leadDays: v }))} inputProps={{ min: 0, max: 60, step: 1 }} />
+                </>
+              )}
+              <Field label={tr.type} as="select" required value={form.type}
+                onChange={(v) => setForm((f) => ({ ...f!, type: v }))} options={types} />
+              <Field label={tr.priority} as="select" required value={form.priority}
+                onChange={(v) => setForm((f) => ({ ...f!, priority: v }))} options={priorities} />
+              <Field label={tr.asset} as="select" value={form.assetId}
+                onChange={(v) => setForm((f) => ({ ...f!, assetId: v }))} options={pickOptions(pickers.assets, tr.noAsset)} />
+              <Field label={tr.location} as="select" value={form.locationId}
+                onChange={(v) => setForm((f) => ({ ...f!, locationId: v }))} options={pickOptions(pickers.locations, tr.noLocation)} />
+              {/* A PLAN FOR A CUSTOMER'S UNIT, UNDER A CONTRACT — each offered
+                  only to somebody who may open that register. */}
+              {((pickers.installed || []).length > 0 || form.installedId) && (
+                <Field label={tr.installed} as="select" value={form.installedId}
+                  onChange={(v) => setForm((f) => ({ ...f!, installedId: v }))} options={pickOptions(pickers.installed, tr.noInstalled)} />
+              )}
+              {((pickers.contracts || []).length > 0 || form.slaId) && (
+                <Field label={tr.contract} as="select" value={form.slaId}
+                  onChange={(v) => setForm((f) => ({ ...f!, slaId: v }))} options={pickOptions(pickers.contracts, tr.noContract)} />
+              )}
+              <Field label={tr.estimatedHours} type="number" value={form.estimatedHours}
+                onChange={(v) => setForm((f) => ({ ...f!, estimatedHours: v }))} inputProps={{ min: 0, step: 0.25 }} />
+            </div>
+            {form.trigger !== "condition" && <p className="text-xs text-slate-500 dark:text-slate-400">{tr.modeHint}</p>}
+            <PeoplePicker people={pickers.people} value={form.assignedToCollaboratorIds} label={tr.assignedTo}
+              hint={tr.assignedHint} onChange={(ids) => setForm((f) => ({ ...f!, assignedToCollaboratorIds: ids }))} />
+            <Field label={tr.checklist} as="textarea" value={form.checklist} hint={tr.checklistHint}
+              onChange={(v) => setForm((f) => ({ ...f!, checklist: v }))} />
+            <Field label={tr.description} as="textarea" value={form.description}
+              onChange={(v) => setForm((f) => ({ ...f!, description: v }))} inputProps={{ maxLength: 4000 }} />
+            {blocked && form.title.trim() && (
+              <p className="text-sm text-rose-600 dark:text-rose-300">{tr.refuse[blocked] || blocked}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button type="button" className={btnGhost} onClick={() => setForm(null)}>{tr.cancel}</button>
+              <button type="button" className={btn} disabled={busy || Boolean(blocked)} onClick={save}>
+                {busy ? tr.saving : tr.save}
+              </button>
+            </div>
+          </div>
+        </Dialog>
+      )}
+    </div>
+  );
+}

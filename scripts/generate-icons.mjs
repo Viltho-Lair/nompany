@@ -210,10 +210,10 @@ ${body}
 };
 `;
 
-const dest = join(ROOT, "src", "components", "studio2", "icons.art.js");
+const dest = join(ROOT, "src", "components", "studio2", "icons.art.ts");
 writeFileSync(dest, out.replace(/\n/g, "\r\n"), "utf8");
 const duo = entries.filter((e) => e[1]).length;
 console.log(
-  `icons.art.js: ${entries.length} marks (${duo} duotone, ${entries.length - duo} regular), ` +
+  `icons.art.ts: ${entries.length} marks (${duo} duotone, ${entries.length - duo} regular), ` +
   `${(out.length / 1024).toFixed(1)} KB raw`
 );

@@ -1,0 +1,253 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { LinesSkeleton } from "@/components/studio2/RecordSkeleton";
+import { technicalDict } from "@/shared/studio/technical";
+import { documentsDict } from "@/shared/studio/documents";
+import Link from "next/link";
+import useLiveUpdates from "@/components/studio2/useLiveUpdates";
+import { Icon } from "@/components/studio2/icons";
+import { panel, h2, sub, btnGhost, fmtDate } from "@/components/studio2/ui";
+import { netUnitPrice } from "@/modules/technical/quotations";
+import { useReload } from "@/components/studio2/useReload";
+import { moneyText } from "@/shared/money";
+import type { ticketQuotation } from "@/modules/sales/sales";
+
+/** What ticketQuotation found — the route answers its parts plus the currency. */
+type Found = Exclude<Awaited<ReturnType<typeof ticketQuotation>>, { error: string }>;
+type ViewerPayload = Pick<Found, "quotation" | "ticket" | "isLatest"> & { currency: string };
+
+// THE QUOTATION, AS SALES READS IT.
+//
+// A copy of the document Technical built, drawn as plain tables with the studio's
+// own chrome — the same panels, the same type, the same money — so it is
+// recognisably the same quotation and not a second design of one.
+//
+// VIEW ONLY, and view only in three separate ways, because hiding a button is
+// never the enforcement:
+//   • nothing here is an input. There is no field to type in, no Save and no
+//     Submit; the builder is Technical's screen and stays theirs.
+//   • it reads /sales/quotations, which has no POST, PUT or DELETE at all.
+//   • it PRINTS, and that is not an export of this screen. Print opens the
+//     quotation through the studio's PUBLISHED layout, filled from the stored
+//     record on the server (/print/quotation/<id>) — so the copy printed here
+//     and the one printed anywhere else are the same document, which was the
+//     only reason this screen used to refuse to produce one.
+//
+// FIGURES are shown exactly as they were stored: a quotation is a document
+// somebody was given, so no line here is repriced from today's catalogue.
+//
+// EVERYTHING THE DOCUMENT NEVER OWNED IS CARRIED — the client's name, whether it
+// was approved and when. Those were read straight off the stored row until they
+// were all three wrong at once: `clientName` is never written to a quotation, so
+// Client sat permanently blank; the approval lives on the task, so a quotation
+// signed on the board showed no date and read "Completed" here while Technical
+// called it Approved. Carrying is done in ticketQuotation, beside the read, so
+// the two sides cannot drift again.
+
+const cellHead = "px-3 py-2 text-start text-[11px] font-700 uppercase tracking-wide text-slate-500 dark:text-slate-400";
+
+// `initial` is this quotation's own /sales/quotations?id= body, answered inside
+// the studio page's render, so the document paints at once; absent — refused,
+// gone, or over the ceiling — it fetches and says why, as before.
+export default function SalesQuotationViewer({ slug, ticketId, quotationId, initial }: {
+  slug: string;
+  ticketId: string;
+  quotationId: string;
+  initial?: ViewerPayload | null;
+}) {
+  const tr = technicalDict(useStudioLocale());
+  const dt = documentsDict(useStudioLocale());
+  const [data, setData] = useState<ViewerPayload | null>(initial ?? null);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    const res = await fetch(`/api/studios/${slug}/sales/quotations?id=${encodeURIComponent(quotationId)}`, { cache: "no-store" });
+    if (!res.ok) {
+      setError(res.status === 404
+        ? tr.quotationNoLongerExists2
+        : tr.accessQuotation);
+      return;
+    }
+    setError("");
+    setData(await res.json());
+  }, [slug, quotationId]);
+
+  useReload(load, initial);
+  // Technical is still working on it while Sales is reading it, so a revision or
+  // a status change lands here without a refresh. Watches "crm-sales", not
+  // "engineering-docs" — the quotation moved WITH the section (restructure.ts's
+  // SECTION_KEY_MAP: technical-quotations -> crm-sales-quotations), so that is
+  // the channel its writes now publish on.
+  useLiveUpdates(slug, "crm-sales", load);
+
+  // PRINT IS BACK, against the new editor, as this note said it would be: the
+  // studio designs the quotation layout in the Document builder, publishes it
+  // and chooses it, and Print fills that layout from this quotation. A studio
+  // with no layout yet is told so on the print page, with a way to start one.
+
+  const back = (
+    <Link href={`/${slug}/crm-sales-tickets/${ticketId}`} className={btnGhost}>{tr.backTicket}</Link>
+  );
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">{back}</div>
+        <p className={`${panel} text-sm text-rose-600 dark:text-rose-300`}>{error}</p>
+      </div>
+    );
+  }
+  if (!data) return <LinesSkeleton loadingLabel={tr.loadingQuotation} />;
+
+  const { quotation: q, ticket, currency } = data;
+  const tables = Array.isArray(q.tables) ? q.tables : [];
+  const revision = Number(q.revision) || 1;
+  const priced = tables.reduce((n, t) => n + (t.rows || []).length, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        {back}
+        <div className="min-w-0">
+          <h1 className="truncate font-display text-xl font-800 text-slate-900 dark:text-white">
+            {q.number || tr.quotation2}
+            {revision > 1 && <span className="ms-2 text-sm font-600 text-slate-400">{tr.revision} {revision}</span>}
+          </h1>
+          <p className="truncate text-xs text-slate-400">
+            {q.title || ticket.title}{q.clientName ? ` · ${q.clientName}` : ""}{ticket.ref ? ` · ${ticket.ref}` : ""}
+          </p>
+        </div>
+        {/* Said out loud rather than implied by the absence of buttons: somebody
+            who came here looking for Export should learn where it lives. */}
+        <span className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-700 text-slate-500 dark:bg-white/5 dark:text-slate-300">
+          <Icon name="lock" className="h-3.5 w-3.5" /> {tr.viewOnly}
+        </span>
+        <Link href={`/${slug}/print/quotation/${quotationId}`} className={btnGhost}>{dt.print}</Link>
+      </div>
+
+      <section className={panel}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h2 className={h2}>{tr.quotation}</h2>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-600 text-slate-600 dark:bg-white/5 dark:text-slate-300">{q.status}</span>
+        </div>
+        <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-3">
+          <Field label={tr.number} value={q.number} mono />
+          <Field label={tr.revision} value={String(revision)} />
+          <Field label={tr.client} value={q.clientName} />
+          <Field label={tr.raised} value={fmtDate(q.createdAt)} />
+          {/* Written by updateQuotation, and not declared on the (loose) schema. */}
+          <Field label={tr.submitted} value={fmtDate((q as { submittedAt?: string }).submittedAt)} />
+          <Field label={tr.approved} value={fmtDate(q.completedAt)} />
+        </dl>
+        {q.description && (
+          <p className="mt-4 whitespace-pre-wrap border-t border-slate-100 pt-4 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
+            {q.description}
+          </p>
+        )}
+      </section>
+
+      {priced === 0 ? (
+        <section className={panel}>
+          <p className={sub}>{tr.nothingPricedQuotationYet}</p>
+        </section>
+      ) : tables.map((table, i) => {
+        const sum = (table.rows || []).reduce((s, r) => s + num(r.qty) * netUnitPrice(r), 0);
+        return (
+          <section key={table.id || i} className={`${panel} p-0 overflow-hidden`}>
+            <div className="border-b border-slate-100 bg-slate-50 px-5 py-3 font-display text-sm font-700 text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-white">
+              {table.title || tr.tableNumber(i + 1)}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-white/10">
+                    <th className={`${cellHead} w-14`}><span className="sr-only">{tr.itemImage}</span></th>
+                    <th className={cellHead}>{tr.item}</th>
+                    <th className={`${cellHead} w-20`}>{tr.unit}</th>
+                    <th className={`${cellHead} w-20`}>{tr.qty}</th>
+                    {/* NO DISCOUNT COLUMN. What Sales reads off this screen is
+                        what the client is being asked to pay, and the concession
+                        behind that number is Technical's working — a figure that
+                        invites a conversation about whether it should have been
+                        larger, in the one place where nothing can be changed.
+
+                        Which is why Unit price here is the NET one. Dropping the
+                        column while still showing the gross price would leave a
+                        table whose own arithmetic does not add up: qty × unit
+                        price would not be the line total, and a reader with no
+                        way to see why would be right to distrust the document. */}
+                    <th className={`${cellHead} w-28 text-end`}>{tr.unitPrice}</th>
+                    <th className={`${cellHead} w-32 text-end`}>{tr.lineTotal}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(table.rows || []).map((r, k) => (
+                    <tr key={r.id || k} className="border-b border-slate-50 last:border-0 dark:border-white/5">
+                      <td className="px-3 py-2">
+                        <span className="grid h-10 w-10 place-items-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+                          {r.image
+                            ? <img src={r.image} alt="" className="h-full w-full object-cover" />
+                            : <Icon name="services" className="h-4 w-4 text-slate-300" />}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 font-600 text-slate-900 dark:text-white">{r.description}</td>
+                      <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.unit || "—"}</td>
+                      <td className="px-3 py-2 tabular-nums text-slate-600 dark:text-slate-300">{num(r.qty)}</td>
+                      <td className="px-3 py-2 text-end font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">{moneyText(netUnitPrice(r), currency)}</td>
+                      <td className="px-3 py-2 text-end font-mono text-xs font-600 tabular-nums text-slate-800 dark:text-slate-100">
+                        {moneyText(num(r.qty) * netUnitPrice(r), currency)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="border-t border-slate-100 px-5 py-2.5 text-end text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
+              {tr.tableTotal} <span className="font-mono font-600 text-slate-700 dark:text-slate-200">{moneyText(sum, currency)}</span>
+              {currency && <span className="ms-1 text-slate-400">{currency}</span>}
+            </div>
+          </section>
+        );
+      })}
+
+      <section className={panel}>
+        <dl className="ms-auto w-full max-w-sm space-y-1 text-sm">
+          <Total label={tr.subtotal} value={q.subtotal} currency={currency} />
+          <Total label={tr.vatRate(num(q.vatRate))} value={q.vat} currency={currency} />
+          <div className="flex items-baseline gap-3 border-t border-slate-200 pt-1 dark:border-white/10">
+            <dt className="text-slate-500 dark:text-slate-400">{tr.total}</dt>
+            <dd className="ms-auto font-display text-base font-700 tabular-nums text-slate-900 dark:text-white">
+              {moneyText(q.total, currency)} <span className="text-sm font-600 text-slate-400">{currency}</span>
+            </dd>
+          </div>
+        </dl>
+      </section>
+    </div>
+  );
+}
+
+const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+
+function Total({ label, value, currency }: { label: string; value: unknown; currency: string }) {
+  return (
+    <div className="flex items-baseline gap-3">
+      <dt className="text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="ms-auto font-mono tabular-nums text-slate-700 dark:text-slate-200">
+        {moneyText(value, currency)} <span className="text-slate-400">{currency}</span>
+      </dd>
+    </div>
+  );
+}
+
+function Field({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs font-600 uppercase tracking-wide text-slate-400">{label}</dt>
+      <dd className={`mt-0.5 text-sm text-slate-700 dark:text-slate-200 ${mono ? "font-mono text-xs" : ""}`}>
+        {value && value !== "—" ? value : <span className="text-slate-400">—</span>}
+      </dd>
+    </div>
+  );
+}

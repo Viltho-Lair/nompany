@@ -340,7 +340,7 @@ export const fieldService: HelpModule = {
       keywords: ["locations tab", "places", "sites", "add location", "تبويب المواقع", "الأماكن", "المواقع", "إضافة موقع"],
       related: ["admin.master.locations", "admin.master.location-delete", "field-service.places"],
     },
-    // Checked against src/components/studio2/StudioOperations.js (ShiftForm, the
+    // Checked against src/components/studio2/StudioOperations.tsx (ShiftForm, the
     // Schedule a shift dialog: Who, required; Date, required; Location; Start;
     // End; Role) and ShiftSchema in src/modules/operations/schema.ts (role max
     // 120; notes max 500, not on the form); the refusals are createShift's in
@@ -552,7 +552,7 @@ export const fieldService: HelpModule = {
       keywords: ["hours", "load", "booked hours", "overnight", "الساعات", "العبء", "الساعات المحجوزة", "عبر الليل"],
       related: ["field-service-schedule.dispatch"],
     },
-    // Checked against src/components/studio2/DispatchPanel.js (NewJobForm, the New
+    // Checked against src/components/studio2/DispatchPanel.tsx (NewJobForm, the New
     // job form: Title; Kind; Who is on it; Project; Location; Maintenance
     // contract; Installed unit; Day; Starts; Ends — the day on the shared date
     // picker and two clock times, an end earlier than the start running past
@@ -751,7 +751,7 @@ export const fieldService: HelpModule = {
       keywords: ["sign before finish", "signature and status", "second signature", "التوقيع قبل الإنهاء", "التوقيع والحالة", "توقيع ثان"],
       related: ["field-service-schedule.job-statuses", "field-service-schedule.signature"],
     },
-    // Checked against src/components/studio2/FieldViewPanel.js (SignaturePad, the
+    // Checked against src/components/studio2/FieldViewPanel.tsx (SignaturePad, the
     // Signature for dialog: Signed by, required; Their role; the drawn mark,
     // required — Save signature stays greyed without a name and a mark) and the
     // signoffs shape in JobSchema, src/modules/operations/jobSchema.ts
@@ -992,7 +992,7 @@ export const fieldService: HelpModule = {
       keywords: ["unit named", "linked unit", "work order unit", "contract unit", "وحدة مذكورة", "وحدة مرتبطة", "وحدة أمر العمل", "وحدة العقد"],
       related: ["maintenance.hidden-names", "field-service-schedule.job-fields"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the generic
+    // Checked against src/components/studio2/StudioRecords.tsx (the generic
     // register's New / Edit form, whose fields come from the type) and the
     // `installed` type in src/platform/engine/builtins.ts (Equipment, text,
     // required; Customer, text; Site, text; Serial, text; Installed, date;

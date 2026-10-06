@@ -19,12 +19,12 @@
 //      key (platform/notify/notifications.ts:108). Task 5 swept the
 //      producers, so new notices are correct; every notice already stored
 //      still points at a retired key, and clicking one renders a blank
-//      screen with no error (page.js matches segments[0] against the
+//      screen with no error (page.tsx matches segments[0] against the
 //      tenant's own section list and finds nothing there).
 //
 // A SIXTH THING, not named by the brief and not one of the five carriers
 // above, but the same class of bug: five children's `parentId`. Renaming a
-// child's `key` does not move it in the sidebar tree — StudioFrame.js groups
+// child's `key` does not move it in the sidebar tree — StudioFrame.tsx groups
 // the nav purely by `parentId` — and five children have a NEW LOGICAL PARENT
 // under the fifteen-section blueprint, not just a new key:
 //   technical-quotations -> crm-sales-quotations      (parent: crm-sales)

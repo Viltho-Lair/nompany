@@ -11,7 +11,7 @@ channel. Here it is live, not rebuilt each month.
 Section `crm-sales-insights`, under CRM & Sales. It owns no collection. Code:
 `src/modules/sales/insightsModel.ts` (the arithmetic, pure, `tests/insights-model.mjs`),
 `modules/sales/insights.ts` (what counts as a sale, the send to Sales, the CSV),
-`components/studio2/CustomerInsightsDashboard.jsx` (the screen), `shared/studio/customerInsights.ts`
+`components/studio2/CustomerInsightsDashboard.tsx` (the screen), `shared/studio/customerInsights.ts`
 (the words, English and Arabic).
 
 ## The owner's decisions (2026-09-19)

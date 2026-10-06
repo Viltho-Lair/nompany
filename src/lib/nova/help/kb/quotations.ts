@@ -300,7 +300,7 @@ export const quotations: HelpModule = {
       keywords: ["second rfq", "revision request", "revise", "again", "طلب ثان", "طلب مراجعة", "مراجعة", "مرة أخرى"],
       related: ["quotations-register.revisions", "crm-sales-tickets.revise-quotation"],
     },
-    // Checked against src/components/studio2/StudioTechnical.js (RfqHandler: the
+    // Checked against src/components/studio2/StudioTechnical.tsx (RfqHandler: the
     // Status select, which never offers Converted by hand, and the Description
     // textarea) and RfqSchema (status, description max 4000) in
     // src/modules/technical/schema.ts; the refusals are updateRfq's in
@@ -325,7 +325,7 @@ export const quotations: HelpModule = {
       keywords: ["rfq fields", "status", "description", "clarify", "حقول الطلب", "الحالة", "الوصف", "توضيح"],
       related: ["quotations-rfq.review", "quotations-rfq.save-grey"],
     },
-    // Checked against src/components/studio2/StudioTechnical.js (RaiseRfq: the
+    // Checked against src/components/studio2/StudioTechnical.tsx (RaiseRfq: the
     // Ticket select, required, and What's needed) and RfqSchema (ticketId,
     // description) in src/modules/technical/schema.ts; the refusals are
     // requestRfq's, and the tickets offered are openTickets', in technical.ts.
@@ -349,7 +349,7 @@ export const quotations: HelpModule = {
       keywords: ["raise rfq fields", "ticket", "what's needed", "new request", "حقول رفع الطلب", "التذكرة", "المطلوب", "طلب جديد"],
       related: ["quotations-rfq.raise", "quotations-rfq.cannot-raise"],
     },
-    // Checked against src/components/studio2/StudioTechnical.js (ConvertRfq:
+    // Checked against src/components/studio2/StudioTechnical.tsx (ConvertRfq:
     // Quotation number, Client, Title, Urgency and Industry read only; Handled by
     // offered, and then required, only with the assign right) and QuotationSchema
     // in src/modules/technical/schema.ts; the refusals are convertRfq's and
@@ -616,8 +616,8 @@ export const quotations: HelpModule = {
       keywords: ["printed quotation", "layout", "barcode", "terms", "draft stamp", "العرض المطبوع", "القالب", "رمز شريطي", "الشروط"],
       related: ["quotations-register.print", "quotations-register.print-no-layout"],
     },
-    // Checked against src/components/studio2/StudioTechnical.js (NewQuotation, in
-    // on-screen order, with ClientBlock.jsx for the contact and site) and
+    // Checked against src/components/studio2/StudioTechnical.tsx (NewQuotation, in
+    // on-screen order, with ClientBlock.tsx for the contact and site) and
     // QuotationSchema (clientId, industry, deadline, description,
     // handledByCollaboratorId) in src/modules/technical/schema.ts; the six
     // required fields are createQuotation's refusals in technical.ts.
@@ -655,7 +655,7 @@ export const quotations: HelpModule = {
       keywords: ["internal quotation", "new quotation", "without ticket", "عرض داخلي", "عرض جديد", "بدون تذكرة"],
       related: ["quotations-register.create-internal", "quotations-register.build"],
     },
-    // Checked against src/components/studio2/QuotationBuilder.js (the table title,
+    // Checked against src/components/studio2/QuotationBuilder.tsx (the table title,
     // the footer's Valid until and VAT %, shown only when the studio has a VAT
     // rate) and QuotationSchema / QuotationTableSchema (title max 120, vatRate,
     // validUntil) in src/modules/technical/schema.ts; the limits are MAX_TABLES
@@ -683,7 +683,7 @@ export const quotations: HelpModule = {
       keywords: ["valid until", "vat rate", "table title", "section title", "صالح حتى", "نسبة الضريبة", "عنوان الجدول", "عنوان القسم"],
       related: ["quotations-register.totals", "quotations-settings.validity"],
     },
-    // Checked against src/components/studio2/QuotationBuilder.js (the table
+    // Checked against src/components/studio2/QuotationBuilder.tsx (the table
     // columns: picture, Item, Unit, Qty, Unit price, Disc %) and
     // QuotationLineSchema (description max 300, unit, qty, unitPrice, discount,
     // taxCategory) in src/modules/technical/schema.ts; the clamps and the
@@ -715,7 +715,7 @@ export const quotations: HelpModule = {
       keywords: ["line", "item", "quantity", "discount", "unit price", "البند", "الصنف", "الكمية", "الخصم", "سعر الوحدة"],
       related: ["quotations-register.prices", "quotations-register.item-missing"],
     },
-    // Checked against src/components/studio2/StudioTechnical.js (CloseQuotation:
+    // Checked against src/components/studio2/StudioTechnical.tsx (CloseQuotation:
     // one required textarea) and closeQuotation in src/modules/technical/technical.ts
     // (reason up to 400 characters, refused when empty); QuotationSchema is a
     // loose object and stores closedReason beside its declared fields.
@@ -733,7 +733,7 @@ export const quotations: HelpModule = {
       keywords: ["close reason", "why closed", "close quotation", "سبب الإغلاق", "لماذا أُغلق", "إغلاق العرض"],
       related: ["quotations-register.close", "quotations-register.closed-vs-locked"],
     },
-    // Checked against src/components/studio2/StudioTechnical.js (AssignQuotation:
+    // Checked against src/components/studio2/StudioTechnical.tsx (AssignQuotation:
     // one required Handled by select that leaves out the current handler) and
     // assignQuotation in src/modules/technical/technical.ts, which writes
     // handledByCollaboratorId on the quotation (QuotationSchema) and on its RFQ
@@ -1134,7 +1134,7 @@ export const quotations: HelpModule = {
       keywords: ["quotation settings", "configure quotations", "إعدادات العروض", "ضبط عروض الأسعار", "الإعدادات"],
       related: ["quotations-settings.numbering", "quotations-settings.elsewhere"],
     },
-    // Checked against src/components/studio2/StudioTechnical.js (QuotationNumbering:
+    // Checked against src/components/studio2/StudioTechnical.tsx (QuotationNumbering:
     // Label, Prefix, Start, Valid for (days) and the Default for Sales tickets
     // radio, in that order) and cleanSequence / cleanSequencesForSave in
     // src/modules/technical/technical.ts — sequences live in the settings

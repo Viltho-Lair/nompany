@@ -227,7 +227,7 @@ export const COUNTRY_NAMES = COUNTRIES.map((c) => c.name);
 // geographic keys on the ISO code instead — city lists, flags, the continent a
 // studio sits in — so the two alphabets meet here.
 //
-// It lived as a one-line copy in StudioSettings.js and again in ClientBlock.jsx
+// It lived as a one-line copy in StudioSettings.tsx and again in ClientBlock.tsx
 // (`codeOf` and `codeOfCountry`, identical), and the Pulse wall wanted a third
 // on the server. Two copies agree until somebody makes one of them tolerant of
 // case or of a trailing space.

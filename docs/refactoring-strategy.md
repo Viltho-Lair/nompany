@@ -149,7 +149,7 @@ Parity rule: each schema's limits must be transcribed from the existing code, no
 
 ### 2.5 Seam E — split the monolithic modules
 
-`StudioSales.js` is 69 KB, `StudioProjects.js` 68 KB, `StudioInventory.js` 63 KB — each a single `"use client"` file containing a dashboard, several tables, a dozen dialogs, filter state and fetch logic. They are the reason the client bundle is 1.06 MB gzipped.
+`StudioSales.tsx` is 69 KB, `StudioProjects.tsx` 68 KB, `StudioInventory.tsx` 63 KB — each a single `"use client"` file containing a dashboard, several tables, a dozen dialogs, filter state and fetch logic. They are the reason the client bundle is 1.06 MB gzipped.
 
 Split per module into: a **server** shell that fetches, a **table** client island, **dialog** islands loaded on demand, and a **pure** logic file (filters, derivations, totals) that is unit-testable without React. Detailed in `ui-ux-overhaul.md` §6; listed here because the split is a refactor, not a redesign, and can land before any visual change.
 

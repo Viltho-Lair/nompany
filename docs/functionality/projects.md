@@ -70,7 +70,7 @@ cannot tell which head ran, and that is deliberate: a second create path is a
 second place the engagement dual-write could be forgotten, which is exactly
 how a record ends up on no deal at all. See `quotationSource` and
 `directSource` in that file, and `NewProject` / `FromQuotation` /
-`DirectProject` in `src/components/studio2/StudioProjects.js` for the two
+`DirectProject` in `src/components/studio2/StudioProjects.tsx` for the two
 halves of the dialog.
 
 ## What each path supplies
@@ -234,7 +234,7 @@ rows themselves are read back live through `quotationId` on every read
 (`composeSheet`, `listProjectSheets`). A direct project's `quotationId` is
 `""`, so `composeSheet` has nothing to read rows from and returns no tables
 — **permanently empty, not broken.** The viewer
-(`src/components/studio2/StudioSheetViewer.js`) tells the two kinds of empty
+(`src/components/studio2/StudioSheetViewer.tsx`) tells the two kinds of empty
 apart in words rather than showing an identical blank grid: a sheet with a
 `quotationId` and no tables is waiting on somebody to price the quotation
 (`quotationNoPricedLines`); a sheet with none is a project raised directly,
@@ -244,7 +244,7 @@ which can never fill from this screen (`noQuotationBehindProject`).
 
 The planner's **Print** button opens the plan's print sheet in a new tab. The sheet prints
 itself once it has drawn, and **Print** and **Close** stay on screen afterwards. Every plan
-door has one beside it, matched by name in `page.js`:
+door has one beside it, matched by name in `page.tsx`:
 `/projects-list/<id>/plans/<planId>/print`, `/projects-planner/<planId>/print` and
 `/projects-planner/templates/<id>/print`. The sheet reads the same API as the planner, so
 the same grant governs it, and it never writes anything (`src/components/planner/PlanPrint.tsx`).

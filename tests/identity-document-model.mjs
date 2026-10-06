@@ -63,7 +63,7 @@ const en = hrDict("en");
 ok("the dictionary no longer offers a number field",
   !("idNumber" in en) && !("passportNumber" in en) && !("numbersEncrypted" in en));
 const sources = [
-  "src/modules/hr/hr.ts", "src/components/studio2/StudioHr.js",
+  "src/modules/hr/hr.ts", "src/components/studio2/StudioHr.tsx",
   "src/platform/auth/collaborators.ts", "src/shared/studio/hr.ts",
 ];
 const leftovers = sources.filter((f) => /idNumber|passportNumber|idExpiry|passportExpiry|idImage|passportImage/.test(readFileSync(f, "utf8")));

@@ -35,7 +35,7 @@ On the item (`inventoryItems`): `barcode`, absent when none.
 slip (`posParts`), and a quotation's or invoice's reference on the printed document. The
 encoder is hand-written and pure (`shared/barcode.ts`, set B, printable ASCII up to 40
 characters; anything else — Arabic, an empty value — draws nothing rather than a wrong code),
-and `components/studio2/Barcode.js` draws it as black-on-white SVG. `tests/barcode128-model.mjs`
+and `components/studio2/Barcode.tsx` draws it as black-on-white SVG. `tests/barcode128-model.mjs`
 checks the table's shape and the checksum; when it was written, an independent reader (ZXing)
 decoded the slip's code and all 95 printable characters exactly.
 

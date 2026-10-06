@@ -12,7 +12,7 @@
 
 `SECTION_DEFS` (keys.ts) gives it three children — `administration-members`,
 `administration-master`, `administration-settings`. The sidebar shows none of them. Instead
-`StudioFrame.js` hardcodes three entries of its own: People at `/people` (line 244, shown to
+`StudioFrame.tsx` hardcodes three entries of its own: People at `/people` (line 244, shown to
 everyone), Access at `/access` (line 245, `canAdminister`), and Studio settings as a footer
 link to `/administration-settings` (line 369). `page.js` special-cases all three by literal
 key match.
@@ -146,7 +146,7 @@ same way it answers it for every other screen.
 
 ### 3.5 The nav
 
-`StudioFrame.js` loses its three hardcoded entries. The rows come from the section tree, which
+`StudioFrame.tsx` loses its three hardcoded entries. The rows come from the section tree, which
 means they gain what every other section already has for free: the open-group behaviour, the
 active-row highlight, the Arabic labels from `shared/studio/sections.ts`, and the permission
 filtering that made this change necessary.

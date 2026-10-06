@@ -96,7 +96,7 @@ const { readFileSync } = await import("node:fs");
 const store = readFileSync("src/components/planner/lib/store/plannerStore.ts", "utf8");
 const body = store.slice(store.indexOf("export function planDoc"), store.indexOf("}", store.indexOf("return {", store.indexOf("export function planDoc"))));
 const saved = [...body.matchAll(/^\s+(\w+): state\.\w+,/gm)].map((m) => m[1]);
-const shell = readFileSync("src/components/studio2/StudioPlanner.jsx", "utf8");
+const shell = readFileSync("src/components/studio2/StudioPlanner.tsx", "utf8");
 const unwatched = saved.filter((k) => !shell.includes(`s.${k} !== prev.${k}`));
 ok("planDoc's fields were read", saved.length >= 9, saved.join(","));
 ok("every field planDoc saves is one the autosave watches", unwatched.length === 0, unwatched.join(","));

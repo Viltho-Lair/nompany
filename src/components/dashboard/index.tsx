@@ -8,7 +8,7 @@
 // The locked teaser is the one exception and lives in its own client file —
 // see LockedBody for why that split is where the boundary belongs.
 
-import { Children, cloneElement, isValidElement } from "react";
+import { Children, cloneElement, Fragment, isValidElement } from "react";
 import type { ReactNode } from "react";
 import { panel, StatTile, WidgetTitle, tileRow } from "@/components/studio2/ui";
 // The one part of this file that needs the reader's language, and therefore a
@@ -41,10 +41,12 @@ export function DashGrid({ children, className = "" }: Wrap) {
 // detail, which is how a dashboard is read.
 export function StatRow({ children, className = "" }: Wrap) {
   // Each tile takes the next colour in the ramp unless it named its own, so a
-  // dashboard gets a coloured KPI row for free — no per-dashboard change.
+  // dashboard gets a coloured KPI row for free — no per-dashboard change. A
+  // fragment (a group of tiles shown together) is passed through untouched:
+  // React refuses any prop on a Fragment but key, and said so on every render.
   let i = 0;
   const tinted = Children.map(children, (child) =>
-    isValidElement<{ accent?: string }>(child)
+    isValidElement<{ accent?: string }>(child) && child.type !== Fragment
       ? cloneElement(child, { accent: child.props.accent ?? STAT_ACCENTS[i++ % STAT_ACCENTS.length] })
       : child,
   );

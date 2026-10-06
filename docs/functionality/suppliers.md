@@ -134,7 +134,7 @@ So the screen talks to **two endpoints**: name, contact and item types still pos
 `vendors` route, and the assessment and scorecards to this one.
 
 **The register moved out of `StudioInventory`.** It was rendered there because vendors were
-Inventory's; it is `StudioSuppliers` now, and `VendorRegister.js` holds the create/edit and CSV
+Inventory's; it is `StudioSuppliers` now, and `VendorRegister.tsx` holds the create/edit and CSV
 import dialogs it was **extracted** into rather than copied — a second copy would be two
 registers over one collection.
 

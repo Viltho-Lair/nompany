@@ -168,9 +168,9 @@ component serves both doors.
 3. ✅ **Phase 1 frontend** — kanban ported to `src/components/kanban/**`
    (framer-motion + next-themes + `persist` removed; design system scoped to
    `.kanban-root`; Redis storage adapter; `emptySeed()` = same 4 columns empty;
-   members from collaborators; stutter fix). `StudioProjectBoard.jsx` = back bar
+   members from collaborators; stutter fix). `StudioProjectBoard.tsx` = back bar
    + left decisions rail + center board + right project-info sidebar.
-   `StudioProjectInfo.jsx` extracted and shared (no duplication).
+   `StudioProjectInfo.tsx` extracted and shared (no duplication).
 4. ✅ **Phase 1 wiring** — studio-route early-return renders the full-screen
    board (own `LiveProvider`); dead `StudioProjectProfile.js` deleted.
 5. ✅ **Phase 1 RTL sweep** — the port kept the app's physical Tailwind
@@ -189,9 +189,9 @@ component serves both doors.
 7. ✅ **Phase 2 frontend** — planner ported to `src/components/planner/**`
    (Providers/`<CssBaseline>` dropped, only `LocalizationProvider` kept; design
    scoped to `.planner-root`; Redis storage adapter with `hydratePlan` merging
-   partial docs over store defaults; no framer-motion/next-themes). `StudioPlanner.jsx`
+   partial docs over store defaults; no framer-motion/next-themes). `StudioPlanner.tsx`
    (back bar + PlannerShell) serves both doors via a `planApiBase` prop;
-   `StudioPlannerList.jsx` is the `/operations-planner` app.
+   `StudioPlannerList.tsx` is the `/operations-planner` app.
 8. ✅ **Phase 2 wiring** — studio-route early-returns for `/operations-planner`,
    `/operations-planner/<planId>`, `/projects-list/<id>/plans/<planId>` (board
    branch excludes `plans`); the "Project plan" button creates+opens a plan; a

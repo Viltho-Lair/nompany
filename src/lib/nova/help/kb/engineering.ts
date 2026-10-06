@@ -927,7 +927,7 @@ export const engineering: HelpModule = {
     },
     // Checked against the `transmittal` declaration in BUILTIN_TYPES,
     // src/platform/engine/builtins.ts (Title required; Recipient; Issued, a
-    // date; Notes), drawn by src/components/studio2/StudioRecords.js (the New /
+    // date; Notes), drawn by src/components/studio2/StudioRecords.tsx (the New /
     // Edit dialog, fields in declared order) and refused by recordProblem in
     // src/platform/engine/types.ts; Arabic labels from
     // src/shared/studio/engineTypes.ts.
@@ -992,7 +992,7 @@ export const engineering: HelpModule = {
     // Checked against the `rfi` declaration in BUILTIN_TYPES,
     // src/platform/engine/builtins.ts (Subject and Question required; Ball in
     // court and Discipline are selects with fixed options; Raised; Needed by;
-    // Answer), drawn by src/components/studio2/StudioRecords.js (New / Edit
+    // Answer), drawn by src/components/studio2/StudioRecords.tsx (New / Edit
     // dialog) and refused by recordProblem in src/platform/engine/types.ts;
     // Arabic labels and options from src/shared/studio/engineTypes.ts.
     {
@@ -1074,7 +1074,7 @@ export const engineering: HelpModule = {
     // Checked against the `submittal` declaration in BUILTIN_TYPES,
     // src/platform/engine/builtins.ts (Title required; Specification section;
     // Kind, a select; Submitted by; Submitted; Response due; Review comments),
-    // drawn by src/components/studio2/StudioRecords.js and refused by
+    // drawn by src/components/studio2/StudioRecords.tsx and refused by
     // recordProblem in src/platform/engine/types.ts; Arabic labels and options
     // from src/shared/studio/engineTypes.ts.
     {
@@ -1146,7 +1146,7 @@ export const engineering: HelpModule = {
     // Checked against the `ebom` declaration in BUILTIN_TYPES,
     // src/platform/engine/builtins.ts (Product or assembly and Parts and
     // quantities required; Revision; Discipline, a select; Specification;
-    // Approved by), drawn by src/components/studio2/StudioRecords.js and
+    // Approved by), drawn by src/components/studio2/StudioRecords.tsx and
     // refused by recordProblem in src/platform/engine/types.ts; Arabic labels
     // from src/shared/studio/engineTypes.ts.
     {
@@ -1216,7 +1216,7 @@ export const engineering: HelpModule = {
     // Checked against the `techlib` declaration in BUILTIN_TYPES,
     // src/platform/engine/builtins.ts (Title required; Kind, a select; Issued
     // by; Edition or year; Reference number; Notes), drawn by
-    // src/components/studio2/StudioRecords.js and refused by recordProblem in
+    // src/components/studio2/StudioRecords.tsx and refused by recordProblem in
     // src/platform/engine/types.ts; Arabic labels and options from
     // src/shared/studio/engineTypes.ts.
     {

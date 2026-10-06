@@ -209,7 +209,7 @@ otherwise                  → union of assigned roles' permissions
 
 Each is one client component fetching one aggregate endpoint. Below: the screens, the actions behind the buttons, and the permission each answers to.
 
-### Sales — `StudioSales.js` (69 KB) · `/api/studios/[slug]/sales`
+### Sales — `StudioSales.tsx` (69 KB) · `/api/studios/[slug]/sales`
 Screens: **Dashboard** (`sales.dashboard.view`) · **Tickets** · **Clients** · **Live view** · **Settings**.
 
 The ticket workflow is the spine of the whole ERP:
@@ -230,22 +230,22 @@ Sales reads Technical's and Tasks' collections **without a Technical or Tasks gr
 
 Live view is a **projection** of the ticket list, not a second data source; which columns it shows is stored on the `sales-settings` sub-section.
 
-### Technical — `StudioTechnical.js` (50 KB) · `/technical`
-RFQs, quotations, the **Quotation Builder** (`QuotationBuilder.js`), Live view, Settings. Converting an RFQ writes the quotation's id back onto the RFQ — the one place in the chain where the link is genuinely held from both ends, so it is the one place a back-pointer is a fact rather than a copy. Lock/unlock are separate rights. Catalogue items priced in foreign currency are converted through `landedUnitCost()` — `(unitCost + shipping + customs) × crossRate` — off the daily USD snapshot; **no rate means no price, never a fallback to the foreign figure**.
+### Technical — `StudioTechnical.tsx` (50 KB) · `/technical`
+RFQs, quotations, the **Quotation Builder** (`QuotationBuilder.tsx`), Live view, Settings. Converting an RFQ writes the quotation's id back onto the RFQ — the one place in the chain where the link is genuinely held from both ends, so it is the one place a back-pointer is a fact rather than a copy. Lock/unlock are separate rights. Catalogue items priced in foreign currency are converted through `landedUnitCost()` — `(unitCost + shipping + customs) × crossRate` — off the daily USD snapshot; **no rate means no price, never a fallback to the foreign figure**.
 
-### Projects — `StudioProjects.js` (68 KB) · `/projects`
+### Projects — `StudioProjects.tsx` (68 KB) · `/projects`
 Project list, per-project profile (`StudioProjectProfile.js`), SLA, Overtimes, Settings. A project carries the whole lineage: `ticketId`, `quotationId`, `clientId`. **A ticket has exactly one project** — a second project means a second ticket, because a client asking for more work starts the process again.
 
-### Inventory — `StudioInventory.js` (63 KB) · `/inventory`
-Stock, Vendors, Registered items, **Project sheets** (`StudioSheetViewer.js`, 43 KB — the same screen serves Inventory's and Projects' perspectives on one sheet), Deliveries, **AWB tracking** (`awb.js`, `awbStatus.js`, `awbTracking.js`; the airline registry resolves a waybill's 3-digit prefix to a carrier). `sheetColumns.js` decides which columns on a shared sheet row answer to `inventory.sheets.edit` and which to `projects.list.edit`.
+### Inventory — `StudioInventory.tsx` (63 KB) · `/inventory`
+Stock, Vendors, Registered items, **Project sheets** (`StudioSheetViewer.tsx`, 43 KB — the same screen serves Inventory's and Projects' perspectives on one sheet), Deliveries, **AWB tracking** (`awb.js`, `awbStatus.js`, `awbTracking.js`; the airline registry resolves a waybill's 3-digit prefix to a carrier). `sheetColumns.js` decides which columns on a shared sheet row answer to `inventory.sheets.edit` and which to `projects.list.edit`.
 
-### HR — `StudioHr.js` (47 KB) · `/hr`
+### HR — `StudioHr.tsx` (47 KB) · `/hr`
 Employees, certifications, vacations. Scope-enforced. ID and passport numbers are AES-256-GCM encrypted at rest (`fieldCrypto.js`) and revealed only on `hr.employees.salary`; presence and expiry are HR-wide, the numbers are gated. Photos are read from the account profile on every read rather than copied onto the row — so changing your picture changes it here too.
 
-### Finance — `StudioFinance.js` (40 KB) · `/finance`
+### Finance — `StudioFinance.tsx` (40 KB) · `/finance`
 Invoices, expenses, per-project rollups, settings. Cancelled invoices and cancelled material orders are excluded from project totals — a rule that now lives on the *edge* (§8) rather than inside `finance.js`.
 
-### Operations — `StudioOperations.js` (50 KB) · `/operations`
+### Operations — `StudioOperations.tsx` (50 KB) · `/operations`
 Locations, permits, shifts (tabs of one screen), and Tracking. `operationsCalendar.js` and `googleMaps.js` support it.
 
 ### Tasks — `StudioTasks.js` (38 KB) · `/tasks`
@@ -255,7 +255,7 @@ The board, plus Task settings. `taskRouting.js` resolves *who currently holds ea
 The controlled-document register. Opens **full screen**, outside `StudioFrame`, because a document is read rather than navigated away from. A revision moves author → reviewer → approver → published through `signables.js`, which is generic across quality documents *and* generated documents (a quotation, a delivery note) precisely so two copies of one state machine cannot drift. **Nobody signs both halves**: approving is refused when the reviewer's CollaboratorID matches the actor's. The editor (`editor.tsx`, 15 KB, TipTap) lays documents out on real paper with margins, bands and pagination.
 
 ### Main / People / Access / Studio settings
-`StudioMain.js` (the studio home) · `StudioPeople.js` (members + join requests) · `StudioRoles.js` (role editor — the per-person section grid is gone; access is a role here and an assignment on People) · `StudioSettings.js` (37 KB).
+`StudioMain.tsx` (the studio home) · `StudioPeople.tsx` (members + join requests) · `StudioRoles.tsx` (role editor — the per-person section grid is gone; access is a role here and an assignment on People) · `StudioSettings.tsx` (37 KB).
 
 ---
 
@@ -352,7 +352,7 @@ Two Vercel crons, both gated by `cronDenied()` (`src/platform/auth/cronAuth.js`)
 ## 13. Frontend composition
 
 ```
-proxy.js  ─ rewrite ─►  app/studio/[[...segments]]/page.js   (server)
+proxy.js  ─ rewrite ─►  app/studio/[[...segments]]/page.tsx   (server)
                              │  currentUser → questionnaire gate → studioContext
                              │  visibleSections() filters the nav, default-deny
                              ├─ full-screen escapes (rendered BEFORE the shell):

@@ -9,7 +9,7 @@ could not be asked.
 Section `marketing-audiences`, which owns `marketingConsents`. Code:
 `src/modules/marketing/consent.ts` (the rules, pure, shared with the screen,
 `tests/consent-model.mjs`), `modules/marketing/audiences.ts` (the service),
-`components/studio2/StudioAudiences.js` (the screen), `shared/studio/audiences.ts` (the words).
+`components/studio2/StudioAudiences.tsx` (the screen), `shared/studio/audiences.ts` (the words).
 
 **nompany still sends nothing** (the owner, 2026-09-19). This is the record, not the gate. It is
 built before a sending layer rather than with one because consent nobody wrote down at the time

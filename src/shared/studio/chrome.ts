@@ -1,6 +1,6 @@
 import { defaultLocale, type Locale } from "../locale";
 
-// THE SHARED LIST/DIALOG/DASHBOARD CHROME — components/studio2/ui.js and
+// THE SHARED LIST/DIALOG/DASHBOARD CHROME — components/studio2/ui.tsx and
 // components/dashboard. Not a department's words and not the shell's: these are
 // the controls every department screen is BUILT from, so a screen that showed
 // them in English would read as half-translated no matter how well its own copy

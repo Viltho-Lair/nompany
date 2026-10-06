@@ -1,0 +1,153 @@
+"use client";
+
+import { useState } from "react";
+import { useStudioLocale } from "@/components/studio2/locale";
+import { plannerDict } from "@/shared/studio/planner";
+import { Dialog, input, label, btn, btnGhost } from "@/components/studio2/ui";
+import SelectMenu from "@/components/fields/SelectMenu";
+import type { ReactNode } from "react";
+
+// THE NEW-PLAN DEFAULTS EDITOR. What a fresh plan opens with — configured once
+// per studio, persisted through the planner PUT, and applied to every plan the
+// studio creates thereafter.
+//
+// Only the VIEW defaults are the studio's to preset now: a plan's PEOPLE are the
+// studio's live collaborators and its WORKING WEEK is the studio's own working
+// hours (Studio settings), both read fresh each load rather than copied into the
+// plan — so the resource pool and the calendar are no longer defaults here.
+
+const ZOOM_LEVELS = ["hour", "day", "week", "month", "quarter"];
+const COLOR_BY = ["phase", "status", "assignee", "priority"];
+
+export default function PlannerPresetsDialog({ slug, presets, canEdit, onClose, onSaved }: {
+  slug: string;
+  // The studio's stored new-plan defaults — open-ended until read, so each
+  // field is checked against its own list below.
+  presets?: Record<string, unknown> | null;
+  canEdit: boolean;
+  onClose: () => void;
+  onSaved?: (next: Record<string, unknown>) => void;
+}) {
+  const tr = plannerDict(useStudioLocale());
+  const [zoom, setZoom] = useState<string>(() =>
+    ZOOM_LEVELS.includes(presets?.zoom as string) ? (presets?.zoom as string) : "week",
+  );
+  const [colorBy, setColorBy] = useState<string>(() =>
+    COLOR_BY.includes(presets?.colorBy as string) ? (presets?.colorBy as string) : "phase",
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  function resetToDefaults() {
+    setZoom("week");
+    setColorBy("phase");
+    setError("");
+  }
+
+  async function save() {
+    if (saving || !canEdit) return;
+    setSaving(true);
+    setError("");
+    const payload = { presets: { zoom, colorBy } };
+    try {
+      const res = await fetch(`/api/studios/${slug}/operations/planner`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        setError(
+          res.status === 403
+            ? tr.permissionChangeTheseDefaults
+            : tr.defaultsCouldNotSaved,
+        );
+        setSaving(false);
+        return;
+      }
+      const body = await res.json();
+      onSaved?.(body?.presets ?? payload.presets);
+      onClose?.();
+    } catch {
+      setError(tr.defaultsCouldNotSaved);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog
+      title={tr.newPlanDefaults}
+      description={tr.howNewPlanOpens}
+      onClose={onClose}
+      width="max-w-[640px]"
+    >
+      <div className="flex flex-col gap-8">
+        <Section
+          heading={tr.viewDefaultsHeading}
+          hint={tr.howNewPlanOpens2}
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label={tr.defaultZoom}>
+              <SelectMenu className={input} value={zoom} onChange={setZoom} aria-label={tr.defaultZoom}
+                options={ZOOM_LEVELS.map((z) => ({ value: z, label: z.charAt(0).toUpperCase() + z.slice(1) }))}
+              />
+            </Field>
+            <Field label={tr.defaultColour}>
+              <SelectMenu className={input} value={colorBy} onChange={setColorBy} aria-label={tr.defaultColour}
+                options={COLOR_BY.map((c) => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }))}
+              />
+            </Field>
+          </div>
+        </Section>
+
+        {error && (
+          <p className="text-sm font-600 text-rose-600 dark:text-rose-300" role="alert">
+            {error}
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-200/70 pt-4 dark:border-white/10">
+          <button type="button" className={btnGhost} onClick={resetToDefaults} disabled={saving}>
+            {tr.resetToAppDefaults}
+          </button>
+          <div className="ms-auto flex items-center gap-2">
+            <button type="button" className={btnGhost} onClick={onClose} disabled={saving}>
+              {tr.cancel}
+            </button>
+            <button
+              type="button"
+              className={btn}
+              onClick={save}
+              disabled={saving || !canEdit}
+              title={!canEdit ? tr.permissionChangeTheseDefaults : undefined}
+            >
+              {saving ? tr.saving : tr.saveDefaults}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+function Section({ heading, hint, children }: { heading: ReactNode; hint?: ReactNode; children?: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div>
+        <h4 className="font-display text-sm font-800 uppercase tracking-wide text-[var(--geex-ink)]">
+          {heading}
+        </h4>
+        {hint && <p className="mt-0.5 text-xs text-[var(--geex-muted)]">{hint}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Field({ label: fieldLabel, children }: { label: ReactNode; children?: ReactNode }) {
+  return (
+    <label className="block">
+      <span className={label}>{fieldLabel}</span>
+      {children}
+    </label>
+  );
+}

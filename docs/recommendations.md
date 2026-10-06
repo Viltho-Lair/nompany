@@ -180,7 +180,7 @@ The absolute numbers scale with RTT — in-region on Vercel they would be ~10-40
 `listSections` additionally runs `plantMissingSections` — a full reconciliation against `SECTION_DEFS` — on every read, on the hot path, for a write that happens at most once per studio ever.
 
 ### H-6 · Live updates refetch entire module payloads
-`useLiveUpdates(slug, "sales", load)` (`StudioSales.js:93,96`) re-runs the full `GET /api/studios/<slug>/sales` on every event. One person editing one ticket in a 30-seat studio triggers 30 clients × 6-collection payloads. `StudioSales` subscribes to *two* sections, so a Technical event fires it too. The event log already carries `{ collection, rowId }` — enough for a targeted patch — and none of it is used.
+`useLiveUpdates(slug, "sales", load)` (`StudioSales.tsx:93,96`) re-runs the full `GET /api/studios/<slug>/sales` on every event. One person editing one ticket in a 30-seat studio triggers 30 clients × 6-collection payloads. `StudioSales` subscribes to *two* sections, so a Technical event fires it too. The event log already carries `{ collection, rowId }` — enough for a targeted patch — and none of it is used.
 
 ### H-7 · `ConflictError` surfaces as HTTP 500
 `store.js` raises `ConflictError` after 64 contended attempts; no route maps it. A client sees an opaque 500 and cannot distinguish "retry, someone else was writing" from "the server is broken". Known and open in the project's own notes; the fix is a shared `handle()` wrapper, not 57 edits.
@@ -325,7 +325,7 @@ These are structural necessities absent from the product, ordered by how much la
 
 9. **No accessibility baseline.** No automated a11y check, no focus-visible audit, no contrast verification, and the studio's data tables are `<div>` grids in several modules. The design checklist requires 4.5:1 contrast, full keyboard navigation of data grids, and correct ARIA — none of which is currently measured. See `ui-ux-overhaul.md`.
 
-10. **RTL is half-built.** ~~`stylis-plugin-rtl` is not installed~~ — **the MUI half landed 22/08/2026**: a studio's language is a tenant setting, the shell declares `lang`/`dir`, and an Arabic studio nests an RTL Emotion cache. What remains is smaller than this finding claimed. **Counted, because the guess was wrong.** This finding used to say logical and physical properties were mixed throughout, citing 57 uses in `StudioSales.js` against 9 in `StudioFinance.js` — but those were counts of the LOGICAL ones, and the difference is just that one file is bigger than the other. Scanned properly there are **41 genuine physical utilities in the whole app**, and the studio holds exactly one: a `left-1/2` paired with `-translate-x-1/2`, which is centring and is correct. The studio's only real defect was a toggle knob pinned to `left-`, so an Arabic switch read inverted; that is fixed. Where the 41 actually are: 20 on the landing, 16 in the vendored shadcn primitives, 2 in `/super`'s CatalogEditor, 2 in Quality outside the editor, 1 in the studio. Gate A holds the line at 41 and it can only come down. The document editor's own alignment controls are excluded outright — an author clicking "align left" means left, and that is a property of the document rather than of the interface.
+10. **RTL is half-built.** ~~`stylis-plugin-rtl` is not installed~~ — **the MUI half landed 22/08/2026**: a studio's language is a tenant setting, the shell declares `lang`/`dir`, and an Arabic studio nests an RTL Emotion cache. What remains is smaller than this finding claimed. **Counted, because the guess was wrong.** This finding used to say logical and physical properties were mixed throughout, citing 57 uses in `StudioSales.tsx` against 9 in `StudioFinance.tsx` — but those were counts of the LOGICAL ones, and the difference is just that one file is bigger than the other. Scanned properly there are **41 genuine physical utilities in the whole app**, and the studio holds exactly one: a `left-1/2` paired with `-translate-x-1/2`, which is centring and is correct. The studio's only real defect was a toggle knob pinned to `left-`, so an Arabic switch read inverted; that is fixed. Where the 41 actually are: 20 on the landing, 16 in the vendored shadcn primitives, 2 in `/super`'s CatalogEditor, 2 in Quality outside the editor, 1 in the studio. Gate A holds the line at 41 and it can only come down. The document editor's own alignment controls are excluded outright — an author clicking "align left" means left, and that is a property of the document rather than of the interface.
 
 ---
 
@@ -344,7 +344,7 @@ These are structural necessities absent from the product, ordered by how much la
 | H-3 | High | Whole-collection-per-key storage model | `platform/db/sections.ts:149` |
 | H-4 | High | 8-9 dependent round trips per screen | measured, §2 |
 | H-5 | High | `listSections` duplicated + reconciles on read | `lib/studios.js:123` |
-| H-6 | High | Live updates refetch whole payloads | `studio2/useLiveUpdates.js` |
+| H-6 | High | Live updates refetch whole payloads | `studio2/useLiveUpdates.tsx` |
 | H-7 | High | `ConflictError` returns 500 not 409 | `platform/db/store.ts` |
 | H-8 | High | N+1 profile reads in list endpoints | `modules/hr/hr.js:338` |
 | H-9 | High | Field encryption fails open and silent | `platform/auth/fieldCrypto.js:35` |

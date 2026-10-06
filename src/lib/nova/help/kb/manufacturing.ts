@@ -34,7 +34,7 @@ import type { HelpModule } from "../types";
 //
 // THE FOUR REGISTERS ARE RECORD-ENGINE TYPES (`workorder`, `bom`, `station`,
 // `batch` in platform/engine/builtins.ts), shown by the generic register screen
-// (StudioRecords.js). Their sections are `engine-workorder` and the like, which
+// (StudioRecords.tsx). Their sections are `engine-workorder` and the like, which
 // are NOT in SECTION_DEFS, so nothing here may `open` them; entries open the
 // `manufacturing` root, whose page is Production planning with its Shop floor
 // tab. Their rights are `engine.<type>.<verb>`, listed on the Access screen
@@ -447,7 +447,7 @@ export const manufacturing: HelpModule = {
       keywords: ["planned", "released", "in progress", "completed", "cancelled", "مخطط", "مطلق", "قيد التنفيذ", "مكتمل", "ملغى"],
       related: ["manufacturing.work-order-release", "manufacturing.work-order-final"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's
     // New / Edit dialog, fields in declaration order: Title, required; Product;
     // Quantity; Due; Work station; Notes) and the `workorder` declaration in
     // src/platform/engine/builtins.ts (text 200, longtext 2000 per FIELD_MAX in
@@ -573,7 +573,7 @@ export const manufacturing: HelpModule = {
       keywords: ["draft", "released", "superseded", "revision", "BOM status", "مسودة", "مطلقة", "مستبدلة", "مراجعة", "حالة القائمة"],
       related: ["manufacturing.bom-revision", "manufacturing.no-bom"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's
     // New / Edit dialog: Product, required; Revision; Unit; Components,
     // required; Notes) and the `bom` declaration in
     // src/platform/engine/builtins.ts (text 200, longtext 2000 per FIELD_MAX in
@@ -605,7 +605,7 @@ export const manufacturing: HelpModule = {
       keywords: ["BOM form", "product", "revision", "components", "نموذج قائمة المواد", "المنتج", "المراجعة", "المكونات"],
       related: ["manufacturing.bom-create", "manufacturing.bom-components-required"],
     },
-    // Checked against src/components/studio2/StudioProduction.js (the Bills of
+    // Checked against src/components/studio2/StudioProduction.tsx (the Bills of
     // materials block at the foot of Production planning: Bill of materials,
     // the picker; Component, required; Per unit, required above nought; Add
     // line, disabled until both are set) and addBomLine / BomLine in
@@ -762,7 +762,7 @@ export const manufacturing: HelpModule = {
       keywords: ["available", "down", "retired", "station status", "متاحة", "معطلة", "متقاعدة", "حالة المحطة"],
       related: ["manufacturing.station-down"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's
     // New / Edit dialog: Name, required; Kind, a select with a blank choice;
     // Capacity per day; Location) and the `station` declaration in
     // src/platform/engine/builtins.ts (Kind options Machine, Cell, Line, Bench,
@@ -871,7 +871,7 @@ export const manufacturing: HelpModule = {
       keywords: ["quarantine", "released", "scrapped", "complete", "batch status", "حجر", "مطلقة", "إتلاف", "مكتملة", "حالة الدفعة"],
       related: ["manufacturing.batch-quarantine", "manufacturing.qc-check"],
     },
-    // Checked against src/components/studio2/StudioRecords.js (the register's
+    // Checked against src/components/studio2/StudioRecords.tsx (the register's
     // New / Edit dialog, fields in declaration order: Batch, required; Product;
     // Quantity made; Made; Expires; Notes; Work order, a picker over the Work
     // orders register that falls back to a text box when that register cannot
@@ -1149,7 +1149,7 @@ export const manufacturing: HelpModule = {
       keywords: ["verdict", "latest check", "not checked", "rework", "الحكم", "آخر فحص", "لم تفحص", "إعادة العمل"],
       related: ["manufacturing.qc-check", "manufacturing.batch-verdict-status"],
     },
-    // Checked against src/components/studio2/ShopFloorPanel.js (the Record
+    // Checked against src/components/studio2/ShopFloorPanel.tsx (the Record
     // check panel, Check for <batch>: Result, a select of Passed, Failed,
     // Conceded, starting at Passed; Why it failed / What was conceded, a text
     // area required for a fail or a concession, the Record button disabled until

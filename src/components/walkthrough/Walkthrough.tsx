@@ -18,7 +18,7 @@ type Box = { top: number; left: number; width: number; height: number };
 // "don't show this again" box that the caller turns into a stored preference.
 //
 // LOADED LAZILY by both callers (next/dynamic inside a CLIENT module, which is a
-// real boundary — see HeavyScreens.jsx): it runs once per sign-in at most, so
+// real boundary — see HeavyScreens.tsx): it runs once per sign-in at most, so
 // nobody else's first load should carry it.
 //
 // TARGETS ARE `[data-tour=…]` ATTRIBUTES on the real controls, never a copy of
@@ -54,7 +54,7 @@ const sel = (name: string) => `[data-tour="${name}"]`;
 
 // WHERE NOVA'S LAUNCHER WOULD SIT, in a studio whose package does not include
 // her — there is no element to measure, so the box is worked out from the
-// launcher's own classes in NovaLauncher.jsx: 64px square, `bottom-4` (16px)
+// launcher's own classes in NovaLauncher.tsx: 64px square, `bottom-4` (16px)
 // or `bottom-20` (80px) under the phone's bottom bar, and `end-5` (20px) or
 // `end-24` (96px) when the support chat shares the corner. Change one and
 // change the other, or this step points a little beside the place it names.

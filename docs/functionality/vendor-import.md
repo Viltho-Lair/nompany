@@ -15,7 +15,7 @@ The pieces:
 |---|---|
 | `src/shared/csv.ts` | `parseCsv` / `readCsvTable` — a dependency-free CSV reader |
 | `src/modules/inventory/vendorCsv.ts` | `readVendorCsv` — CSV text to vendor rows; pure, imported by the browser |
-| `src/components/studio2/StudioInventory.js` | `VendorImport` — the dialog |
+| `src/components/studio2/StudioInventory.tsx` | `VendorImport` — the dialog |
 | `src/app/api/studios/[slug]/inventory/vendors/import/route.ts` | `POST`, the bulk create |
 | `src/modules/inventory/inventory.ts` | `importVendors` — validation, de-duplication, one write |
 | `src/platform/db/sections.ts` | `addRows` — many rows, one compare-and-set |

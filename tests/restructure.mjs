@@ -193,20 +193,20 @@ export async function testEveryAreaGroupIsARealSectionLabel(t) {
 // ever match it again, and nothing depends on that — unlike a stale split
 // literal in production code, which fails silently forever).
 const KNOWN_COLLISIONS = {
-  "src/components/studio2/StudioFrame.js": [
-    { value: "sales", reason: "icons.js's icon-name registry key for the CRM & Sales row" },
+  "src/components/studio2/StudioFrame.tsx": [
+    { value: "sales", reason: "icons.tsx's icon-name registry key for the CRM & Sales row" },
   ],
-  "src/components/studio2/StudioTechnical.js": [
-    { value: "sales", reason: "icons.js's icon-name registry key for the quotation's origin badge" },
+  "src/components/studio2/StudioTechnical.tsx": [
+    { value: "sales", reason: "icons.tsx's icon-name registry key for the quotation's origin badge" },
   ],
   "src/components/super/NovaSwitchboard.tsx": [
-    { value: "sales", reason: "icons.js's icon-name registry key for the Sales department card's mark" },
+    { value: "sales", reason: "icons.tsx's icon-name registry key for the Sales department card's mark" },
   ],
   // GONE, ALL THREE, and deliberately not replaced by a fourth. Every screen
   // drawing a ticket-stage pill named the pill's record-kind "sales", which is
   // spelled exactly like a retired SECTION key — so each needed an exemption
   // here saying "not that sales", and the next such screen needed another. The
-  // kind is `ticketStage` now (StatusPill.jsx), which collides with nothing.
+  // kind is `ticketStage` now (StatusPill.tsx), which collides with nothing.
   // THE MARKETING SITE'S ENQUIRY MAILBOX, which is a WHO-to-email and not a
   // section: mailboxFor() answers "sales" or "support", the contact route picks
   // CONTACT.sales or CONTACT.support from it, and the view prints the address it
@@ -245,17 +245,17 @@ const KNOWN_COLLISIONS = {
   "src/lib/dashboardWidgets.ts": [
     { value: "technical.rfq-funnel", reason: "a FROZEN per-tier dashboard-widget key (renaming one is a data migration)" },
   ],
-  "src/components/studio2/TechnicalDashboard.jsx": [
+  "src/components/studio2/TechnicalDashboard.tsx": [
     { value: "technical.rfq-funnel", reason: "the same frozen widget key, referenced by its consumer" },
   ],
-  "src/components/studio2/StudioOperations.js": [
+  "src/components/studio2/StudioOperations.tsx": [
     { value: "operations", reason: "the unmoved API route segment (src/app/api/studios/[slug]/operations/)" },
     { value: "operations/schedule", reason: "same — the schedule sub-route, never renamed" },
   ],
   // THE STUDIO PAGE NAMES THE API PATH EACH SCREEN READS FIRST, because it
   // answers that GET in its own render (`firstScreenPayload`) — and those paths
   // are the unmoved addresses the screens themselves fetch, not section keys.
-  "src/app/studio/[[...segments]]/page.js": [
+  "src/app/studio/[[...segments]]/page.tsx": [
     { value: "sales", reason: "the unmoved /sales API path the Sales board and a ticket's page read first" },
     { value: "technical", reason: "the unmoved /technical API path Quotations reads first" },
     { value: "operations", reason: "the unmoved /operations API path Field Operations and Master data read first" },
@@ -1000,7 +1000,7 @@ function gitGrepLines(execFileSync, file, patterns) {
 
 // Keys the router sends somewhere ON PURPOSE that is NOT one of the fifteen
 // sections: People, Access and the manual are pre-restructure standalone
-// screens that never had a SECTION_DEFS entry (StudioFrame.js: "outside the
+// screens that never had a SECTION_DEFS entry (StudioFrame.tsx: "outside the
 // tree entirely"), and Engagements is deliberately kept off the section tree
 // so giving Main a child would not gate Main itself (catalogue.ts). None of
 // these four are section keys and none of them should ever become one — a
@@ -1193,8 +1193,8 @@ export async function testAdministrationFollowsItsChildren(t) {
  */
 export async function testNoProjectScreenIsACatchAll(t) {
   const { readFileSync } = await import("node:fs");
-  const src = readFileSync(new URL("../src/app/studio/[[...segments]]/page.js", import.meta.url), "utf8");
-  const hub = readFileSync(new URL("../src/components/studio2/ProjectHubTabs.jsx", import.meta.url), "utf8");
+  const src = readFileSync(new URL("../src/app/studio/[[...segments]]/page.tsx", import.meta.url), "utf8");
+  const hub = readFileSync(new URL("../src/components/studio2/ProjectHubTabs.tsx", import.meta.url), "utf8");
 
   t.equal(/segments\[2\]\s*!==/.test(src), false,
     "no screen in page.js is chosen by excluding third segments — a catch-all is how /costs rendered the board");
@@ -1253,11 +1253,11 @@ export async function testEveryContextualSectionKeyLiteralExists(t) {
   // `nav?.<key>` / `manage?.<key>` (dot access — the SAME lookup on the
   // SAME map, just written without the brackets a hyphenated key would
   // actually require). Fix round 1 checked only the bracket form and missed
-  // four live sites written the other way: `nav?.sales` (StudioProjects.js),
+  // four live sites written the other way: `nav?.sales` (StudioProjects.tsx),
   // `nav?.technical` (a screen since deleted) — both retired department names, the
   // identical defect as the bracketed literals fixed elsewhere in this same
   // task, just invisible to a check that only recognised one of the two
-  // equivalent syntaxes — and `nav?.people` (StudioHr.js, two sites),
+  // equivalent syntaxes — and `nav?.people` (StudioHr.tsx, two sites),
   // genuinely dead: "people" has never been a nav key under either syntax.
   // Both maps are keyed 1:1 by real section keys (sectionNav/manageMap in
   // lib/studios.ts), so scoped to studio2 where they are actually built and
@@ -1288,8 +1288,8 @@ export async function testEveryContextualSectionKeyLiteralExists(t) {
   }
 
   // Shape 4 — `` `/${slug}/<key>` `` or `` `/${studio.slug}/<key>` ``, a
-  // path built as a template literal (this is what caught StudioSalesLive.js's
-  // dead "sales" back-link and StudioTechnicalLive.js's dead "technical"
+  // path built as a template literal (this is what caught StudioSalesLive.tsx's
+  // dead "sales" back-link and StudioTechnicalLive.tsx's dead "technical"
   // one — both retired department names, neither ever a `href: "..."` bare
   // string so shape 1 could not have seen them). `/api/studios/...` calls
   // are the SAME shape and are not section routes at all — excluded by
@@ -1343,7 +1343,7 @@ export async function testEveryContextualSectionKeyLiteralExists(t) {
 const LIVE_HOOKS = ["useLiveUpdates", "useLiveRows"];
 // The hooks themselves: the only place the watch key is legitimately a variable,
 // because a forwarder is handed one. Its own callers are checked like any other.
-const LIVE_HOOK_FILES = ["useLiveUpdates.js", "useLiveRows.js"];
+const LIVE_HOOK_FILES = ["useLiveUpdates.tsx", "useLiveRows.ts"];
 
 // Split a call's arguments at top-level commas. Quotes and every kind of bracket
 // are tracked, so an object literal, a nested call or an inline arrow — all three
@@ -1824,14 +1824,15 @@ export async function testEveryBuiltinRecordTypeHasItsOwnIcon(t) {
   t.equal(types.length > 20, true,
     `the built-in type scan found ${types.length} types — it should find dozens; the pattern has drifted from builtins.ts`);
 
-  const frame = readFileSync("src/components/studio2/StudioFrame.js", "utf8");
-  const body = frame.slice(frame.indexOf("const SECTION_ICONS = {"));
+  const frame = readFileSync("src/components/studio2/StudioFrame.tsx", "utf8");
+  // The declaration may carry a type annotation now the frame is TypeScript.
+  const body = frame.slice(frame.search(/const SECTION_ICONS(?::[^=]+)? = {/));
   const ENTRY_RE = new RegExp('^\\s*"?([a-zA-Z0-9-]+)"?\\s*:\\s*"([a-zA-Z0-9]+)"', "gm");
   const icons = Object.fromEntries(
     [...body.slice(0, body.indexOf("\n};")).matchAll(ENTRY_RE)].map((m) => [m[1], m[2]]),
   );
 
-  const art = readFileSync("src/components/studio2/icons.art.js", "utf8");
+  const art = readFileSync("src/components/studio2/icons.art.ts", "utf8");
   const names = new Set([...art.matchAll(/^\s{2}([a-zA-Z0-9_]+):/gm)].map((m) => m[1]));
 
   /* AND THE FALLBACK IS A MARK, NOT A DOT. The map can only name keys that exist
@@ -1900,9 +1901,9 @@ export async function testEveryNavParentCanTellItsChildrenApart(t) {
   const { readFileSync } = await import("node:fs");
   const { isFiledOnlySection } = await import("../src/platform/db/keys.ts");
 
-  const frame = readFileSync("src/components/studio2/StudioFrame.js", "utf8");
+  const frame = readFileSync("src/components/studio2/StudioFrame.tsx", "utf8");
   const mapBody = (name) => {
-    const body = frame.slice(frame.indexOf(`const ${name} = {`));
+    const body = frame.slice(frame.search(new RegExp(`const ${name}(?::[^=]+)? = \{`)));
     return body.slice(0, body.indexOf("\n};"));
   };
   const ENTRY_RE = /^\s*"?([a-zA-Z0-9-]+)"?\s*:\s*"([a-zA-Z0-9]+)"/gm;
@@ -1911,10 +1912,10 @@ export async function testEveryNavParentCanTellItsChildrenApart(t) {
   const iconOf = (key) => icons[key] || fallback;
 
   // ARTWORK, NOT NAME: each entry's two paths, as the generator wrote them.
-  const art = readFileSync("src/components/studio2/icons.art.js", "utf8");
+  const art = readFileSync("src/components/studio2/icons.art.ts", "utf8");
   const drawing = Object.fromEntries([...art.matchAll(/^ {2}([a-zA-Z0-9_]+): (\[.*\]),?$/gm)].map((m) => [m[1], m[2]]));
   t.equal(Object.keys(drawing).length > 100, true,
-    `the artwork scan found ${Object.keys(drawing).length} icons — the pattern has drifted from icons.art.js`);
+    `the artwork scan found ${Object.keys(drawing).length} icons — the pattern has drifted from icons.art.ts`);
 
   // Children per parent: the declared ones, plus the built-in registers.
   const children = {};

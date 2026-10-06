@@ -85,7 +85,7 @@ for (const file of ["src/components/notifications/InboxProvider.tsx", "src/compo
   ok(`${file}: keyed on the connection count`, /if \(connection\) load\(\);\s*\}, \[connection, load\]\)/.test(src));
   ok(`${file}: not on status`, !/if \(status === "live"\) load\(\)/.test(src));
 }
-for (const file of ["src/components/studio2/LiveProvider.js", "src/components/super/SuperLiveProvider.tsx"]) {
+for (const file of ["src/components/studio2/LiveProvider.tsx", "src/components/super/SuperLiveProvider.tsx"]) {
   const src = readFileSync(file, "utf8");
   ok(`${file}: counts every ready`, /setStatus\("live"\);\s*setConnection\(\(c\) => c \+ 1\);/.test(src));
 }
@@ -191,7 +191,7 @@ console.log("\n== the store never announces a notice to the studio");
     && /deleteRows\(studioId, members\.id, "notifications", ids/.test(src));
 }
 {
-  const src = readFileSync("src/components/studio2/NovaLauncher.jsx", "utf8");
+  const src = readFileSync("src/components/studio2/NovaLauncher.tsx", "utf8");
   // Nova's dot polled the whole list every two minutes to count it itself.
   ok("Nova reads the inbox's count rather than polling its own",
     /inbox\?\.unread/.test(src) && !/setInterval\(load, 120000\)/.test(src));

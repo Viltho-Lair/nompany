@@ -1186,7 +1186,7 @@ html.studio-chrome .bar-scroll::-webkit-scrollbar {
   .brand-loader path { animation: none; }
 }
 
-/* Nova's speech bubble arriving (src/components/studio2/NovaBubble.jsx).
+/* Nova's speech bubble arriving (src/components/studio2/NovaBubble.tsx).
    IT RISES, IT DOES NOT SLIDE IN FROM A SIDE. A horizontal entrance would need
    a second keyframe for Arabic — the bubble sits on the other side there — and
    the pair would drift. Vertical mirrors itself.

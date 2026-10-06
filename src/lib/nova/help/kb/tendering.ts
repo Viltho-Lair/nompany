@@ -486,7 +486,7 @@ export const tendering: HelpModule = {
       keywords: ["project sheets", "cost breakdown", "start from the bill", "no rates", "أوراق المشروع", "تفصيل التكاليف", "البدء من جدول الكميات", "دون أسعار"],
       related: ["projects-list.cost-breakdown", "tendering-register.boq-frozen"],
     },
-    // Checked against src/components/studio2/StudioTenders.js (the Add a tender /
+    // Checked against src/components/studio2/StudioTenders.tsx (the Add a tender /
     // Edit tender Dialog, fields in on-screen order, Save disabled without a
     // title, a deadline, or a name when adding a customer) and TenderSchema in
     // src/modules/tendering/schema.ts; the refusals are createTender's and
@@ -529,7 +529,7 @@ export const tendering: HelpModule = {
       keywords: ["add tender", "new tender", "issuer", "source", "deadline", "إضافة مناقصة", "مناقصة جديدة", "الجهة الطارحة", "مصدر المناقصة", "آخر موعد"],
       related: ["tendering-register.add", "tendering-register.issuer-customer", "tendering.sources"],
     },
-    // Checked against src/components/studio2/StudioTenders.js (the "Why this
+    // Checked against src/components/studio2/StudioTenders.tsx (the "Why this
     // decision?" Dialog opened by onPick for a stage with needsReason; Reason
     // required, 400 characters) and tenderProblem/tenderPatch in
     // src/modules/tendering/stages.ts, which refuse `reason-required` and store
@@ -552,7 +552,7 @@ export const tendering: HelpModule = {
       keywords: ["decision reason", "why lost", "reason required", "سبب القرار", "سبب الخسارة", "السبب مطلوب"],
       related: ["tendering-register.record-decision", "tendering.statuses"],
     },
-    // Checked against src/components/studio2/StudioBoq.js (the Add a line
+    // Checked against src/components/studio2/StudioBoq.tsx (the Add a line
     // Dialog: Section and Item side by side, Description required, then Unit,
     // Qty and Rate) and BoqItemSchema in src/modules/tendering/schema.ts; the
     // refusals are addBoqLine's (`description`, `notfound`, `bill-locked`, `handed-over`) in
@@ -585,7 +585,7 @@ export const tendering: HelpModule = {
       keywords: ["add line", "BOQ line", "description", "unit", "quantity", "إضافة بند", "بند الجدول", "الوصف", "الوحدة", "الكمية"],
       related: ["tendering-register.boq", "tendering-register.edit-line-text"],
     },
-    // Checked against src/components/studio2/BoqImport.js (the Import lines
+    // Checked against src/components/studio2/BoqImport.tsx (the Import lines
     // Dialog: Paste from Excel, Attach a CSV, The first row is a header, and one
     // column picker per BOQ_FIELDS entry) and BOQ_FIELDS / BOQ_ALIASES /
     // MAX_IMPORT_LINES in src/modules/tendering/boqImport.ts; the server side is
@@ -625,7 +625,7 @@ export const tendering: HelpModule = {
       keywords: ["import lines", "paste from excel", "csv", "columns", "استيراد بنود", "لصق من Excel", "ملف CSV", "الأعمدة"],
       related: ["tendering-register.import", "tendering-register.import-skipped"],
     },
-    // Checked against src/components/studio2/StudioTenderDocs.js (the Add a
+    // Checked against src/components/studio2/StudioTenderDocs.tsx (the Add a
     // document / Edit document Dialog: Title and Kind side by side, then Issuer
     // reference, Revision and Issued on, Attach a file, Notes) and
     // TenderDocumentSchema in src/modules/tendering/schema.ts; the refusals are
@@ -661,7 +661,7 @@ export const tendering: HelpModule = {
       keywords: ["add document", "document kind", "addendum", "revision", "attach file", "إضافة مستند", "نوع المستند", "ملحق", "المراجعة", "إرفاق ملف"],
       related: ["tendering-register.documents", "tendering-register.reissue"],
     },
-    // Checked against src/components/studio2/StudioTenderDocs.js (the Mark as
+    // Checked against src/components/studio2/StudioTenderDocs.tsx (the Mark as
     // replaced Dialog: one required select listing the other CURRENT documents)
     // and supersedeProblem in src/modules/tendering/documents.ts, called by
     // supersedeTenderDocument in tenderDocs.ts (`self`, `already-superseded`,
@@ -684,7 +684,7 @@ export const tendering: HelpModule = {
       keywords: ["mark as replaced", "superseded", "new revision", "تعليمه كمستبدل", "مستبدل", "مراجعة جديدة"],
       related: ["tendering-register.reissue", "tendering-register.replace-refused"],
     },
-    // Checked against src/components/studio2/StudioTenderDocs.js (the Record a
+    // Checked against src/components/studio2/StudioTenderDocs.tsx (the Record a
     // question Dialog: Question required, Asked date) and
     // TenderClarificationSchema in src/modules/tendering/schema.ts; the refusals
     // are askClarification's (`question`, `notfound`) in tenderDocs.ts.
@@ -708,7 +708,7 @@ export const tendering: HelpModule = {
       keywords: ["record question", "clarification", "ask issuer", "تسجيل سؤال", "استيضاح", "سؤال الجهة الطارحة"],
       related: ["tendering-register.ask-question", "tendering-register.answer-fields"],
     },
-    // Checked against src/components/studio2/StudioTenderDocs.js (the Record
+    // Checked against src/components/studio2/StudioTenderDocs.tsx (the Record
     // the answer Dialog: Answer textarea and the "This answer changes the price"
     // checkbox) and editClarification in src/modules/tendering/tenderDocs.ts,
     // which stamps answeredAt on the server and clears it with the answer.
@@ -1342,7 +1342,7 @@ export const tendering: HelpModule = {
       keywords: ["rate build-up", "labour", "material", "plant", "margin", "تحليل السعر", "عمالة", "مواد", "معدات", "هامش"],
       related: ["tendering.not-yet"],
     },
-    // Checked against src/components/studio2/StudioRates.js (the Add a rate /
+    // Checked against src/components/studio2/StudioRates.tsx (the Add a rate /
     // Edit rate Dialog: Code and Description side by side, then Rate, Unit and
     // Category, then Notes; Save disabled without a code and a description) and
     // TenderRateSchema in src/modules/tendering/schema.ts; the refusals are

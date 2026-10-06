@@ -30,10 +30,10 @@ right to are absent. Stages that do not exist yet read as an optional next step,
 The studio URL scheme is `/<slug>/<section-key>` — the first path segment IS a section key, and the bare
 `/<slug>` is Main. Engagements is **not a section**:
 
-- **URL:** `/<slug>/engagements`, an explicit early return in `src/app/studio/[[...segments]]/page.js`,
+- **URL:** `/<slug>/engagements`, an explicit early return in `src/app/studio/[[...segments]]/page.tsx`,
   checked BEFORE the section lookup. An established pattern in that file: `documentation`, `sales-live`
   and the project board are all non-section routes resolved the same way.
-- **Nav:** an entry in the non-section `admin` array in `src/components/studio2/StudioFrame.js`
+- **Nav:** an entry in the non-section `admin` array in `src/components/studio2/StudioFrame.tsx`
   (today People and Access), placed **above People**.
 
 ### Why not a section — the trap this avoids
