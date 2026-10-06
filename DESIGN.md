@@ -74,7 +74,7 @@ A full-screen app surface, not a marketing page: [`Footer`](src/components/Foote
 returns `null` on this route (`isBare`, the same idiom as the contact page), so
 only the site `Nav` sits above it.
 
-[`AccountHome`](src/components/public/AccountHome.js) matches the studio's
+[`AccountHome`](src/components/public/AccountHome.tsx) matches the studio's
 **People & requests** screen ([`StudioPeople`](src/components/studio2/StudioPeople.js)) —
 the page that carries the company code and the join-request flow, so both halves
 of "join a studio" read as one design:

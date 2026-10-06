@@ -167,6 +167,9 @@ export function industryRoots(industry: Industry): Set<string> {
   return withNeeds([...NEVER_GATED_KEYS, ...industry.profile.sections]);
 }
 
+/** What the create-studio screen is handed — derived from the function below, never restated. */
+export type StudioSetupScreen = ReturnType<typeof studioSetupScreen>;
+
 export function studioSetupScreen(locale: string, industries: readonly Industry[] = [], hidden: ReadonlySet<string> = new Set()) {
   // SECTIONS STILL BEING BUILT (/super → Sections) are not asked about: a
   // question about a department nobody can open yet is a promise the product

@@ -42,6 +42,31 @@ import SecurityLock from "@/components/public/SecurityLock";
 import SecurityTwoFactor from "@/components/public/SecurityTwoFactor";
 import SecurityPasskeys from "@/components/public/SecurityPasskeys";
 import SessionLock from "@/components/security/SessionLock";
+import type { FormEvent, ReactNode } from "react";
+import type { StudioSetupScreen } from "@/modules/main/studios";
+import type { Tour } from "@/shared/walkthrough";
+
+type Tr = ReturnType<typeof accountDict>;
+/** What `/api/identity/me` answers — the account, and the profile it carries. */
+type Profile = { fullName?: string; shortName?: string; phone?: string; workAddress?: string; photo?: string };
+type Identity = {
+  user?: { email?: string; provider?: string; hasPassword?: boolean };
+  profile?: Profile;
+  emailVerified?: boolean;
+};
+/** One studio as `/api/studios` lists it. */
+type StudioSummary = { id: string; slug: string; name: string; logo?: string; upgradable?: boolean };
+type Studios = { owned: StudioSummary[]; collaborations: StudioSummary[] };
+/** One browser that has signed in, as `/api/identity/devices` lists it. */
+type Device = {
+  id: string; label?: string; deviceType?: string; location?: string;
+  lastSeenAt?: string; current?: boolean; trusted?: boolean;
+};
+/** The site's chrome words the page is handed by its server half. */
+type Chrome = { brand?: string; theme?: Record<string, string>; language?: string } | null;
+/** The pairing a till's session carries, when this sign-in is a till's. */
+type Till = { name: string; slug: string } | null;
+type Intent = { packageId?: string; categoryId?: string; cycle?: string } | null;
 
 // The account hub, laid out like the Google Account console:
 //   • brand mark top-left, ABOVE the fixed sidebar
@@ -71,7 +96,7 @@ const PANEL = "rounded-geex bg-white p-6 shadow-geex-sm ring-1 ring-inset ring-s
 
 // Every sidebar destination carries its own icon colour, so the rail reads as a
 // set of distinct places rather than a uniform list.
-const navFor = (tr, locale) => [
+const navFor = (tr: Tr, locale: string) => [
   { key: "overview", label: tr.overview, icon: "dashboard", tone: "text-brand-600 dark:text-brand-400", bg: "bg-brand-500/10" },
   // `accent` is the project's purple scale. Tailwind's default `violet` is
   // overridden in tailwind.config as a SINGLE token, so `violet-600` does not
@@ -85,7 +110,7 @@ const navFor = (tr, locale) => [
   { key: "calendars", label: tr.calendars, icon: "calendar", tone: "text-sky-600 dark:text-sky-400", bg: "bg-sky-500/10" },
   // WHERE A PERSON'S NOTIFICATIONS GO BEYOND THE BELL (29/09/2026) — email,
   // push, quiet hours. The person's own, so here and not in any studio.
-  { key: "notifications", label: notificationSettingsDict(locale).nav, icon: "bell", tone: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-500/10" },
+  { key: "notifications", label: notificationSettingsDict(locale === "ar" ? "ar" : "en").nav, icon: "bell", tone: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-500/10" },
   { key: "security", label: tr.security, icon: "shield", tone: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10" },
 ];
 
@@ -98,13 +123,20 @@ const VIEW_KEYS = ["overview", "studios", "billing", "collabs", "personal", "cal
 // How many studios of each kind the avatar menu lists before "View all".
 const MENU_STUDIOS = 8;
 
-const initialsOf = (s) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+const initialsOf = (s: string | undefined) => String(s || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
-export default function AccountHome({ locale, chrome, setup, intent = null, openCreate = false, till = null }) {
+export default function AccountHome({ locale, chrome, setup, intent = null, openCreate = false, till = null }: {
+  locale: string;
+  chrome?: Chrome;
+  setup: StudioSetupScreen | null;
+  intent?: Intent;
+  openCreate?: boolean;
+  till?: Till;
+}) {
   const tr = accountDict(useAccountLocale());
-  const [identity, setIdentity] = useState(null);
-  const [studios, setStudios] = useState({ owned: [], collaborations: [] });
-  const [devices, setDevices] = useState([]);
+  const [identity, setIdentity] = useState<Identity | null>(null);
+  const [studios, setStudios] = useState<Studios>({ owned: [], collaborations: [] });
+  const [devices, setDevices] = useState<Device[]>([]);
   const [view, setView] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -117,7 +149,7 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
   // "cancelled" or "error", read off the OAuth callback's redirect (see
   // calendar/callback/[provider]/route.ts's landOn). null until that redirect
   // has actually happened.
-  const [calendarOutcome, setCalendarOutcome] = useState(null);
+  const [calendarOutcome, setCalendarOutcome] = useState<string | null>(null);
   // Which studio the Billing view opens on — `?studio=<slug>`, sent by the
   // studio's banner, its shut-down screen and the owner's emails.
   const [billingSlug, setBillingSlug] = useState("");
@@ -365,7 +397,7 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
 // A studio is a square tile: logo when the studio has one, initials otherwise,
 // with the name underneath. The logo is set in the studio's own settings, so a
 // studio that has not set one still falls back to initials.
-function StudioCard({ studio, compact = false }) {
+function StudioCard({ studio, compact = false }: { studio: StudioSummary; compact?: boolean }) {
   const w = compact ? "w-[104px]" : "w-[132px]";
   return (
     <a href={`/${studio.slug}`} className={cn("group block shrink-0", w)}>
@@ -385,7 +417,9 @@ function StudioCard({ studio, compact = false }) {
 }
 
 // The square action tile that sits to the LEFT of a row of studio tiles.
-function ActionTile({ icon, label, onClick, compact = false, tour }) {
+function ActionTile({ icon, label, onClick, compact = false, tour }: {
+  icon: string; label: string; onClick: () => void; compact?: boolean; tour?: string;
+}) {
   const w = compact ? "w-[104px]" : "w-[132px]";
   return (
     <button type="button" data-tour={tour} onClick={onClick} className={cn("group block shrink-0 text-start", w)}>
@@ -401,7 +435,7 @@ function ActionTile({ icon, label, onClick, compact = false, tour }) {
 // ordered by how often this person opens each studio, so the first four ARE the
 // four they use most — no choice to make, and no scrolling to find the one they
 // wanted. Past four, a View all tile takes over.
-function StudioStrip({ action, studios, onViewAll }) {
+function StudioStrip({ action, studios, onViewAll }: { action: ReactNode; studios: StudioSummary[]; onViewAll: () => void }) {
   const tr = accountDict(useAccountLocale());
   const shown = studios.slice(0, 4);
   return (
@@ -424,7 +458,7 @@ function StudioStrip({ action, studios, onViewAll }) {
   );
 }
 
-function StudioGrid({ title, note, studios, empty }) {
+function StudioGrid({ title, note, studios, empty }: { title: string; note: string; studios: StudioSummary[]; empty: string }) {
   return (
     <section className={PANEL}>
       <h2 className={H2}>{title}</h2>
@@ -448,7 +482,7 @@ function StudioGrid({ title, note, studios, empty }) {
 // THE LOGO IS NOT A LINK any more. When the row holds editable fields, a
 // clickable picture beside them is a trap — you go to change the name, miss,
 // and land in the studio instead. Opening it is now its own labelled button.
-function StudioRow({ studio, onSaved }) {
+function StudioRow({ studio, onSaved }: { studio: StudioSummary; onSaved?: () => void }) {
   const locale = useAccountLocale();
   const tr = accountDict(locale);
   // THE UPGRADE BUTTON on each owned studio (the owner, 24/09/2026). Its words
@@ -547,7 +581,9 @@ function StudioRow({ studio, onSaved }) {
   );
 }
 
-function StudioList({ title, note, studios, empty, onChanged }) {
+function StudioList({ title, note, studios, empty, onChanged }: {
+  title: string; note: string; studios: StudioSummary[]; empty: string; onChanged: () => void;
+}) {
   return (
     <section className={PANEL}>
       <h2 className={H2}>{title}</h2>
@@ -564,7 +600,10 @@ function StudioList({ title, note, studios, empty, onChanged }) {
 }
 
 // ---- overview ----------------------------------------------------------------
-function Overview({ identity, owned, collabs, onGo, onChanged, onCreate }) {
+function Overview({ identity, owned, collabs, onGo, onChanged, onCreate }: {
+  identity: Identity | null; owned: StudioSummary[]; collabs: StudioSummary[];
+  onGo: (view: string) => void; onChanged: () => void; onCreate: () => void;
+}) {
   const tr = accountDict(useAccountLocale());
   const [joining, setJoining] = useState(false);
   const name = identity?.profile?.fullName || identity?.user?.email || "there";
@@ -641,10 +680,12 @@ function Overview({ identity, owned, collabs, onGo, onChanged, onCreate }) {
 // One modal shell for every dialog here: backdrop, Escape, a locked body scroll
 // and a titled header with a close button. Create, Join and the profile picture
 // all wear it, so they open, dismiss and read the same way.
-function Dialog({ title, description, onClose, children, width = "max-w-[512px]" }) {
+function Dialog({ title, description, onClose, children, width = "max-w-[512px]" }: {
+  title: string; description?: string; onClose: () => void; children?: ReactNode; width?: string;
+}) {
   const tr = accountDict(useAccountLocale());
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -678,11 +719,11 @@ function Dialog({ title, description, onClose, children, width = "max-w-[512px]"
 // A join is a REQUEST, so nothing appears in the strip when it succeeds — the
 // confirmation is the only feedback there is. The dialog therefore stays open on
 // success and the user dismisses it, rather than closing over its own message.
-function JoinStudio({ onChanged, onClose }) {
+function JoinStudio({ onChanged, onClose }: { onChanged: () => void; onClose: () => void }) {
   const tr = accountDict(useAccountLocale());
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
+  const [msg, setMsg] = useState<{ tone: "good" | "bad"; text: string } | null>(null);
 
   async function join() {
     setBusy(true); setMsg(null);
@@ -732,12 +773,14 @@ function JoinStudio({ onChanged, onClose }) {
 // each row an icon slot, a label and the current value. The whole row is the
 // control — pressing anywhere on it opens that field — rather than a separate
 // Edit affordance.
-function PersonalInfo({ identity, onSaved, onStartTour }) {
+type ProfileField = "fullName" | "shortName" | "phone" | "workAddress";
+
+function PersonalInfo({ identity, onSaved, onStartTour }: { identity: Identity | null; onSaved: () => void; onStartTour: () => void }) {
   const tr = accountDict(useAccountLocale());
-  const profile = identity?.profile || {};
-  const [editing, setEditing] = useState(null);
+  const profile: Profile = identity?.profile || {};
+  const [editing, setEditing] = useState<string | null>(null);
   const [photoOpen, setPhotoOpen] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<ProfileField, string>>({
     fullName: profile.fullName || "", shortName: profile.shortName || "",
     phone: profile.phone || "", workAddress: profile.workAddress || "",
   });
@@ -769,7 +812,7 @@ function PersonalInfo({ identity, onSaved, onStartTour }) {
   }
 
   const name = form.fullName || identity?.user?.email || "?";
-  const rows = [
+  const rows: { key: string; icon: string; label: string; value: string; readOnly?: boolean; badge?: string | null }[] = [
     { key: "fullName", icon: "person", label: tr.name, value: form.fullName || "—" },
     { key: "shortName", icon: "person", label: tr.shortName, value: form.shortName || "—" },
     { key: "email", icon: "email", label: tr.email, value: identity?.user?.email || "—", readOnly: true,
@@ -836,7 +879,7 @@ function PersonalInfo({ identity, onSaved, onStartTour }) {
                       onChange={(v) => { setPhoneError(""); setForm((f) => ({ ...f, phone: v })); }}
                     />
                   ) : (
-                    <input className={INPUT} value={form[r.key]} autoFocus
+                    <input className={INPUT} value={form[r.key as ProfileField]} autoFocus
                       onChange={(e) => setForm((f) => ({ ...f, [r.key]: e.target.value }))} />
                   )}
                   <div className="mt-3 flex gap-3">
@@ -882,10 +925,10 @@ function PersonalInfo({ identity, onSaved, onStartTour }) {
 // the profile, so it holds on every device — and this is the switch that
 // undoes it, one per tour. The account's own can also be started right here;
 // the studio's starts inside a studio, from the menu behind your picture.
-function Walkthroughs({ onStart }) {
+function Walkthroughs({ onStart }: { onStart: () => void }) {
   const locale = useAccountLocale();
   const t = walkthroughDict(locale);
-  const [off, setOff] = useState(null);   // { account, studio } once read
+  const [off, setOff] = useState<Record<string, boolean> | null>(null);   // { account, studio } once read
   const [busy, setBusy] = useState("");
 
   useEffect(() => {
@@ -897,16 +940,16 @@ function Walkthroughs({ onStart }) {
     return () => { live = false; };
   }, []);
 
-  async function flip(tour) {
+  async function flip(tour: Tour) {
     if (!off || busy) return;
     const next = !off[tour];
     setBusy(tour);
     const res = await postWalkthrough(tour, next ? "off" : "on");
     setBusy("");
-    if (res?.ok) setOff((o) => ({ ...o, [tour]: next }));
+    if (res?.ok) setOff((o) => ({ ...(o || {}), [tour]: next }));
   }
 
-  const rows = [
+  const rows: { tour: Tour; label: string; icon: string }[] = [
     { tour: "account", label: t.settingAccount, icon: "person" },
     { tour: "studio", label: t.settingStudio, icon: "building" },
   ];
@@ -956,13 +999,15 @@ function Walkthroughs({ onStart }) {
 // (aria-haspopup="dialog", aria-label="Change profile photo") — Google builds the
 // dialog itself on click, so its markup was not in the file to copy. This mirrors
 // its shape and options, minus Google Photos as asked.
-function PhotoDialog({ name, photoUrl, onClose, onSaved }) {
+function PhotoDialog({ name, photoUrl, onClose, onSaved }: {
+  name: string; photoUrl?: string; onClose: () => void; onSaved: () => void;
+}) {
   const tr = accountDict(useAccountLocale());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const fileRef = useRef(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  async function upload(file) {
+  async function upload(file: File | undefined) {
     if (!file) return;
     if (!file.type.startsWith("image/")) { setErr(tr.chooseImageFile); return; }
     if (file.size > 2 * 1024 * 1024) { setErr(tr.imagesMust2Mb); return; }
@@ -1032,7 +1077,9 @@ function PhotoDialog({ name, photoUrl, onClose, onSaved }) {
 // a change signs every device out (the server clears the cookie, so we land back
 // on /login); without one, this is a first set — no current password, session
 // kept. The server enforces the same split; this UI just matches it.
-function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
+function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }: {
+  hasPassword: boolean; locale: string; onClose: () => void; onSaved?: () => void;
+}) {
   const tr = accountDict(useAccountLocale());
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -1045,7 +1092,7 @@ function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
   const canSubmit =
     strength.ok && next === confirm && confirm.length > 0 && (!hasPassword || current.length > 0) && !busy;
 
-  async function onSubmit(e) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
     setBusy(true);
@@ -1165,12 +1212,14 @@ function SetPasswordDialog({ hasPassword, locale, onClose, onSaved }) {
 }
 
 // ---- security ----------------------------------------------------------------
-function Security({ devices, onChanged, locale, user }) {
+function Security({ devices, onChanged, locale, user }: {
+  devices: Device[]; onChanged: () => void; locale: string; user?: Identity["user"];
+}) {
   const tr = accountDict(useAccountLocale());
   const sec = securityDict(useAccountLocale());
   const [busy, setBusy] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
-  async function revokeOne(deviceId) {
+  async function revokeOne(deviceId: string) {
     setBusy(true);
     await fetch("/api/identity/devices", {
       method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deviceId }),
@@ -1260,8 +1309,8 @@ function Security({ devices, onChanged, locale, user }) {
                 )}
               </span>
               <span className={ROW_VALUE}>
-                {[sec.deviceType[d.deviceType] || "", d.location || tr.locationUnknown,
-                  `last used ${new Date(d.lastSeenAt).toLocaleDateString("en-GB")}`].filter(Boolean).join(" · ")}
+                {[(sec.deviceType as Record<string, string>)[d.deviceType || ""] || "", d.location || tr.locationUnknown,
+                  `last used ${new Date(d.lastSeenAt || "").toLocaleDateString("en-GB")}`].filter(Boolean).join(" · ")}
               </span>
             </div>
             <button type="button" onClick={() => revokeOne(d.id)} disabled={busy}
@@ -1295,16 +1344,21 @@ function Security({ devices, onChanged, locale, user }) {
 // that appears to do nothing. Reading is safe from anywhere signed in
 // (`listConnections` already returns the public shape, no token in it);
 // connecting and disconnecting stay here.
-function Calendars({ locale, outcome }) {
+/** A calendar connected to this account, and a provider that could be. */
+type CalendarConnection = { provider: string; accountEmail?: string; connectedAt?: string };
+type CalendarData = { connections: CalendarConnection[]; available: string[]; redirectUris: Record<string, string> };
+type CalendarEvent = { id: string; title?: string; start: string; allDay?: boolean; location?: string; htmlLink?: string };
+
+function Calendars({ locale, outcome }: { locale: string; outcome: string | null }) {
   const tr = accountDict(useAccountLocale());
-  const [data, setData] = useState({ connections: [], available: [], redirectUris: {} });
+  const [data, setData] = useState<CalendarData>({ connections: [], available: [], redirectUris: {} });
   const [loading, setLoading] = useState(true);
   // Which provider is mid-confirm ("disconnect this one?") — at most one row
   // at a time, so a provider id is enough; no per-row state needed.
-  const [confirming, setConfirming] = useState(null);
-  const [busyProvider, setBusyProvider] = useState(null);
-  const [events, setEvents] = useState([]);
-  const [eventErrors, setEventErrors] = useState([]);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [busyProvider, setBusyProvider] = useState<string | null>(null);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [eventErrors, setEventErrors] = useState<{ provider: string; message?: string }[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -1341,7 +1395,7 @@ function Calendars({ locale, outcome }) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); loadEvents(); }, [load, loadEvents]);
 
-  async function disconnect(provider) {
+  async function disconnect(provider: string) {
     setBusyProvider(provider);
     await fetch(`/api/account/calendar?provider=${provider}`, { method: "DELETE" });
     setBusyProvider(null);
@@ -1355,7 +1409,7 @@ function Calendars({ locale, outcome }) {
   // client id/secret has nowhere to send the person but a consent screen that
   // can only fail (see the route's own comment).
   const connectable = data.available.filter((p) => !connectedProviders.has(p));
-  const providerLabel = (p) => (p === "google" ? tr.google : p === "microsoft" ? tr.microsoft : p);
+  const providerLabel = (p: string) => (p === "google" ? tr.google : p === "microsoft" ? tr.microsoft : p);
 
   return (
     <div className="mx-auto w-full max-w-[640px] py-6">

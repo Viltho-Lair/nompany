@@ -86,7 +86,7 @@ Google requires the policy be linked from the homepage and shown in the app inte
 is in three places: the public site's footer on every marketing page
 (`components/landing/site/Footer.jsx`), the cookie-consent banner
 (`components/landing/chrome/AnalyticsConsent.jsx`) and the account surface
-(`components/public/AccountHome.js`). (This line named `components/Nav` and `components/Footer`
+(`components/public/AccountHome.tsx`). (This line named `components/Nav` and `components/Footer`
 until 06/10/2026; neither rendered on any page by then, and both were deleted.) It is also in
 `src/app/sitemap.ts` and has its own `PAGES["/privacy"]` entry in `src/lib/seo.ts` for title,
 description and hreflang alternates.

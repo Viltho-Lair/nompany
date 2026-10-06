@@ -832,7 +832,7 @@ export async function testEveryBuiltinRegisterSpeaksArabic(t) {
 // ---- Task 8: the nav and the router -----------------------------------------
 // The task-8 brief invented `navFor(...)` as the thing to test against — no
 // such function exists anywhere in the codebase (the only `navFor` in the repo
-// is an unrelated helper in src/components/public/AccountHome.js). The real
+// is an unrelated helper in src/components/public/AccountHome.tsx). The real
 // primitive the nav and the router both build on is `sectionViewable(access,
 // sectionKey, allKeys)`, exported from platform/access and already used by
 // lib/studios.ts's `visibleSections` (what the sidebar renders) and by
@@ -1231,7 +1231,7 @@ export async function testEveryContextualSectionKeyLiteralExists(t) {
 
   // Shape 2 — `view|requested|screenKey|active?.key === "<key>"`. Scoped to
   // the studio router and its screens: `view` is a generic local-state name
-  // everywhere else in the app (LandingPage.js, AccountHome.js,
+  // everywhere else in the app (LandingPage.js, AccountHome.tsx,
   // QuestionnaireList.js all compare an unrelated `view` against tab names
   // like "overview"/"pricing"/"list") — outside this scope the same shape
   // means something else entirely, and checking it against ALL_SECTION_KEYS

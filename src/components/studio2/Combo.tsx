@@ -25,7 +25,16 @@ import Autocomplete from "@mui/material/Autocomplete";
 const INPUT =
   "w-full rounded-xl border border-slate-200 bg-[var(--geex-inset)] px-3.5 py-2.5 pe-9 text-sm text-[var(--geex-ink)] focus:border-brand-500 focus:bg-[var(--geex-surface,#fff)] focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60 dark:border-white/15";
 
-export default function Combo({ value, onChange, options = [], placeholder = "", disabled = false, id, inputClassName = INPUT, paperClassName = "" }) {
+export default function Combo({ value, onChange, options = [], placeholder = "", disabled = false, id, inputClassName = INPUT, paperClassName = "" }: {
+  value?: string | null;
+  onChange: (value: string) => void;
+  options?: readonly string[];
+  placeholder?: string;
+  disabled?: boolean;
+  id?: string;
+  inputClassName?: string;
+  paperClassName?: string;
+}) {
   return (
     <Autocomplete
       freeSolo
@@ -47,7 +56,7 @@ export default function Combo({ value, onChange, options = [], placeholder = "",
       filterOptions={(opts, { inputValue }) => {
         const q = String(inputValue || "").trim().toLowerCase();
         if (!q) return opts;
-        const rank = (o) => {
+        const rank = (o: string) => {
           const s = String(o).toLowerCase();
           if (s.startsWith(q)) return 0;
           if (s.split(/[\s-]+/).some((w) => w.startsWith(q))) return 1;

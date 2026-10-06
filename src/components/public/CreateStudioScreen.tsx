@@ -17,6 +17,18 @@ import { cn } from "@/lib/utils";
 import {
   H2, SUB, INPUT, LABEL, BTN, BTN_GHOST, BANNER_BAD, slugify,
 } from "@/components/public/accountKit";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
+import type { StudioSetupScreen } from "@/modules/main/studios";
+import type { PricingPayload } from "@/modules/marketing/pricing";
+import type { WorkAnswers, WorkQuestionKey } from "@/shared/howYouWork";
+
+type Card = PricingPayload["cards"][number];
+type Band = NonNullable<Card["categories"]>[number];
+type Cycle = "monthly" | "yearly";
+/** The signed choice from the pricing page, handed in by the account page. */
+type Intent = { packageId?: string; categoryId?: string; cycle?: string } | null;
+/** What `/api/studios/available` says about an address. */
+type SlugStatus = { available?: boolean; slug?: string; reason?: string } | null;
 
 // CREATING A STUDIO IS A SCREEN, NOT A POPUP — the owner's instruction,
 // 17/09/2026. It used to be a dialog with a name, an address and a field of
@@ -59,7 +71,12 @@ const STEPS = 4;
 // with the old Continue button still pointing past it.
 const COMPANY = 0, WORK = 1, DEPARTMENTS = 2, PLAN = 3;
 
-export default function CreateStudioScreen({ setup, intent = null, onDone, onCancel }) {
+export default function CreateStudioScreen({ setup, intent = null, onDone, onCancel }: {
+  setup: StudioSetupScreen | null;
+  intent?: Intent;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
   const locale = useAccountLocale();
   const tr = accountDict(locale);
   const t = tr.setup;
@@ -69,13 +86,13 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   // there is one; the old field-of-work answer otherwise. Only PRE-FILLS — the
   // owner says yes or no to every department on the next step, and can switch
   // any of them on later in Studio settings.
-  const suggestedFor = (key) => setup?.suggestedByIndustry?.[key] || departments.map((d) => d.key);
+  const suggestedFor = (key: string): string[] => setup?.suggestedByIndustry?.[key] || departments.map((d) => d.key);
 
   const [step, setStepRaw] = useState(0);
   // The whole screen slides in once, on arrival. After that only the step body
   // moves, so opening the screen is one movement rather than two stacked.
   const [moved, setMoved] = useState(false);
-  const setStep = (n) => { setMoved(true); setStepRaw(n); };
+  const setStep = (n: number) => { setMoved(true); setStepRaw(n); };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -83,7 +100,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [touchedSlug, setTouchedSlug] = useState(false);
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState<SlugStatus>(null);
   // The owner picks a SPECIALISM from the industry catalogue; the field of
   // work everything below keys on is its template, derived rather than stored
   // twice, so the two can never disagree (shared/industryCatalogue).
@@ -92,13 +109,13 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   const [fieldOther, setFieldOther] = useState("");
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
-  const [erps, setErps] = useState(() => new Set());
+  const [erps, setErps] = useState(() => new Set<string>());
   const [erpOther, setErpOther] = useState("");
   const effectiveSlug = touchedSlug ? slugify(slug) : slugify(name);
   const cities = useMemo(() => citiesFor(codeOfCountry(country)), [country]);
   // "None" is exclusive, the way the questionnaire had it: saying you run no
   // system and naming one in the same breath is two answers to one question.
-  function flipErp(e) {
+  function flipErp(e: string) {
     setErps((cur) => {
       const next = new Set(cur);
       if (next.has(e)) { next.delete(e); return next; }
@@ -108,15 +125,16 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
       return next;
     });
   }
-  const erpLabel = (e) => (e === ERP_NONE ? t.erpNone : e === ERP_OTHER ? t.erpNotListed : e);
+  const erpLabel = (e: string) => (e === ERP_NONE ? t.erpNone : e === ERP_OTHER ? t.erpNotListed : e);
 
   // ---- step 3: the package ----------------------------------------------------
   // The same payload the pricing page draws from, so the figures are the
   // visitor's regional ones and the cards are whatever /super publishes.
   // `choice.packageId` "" is the free package: the absence of a paid choice,
   // never an id the create route has to recognise.
-  const [pricing, setPricing] = useState(null);
-  const [choice, setChoice] = useState(() => ({
+  // null while loading, false when it could not be read.
+  const [pricing, setPricing] = useState<PricingPayload | false | null>(null);
+  const [choice, setChoice] = useState<{ packageId: string; categoryId: string; cycle: Cycle }>(() => ({
     packageId: intent?.packageId || "",
     categoryId: intent?.categoryId || "",
     cycle: intent?.cycle === "yearly" ? "yearly" : "monthly",
@@ -129,7 +147,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
       .catch(() => { if (alive) setPricing(false); });
     return () => { alive = false; };
   }, []);
-  const cards = useMemo(() => pricing?.cards || [], [pricing]);
+  const cards = useMemo<Card[]>(() => (pricing ? pricing.cards : []), [pricing]);
   const freeCard = cards.find((c) => c.type === "free") || null;
   const paidCards = cards.filter((c) => c.type === "compound");
   const premiumCards = cards.filter((c) => c.type === "premium");
@@ -137,15 +155,16 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   // reset in an effect — so the screen never posts an id the route would drop
   // without a word.
   const chosenCard = cards.find((c) => c.id === choice.packageId && c.type === "compound") || null;
-  const chosenBand = chosenCard?.categories?.find((b) => b.id === choice.categoryId) || chosenCard?.categories?.[0] || null;
-  const cardName = (c) => (c ? (locale === "ar" && c.nameAr) || c.name : "");
+  const chosenBand = chosenCard?.categories?.find((b: Band) => b.id === choice.categoryId) || chosenCard?.categories?.[0] || null;
+  const cardName = (c: Card | null) => (c ? (locale === "ar" && c.nameAr) || c.name : "");
   // THE FIGURE AND ITS CURRENCY, as the pricing page shows them: a band's
   // price is PER MONTH in both cycles — yearly is the monthly figure with the
   // yearly discount taken off (yearlyPrice, lib/data/catalog), billed as a year.
-  const money = (n) => `${fmtCurrencyAmount(n, pricing?.currency || "USD")} ${pricing?.currency || ""}`.trim();
+  const currency = pricing ? pricing.currency : "";
+  const money = (n: number) => `${fmtCurrencyAmount(n, currency || "USD")} ${currency}`.trim();
   // A band named like its package ("Small" inside Small) is named by its
   // headcount instead, or the choice reads "Small · Small".
-  const bandName = (card, b) => {
+  const bandName = (card: Card | null, b: Band | null) => {
     if (!b) return "";
     const same = [card?.name, card?.nameAr].includes(b.label);
     return b.label && !same ? b.label : t.usersUpTo(b.minEmployees, b.maxEmployees);
@@ -168,8 +187,8 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   // department held back in /super is not). Pre-answered from the specialism,
   // and kept once the owner has touched them.
   const asked = useMemo(() => questionsAsked(departments.map((d) => d.key)), [departments]);
-  const [answers, setAnswers] = useState({});
-  const [answeredFor, setAnsweredFor] = useState(null);
+  const [answers, setAnswers] = useState<WorkAnswers>({} as WorkAnswers);
+  const [answeredFor, setAnsweredFor] = useState<string | null>(null);
   const [answersEdited, setAnswersEdited] = useState(false);
   function enterWork() {
     if (!answersEdited && answeredFor !== industry) {
@@ -178,7 +197,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
     }
     setStep(WORK);
   }
-  function answerWork(key, value) {
+  function answerWork(key: WorkQuestionKey, value: boolean) {
     setAnswersEdited(true);
     setAnswers((cur) => ({ ...cur, [key]: value }));
   }
@@ -189,14 +208,14 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
   // ---- step 3: the departments ------------------------------------------------
   // `yes` is what the OWNER answered. `on` below adds what those answers need,
   // which the owner cannot switch off while the need stands.
-  const [yes, setYes] = useState(() => new Set(suggestedFor("")));
-  const [offParts, setOffParts] = useState(() => new Set());
+  const [yes, setYes] = useState(() => new Set<string>(suggestedFor("")));
+  const [offParts, setOffParts] = useState(() => new Set<string>());
   const [filledFor, setFilledFor] = useState("");
   const [edited, setEdited] = useState(false);
   const [openParts, setOpenParts] = useState("");
 
   const on = useMemo(() => withNeeds(yes), [yes]);
-  const neededBy = (key) => departments
+  const neededBy = (key: string) => departments
     .filter((d) => yes.has(d.key) && (d.needs || []).includes(key))
     .map((d) => d.name);
   const suggested = [...fromAnswers()];
@@ -221,7 +240,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
     setFilledFor(`${industry}|${JSON.stringify(answers)}`);
     setEdited(false);
   }
-  function answer(key, value) {
+  function answer(key: string, value: boolean) {
     setEdited(true);
     setYes((cur) => {
       const next = new Set(cur);
@@ -229,7 +248,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
       return next;
     });
   }
-  function flipPart(part) {
+  function flipPart(part: string) {
     setEdited(true);
     setOffParts((cur) => {
       const next = new Set(cur);
@@ -285,7 +304,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
 
   // Escape backs out of the whole screen, as the dialog's did.
   useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape" && !busy) onCancel(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !busy) onCancel(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [busy, onCancel]);
@@ -429,7 +448,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
             </p>
             <ul className="mt-4 space-y-2">
               {WORK_QUESTION_KEYS.filter((k) => asked.includes(k)).map((k) => {
-                const q = t.work[k];
+                const q = t.work[k as keyof typeof t.work];
                 const value = Boolean(answers[k]);
                 return (
                   <li key={k} className={cn(
@@ -484,7 +503,7 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
 
             <ul className="mt-4 space-y-2">
               {departments.map((d) => {
-                const q = t.questions[d.key];
+                const q = (t.questions as Partial<Record<string, (typeof t.questions)[keyof typeof t.questions]>>)[d.key];
                 const isOn = on.has(d.key);
                 const forced = isOn && !yes.has(d.key);
                 const needers = forced ? neededBy(d.key) : [];
@@ -569,13 +588,13 @@ export default function CreateStudioScreen({ setup, intent = null, onDone, onCan
             {pricing && (
               <>
                 <div role="radiogroup" aria-label={t.planTitle} className="mt-3 inline-flex rounded-full bg-slate-100 p-0.5 dark:bg-white/5">
-                  {["monthly", "yearly"].map((c) => (
+                  {(["monthly", "yearly"] as Cycle[]).map((c) => (
                     <button key={c} type="button" role="radio" aria-checked={choice.cycle === c}
                       onClick={() => setChoice((x) => ({ ...x, cycle: c }))}
                       className={cn("rounded-full px-3 py-1.5 text-sm font-600 transition-colors",
                         choice.cycle === c ? "bg-white text-slate-900 shadow-sm dark:bg-[#2b2b38] dark:text-white" : "text-slate-500 dark:text-slate-400")}>
                       {c === "monthly" ? t.monthly : t.yearly}
-                      {c === "yearly" && pricing.yearlyDiscountPct > 0 && (
+                      {c === "yearly" && (pricing.yearlyDiscountPct ?? 0) > 0 && (
                         <span className="ms-1 text-xs text-emerald-600 dark:text-emerald-400">{t.yearlySaves(pricing.yearlyDiscountPct)}</span>
                       )}
                     </button>

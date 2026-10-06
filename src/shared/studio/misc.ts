@@ -270,7 +270,7 @@ const en: Strings = {
   novaNotInPlan: "Nova isn't part of this studio's plan.",
   novaNotSetUp: "Nova isn't set up yet.",
   // The key is the PLATFORM's, set in /super — there is nothing for a member to
-  // paste (AccountHome.js says why the account field went). The provider is
+  // paste (AccountHome.tsx says why the account field went). The provider is
   // still named so support knows which service is not connected.
   novaNeedsKey: (provider: string) => `Nova's answers about your data aren't available yet: the ${provider} service behind them hasn't been connected by nompany. Help topics still work, and you can send your question to support.`,
   novaScope: "Ask about your studio's data. Nova only sees what you can.",

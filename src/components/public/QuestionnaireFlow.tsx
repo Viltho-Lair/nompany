@@ -15,6 +15,34 @@ import {
   fieldOf, isPageComplete,
 } from "@/lib/questionnaire";
 import { prunedAnswers, visiblePages, visibleQuestions } from "@/lib/questionnaireLogic";
+import type { ReactNode } from "react";
+import type { LogicPage, LogicQuestion } from "@/lib/questionnaireLogic";
+import type { getDict } from "@/shared/i18n";
+
+// A QUESTION AS /super AUTHORS IT — the branching's own fields (LogicQuestion)
+// plus what only this screen draws.
+type Q = LogicQuestion & {
+  other?: boolean; none?: boolean; multiple?: boolean; vertical?: boolean; required?: boolean;
+  /** Where a list comes from instead of `options`: industries, countries, cities, erps. */
+  source?: string;
+  /** The question a dependent list waits on — its value names the parent's answer. */
+  dependsOn?: string;
+  /** Answers cleared when this one changes (a city when the country does). */
+  resets?: string[];
+  placeholder?: string;
+  optionNotes?: string[];
+};
+type Page = LogicPage & { id?: string; lead?: string; hint?: string; questions?: Q[] };
+/** The answers so far: text, or a list for a multi-select. */
+type Answers = { erps: string[]; otherErp: string } & Record<string, string | string[]>;
+type Patch = Record<string, string | string[]>;
+type SetAnswers = (patch: Patch | ((a: Answers) => Patch)) => void;
+type Dict = ReturnType<typeof getDict>;
+type Labels = Dict["questionnaire"];
+
+const EMPTY: Answers = { intent: "", field: "", country: "", city: "", erps: [], otherErp: "" };
+/** One answer as text — a list answer is not text. */
+const textOf = (v: unknown) => (typeof v === "string" ? v : "");
 
 // The one-time survey between finishing registration and reaching the account.
 //
@@ -45,12 +73,12 @@ const OTHER_SENTINEL = "__other__";
 // behaviour is one rule rather than a special case per question.
 const OTHER_LABELS = ["Other", ERP_OTHER];
 const NONE_LABELS = ["None", ERP_NONE];
-const isOther = (v) => OTHER_LABELS.includes(v);
-const isNone = (v) => NONE_LABELS.includes(v);
+const isOther = (v: string) => OTHER_LABELS.includes(v);
+const isNone = (v: string) => NONE_LABELS.includes(v);
 
 // The full choice list a question offers, including the two it switches on.
-function choicesOf(question, options) {
-  const extra = [];
+function choicesOf(question: Q, options: string[]) {
+  const extra: string[] = [];
   if (question.other && !options.some(isOther)) extra.push("Other");
   if (question.none && !options.some(isNone)) extra.push("None");
   return [...options, ...extra];
@@ -59,18 +87,18 @@ function choicesOf(question, options) {
 // The option lists a question's `source` names. /super will eventually serve
 // these alongside the questions; until then they come from the same modules the
 // rest of the app uses.
-function optionsFor(question, answers) {
+function optionsFor(question: Q, answers: Answers): string[] {
   switch (question.source) {
     case "industries": return INDUSTRIES;
     case "countries": return COUNTRIES.map((c) => c.name);
     // Cities follow whichever question the author bound this one to.
-    case "cities": return citiesFor(nameToCode(answers[question.dependsOn || "country"]));
+    case "cities": return citiesFor(nameToCode(textOf(answers[question.dependsOn || "country"])));
     case "erps": return ERP_SYSTEMS;
     default: return question.options || [];
   }
 }
 // citiesFor() keys on the ISO code, while the visible answer is a country NAME.
-const nameToCode = (name) =>
+const nameToCode = (name: string) =>
   COUNTRIES.find((c) => c.name === name)?.code || "";
 
 // `preview` turns the survey into a rehearsal: the same component, the same
@@ -82,12 +110,19 @@ const nameToCode = (name) =>
 // author opens a preview to find out.
 export default function QuestionnaireFlow({
   locale, dict, packageName = "", email = "", pages = [], preview = false,
+}: {
+  locale: string;
+  dict: Dict;
+  packageName?: string;
+  email?: string;
+  pages?: Page[];
+  preview?: boolean;
 }) {
   // The survey's own frame, in the reader's language. The QUESTIONS are not
   // here and never will be: they are authored in /super's questionnaire
   // builder, which makes them content rather than copy.
   const tr = dict.questionnaire;
-  const [answers, setAnswers] = useState({ intent: "", field: "", country: "", city: "", erps: [], otherErp: "" });
+  const [answers, setAnswers] = useState<Answers>(EMPTY);
   // WHERE YOU ARE, BY PAGE ID RATHER THAN BY INDEX.
   //
   // Branching makes the page list a function of the answers: answering a
@@ -100,17 +135,17 @@ export default function QuestionnaireFlow({
   // this the bar starts part-full, which makes it a liar. A SET rather than a
   // high-water index, for the same reason as above: with branching, "page 3"
   // is not a fixed page.
-  const [seen, setSeen] = useState([]);
+  const [seen, setSeen] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   // What a preview run produced: the body that WOULD have been posted, plus
   // whether registration would have accepted it. Null until the end is reached.
-  const [dryRun, setDryRun] = useState(null);
+  const [dryRun, setDryRun] = useState<{ body: Record<string, unknown>; accepted: boolean } | null>(null);
 
   // The pages this person's answers actually lead through. A page every one of
   // whose questions is hidden is not shown at all — the branch goes past it,
   // and an empty page with a Next button is the logic leaking onto the screen.
-  const live = useMemo(() => visiblePages(pages, answers), [pages, answers]);
+  const live = useMemo(() => visiblePages(pages, answers) as Page[], [pages, answers]);
   const index = Math.max(0, live.findIndex((p) => p.id === pageId));
   const current = live[index] || live[0] || null;
   // Only the questions this person's answers lead to. `question.reveals` decides
@@ -132,15 +167,15 @@ export default function QuestionnaireFlow({
   // Accepts a patch, or a function of the CURRENT answers returning one. The
   // second form matters for multi-select: building the next list from a value
   // captured at render time loses a pick if two arrive before a re-render.
-  const set = (patch) => setAnswers((a) => ({ ...a, ...(typeof patch === "function" ? patch(a) : patch) }));
-  const goTo = (i) => {
+  const set: SetAnswers = (patch) => setAnswers((a) => ({ ...a, ...(typeof patch === "function" ? patch(a) : patch) }) as Answers);
+  const goTo = (i: number) => {
     const target = live[Math.max(0, Math.min(live.length - 1, i))];
     if (!target) return;
-    setPageId(target.id);
+    setPageId(target.id || "");
     // THE PAGE BEING LEFT IS SEEN TOO. Only the target was recorded, and the
     // first page is never a target — it is where the survey opens — so leaving
     // it dropped it from `done` and the bar went BACKWARDS on the first Next.
-    setSeen((s) => [...new Set([...s, current?.id, target.id].filter(Boolean))]);
+    setSeen((s) => [...new Set([...s, current?.id, target.id].filter((x): x is string => Boolean(x)))]);
   };
 
   // A questionnaire authored with no pages yet must not take the screen down.
@@ -206,7 +241,7 @@ export default function QuestionnaireFlow({
   // "complete" the instant the survey loads, and crediting that before it has
   // been seen would show progress nobody has made.
   const done = live.filter((p, i) => (
-    (i === index || seen.includes(p.id)) && isPageComplete({ questions: visibleQuestions(p, pages, answers) }, answers)
+    (i === index || seen.includes(p.id || "")) && isPageComplete({ questions: visibleQuestions(p, pages, answers) }, answers)
   )).length;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
@@ -305,7 +340,7 @@ export default function QuestionnaireFlow({
           </div>
 
           <NovaCorner hint={current.hint} />
-          {dryRun && <DryRunResult result={dryRun} onAgain={() => { setDryRun(null); setAnswers({ intent: "", field: "", country: "", city: "", erps: [], otherErp: "" }); setPageId(""); setSeen([]); }} />}
+          {dryRun && <DryRunResult result={dryRun} onAgain={() => { setDryRun(null); setAnswers(EMPTY); setPageId(""); setSeen([]); }} />}
         </main>
 
         {/* ---- bottom: how long, and where you are ---- */}
@@ -348,7 +383,7 @@ function PreviewBand() {
 // "did THIS path work" — the author walks the branch they were worried about
 // and is told whether somebody taking it would have been let through or bounced
 // with no way forward.
-function DryRunResult({ result, onAgain }) {
+function DryRunResult({ result, onAgain }: { result: { body: Record<string, unknown>; accepted: boolean }; onAgain: () => void }) {
   const { body, accepted } = result;
   const rows = Object.entries(body).filter(([, v]) => (Array.isArray(v) ? v.length : String(v ?? "").trim()));
   return (
@@ -389,7 +424,7 @@ function DryRunResult({ result, onAgain }) {
 // ---- the arrows either side of the bar --------------------------------------
 // Disabled at each end rather than hidden, so the control keeps its shape and
 // the bar never shifts sideways between pages.
-function Arrow({ dir, disabled, onClick, labels }) {
+function Arrow({ dir, disabled, onClick, labels }: { dir: "prev" | "next"; disabled?: boolean; onClick: () => void; labels: Labels }) {
   const back = dir === "prev";
   return (
     <button
@@ -409,7 +444,7 @@ function Arrow({ dir, disabled, onClick, labels }) {
 // ---- Nova, bottom right ------------------------------------------------------
 // Hidden below `xl`: she is company, not content, and on a screen this height
 // she would otherwise crowd the questions she is meant to be helping with.
-function NovaCorner({ hint }) {
+function NovaCorner({ hint }: { hint?: string }) {
   if (!hint) return null;
   return (
     <div aria-hidden="true" className="pointer-events-none absolute bottom-0 end-0 hidden items-end xl:flex">
@@ -428,14 +463,14 @@ function NovaCorner({ hint }) {
 }
 
 // ---- one question ------------------------------------------------------------
-function Question({ question, answers, set, labels }) {
+function Question({ question, answers, set, labels }: { question: Q; answers: Answers; set: SetAnswers; labels: Labels }) {
   const options = useMemo(() => optionsFor(question, answers), [question, answers]);
   const key = fieldOf(question);
-  const value = answers[key];
+  const value = textOf(answers[key]);
   // Other is "selected" whenever the stored answer is not one of the listed
   // choices — the sentinel covers the moment before anything has been typed.
   const listed = [
-    ...(question.options || []).map((o, i) => question.optionValues?.[i] ?? o),
+    ...(question.options || []).map((o: string, i: number) => question.optionValues?.[i] ?? o),
     ...NONE_LABELS,
   ];
   const otherPicked = Boolean(question.other) && Boolean(value) && !listed.includes(value);
@@ -494,13 +529,14 @@ function Question({ question, answers, set, labels }) {
     return (
       <Field question={question}>
         <Combo
+          id={`q-${key}`}
           value={value || ""}
           disabled={Boolean(blocked)}
           options={options}
           placeholder={blocked ? labels.answerAboveFirst : (question.placeholder || "")}
           inputClassName={FIELD}
           paperClassName="mt-1 card !p-0 overflow-hidden"
-          onChange={(v) => set({ [key]: v, ...Object.fromEntries((question.resets || []).map((k) => [k, ""])) })}
+          onChange={(v: string) => set({ [key]: v, ...Object.fromEntries((question.resets || []).map((k) => [k, ""])) })}
         />
       </Field>
     );
@@ -509,19 +545,18 @@ function Question({ question, answers, set, labels }) {
   if (question.type === "multiple-choice" && question.multiple) {
     return <MultiSelect question={question} options={options} answers={answers} set={set} labels={labels} />;
   }
-  if (["short-text", "email", "long-text", "number", "date", "website", "phone"].includes(question.type)) {
-    const Tag = question.type === "long-text" ? "textarea" : "input";
+  if (["short-text", "email", "long-text", "number", "date", "website", "phone"].includes(question.type || "")) {
     const inputType = question.type === "number" ? "number" : question.type === "date" ? "date"
       : question.type === "email" ? "email" : "text";
     return (
       <Field question={question}>
-        <Tag
-          {...(Tag === "input" ? { type: inputType } : { rows: 3 })}
-          value={value || ""}
-          onChange={(e) => set({ [key]: e.target.value })}
-          placeholder={question.placeholder || ""}
-          className={FIELD}
-        />
+        {question.type === "long-text" ? (
+          <textarea rows={3} value={value} onChange={(e) => set({ [key]: e.target.value })}
+            placeholder={question.placeholder || ""} className={FIELD} />
+        ) : (
+          <input type={inputType} value={value} onChange={(e) => set({ [key]: e.target.value })}
+            placeholder={question.placeholder || ""} className={FIELD} />
+        )}
       </Field>
     );
   }
@@ -536,7 +571,7 @@ function Question({ question, answers, set, labels }) {
   );
 }
 
-function Field({ question, children }) {
+function Field({ question, children }: { question: Q; children?: ReactNode }) {
   return (
     <div>
       {question.label && <label className="field-label">{question.label}</label>}
@@ -548,10 +583,11 @@ function Field({ question, children }) {
 // ---- multi-select with a search box ------------------------------------------
 // "None" is exclusive: choosing it clears the rest, and choosing anything else
 // clears it. Saying you run no ERP and then naming one is not an answer.
-function MultiSelect({ question, options, answers, set, labels }) {
+function MultiSelect({ question, options, answers, set, labels }: { question: Q; options: string[]; answers: Answers; set: SetAnswers; labels: Labels }) {
   const [query, setQuery] = useState("");
   const key = fieldOf(question);
-  const picked = Array.isArray(answers[key]) ? answers[key] : [];
+  const given = answers[key];
+  const picked: string[] = Array.isArray(given) ? given : [];
   const all = choicesOf(question, options);
 
   const shown = useMemo(() => {
@@ -560,9 +596,10 @@ function MultiSelect({ question, options, answers, set, labels }) {
     return all.filter((o) => String(o).toLowerCase().includes(q));
   }, [all, query]);
 
-  function toggle(option) {
+  function toggle(option: string) {
     set((a) => {
-      const cur = Array.isArray(a[key]) ? a[key] : [];
+      const was = a[key];
+      const cur: string[] = Array.isArray(was) ? was : [];
       const has = cur.includes(option);
       // None is exclusive both ways: choosing it clears everything else, and
       // choosing anything else clears it. "None, and also these three" is not

@@ -241,7 +241,7 @@ rather than being told by a prop.
 ## The owner chooses the departments at creation (17/09/2026)
 
 **Creating a studio is a four-step screen on the account page, not a dialog** —
-`components/public/CreateStudioScreen.js`, rendered in place of the content column only while it
+`components/public/CreateStudioScreen.tsx`, rendered in place of the content column only while it
 is open. *Company* → *How you work* → *Departments* → *Plan*, which creates. (Three steps until
 2026-09-24; *What you do* → *Plan* → *Review* until 2026-10-03.)
 
