@@ -1,9 +1,6 @@
 import { notFound } from "next/navigation";
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
 import SiteTracker from "@/components/SiteTracker";
-import { publicSiteSettings } from "@/lib/data/publicSettings";
-import { getDict, dirFor, isLocale, locales } from "@/shared/i18n";
+import { dirFor, isLocale, locales } from "@/shared/i18n";
 import { AccountLocaleProvider } from "@/components/public/locale";
 
 export function generateStaticParams() {
@@ -11,17 +8,15 @@ export function generateStaticParams() {
 }
 
 // Content is admin-editable, so render on demand rather than serving a
-// build-time snapshot. The settings themselves come through the same minute
-// cache the root layout reads (lib/data/publicSettings) — this read was the one
-// uncached database round trip left on every marketing and account page.
+// build-time snapshot. (This layout read the public site settings for the old
+// header and footer until 06/10/2026; it reads nothing now, and the pages under
+// it still read theirs per request.)
 export const dynamic = "force-dynamic";
 
 export default async function LocaleLayout({ children, params }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
 
-  const dict = getDict(locale);
-  const settings = await publicSiteSettings();
   const dir = dirFor(locale);
 
   return (
@@ -30,9 +25,12 @@ export default async function LocaleLayout({ children, params }) {
           republishes what the segment already says — it exists so a dialog
           five components deep does not have to be handed a prop. */}
       <div dir={dir} lang={locale} className="flex min-h-screen flex-col">
-        <Nav locale={locale} dict={dict} settings={settings} />
+        {/* NO HEADER OR FOOTER HERE (06/10/2026). The old `Nav` and `Footer`
+            stood down on every page under this segment — each is either bare
+            (home, sign-in, the account) or draws the marketing site's own
+            chrome — while `Nav` still asked /api/identity/me on every view.
+            Both were deleted; a page brings what it needs. */}
         <main className="flex-1">{children}</main>
-        <Footer locale={locale} dict={dict} settings={settings} />
         <SiteTracker />
       </div>
     </AccountLocaleProvider>

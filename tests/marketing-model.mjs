@@ -663,16 +663,9 @@ ok("the stored stats hold only aggregate fields",
   statKeys.every((k) => ["studios", "people", "records", "refreshedAt"].includes(k)),
   statKeys.join(", "));
 
-const nav = readFileSync("src/components/Nav.tsx", "utf8");
-// THIS ASSERTED THE MECHANISM WAS GONE AND MEANT THE ROUTE. `BARE_PREFIXES`
-// was introduced for `/preview/hero/<variant>` and deleted with it, so
-// forbidding the identifier read as a faithful guard — until careers moved
-// onto the marketing shell and needed the same thing for `/careers/<jobId>`,
-// a genuine route family that cannot be listed exhaustively. The guard would
-// have refused the correct fix. It names the route now, which is what it was
-// ever about; the mechanism is free to serve whoever needs it.
-ok("...and no preview path survives in the nav's bare-chrome lists",
-  !/(?<![-\w])preview(?![-\w])/.test(nav));
+// The old header's bare-chrome lists (and the guard that no preview path
+// survived in them) went with `components/Nav`, deleted 06/10/2026 because it
+// rendered on no page; `shared/marketing/routes` is the one list left.
 
 // AND THE CEILING RATCHETED ITSELF. bundle-budget.mjs reads 1792 while the
 // preview route holds a baseline entry and 1716 once it does not, so deleting
