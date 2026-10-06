@@ -149,7 +149,7 @@ signature** (Studio settings; `signingPin` on the studio), in which case a
 signer with no PIN is refused `pin-not-set` (409) and told to set one.
 
 A request without the PIN answers `pin-required` (**428**). No screen was changed for it: the
-page's response observer (`components/security/SessionLock.js`) asks for the PIN and sends
+page's response observer (`components/security/SessionLock.tsx`) asks for the PIN and sends
 **the same request** again with it, so the screen that asked to sign gets the signature's answer.
 A wrong PIN asks again with the tries left; five wrong in a row stop the PIN working on
 signatures and at tills for fifteen minutes (`pin-locked`, 429). The reason is sharing: a login

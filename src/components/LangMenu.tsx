@@ -32,7 +32,10 @@ import { rememberLocale } from "@/lib/langCookie";
 const TRIGGER =
   "inline-flex items-center gap-1.5 rounded-full border border-current/25 px-3 py-1.5 font-display text-xs font-600 uppercase tracking-[0.12em] transition-colors hover:border-current";
 
-function GlobeIcon({ className }) {
+/** One language on offer: its code, what it is called, where it goes, and what picking it does. */
+export type LangOption = { code: string; label: string; short?: string; href?: string; onSelect?: () => void };
+
+function GlobeIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="9" />
@@ -53,10 +56,18 @@ export default function LangMenu({
   // public site's dark glass and single accent, 27/09/2026). Only the panel
   // differs; the behaviour, the cookie and the full-load anchors do not.
   tone = "product",
+}: {
+  current: string;
+  options: LangOption[];
+  label?: string;
+  triggerClass?: string;
+  align?: "start" | "end";
+  direction?: "down" | "up";
+  tone?: "product" | "site";
 }) {
   const site = tone === "site";
   const cur = options.find((o) => o.code === current) || options[0];
-  const choose = (o) => { rememberLocale(o.code); o.onSelect?.(); };
+  const choose = (o: LangOption) => { rememberLocale(o.code); o.onSelect?.(); };
   const panelPos =
     direction === "up"
       ? "bottom-full pb-2 translate-y-1 group-hover:translate-y-0 group-focus-within:translate-y-0"

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { prefixer } from "stylis";
@@ -52,7 +53,7 @@ import theme from "@/lib/muiTheme";
 // is not to accept one.
 const rtlTheme = createTheme(theme, { direction: "rtl" });
 
-export default function MuiRtlProvider({ children }) {
+export default function MuiRtlProvider({ children }: { children?: ReactNode }) {
   return (
     <AppRouterCacheProvider
       options={{ key: "muirtl", enableCssLayer: true, stylisPlugins: [prefixer, rtlPlugin] }}

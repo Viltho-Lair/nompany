@@ -7,7 +7,9 @@ import PublicFormPage from "./PublicFormPage";
 // A draft, an unknown code and a switched-off department are the same 404.
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }) {
+type Params = { params: Promise<{ slug: string; code: string }> };
+
+export async function generateMetadata({ params }: Params) {
   const { slug, code } = await params;
   const form = await publicForm(String(slug || "").toLowerCase(), String(code || ""));
   // A studio's form is not nompany's content, and is not for search engines.
@@ -15,7 +17,7 @@ export async function generateMetadata({ params }) {
   return { title: { absolute: form?.name || "Form" }, robots: { index: false, follow: false } };
 }
 
-export default async function FormPage({ params }) {
+export default async function FormPage({ params }: Params) {
   const { slug, code } = await params;
   const form = await publicForm(String(slug || "").toLowerCase(), String(code || ""));
   if (!form) notFound();

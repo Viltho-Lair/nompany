@@ -9,11 +9,21 @@ import { cn } from "@/lib/utils";
 // panel stays mounted and is translated off-screen when closed, so content
 // inside (e.g. a ResizeObserver-measured timeline) keeps its width. Closes on
 // overlay click, the close button, or Escape; locks body scroll while open.
-export function Drawer({ open, onClose, title, description, side = "right", widthClass = "w-[min(94vw,1120px)]", actions, className, children }) {
+export function Drawer({ open, onClose, title, description, side = "right", widthClass = "w-[min(94vw,1120px)]", actions, className, children }: {
+  open: boolean;
+  onClose?: () => void;
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  side?: "left" | "right";
+  widthClass?: string;
+  actions?: React.ReactNode;
+  className?: string;
+  children?: React.ReactNode;
+}) {
   const tr = miscDict(useStudioLocale());
   React.useEffect(() => {
     if (!open) return;
-    const onKey = (e) => e.key === "Escape" && onClose?.();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose?.();
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";

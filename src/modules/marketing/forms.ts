@@ -308,6 +308,9 @@ export async function publicForm(slug: string, code: string) {
   };
 }
 
+/** What the public form page is handed — derived from the function, never restated. */
+export type PublicFormView = NonNullable<Awaited<ReturnType<typeof publicForm>>>;
+
 /**
  * ONE PERSON'S ANSWERS ARRIVE. Refused unless the form is open; judged only on
  * the questions this person's answers actually led them to (the branching's own

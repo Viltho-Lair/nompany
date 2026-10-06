@@ -70,7 +70,7 @@ touches no studio.
 
 Files: `shared/walkthrough.ts` (the rules and both languages' words),
 `platform/auth/walkthrough.ts`, `app/api/identity/walkthrough/route.ts`,
-`components/walkthrough/{Walkthrough.jsx,useWalkthrough.js}`. Test:
+`components/walkthrough/{Walkthrough.tsx,useWalkthrough.ts}`. Test:
 `tests/walkthrough-model.mjs`.
 
 ## Not built yet

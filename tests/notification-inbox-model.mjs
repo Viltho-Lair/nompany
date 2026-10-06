@@ -80,7 +80,7 @@ console.log("\n== the bells re-read on every connect (defect 2)");
 
 // The studio bell reads the inbox now (components/notifications/InboxProvider),
 // which is where the studio's reload lives.
-for (const file of ["src/components/notifications/InboxProvider.js", "src/components/super/useSuperNotifications.js"]) {
+for (const file of ["src/components/notifications/InboxProvider.tsx", "src/components/super/useSuperNotifications.js"]) {
   const src = readFileSync(file, "utf8");
   ok(`${file}: keyed on the connection count`, /if \(connection\) load\(\);\s*\}, \[connection, load\]\)/.test(src));
   ok(`${file}: not on status`, !/if \(status === "live"\) load\(\)/.test(src));
@@ -356,8 +356,10 @@ console.log("\n== money at the edges");
   // PAID IN FULL BY THIS PAYMENT, not "an invoice with nothing outstanding":
   // a part payment on an already-settled invoice cannot happen, but a second
   // call reading a paid invoice must not ring again.
+  // OWED, NOT OUTSTANDING, since 05/10/2026: what is owed counts credit and
+  // debit notes (a9ef47fe), so "settled by this payment" is asked of it.
   ok("an invoice is announced paid only by the payment that settled it",
-    /if \(totals\.outstanding > 0 && after\.outstanding <= 0\)/.test(src));
+    /if \(owed > 0 && owedAfter <= 0\)/.test(src));
   ok("a bounce is announced", /if \(bounced\) await tellProjectManager/.test(src));
   ok("the manager is told only with the billing right", /notifyIdsHolding\(ctx\.studio\.id, \[manager\], "projects\.billing\.view"/.test(src));
   const pos = readFileSync("src/modules/sales/pos.ts", "utf8");

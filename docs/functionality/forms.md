@@ -5,7 +5,7 @@ forms the public fills in: enquiries that become Sales leads, event registration
 surveys. Section `marketing-forms`, which owns `marketingForms` and `marketingFormResponses`.
 Code: `src/modules/marketing/formsModel.ts` (the rules, pure, shared with both screens),
 `modules/marketing/formsFlow.ts` (where an answer leads, pure, read by the page and the server
-alike), `modules/marketing/forms.ts` (the service), `components/forms/PublicForm.js` (the page the
+alike), `modules/marketing/forms.ts` (the service), `components/forms/PublicForm.tsx` (the page the
 public answers, and the editor's preview: one component for both).
 
 **The builder was rebuilt on 20/09/2026** to the owner's design — a full-page canvas of cards.

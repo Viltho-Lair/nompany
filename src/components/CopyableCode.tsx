@@ -15,7 +15,9 @@
 // different design systems, and this component has no opinion about either.
 import { useState } from "react";
 
-export default function CopyableCode({ value, className = "", codeClassName = "", buttonClassName = "", copyLabel = "Copy", copiedLabel = "Copied" }) {
+export default function CopyableCode({ value, className = "", codeClassName = "", buttonClassName = "", copyLabel = "Copy", copiedLabel = "Copied" }: {
+  value: string; className?: string; codeClassName?: string; buttonClassName?: string; copyLabel?: string; copiedLabel?: string;
+}) {
   const [copied, setCopied] = useState(false);
   return (
     <span className={`inline-flex min-w-0 items-center gap-2 ${className}`}>

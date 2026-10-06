@@ -1,4 +1,5 @@
 import "./globals.css";
+import type { ReactNode } from "react";
 import { FONT_VARS } from "./fonts";
 import { cookies, headers } from "next/headers";
 import JsonLd from "@/components/JsonLd";
@@ -65,7 +66,7 @@ export const viewport = {
   themeColor: "#0f172a",
 };
 
-export default async function RootLayout({ children }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
   // The proxy sets x-locale so the correct lang/dir land on <html> for the
   // bilingual (EN/AR) site; default to English for non-localised routes.
   const h = await headers();

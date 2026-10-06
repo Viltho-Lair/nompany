@@ -7,7 +7,7 @@
 // are gone rather than hidden.
 
 // The symbol on its own — for a field label, or beside the currency in settings.
-export function CurrencySymbol({ code, className = "" }) {
+export function CurrencySymbol({ code, className = "" }: { code?: string | null; className?: string }) {
   const c = String(code || "").trim().toUpperCase();
   if (!c) return null;
   // ONE TREATMENT FOR ALL 166. There was a branch here that drew the riyal as a
@@ -18,7 +18,7 @@ export function CurrencySymbol({ code, className = "" }) {
 
 // An amount WITH its symbol. Falls back to the bare number when the studio has
 // not set a currency, rather than guessing one.
-export function Money({ amount, currency, className = "" }) {
+export function Money({ amount, currency, className = "" }: { amount: unknown; currency?: string | null; className?: string }) {
   const n = Number(amount);
   const text = Number.isFinite(n) ? n.toLocaleString() : String(amount ?? "");
   if (!currency) return <span className={className}>{text}</span>;

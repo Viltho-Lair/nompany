@@ -83,10 +83,10 @@ drifted from the code is worse than none, because it is relied upon.
 ## Where they are linked from
 
 Google requires the policy be linked from the homepage and shown in the app interface, so it
-is in four places: the marketing header (`components/Nav.js`), the site footer
-(`components/Footer.js`), the landing footer (`components/landing/Footer.js`, Resources
+is in four places: the marketing header (`components/Nav.tsx`), the site footer
+(`components/Footer.tsx`), the landing footer (`components/landing/Footer.js`, Resources
 column) and the account surface (`components/public/AccountHome.js`). It is also in
-`src/app/sitemap.js` and has its own `PAGES["/privacy"]` entry in `src/lib/seo.ts` for title,
+`src/app/sitemap.ts` and has its own `PAGES["/privacy"]` entry in `src/lib/seo.ts` for title,
 description and hreflang alternates.
 
 ## Versions

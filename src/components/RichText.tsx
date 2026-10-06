@@ -3,7 +3,7 @@ import { sanitizeRichHtml, isProbablyHtml } from "@/lib/richText";
 // Renders a rich-text value (bullets, numbering, bold, italic, underline). Old
 // plain-text entries still render — with newlines preserved — so nothing broken
 // on existing records.
-export default function RichText({ value, className = "" }) {
+export default function RichText({ value, className = "" }: { value?: string | null; className?: string }) {
   if (!value) return null;
   const dir = /[؀-ۿ]/.test(value) ? "rtl" : undefined;
   // THE MARKETING SHELL IS NOT `.dark`. This carried a light/dark pair

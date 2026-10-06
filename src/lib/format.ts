@@ -43,7 +43,7 @@ export function fmtMoney(v: unknown) { return formatMoney(v, active()); }
 export const fmtSAR = fmtMoney;
 
 // Rendered pieces of a money value (tenant currency) for the <Money> component,
-// so a caller can render the amount and its currency separately. See Money.js.
+// so a caller can render the amount and its currency separately. See Money.tsx.
 export function moneyParts(v: unknown) { return formatMoneyParts(v, active()); }
 
 // The active VAT rate (tenant's, else default) — for consumers that compute tax.

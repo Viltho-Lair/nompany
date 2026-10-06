@@ -5,6 +5,14 @@ import NovaHead from "@/components/studio2/NovaHead";
 import { useFocusTrap } from "@/components/studio2/useFocusTrap";
 import { walkthroughDict, resolveSteps } from "@/shared/walkthrough";
 
+type Words = ReturnType<typeof walkthroughDict>;
+/** A step's words. */
+type Copy = { title: string; body: string };
+/** One step of a tour — see THE TWO TOURS below. */
+type Step = { key: string; copy: Copy; target?: string; unless?: string; corner?: boolean };
+/** A box on the screen, in viewport pixels. */
+type Box = { top: number; left: number; width: number; height: number };
+
 // NOVA'S WALKTHROUGH. A dimmed page with a lit window over one control at a
 // time, and Nova beside it saying what it is for. Skip, Back, Next — and a
 // "don't show this again" box that the caller turns into a stored preference.
@@ -29,7 +37,7 @@ const EDGE = 16;     // the card never comes nearer the viewport's edge than thi
 
 // Every visible element a step names, as one box. null when none is showing —
 // display:none, a closed drawer, or never rendered.
-function boxOf(selector) {
+function boxOf(selector: string): Box | null {
   if (!selector || typeof document === "undefined") return null;
   const rects = [...document.querySelectorAll(selector)]
     .map((el) => el.getBoundingClientRect())
@@ -42,7 +50,7 @@ function boxOf(selector) {
   return { top, left, width: right - left, height: bottom - top };
 }
 
-const sel = (name) => `[data-tour="${name}"]`;
+const sel = (name: string) => `[data-tour="${name}"]`;
 
 // WHERE NOVA'S LAUNCHER WOULD SIT, in a studio whose package does not include
 // her — there is no element to measure, so the box is worked out from the
@@ -50,7 +58,7 @@ const sel = (name) => `[data-tour="${name}"]`;
 // or `bottom-20` (80px) under the phone's bottom bar, and `end-5` (20px) or
 // `end-24` (96px) when the support chat shares the corner. Change one and
 // change the other, or this step points a little beside the place it names.
-function cornerBox(rtl, besideChat) {
+function cornerBox(rtl: boolean, besideChat: boolean): Box {
   const size = 64;
   const bottom = document.documentElement.hasAttribute("data-bottom-bar") ? 80 : 16;
   const end = besideChat ? 96 : 20;
@@ -64,7 +72,7 @@ function cornerBox(rtl, besideChat) {
 // step's control was missing, which is how the phone gets "open the menu" in
 // place of "here are your departments". `corner` marks the one step with no
 // element at all: the empty place Nova's launcher would occupy.
-function stepsFor(tour, t, { nova }) {
+function stepsFor(tour: string, t: Words, { nova }: { nova: boolean }): Step[] {
   if (tour === "account") {
     const a = t.account;
     return [
@@ -96,7 +104,13 @@ function stepsFor(tour, t, { nova }) {
   ];
 }
 
-export default function Walkthrough({ tour, locale = "en", nova = false, support = false, onClose }) {
+export default function Walkthrough({ tour, locale = "en", nova = false, support = false, onClose }: {
+  tour: "account" | "studio";
+  locale?: string;
+  nova?: boolean;
+  support?: boolean;
+  onClose?: (dontShow: boolean) => void;
+}) {
   const t = walkthroughDict(locale);
   // RESOLVED ONCE, on open. The screen under a tour does not change while it
   // runs — the dimmed page takes every click — so what is on it now is what
@@ -104,7 +118,7 @@ export default function Walkthrough({ tour, locale = "en", nova = false, support
   // render: a caller that switches to the screen the tour is about in the same
   // update (the account's "Start now" jumps to Overview) has not put that
   // screen in the document yet while this renders.
-  const [steps, setSteps] = useState(null);
+  const [steps, setSteps] = useState<Step[] | null>(null);
   useEffect(() => {
     const id = setTimeout(() => {
       setSteps(resolveSteps(stepsFor(tour, t, { nova }), (name) => Boolean(boxOf(sel(name)))));
@@ -114,16 +128,16 @@ export default function Walkthrough({ tour, locale = "en", nova = false, support
   }, [tour]);
   const [i, setI] = useState(0);
   const [dontShow, setDontShow] = useState(false);
-  const [box, setBox] = useState(null);
-  const [pos, setPos] = useState(null);
-  const cardRef = useRef(null);
-  const nextRef = useRef(null);
+  const [box, setBox] = useState<Box | null>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const bodyId = useId();
   useFocusTrap(cardRef, Boolean(steps?.length));
 
   const step = steps?.[i];
-  const last = Boolean(steps) && i === steps.length - 1;
+  const last = Boolean(steps) && i === (steps?.length ?? 0) - 1;
   // The box belongs to a TARGETED step; a centred step ignores whatever the
   // previous one measured rather than clearing it.
   const lit = step?.target || step?.corner ? box : null;
@@ -133,10 +147,11 @@ export default function Walkthrough({ tour, locale = "en", nova = false, support
   // already on screen does not make the page jump.
   useEffect(() => {
     if (!step?.target && !step?.corner) return undefined;
-    if (step.target) document.querySelector(sel(step.target))?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    const target = step.target || "";
+    if (target) document.querySelector(sel(target))?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     const measure = step.corner
       ? () => setBox(cornerBox(cardRef.current ? getComputedStyle(cardRef.current).direction === "rtl" : false, support))
-      : () => setBox(boxOf(sel(step.target)));
+      : () => setBox(boxOf(sel(target)));
     measure();
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
@@ -154,8 +169,8 @@ export default function Walkthrough({ tour, locale = "en", nova = false, support
     const cw = card.offsetWidth, ch = card.offsetHeight;
     const box = lit;
     if (!box) { setPos({ left: (vw - cw) / 2, top: Math.max(EDGE, (vh - ch) / 2) }); return; }
-    const clampX = (x) => Math.min(Math.max(EDGE, x), vw - cw - EDGE);
-    const clampY = (y) => Math.min(Math.max(EDGE, y), vh - ch - EDGE);
+    const clampX = (x: number) => Math.min(Math.max(EDGE, x), vw - cw - EDGE);
+    const clampY = (y: number) => Math.min(Math.max(EDGE, y), vh - ch - EDGE);
     const below = box.top + box.height + PAD + GAP;
     const above = box.top - PAD - GAP - ch;
     const centreX = clampX(box.left + box.width / 2 - cw / 2);
@@ -174,7 +189,7 @@ export default function Walkthrough({ tour, locale = "en", nova = false, support
   // Escape skips — a tour is always one key from gone. The arrows step,
   // mirrored in Arabic so "forward" is the way the page reads.
   useEffect(() => {
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       // The CARD's direction, not the document's: the studio declares `dir` on
       // its shell rather than on <html>, so the first [dir] in the page is the
       // root layout's and says ltr in an Arabic studio.
@@ -189,7 +204,7 @@ export default function Walkthrough({ tour, locale = "en", nova = false, support
     return () => window.removeEventListener("keydown", onKey);
   }, [finish, last]);
 
-  if (!step) return null;
+  if (!step || !steps) return null;
 
   return (
     <div className="fixed inset-0 z-[100] print:hidden">

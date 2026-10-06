@@ -116,7 +116,7 @@ with `redirect_uri_mismatch`, because the site actually serves on `www.nompany.c
 providers compare byte for byte. `GET /api/account/calendar` now returns a `redirectUris` map
 (`calendarRedirectUri(request, provider)`, one entry per provider in `available`) built from
 the **request that asked**, so the string on screen is never a guess — it is shown in a
-monospace, select-all, click-to-copy control (`CopyableCode`, `src/components/CopyableCode.js`)
+monospace, select-all, click-to-copy control (`CopyableCode`, `src/components/CopyableCode.tsx`)
 so it can go straight into the provider's console with nothing retyped. The `/super` calendar
 screen shows the same thing about its own, different, callback path.
 

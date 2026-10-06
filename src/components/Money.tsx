@@ -15,7 +15,7 @@ import { moneyParts } from "@/lib/format";
 //   <Money value={1500} />            → 1,500.00 USD
 //   <Money value={1500} symbolFirst /> → USD 1,500.00   (rare; default is amount-first)
 //   no currency set                    → 1,500.00       (the bare number, never a guess)
-export default function Money({ value, className, symbolFirst = false }) {
+export default function Money({ value, className, symbolFirst = false }: { value: unknown; className?: string; symbolFirst?: boolean }) {
   const p = moneyParts(value);
   if (p.text != null) return <span className={className}>{p.text}</span>;
   if (!p.currency) return <span className={className}>{p.body}</span>;

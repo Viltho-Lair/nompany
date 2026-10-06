@@ -1,5 +1,7 @@
 "use client";
 
+import type { Locale } from "@/shared/i18n";
+import type { getDict } from "@/shared/i18n";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CONTACT } from "@/lib/site";
@@ -8,10 +10,12 @@ import { isBareRoute } from "@/components/Nav";
 // Editorial footer (adapted from the reference site): a big "Let's connect"
 // band, then a minimal dark strip with an Explore nav list, the office / contact
 // block, and a thin copyright bar. Solid navy on every page.
-export default function Footer({ locale, dict }) {
+type SiteDict = ReturnType<typeof getDict>;
+
+export default function Footer({ locale, dict }: { locale: Locale; dict: SiteDict; settings?: unknown }) {
   const pathname = usePathname();
   // The landing page, the auth screens and the account hub each own their
-  // whole viewport and bring their own chrome (Nav.js suppresses itself on the
+  // whole viewport and bring their own chrome (Nav.tsx suppresses itself on the
   // same list).
   const rel = pathname.replace(new RegExp(`^/${locale}(?=/|$)`), "").replace(/\/$/, "");
   const isBare = isBareRoute(rel);

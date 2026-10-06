@@ -273,7 +273,7 @@ export const pos: HelpModule = {
                 ar: ["النقد المعدود في الدرج، بعملة الاستوديو (مطلوب)", "ملاحظات"] },
       keywords: ["close shift", "count drawer", "counted cash", "end of day", "إغلاق الوردية", "عد الدرج", "النقد المعدود", "نهاية اليوم"],
       related: ["pos-till.shift", "pos-shifts.over-short"] },
-    // Checked against src/components/security/TillCashierSwitch.js (the list of
+    // Checked against src/components/security/TillCashierSwitch.tsx (the list of
     // cashiers by name, then PIN) and the words in src/shared/security.ts.
     { id: "pos-till.cashier-fields", topic: "dept.pos-till", kind: "fields", open: "pos-till",
       q: { en: "What do I need to take over the till as cashier?", ar: "ما الذي أحتاجه لتسلم الصندوق ككاشير؟" },

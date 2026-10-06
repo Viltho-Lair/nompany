@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 // THE WALKTHROUGH'S STATE, shared by the account hub and the studio shell so
 // the two cannot disagree about when a tour opens or what closing it means.
-// The tour itself (Walkthrough.jsx) is loaded lazily; this is the few lines
+// The tour itself (Walkthrough.tsx) is loaded lazily; this is the few lines
 // that decide whether to load it at all.
 //
 //   • `auto` — ask the server on mount, and open if this sign-in has not seen
@@ -13,14 +13,14 @@ import { useCallback, useEffect, useState } from "react";
 //     halfway does not replay it on every page of the same sign-in;
 //   • closing with the box ticked turns it OFF, on the profile, until the
 //     person turns it back on — from /account or from a studio's menu.
-const post = (tour, action) =>
+const post = (tour: string, action: "seen" | "off" | "on") =>
   fetch("/api/identity/walkthrough", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tour, action }),
   }).catch(() => null);
 
-export function useWalkthrough(tour, { auto = true } = {}) {
+export function useWalkthrough(tour: string, { auto = true }: { auto?: boolean } = {}) {
   const [open, setOpen] = useState(false);
 
   const start = useCallback(() => {
@@ -38,7 +38,7 @@ export function useWalkthrough(tour, { auto = true } = {}) {
     return () => { live = false; };
   }, [auto, tour, start]);
 
-  const close = useCallback((dontShow) => {
+  const close = useCallback((dontShow?: boolean) => {
     setOpen(false);
     if (dontShow) post(tour, "off");
   }, [tour]);

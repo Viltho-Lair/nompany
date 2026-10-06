@@ -81,7 +81,7 @@ export const SITEMAP_SOURCES: Record<string, string[]> = {
     "src/components/landing/site/pages/careers/JobCard.jsx",
   ],
   // The index's STRUCTURE; its posts are rows, and each post is advertised in
-  // the sitemap with its own `updatedAt` (app/sitemap.js).
+  // the sitemap with its own `updatedAt` (app/sitemap.ts).
   "/blog": [
     "src/app/[locale]/(site)/blog/page.js",
     "src/components/landing/site/pages/blog/BlogIndex.jsx",

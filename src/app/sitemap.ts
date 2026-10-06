@@ -1,3 +1,4 @@
+import type { MetadataRoute } from "next";
 import { locales } from "@/shared/i18n";
 import { urlFor, alternatesFor } from "@/lib/seo";
 import { listStudios } from "@/modules/main/studios";
@@ -40,7 +41,7 @@ import lastmod from "./sitemap-lastmod.json";
 
 export const SITEMAP_PATHS = Object.keys(lastmod);
 
-export default async function sitemap() {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // AN EMPTY CUSTOMERS PAGE IS NOT ADVERTISED. It lists only studios that both
   // consented in their own settings and were featured in /super, so until one
   // does the page is a heading over an explanation — worth serving to somebody
@@ -66,12 +67,12 @@ export default async function sitemap() {
   }
   const paths = named ? SITEMAP_PATHS : SITEMAP_PATHS.filter((p) => p !== "/customers");
 
-  const entries = [];
+  const entries: MetadataRoute.Sitemap = [];
   for (const path of paths) {
     for (const locale of locales) {
       entries.push({
         url: urlFor(locale, path),
-        lastModified: new Date(`${lastmod[path].date}T00:00:00Z`),
+        lastModified: new Date(`${(lastmod as Record<string, { date: string }>)[path].date}T00:00:00Z`),
         changeFrequency: path === "" ? "weekly" : "monthly",
         priority: path === "" ? 1 : 0.8,
         alternates: { languages: alternatesFor(path) },
@@ -87,7 +88,7 @@ export default async function sitemap() {
   // ONE PAGE PER INDUSTRY, dated with the index: the same sources decide what
   // both say (shared/marketing/sitemapSources, "/industries").
   // Only the industries the console has switched on, as the pages themselves.
-  let industries = [];
+  let industries: Awaited<ReturnType<typeof liveIndustries>> = [];
   try {
     industries = await liveIndustries();
   } catch {

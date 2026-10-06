@@ -4,16 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 // The three helpers live in @/lib/theme now — this file and the console header
 // each had their own copy and they disagreed about the `light` class.
 import { readTheme, applyTheme, chooseTheme } from "@/lib/theme";
+import type { ThemeMode } from "@/lib/theme";
+import type { ReactNode } from "react";
 
 // Hover-expandable theme control: Light / Dark / System. Collapsed it shows only
 // the current mode's icon; on hover (or keyboard focus) it expands to reveal the
 // other options. The choice is stored in a COOKIE ("theme=light|dark|system",
 // 1-year) so it persists and is readable server-side; the no-flash script in the
 // root layout reads the same cookie. Default is LIGHT.
-const OPTIONS = ["light", "dark", "system"];
+const OPTIONS: ThemeMode[] = ["light", "dark", "system"];
 
-export default function ThemeToggle({ labels }) {
-  const [mode, setMode] = useState("light");
+export default function ThemeToggle({ labels }: { labels?: Partial<Record<ThemeMode | "theme", string>> }) {
+  const [mode, setMode] = useState<ThemeMode>("light");
 
   useEffect(() => {
     setMode(readTheme());
@@ -28,12 +30,12 @@ export default function ThemeToggle({ labels }) {
     return () => mq.removeEventListener?.("change", onChange);
   }, [mode]);
 
-  const choose = useCallback((next) => {
+  const choose = useCallback((next: ThemeMode) => {
     setMode(next);
     chooseTheme(next);
   }, []);
 
-  const icon = {
+  const icon: Record<ThemeMode, ReactNode> = {
     light: (
       <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="4" />

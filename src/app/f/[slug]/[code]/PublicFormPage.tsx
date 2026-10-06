@@ -3,6 +3,8 @@
 // speaks to the server — sending the answers, and sending a file before them.
 
 import PublicForm from "@/components/forms/PublicForm";
+import type { Answers } from "@/components/forms/PublicForm";
+import type { PublicFormView } from "@/modules/marketing/forms";
 
 /**
  * WHERE THIS PERSON CAME FROM (22/09/2026, modules/marketing/arrival).
@@ -44,8 +46,8 @@ function arrival() {
   }
 }
 
-export default function PublicFormPage({ slug, code, form }) {
-  const submit = async (body) => {
+export default function PublicFormPage({ slug, code, form }: { slug: string; code: string; form: PublicFormView }) {
+  const submit = async (body: { answers: Answers; website2: string }) => {
     const res = await fetch(`/api/f/${slug}/${code}`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...body, arrival: arrival() }),
@@ -55,7 +57,7 @@ export default function PublicFormPage({ slug, code, form }) {
   // ONE FILE AT A TIME, as a multipart body. The answer stores the id this
   // hands back — never the file itself, and never a URL: the studio's members
   // read it through /api/media, and the person who sent it does not.
-  const upload = async (questionId, file) => {
+  const upload = async (questionId: string, file: File) => {
     const body = new FormData();
     body.append("questionId", questionId);
     body.append("file", file);

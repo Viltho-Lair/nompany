@@ -23,27 +23,47 @@ import SelectMenu from "@/components/fields/SelectMenu";
 import { askedOn, isLastPage, nextPageId } from "@/modules/marketing/formsFlow";
 import { answerProblem, takesAnswer, gridField, isGrid } from "@/modules/marketing/formsModel";
 import { publicFormDict } from "@/shared/forms";
+import type { ChangeEvent } from "react";
+import type { FormQuestion } from "@/modules/marketing/formsModel";
+import type { PublicFormView } from "@/modules/marketing/forms";
+
+/** One answer as this page holds it: text, a number, picked options, or file ids. */
+export type Answer = string | number | string[];
+export type Answers = Record<string, Answer>;
+export type SubmitResult = { ok?: boolean; confirmation?: string; questionId?: string; error?: string };
+export type UploadResult = { id?: string; name?: string; error?: string };
+export type OnUpload = (questionId: string, file: File) => Promise<UploadResult>;
+type Words = ReturnType<typeof publicFormDict>;
+type FileNames = Record<string, string>;
+
+/** A refusal code, in this form's words — or the general one for a code it has none for. */
+const why = (tr: Words, code?: string) => (code && (tr.errors as Record<string, string>)[code]) || tr.errors.failed;
 
 const INPUT = "w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-white/15 dark:bg-[#15151c] dark:text-white";
 const CHOICE = "rounded-xl border px-4 py-2.5 text-start text-[15px] transition-colors";
 const ON = "border-indigo-500 bg-indigo-50 text-indigo-900 dark:bg-indigo-500/15 dark:text-white";
 const OFF = "border-slate-300 text-slate-700 hover:border-indigo-400 dark:border-white/15 dark:text-slate-200";
 const OTHER = "__other__";
-const ICONS = { star: ["★", "☆"], heart: ["♥", "♡"], thumb: ["👍", "👍"] };
+const ICONS: Record<string, [string, string]> = { star: ["★", "☆"], heart: ["♥", "♡"], thumb: ["👍", "👍"] };
 
-export default function PublicForm({ form, onSubmit, onUpload, preview = false }) {
+export default function PublicForm({ form, onSubmit, onUpload, preview = false }: {
+  form: PublicFormView;
+  onSubmit: (body: { answers: Answers; website2: string }) => Promise<SubmitResult>;
+  onUpload?: OnUpload;
+  preview?: boolean;
+}) {
   const tr = publicFormDict(form.locale);
   const pages = useMemo(() => form.pages || [], [form.pages]);
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState<Answers>({});
   // The pages this person has actually been through, oldest first; the last is
   // where they are. Empty means "the first page", so a form with no answers yet
   // needs no special case.
-  const [stack, setStack] = useState([]);
-  const [fileNames, setFileNames] = useState({});
-  const [errors, setErrors] = useState({});
+  const [stack, setStack] = useState<string[]>([]);
+  const [fileNames, setFileNames] = useState<FileNames>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(null);
+  const [done, setDone] = useState<string | null>(null);
   const [trap, setTrap] = useState("");
 
   const current = useMemo(
@@ -53,14 +73,14 @@ export default function PublicForm({ form, onSubmit, onUpload, preview = false }
   const asked = useMemo(() => (current ? askedOn(current, pages, answers) : []), [current, pages, answers]);
   const last = current ? isLastPage(current, pages, answers) : true;
 
-  const set = useCallback((id, value) => {
+  const set = useCallback((id: string, value: Answer) => {
     setAnswers((a) => ({ ...a, [id]: value }));
     setErrors((e) => ({ ...e, [id]: "" }));
   }, []);
 
   // THE PAGE'S OWN CHECK before moving on, the same function the server runs.
   // "OTHER" CHOSEN WITH NOTHING TYPED is no answer yet, not the word "__other__".
-  const clean = () => Object.fromEntries(Object.entries(answers).map(([k, v]) => [k, v === OTHER ? "" : v]));
+  const clean = (): Answers => Object.fromEntries(Object.entries(answers).map(([k, v]) => [k, v === OTHER ? "" : v]));
   const check = () => {
     const problem = answerProblem(asked, clean());
     if (!problem) return true;
@@ -71,7 +91,7 @@ export default function PublicForm({ form, onSubmit, onUpload, preview = false }
   const next = () => {
     if (!check()) return;
     const to = nextPageId(current, pages, clean());
-    if (!to || to === "submit" || !pages.some((p) => p.id === to)) return;
+    if (!current || !to || to === "submit" || !pages.some((p) => p.id === to)) return;
     setStack((s) => [...(s.length ? s : [current.id]), to]);
     setError("");
   };
@@ -80,11 +100,11 @@ export default function PublicForm({ form, onSubmit, onUpload, preview = false }
   const send = async () => {
     if (!check()) return;
     setBusy(true); setError("");
-    const out = await onSubmit({ answers: clean(), website2: trap }).catch(() => ({ ok: false, error: "failed" }));
+    const out: SubmitResult = await onSubmit({ answers: clean(), website2: trap }).catch(() => ({ ok: false, error: "failed" }));
     setBusy(false);
     if (out?.ok) { setDone(out.confirmation || tr.thanks); return; }
-    if (out?.questionId) setErrors({ [out.questionId]: out.error });
-    else setError(tr.errors[out?.error] || tr.errors.failed);
+    if (out?.questionId) setErrors({ [out.questionId]: out.error || "" });
+    else setError(why(tr, out?.error));
   };
 
   const again = () => { setAnswers({}); setStack([]); setDone(null); setErrors({}); setFileNames({}); };
@@ -130,7 +150,7 @@ export default function PublicForm({ form, onSubmit, onUpload, preview = false }
               {asked.map((q) => (
                 <Question key={q.id} q={q} answers={answers} onChange={set} preview={preview}
                   onUpload={onUpload} fileNames={fileNames} setFileNames={setFileNames}
-                  error={errors[q.id] ? tr.errors[errors[q.id]] || tr.errors.required : ""} tr={tr} />
+                  error={errors[q.id] ? (tr.errors as Record<string, string>)[errors[q.id]] || tr.errors.required : ""} tr={tr} />
               ))}
             </div>
 
@@ -157,7 +177,18 @@ export default function PublicForm({ form, onSubmit, onUpload, preview = false }
   );
 }
 
-function Question({ q, answers, onChange, error, tr, preview, onUpload, fileNames, setFileNames }) {
+type QuestionProps = {
+  q: FormQuestion;
+  answers: Answers;
+  onChange: (id: string, value: Answer) => void;
+  tr: Words;
+  preview?: boolean;
+  onUpload?: OnUpload;
+  fileNames: FileNames;
+  setFileNames: (fn: (n: FileNames) => FileNames) => void;
+};
+
+function Question({ q, answers, onChange, error, tr, preview, onUpload, fileNames, setFileNames }: QuestionProps & { error: string }) {
   const id = `q-${q.id}`;
   return (
     <div>
@@ -176,9 +207,9 @@ function Question({ q, answers, onChange, error, tr, preview, onUpload, fileName
         {isGrid(q.type)
           ? <Grid q={q} answers={answers} onChange={onChange} tr={tr} />
           : q.type === "file"
-            ? <Files q={q} value={answers[q.id]} onChange={(v) => onChange(q.id, v)} tr={tr}
+            ? <Files q={q} value={answers[q.id]} onChange={(v: Answer) => onChange(q.id, v)} tr={tr}
                 preview={preview} onUpload={onUpload} fileNames={fileNames} setFileNames={setFileNames} />
-            : control(q, answers[q.id], (v) => onChange(q.id, v), id, tr)}
+            : control(q, answers[q.id], (v: Answer) => onChange(q.id, v), id, tr)}
       </div>
       {error && <p role="alert" className="mt-1.5 text-sm text-rose-600 dark:text-rose-300">{error}</p>}
     </div>
@@ -191,18 +222,19 @@ function Question({ q, answers, onChange, error, tr, preview, onUpload, fileName
  * horizontal scroll or a row of targets too small to hit. Each row is its own
  * answer either way (`gridField`), so the two layouts write identical answers.
  */
-function Grid({ q, answers, onChange, tr }) {
+function Grid({ q, answers, onChange, tr }: Pick<QuestionProps, "q" | "answers" | "onChange" | "tr">) {
   const rows = q.rows || [];
   const columns = q.columns || [];
   const multi = q.type === "grid-multi";
-  const valueOf = (i) => answers[gridField(q.id, i)];
-  const toggle = (i, column) => {
+  const valueOf = (i: number) => answers[gridField(q.id, i)];
+  const toggle = (i: number, column: string) => {
     const field = gridField(q.id, i);
     if (!multi) { onChange(field, valueOf(i) === column ? "" : column); return; }
-    const picked = Array.isArray(valueOf(i)) ? valueOf(i) : [];
+    const v = valueOf(i);
+    const picked = Array.isArray(v) ? v : [];
     onChange(field, picked.includes(column) ? picked.filter((c) => c !== column) : [...picked, column]);
   };
-  const on = (i, column) => {
+  const on = (i: number, column: string) => {
     const v = valueOf(i);
     return multi ? Array.isArray(v) && v.includes(column) : v === column;
   };
@@ -257,24 +289,28 @@ function Grid({ q, answers, onChange, tr }) {
  * carries media ids, so the upload has to have happened before there is
  * anything to store.
  */
-function Files({ q, value, onChange, tr, preview, onUpload, fileNames, setFileNames }) {
+function Files({ q, value, onChange, tr, preview, onUpload, fileNames, setFileNames }: Omit<QuestionProps, "answers" | "onChange"> & {
+  value: Answer | undefined;
+  onChange: (value: Answer) => void;
+}) {
   const ids = Array.isArray(value) ? value : [];
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
   const max = q.maxFiles || 1;
   const full = ids.length >= max;
 
-  const pick = async (list) => {
+  const pick = async (list: FileList | null) => {
     setProblem("");
     const chosen = Array.from(list || []).slice(0, max - ids.length);
     if (!chosen.length) return;
     setBusy(true);
     const kept = [...ids];
     for (const file of chosen) {
-      if (file.size > (q.maxFileMb || 1) * 1024 * 1024) { setProblem(tr.errors["too-large"]); continue; }
-      const out = await onUpload?.(q.id, file).catch(() => ({ error: "failed" }));
-      if (out?.id) { kept.push(out.id); setFileNames((n) => ({ ...n, [out.id]: out.name || file.name })); }
-      else setProblem(tr.errors[out?.error] || tr.errors.failed);
+      if (file.size > (q.maxFileMb || 1) * 1024 * 1024) { setProblem(why(tr, "too-large")); continue; }
+      const out: UploadResult | undefined = await onUpload?.(q.id, file).catch(() => ({ error: "failed" }));
+      const got = out?.id;
+      if (got) { kept.push(got); setFileNames((n) => ({ ...n, [got]: out?.name || file.name })); }
+      else setProblem(why(tr, out?.error));
     }
     setBusy(false);
     onChange(kept);
@@ -303,26 +339,28 @@ function Files({ q, value, onChange, tr, preview, onUpload, fileNames, setFileNa
   );
 }
 
-function control(q, value, onChange, id, tr) {
+function control(q: FormQuestion, value: Answer | undefined, onChange: (v: Answer) => void, id: string, tr: Words) {
+  // A text control shows text; an answer that is a list belongs to another kind.
+  const text = Array.isArray(value) ? "" : String(value ?? "");
   const options = q.options || [];
   switch (q.type) {
     case "statement":
       return null;
     case "long-text":
-      return <textarea id={id} rows={4} className={INPUT} value={value || ""} placeholder={q.placeholder || ""} onChange={(e) => onChange(e.target.value)} />;
+      return <textarea id={id} rows={4} className={INPUT} value={text} placeholder={q.placeholder || ""} onChange={(e) => onChange(e.target.value)} />;
     case "short-text": case "email": case "phone": case "website": case "number":
     case "date": case "time": case "datetime": {
-      const type = {
+      const type = ({
         email: "email", phone: "tel", website: "url", number: "number",
         date: "date", time: "time", datetime: "datetime-local",
-      }[q.type] || "text";
+      } as Record<string, string>)[q.type] || "text";
       const ltr = ["email", "phone", "website", "number"].includes(q.type);
-      return <input id={id} type={type} dir={ltr ? "ltr" : undefined} className={INPUT} value={value ?? ""}
-        placeholder={q.placeholder || ""} autoComplete={{ email: "email", phone: "tel" }[q.type] || "off"}
-        onChange={(e) => onChange(q.type === "number" && e.target.value !== "" ? Number(e.target.value) : e.target.value)} />;
+      return <input id={id} type={type} dir={ltr ? "ltr" : undefined} className={INPUT} value={text}
+        placeholder={q.placeholder || ""} autoComplete={({ email: "email", phone: "tel" } as Record<string, string>)[q.type] || "off"}
+        onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(q.type === "number" && e.target.value !== "" ? Number(e.target.value) : e.target.value)} />;
     }
     case "dropdown":
-      return <SelectMenu id={id} value={value || ""} onChange={onChange} placeholder={tr.pick} className={INPUT}
+      return <SelectMenu id={id} value={text} onChange={onChange} placeholder={tr.pick} className={INPUT}
         options={options.map((o) => ({ value: o, label: o }))} />;
     case "yes-no":
       return (
@@ -351,7 +389,7 @@ function control(q, value, onChange, id, tr) {
     case "multiple-choice": {
       if (q.multiple) {
         const picked = Array.isArray(value) ? value : [];
-        const toggle = (o) => onChange(picked.includes(o) ? picked.filter((x) => x !== o) : [...picked, o]);
+        const toggle = (o: string) => onChange(picked.includes(o) ? picked.filter((x) => x !== o) : [...picked, o]);
         return (
           <div className="flex flex-col gap-2">
             {options.map((o) => (
@@ -361,7 +399,7 @@ function control(q, value, onChange, id, tr) {
           </div>
         );
       }
-      const otherOn = q.other && value !== undefined && value !== "" && !options.includes(value);
+      const otherOn = Boolean(q.other && value !== undefined && value !== "" && !options.includes(text));
       return (
         <div className="flex flex-col gap-2" role="radiogroup">
           {options.map((o) => (
@@ -373,7 +411,7 @@ function control(q, value, onChange, id, tr) {
               className={`${CHOICE} ${otherOn ? ON : OFF}`}>{tr.other}</button>
           )}
           {otherOn && (
-            <input autoFocus className={INPUT} value={value === OTHER ? "" : value}
+            <input autoFocus className={INPUT} value={value === OTHER ? "" : text}
               onChange={(e) => onChange(e.target.value || OTHER)} />
           )}
         </div>
@@ -382,8 +420,8 @@ function control(q, value, onChange, id, tr) {
     case "rating": case "opinion-scale": case "nps": {
       const min = Number(q.min ?? (q.type === "nps" ? 0 : 1));
       const max = Number(q.max ?? (q.type === "nps" ? 10 : 5));
-      const [full, empty] = ICONS[q.icon] || ICONS.star;
-      const steps = [];
+      const [full, empty] = ICONS[q.icon || ""] || ICONS.star;
+      const steps: number[] = [];
       for (let i = min; i <= max; i += 1) steps.push(i);
       return (
         <div>

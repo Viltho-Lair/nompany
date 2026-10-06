@@ -4,24 +4,37 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { initialsOf } from "@/lib/initials";
+import type { getDict } from "@/shared/i18n";
+
+type SiteDict = ReturnType<typeof getDict>;
+/** The signed-in person, as the header learns it from `/api/identity/me`. */
+export type SignedIn = { email: string; name: string };
 
 // Signed-in user menu for the public header: a round avatar button (company
 // initial) that opens a dropdown with account links + Sign out. Replaces the
 // Login/Sign-up buttons whenever a SaaS session is present.
-export default function AccountMenu({ locale, company, dict, onSignedOut }) {
+export default function AccountMenu({ locale, company, dict, onSignedOut }: {
+  locale: string;
+  company: SignedIn | null;
+  dict: SiteDict;
+  onSignedOut?: () => void;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const ref = useRef(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   // Avatar + name represent the signed-in PERSON (owner), not the company.
-  const personName = company?.ownerName || company?.email || dict?.nav?.account || "Account";
-  const initials = initialsOf(company?.ownerName || company?.email);
+  // `name`, which is what Nav hands over — this read `ownerName`, which
+  // nothing ever set, so the menu showed the email and its initials for every
+  // person who had a name on their profile (found typing this file, 06/10/2026).
+  const personName = company?.name || company?.email || dict?.nav?.account || "Account";
+  const initials = initialsOf(company?.name || company?.email);
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDoc);
     window.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("mousedown", onDoc); window.removeEventListener("keydown", onKey); };

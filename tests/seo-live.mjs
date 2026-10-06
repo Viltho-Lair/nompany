@@ -19,7 +19,7 @@
 
 const BASE = (process.argv[2] || "http://localhost:3010").replace(/\/$/, "");
 const LOCALES = ["en", "ar"];
-// Every path the sitemap advertises. Kept in step with app/sitemap.js by the
+// Every path the sitemap advertises. Kept in step with app/sitemap.ts by the
 // assertion below, which fetches the sitemap and compares.
 const PATHS = ["", "/platform", "/pricing", "/security", "/about", "/contact", "/careers", "/terms", "/privacy"];
 

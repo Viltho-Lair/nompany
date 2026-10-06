@@ -8,13 +8,15 @@ import ThemeToggle from "@/components/ThemeToggle";
 import LangMenu from "@/components/LangMenu";
 import { locales, LANGUAGE_NAMES, LANGUAGE_SHORT } from "@/shared/locale";
 import AccountMenu from "@/components/AccountMenu";
+import type { SignedIn } from "./AccountMenu";
+import type { getDict, Locale } from "@/shared/i18n";
 import Skeleton from "@/components/Skeleton";
 import { track, pageLabelFromPath } from "@/lib/track";
 import { CONTACT } from "@/lib/site";
 import { bringsOwnChrome } from "@/shared/marketing/routes";
 
 // Locale-relative routes that render their own full-screen chrome, so this
-// header and Footer.js stand down on them.
+// header and Footer.tsx stand down on them.
 //
 // THE MARKETING HALF IS NOT LISTED HERE. It used to be — and the root layout
 // kept a third copy of the same fact for the theme — so a page added to one
@@ -40,9 +42,9 @@ export const BARE_ROUTES = ["", "/login", "/signup", "/forgot", "/account", "/qu
 // page, and as a prefix it matches every path on the site.
 const BARE_SUBTREES = ["/questionnaire"];
 
-// The one question both this header and Footer.js ask, answered once so the
+// The one question both this header and Footer.tsx ask, answered once so the
 // two cannot disagree about which screens are bare.
-export function isBareRoute(rel) {
+export function isBareRoute(rel: string) {
   return BARE_ROUTES.includes(rel)
     || BARE_SUBTREES.some((root) => rel.startsWith(`${root}/`))
     || bringsOwnChrome(rel);
@@ -51,7 +53,7 @@ export function isBareRoute(rel) {
 // Minimal editorial header (inspired by the reference site): a slim bar with the
 // wordmark, theme + language controls and a Menu button that opens a full-screen
 // overlay carrying the navigation. No hovering/glowing logo.
-export default function Nav({ locale, dict }) {
+export default function Nav({ locale, dict }: { locale: Locale; dict: ReturnType<typeof getDict>; settings?: unknown }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // Auth state has three values so the header never flashes the wrong buttons:
@@ -60,7 +62,7 @@ export default function Nav({ locale, dict }) {
   //   object    = signed-in SaaS account  → AccountMenu
   // The value is preserved across route changes (we don't reset to undefined on
   // re-fetch), so the skeleton only appears on the very first load.
-  const [company, setCompany] = useState(undefined);
+  const [company, setCompany] = useState<SignedIn | null | undefined>(undefined);
   const authLoading = company === undefined;
   const siteName = dict.common.brand;
 
@@ -97,7 +99,7 @@ export default function Nav({ locale, dict }) {
   // chosen earlier on the pricing page, then lands on signup.
   const signupHref = `/api/intent?locale=${locale}`;
 
-  const isActive = (href, exact) => (exact ? pathname === href : pathname.startsWith(href));
+  const isActive = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href));
 
   // Language options preserve the current sub-path and just swap the locale
   // segment. Each label is shown in its own script; English is the default.
@@ -125,13 +127,13 @@ export default function Nav({ locale, dict }) {
   // Escape closes the overlay.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   // These routes own their whole viewport and bring their own chrome, so the
-  // site header is suppressed on all of them (Footer.js does the same):
+  // site header is suppressed on all of them (Footer.tsx does the same):
   //   /         — the landing page, which has its own TopNav
   //   /login, /signup — full-screen auth, in the landing design
   //   /account  — the full-screen account hub

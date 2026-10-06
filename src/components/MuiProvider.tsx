@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
 import { ThemeProvider } from "@mui/material/styles";
 import theme from "@/lib/muiTheme";
@@ -23,10 +24,14 @@ import theme from "@/lib/muiTheme";
 // hydration: a saved Light choice appeared to work, then reverted to dark on the
 // next refresh. Feeding it the same value keeps the two in agreement, and MUI
 // stays the single writer of the class rather than a competing one.
-export default function MuiProvider({ mode = "light", children }) {
+export default function MuiProvider({ mode = "light", children }: { mode?: string; children?: ReactNode }) {
+  // THE MODE COMES FROM A COOKIE the root layout reads unchecked, so anything a
+  // browser holds can arrive here. MUI is handed one of its three words or
+  // light — never a value it would treat as a mode of its own.
+  const defaultMode = mode === "dark" || mode === "system" ? mode : "light";
   return (
     <AppRouterCacheProvider options={{ key: "mui", enableCssLayer: true }}>
-      <ThemeProvider theme={theme} defaultMode={mode}>{children}</ThemeProvider>
+      <ThemeProvider theme={theme} defaultMode={defaultMode}>{children}</ThemeProvider>
     </AppRouterCacheProvider>
   );
 }

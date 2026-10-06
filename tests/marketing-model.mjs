@@ -441,10 +441,10 @@ ok("...and the losing variants",
   !existsSync(`${VARIANT_DIR}/HeroV2Scroll.tsx`)
   && !existsSync(`${VARIANT_DIR}/HeroV3Continuity.tsx`));
 
-const robots = readFileSync("src/app/robots.js", "utf8");
+const robots = readFileSync("src/app/robots.ts", "utf8");
 ok("...so robots.txt no longer disallows a path that does not exist",
   !/preview/.test(robots));
-const rootLayout = readFileSync("src/app/layout.js", "utf8");
+const rootLayout = readFileSync("src/app/layout.tsx", "utf8");
 // PREVIEW AS A PATH SEGMENT, not the substring. This read `!/preview/` and was
 // therefore red from the moment it was written: the layout's robots metadata
 // carries Google's "max-image-preview" and "max-video-preview" directives, so
@@ -663,7 +663,7 @@ ok("the stored stats hold only aggregate fields",
   statKeys.every((k) => ["studios", "people", "records", "refreshedAt"].includes(k)),
   statKeys.join(", "));
 
-const nav = readFileSync("src/components/Nav.js", "utf8");
+const nav = readFileSync("src/components/Nav.tsx", "utf8");
 // THIS ASSERTED THE MECHANISM WAS GONE AND MEANT THE ROUTE. `BARE_PREFIXES`
 // was introduced for `/preview/hero/<variant>` and deleted with it, so
 // forbidding the identifier read as a faithful guard — until careers moved

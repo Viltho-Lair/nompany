@@ -1,10 +1,11 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState } from "react";
 
 // A titled panel that can be expanded/collapsed. Used above the team list so
 // visitors can shrink the intro to focus on the members.
-export default function Collapsible({ title, children, defaultOpen = true }) {
+export default function Collapsible({ title, children, defaultOpen = true }: { title: ReactNode; children?: ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="card">

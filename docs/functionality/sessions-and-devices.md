@@ -103,7 +103,7 @@ trust as it was: trust is about skipping the code after a password.
 **A lock button sits beside the profile** in the studio header and on the account page. It
 locks **the whole sign-in** — every studio and every tab on that device — without signing
 out; what was on the screen is still there when the PIN is typed. `platform/auth/lock.ts`
-holds it; `components/security/SessionLock.js` draws it.
+holds it; `components/security/SessionLock.tsx` draws it.
 
 **The lock is enforced on the server.** A session's state (`IX.sessionState`, read in the
 same wave as the session index) carries `lockedAt`, the person's idle timeout and when they

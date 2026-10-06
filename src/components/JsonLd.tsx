@@ -1,6 +1,6 @@
 // Renders a JSON-LD structured-data script. Accepts a single object or an
 // array of schema.org objects.
-export default function JsonLd({ data }) {
+export default function JsonLd({ data }: { data: object | object[] }) {
   const items = Array.isArray(data) ? data : [data];
   return (
     <>

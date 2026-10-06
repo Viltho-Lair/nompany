@@ -4,7 +4,7 @@
 // codebase's house rule is about, caught here with a real consequence rather
 // than in the abstract.
 //
-// `components/ThemeToggle.js` toggled BOTH `dark` and `light` on <html> and
+// `components/ThemeToggle.tsx` toggled BOTH `dark` and `light` on <html> and
 // wrote `mui-mode`; `app/super/_components/Header.js` (deleted 10/09/2026 with
 // the console's sidebar — the Pulse chrome replaced both) toggled `dark` alone and
 // wrote neither. MUI scopes its light variables to `.light` and its dark ones to
