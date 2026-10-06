@@ -123,7 +123,7 @@ console.log("\n== the page cannot slide back into converting");
 
 // THE BOARD USED TO MULTIPLY BY TODAY'S RATE IN THE BROWSER. If `rates` or a
 // currency picker returns, the page is showing a guess again.
-const board = readFileSync(new URL("../src/components/landing/pricing/PricingBoard.jsx", import.meta.url), "utf8");
+const board = readFileSync(new URL("../src/components/landing/pricing/PricingBoard.tsx", import.meta.url), "utf8");
 ok("the pricing board has no currency picker", !/CurrencyPicker/.test(board));
 ok("...and converts nothing", !/rates\?\.\[/.test(board) && !/Math\.ceil\(/.test(board));
 const builder = readFileSync(new URL("../src/modules/marketing/pricing.ts", import.meta.url), "utf8");

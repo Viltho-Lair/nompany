@@ -215,7 +215,7 @@ const KNOWN_COLLISIONS = {
   "src/app/api/contact/route.ts": [
     { value: "sales", reason: "enquiry.ts's mailbox code — which address a contact form goes to" },
   ],
-  "src/components/landing/views/ContactView.js": [
+  "src/components/landing/views/ContactView.tsx": [
     { value: "sales", reason: "the same mailbox code, printed as the address it resolves to" },
   ],
   "src/shared/marketing/enquiry.ts": [
@@ -280,7 +280,7 @@ const KNOWN_COLLISIONS = {
   "src/app/api/contact/route.ts": [
     { value: "sales", reason: "same mailbox choice, read back to select the address" },
   ],
-  "src/components/landing/views/ContactView.js": [
+  "src/components/landing/views/ContactView.tsx": [
     { value: "sales", reason: "same mailbox choice, shown to the sender as a mailto fallback" },
   ],
 };

@@ -434,7 +434,7 @@ for (const file of variantFiles) {
 // path that 404s, a theme branch in the root layout, and a prefix matcher in
 // the site nav that matches nothing.
 ok("the preview route is deleted",
-  !existsSync("src/app/[locale]/preview/hero/[variant]/page.js"));
+  !["js", "jsx", "ts", "tsx"].some((x) => existsSync(`src/app/[locale]/preview/hero/[variant]/page.${x}`)));
 ok("...and its shell with it",
   !existsSync("src/components/landing/preview/HeroPreview.tsx"));
 ok("...and the losing variants",
@@ -473,7 +473,7 @@ function pagesUnder(dir, rel = "") {
   const out = [];
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.isDirectory()) out.push(...pagesUnder(`${dir}/${e.name}`, `${rel}/${e.name}`));
-    else if (e.name === "page.js" || e.name === "page.jsx") out.push({ file: `${dir}/${e.name}`, rel });
+    else if (/^page\.(js|jsx|ts|tsx)$/.test(e.name)) out.push({ file: `${dir}/${e.name}`, rel });
   }
   return out;
 }
@@ -717,7 +717,7 @@ ok("the Arabic platform copy carries no diacritics",
 
 console.log("\n== the footers claim nothing that is not true");
 
-const landingFooter = readFileSync("src/components/landing/site/Footer.jsx", "utf8");
+const landingFooter = readFileSync("src/components/landing/site/Footer.tsx", "utf8");
 const footerCode = stripComments(landingFooter);
 
 // A DUTCH LEGAL ENTITY, ON EVERY PAGE, for a company that is not incorporated

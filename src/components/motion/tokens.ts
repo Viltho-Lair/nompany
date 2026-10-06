@@ -1,6 +1,6 @@
 // THE HOUSE MOTION CURVES, in one place for both surfaces.
 //
-// These began as `components/landing/lib/motion.js`, where they were tuples fed
+// These began as `components/landing/lib/motion.ts`, where they were tuples fed
 // to `motion/react`. Wave 4 animates the studio too, and the studio must NOT
 // ship that library — `motion/react` is ~30 KB gzipped and today it is confined
 // entirely to `components/landing/**`, which is why the studio's chunk does not

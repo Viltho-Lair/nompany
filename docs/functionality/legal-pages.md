@@ -16,7 +16,7 @@ routes that happen to carry contract text.
 | `src/lib/legalGoogleData.ts` | `GOOGLE_DATA_BLOCKS` — the Google API Services disclosure, imported by **both** |
 | `src/lib/legalTermsAr.ts`, `legalPrivacyAr.ts`, `legalGoogleDataAr.ts` | The Arabic translations — same sections, same ids, same blocks, asserted by `tests/marketing-model.mjs` |
 | `src/lib/legalBlocks.ts` | `LegalBlock` / `LegalSection` / `LegalMeta` — the authoring vocabulary |
-| `src/components/landing/site/pages/legal/LegalPage.jsx` (+ `LegalToc.jsx`) | The page in the site's design (27/09/2026): hero, a sticky contents list with a scroll-spy mark on wide screens and a fold-out one on phones, sections, contact card. The body carries its own `lang`/`dir`, so the Arabic reads right to left and the English left to right. (`LegalDocument.js` was the old renderer and is deleted.) |
+| `src/components/landing/site/pages/legal/LegalPage.tsx` (+ `LegalToc.jsx`) | The page in the site's design (27/09/2026): hero, a sticky contents list with a scroll-spy mark on wide screens and a fold-out one on phones, sections, contact card. The body carries its own `lang`/`dir`, so the Arabic reads right to left and the English left to right. (`LegalDocument.js` was the old renderer and is deleted.) |
 | `legal/terms-and-conditions.md`, `legal/privacy-policy.md` | The signable mirrors. Change both halves in one commit |
 
 **The legal body is translated, and the English still governs** — the owner, 29/09/2026.
@@ -84,8 +84,8 @@ drifted from the code is worse than none, because it is relied upon.
 
 Google requires the policy be linked from the homepage and shown in the app interface, so it
 is in three places: the public site's footer on every marketing page
-(`components/landing/site/Footer.jsx`), the cookie-consent banner
-(`components/landing/chrome/AnalyticsConsent.jsx`) and the account surface
+(`components/landing/site/Footer.tsx`), the cookie-consent banner
+(`components/landing/chrome/AnalyticsConsent.tsx`) and the account surface
 (`components/public/AccountHome.tsx`). (This line named `components/Nav` and `components/Footer`
 until 06/10/2026; neither rendered on any page by then, and both were deleted.) It is also in
 `src/app/sitemap.ts` and has its own `PAGES["/privacy"]` entry in `src/lib/seo.ts` for title,

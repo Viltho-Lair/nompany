@@ -1,0 +1,73 @@
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { getDict } from "@/shared/i18n";
+import { currentUser, currentSession, needsQuestionnaire } from "@/platform/auth/identity";
+import AccountHome from "@/components/public/AccountHome";
+import { studioSetupScreen, getStudioById } from "@/modules/main/studios";
+import { readIndustries } from "@/lib/data/industries";
+import { hiddenDefKeys, readReleaseLocks } from "@/platform/db/releaseLocks";
+import { listCatalog } from "@/lib/data/catalog";
+import { INTENT_COOKIE, openIntent, intentOnSale } from "@/platform/auth/purchaseIntent";
+
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const dict = getDict(locale);
+  return { title: dict.auth?.accountTitle || "Your account", robots: { index: false, follow: false } };
+}
+
+// The account hub: personal info, questionnaire, the studio you own, the ones
+// you collaborate in, and your trusted devices. Everything loads client-side
+// from /api/identity/* and /api/studios.
+export default async function AccountPage({ params, searchParams }: { params: Promise<{ locale: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const { locale } = await params;
+  const user = await currentUser();
+  if (!user) redirect(`/${locale}/login`);
+  // The survey comes first. Anyone who has not finished it is sent back to a
+  // fresh one rather than shown an account they cannot have reached yet.
+  if (await needsQuestionnaire(user.id)) redirect(`/${locale}/questionnaire`);
+  const dict = getDict(locale);
+  // This route renders without the site header (Nav returns null here), so the
+  // brand link, theme control and language switcher move into the page and
+  // need their strings passed down.
+  const chrome = {
+    brand: dict.common.brand,
+    language: dict.common.language,
+    theme: {
+      theme: dict.common.theme,
+      light: dict.common.themeLight,
+      dark: dict.common.themeDark,
+      system: dict.common.themeSystem,
+    },
+  };
+  // THE CREATE SCREEN'S QUESTIONS AND SUGGESTED ANSWERS, resolved here rather
+  // than in the browser: they come from the same catalogue the create route
+  // checks against, and the trade rules behind the suggestions reach the stage
+  // registry, which has no business in the account page's bundle.
+  // The industries as the console left them (/super → Industries), so the
+  // create screen offers exactly what a new studio may choose.
+  const setup = studioSetupScreen(locale, await readIndustries(), hiddenDefKeys(await readReleaseLocks()));
+  // THE PACKAGE CHOSEN ON THE PRICING PAGE, if it is still on sale — the signed
+  // cookie (platform/auth/purchaseIntent), checked against the catalogue as it
+  // is now. Handed to studio creation to pre-select its Plan step; it opens
+  // straight onto that screen when the questionnaire's "create a studio" or
+  // the pricing page sends `?create=1`.
+  let intent: ReturnType<typeof intentOnSale> | null = null;
+  try {
+    intent = intentOnSale(openIntent((await cookies()).get(INTENT_COOKIE)?.value), await listCatalog("packages"));
+  } catch { intent = null; }
+  const sp = await searchParams;
+  const openCreate = sp?.create === "1";
+  // A TILL'S SESSION SAYS SO (26/09/2026). Its account routes work, so the hub
+  // renders — but every studio on it would send this browser back to the till,
+  // which read as the product redirecting at random. The banner names the till
+  // and offers both ways out: back to it, or sign in as yourself.
+  const { state } = await currentSession();
+  let till: { name: string; slug: string } | null = null;
+  if (state?.scope === "till") {
+    const studio = await getStudioById(String(state.studioId || ""));
+    if (studio) till = { name: String(studio.name || ""), slug: String(studio.slug || "") };
+  }
+  return <AccountHome locale={locale} chrome={chrome} setup={setup} intent={intent} openCreate={openCreate} till={till} />;
+}

@@ -1,4 +1,5 @@
 import { GOOGLE_DATA_BLOCKS } from "./legalGoogleData";
+import type { LegalSection } from "./legalBlocks";
 
 // Structured content for the public /terms page. The legal body is authored in
 // English (the authoritative language per §20.7); the page chrome (hero, labels,
@@ -35,7 +36,7 @@ export const TERMS_META = {
 
 // Block shapes are declared in ./legalBlocks (LegalBlock) and rendered by
 // components/LegalDocument.js: "p" (optional bold lead-in), "h3", "ul", "table".
-export const TERMS_SECTIONS = [
+export const TERMS_SECTIONS: LegalSection[] = [
   {
     id: "acceptance",
     title: "1. Introduction and acceptance",
