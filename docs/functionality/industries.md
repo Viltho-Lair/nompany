@@ -19,7 +19,7 @@ contractors, clinics, pharmacies, restaurants or manpower supply.
 | `src/shared/industryPick.ts` | Choosing: options, labels, the alert, the suggestion. Pure; takes the list as an argument, so the browser never carries the built-ins |
 | `src/lib/data/industries.ts` | The READ: built-ins with the console's rows laid over them, and `startersForStudio` |
 | `src/lib/data/industryAdmin.ts` | The console's WRITES: save, add, lock, revert |
-| `/super → Industries` (`components/super/IndustriesConsole.js`, `/api/super/industries`) | The screen |
+| `/super → Industries` (`components/super/IndustriesConsole.tsx`, `/api/super/industries`) | The screen |
 
 Storage is one document, `REG.industryCatalogue`, holding the console's rows only. A row
 replaces the built-in of the same key or adds a new industry. **Taking a row away returns the

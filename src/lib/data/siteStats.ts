@@ -278,6 +278,18 @@ export async function readActiveUsers(day: string) {
   } catch { return null; }
 }
 
+/** What `/api/super/site-analytics` answers — the route builds it from the reads above. */
+export type SiteAnalytics = {
+  range: string;
+  year: number;
+  points: { label: string; sessions: number; pageViews: number }[];
+  pages: Awaited<ReturnType<typeof readPages>>;
+  continents: Awaited<ReturnType<typeof readContinents>>;
+  devices: Awaited<ReturnType<typeof readDevices>>;
+  sessions: number;
+  pageViews: number;
+};
+
 // Roll daily rows up into the twelve months of a year. Months that have not
 // happened yet are still present at zero: a year chart that stops in August
 // looks broken, whereas one that flatlines reads as "not yet".

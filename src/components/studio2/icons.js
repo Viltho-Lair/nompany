@@ -1,5 +1,5 @@
 // The one icon set for the whole product — the Studio's chrome, its screens,
-// and the /super console through the adapter in app/super/_components/Icon.js.
+// and the /super console through the adapter in app/super/_components/Icon.tsx.
 //
 // WHAT THIS REPLACED, AND WHY IT WENT.
 //

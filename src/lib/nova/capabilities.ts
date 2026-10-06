@@ -118,7 +118,7 @@ export type NovaConfig = {
 export const EMPTY_NOVA_CONFIG: NovaConfig = { enabled: {}, provider: "anthropic", model: "", keySet: false };
 
 /** Is this capability switched on, given the stored config? Explicit wins, else the default. */
-export function capabilityEnabled(config: NovaConfig | null | undefined, cap: NovaCapability): boolean {
+export function capabilityEnabled(config: Pick<NovaConfig, "enabled"> | null | undefined, cap: NovaCapability): boolean {
   const explicit = config?.enabled?.[cap.key];
   return typeof explicit === "boolean" ? explicit : cap.defaultOn;
 }

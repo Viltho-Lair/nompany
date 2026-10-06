@@ -36,9 +36,9 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
   const pkg = packages.find((p: Row) => p.id === studio?.packageId) || null;
   const tier = tiers.find((t: Row) => t.id === studio?.tierId) || null;
   return {
-    packageId: pkg?.id || "",
-    packageName: pkg?.name || DEFAULT_PACKAGE,
-    packageColor: pkg?.color || "green",
+    packageId: String(pkg?.id || ""),
+    packageName: String(pkg?.name || DEFAULT_PACKAGE),
+    packageColor: String(pkg?.color || "green"),
     // 0 means no limit — the same convention the console prints as "No limit".
     //
     // AND ANYTHING THAT IS NOT A NUMBER IS 0, not NaN. `Number(pkg.maxEmployees
@@ -54,8 +54,8 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
     // THE BAND this studio is on (24/09/2026): its id and label when the
     // package has bands and the studio names one, else "". A compound studio
     // with no band reads the package's largest band above, as it always did.
-    categoryId: bandOf(pkg, studio?.categoryId)?.id || "",
-    categoryLabel: bandOf(pkg, studio?.categoryId)?.label || "",
+    categoryId: String(bandOf(pkg, studio?.categoryId)?.id || ""),
+    categoryLabel: String(bandOf(pkg, studio?.categoryId)?.label || ""),
     // Live chat: on or off, and how many conversations a month it allows.
     // 0 allowed means unlimited, the same convention every other cap here uses.
     chatEnabled: Boolean(pkg?.chatEnabled),
@@ -71,9 +71,9 @@ export function planOf(studio: Row | null | undefined, packages: Row[], tiers: R
     // section it already has, and a gate must not take back what was given.
     promotionsEnabled: pkg?.promotionsEnabled === undefined ? true : Boolean(pkg.promotionsEnabled),
     promotionsAdvanced: pkg?.promotionsAdvanced === undefined ? true : Boolean(pkg.promotionsAdvanced),
-    tierId: tier?.id || "",
-    tierName: tier?.name || DEFAULT_TIER,
-    tierColor: tier?.color || "",
+    tierId: String(tier?.id || ""),
+    tierName: String(tier?.name || DEFAULT_TIER),
+    tierColor: String(tier?.color || ""),
     // WHAT DASHBOARD ANALYTICS THIS TIER SELLS. A tier gates the dashboards by
     // an explicit per-component SELECTION (see lib/dashboardWidgets), not just a
     // rung. The client resolves the visible set from these three fields:

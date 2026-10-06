@@ -56,11 +56,20 @@ export type BillingProfile = { name: string; address: string; country: string; t
 const EMPTY_PROFILE: BillingProfile = { name: "", address: "", country: "", taxNumber: "", email: "" };
 
 /** A claim with its sealed half opened — for the console and the studio's owner only. */
-function openClaim(c: Claim) {
+/** A claim as the console reads it — its private half opened, and still telling a transfer from a refund. */
+export type OpenClaim =
+  | (Omit<TransferClaim, "sealed"> & { payerName: string; bankReference: string; note: string })
+  | (Omit<RefundRequest, "sealed"> & { reason: string });
+
+// NARROWED BEFORE IT IS TAKEN APART: destructuring the union first left `rest`
+// as only what the two kinds share, so a reader could no longer tell them apart.
+function openClaim(c: Claim): OpenClaim {
+  if (c.kind === "transfer") {
+    const { sealed, ...rest } = c;
+    return { ...rest, ...unseal(sealed, { payerName: "", bankReference: "", note: "" }) };
+  }
   const { sealed, ...rest } = c;
-  return c.kind === "transfer"
-    ? { ...rest, ...unseal(sealed, { payerName: "", bankReference: "", note: "" }) }
-    : { ...rest, ...unseal(sealed, { reason: "" }) };
+  return { ...rest, ...unseal(sealed, { reason: "" }) };
 }
 
 /** An invoice's summary line — the list, without the parties. */

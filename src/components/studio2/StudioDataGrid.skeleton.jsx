@@ -9,7 +9,7 @@
 // lands exactly where it stood. The moment the row height is written as `52` in
 // the grid and `52` again in the skeleton, the two are one careless edit away
 // from a layout shift nobody connects back to the skeleton. Both import these.
-// The numbers mirror the console's grid rhythm (gridMetrics.js): a 44px uppercase
+// The numbers mirror the console's grid rhythm (gridMetrics.ts): a 44px uppercase
 // header and 52px rows, so a studio grid keeps the same beat as the console's.
 
 "use client";

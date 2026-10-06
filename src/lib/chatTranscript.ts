@@ -65,8 +65,11 @@ const safe = (s: unknown) => String(s || "").replace(/[^\w.-]+/g, "-").replace(/
  *                                   address, the studio prints "nompany Support"
  * @param {Array}  chat.messages     [{ from, text, at }]
  * @param {string} chat.createdAt
+ *
+ * Only the fields the PDF prints are asked for, so the console can pass the
+ * trimmed room it already holds.
  */
-export async function downloadTranscript(chat: ChatRoom & { handledBy?: string }) {
+export async function downloadTranscript(chat: Pick<ChatRoom, "id" | "studioName" | "studioSlug" | "userName" | "messages" | "createdAt"> & { handledBy?: string }) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();

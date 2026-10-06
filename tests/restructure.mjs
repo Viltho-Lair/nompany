@@ -199,7 +199,7 @@ const KNOWN_COLLISIONS = {
   "src/components/studio2/StudioTechnical.js": [
     { value: "sales", reason: "icons.js's icon-name registry key for the quotation's origin badge" },
   ],
-  "src/components/super/NovaSwitchboard.js": [
+  "src/components/super/NovaSwitchboard.tsx": [
     { value: "sales", reason: "icons.js's icon-name registry key for the Sales department card's mark" },
   ],
   // GONE, ALL THREE, and deliberately not replaced by a fourth. Every screen
@@ -1232,7 +1232,7 @@ export async function testEveryContextualSectionKeyLiteralExists(t) {
   // Shape 2 — `view|requested|screenKey|active?.key === "<key>"`. Scoped to
   // the studio router and its screens: `view` is a generic local-state name
   // everywhere else in the app (LandingPage.js, AccountHome.tsx,
-  // QuestionnaireList.js all compare an unrelated `view` against tab names
+  // QuestionnaireList.tsx all compare an unrelated `view` against tab names
   // like "overview"/"pricing"/"list") — outside this scope the same shape
   // means something else entirely, and checking it against ALL_SECTION_KEYS
   // there would be checking the wrong thing, not a stricter check.
@@ -1506,7 +1506,7 @@ export async function testAnEventReachesTheWatchersOfItsAncestors(t) {
 // /super/dashboard was the template's dashboard index. It was deleted with the
 // other seven demo dashboards (ae32da5), and the two doors INTO the console
 // went on naming it: (full)/page.js redirects there when a session already
-// exists, and SignIn.js sends you there after a successful post. So signing in
+// exists, and SignIn.tsx sends you there after a successful post. So signing in
 // landed on a 404, while every nav href, the sidebar logo and all twelve "Home"
 // breadcrumbs pointed correctly at /dashboard/analytics — the one path nobody
 // types. Nothing could report it: a `redirect()` to a dead path is legal

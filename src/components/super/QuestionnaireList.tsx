@@ -1,0 +1,316 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import Link from "next/link";
+import { useReload } from "@/components/studio2/useReload";
+
+/** One questionnaire, as `/api/super/questionnaires` lists it. */
+type Row = {
+  id: string; name: string; route: string; status: string; pages: number; questions: number;
+  responses: number; completed: number; createdAt?: string; updatedAt?: string;
+};
+
+// The questionnaires home: everything authored in the console, newest first.
+//
+// Laid out like Typeform's workspace screen, MINUS the parts of it that are
+// theirs rather than ours — no Contacts, Automations or Research Flow tabs, no
+// Invite, no workspace tree or Private group, no response-limit meter and no
+// assistant box. What is left is the thing itself: create, find, open.
+
+const RAIL = "flex w-[220px] shrink-0 flex-col gap-4 border-e border-[var(--ad-border)] bg-[var(--ad-card)] p-4";
+const BTN = "inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--ad-foreground)] px-4 py-2.5 text-sm font-600 text-[var(--ad-background)] transition-colors hover:bg-[rgb(var(--ad-foreground-rgb)/0.75)] disabled:opacity-60";
+const GHOST = "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-[var(--ad-foreground)] transition-colors hover:bg-[var(--ad-muted)]";
+
+const fmt = (iso: string | undefined) => {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  } catch { return "—"; }
+};
+
+// Shaped like the two views it stands in for, not like a sentence.
+//
+// "Loading…" was one line of text where either a seven-column table or a grid of
+// cards was about to appear — so the page had one height while it waited and a
+// completely different one a moment later. These reserve the real boxes: the
+// same 8×8 monogram, the same row height, the same card.
+function ListSkeleton({ view, rows = 6 }: { view: string; rows?: number }) {
+  const label = "Loading questionnaires";
+  if (view === "list") {
+    return (
+      <div
+        className="mt-6 overflow-hidden rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)]"
+        role="status"
+        aria-busy="true"
+        aria-label={label}
+      >
+        <span className="sr-only">{label}…</span>
+        {Array.from({ length: rows }, (_, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 border-b border-[var(--ad-border)] px-5 py-3 last:border-0"
+          >
+            <span className="skel block h-8 w-8 shrink-0 rounded-lg" />
+            <span className="min-w-0 flex-1">
+              <span className="skel skel-text block h-3 w-48 max-w-full" />
+              <span className="skel skel-text mt-1.5 block h-2 w-28 opacity-70" />
+            </span>
+            <span className="skel skel-text hidden h-2.5 w-24 sm:block" />
+            <span className="skel skel-text hidden h-2.5 w-10 sm:block" />
+            <span className="skel skel-text hidden h-2.5 w-10 sm:block" />
+            <span className="skel skel-text hidden h-2.5 w-20 sm:block" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div
+      className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      role="status"
+      aria-busy="true"
+      aria-label={label}
+    >
+      <span className="sr-only">{label}…</span>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)] p-4">
+          <span className="skel block h-10 w-10 rounded-lg" />
+          <span className="skel skel-text mt-3 block h-3 w-32 max-w-full" />
+          <span className="skel skel-text mt-2 block h-2 w-24 opacity-70" />
+          <span className="skel skel-text mt-3 block h-2 w-40 max-w-full opacity-70" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function QuestionnaireList() {
+  const [rows, setRows] = useState<Row[] | null>(null);
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState("list");
+  const [busy, setBusy] = useState(false);
+  const [menuFor, setMenuFor] = useState("");
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    const res = await fetch("/api/super/questionnaires", { cache: "no-store" });
+    if (!res.ok) { setError("Couldn't load questionnaires."); setRows([]); return; }
+    setRows((await res.json()).questionnaires || []);
+  }, []);
+  useReload(load);
+
+  useEffect(() => {
+    if (!menuFor) return;
+    const close = () => setMenuFor("");
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [menuFor]);
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows || [];
+    return (rows || []).filter((r) => r.name.toLowerCase().includes(q) || (r.route || "").toLowerCase().includes(q));
+  }, [rows, query]);
+
+  async function send(payload: Record<string, unknown> | null, method = "POST", id = "") {
+    setBusy(true); setError("");
+    const url = id ? `/api/super/questionnaires/${id}` : "/api/super/questionnaires";
+    const res = await fetch(url, {
+      method, headers: { "Content-Type": "application/json" }, body: payload ? JSON.stringify(payload) : undefined,
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError("That didn't work."); return null; }
+    await load();
+    return out;
+  }
+
+  async function create() {
+    const out = await send({ name: "New questionnaire" });
+    if (out?.questionnaire) window.location.assign(`/super/questionnaires/${out.questionnaire.id}`);
+  }
+
+  return (
+    <div className="flex min-h-full w-full bg-[var(--ad-muted)] text-[var(--ad-foreground)]">
+      <aside className={RAIL}>
+        <Link href="/super/dashboard" className="flex items-center gap-2 text-sm font-600 text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)]">
+          <Chevron className="h-4 w-4 rotate-180" /> Console
+        </Link>
+        <button type="button" className={BTN} onClick={create} disabled={busy}>
+          <span className="text-base leading-none">+</span> Create questionnaire
+        </button>
+        <label className="flex items-center gap-2 rounded-lg border border-[var(--ad-border)] px-3 py-2">
+          <Search className="h-4 w-4 shrink-0 text-[var(--ad-muted-foreground)]" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search"
+            className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--ad-muted-foreground)]" />
+        </label>
+      </aside>
+
+      <main className="min-w-0 flex-1 p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="font-display text-2xl font-700">Questionnaires</h1>
+          <div className="inline-flex rounded-lg border border-[var(--ad-border)] bg-[var(--ad-card)] p-0.5">
+            {["list", "grid"].map((v) => (
+              <button key={v} type="button" onClick={() => setView(v)}
+                className={`rounded-md px-3 py-1.5 text-sm font-600 capitalize transition-colors ${
+                  view === v ? "bg-[var(--ad-muted)] text-[var(--ad-foreground)]" : "text-[var(--ad-muted-foreground)] hover:text-[var(--ad-foreground)]"}`}>
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && <p className="mt-4 rounded-lg bg-[rgb(var(--ad-destructive-rgb)/0.1)] px-4 py-3 text-sm text-[var(--ad-destructive-ink)]">{error}</p>}
+
+        {rows === null ? (
+          <ListSkeleton view={view} />
+        ) : shown.length === 0 ? (
+          <div className="mt-8 rounded-xl border border-dashed border-[var(--ad-border)] bg-[var(--ad-card)] p-12 text-center">
+            <p className="text-sm text-[var(--ad-muted-foreground)]">
+              {query ? `Nothing matches “${query}”.` : "No questionnaires yet. Create one to get started."}
+            </p>
+          </div>
+        ) : view === "list" ? (
+          <div className="mt-6 overflow-hidden rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)]">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--ad-border)] text-xs font-600 uppercase tracking-wide text-[var(--ad-muted-foreground)]">
+                  <th className="px-5 py-3 text-start font-600">Name</th>
+                  <th className="px-3 py-3 text-start font-600">Route</th>
+                  <th className="px-3 py-3 text-end font-600">Questions</th>
+                  <th className="px-3 py-3 text-end font-600">Responses</th>
+                  <th className="px-3 py-3 text-end font-600">Completed</th>
+                  <th className="px-3 py-3 text-end font-600">Updated</th>
+                  <th className="px-3 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((r) => (
+                  <tr key={r.id} className="border-b border-[var(--ad-border)] last:border-0 hover:bg-[rgb(var(--ad-muted-rgb)/0.6)]">
+                    <td className="px-5 py-3">
+                      <Link href={`/super/questionnaires/${r.id}`} className="flex items-center gap-3 font-600 text-[var(--ad-foreground)] hover:underline">
+                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--ad-foreground-rgb)/0.9)] text-xs font-700 text-[var(--ad-background)]">
+                          {r.name.slice(0, 1).toUpperCase()}
+                        </span>
+                        {r.name}
+                      </Link>
+                      {/* The id is the thing other code will reference, so it is
+                          on screen rather than hidden in a menu. */}
+                      <span className="ms-11 block font-mono text-[11px] text-[var(--ad-muted-foreground)]">{r.id}</span>
+                    </td>
+                    <td className="px-3 py-3 font-mono text-xs text-[var(--ad-muted-foreground)]">{r.route || <span className="text-[var(--ad-muted-foreground)]">unattached</span>}</td>
+                    <td className="px-3 py-3 text-end text-[var(--ad-foreground)]">{r.questions}</td>
+                    {/* THE COUNT IS A DOOR. It was a number with nothing behind
+                        it — and nothing behind the number either, since no
+                        response was ever recorded. Now that there are answers,
+                        the obvious click is the one that shows them. */}
+                    <td className="px-3 py-3 text-end text-[var(--ad-foreground)]">
+                      {r.responses
+                        ? <Link href={`/super/questionnaires/${r.id}/responses`} className="font-600 hover:underline">{r.responses}</Link>
+                        : "-"}
+                    </td>
+                    <td className="px-3 py-3 text-end text-[var(--ad-foreground)]">{r.completed || "-"}</td>
+                    <td className="px-3 py-3 text-end text-[var(--ad-muted-foreground)]">{fmt(r.updatedAt)}</td>
+                    <td className="px-3 py-3 text-end" onClick={(e) => e.stopPropagation()}>
+                      <RowMenu
+                        open={menuFor === r.id}
+                        onToggle={() => setMenuFor(menuFor === r.id ? "" : r.id)}
+                        href={`/super/questionnaires/${r.id}`}
+                        onDuplicate={() => send({ duplicateOf: r.id })}
+                        onDelete={() => send(null, "DELETE", r.id)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {shown.map((r) => (
+              <Link key={r.id} href={`/super/questionnaires/${r.id}`}
+                className="rounded-xl border border-[var(--ad-border)] bg-[var(--ad-card)] p-4 transition-colors hover:border-[var(--ad-muted-foreground)]">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[rgb(var(--ad-foreground-rgb)/0.9)] text-sm font-700 text-[var(--ad-background)]">
+                  {r.name.slice(0, 1).toUpperCase()}
+                </span>
+                <p className="mt-3 truncate font-600">{r.name}</p>
+                <p className="truncate font-mono text-[11px] text-[var(--ad-muted-foreground)]">{r.id}</p>
+                <p className="mt-2 text-xs text-[var(--ad-muted-foreground)]">{r.questions} question{r.questions === 1 ? "" : "s"} · {fmt(r.updatedAt)}</p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// The row menu lives in a PORTAL, not in the cell. The table sits inside a
+// rounded, overflow-hidden panel — which is what gives it its clipped corners
+// and is also what was swallowing this menu whole. Rendering it to <body> at
+// fixed coordinates puts it above both the row and the list, with nothing left
+// to clip it.
+function RowMenu({ open, onToggle, href, onDuplicate, onDelete }: {
+  open: boolean; onToggle: () => void; href: string; onDuplicate: () => void; onDelete: () => void;
+}) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [at, setAt] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) { setAt(null); return; }
+    const place = () => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (!r) return;
+      // Four items now (Open, Responses, Duplicate, Delete), so the flip-above
+      // height grows with them — a stale H puts the last row's menu half off
+      // the bottom, which is the exact thing this measurement exists to stop.
+      const W = 160, H = 160;
+      setAt({
+        // Flip above the button when there is no room below, so the last row's
+        // menu is never half off the bottom of the window.
+        top: r.bottom + H > window.innerHeight ? Math.max(8, r.top - H) : r.bottom + 4,
+        left: Math.min(Math.max(8, r.right - W), window.innerWidth - W - 8),
+        width: W,
+      });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
+  }, [open]);
+
+  return (
+    <>
+      <button ref={btnRef} type="button" aria-label="Actions" aria-haspopup="menu" aria-expanded={open}
+        className={GHOST} onClick={onToggle}>···</button>
+      {open && at && typeof document !== "undefined" && createPortal(
+        <div role="menu" style={{ position: "fixed", top: at.top, left: at.left, width: at.width }}
+          className="z-[100] overflow-hidden rounded-lg border border-[var(--ad-border)] bg-[var(--ad-card)] py-1 text-start shadow-xl"
+          onClick={(e) => e.stopPropagation()}>
+          <Link href={href} role="menuitem" className="block px-3 py-2 text-sm hover:bg-[var(--ad-muted)]">Open</Link>
+          <Link href={`${href}/responses`} role="menuitem" className="block px-3 py-2 text-sm hover:bg-[var(--ad-muted)]">Responses</Link>
+          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm hover:bg-[var(--ad-muted)]"
+            onClick={onDuplicate}>Duplicate</button>
+          <button type="button" role="menuitem" className="block w-full px-3 py-2 text-start text-sm text-[var(--ad-destructive-ink)] hover:bg-[rgb(var(--ad-destructive-rgb)/0.1)]"
+            onClick={onDelete}>Delete</button>
+        </div>,
+        document.body)}
+    </>
+  );
+}
+
+function Search({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" />
+    </svg>
+  );
+}
+function Chevron({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}

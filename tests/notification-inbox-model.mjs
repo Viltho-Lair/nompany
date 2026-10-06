@@ -80,12 +80,12 @@ console.log("\n== the bells re-read on every connect (defect 2)");
 
 // The studio bell reads the inbox now (components/notifications/InboxProvider),
 // which is where the studio's reload lives.
-for (const file of ["src/components/notifications/InboxProvider.tsx", "src/components/super/useSuperNotifications.js"]) {
+for (const file of ["src/components/notifications/InboxProvider.tsx", "src/components/super/useSuperNotifications.ts"]) {
   const src = readFileSync(file, "utf8");
   ok(`${file}: keyed on the connection count`, /if \(connection\) load\(\);\s*\}, \[connection, load\]\)/.test(src));
   ok(`${file}: not on status`, !/if \(status === "live"\) load\(\)/.test(src));
 }
-for (const file of ["src/components/studio2/LiveProvider.js", "src/components/super/SuperLiveProvider.js"]) {
+for (const file of ["src/components/studio2/LiveProvider.js", "src/components/super/SuperLiveProvider.tsx"]) {
   const src = readFileSync(file, "utf8");
   ok(`${file}: counts every ready`, /setStatus\("live"\);\s*setConnection\(\(c\) => c \+ 1\);/.test(src));
 }

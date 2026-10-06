@@ -3,7 +3,7 @@
 The owner, 03/10/2026: *"there should be a way in /super to lock these sections and their
 subsections entirely for studio to not be able to see undergoing improvements."*
 
-/super → **Sections** (`components/super/SectionLocks.js`, `/api/super/section-locks`) lists
+/super → **Sections** (`components/super/SectionLocks.tsx`, `/api/super/section-locks`) lists
 every product section and sub-section with a switch. A held-back one is hidden from **every**
 studio. Main, Approvals and Administration never appear in the list: they are where a member
 lands and where a studio is configured, so they can never be held back.

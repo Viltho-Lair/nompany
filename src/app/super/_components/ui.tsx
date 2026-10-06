@@ -1,0 +1,498 @@
+// Shared presentational primitives for /super. Server components (no state), so
+// they can be used directly inside page files without a client boundary.
+//
+// Everything here now speaks the ERP's language rather than the template's: geex
+// radius, pill buttons, uppercase micro-labels, and — the change with the widest
+// reach — every figure rendered through `<Num>`, which is monospaced and
+// tabular. See the `.num` note in globals.css for why that is not cosmetic.
+//
+// NO LITERAL COLOURS. The tone table below used to hold `rgba(70,128,255,.12)`
+// and friends: tints hand-mixed from the template's palette, which meant a badge
+// kept the template's blue no matter what the design system said, and stayed at
+// 12% of a light-mode colour on a dark card. Each tone is now a channel triple
+// composed at use, so the tint follows the token and the theme both.
+
+import Link from "next/link";
+import Icon from "./Icon";
+import type { CSSProperties, ElementType, HTMLAttributes, ReactNode } from "react";
+
+/** A semantic tone — the key of TONES below. Any other string falls back to primary. */
+export type Tone = "primary" | "success" | "warning" | "danger" | "info" | "muted" | (string & {});
+
+/* ---- layout -------------------------------------------------------------- */
+
+// `description` IS ONE LINE saying what the screen is for, under the title. The
+// sidebar groups screens by purpose now; this says the same thing where the
+// screen starts, so nobody has to open one to learn what it holds.
+export function PageHeader({ title, description, breadcrumb = [], actions }: {
+  title: ReactNode;
+  description?: ReactNode;
+  breadcrumb?: { label: string; href?: string }[];
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div className="min-w-0">
+        {/* Title first, trail underneath — the Studio's header order. The
+            template put a small bold label above a breadcrumb of the same
+            weight, so neither read as the page's name. */}
+        <h1 className="truncate font-display text-2xl font-800 tracking-tight text-[var(--ad-foreground)]">
+          {title}
+        </h1>
+        {description ? (
+          <p className="mt-1 max-w-2xl text-sm text-[var(--ad-muted-foreground)]">{description}</p>
+        ) : null}
+        {breadcrumb.length ? (
+          <nav aria-label="Breadcrumb">
+            <ol className="mt-1.5 flex flex-wrap items-center gap-1 text-xs text-[var(--ad-muted-foreground)]">
+              {breadcrumb.map((c, i) => (
+                <li key={`${c.label}-${i}`} className="flex items-center gap-1">
+                  {i > 0 && (
+                    <span className="px-0.5 opacity-60" aria-hidden="true">
+                      /
+                    </span>
+                  )}
+                  {c.href ? (
+                    <Link href={c.href} className="transition-colors hover:text-[var(--ad-primary-ink)]">
+                      {c.label}
+                    </Link>
+                  ) : (
+                    <span aria-current={i === breadcrumb.length - 1 ? "page" : undefined}>{c.label}</span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        ) : null}
+      </div>
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+    </div>
+  );
+}
+
+export function Card({ className = "", children, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={`ad-card ${className}`} {...rest}>
+      {children}
+    </div>
+  );
+}
+
+export function CardHead({ title, sub, action, className = "" }: {
+  title: ReactNode; sub?: ReactNode; action?: ReactNode; className?: string;
+}) {
+  return (
+    // THE TITLE KEEPS ITS WIDTH AND THE CONTROLS WRAP UNDER IT. Beside a row of
+    // filters that would not shrink, the title's block was squeezed to one word
+    // a line — the Users card's subtitle read as a column of single words once
+    // the sidebar took its share of the width.
+    <div className={`ad-card-head ${className}`}>
+      <div className="min-w-0 flex-1 basis-48">
+        <h2 className="ad-card-title truncate">{title}</h2>
+        {sub ? <p className="ad-card-sub">{sub}</p> : null}
+      </div>
+      {action ? <div className="flex max-w-full flex-wrap items-center gap-2">{action}</div> : null}
+    </div>
+  );
+}
+
+export function CardBody({ className = "", full = false, children }: { className?: string; full?: boolean; children?: ReactNode }) {
+  return <div className={`${full ? "ad-card-body-full" : "ad-card-body"} ${className}`}>{children}</div>;
+}
+
+/* TWELVE COLUMNS FROM `lg`, NOT FROM `md` — the owner, 26/09/2026: "everything
+   is stacked on each other". The grid switched to twelve columns at 768px, which
+   was fine while the console had no sidebar; beside one, a 768px window left
+   four KPI tiles a hundred-odd pixels each, every figure squeezed onto a second
+   line. Now a quarter-width column is HALF width from `sm`, a pair of halves
+   sits side by side from `sm`, and everything wider waits for `lg` — so a
+   row folds 1 → 2 → 4 across rather than cramming all four at once.
+
+   `sm` overrides the in-between width where a caller knows better: three stat
+   cards in thirds read fine at 640px, which `<Col span={4} sm={4}>` says. */
+// The rest of a div's attributes pass through — a loading Row carries
+// `role="status"` and its label, which this used to drop without a word.
+export function Row({ className = "", children, ...rest }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={`grid grid-cols-1 gap-5 sm:grid-cols-12 lg:gap-6 ${className}`} {...rest}>{children}</div>;
+}
+
+// Spelled out, not built from a template: Tailwind finds classes by reading
+// source text, so `lg:col-span-${n}` would never be generated.
+const LG_SPAN: Record<number, string> = {
+  1: "lg:col-span-1", 2: "lg:col-span-2", 3: "lg:col-span-3", 4: "lg:col-span-4",
+  5: "lg:col-span-5", 6: "lg:col-span-6", 7: "lg:col-span-7", 8: "lg:col-span-8",
+  9: "lg:col-span-9", 10: "lg:col-span-10", 11: "lg:col-span-11", 12: "lg:col-span-12",
+};
+const SM_SPAN: Record<number, string> = { 3: "sm:col-span-3", 4: "sm:col-span-4", 6: "sm:col-span-6", 12: "sm:col-span-12" };
+
+export function Col({ span = 12, sm, className = "", children }: {
+  span?: number; sm?: number; className?: string; children?: ReactNode;
+}) {
+  const between = sm ?? (span <= 3 || span === 6 ? 6 : 12);
+  return <div className={`${SM_SPAN[between] || SM_SPAN[12]} ${LG_SPAN[span]} ${className}`}>{children}</div>;
+}
+
+/* ---- numbers ------------------------------------------------------------- */
+
+// EVERY reference, quantity, currency, ID and date goes through here. Two
+// columns of figures only line up if the digits share an advance, and `INV-0042`
+// only compares against `INV-0421` at a glance in a fixed one.
+//
+// `as` exists because the right element differs by context — a `<span>` in a
+// sentence, a `<td>` in a table, a `<time>` for a date — and none of them should
+// need a second wrapper just to pick up the face.
+export function Num({ as: As = "span", className = "", children, ...rest }: { as?: ElementType; className?: string; children?: ReactNode } & Record<string, unknown>) {
+  return (
+    <As className={`num ${className}`} {...rest}>
+      {children}
+    </As>
+  );
+}
+
+/* ---- atoms --------------------------------------------------------------- */
+
+// Each tone names the SEMANTIC token it draws from, never a colour. `bg` is the
+// same token at 14%, which is what makes a pill legible on the card surface in
+// both themes from one declaration.
+const TONES: Record<string, string> = {
+  primary: "--ad-primary-rgb",
+  success: "--ad-success-rgb",
+  warning: "--ad-warning-rgb",
+  danger: "--ad-destructive-rgb",
+  info: "--ad-info-rgb",
+  muted: "--ad-muted-foreground-rgb",
+};
+
+const toneVar = (tone: Tone | undefined) => TONES[tone ?? "primary"] || TONES.primary;
+
+// EXPORTED, because eight files had their own copy of this table.
+//
+// `const TONE_BG = { primary: rgba(70,128,255,.14), success: rgba(44,168,127,.16), … }`
+// appeared verbatim in the analytics, CRM, project, calendar, notifications and
+// docs screens, in the header and in the status pages — nine hand-mixed tints of
+// the template's palette, none of which changed when the design system did, and
+// each at a slightly different alpha because they were copied at different
+// times. There is one now, and it composes from the token.
+export const toneFg = (tone: Tone | undefined) => `rgb(var(${toneVar(tone)}))`;
+export const toneBg = (tone: Tone | undefined, alpha = 0.14) => `rgb(var(${toneVar(tone)}) / ${alpha})`;
+
+// THE INK THAT GOES ON A toneBg WASH — and it is NOT toneFg.
+//
+// The obvious pairing is the token over a 14% wash of itself, and it is what
+// this console did everywhere. Measured, it fails: an amber "Pending" pill puts
+// #d97706 on a wash of #d97706 at 2.75:1, and the brand-blue pill manages 4.24.
+// Small bold text needs 4.5:1. The reason is arithmetic rather than taste — a
+// wash of a colour sits close to that colour in lightness, so a hue used for
+// both the ground and the figure has almost nowhere to go.
+//
+// So the ink steps AWAY from the wash, toward the page's own ink. On light that
+// darkens it; on dark the foreground is near-white, so the same declaration
+// lightens it. One rule, both themes, and it stays the tone's hue.
+//
+// 65% is measured, not chosen: at 65 the worst pair in either theme is 4.57:1
+// (amber on light) and the best is 6.9:1; at 75 amber drops to 3.92 and fails.
+// oklab rather than sRGB so the mix keeps its chroma instead of going muddy
+// through the middle.
+export const toneInk = (tone: Tone | undefined) =>
+  `color-mix(in oklab, rgb(var(${toneVar(tone)})) 65%, var(--ad-foreground))`;
+
+export function Badge({ tone = "primary", solid = false, className = "", children }: {
+  tone?: Tone; solid?: boolean; className?: string; children?: ReactNode;
+}) {
+  return (
+    <span
+      className={`ad-badge ${className}`}
+      style={
+        solid
+          ? { backgroundColor: toneFg(tone), color: "var(--ad-primary-foreground)" }
+          : { backgroundColor: toneBg(tone), color: toneInk(tone) }
+      }
+    >
+      {children}
+    </span>
+  );
+}
+
+export function Dot({ tone = "primary" }: { tone?: Tone }) {
+  return <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: toneFg(tone) }} />;
+}
+
+const AVATAR_TONES = ["primary", "success", "warning", "danger", "info"];
+
+export function Avatar({ name = "", size = 36, tone, src, className = "" }: {
+  name?: string; size?: number; tone?: Tone; src?: string | null; className?: string;
+}) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+  const pick = tone || AVATAR_TONES[(name.charCodeAt(0) || 0) % AVATAR_TONES.length];
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        width={size}
+        height={size}
+        className={`shrink-0 rounded-full object-cover ${className}`}
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-600 ${className}`}
+      style={{
+        width: size,
+        height: size,
+        backgroundColor: toneBg(pick),
+        color: toneInk(pick),
+        fontSize: Math.max(10, Math.round(size * 0.34)),
+      }}
+      aria-hidden="true"
+    >
+      {initials || "?"}
+    </span>
+  );
+}
+
+export function Progress({ value = 0, tone = "primary", height = 6, className = "", label }: {
+  value?: number; tone?: Tone; height?: number; className?: string; label?: string;
+}) {
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <div
+      className={`w-full overflow-hidden rounded-full ${className}`}
+      style={{ height, backgroundColor: "var(--ad-muted)" }}
+      role="progressbar"
+      aria-label={label}
+      aria-valuenow={Math.round(pct)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <div
+        className="h-full rounded-full transition-[width] duration-500"
+        style={{ width: `${pct}%`, backgroundColor: toneFg(tone) }}
+      />
+    </div>
+  );
+}
+
+export function Delta({ value, suffix = "", invert = false }: { value: number; suffix?: string; invert?: boolean }) {
+  const up = value >= 0;
+  const good = invert ? !up : up;
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-xs font-500"
+      style={{ color: good ? "var(--ad-success-ink)" : "var(--ad-destructive-ink)" }}
+    >
+      <Icon name={up ? "trendUp" : "trendDown"} className="h-3.5 w-3.5" />
+      <Num>
+        {up ? "+" : ""}
+        {value}%
+      </Num>
+      {suffix ? ` ${suffix}` : ""}
+    </span>
+  );
+}
+
+/* Solid coloured KPI tile — the four blocks at the top of a dashboard.
+   `tone` names a semantic token; `color` is the legacy escape hatch the
+   subscription screens still pass and is left working on purpose rather than
+   silently repainting a page this phase does not own.
+
+   THE FILL IS THE TONE DEEPENED, NOT THE TONE ITSELF. White on the raw token
+   measured 1.8:1 on amber, 2.1 on green and 2.3 on sky in dark mode — the dark
+   theme steps every token UP a shade (amber-600 → amber-500) so it reads as
+   ink on a dark card, which is exactly what makes it a poor ground for white
+   text (the owner, 18/09/2026: "some texts are unreadable"). Mixing 36% black
+   in oklab keeps the hue and lands every tone above 4.5:1 in both themes. */
+const kpiFill = (c: string) => `color-mix(in oklab, ${c} 64%, black)`;
+
+type StatProps = {
+  label: ReactNode; value: ReactNode; delta?: number | null; deltaLabel?: ReactNode;
+  icon?: string; tone?: Tone;
+};
+
+export function KpiTile({ label, value, delta, deltaLabel, icon, tone = "primary", color }: StatProps & { color?: string }) {
+  return (
+    <div
+      className="rounded-geex p-6 text-white"
+      style={{ backgroundColor: kpiFill(color || toneFg(tone)) }}
+    >
+      <div className="flex items-center gap-4">
+        {icon ? (
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15">
+            <Icon name={icon} className="h-5 w-5" />
+          </span>
+        ) : null}
+        <div className="min-w-0">
+          <p className="text-sm text-white/90">{label}</p>
+          <Num as="p" className="mt-0.5 text-2xl font-700 leading-tight">
+            {value}
+          </Num>
+          {/* A tile with no delta still keeps its third line if it has something
+              to say there. Dropping the line entirely made the tile change
+              height and told the reader nothing about why. */}
+          {delta != null ? (
+            <p className="mt-1 text-xs text-white/85">
+              <Num>
+                {delta >= 0 ? "+" : ""}
+                {delta}%
+              </Num>{" "}
+              {deltaLabel}
+            </p>
+          ) : deltaLabel ? (
+            <p className="mt-1 text-xs text-white/85">{deltaLabel}</p>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Neutral stat card on the card surface. */
+export function StatCard({ label, value, delta, deltaLabel, icon, tone = "primary" }: StatProps) {
+  return (
+    <Card>
+      <CardBody full className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-600 uppercase tracking-wide text-[var(--ad-muted-foreground)]">{label}</p>
+          <Num as="p" className="mt-1.5 text-xl font-700">
+            {value}
+          </Num>
+          {delta !== undefined && delta !== null ? (
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <Delta value={delta} />
+              {deltaLabel ? <span className="text-xs text-[var(--ad-muted-foreground)]">{deltaLabel}</span> : null}
+            </div>
+          ) : null}
+        </div>
+        {icon ? (
+          <span
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+            style={{ backgroundColor: toneBg(tone), color: toneInk(tone) }}
+          >
+            <Icon name={icon} className="h-5 w-5" />
+          </span>
+        ) : null}
+      </CardBody>
+    </Card>
+  );
+}
+
+/* ---- skeletons ----------------------------------------------------------- */
+//
+// A skeleton's job is to RESERVE THE BOX. Every one of these takes the same
+// dimensions as the thing it stands in for, so what arrives lands where the
+// placeholder stood instead of shoving the page down — which is the entire
+// reason to prefer a skeleton to a spinner. A spinner reserves nothing.
+//
+// `aria-busy` and a label go on the REGION, not on each bar: a screen reader
+// should hear "loading users", once, not forty anonymous graphics.
+
+export function Skeleton({ className = "", style }: { className?: string; style?: CSSProperties }) {
+  return <span className={`skel block ${className}`} style={style} aria-hidden="true" />;
+}
+
+export function SkeletonText({ lines = 1, className = "", widths = [] }: { lines?: number; className?: string; widths?: (string | number)[] }) {
+  return (
+    <span className={`flex flex-col gap-2 ${className}`} aria-hidden="true">
+      {Array.from({ length: lines }, (_, i) => (
+        <span key={i} className="skel skel-text block" style={{ width: widths[i] || "100%" }} />
+      ))}
+    </span>
+  );
+}
+
+/* Shaped to StatCard exactly: same padding, same 10×10 icon tile, a label bar at
+   the label's height and a value bar at the value's. */
+export function StatCardSkeleton() {
+  return (
+    <Card>
+      <CardBody full className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <Skeleton className="skel-text h-2.5 w-24" />
+          <Skeleton className="mt-2.5 h-5 w-20 rounded-md" />
+          <Skeleton className="skel-text mt-3 h-2.5 w-28" />
+        </div>
+        <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+      </CardBody>
+    </Card>
+  );
+}
+
+/* ---- table --------------------------------------------------------------- */
+//
+// Semantic <table> — for SUMMARY tables: a handful of derived rows, a footer
+// that has to add up, no sorting and no paging. List surfaces that a person
+// actually works in (users, studios, orders) are MUI Data Grids instead; see
+// src/components/super/SuperDataGrid.tsx.
+
+/** A column heading: plain words, or words with an alignment. */
+export type TableHead = ReactNode | { label: ReactNode; align?: "start" | "end" };
+const isHeadObject = (h: TableHead): h is { label: ReactNode; align?: "start" | "end" } =>
+  typeof h === "object" && h !== null && "label" in h;
+
+export function Table({ head = [], children, className = "", caption }: {
+  head?: TableHead[]; children?: ReactNode; className?: string; caption?: string;
+}) {
+  return (
+    <div className={`w-full overflow-x-auto ${className}`}>
+      <table className="ad-table">
+        {caption ? <caption className="sr-only">{caption}</caption> : null}
+        {head.length ? (
+          <thead>
+            <tr>
+              {head.map((h, i) => (
+                <th key={i} scope="col" className={isHeadObject(h) && h.align === "end" ? "text-end" : undefined}>
+                  {isHeadObject(h) ? h.label : h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+        ) : null}
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ---- buttons ------------------------------------------------------------- */
+
+export function Button({ variant = "primary", size, as: As = "button", className = "", children, ...rest }: {
+  variant?: "primary" | "outline" | "ghost" | "destructive"; size?: "sm"; as?: ElementType;
+  className?: string; children?: ReactNode;
+} & Record<string, unknown>) {
+  const v = {
+    primary: "ad-btn-primary",
+    outline: "ad-btn-outline",
+    ghost: "ad-btn-ghost",
+    destructive: "ad-btn-destructive",
+  }[variant];
+  return (
+    <As className={`ad-btn ${v} ${size === "sm" ? "ad-btn-sm" : ""} ${className}`} {...rest}>
+      {children}
+    </As>
+  );
+}
+
+/* ---- empty / placeholder ------------------------------------------------- */
+
+export function Empty({ icon = "file", title, sub, action }: { icon?: string; title: ReactNode; sub?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+      <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--ad-muted)] text-[var(--ad-muted-foreground)]">
+        <Icon name={icon} className="h-6 w-6" />
+      </span>
+      <h3 className="text-base font-700">{title}</h3>
+      {sub ? <p className="mt-1 max-w-sm text-sm text-[var(--ad-muted-foreground)]">{sub}</p> : null}
+      {action ? <div className="mt-5">{action}</div> : null}
+    </div>
+  );
+}
+
+export { Icon };

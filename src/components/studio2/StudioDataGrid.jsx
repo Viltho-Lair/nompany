@@ -2,7 +2,7 @@
 
 // THE studio's dense-table Data Grid — the client-side, sortable, paginated
 // equivalent of the hand-rolled `<table>`s the department screens grew. It mirrors
-// the console's SuperDataGrid (src/components/super/SuperDataGrid.js) but wears
+// the console's SuperDataGrid (src/components/super/SuperDataGrid.tsx) but wears
 // STUDIO tokens: the console's `--ad-*` variables resolve to nothing outside
 // `.admindek`, so painting a studio grid with them is the exact trap CLAUDE.md
 // warns about (a console-scoped token carried into a studio screen resolves to
