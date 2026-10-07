@@ -14,7 +14,7 @@
 //      same line without running the compiler, so `npm test` catches it too.)
 //   2. NO FILE GETS WORSE. Each file's error count under checkJs is its
 //      ceiling. Fixing errors lowers it; converting the file to .ts/.tsx removes
-//      it, and from then on tsconfig.strict.json grades it with noImplicitAny.
+//      it, and from then on the base tsconfig grades it with noImplicitAny.
 //
 // `--record` rewrites the baseline from the tree, and REFUSES to raise any
 // file's number or add a file — the ratchet only turns one way. The one honest

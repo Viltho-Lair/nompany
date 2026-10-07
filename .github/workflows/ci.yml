@@ -149,18 +149,11 @@ jobs:
         run: node scripts/migrate/pg/schema.mjs
 
       - name: Typecheck
+        # ONE CONFIG, STRICT. There were two while JavaScript remained: the base
+        # ran noImplicitAny off and tsconfig.strict.json graded the converted
+        # folders with it on. Nothing under src/ is JavaScript since 07/10/2026,
+        # so the base grades everything with noImplicitAny on and refuses .js.
         run: npx tsc --noEmit
-
-      - name: Typecheck — converted folders, strictly
-        # THE RATCHET. The repo-wide config runs with checkJs and noImplicitAny
-        # off, because grading a hundred files nobody wrote types for produces a
-        # number that gets ignored. This one grades only what Wave 3 has
-        # converted, with noImplicitAny ON, and a folder joins its `include` when
-        # its step lands and never leaves.
-        #
-        # Two configs meeting is how Wave 3 ends: when `include` covers src/**,
-        # this file and the allowJs escape hatch both go.
-        run: npx tsc --noEmit -p tsconfig.strict.json
 
       - name: Lint
         # Errors are always fatal. Warnings are a backlog with a ceiling that can
@@ -169,7 +162,7 @@ jobs:
         #
         # This step also earns its place on the day it landed: it found a SYNTAX
         # ERROR in api/cron/year-rollover that `tsc --noEmit` had passed, because
-        # tsconfig sets checkJs false and the file is .js.
+        # tsconfig set checkJs false and the file was .js.
         run: node scripts/lint-budget.mjs
 
       - name: Tests — access rules

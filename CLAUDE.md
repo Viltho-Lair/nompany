@@ -245,8 +245,10 @@ file under `src/components` and `src/app` — zero `.js`/`.jsx` left, measured 0
 (there were 421 on 05/10/2026; the count kept GROWING while it waited on a Wave 4 that was
 never approved, and was converted as its own piece of work — the decision ledger in
 `docs/progress.md`). `src/proxy.js` and `src/lib/langCookie.js`, never on the browser list,
-were converted on 07/10/2026, so **nothing under `src/` is JavaScript**; `checkJs: false`,
-`allowJs` and `tsconfig.strict.json` now hold nothing open and can go as a change of their own.
+were converted on 07/10/2026, so **nothing under `src/` is JavaScript**. `tsconfig.strict.json`
+is DELETED with it, and the base config grades everything with `noImplicitAny` on and
+**`allowJs: false` — false, not absent**: Next writes a missing `allowJs` back as `true` on every
+`next dev`/`next build`.
 
 **A NEW BROWSER FILE IS `.ts`/`.tsx` — never `.js`/`.jsx`** (05/10/2026). `tests/restructure.mjs`
 refuses one not on `scripts/browser-types-baseline.json`, and `npm run types:browser` holds every
@@ -393,7 +395,6 @@ What CI runs, when it runs, is still the definitive list of what must hold:
 ```bash
 npm test            # model tests, restructure assertions, integration suite, routes + crud — real routes, real Postgres
 npx tsc --noEmit
-npx tsc --noEmit -p tsconfig.strict.json   # every .ts/.tsx, with noImplicitAny
 npx next build
 ```
 
@@ -906,7 +907,7 @@ department in `src/modules/<name>/` with a Zod schema each, and every route file
 browser files are done too: **0** `.js`/`.jsx` under `src/components` and `src/app` (06/10/2026; 421 the day before), converted as their own piece of work rather than waiting on Wave 4. (Both counts
 are measured — `find src/app/api -name 'route.*'` and `find src/components src/app -name
 '*.js' -o -name '*.jsx'`. They said 99 and 212 for long enough to be quoted as facts;
-`tsconfig.strict.json`'s own comment still says 212, which is the same drift one layer down.) **Wave 4 (UI/UX) is superseded** (05/10/2026) — a proposal in
+`tsconfig.strict.json`'s own comment said 212 for as long, the same drift one layer down; that file is deleted now.) **Wave 4 (UI/UX) is superseded** (05/10/2026) — a proposal in
 `w4-dashboards-and-motion.md` never approved as a wave, most of it built section by section since. **Wave 5 (SQL) was overtaken by the ERP
 program's P1** and is no longer a separate wave: the store swap it described is on `main`,
 under `NOMPANY_DB`, with the Postgres half written and proven. What remains of it is the

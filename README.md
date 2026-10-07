@@ -153,10 +153,6 @@ npx tsc --noEmit
 ```
 
 ```bash
-npx tsc --noEmit -p tsconfig.strict.json
-```
-
-```bash
 npm run lint:budget
 ```
 

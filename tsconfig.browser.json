@@ -2,16 +2,19 @@
   "//": [
     "THE BROWSER FILES, TYPE-CHECKED — read only by scripts/browser-types.mjs.",
     "",
-    "The base tsconfig runs checkJs false, and TypeScript only reads a .js file",
+    "The base tsconfig refuses JavaScript (allowJs false), and TypeScript only read a .js file",
     "when a .ts file imports it, so most of the studio's screens were checked by",
     "nothing at all (measured 05/10/2026: 249 of 421 browser files carried 5,495",
     "errors nobody could see). This config includes every file and turns checkJs",
     "on; the script counts the errors per file against a baseline that may only",
     "go down. A file leaves the baseline when it is converted to .ts/.tsx, where",
-    "tsconfig.strict.json grades it with noImplicitAny on."
+    "the base config grades it with noImplicitAny on. The list has been empty since",
+    "07/10/2026; this config turns allowJs on for its own scan so a .js file that",
+    "appears is still found and counted rather than ignored."
   ],
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "allowJs": true,
     "checkJs": true,
     "incremental": false
   },

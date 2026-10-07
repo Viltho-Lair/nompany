@@ -1,5 +1,5 @@
 {
-  "//": "TypeScript covers everything server-side — platform, modules, shared, lib, and all 153 API routes. Nothing under src/ is JavaScript any more (07/10/2026): the 421 browser files under src/components and src/app were converted 05–06/10/2026, and src/proxy.js and src/lib/langCookie.js followed as .ts. allowJs and checkJs are left as they were only because removing them is its own change — it touches tsconfig.strict.json, which says it goes with them, and the checks CI runs. This line said the reverse ('TypeScript covers the document application only; the rest stays plain JavaScript') long after Wave 3 made it false. See tsconfig.strict.json, which grades every .ts/.tsx with noImplicitAny on.",
+  "//": "TypeScript covers the whole application: nothing under src/ is JavaScript (07/10/2026), so this one config grades everything with noImplicitAny ON — the job tsconfig.strict.json did while the JavaScript was being converted, deleted with it. allowJs is FALSE, not absent: Next's verifyTypeScriptSetup writes a missing allowJs back as true on every `next dev`/`next build`, so leaving the key out would quietly reopen the door a .js file could walk through. tsconfig.browser.json turns it on for its own scan only.",
   "compilerOptions": {
     "target": "ES2022",
     "lib": [
@@ -7,11 +7,10 @@
       "dom.iterable",
       "esnext"
     ],
-    "allowJs": true,
-    "checkJs": false,
+    "allowJs": false,
     "skipLibCheck": true,
     "strict": true,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
