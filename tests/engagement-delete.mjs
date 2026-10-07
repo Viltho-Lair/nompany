@@ -106,7 +106,9 @@ export async function testDetachIsTheInverseOfAttach() {
   await detachRecord(s, eng.id, "invoice", "inv_1");
 
   assert.deepEqual(await readEngagementView(s, eng.id),
-    { ref: "", locked: true, context: {}, singletons: { ticket: null, approvedQuotation: null, project: null }, members: {} },
+    // `completion` joined the view when a deal began keeping where its stages
+    // stand (3c66d81c); a detached deal has none, so it reads null.
+    { ref: "", locked: true, context: {}, singletons: { ticket: null, approvedQuotation: null, project: null }, members: {}, completion: null },
     "membership gone");
   assert.deepEqual(await zRange(ENG.dept(s, "invoice"), 0, -1), [], "department index cleared");
   assert.equal(await engagementOf(s, "invoice", "inv_1"), null, "reverse index cleared");

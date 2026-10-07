@@ -109,6 +109,12 @@ function resolveInner(specifier, context, next) {
   if (specifier === "next/server") {
     return next(nodeModulesFile("next/server.js"), context);
   }
+  // `next/cache` IS THE SAME KIND OF SUBPATH, and the same answer. It reaches a
+  // test through lib/data/publicSettings (unstable_cache), which the /super blog
+  // routes import — so tests/routes.mjs failed to import both of them.
+  if (specifier === "next/cache") {
+    return next(nodeModulesFile("next/cache.js"), context);
+  }
   if (specifier.startsWith("@/")) {
     return next(resolveFile(`src/${specifier.slice(2)}`), context);
   }

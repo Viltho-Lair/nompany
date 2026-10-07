@@ -444,7 +444,7 @@ console.log("== approvals: the page's own routes, end to end");
   ok("the owner sees their own request", ownerPage.requested?.some((a) => a.id === id));
   ok("...and every approval in the studio", Array.isArray(ownerPage.all) && ownerPage.all.some((a) => a.id === id));
   ok("the requester was told it came through",
-    (await listForCollaborator(studio.id, ownerApprovals.collaborator.id)).some((n) => n.type === NOTIFY.approvalDecided),
+    (await listForCollaborator(studio.id, ownerApprovals.collaborator.id)).rows.some((n) => n.type === NOTIFY.approvalDecided),
     "no approval.decided notice for the requester");
   __signOut();
 }
@@ -685,11 +685,11 @@ console.log("\n== the handler is carried, never copied");
   // manager, so member — not owner — should hear it, and the notice links to
   // the projects list.
   {
-    const note = (await listForCollaborator(studio.id, member.collaborator.id))
+    const note = (await listForCollaborator(studio.id, member.collaborator.id)).rows
       .find((n) => n.type === NOTIFY.projectAssigned);
     ok("the project's manager is told it is theirs", Boolean(note), NOTIFY.projectAssigned);
     ok("...and the opener did not notify themselves",
-      !(await listForCollaborator(studio.id, proj.collaborator.id)).some((n) => n.type === NOTIFY.projectAssigned),
+      !(await listForCollaborator(studio.id, proj.collaborator.id)).rows.some((n) => n.type === NOTIFY.projectAssigned),
       "self-assignment is not news");
   }
   ok("...with a BLANK number until Finance issues one", opened.project?.number === "",
@@ -1820,13 +1820,13 @@ console.log("\n== an RFQ tells the people who will quote it");
   const asked = await requestTicketRfq(salesOwner, { ticketId: tk.ticket?.id });
   ok("an RFQ is raised", !!asked.rfq, JSON.stringify(asked.error));
 
-  const memberNote = (await listForCollaborator(studio.id, member.collaborator.id))
+  const memberNote = (await listForCollaborator(studio.id, member.collaborator.id)).rows
     .find((n) => n.type === NOTIFY.rfqRaised);
   ok("a handler who can quote is told an RFQ is waiting", Boolean(memberNote), NOTIFY.rfqRaised);
   ok("...and the notice carries the RFQ reference", memberNote?.body === asked.rfq?.reference,
     JSON.stringify(memberNote?.body));
   ok("...and the raiser is not told",
-    !(await listForCollaborator(studio.id, salesOwner.collaborator.id)).some((n) => n.type === NOTIFY.rfqRaised),
+    !(await listForCollaborator(studio.id, salesOwner.collaborator.id)).rows.some((n) => n.type === NOTIFY.rfqRaised),
     "raising it is how they already know");
 
   await updateCollaborator(studio.id, member.collaborator.id, { roleIds: [roleId("Member")] });
@@ -3020,16 +3020,16 @@ console.log("\n== a purchase order lands, and the person who raised it hears");
   const partial = await receiveOrder(ownerInv, order.order.id, { lines: [{ itemId: part.item.id, qty: 4 }] });
   ok("a partial receipt is Partly received", partial.order?.status === "Partly received", JSON.stringify(partial.error));
   ok("...and a partial arrival tells nobody yet",
-    !(await listForCollaborator(studio.id, member.collaborator.id)).some((n) => n.type === NOTIFY.purchaseReceived),
+    !(await listForCollaborator(studio.id, member.collaborator.id)).rows.some((n) => n.type === NOTIFY.purchaseReceived),
     "a bell per box trains people to ignore the last one");
 
   const rest = await receiveOrder(ownerInv, order.order.id, { lines: [{ itemId: part.item.id, qty: 6 }] });
   ok("the balance completes the order", rest.order?.status === "Received", JSON.stringify(rest.error));
-  const landed = (await listForCollaborator(studio.id, member.collaborator.id))
+  const landed = (await listForCollaborator(studio.id, member.collaborator.id)).rows
     .find((n) => n.type === NOTIFY.purchaseReceived);
   ok("the buyer is told the PO arrived in full", Boolean(landed), NOTIFY.purchaseReceived);
   ok("...and the storekeeper who booked it in is not",
-    !(await listForCollaborator(studio.id, ownerInv.collaborator.id)).some((n) => n.type === NOTIFY.purchaseReceived),
+    !(await listForCollaborator(studio.id, ownerInv.collaborator.id)).rows.some((n) => n.type === NOTIFY.purchaseReceived),
     "the receiver is not the audience");
 
   await updateCollaborator(studio.id, member.collaborator.id, { roleIds: [roleId("Member")] });

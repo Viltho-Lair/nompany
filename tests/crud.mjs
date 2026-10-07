@@ -749,9 +749,13 @@ async function payrollRun() {
   // ---- the ledger ---------------------------------------------------------
   // THE GROSS IS THE COST AND THE NET IS NOT. Posting the net as the expense
   // understates the wage bill by exactly the deductions.
-  const posted = await call(LEDGER.POST, body("POST", { document: { kind: "payroll", id: runId } }), P());
-  const entry = posted.body?.entry;
-  ok("a payroll run posts to the ledger", Boolean(entry), JSON.stringify(posted.body).slice(0, 200));
+  // APPROVAL POSTS THE RUN ITSELF (payrollService's postRunToLedger; `postRunAgain`
+  // is only the repair for a refused posting), so the entry is read from the
+  // journal rather than posted here — posting it by hand now answers
+  // `already-posted`, which is the idempotence asserted below.
+  const book = await call(LEDGER.GET, body("GET"), P());
+  const entry = (book.body?.journal || []).find((e) => e.source?.kind === "payroll" && e.source?.id === runId);
+  ok("a payroll run posts to the ledger", Boolean(entry), JSON.stringify(book.body?.journal?.length));
   const debits = (entry?.lines || []).filter((l) => l.debit > 0);
   const credits = (entry?.lines || []).filter((l) => l.credit > 0);
   ok("...debiting Salaries for the GROSS", debits.length === 1 && debits[0].debit === 3500,
