@@ -17,7 +17,7 @@ import lastmod from "../sitemap-lastmod.json";
    is where a current figure lives. The customers page is left out for the
    sitemap's reason — it is empty until a company agrees to be named.
 
-   A ROUTE AND NOT A PAGE. Its path has a dot, so `proxy.js`'s matcher never
+   A ROUTE AND NOT A PAGE. Its path has a dot, so `proxy.ts`'s matcher never
    treats it as a studio slug, and nothing under the root layout (which reads a
    cookie) is involved, so it can be static. */
 export const dynamic = "force-static";

@@ -11,15 +11,15 @@
     "folder it belongs to is already listed.",
     "",
     "`include` NOW COVERS src/**, and every .ts and .tsx in the tree is graded",
-    "with noImplicitAny on. What keeps this file alive is checkJs: the",
-    "remaining .js files are all browser files (scripts/browser-types-baseline.json),",
-    "being converted file by file; this config and allowJs go when the list is empty.",
+    "with noImplicitAny on. The JavaScript it was kept alive for is GONE —",
+    "0 files under src/ (07/10/2026), so this config and allowJs can now go,",
+    "as a change of their own (CI runs this file by name).",
     "",
     "THE COUNT IS MEASURED, NOT REMEMBERED. It said 212 here and in the comment",
     "below while the tree held 272 — the browser files grew with four waves of",
     "screens and nothing re-counted, because nothing fails when a comment is",
     "wrong. Re-measure it when you touch this file:",
-    "  find src/components src/app -name '*.js' -o -name '*.jsx' | wc -l"
+    "  find src -name '*.js' -o -name '*.jsx' | wc -l"
   ],
   "extends": "./tsconfig.json",
   "compilerOptions": {
@@ -38,9 +38,8 @@
     // platform, then people and hr, then the ten departments, then src/lib —
     // and the folder list is gone because there is nothing left to add.
     //
-    // What is left is `checkJs`, and that is the remaining .js files, every one
-    // a browser file, listed in scripts/browser-types-baseline.json and being
-    // converted file by file; this config and allowJs go when the list is empty.
+    // And the JavaScript `checkJs` was left off for is gone too (07/10/2026),
+    // so this config and allowJs can now go, as their own change.
     "src/**/*"
   ]
 }

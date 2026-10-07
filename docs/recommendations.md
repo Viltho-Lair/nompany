@@ -206,7 +206,7 @@ Three of these, all discoverable as "the feature exists" from the outside:
 
 | Capability | Declared at | Reality |
 |---|---|---|
-| External document share links | `IX.qshare`, `qualityShareLinks` collection, `quality.documents.share` permission | **Nothing reads or writes any of them.** There is no `/q/<token>` route. `q` is reserved in `proxy.js` and `RESERVED_SLUGS` for a page that does not exist. The permission is grantable on the Access screen and grants nothing. |
+| External document share links | `IX.qshare`, `qualityShareLinks` collection, `quality.documents.share` permission | **Nothing reads or writes any of them.** There is no `/q/<token>` route. `q` is reserved in `proxy.ts` and `RESERVED_SLUGS` for a page that does not exist. The permission is grantable on the Access screen and grants nothing. |
 | Studio access tokens | `S.tokens`, `IX.stoken` | Only ever *deleted* (`cascade.js:121`). Never written. |
 | Studio activity log | `S.activityLog` | Never touched. |
 

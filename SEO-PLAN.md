@@ -247,11 +247,11 @@ answers to §9. Wave 3 needs a product decision.
 | 1.2 | Render the H1 as one text node; animate from a visible resting state | `src/components/landing/text/AnimatedHeadline.js` | Stripping tags from `/en` yields the headline as words |
 | 1.3 | Make the preloader a progressive enhancement | `src/components/landing/{LandingPage,Preloader}.js` | Page content is the first paint with JS disabled |
 | 1.4 | `lastmod` from a content hash; drop `/login` and `/signup`; `noindex` both | `src/app/sitemap.js`, the two page files | Two consecutive sitemap fetches return identical `lastmod` |
-| 1.5 | `/` → `/en` becomes 308 | `src/proxy.js` | One permanent hop from the apex to the locale root |
+| 1.5 | `/` → `/en` becomes 308 | `src/proxy.ts` | One permanent hop from the apex to the locale root |
 | 1.6 | Preload fonts, subset, drop unused families from the `@import` | `src/app/globals.css` | No `@import` chain in front of first paint |
 | 1.7 | One brand string everywhere | `src/shared/landing.ts` | `Nompany` appears nowhere |
 | 1.8 | Strip diacritics from Arabic titles and descriptions | `src/lib/seo.ts` | `أدر` not `أدِر` |
-| 1.9 | 404 for slugs that do not resolve or fail a format check | `src/proxy.js`, `src/app/studio/_shell.ts` | `/zzz-not-a-studio` returns 404 |
+| 1.9 | 404 for slugs that do not resolve or fail a format check | `src/proxy.ts`, `src/app/studio/_shell.ts` | `/zzz-not-a-studio` returns 404 |
 | 1.10 | Verify Search Console and Bing Webmaster; submit the sitemap | DNS + `src/app/layout.js` if a token is needed | Both properties verified, sitemap accepted |
 
 **Wave 1 acceptance:** a single script that fetches the live pages and asserts the above,

@@ -16,7 +16,7 @@ model.
 
 | Surface | Path | Served by |
 | --- | --- | --- |
-| The tenant ERP | `nompany.com/<slug>/…` | `src/proxy.js` rewrites to `src/app/studio` |
+| The tenant ERP | `nompany.com/<slug>/…` | `src/proxy.ts` rewrites to `src/app/studio` |
 | Marketing, legal and account pages | `/{en,ar}/…` | `src/app/[locale]` |
 | nompany's own console | `/super` | `src/app/super`, its own registry and cookie |
 

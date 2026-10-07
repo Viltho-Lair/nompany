@@ -164,7 +164,7 @@ precedence rules, free to disagree with the first. So the chain is normalised:
 manifest lookup.** The precedence lives in one place.
 
 **The URL structure does not change.** A studio's address is its slug —
-`nompany.com/<slug>/<section-key>`, rewritten by `src/proxy.js` — and a section
+`nompany.com/<slug>/<section-key>`, rewritten by `src/proxy.ts` — and a section
 key is a single flat token (`crm-sales-pipeline`, `tendering-rates`), not
 `module/screen`. A `[module]/[screen]` route was considered and declined
 06/09/2026: it would change every URL in the product, and `/people` and `/access`

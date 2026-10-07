@@ -9,7 +9,7 @@
 //
 // No database, no server: apiCors is a function over a Request.
 //
-// It lives in src/proxy.js rather than a middleware file because Next 16 refuses
+// It lives in src/proxy.ts rather than a middleware file because Next 16 refuses
 // to start when both exist, so the CORS was folded into the proxy. It is
 // exported separately from `proxy` itself precisely so this test can keep
 // calling it with a plain Request — `proxy` reads `nextUrl`, which only the edge

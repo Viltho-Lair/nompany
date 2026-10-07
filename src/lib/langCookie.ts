@@ -1,6 +1,6 @@
 "use client";
 
-import { UI_LANG_COOKIE, isLocale, defaultLocale } from "@/shared/locale";
+import { UI_LANG_COOKIE, isLocale, defaultLocale, type Locale } from "@/shared/locale";
 
 // THE ONE WRITER OF THE LANGUAGE COOKIE.
 //
@@ -14,7 +14,7 @@ import { UI_LANG_COOKIE, isLocale, defaultLocale } from "@/shared/locale";
 // Same shape as `theme` on purpose: path=/ so it crosses the public site and
 // every studio, a year of max-age, samesite=lax so it survives an OAuth return,
 // and `secure` only where the protocol can carry it (localhost is http).
-export function rememberLocale(code) {
+export function rememberLocale(code: string) {
   if (!isLocale(code)) return;
   try {
     const secure = location.protocol === "https:" ? "; secure" : "";
@@ -25,7 +25,7 @@ export function rememberLocale(code) {
   }
 }
 
-export function readLocale(fallback = defaultLocale) {
+export function readLocale(fallback: Locale = defaultLocale): Locale {
   try {
     const m = document.cookie.match(new RegExp(`(?:^|; )${UI_LANG_COOKIE}=([^;]+)`));
     const v = m ? decodeURIComponent(m[1]) : "";

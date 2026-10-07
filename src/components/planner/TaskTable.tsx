@@ -483,7 +483,7 @@ function RowMenu({ task }: { task: ComputedTask }) {
       {open &&
         createPortal(
           // LANG AND DIR TRAVEL WITH IT. `dir` sits on the studio SHELL, not on
-          // <html> — the root layout never reads the studio record and proxy.js
+          // <html> — the root layout never reads the studio record and proxy.ts
           // sets no x-locale on a tenant address — so a node portalled into the
           // body is a SIBLING of the shell and inherits ltr on every studio route,
           // whatever the tenant speaks. The menu still LANDED correctly in Arabic,

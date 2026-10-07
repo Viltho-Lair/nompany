@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { locales, defaultLocale } from "@/shared/i18n";
 import { SUPER_COOKIE } from "@/platform/auth/authConstants";
 import { SLUG_RE } from "@/platform/db/keys";
@@ -61,7 +61,7 @@ const ALLOWED = new Set([...BUILT_IN, ...EXTRA]);
 // header not named here fails the preflight rather than the request.
 const ALLOW_HEADERS = "content-type, authorization, x-nompany-client, x-nompany-device";
 
-function cors(origin, response) {
+function cors(origin: string, response: NextResponse) {
   response.headers.set("Access-Control-Allow-Origin", origin);
   // WITHOUT THIS A CACHE WILL SERVE ONE ORIGIN'S ANSWER TO ANOTHER. The response
   // differs by request header, and every layer in front of this needs to know.
@@ -74,7 +74,7 @@ function cors(origin, response) {
  * nothing else — no `nextUrl`, no cookies — so tests/desktop-transport.test.mjs
  * can call it with a plain `Request` and no server. Exported for that reason.
  */
-export function apiCors(request) {
+export function apiCors(request: Request) {
   const origin = request.headers.get("origin") || "";
 
   // Not a cross-origin call, or not one we know: behave exactly as before. An
@@ -106,7 +106,7 @@ const LOGIN_PATH = `/${defaultLocale}/login`;
 // "f" is a studio's public forms, /f/<slug>/<code> (19/09/2026).
 const PLATFORM = new Set(["api", "_next", "super", "brand", "favicon.ico", "robots.txt", "sitemap.xml", "manifest.webmanifest", "studio", "c", "q", "f"]);
 
-export function proxy(request) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const seg1 = pathname.split("/")[1] || "";
 
@@ -131,7 +131,7 @@ export function proxy(request) {
   //
   // This checks that the cookie EXISTS, nothing more — the edge cannot reach
   // Redis, so it cannot know whether the token is real. Authorisation happens
-  // in src/app/super/(shell)/layout.js, which verifies it against the stored
+  // in src/app/super/(console)/layout.tsx, which verifies it against the stored
   // token list before rendering anything.
   if (seg1 === "super") {
     const signInPage = pathname === "/super" || pathname === "/super/";

@@ -18,7 +18,7 @@ import type { ReactNode } from "react";
    THE GATE LIVES HERE, once. `(full)` holds the SIGN-IN and so can gate nothing;
    a per-page `currentSuperAdmin()` call nine times over is nine chances to
    forget one, and forgetting is silent — the screen renders, the data is there.
-   The edge redirect in `src/proxy.js` only knows the cookie EXISTS; this is
+   The edge redirect in `src/proxy.ts` only knows the cookie EXISTS; this is
    where the claim is verified.
 
    `admindek ad-scope` IS NOT DECORATION. The console's tokens (`--ad-*`) are

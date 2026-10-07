@@ -232,7 +232,7 @@ export function Dialog({ title, description, onClose, children, width = "max-w-[
     // LANG AND DIR TRAVEL WITH IT, because the portal leaves the element that
     // declares them. A studio's language is the tenant's, so it is declared on
     // the SHELL rather than on <html> — the root layout never reads the studio
-    // record, and proxy.js sets no x-locale on a tenant address, so <html> is
+    // record, and proxy.ts sets no x-locale on a tenant address, so <html> is
     // `dir="ltr"` on EVERY studio route whatever the tenant speaks. Portalling
     // to the body lands the dialog outside the one element that says otherwise,
     // so every dialog in an Arabic studio came out left-to-right: field

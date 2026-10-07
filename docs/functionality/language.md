@@ -26,7 +26,7 @@ does not, so an Arabic studio nests `MuiRtlProvider`, loaded through `dynamic()`
 English tenant never fetches it.
 
 **Anything portalled has to declare `dir` itself.** `dir` sits on the studio SHELL, not on
-`<html>` — the root layout never reads the studio record, and `proxy.js` sets `x-studio-slug`
+`<html>` — the root layout never reads the studio record, and `proxy.ts` sets `x-studio-slug`
 on a tenant address and no `x-locale`, so `<html>` is `dir="ltr"` on every studio route
 whatever the tenant speaks. A node rendered into `document.body` is therefore a SIBLING of the
 shell and inherits LTR: field alignment, button order, and the Arabic font with them, since
@@ -77,7 +77,7 @@ stacked on top of each other. Neither `tsc` nor `next build` can see that, becau
 a valid class; it was found by measuring the element in a browser.
 
 **Every selection is remembered**, wherever it is made: `LangMenu` writes the cookie itself
-(`rememberLocale` in `src/lib/langCookie.js`), so picking Arabic on the marketing site is
+(`rememberLocale` in `src/lib/langCookie.ts`), so picking Arabic on the marketing site is
 still Arabic on the far side of the login, where the URL can no longer say so.
 
 **And so is the page you are reading.** `AccountLocaleProvider`, which wraps every page under

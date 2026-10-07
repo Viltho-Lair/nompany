@@ -2,7 +2,7 @@
 
 Multi-tenant ERP. Next.js 16 · React 19 · Postgres · Tailwind v3 + shadcn/ui + MUI v9 · Vercel.
 Three surfaces in one app: the tenant ERP at `nompany.com/<slug>/…` (rewritten by
-`src/proxy.js` → `src/app/studio`), account pages at `/{en,ar}/…`, and nompany's own
+`src/proxy.ts` → `src/app/studio`), account pages at `/{en,ar}/…`, and nompany's own
 console at `/super`. **EIGHTEEN sections**, plus Main and Approvals, which are not sections —
 Main is the home surface and Approvals is a cross-cutting control: CRM & Sales, Quotations,
 Tendering & Estimating, Projects, Engineering & Documents, Procurement & Subcontracting,
@@ -244,8 +244,9 @@ The `src/lib` split is done, and every folder below is TypeScript. **So is every
 file under `src/components` and `src/app` — zero `.js`/`.jsx` left, measured 06/10/2026**
 (there were 421 on 05/10/2026; the count kept GROWING while it waited on a Wave 4 that was
 never approved, and was converted as its own piece of work — the decision ledger in
-`docs/progress.md`). `checkJs: false` and `allowJs` now hold open only `src/proxy.js` and
-`src/lib/langCookie.js`, which were never on the browser list.
+`docs/progress.md`). `src/proxy.js` and `src/lib/langCookie.js`, never on the browser list,
+were converted on 07/10/2026, so **nothing under `src/` is JavaScript**; `checkJs: false`,
+`allowJs` and `tsconfig.strict.json` now hold nothing open and can go as a change of their own.
 
 **A NEW BROWSER FILE IS `.ts`/`.tsx` — never `.js`/`.jsx`** (05/10/2026). `tests/restructure.mjs`
 refuses one not on `scripts/browser-types-baseline.json`, and `npm run types:browser` holds every

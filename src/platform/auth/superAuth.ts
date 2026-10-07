@@ -362,7 +362,7 @@ export function clearedSuperCookie() {
 
 // THE gate for every /super server component and API route: the cookie is only
 // a claim, and this is where it is checked against the stored token list. The
-// edge proxy's cookie-presence test (src/proxy.js) is a convenience redirect,
+// edge proxy's cookie-presence test (src/proxy.ts) is a convenience redirect,
 // never authorisation — a forged cookie gets past it and dies here.
 export async function currentSuperAdmin() {
   const token = (await cookies()).get(SUPER_COOKIE)?.value;

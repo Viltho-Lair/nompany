@@ -15,7 +15,7 @@ Three surfaces share one Next.js 16 application, one Redis instance, and one dep
 | **Console** | `nompany.com/super/…` | `src/app/super` | `nom_super` → SuperAdmin | nompany's own owners. Platform-wide. |
 | Marketing | `www.nompany.com` | *separate repository* | none | `nompany-main-website`. The ERP 307s `/` to it. |
 
-**Tenancy is slug-driven and resolved at the edge.** `src/proxy.js` takes the first path segment; if it is not in `PLATFORM` (`api`, `_next`, `super`, `brand`, `studio`, `c`, `q`, favicon/robots/sitemap/manifest) and not a locale, it **rewrites** — never redirects — to `/studio/<rest>` and sets `x-studio-slug`. The browser URL never changes. The edge cannot reach Redis, so it does no validation: it routes, and `StudioPage` decides 404 vs "not a member".
+**Tenancy is slug-driven and resolved at the edge.** `src/proxy.ts` takes the first path segment; if it is not in `PLATFORM` (`api`, `_next`, `super`, `brand`, `studio`, `c`, `q`, favicon/robots/sitemap/manifest) and not a locale, it **rewrites** — never redirects — to `/studio/<rest>` and sets `x-studio-slug`. The browser URL never changes. The edge cannot reach Redis, so it does no validation: it routes, and `StudioPage` decides 404 vs "not a member".
 
 > **Load-bearing invariant.** The rewrite must never be paired with a redirect in the other direction. Doing so previously produced `ERR_TOO_MANY_REDIRECTS`, and `www` must never carry a `www → apex` redirect for the same reason.
 
@@ -352,7 +352,7 @@ Two Vercel crons, both gated by `cronDenied()` (`src/platform/auth/cronAuth.js`)
 ## 13. Frontend composition
 
 ```
-proxy.js  ─ rewrite ─►  app/studio/[[...segments]]/page.tsx   (server)
+proxy.ts  ─ rewrite ─►  app/studio/[[...segments]]/page.tsx   (server)
                              │  currentUser → questionnaire gate → studioContext
                              │  visibleSections() filters the nav, default-deny
                              ├─ full-screen escapes (rendered BEFORE the shell):
