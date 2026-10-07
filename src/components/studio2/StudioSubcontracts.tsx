@@ -17,7 +17,6 @@ import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict, procurementRefusal } from "@/shared/studio/procurement";
 // The retention sentence is the billing schedule's own — the mirror of this
 // screen — and Procurement's dictionary never carried one.
-import { projectsDict } from "@/shared/studio/projects";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, btnRow, btnRowDanger, Empty, Dialog, StatTile, fmtDate, tileRow } from "@/components/studio2/ui";
@@ -209,7 +208,7 @@ export default function StudioSubcontracts({ slug, initial }: { slug: string; in
                     accent="rgb(var(--chart-2))" />
                   <StatTile label={tr.heldBack} value={<span className="num">{money(ret.held)}</span>}
                     sub={ret.blocked === "no-release-date"
-                      ? projectsDict(locale).noReleaseDate
+                      ? tr.noReleaseDate
                       : `${tr.retentionRelease}: ${fmtDate(ret.releaseDate)}`}
                     tone={ret.blocked ? "text-amber-700 dark:text-amber-300" : ""} />
                   <StatTile label={tr.netCertified} value={<span className="num">{money(pos.netCertified)}</span>}

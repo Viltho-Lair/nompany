@@ -159,6 +159,9 @@ type Strings = {
   subcontractor: string;
   retentionPct: string;
   retentionRelease: string;
+  // The subcontract screen read this key from Projects' dictionary, where it lives
+  // for the billing schedule, and loaded that whole dictionary for one sentence.
+  noReleaseDate: string;
   retentionLockedHint: string;
   startsOn: string;
   endsOn: string;
@@ -571,6 +574,7 @@ const en: Strings = {
   subcontractor: "Subcontractor",
   retentionPct: "Retention %",
   retentionRelease: "Retention released",
+  noReleaseDate: "No release date set — nobody has said when this is due.",
   retentionLockedHint: "Retention terms cannot change once anything has been certified — every certificate already written withheld this percentage.",
   startsOn: "Starts",
   endsOn: "Ends",
@@ -958,6 +962,7 @@ const ar: Strings = {
   subcontractor: "مقاول الباطن",
   retentionPct: "نسبة الاحتجاز %",
   retentionRelease: "الإفراج عن المحتجز",
+  noReleaseDate: "لم يحدد تاريخ إفراج — لم يقل أحد متى يستحق هذا.",
   retentionLockedHint: "لا تتغير شروط الاحتجاز بعد اعتماد أي شهادة — فكل شهادة صدرت احتجزت هذه النسبة.",
   startsOn: "يبدأ",
   endsOn: "ينتهي",
