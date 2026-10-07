@@ -153,8 +153,8 @@ export async function closePeriod(ctx: FinanceContext, period: string) {
   // to close: a studio with no Inventory, a chart missing an account or a figure
   // already in step all close exactly as before, and the answer says which.
   const lastDay = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 0)).toISOString().slice(0, 10);
-  const today = new Date().toISOString().slice(0, 10);
-  const { autoPost } = await import("./posting");
+  const [{ autoPost }, { studioDay }] = await Promise.all([import("./posting"), import("./ledger")]);
+  const today = studioDay(ctx.studio);
   const stock = await autoPost(ctx, "stock-valuation", lastDay < today ? lastDay : today);
 
   const existing = rows.find((r) => r.period === period);

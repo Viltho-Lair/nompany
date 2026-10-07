@@ -35,6 +35,8 @@ export const GET = route({ ...spec, body: false }, async (procurement) => {
     canEdit: result.canEdit,
     canDelete: result.canDelete,
     canAward: result.canAward,
+    // Raising the awarded order is Inventory's write — see listRfqs.
+    canOrder: result.canOrder,
   };
 });
 

@@ -38,6 +38,7 @@ import {
 import type { CodeLine } from "./depreciation";
 import type { WithholdingRule } from "./withholding";
 import { roundMoney, roundSum, toMinor, fromMinor } from "@/shared/money";
+import { dayIn, studioTimezone } from "@/shared/timezone";
 // THE TILL'S OWN ARITHMETIC, pure and shared: what a closed shift did, as
 // figures. Which ACCOUNT each lands in is this file's business and nothing
 // there knows a chart of accounts exists.
@@ -2429,6 +2430,14 @@ export async function postShift(ctx: FinanceContext, shiftId: string, options: P
 const INVENTORY = "1200";
 
 /**
+ * THE STUDIO'S OWN TODAY, not the server's. The stock is valued by the studio's
+ * day (`stockValuation`), so the day it defaults to and the "not in the future"
+ * check must be that day too — in UTC, an Amman studio after midnight was
+ * offered yesterday and its morning's receipts left out of the figure.
+ */
+export const studioDay = (studio: unknown) => dayIn(new Date(), studioTimezone(studio as { timezone?: unknown }));
+
+/**
  * WHAT THE STOCK WAS WORTH AT THE END OF A DAY, by the studio's own valuation
  * method — Inventory's arithmetic, read with the studio's authority. A studio
  * with no Inventory has no stock to put on the books, and says so.
@@ -2486,7 +2495,7 @@ function effectOn(entry: JournalEntry | undefined, accountId: string | undefined
 export async function stockOnBooks(
   ctx: FinanceContext, asOf: string, read?: { accounts: Account[]; entries: JournalEntry[] },
 ) {
-  const date = day(asOf) || new Date().toISOString().slice(0, 10);
+  const date = day(asOf) || studioDay(ctx.studio);
   const stock = await stockValueAsOf(ctx, date);
   if ("error" in stock) return stock;
   const accounts = read?.accounts || await ledgerAccounts(ctx);
@@ -2538,7 +2547,7 @@ export async function postStockValuation(ctx: FinanceContext, id: string, option
   }
   const asOf = day(id);
   if (!asOf) return { error: "date" as const };
-  if (asOf > new Date().toISOString().slice(0, 10)) return { error: "future" as const };
+  if (asOf > studioDay(ctx.studio)) return { error: "future" as const };
 
   const stock = await stockValueAsOf(ctx, asOf);
   if ("error" in stock) return stock;
