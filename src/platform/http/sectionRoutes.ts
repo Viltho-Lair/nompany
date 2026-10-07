@@ -212,6 +212,7 @@ export const EXEMPT_ROUTES: Record<string, string> = {
   "administration": "Administration is not a section (CLAUDE.md) and cannot be switched",
   "approvals": "Approvals is not a section: it is where every department's signatures are answered",
   "availability": "who is free, across the studio",
+  "billing": "the owner's account with nompany — paying for the studio, open even when every part is off",
   "calendar-share": "a share link, outside the section model",
   "collaborators": "the studio's people, not a department",
   "documents": "printing a document the caller already reached through its own section",

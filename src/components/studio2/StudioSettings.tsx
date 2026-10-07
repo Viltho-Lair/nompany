@@ -830,11 +830,12 @@ function LegalInfo({ rows, canManage, onSave }: { rows: LegalRow[]; canManage: b
     setBusy(true);
     // Blank rows are the form's, not the record's — an empty pair left at the
     // bottom is somewhere to type, not something to store.
-    // `save` answers `true` or the server's reason, never `false`, so a refusal
-    // still marks this saved — the page banner is what reports it.
+    // `save` answers `true` or the server's reason — never `false` — so only
+    // `true` is a save. This asked `ok !== false` and marked a REFUSED save as
+    // saved, with only the page banner saying otherwise.
     const ok: unknown = await onSave({ legalInfo: draft.filter((r) => r.key.trim()) });
     setBusy(false);
-    setSaved(ok !== false);
+    setSaved(ok === true);
   }
 
   return (
@@ -1160,7 +1161,9 @@ function FavouriteCurrencies({ codes, base, fx, canManage, onSave }: {
     setBusy(true);
     const ok: unknown = await onSave({ favoriteCurrencies: picked });
     setBusy(false);
-    if (ok !== false) setOpen(false);
+    // Only a real save closes the picker; a refusal leaves the choice in front
+    // of the person who made it.
+    if (ok === true) setOpen(false);
   }
 
   return (
@@ -1288,7 +1291,8 @@ function EditRow({ icon, label, value, editValue, canManage, hint, onSave, rende
     setBusy(true);
     const ok = await onSave(String(draft || "").trim());
     setBusy(false);
-    if (ok !== false) setOpen(false);
+    // `true` alone is a save (see `save`); a refused value stays open to fix.
+    if (ok === true) setOpen(false);
   }
 
   if (open) {

@@ -169,7 +169,10 @@ screens rendering one panel is not two doors; two routes would be.
 
 **The right moved with the collection.** Creating a place asked for
 `fieldService.tracking.create` and asks `administration.master.create` now, so somebody who runs
-the rota needs Master data's right to add one and sees the list read-only without it.
+the rota needs Master data's right to add one and sees the list read-only without it. (Schedule's
+Locations tab was read-only for EVERYBODY until 2026-10-07 — its view never sent the three rights,
+so the panel offered no add, edit or delete even to the owner. `scheduleView` asks them now, the
+same three questions the Field Operations root asks.)
 `administration.master` takes the full create/edit/delete ladder where its three siblings take
 view/edit, because master data is records rather than a settings form.
 

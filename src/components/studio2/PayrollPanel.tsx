@@ -15,9 +15,7 @@ import type { RunTotals } from "@/modules/hr/payroll";
 
 type PayData = Extract<Awaited<ReturnType<typeof listPay>>, { people: unknown }>;
 type Person = PayData["people"][number];
-// THE LIST'S ROWS CARRY NO `currency` — `listPay` maps it away — so the money
-// below falls back to the studio's. Typed as optional rather than invented.
-type RunRow = PayData["runs"][number] & { currency?: string };
+type RunRow = PayData["runs"][number];
 type Run = Extract<Awaited<ReturnType<typeof readRun>>, { run: unknown }>["run"];
 type Money = number | string | null | undefined;
 // THE PAY FORM HOLDS WHAT WAS TYPED: amounts are text until they are saved.

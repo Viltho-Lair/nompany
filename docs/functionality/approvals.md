@@ -30,7 +30,7 @@ items and a type this build does not know stay with the available ones.
 
 | Button | Where | Files | When approved |
 |---|---|---|---|
-| Send for Approval | a Sales ticket, for its latest finished quotation; Technical, for an internal quotation | **Quotation approval** | the quotation reads Approved everywhere, can be locked, opens a project, and ends the RFQ asking |
+| Send for Approval | a Sales ticket, for its latest finished quotation; Technical, for an internal quotation | **Quotation approval** | the quotation reads Approved everywhere, can be locked, opens a project, and ends the RFQ asking; a no shows on the ticket as **Rejected — send again**, with the approver's reason on hover |
 | Submit PO | a Sales ticket, once its quotation is approved | **Client PO approval**, carrying what the client sent (a description, a file, or both) | the **project number is issued** (`effects.ts` → `issueProjectNumber`), as Finance's signature on the old board did |
 | Request approval | Point of Sale → Returns: asking for a return is asking for its approval | **Till return**, carrying the refund as its amount | the units go back into stock and the refund is paid (`returnApproval` in `modules/sales/posReturns`); rejected, the return is closed with the reason |
 | Request approval | Finance → Payables, on a received bill (or one whose last request was turned down) | **Supplier bill**, carrying its total in its own currency | the bill becomes Approved, which payment waits on (`billApproval` in `modules/finance/payables`); a no changes nothing on the bill — it is corrected and asked about again, disputed or cancelled |

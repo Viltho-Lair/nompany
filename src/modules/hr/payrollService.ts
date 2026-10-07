@@ -213,6 +213,10 @@ export async function listPay(ctx: HrContext) {
       .sort((a, b) => String(b.period).localeCompare(String(a.period)))
       .map((r) => ({
         id: r.id, period: r.period, status: r.status, totals: r.totals,
+        // THE CURRENCY THE RUN WAS STAMPED IN (`stampCurrency`, above). Left off
+        // this list until 07/10/2026, so every row's figures fell back to the
+        // studio's currency — wrong for any run made before that changed.
+        currency: r.currency,
         preparedByAlias: alias[r.preparedByCollaboratorId] || "",
         // HOW FAR ITS APPROVAL HAS GOT, read from the approval — answered on the
         // Approvals page since 19/09/2026 — and whether this reader may ask:

@@ -107,6 +107,10 @@ export type ApprovalSummary = {
   quotationId: string;
   status: string;
   approved: boolean;
+  /** Turned down — answered by asking again. */
+  rejected: boolean;
+  /** Why, in the approver's words; "" unless rejected. */
+  reason: string;
   required: number;
   granted: number;
   at: string;

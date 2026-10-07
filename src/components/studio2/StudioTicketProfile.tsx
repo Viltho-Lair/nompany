@@ -223,10 +223,8 @@ export default function StudioTicketProfile({ slug, ticketId, initial }: { slug:
   // button is never drawn where pressing it would be turned down.
   const canRequestRfq = canAct && canRequestRfqStatus(ticket.status) && !ticket.quotationApproved;
   const approval = ticket.approval;
-  // TURNED DOWN, read off the status: the ticket's approval summary carries
-  // `status` and not the `rejected` flag this screen asked for, so a refused
-  // approval read as still pending and could never be sent again.
-  const approvalRejected = approval?.status === "Rejected";
+  // TURNED DOWN — carried on the ticket's approval summary, with the reason.
+  const approvalRejected = Boolean(approval?.rejected);
   const showApproval = canAct && data.hasApprovals && !ticket.rfqPending
     && (ticket.hasFinishedQuotation || approval);
   // The PO follows the approval: it is offered once the quotation this ticket
@@ -442,7 +440,9 @@ export default function StudioTicketProfile({ slug, ticketId, initial }: { slug:
                   // A REJECTED approval is answered by asking again — the
                   // rejection stays on the Approvals page as the record of it.
                   <button type="button" className={btnApprove} disabled={acting === "approval"}
-                    title={tr.sendLatestQuotationAppointed}
+                    // A rejection says why on hover, in the approver's words, so
+                    // whoever sends it again knows what to change first.
+                    title={approvalRejected && approval?.reason ? approval.reason : tr.sendLatestQuotationAppointed}
                     onClick={() => act("approval")}>
                     {acting === "approval" ? tr.sending : approvalRejected ? tr.approvalRejectedSendAgain : tr.sendApproval}
                   </button>

@@ -210,6 +210,14 @@ export async function scheduleView(ctx: ScheduleContext) {
   return {
     canManage: ctx.canManage,
     canManagePlaces,
+    // THE SAME THREE QUESTIONS THE OPERATIONS ROOT ASKS (its route.ts):
+    // locations are Master data's, so editing one answers to
+    // administration.master, never to the rota. The Schedule screen's
+    // Locations tab read these flags and this view never sent them, so the tab
+    // offered no add, edit or delete to anybody — the owner included.
+    canManageLocations: !requirePermission(ctx.access, "administration.master.edit"),
+    canCreateLocations: !requirePermission(ctx.access, "administration.master.create"),
+    canDeleteLocations: !requirePermission(ctx.access, "administration.master.delete"),
     permitRights,
     permitsMoved,
     nav: ctx.nav,

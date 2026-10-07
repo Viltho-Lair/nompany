@@ -22,7 +22,8 @@ retention in Finance rather than on a project screen.
 **Where the field is:** Finance → Payables & Expenses, on the bill form beside the cost code, and
 on the expense form beside the project. Both offer the studio's **open** campaigns (a completed or
 cancelled campaign is not something to file a new cost against) and both are absent in a studio
-that runs no campaigns. Re-filing a cost against another campaign does **not** re-open its
+that runs no campaigns. (The expense form's list was EMPTY until 2026-10-07: `/finance` read the
+campaigns and never sent them, so no expense entered on screen could name one.) Re-filing a cost against another campaign does **not** re-open its
 approval: which campaign a cost belongs to is a filing decision, not a change to what is owed.
 
 ## What counts as spend

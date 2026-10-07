@@ -489,6 +489,12 @@ function ticketSummary(
     quotationId: newest.id,
     status: carry.status,
     approved: carry.approved,
+    // CARRIED, NOT RE-DERIVED: the ticket screen asked for `rejected` and this
+    // summary dropped it, so a turned-down approval read as still pending and
+    // could never be sent again; and the approver's reason never reached the
+    // person who has to act on it.
+    rejected: carry.rejected,
+    reason: carry.reason,
     required: carry.required,
     granted: carry.granted,
     at: carry.at,

@@ -87,6 +87,14 @@ export const PositionSchema = z.object({
   sectionId: z.string(),
   collaboratorId: z.string(),
   locationId: z.string().max(60).optional(),
+  // THE FIX ITSELF, which `reportPosition` writes on every report and the
+  // tracking map plots — undeclared until 07/10/2026, so every reader typed
+  // them by hand. Degrees to six places (about 11 cm); accuracy in whole
+  // metres, 0 when the device gave none. Optional because the schema also
+  // describes a row being built, not only one that has been reported.
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+  accuracy: z.number().min(0).optional(),
   at: z.string(),
   note: z.string().max(300).optional(),
 });

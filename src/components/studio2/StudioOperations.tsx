@@ -50,10 +50,7 @@ import type { sectionNav } from "@/lib/studios";
 
 type ScheduleBody = Awaited<ReturnType<typeof scheduleView>>;
 type ShiftRow = Awaited<ReturnType<typeof listShifts>>[number];
-// `lat`, `lng` and `accuracy` are written on every position (`reportPosition`)
-// and read back here, but `PositionSchema` does not declare them — so they are
-// added to the derived row rather than assumed away.
-type Position = Awaited<ReturnType<typeof listPositions>>[number] & { lat?: number; lng?: number; accuracy?: number };
+type Position = Awaited<ReturnType<typeof listPositions>>[number];
 type OperationsSettingsBody = ScheduleBody["settings"];
 /**
  * WHAT THIS SCREEN IS HANDED — by one of TWO doors, chosen by `view`. The
@@ -233,7 +230,7 @@ export default function StudioOperations({ slug, view = "field-service", initial
     return (
       <div className="space-y-6">
         {banner}
-        <Tracking slug={slug} positions={positions as Position[]} meId={me.collaboratorId} canManageTracking={canManageTracking}
+        <Tracking slug={slug} positions={positions ?? []} meId={me.collaboratorId} canManageTracking={canManageTracking}
           onClear={(collaboratorId: string) => send("tracking", "DELETE", { collaboratorId })} onRefresh={load} />
       </div>
     );

@@ -39,7 +39,7 @@ export const GET = route(
   const seeMargins = g.on("finance-reports") && (has("finance.reports.view") || g.canViewDashboard);
   const readInvoices = seeInvoices || seeMargins;
   const readExpenses = seeExpenses || seeMargins;
-  const [allInvoices, allExpenses, projects, { milestones = [] }] = readInvoices || readExpenses ? await Promise.all([
+  const [allInvoices, allExpenses, projects, { milestones = [], campaigns = [] }] = readInvoices || readExpenses ? await Promise.all([
     readInvoices ? listInvoices(g) : Promise.resolve([]),
     readExpenses ? listExpenses(g) : Promise.resolve([]),
     billableProjects(g),
@@ -49,7 +49,7 @@ export const GET = route(
     // billed.
     referencePickers(g.studio, { projects: g.projectsListSection, campaigns: g.campaignsSection },
       { milestones: true, campaigns: true }),
-  ]) : [[], [], [], { milestones: [] }];
+  ]) : [[], [], [], { milestones: [], campaigns: [] }];
   const projectMargins = seeMargins ? await profitability(g, { invoices: allInvoices, expenses: allExpenses }) : [];
   const invoices = seeInvoices ? allInvoices : [];
   const expenses = seeExpenses ? allExpenses : [];
@@ -71,6 +71,11 @@ export const GET = route(
     // than being handed the parent section's answer.
     manage: g.manage,
     invoices, expenses, projects, milestones, items,
+    // WHICH CAMPAIGN AN EXPENSE WAS FOR. Asked of the pickers above since the
+    // expense form gained the field, and never handed back — so the form's
+    // campaign list was always empty and no expense entered on screen ever
+    // reached Marketing's Budget & spend. Only an expense clerk is shown it.
+    pickers: { campaigns: seeExpenses ? campaigns : [] },
     ...setupOf(g),
     profitability: projectMargins,
     summary: summarise(invoices, expenses, g.studio.currency),

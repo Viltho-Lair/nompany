@@ -47,11 +47,14 @@ export default function StudioReports({ slug, access, sections = [], locale = "e
   const sets = exportableFor((key) => access.has(key as PermissionKey), switchboard(sections));
 
   // GROUPED BY SECTION, in catalogue order, so a studio finds its invoice export
-  // under Finance rather than in an alphabetised list of eight nouns.
+  // under Finance rather than in an alphabetised list of eight nouns. Grouped by
+  // NAME, not by adjacency: the catalogue is not sorted by section (Customers,
+  // then Items, then Deals), and joining only neighbours drew "CRM & Sales" and
+  // "Inventory & Warehouse" twice each — two headings with one key apiece.
   const groups: { group: string; rows: typeof sets }[] = [];
   for (const d of sets) {
-    const last = groups[groups.length - 1];
-    if (last && last.group === d.group) last.rows.push(d);
+    const found = groups.find((g) => g.group === d.group);
+    if (found) found.rows.push(d);
     else groups.push({ group: d.group, rows: [d] });
   }
 

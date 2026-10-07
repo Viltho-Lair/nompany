@@ -268,7 +268,8 @@ says so across the page.
   so a person cannot read their own. The slip carries no employee number, job title or
   national id, because payroll stores none of them on the line.
 - **One currency.** Everybody is paid in the studio's own; there is no per-employee
-  currency and no FX.
+  currency and no FX. A run keeps the currency it was made in, and the list of runs shows each run
+  in that currency (until 2026-10-07 the list dropped it and fell back to the studio's today).
 - **`Paid` is a state somebody sets by hand.** Nothing reconciles it against a bank
   statement, and nothing posts the payment itself — the run posts the accrual on approval
   only, so `2200` is cleared by whatever Finance records for the bank transfer.
