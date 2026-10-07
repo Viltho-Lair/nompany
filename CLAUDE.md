@@ -161,7 +161,9 @@ when the code looks cleaner afterwards.
    owner or an Admin answer their own request on every type, and `approvals.md` says so.
    **Two things stay strict for everyone, owner included:** a controlled DOCUMENT REVISION
    (its reviewer is never its approver), and a SUBCONTRACT CERTIFICATE (its valuation's writer
-   never certifies it, `same-signer`). Neither goes through the Approvals engine. A PERMIT TO
+   never certifies it, `same-signer`). The certificate does not go through the Approvals engine;
+   the revision DOES (`document-revision`), as the one type marked `distinctSigners`, which the
+   engine itself enforces on the owner too — this said "neither" until 07/10/2026. A PERMIT TO
    WORK separates the acts by right instead — requesting is `qualityHse.permits.create`,
    issuing is a move under `.edit` — so a studio gives the two to different people; the
    owner, asked 27/09/2026, left it there.
