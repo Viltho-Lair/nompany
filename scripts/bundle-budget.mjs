@@ -657,7 +657,19 @@ const baselines = JSON.parse(readFileSync(BASELINES_FILE, "utf8"));
 // the ten screens above, Turbopack merged them rather than splitting them —
 // which is the same finding restated: a client-module `import()` is a REQUEST,
 // not a guarantee. What it is never wrong to do is measure the route first.
-const MAX_TOTAL_GZIP_KB = 1925;
+//
+// 1925 -> 3195 on 07/10/2026, on the owner's instruction to re-record, with the
+// per-route baselines rewritten in the same commit. THIS IS NOT ONE CHANGE'S
+// COST and it says so rather than naming one: nothing ran this gate from 09/09
+// to 07/10, and a clean build of b64c0656 (04/10, before the TypeScript
+// conversion) already measured 3153. The conversion itself moved the total
+// within build-to-build noise (3148–3178 across three builds of one tree) and
+// took 5 KB off every public page; the one route it grew — the studio, by
+// 15 KB, from a whole dictionary imported for one sentence — was paid back
+// before this was recorded (525). The largest chunk did not move (162 against
+// 250). What a month of features added to the total is unattributed here, and
+// is the work to do if the number is to come down.
+const MAX_TOTAL_GZIP_KB = 3195;
 
 const totalKb = files.reduce((sum, f) => sum + f.gzip, 0) / 1024;
 const biggest = files[0];
