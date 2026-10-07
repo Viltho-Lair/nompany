@@ -250,6 +250,13 @@ export const OrderSchema = z.object({
    */
   requisitionId: z.string().max(60).optional(),
   /**
+   * THE SUPPLIER RFQ THIS ORDER WAS RAISED FROM, when it was — the awarded
+   * quote's supplier and prices, copied once. The same direction as
+   * `requisitionId`: Procurement derives "ordered" for an RFQ from this field,
+   * so cancelling the order frees the RFQ to be ordered again.
+   */
+  rfqId: z.string().max(60).optional(),
+  /**
    * THE PROMISE IN FORCE NOW, where the supplier has moved it.
    *
    * `expectedAt` above is what was promised when the order was PLACED and is

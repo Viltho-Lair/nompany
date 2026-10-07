@@ -20,6 +20,18 @@ type Strings = {
   credit: string;
   total: string;
   unbalanced: string;
+  // STOCK ON THE BOOKS — the Inventory account moved to what the stock is worth.
+  stockTitle: string;
+  stockLead: string;
+  stockAsOf: string;
+  stockValue: (method: string) => string;
+  stockBooks: string;
+  stockDifference: string;
+  stockPost: string;
+  stockInStep: string;
+  stockFirstTime: string;
+  stockPosted: string;
+  stockRefusal: (token: string) => string;
   noEntries: string;
   nothingHere: string;
   income: string;
@@ -108,6 +120,25 @@ const en: Strings = {
   // single "out by" figure hides which side is wrong, which is the only thing
   // the report is read for when it does not balance.
   unbalanced: "The two sides do not agree. Every entry balances on its own, so a difference here means an account was removed from the chart after it was posted to.",
+  stockTitle: "Stock on the books",
+  stockLead: "Bills post the goods they charge for to Cost of Sales. This moves whatever is still on the shelves at the end of a day off Cost of Sales and onto the Inventory account, so the balance sheet shows the stock you hold. Do it at each month end — closing a month does it for you.",
+  stockAsOf: "As of",
+  stockValue: (method) => `Stock is worth (${method === "fifo" ? "FIFO" : "weighted average"})`,
+  stockBooks: "Inventory account says",
+  stockDifference: "Difference to post",
+  stockPost: "Put stock on the books",
+  stockInStep: "The Inventory account already matches the stock.",
+  stockFirstTime: "The first time this is large: everything on the shelf was expensed when it was bought, and all of it moves back off Cost of Sales now.",
+  stockPosted: "Posted. The Inventory account now matches the stock.",
+  stockRefusal: (token) => ({
+    "in-step": "The Inventory account already matches the stock — nothing to post.",
+    future: "Stock cannot be put on the books for a day that has not happened yet.",
+    date: "Pick the day to value the stock at.",
+    chart: "The chart of accounts is missing Inventory (1200) or Cost of Sales (5000).",
+    "no-inventory": "This studio has no Inventory, so there is no stock to put on the books.",
+    "period-closed": "That month is closed. Reopen it to post into it.",
+    forbidden: "Posting to the ledger needs the right to post.",
+  } as Record<string, string>)[token] || "That did not post.",
   noEntries: "Nothing posted yet.",
   nothingHere: "Nothing in this section.",
   income: "Income",
@@ -269,6 +300,25 @@ const ar: Strings = {
   credit: "دائن",
   total: "المجموع",
   unbalanced: "الجانبان غير متطابقين. كل قيد متوازن بذاته، فالفارق هنا يعني أن حسابا حذف من الدليل بعد الترحيل اليه.",
+  stockTitle: "المخزون في الدفاتر",
+  stockLead: "تُرحّل فواتير الموردين البضاعة إلى تكلفة المبيعات. هذا ينقل ما بقي على الرفوف في نهاية يوم من تكلفة المبيعات إلى حساب المخزون، فتُظهر الميزانية المخزون الذي تملكه. افعله في نهاية كل شهر — إقفال الشهر يفعله تلقائيا.",
+  stockAsOf: "في تاريخ",
+  stockValue: (method) => `قيمة المخزون (${method === "fifo" ? "الوارد أولا صادر أولا" : "المتوسط المرجح"})`,
+  stockBooks: "رصيد حساب المخزون",
+  stockDifference: "الفرق المطلوب ترحيله",
+  stockPost: "إدراج المخزون في الدفاتر",
+  stockInStep: "حساب المخزون يطابق المخزون بالفعل.",
+  stockFirstTime: "في المرة الأولى يكون المبلغ كبيرا: كل ما على الرفوف قُيّد مصروفا عند شرائه، ويعود كله الآن من تكلفة المبيعات.",
+  stockPosted: "تم الترحيل. حساب المخزون يطابق المخزون الآن.",
+  stockRefusal: (token) => ({
+    "in-step": "حساب المخزون يطابق المخزون بالفعل — لا شيء للترحيل.",
+    future: "لا يمكن إدراج المخزون ليوم لم يأت بعد.",
+    date: "اختر اليوم الذي يُقيَّم فيه المخزون.",
+    chart: "دليل الحسابات ينقصه حساب المخزون (1200) أو تكلفة المبيعات (5000).",
+    "no-inventory": "لا يوجد قسم مخزون في هذا الاستوديو، فلا مخزون لإدراجه.",
+    "period-closed": "ذلك الشهر مقفل. أعد فتحه للترحيل فيه.",
+    forbidden: "الترحيل إلى الدفاتر يحتاج صلاحية الترحيل.",
+  } as Record<string, string>)[token] || "لم يُرحّل ذلك.",
   noEntries: "لا توجد قيود بعد.",
   nothingHere: "لا يوجد شيء في هذا القسم.",
   income: "الايرادات",

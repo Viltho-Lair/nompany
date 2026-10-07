@@ -14,7 +14,7 @@ import StudioDate from "@/components/fields/StudioDate";
 import FinanceSetupNotice from "@/components/studio2/FinanceSetupNotice";
 import { useMoney } from "@/components/studio2/studioCurrency";
 import type { Account, JournalEntry } from "@/modules/finance/types";
-import type { trialBalanceFrom } from "@/modules/finance/ledger";
+import type { trialBalanceFrom, stockOnBooks } from "@/modules/finance/ledger";
 import type { setupFor } from "@/modules/finance/setup";
 
 // THE /finance/ledger BODY. The route assembles it inline from these service
@@ -25,6 +25,8 @@ export type LedgerView = {
   trialBalance: ReturnType<typeof trialBalanceFrom>;
   canPost: boolean;
   canReverse: boolean;
+  /** Stock on the books for the day asked (`?stockAsOf=`), or null with no Inventory. */
+  stock: Extract<Awaited<ReturnType<typeof stockOnBooks>>, { asOf: string }> | null;
 } & ReturnType<typeof setupFor>;
 type Tr = ReturnType<typeof ledgerDict>;
 type TrialRow = LedgerView["trialBalance"]["rows"][number];
@@ -82,13 +84,16 @@ export default function StudioLedger({ slug, initial }: { slug: string; initial?
   const [data, setData] = useState<LedgerView | null>(initial ?? null);
   const [error, setError] = useState("");
   const [tab, setTab] = useState("trial");
+  // THE DAY THE STOCK PANEL VALUES AT — today until somebody picks another.
+  const [stockAsOf, setStockAsOf] = useState("");
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/studios/${slug}/finance/ledger`, { cache: "no-store" });
+    const q = stockAsOf ? `?stockAsOf=${encodeURIComponent(stockAsOf)}` : "";
+    const res = await fetch(`/api/studios/${slug}/finance/ledger${q}`, { cache: "no-store" });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { setError(body.error || "failed"); return; }
     setData(body);
-  }, [slug, setData, setError]);
+  }, [slug, stockAsOf, setData, setError]);
 
   useReload(load, initial);
   useLiveUpdates(slug, "finance-ledger", load);
@@ -120,6 +125,11 @@ export default function StudioLedger({ slug, initial }: { slug: string; initial?
             </button>
           ))}
       </div>
+
+      {tab === "trial" && data.stock && (
+        <StockOnBooks slug={slug} stock={data.stock} canPost={!!data.canPost} tr={tr}
+          onAsOf={setStockAsOf} onPosted={load} />
+      )}
 
       {tab === "trial" && (
         <section className="overflow-x-auto">
@@ -421,5 +431,77 @@ function AccountForm({ account, accounts, tr, onCancel, onSave }: {
         <button className={btnGhost} onClick={onCancel}>{tr.cancel}</button>
       </div>
     </div>
+  );
+}
+
+// STOCK ON THE BOOKS — what the stock is worth beside what the Inventory account
+// says, and the one button that moves the account to match. The figures are the
+// server's (`stockOnBooks`); posting re-reads them, so a stale screen cannot
+// post a stale difference.
+function StockOnBooks({ slug, stock, canPost, tr, onAsOf, onPosted }: {
+  slug: string;
+  stock: NonNullable<LedgerView["stock"]>;
+  canPost: boolean;
+  tr: Tr;
+  onAsOf: (day: string) => void;
+  onPosted: () => unknown;
+}) {
+  const money = useMoney();
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const difference = Number(stock.difference) || 0;
+  // NOTHING ON THE BOOKS YET while stock is held: the first true-up, and the
+  // one somebody should be warned is large.
+  const first = Number(stock.books) === 0 && Number(stock.value) > 0;
+
+  const post = async () => {
+    setBusy(true); setMessage(null);
+    const done = await write(`/api/studios/${slug}/finance/ledger`, "POST",
+      { document: { kind: "stock-valuation", id: stock.asOf } });
+    setBusy(false);
+    if (!done.ok) { setMessage({ ok: false, text: tr.stockRefusal(done.error) }); return; }
+    setMessage({ ok: true, text: tr.stockPosted });
+    await onPosted();
+  };
+
+  return (
+    <section className="rounded-xl border border-slate-200 p-4 dark:border-white/10">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-2xl">
+          <h3 className="font-display text-sm font-700 text-slate-900 dark:text-white">{tr.stockTitle}</h3>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{tr.stockLead}</p>
+        </div>
+        <div className="w-44">
+          <Field label={tr.stockAsOf} filled={!!stock.asOf}><StudioDate value={stock.asOf} onChange={(v: string) => onAsOf(v)} /></Field>
+        </div>
+      </div>
+      <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div>
+          <dt className="text-xs text-slate-500 dark:text-slate-400">{tr.stockValue(stock.method)}</dt>
+          <dd className="num font-display text-lg font-700 text-slate-900 dark:text-white">{money(stock.value)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500 dark:text-slate-400">{tr.stockBooks}</dt>
+          <dd className="num font-display text-lg font-700 text-slate-900 dark:text-white">{money(stock.books)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500 dark:text-slate-400">{tr.stockDifference}</dt>
+          <dd className={`num font-display text-lg font-700 ${difference === 0 ? "text-slate-400" : difference > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-300"}`}>
+            {difference > 0 ? "+" : ""}{money(stock.difference)}
+          </dd>
+        </div>
+      </dl>
+      {difference !== 0 && first && (
+        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{tr.stockFirstTime}</p>
+      )}
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        {difference === 0
+          ? <span className="text-sm text-slate-500 dark:text-slate-400">{tr.stockInStep}</span>
+          : canPost && <button type="button" className={btn} disabled={busy} onClick={post}>{tr.stockPost}</button>}
+        {message && (
+          <span className={`text-sm ${message.ok ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-300"}`}>{message.text}</span>
+        )}
+      </div>
+    </section>
   );
 }

@@ -126,6 +126,14 @@ it the bills are **never read**, so the block costs no round trip — the same s
 360 — and `billedValue`, the variance and **the flags derived from them** are all withheld.
 Telling somebody an order is over-billed *is* telling them the invoice exceeds the delivery.
 
+## Lot, expiry and bin on a received line (07/10/2026)
+
+Each line of the booking-in dialog takes an optional lot number, expiry date and bin. They are
+validated with the quantities — everything before anything — then the receipt's own stock
+movement is written straight into that bin and batch, and the note stores both
+(`ReceiptLineSchema.batchId`, `lot`, `binId`). Leaving them blank books in exactly as before.
+`batches.md` and `bins.md` say what each register does with it.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

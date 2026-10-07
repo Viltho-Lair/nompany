@@ -27,6 +27,8 @@ export type InventoryContext = ModuleContext & {
   deliveriesSection: Section;
   projectsSection: Section | null;
   requisitionsSection: Section | null;
+  /** Procurement's supplier RFQs, so an awarded one can become this order. */
+  rfqsSection: Section | null;
   projectsListSection: Section | null;
   quotationsSection: Section | null;
   // A handed-over project's sheet composes from its tender's BILL, so the

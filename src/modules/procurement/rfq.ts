@@ -19,11 +19,14 @@ import {
 } from "./rfqModel";
 import type { Rfq, RfqLine, SupplierQuote, QuoteLine } from "./rfqSchema";
 import type { Requisition } from "./schema";
+import type { Order } from "@/modules/inventory/schema";
+import { orderIsLive } from "./orderModel";
 import type { ProcurementContext } from "./types";
 
 const Rfqs = repo<Rfq>("supplierRfqs");
 const Quotes = repo<SupplierQuote>("supplierQuotes");
 const Requisitions = repo<Requisition>("requisitions");
+const Orders = repo<Order>("materialOrders");
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const day = (v: unknown) => str(v, 10);
@@ -99,14 +102,23 @@ export async function listRfqs(ctx: ProcurementContext) {
   // titles to somebody refused the register would leak it through a dropdown.
   const mayReadRequisitions = Boolean(requisitionsSection)
     && !requirePermission(ctx.access, "procurement.requisitions.view");
-  const [rows, quotes, people, requisitions] = await Promise.all([
+  const [rows, quotes, people, requisitions, orders] = await Promise.all([
     Rfqs.find({ studio, section: rfqSection }),
     Quotes.find({ studio, section: rfqSection }),
     listCollaborators(studio.id),
     mayReadRequisitions && requisitionsSection
       ? Requisitions.find({ studio, section: requisitionsSection })
       : Promise.resolve([] as Requisition[]),
+    // THE ORDER EACH AWARD BECAME — derived from the orders (`rfqId`), never a
+    // flag written back here, so cancelling the order frees the RFQ again. The
+    // same rule, and the same `orderIsLive`, a requisition's "ordered" uses.
+    ctx.ordersSection ? Orders.find({ studio, section: ctx.ordersSection }) : Promise.resolve([] as Order[]),
   ]);
+  const orderOf = new Map<string, Order>();
+  for (const o of orders) {
+    const id = String((o as { rfqId?: unknown }).rfqId || "");
+    if (id && orderIsLive(o) && !orderOf.has(id)) orderOf.set(id, o);
+  }
   const aliasOf = new Map(
     (people as { id?: unknown; alias?: unknown }[])
       .map((c) => [String(c?.id ?? ""), String(c?.alias ?? "")] as const),
@@ -133,6 +145,10 @@ export async function listRfqs(ctx: ProcurementContext) {
         comparison: compareQuotes(r.lines, mine, asOf.slice(0, 10), ctx.studio.currency),
         createdByAlias: aliasOf.get(String(r.createdByCollaboratorId || "")) || "",
         awardedByAlias: aliasOf.get(String(r.awardedByCollaboratorId || "")) || "",
+        order: (() => {
+          const o = orderOf.get(r.id);
+          return o ? { id: o.id, reference: String(o.reference || ""), status: String(o.status || "") } : null;
+        })(),
       };
     });
 
@@ -155,6 +171,9 @@ export async function listRfqs(ctx: ProcurementContext) {
     canEdit: !requirePermission(ctx.access, "procurement.rfq.edit"),
     canDelete: !requirePermission(ctx.access, "procurement.rfq.delete"),
     canAward: !requirePermission(ctx.access, "procurement.rfq.award"),
+    // RAISING THE ORDER IS INVENTORY'S WRITE (`createOrder`, which asks this
+    // right again), so the button answers to it rather than to an RFQ right.
+    canOrder: Boolean(ctx.ordersSection) && !requirePermission(ctx.access, "inventory.stock.create"),
   };
 }
 

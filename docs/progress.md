@@ -27,17 +27,18 @@ covers it.
 
 **Next, in order of use — none urgent, none waiting on anybody:**
 
-1. Stock never reaches the ledger: a goods receipt posts nothing, so 1200 Inventory is always
-   empty and the balance sheet is wrong for a studio holding stock (`finance/ledger.ts`).
-2. Awarding a supplier RFQ creates no purchase order (`procurement/rfq.ts` `awardRfq`).
-3. A goods receipt creates no batch and names no bin (`inventory.ts` `receiveOrder`).
-4. A stocktake marked Adjusted moves no stock (it would bring the adjustment approval with it).
-5. Recurring invoices, and billing milestones that raise their invoice.
-6. Attachments, comments and history on engine records (an NCR cannot carry a photo).
-7. Small: training-record expiry warning; hiring creates the employee; shop-floor hours reach
+**Built 07/10/2026 (were 1–4):** stock goes on the books at each month end by the periodic method
+(`stock-on-books.md`); an awarded supplier RFQ raises its purchase order (`requisitions.md`); a
+goods receipt takes a lot, expiry and bin per line (`receiving.md`); and a stock count posts its
+differences as adjustments (`stock-counts.md`). **Not yet opened in the sandbox** — the Cloud SQL
+proxy's credentials lapsed before it could start.
+
+1. Recurring invoices, and billing milestones that raise their invoice.
+2. Attachments, comments and history on engine records (an NCR cannot carry a photo).
+3. Small: training-record expiry warning; hiring creates the employee; shop-floor hours reach
    timesheets; proof of delivery reuses the field view's signature; the sitemap fingerprint
    ignores line endings (row below).
-8. Verify the rows that say "not opened" or "suite not run" — cheap now the suite runs to the
+4. Verify the rows that say "not opened" or "suite not run" — cheap now the suite runs to the
    end again (`0650ce26`).
 
 **Waiting on the owner, not on code:** emailing quotations and invoices (invoices carry no

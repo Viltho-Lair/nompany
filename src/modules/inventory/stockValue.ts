@@ -21,6 +21,7 @@ import { repo } from "@/platform/db/repo";
 import { valueStock, costLedger, type ValuationMethod } from "./valuation";
 import { landedUnitCosts } from "@/modules/logistics/landedCostService";
 import type { InventoryContext } from "./types";
+import { dayIn, studioTimezone } from "@/shared/timezone";
 
 const Movements = repo("inventoryStock");
 const Orders = repo("materialOrders");
@@ -34,8 +35,14 @@ const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
  * @param method - the studio's chosen policy; the caller resolves it so this
  *   never reads a setting and can be asked for either answer.
  */
-export async function stockValuation(ctx: InventoryContext, method: ValuationMethod) {
-  const [movements, orders, items] = await Promise.all([
+/**
+ * `asOf` (yyyy-mm-dd, the studio's own day) VALUES THE STOCK AS IT STOOD AT THE
+ * END OF THAT DAY — only the movements made on or before it — which is what the
+ * ledger needs to put a month-end figure on a month-end balance sheet. Absent,
+ * everything to now, as the Value tab has always shown.
+ */
+export async function stockValuation(ctx: InventoryContext, method: ValuationMethod, asOf?: string) {
+  const [allMovements, orders, items] = await Promise.all([
     Movements.find({ studio: ctx.studio, section: ctx.stockSection }),
     // ORDERS LIVE IN ANOTHER SUB-SECTION and are read directly, the way Finance
     // reads a project: valuing stock is not the same act as opening the orders
@@ -43,6 +50,14 @@ export async function stockValuation(ctx: InventoryContext, method: ValuationMet
     Orders.find({ studio: ctx.studio, section: ctx.sheetsSection }),
     Items.find({ studio: ctx.studio, section: ctx.itemsSection }),
   ]);
+  const zone = studioTimezone(ctx.studio as { timezone?: unknown });
+  const movements = asOf
+    // A MOVEMENT WITH NO TIME is older than the field and counts as held.
+    ? allMovements.filter((m) => {
+      const at = String((m as { at?: unknown }).at || "");
+      return !at || Number.isNaN(Date.parse(at)) || dayIn(at, zone) <= asOf;
+    })
+    : allMovements;
 
   // itemId -> unitPrice, per order. Built once rather than searched per
   // movement: a busy studio has thousands of movements and hundreds of orders,

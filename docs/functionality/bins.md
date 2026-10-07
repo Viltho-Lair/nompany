@@ -105,14 +105,20 @@ register), rather than "may write anything here".
 - **A move with both ends the same** (`same-bin`): the balances would be unchanged and the
   ledger would carry a pair of entries recording nothing.
 
+## A receipt names its bin (07/10/2026)
+
+Booking goods in takes an optional **bin** per line, and the receipt's own movement carries the
+`binId` — `record` threads it through — so the units are on the shelf from the moment they are
+accepted, with no put-away pair afterwards. A bin that no longer exists refuses the receipt
+(`bin`) before anything is written.
+
 ## Not built yet
 
-- **Receipts and issues do not name a bin.** Only a move does, so everything arriving from
-  a purchase order or leaving on a delivery note lands in `unbinned` and is put away as a
-  second step. Threading `binId` through `record` is the next slice.
+- **Issues do not name a bin.** A receipt does now (below); everything leaving on a delivery
+  note or a work-order issue still comes off `unbinned` rather than a shelf.
 - **No bin on a serial.** Serial-tracked items know which units are held, not which shelf.
 - **No capacity, no picking order, no zones.** A bin is a code, a description and a place.
-- **No stocktake by bin.** The stocktake register counts an item, not a shelf, so a count
+- **No count by bin.** A stock count (`stock-counts.md`) counts an item, not a shelf, so a count
   cannot correct a bin split on its own.
 - **`negative` is reported and never actioned.** There is no reconciliation workflow —
   somebody reads the list and moves stock until it clears.

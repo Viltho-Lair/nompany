@@ -61,6 +61,13 @@ type Strings = {
   rejectedQty: string;
   outstandingQty: string;
   receiptNotes: string;
+  // WHERE A RECEIVED LINE GOES — its lot, its expiry and its bin, all optional.
+  lotLabel: string;
+  lotHint: string;
+  expiresLabel: string;
+  binLabel: string;
+  noBin: string;
+  refuseBinUnknown: string;
   noReceiptsYet: string;
   receiptsHeading: string;
   correctionBadge: string;
@@ -258,6 +265,14 @@ type Strings = {
   awardReason: string;
   awardReasonRequired: string;
   awardedTo: (vendor: string, who: string) => string;
+  // AN AWARD BECOMES AN ORDER — to the winning supplier, at the quoted prices.
+  raiseOrder: string;
+  raiseOrderHint: string;
+  rfqOrderedAs: (reference: string, status: string) => string;
+  orderSkipped: (n: number) => string;
+  refuseRfqOrdered: string;
+  refuseRfqNoItems: string;
+  refuseRfqNotAwarded: string;
   weeks: (n: number) => string;
   perLineBest: string;
   refuseNotSent: string;
@@ -476,6 +491,12 @@ const en: Strings = {
   rejectedQty: "Rejected",
   outstandingQty: "Still due",
   receiptNotes: "Notes",
+  lotLabel: "Lot / batch",
+  lotHint: "As printed on the goods. An existing lot of this item is added to; a new one is created.",
+  expiresLabel: "Expires",
+  binLabel: "Put away in",
+  noBin: "No bin",
+  refuseBinUnknown: "That bin no longer exists — pick another or leave it unbinned.",
   noReceiptsYet: "Nothing booked in yet.",
   receiptsHeading: "Goods received",
   correctionBadge: "Correction",
@@ -671,6 +692,13 @@ const en: Strings = {
   awardReason: "Why this supplier",
   awardReasonRequired: "This is not the cheapest comparable quote, so the reason is recorded with the decision.",
   awardedTo: (vendor, who) => `Awarded to ${vendor} by ${who}`,
+  raiseOrder: "Raise purchase order",
+  raiseOrderHint: "A draft order to the winning supplier, with every line at the price they quoted. Check it, then place it from Purchase orders.",
+  rfqOrderedAs: (reference, status) => `Ordered as ${reference} (${status})`,
+  orderSkipped: (n) => `${n} line${n === 1 ? "" : "s"} named no registered item and ${n === 1 ? "is" : "are"} not on the order — register the item${n === 1 ? "" : "s"} to buy ${n === 1 ? "it" : "them"} as stock.`,
+  refuseRfqOrdered: "This award already has a live purchase order. Cancel that order first to raise another.",
+  refuseRfqNoItems: "None of this RFQ's lines names a registered item, so there is nothing an order could put into stock.",
+  refuseRfqNotAwarded: "Only an awarded RFQ can become an order — award a quote first.",
   weeks: (n) => `${n} weeks`,
   perLineBest: "cheapest on this line",
   refuseNotSent: "That request has not been sent, so there is nothing to quote against.",
@@ -864,6 +892,12 @@ const ar: Strings = {
   rejectedQty: "المرفوض",
   outstandingQty: "المتبقي",
   receiptNotes: "ملاحظات",
+  lotLabel: "الدفعة / التشغيلة",
+  lotHint: "كما هي مطبوعة على البضاعة. تُضاف إلى دفعة قائمة لهذا الصنف أو تُنشأ دفعة جديدة.",
+  expiresLabel: "تنتهي في",
+  binLabel: "يُخزّن في",
+  noBin: "بلا رف",
+  refuseBinUnknown: "هذا الرف لم يعد موجودا — اختر غيره أو اتركه بلا رف.",
   noReceiptsYet: "لم يقيد شيء بعد.",
   receiptsHeading: "محاضر الاستلام",
   correctionBadge: "تصحيح",
@@ -1059,6 +1093,13 @@ const ar: Strings = {
   awardReason: "لماذا هذا المورد",
   awardReasonRequired: "هذا ليس أرخص عرض قابل للمقارنة، فيسجل السبب مع القرار.",
   awardedTo: (vendor, who) => `أرسي على ${vendor} بواسطة ${who}`,
+  raiseOrder: "إنشاء أمر شراء",
+  raiseOrderHint: "أمر مسودة إلى المورد الفائز، بكل بند بالسعر الذي عرضه. راجعه ثم اعتمده من أوامر الشراء.",
+  rfqOrderedAs: (reference, status) => `طُلب برقم ${reference} (${status})`,
+  orderSkipped: (n) => `${n} من البنود لا تسمي صنفا مسجلا ولم تدخل الأمر — سجّل الصنف لشرائه كمخزون.`,
+  refuseRfqOrdered: "لهذا الإرساء أمر شراء قائم. ألغِ ذلك الأمر أولا لإنشاء غيره.",
+  refuseRfqNoItems: "لا يسمي أي بند في طلب العروض صنفا مسجلا، فلا شيء يدخله الأمر إلى المخزون.",
+  refuseRfqNotAwarded: "لا يصبح أمرا إلا طلب عروض تم إرساؤه — أرسِ عرضا أولا.",
   weeks: (n) => `${n} أسبوع`,
   perLineBest: "الأرخص في هذا البند",
   refuseNotSent: "لم يرسل هذا الطلب، فلا شيء يسعر عليه.",

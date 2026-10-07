@@ -147,6 +147,16 @@ export async function closePeriod(ctx: FinanceContext, period: string) {
   const now = periodOf(new Date().toISOString().slice(0, 10));
   if (period > now) return { error: "future" };
 
+  // THE STOCK GOES ON THE BOOKS AS THE MONTH CLOSES, valued at its last day —
+  // or today, closing the month still running. BEFORE the lock, because a
+  // closed month refuses every posting including this one. Never a reason not
+  // to close: a studio with no Inventory, a chart missing an account or a figure
+  // already in step all close exactly as before, and the answer says which.
+  const lastDay = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 0)).toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  const { autoPost } = await import("./posting");
+  const stock = await autoPost(ctx, "stock-valuation", lastDay < today ? lastDay : today);
+
   const existing = rows.find((r) => r.period === period);
   const at = new Date().toISOString();
   // A MONTH REOPENED AND CLOSED AGAIN REUSES ITS ROW, clearing the reopening —
@@ -157,12 +167,13 @@ export async function closePeriod(ctx: FinanceContext, period: string) {
       closedByCollaboratorId: ctx.collaborator.id, closedAt: at,
       reopenedByCollaboratorId: "", reopenedAt: "", reason: "",
     });
-    return updated ? { period: updated } : { error: "notfound" };
+    return updated ? { period: updated, stock } : { error: "notfound" };
   }
   return {
     period: await Periods.create(scope(ctx), cleanClose(period, {
       collaboratorId: ctx.collaborator.id, at,
     })),
+    stock,
   };
 }
 

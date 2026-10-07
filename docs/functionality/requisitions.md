@@ -200,6 +200,19 @@ currency of their own — they are the studio's money — so the approval's amou
 base and `judge` (`modules/approvals/approvals.ts`) never converts it, and never refuses
 `no-studio-currency` for it.
 
+## An awarded RFQ becomes the order (07/10/2026)
+
+A supplier RFQ that has been **awarded** shows **Raise purchase order** (Procurement → Supplier
+quotes). It calls Inventory's `createOrder` with `rfqId` — the fifth source beside quotation,
+direct, tender and requisition — which writes a **Draft** order to the winning supplier, never
+one the caller names, with each RFQ line at the price that supplier quoted and the RFQ's project.
+**Once**: derived from the orders (`rfqId` on the order, `orderIsLive`), so cancelling the
+order frees the RFQ, exactly as a requisition is freed. An RFQ raised to price a requisition
+makes the order answer that requisition too, so the request reads as ordered and its own checks
+(approved, not already ordered) still apply. A free-text line names no registered item and is
+left off; the answer counts how many (`skipped`) and the screen says so. Raising the order is
+Inventory's write and asks `inventory.stock.create`.
+
 ## Not built yet
 
 Stated in words, because a silent gap reads as a finished feature.

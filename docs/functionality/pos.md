@@ -411,11 +411,11 @@ halala. `docs/functionality/einvoicing.md` (Till receipts) has the whole of it.
   off in Inventory).
 - **Two returns asked at the same moment for the same last unit** can both be recorded as
   waiting; the approval re-checks, so only one can be approved.
-- **Cost of sales.** A shift posts revenue, tax and money (above) and does NOT post what the
-  goods cost, because **nothing in this product ever debits Inventory** — a goods receipt posts
-  nothing, so account 1200 has never been debited, and crediting it here would drive an asset
-  negative and report a margin against stock the books never bought. It waits on goods receipts
-  posting, which is its own change.
+- **Cost of sales per shift.** A shift posts revenue, tax and money (above) and not what the
+  goods cost. Cost of sales reaches the books the PERIODIC way instead (07/10/2026): bills post
+  purchases to Cost of Sales, and the stock true-up (`docs/functionality/stock-on-books.md`) moves
+  what is still on the shelf back onto Inventory at a month end — so a month's Cost of Sales is what
+  was sold, till sales included. What is missing is the per-shift margin on the shift report.
 - **Sending the receipt by WhatsApp** as a PDF from the till's share menu; the server does not
   render a PDF. **The WhatsApp Business API is on hold.**
 - **Any country's fiscal layer**: no QR code, signature, counter chain or reporting to a tax

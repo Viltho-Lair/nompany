@@ -136,11 +136,17 @@ batch taken, naming it, which is what makes a recall answerable. Movements now d
 - **A deleted item's label comes back empty** and the screen says "(removed item)" in the
   reader's language.
 
+## A receipt creates the batch (07/10/2026)
+
+Booking goods in (Procurement → Receiving) takes an optional **lot and expiry** per line. An
+existing lot of that item is added to and keeps its own expiry; a new lot is checked by
+`batchProblems` — the same rule this register applies — and created only once every line of the
+receipt has passed, so a receipt refused on its third line has created nothing. The receipt's own
+movement carries the `batchId`, so the units are in the lot from the moment they are accepted;
+there is no assign step afterwards. The goods received note stores the lot beside the line.
+
 ## Not built yet
 
-- **Receipts do not create a batch.** A goods receipt records no lot number, so every batch
-  is typed and then assigned as a second step. That is the next slice and it is the one
-  that makes the feature routine rather than deliberate.
 - **Only a sale consumes by FEFO.** A delivery note or a work-order issue still names no
   batch, so those units come off "untracked" rather than a lot.
 - **No expiry notification.** The alerts are on the screen; nothing emails anybody, and

@@ -28,7 +28,7 @@ type ProcurementDict = ReturnType<typeof procurementDict>;
 type RfqList = Exclude<Awaited<ReturnType<typeof listRfqs>>, { error: string }>;
 type RfqRow = RfqList["rfqs"][number];
 /** GET /procurement/rfq — the list's own fields, plus the supplier pickers. */
-type RfqBody = Pick<RfqList, "rfqs" | "requisitionChoices" | "asOf" | "canCreate" | "canEdit" | "canDelete" | "canAward"> & {
+type RfqBody = Pick<RfqList, "rfqs" | "requisitionChoices" | "asOf" | "canCreate" | "canEdit" | "canDelete" | "canAward" | "canOrder"> & {
   pickers: Awaited<ReturnType<typeof referencePickers>>;
 };
 /** A line of the request being written; the quantity is the typed text. */
@@ -64,6 +64,9 @@ function refusal(tr: ProcurementDict, token: string) {
     case "quote-expired": return tr.refuseQuoteExpired;
     case "reason-required": return tr.refuseReasonRequired;
     case "not-awardable": return tr.refuseNotAwardable;
+    case "rfq-ordered": return tr.refuseRfqOrdered;
+    case "rfq-no-items": return tr.refuseRfqNoItems;
+    case "rfq-not-awarded": return tr.refuseRfqNotAwarded;
     default: return procurementRefusal(tr, token) || token;
   }
 }
@@ -84,6 +87,8 @@ export default function StudioRfq({ slug, initial }: { slug: string; initial?: R
   const [awarding, setAwarding] = useState<AwardDraft | null>(null);
   // WHO ELSE TO ASK, after the request has gone out — see the Sent row below.
   const [asking, setAsking] = useState<{ id: string; vendorIds: string[] } | null>(null);
+  // WHAT THE LAST ORDER LEFT OUT, said once after raising it.
+  const [notice, setNotice] = useState("");
 
   const read = useCallback(async () => {
     const res = await fetch(`/api/studios/${slug}/procurement/rfq`, { cache: "no-store" });
@@ -129,10 +134,24 @@ export default function StudioRfq({ slug, initial }: { slug: string; initial?: R
     return true;
   }, [slug, reload, tr]);
 
+  // RAISING THE ORDER IS INVENTORY'S WRITE, so it goes to Inventory's route —
+  // the one door every purchase order is created through (`createOrder`).
+  const raiseOrder = async (rfqId: string) => {
+    setError(""); setNotice(""); setBusy(true);
+    const res = await fetch(`/api/studios/${slug}/inventory/orders`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rfqId }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(refusal(tr, out.error || "failed")); return; }
+    if (Number(out.skipped) > 0) setNotice(tr.orderSkipped(Number(out.skipped)));
+    await reload();
+  };
+
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingRfqs} />;
 
-  const { rfqs, canCreate, canEdit, canDelete, canAward, pickers = {}, requisitionChoices = [] } = data;
+  const { rfqs, canCreate, canEdit, canDelete, canAward, canOrder, pickers = {}, requisitionChoices = [] } = data;
 
   const openForm = (row: RfqRow | null) => setForm(row
     ? { ...row, vendorIds: Array.isArray(row.vendorIds) ? row.vendorIds : [], lines: [...(row.lines || []), emptyLine()] }
@@ -176,6 +195,7 @@ export default function StudioRfq({ slug, initial }: { slug: string; initial?: R
   return (
     <div className="space-y-6">
       {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">{error}</p>}
+      {notice && <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">{notice}</p>}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -215,6 +235,13 @@ export default function StudioRfq({ slug, initial }: { slug: string; initial?: R
                         {r.awardReason ? ` — ${r.awardReason}` : ""}
                       </p>
                     )}
+                    {r.order && (
+                      <p className="mt-1 text-xs">
+                        <a href={`/${slug}/procurement-orders`} className="font-600 text-brand-700 hover:underline dark:text-brand-300">
+                          {tr.rfqOrderedAs(r.order.reference, r.order.status)}
+                        </a>
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {canEdit && r.status === "Draft" && (
@@ -251,6 +278,14 @@ export default function StudioRfq({ slug, initial }: { slug: string; initial?: R
                     {canDelete && r.status === "Draft" && (
                       <button type="button" className={btnRowDanger} disabled={busy}
                         onClick={() => send("DELETE", { id: r.id })}>{tr.remove}</button>
+                    )}
+                    {/* THE AWARD BECOMES AN ORDER. Not automatic: the award is
+                        the decision about WHO, and the order is a document
+                        somebody checks before it goes to the supplier — so it
+                        is written as a Draft, from here, once. */}
+                    {canOrder && r.status === "Awarded" && !r.order && (
+                      <button type="button" className={btn} disabled={busy} title={tr.raiseOrderHint}
+                        onClick={() => raiseOrder(r.id)}>{tr.raiseOrder}</button>
                     )}
                   </div>
                 </div>

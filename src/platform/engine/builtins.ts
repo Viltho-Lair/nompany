@@ -689,6 +689,9 @@ export const BUILTIN_TYPES = [
     // happened and what it found; the adjustment itself is Inventory's own
     // write and is NOT wired to this. Saying so here rather than letting a
     // status called Adjusted imply a movement that never happened.
+    // THE COUNT THAT DOES MOVE STOCK is Inventory → Stock → Counts
+    // (modules/inventory/stockCounts, 07/10/2026): per-item counted figures,
+    // posted as adjustments. This register stays the record that one happened.
     key: "stocktake",
     label: "Stocktakes",
     parentSectionKey: "inventory",

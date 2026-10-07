@@ -25,6 +25,15 @@ export const ReceiptLineSchema = z.object({
    */
   rejected: z.number(),
   note: z.string().max(400),
+  /**
+   * WHERE THE ACCEPTED UNITS WENT, when the receiver said — the batch (lot and
+   * expiry) and the bin. Written on the movement too, which is what every
+   * balance is summed from; kept here so the register can say it without
+   * reading the ledger. Absent on every receipt from before 07/10/2026.
+   */
+  batchId: z.string().max(60).optional(),
+  lot: z.string().max(24).optional(),
+  binId: z.string().max(60).optional(),
 });
 
 export const GoodsReceiptSchema = z.object({

@@ -47,6 +47,8 @@ import { dayIn, studioTimezone } from "@/shared/timezone";
 // refuses exactly what this refuses.
 import { receiptProblem } from "@/modules/procurement/receivingModel";
 import type { GoodsReceipt, ReceiptLine } from "@/modules/procurement/receivingSchema";
+import { batchProblems, cleanBatch } from "./batches";
+import type { Batch } from "./batches";
 // What each department adds to a quotation row, and who owns which column.
 import { SHEET_OWNERS, cleanSheetLine } from "./sheetColumns";
 import type {
@@ -130,6 +132,10 @@ const QUOTATIONS = "quotations";
 // answer for a sibling department's rows as easily as its own.
 const Deliveries = repo<Delivery>(DELIVERIES);
 const Items = repo<Item>(ITEMS);
+// THE BIN AND BATCH REGISTERS, so a goods receipt can put units straight into
+// them (`receiveOrder`). Their own services own every other write.
+const StockBins = repo<{ id: string }>("stockBins");
+const StockBatches = repo<Batch>("stockBatches");
 const Orders = repo<Order>(ORDERS);
 // GOODS RECEIPTS SIT WITH THE ORDERS THEY ANSWER, under `inventory-sheets`.
 // Procurement's Receiving screen reads them through its foreign `orders`
@@ -138,6 +144,16 @@ const Orders = repo<Order>(ORDERS);
 const Receipts = repo<GoodsReceipt>("goodsReceipts");
 // Read-only, and never written from here: Procurement owns the register.
 const Requisitions = repo<{ id: string; status?: string; lines?: unknown; costCodeId?: string }>("requisitions");
+// THE SUPPLIER RFQ AND ITS QUOTES, read (never written) so an awarded RFQ can
+// become an order. Typed by what is read here, not imported from Procurement's
+// schema: Inventory reads these rows the way it reads a requisition.
+const SupplierRfqs = repo<{
+  id: string; status?: string; requisitionId?: string; projectId?: string; awardedQuoteId?: string;
+  lines?: { id?: string; itemId?: string; qty?: number }[];
+}>("supplierRfqs");
+const SupplierQuotes = repo<{
+  id: string; rfqId?: string; vendorId?: string; lines?: { rfqLineId?: string; unitPrice?: number | "" }[];
+}>("supplierQuotes");
 const Projects = repo(PROJECTS);
 const Quotations = repo(QUOTATIONS);
 const BoqItems = repo<BoqItem>("boqItems");
@@ -209,6 +225,9 @@ export const inventoryContext = moduleContext<InventoryContext>({
     // therefore nullable: a studio that has not opened Procurement raises
     // orders exactly as it did before.
     requisitions: ["procurement-requisitions", "procurement"],
+    // The supplier RFQs, so an AWARDED one becomes an order at the prices the
+    // winning supplier quoted. Foreign and nullable for the same reason.
+    rfqs: ["procurement-rfq", "procurement"],
     projectsList: ["projects-list", "projects"],
     // ADMINISTRATION'S LOCATIONS, for the bin register. Foreign and
     // therefore nullable: a studio that has not opened Master data has
@@ -993,7 +1012,7 @@ export async function listMovements(
 // exactly one way for a balance to move.
 async function record(
   ctx: InventoryContext,
-  { itemId, kind, quantity, reason, sourceType = "", sourceId = "", unitCost, loose, cause }: {
+  { itemId, kind, quantity, reason, sourceType = "", sourceId = "", unitCost, loose, cause, binId, batchId }: {
     itemId: string;
     kind: string;
     quantity: number;
@@ -1005,6 +1024,9 @@ async function record(
     /** What it did to the loose pieces, and why it was made — see ./sealedLoose. */
     loose?: number;
     cause?: string;
+    /** Which bin and which batch the units are in — see MovementSchema. */
+    binId?: string;
+    batchId?: string;
   },
 ) {
   const { studio, stockSection, collaborator } = ctx;
@@ -1018,6 +1040,8 @@ async function record(
     ...(unitCost !== undefined && Number.isFinite(unitCost) ? { unitCost } : {}),
     ...(loose !== undefined && Number.isFinite(loose) ? { loose } : {}),
     ...(cause ? { cause } : {}),
+    ...(binId ? { binId } : {}),
+    ...(batchId ? { batchId } : {}),
     byCollaboratorId: collaborator.id,
     at: new Date().toISOString(),
   });
@@ -1696,7 +1720,40 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
   if (denied) return denied;
 
   const { studio, itemsSection, sheetsSection, vendorsSection } = ctx;
-  const vendorId = str(body?.vendorId, 60);
+
+  // ---- answering an awarded supplier RFQ ----------------------------------
+  //
+  // THE FIFTH SOURCE, and a branch here for the reason the requisition is one
+  // (below). Resolved FIRST because it decides the supplier: the order goes to
+  // whoever won the award, never to a vendor the caller names — an order to a
+  // different supplier at the winner's prices would be neither quote.
+  const rfqId = str(body?.rfqId, 60);
+  let fromRfq: { lines: Record<string, unknown>[]; vendorId: string; projectId: string; requisitionId: string } | null = null;
+  if (rfqId) {
+    if (!ctx.rfqsSection) return { error: "no-procurement" };
+    const rfq = await SupplierRfqs.byId({ studio, section: ctx.rfqsSection }, rfqId);
+    if (!rfq) return { error: "rfq" };
+    // ONLY AN AWARD IS A DECISION TO BUY. An RFQ still out with suppliers has
+    // no winner and no price anybody has agreed to.
+    if (String(rfq.status || "") !== "Awarded" || !rfq.awardedQuoteId) return { error: "rfq-not-awarded" };
+    const quote = await SupplierQuotes.byId({ studio, section: ctx.rfqsSection }, rfq.awardedQuoteId);
+    if (!quote || quote.rfqId !== rfqId) return { error: "rfq" };
+    // AND ONCE, derived from the orders exactly as a requisition's is, so a
+    // cancelled order frees the RFQ rather than locking it for good.
+    const placed = await Orders.find({ studio, section: sheetsSection }, { where: { rfqId } });
+    if (placed.some(orderIsLive)) return { error: "rfq-ordered" };
+    const price = new Map((quote.lines || []).map((l) => [String(l.rfqLineId || ""), l.unitPrice]));
+    fromRfq = {
+      // THE AWARDED PRICES, line by line. `awardRfq` refused a part-priced
+      // quote, so every line the RFQ asked for carries a number here.
+      lines: (rfq.lines || []).map((l) => ({ itemId: l.itemId, qty: l.qty, unitPrice: price.get(String(l.id || "")) })),
+      vendorId: String(quote.vendorId || ""),
+      projectId: String(rfq.projectId || ""),
+      requisitionId: String(rfq.requisitionId || ""),
+    };
+  }
+
+  const vendorId = fromRfq ? fromRfq.vendorId : str(body?.vendorId, 60);
   const vendors = await Vendors.find({ studio, section: vendorsSection });
   const vendor = vendors.find((v) => v.id === vendorId);
   if (!vendor) return { error: "vendor" };
@@ -1716,7 +1773,7 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
   const qualification = supplierQualification(vendor, studioToday(studio));
   if (!qualification.usable) return { error: `supplier-${qualification.reason}` };
 
-  const projectId = str(body?.projectId, 60);
+  const projectId = str(body?.projectId, 60) || fromRfq?.projectId || "";
   if (projectId && !(await projectExists(ctx, projectId))) return { error: "project" };
 
   // ---- answering a requisition --------------------------------------------
@@ -1729,7 +1786,10 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
   //
   // It stays entirely optional: an order raised with no requisition behaves
   // exactly as it did before, which is every order in every live studio today.
-  const requisitionId = str(body?.requisitionId, 60);
+  // AN RFQ RAISED TO PRICE A REQUISITION ANSWERS IT TOO, so the request reads
+  // as ordered and cannot be bought a second time from its own screen — and
+  // the checks below (approved, not already ordered) apply to it unchanged.
+  const requisitionId = str(body?.requisitionId, 60) || fromRfq?.requisitionId || "";
   let fromRequisition: { lines?: unknown } | null = null;
   if (requisitionId) {
     if (!ctx.requisitionsSection) return { error: "no-procurement" };
@@ -1766,14 +1826,21 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
   const requested = Array.isArray(fromRequisition?.lines)
     ? (fromRequisition.lines as Record<string, unknown>[]).map((l) => ({ ...l, unitPrice: l.unitPrice ?? l.estUnitCost }))
     : undefined;
-  const lines = cleanLines(body?.lines ?? requested, items);
+  // THE AWARD'S LINES WIN OVER THE REQUISITION'S: the RFQ priced the request,
+  // and the quote is what the supplier actually agreed to.
+  const sourced = fromRfq ? fromRfq.lines : requested;
+  const lines = cleanLines(body?.lines ?? sourced, items);
   // A REQUISITION OF FREE TEXT CANNOT BECOME AN ORDER, and the refusal names
   // why. `cleanLines` drops any line without a KNOWN ITEM, because an order
   // moves stock and stock is Registered Items — so a request for services, or
   // for something nobody has registered, converts to nothing. Returning an
   // empty order would be worse than refusing: it reads as success and buys
   // nothing. See requisitions.md's "Not built yet".
-  if (!lines.length) return { error: requisitionId ? "requisition-no-items" : "lines" };
+  if (!lines.length) return { error: rfqId ? "rfq-no-items" : requisitionId ? "requisition-no-items" : "lines" };
+  // A LINE THAT NAMED NO REGISTERED ITEM IS NOT ON THE ORDER, and the answer
+  // says how many so the screen can tell the buyer rather than let a smaller
+  // order read as the whole award.
+  const skipped = fromRfq && body?.lines === undefined ? fromRfq.lines.length - lines.length : 0;
 
   const orders = await Orders.find({ studio, section: sheetsSection });
   const order = await Orders.create({ studio, section: sheetsSection }, {
@@ -1792,6 +1859,7 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
     costCodeId: str(body?.costCodeId, 60)
       || str((fromRequisition as { costCodeId?: unknown } | null)?.costCodeId, 60),
     requisitionId,
+    ...(rfqId ? { rfqId } : {}),
     lines,
     status: "Draft",
     expectedAt: day(body?.expectedAt),
@@ -1804,7 +1872,7 @@ export async function createOrder(ctx: InventoryContext, body: Record<string, un
   // vendor agreement — attaches to nothing, which is correct: there is no
   // customer deal behind it to join.
   await attachToProjectEngagement(ctx.studio.id, "order", order.id, projectId, order.createdAt as string);
-  return { order };
+  return { order, ...(skipped > 0 ? { skipped } : {}) };
 }
 
 export async function editOrder(ctx: InventoryContext, id: string, body: Record<string, unknown>) {
@@ -1908,9 +1976,17 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
 
   const asked = new Map<string, number>();
   const rejected = new Map<string, number>();
+  // WHERE EACH ITEM'S UNITS GO — a lot (with its expiry) and a bin, both
+  // optional. Until 07/10/2026 a receipt said only HOW MANY, so the batch and
+  // bin registers stayed empty unless somebody filled each one in by hand, and
+  // the till had no batch to sell soonest-expiry-first from.
+  const placed = new Map<string, { lot: string; expiresOn: string; binId: string }>();
   for (const r of Array.isArray(body?.lines) ? body.lines : []) {
     const amount = qty(r?.qty);
     const itemId = str(r?.itemId, 60);
+    const lot = String(r?.lot ?? "").trim();
+    const binId = str(r?.binId, 60);
+    if (lot || binId) placed.set(itemId, { lot, expiresOn: str(r?.expiresOn, 10), binId });
     // Signs are checked by `receiptProblem` below, which is where that rule
     // lives for both the screen and the server.
     if (amount !== 0) asked.set(itemId, amount);
@@ -1952,6 +2028,36 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
     if (!lines.some((l) => l.itemId === itemId)) return { error: "line", itemId };
   }
 
+  // ---- the lot and the bin, CHECKED BEFORE ANYTHING IS WRITTEN ------------
+  // The same "everything before anything" this function holds the quantities
+  // to: a receipt refused on its third line must not have created the first
+  // line's batch. A lot that already exists for the item is REUSED — the
+  // second delivery of one lot is the same lot — and keeps its own expiry; a
+  // new one is checked by the batch register's own rule (`batchProblems`) and
+  // created only once every line has passed.
+  const placing = [...placed].filter(([itemId]) => asked.has(itemId));
+  const reuse = new Map<string, string>();
+  const create: { itemId: string; lot: string; expiresOn: string }[] = [];
+  if (placing.length) {
+    const scope = { studio, section: ctx.stockSection };
+    const [bins, batches, items] = await Promise.all([
+      StockBins.find(scope), StockBatches.find(scope), Items.find({ studio, section: ctx.itemsSection }),
+    ]);
+    for (const [itemId, p] of placing) {
+      if (p.binId && !bins.some((b) => b.id === p.binId)) return { error: "bin", itemId };
+      if (!p.lot) continue;
+      const known = batches.find((b) => b.itemId === itemId && b.lot.toLowerCase() === p.lot.toLowerCase());
+      if (known) { reuse.set(itemId, known.id); continue; }
+      const problems = batchProblems({ itemId, lot: p.lot, expiresOn: p.expiresOn, receivedOn: receivedAt }, { items, existing: batches });
+      if (problems.length) return { error: "batch", itemId, problems };
+      create.push({ itemId, lot: p.lot, expiresOn: p.expiresOn });
+    }
+    for (const c of create) {
+      const batch = await StockBatches.create(scope, cleanBatch({ ...c, receivedOn: receivedAt }));
+      reuse.set(c.itemId, batch.id);
+    }
+  }
+
   for (const [itemId, amount] of asked) {
     // The loop above already refused every id that has no line, so this cannot
     // miss — but the compiler cannot see across the two loops, and asserting it
@@ -1968,6 +2074,12 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
         ? `Correction to ${order.reference}`
         : `Received on ${order.reference}`,
       sourceType: "order", sourceId: order.id,
+      // STRAIGHT INTO THE BIN AND THE BATCH, on the receipt's own movement — no
+      // put-away pair afterwards. A movement already carries both (bins and
+      // batches are labels summed from movements), so the units are on the
+      // shelf and in the lot from the moment they are accepted.
+      binId: placed.get(itemId)?.binId || undefined,
+      batchId: reuse.get(itemId),
     });
   }
 
@@ -1990,6 +2102,8 @@ export async function receiveOrder(ctx: InventoryContext, id: string, body: Reco
       qty: asked.get(itemId) || 0,
       rejected: rejected.get(itemId) || 0,
       note: "",
+      ...(reuse.get(itemId) ? { batchId: reuse.get(itemId), lot: placed.get(itemId)?.lot || "" } : {}),
+      ...(asked.has(itemId) && placed.get(itemId)?.binId ? { binId: placed.get(itemId)?.binId } : {}),
     })) as ReceiptLine[],
     notes: str(body?.notes, 2000),
     ...(correctionOf ? { correctionOf } : {}),

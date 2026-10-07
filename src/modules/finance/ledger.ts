@@ -659,6 +659,8 @@ export const ENTRY_SOURCE_KINDS = [
   "claim", "claim-payment", "advance", "advance-return",
   "deferral", "recognition", "lease", "lease-month", "allocation",
   "pos-shift",
+  // THE STOCK TRUE-UP (`postStockValuation`), keyed by the day it values.
+  "stock-valuation",
   "manual",
 ] as const;
 
@@ -2300,8 +2302,11 @@ const POS_MONEY_CODE: Record<string, string> = { cash: CASH, card: BANK, transfe
  * cost, so the figure is available — but NOTHING IN THIS PRODUCT EVER DEBITS
  * INVENTORY. A goods receipt posts nothing, so 1200 has never been debited, and
  * crediting it here would drive an asset account negative and report a margin
- * against stock the books never bought. Cost of sales waits on goods receipts
- * posting, which is its own change. `docs/functionality/pos.md` says so too.
+ * against stock the books never bought. COST OF SALES ARRIVES THE PERIODIC WAY
+ * instead (07/10/2026): bills post purchases to Cost of Sales, and
+ * `postStockValuation` moves what is still on the shelf back onto Inventory at
+ * a month end — so the period's Cost of Sales is what was sold, till sales
+ * included, without this entry touching stock at all.
  *
  * A SHIFT IS POSTED ONCE. `alreadyPosted` on the shift's own id, the same guard
  * every other document gets; closing is the only caller and closing happens
@@ -2415,6 +2420,161 @@ export async function postShift(ctx: FinanceContext, shiftId: string, options: P
     date: String(shift.closedAt || shift.openedAt || "").slice(0, 10),
     memo: `Till shift ${shift.number || ""}`.trim(),
     source: { kind: "pos-shift", id: shiftId },
+    lines,
+  }, options);
+}
+
+// ---- stock on the books -----------------------------------------------------
+
+const INVENTORY = "1200";
+
+/**
+ * WHAT THE STOCK WAS WORTH AT THE END OF A DAY, by the studio's own valuation
+ * method — Inventory's arithmetic, read with the studio's authority. A studio
+ * with no Inventory has no stock to put on the books, and says so.
+ *
+ * IMPORTED WHEN ASKED, not at the top: Inventory already reaches back into
+ * Finance (a shift posts through `autoPost`), and a static import both ways is
+ * a cycle the bundler would resolve in whichever order it met them.
+ */
+async function stockValueAsOf(
+  ctx: FinanceContext, asOf: string,
+): Promise<{ error: "no-inventory" } | { value: number; method: string }> {
+  const [{ inventoryContext }, { stockValuation }, { isValuationMethod, DEFAULT_METHOD }] = await Promise.all([
+    import("@/modules/inventory/inventory"),
+    import("@/modules/inventory/stockValue"),
+    import("@/modules/inventory/valuation"),
+  ]);
+  const inv = await inventoryContext.asStudio(ctx.studio.id, String(ctx.collaborator.id));
+  if ("error" in inv && inv.error) return { error: "no-inventory" as const };
+  const stored = (ctx.studio as { valuationMethod?: unknown }).valuationMethod;
+  const method = isValuationMethod(stored) ? stored : DEFAULT_METHOD;
+  const valued = await stockValuation(inv as Parameters<typeof stockValuation>[0], method, asOf);
+  return { value: valued.total, method };
+}
+
+/** An account's balance, debit minus credit, in minor units, from entries dated on or before `asOf`. */
+function balanceOn(entries: JournalEntry[], accountId: string | undefined, asOf: string, currency: unknown) {
+  let n = 0;
+  for (const e of entries) {
+    if (String(e.date || "") > asOf) continue;
+    for (const l of e.lines || []) {
+      if (l.accountId === accountId) n += cents(l.debit, currency) - cents(l.credit, currency);
+    }
+  }
+  return n;
+}
+
+/** What one entry did to one account, in minor units — what reversing it takes back. */
+function effectOn(entry: JournalEntry | undefined, accountId: string | undefined, currency: unknown) {
+  let n = 0;
+  for (const l of entry?.lines || []) {
+    if (l.accountId === accountId) n += cents(l.debit, currency) - cents(l.credit, currency);
+  }
+  return n;
+}
+
+/**
+ * STOCK ON THE BOOKS, WITHOUT POSTING: what the stock is worth on `asOf`, what
+ * the Inventory account says it is, and the difference posting would write.
+ * The ledger screen shows this before anybody presses the button.
+ *
+ * `read` IS THE CHART AND JOURNAL A CALLER ALREADY HOLDS — the ledger route
+ * reads both once, and a second chart read in one request can SEED the chart a
+ * second time (`trialBalanceFrom` says how that once tripled it).
+ */
+export async function stockOnBooks(
+  ctx: FinanceContext, asOf: string, read?: { accounts: Account[]; entries: JournalEntry[] },
+) {
+  const date = day(asOf) || new Date().toISOString().slice(0, 10);
+  const stock = await stockValueAsOf(ctx, date);
+  if ("error" in stock) return stock;
+  const accounts = read?.accounts || await ledgerAccounts(ctx);
+  const inventoryId = accounts.find((a) => a.code === INVENTORY)?.id;
+  if (!inventoryId) return { error: "chart" as const, missing: [INVENTORY] };
+  const entries = read?.entries || await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  const currency = ctx.studio.currency;
+  const books = balanceOn(entries, inventoryId, date, currency);
+  const value = cents(stock.value, currency);
+  return {
+    asOf: date,
+    method: stock.method,
+    value: money(value, currency),
+    books: money(books, currency),
+    difference: money(value - books, currency),
+    postedForDay: alreadyPosted(entries, "stock-valuation", date),
+  };
+}
+
+/**
+ * PUT THE STOCK ON THE BOOKS for the end of a day: the Inventory account (1200)
+ * is moved to what the stock is worth, against Cost of Sales (5000).
+ *
+ * WHY A TRUE-UP AND NOT AN ENTRY PER RECEIPT. A supplier's bill already posts
+ * the goods it charges for to Cost of Sales (`postBill`), so the book has been
+ * EXPENSING stock as it is bought — and the Inventory account has never been
+ * debited by anything. Posting each receipt to Inventory as well would count
+ * every purchase twice unless every bill were re-pointed at a clearing
+ * account; that is a larger change with its own price-variance accounting.
+ * This is the periodic method instead, which is standard for a business this
+ * size: purchases go to Cost of Sales, and at a period's end the stock still
+ * on hand is moved OUT of Cost of Sales and onto the balance sheet. Cost of
+ * Sales for the period is then opening stock + purchases − closing stock, which
+ * is what was actually sold — and the balance sheet shows what is held.
+ *
+ * THE FIRST TIME IS LARGE, AND THAT IS CORRECT. Every unit on the shelf today
+ * was expensed when it was bought, so the first true-up takes all of it back
+ * off Cost of Sales. The screen says so before it is posted.
+ *
+ * ONE LIVE FIGURE PER DAY. Run again for the same day, the earlier entry is
+ * reversed — dated that same day, so the day's balance is not left holding
+ * both — and the difference is posted afresh. Nothing to move is not an entry:
+ * an entry of nought would record nothing, so it is refused as `in-step`.
+ */
+export async function postStockValuation(ctx: FinanceContext, id: string, options: PostOptions = {}) {
+  if (!options.system) {
+    const denied = requirePermission(ctx.access, "finance.ledger.post");
+    if (denied) return denied;
+  }
+  const asOf = day(id);
+  if (!asOf) return { error: "date" as const };
+  if (asOf > new Date().toISOString().slice(0, 10)) return { error: "future" as const };
+
+  const stock = await stockValueAsOf(ctx, asOf);
+  if ("error" in stock) return stock;
+  const { byCode, missing } = await codesToIds(ctx, [INVENTORY, COST_OF_SALES]);
+  if (missing.length) return { error: "chart" as const, missing };
+
+  const currency = ctx.studio.currency;
+  const inventory = byCode.get(INVENTORY);
+  const entries = await Entries.find({ studio: ctx.studio, section: ctx.ledgerSection });
+  const value = cents(stock.value, currency);
+  let books = balanceOn(entries, inventory, asOf, currency);
+  if (value === books) return { error: "in-step" as const, value: money(value, currency) };
+
+  const earlier = entries.find((e) => e.source?.kind === "stock-valuation" && e.source?.id === asOf
+    && !e.reversedByEntryId && !e.reversalOfEntryId);
+  if (earlier) {
+    const undone = await reverseDocument(ctx, "stock-valuation", asOf, "Stock re-valued for the same day", asOf);
+    if ("error" in undone && undone.error) return undone;
+    // THE REVERSAL IS DATED `asOf`, so it takes the earlier entry's effect back
+    // out of this day's balance. Computed rather than re-read: a second read in
+    // one request can be served from the request cache as it was before the
+    // reversal was written.
+    books -= effectOn(earlier, inventory, currency);
+  }
+
+  const delta = value - books;
+  // THE EARLIER FIGURE WAS THE WHOLE DIFFERENCE: reversing it was the posting.
+  if (delta === 0) return { entry: null as JournalEntry | null, reversed: true, value: money(value, currency) };
+  const amount = money(Math.abs(delta), currency);
+  const lines = delta > 0
+    ? [{ accountId: inventory, debit: amount, credit: 0 }, { accountId: byCode.get(COST_OF_SALES), debit: 0, credit: amount }]
+    : [{ accountId: byCode.get(COST_OF_SALES), debit: amount, credit: 0 }, { accountId: inventory, debit: 0, credit: amount }];
+  return postEntry(ctx, {
+    date: asOf,
+    memo: `Stock on hand ${money(value, currency)} (${stock.method}) as of ${asOf}`,
+    source: { kind: "stock-valuation", id: asOf },
     lines,
   }, options);
 }

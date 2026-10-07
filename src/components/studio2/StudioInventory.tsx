@@ -43,6 +43,10 @@ const BinsPanel = nextDynamic(() => import("@/components/studio2/BinsPanel"),
   { loading: () => <ScreenSkeleton /> });
 const BatchesPanel = nextDynamic(() => import("@/components/studio2/BatchesPanel"),
   { loading: () => <ScreenSkeleton /> });
+// COUNTING THE SHELVES — a secondary tab like the two above, behind the same
+// real lazy boundary: a count is taken a few times a year, not on every visit.
+const StockCountsPanel = nextDynamic(() => import("@/components/studio2/StockCountsPanel"),
+  { loading: () => <ScreenSkeleton /> });
 // WHAT THE STOCK IS WORTH — a secondary tab like the two above, and behind the
 // same real lazy boundary for the same reason: nobody lands on it.
 const ValuationPanel = nextDynamic(() => import("@/components/studio2/ValuationPanel"),
@@ -56,6 +60,7 @@ const ItemImport = nextDynamic(() => import("@/components/studio2/ItemImport"),
   { loading: () => <ScreenSkeleton /> });
 import { binsDict } from "@/shared/studio/bins";
 import { batchesDict } from "@/shared/studio/batches";
+import { stockCountsDict } from "@/shared/studio/stockCounts";
 import { valuationDict } from "@/shared/studio/valuation";
 import { writeOffsDict } from "@/shared/studio/writeOffs";
 import { useMoney } from "@/components/studio2/studioCurrency";
@@ -806,7 +811,7 @@ function Stock({ slug, items, movements, canManage, canAdjust, canEditSerials, b
     <>
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-full border border-slate-200 p-0.5 dark:border-white/15">
-          {[["onhand", tr.onHandTab], ["movements", tr.movementsTab], ["bins", binsDict(locale).tab], ["batches", batchesDict(locale).tab], ["value", valuationDict(locale).tab], ["writeoffs", writeOffsDict(locale).tab]].map(([k, text]) => (
+          {[["onhand", tr.onHandTab], ["movements", tr.movementsTab], ["bins", binsDict(locale).tab], ["batches", batchesDict(locale).tab], ["counts", stockCountsDict(locale).tab], ["value", valuationDict(locale).tab], ["writeoffs", writeOffsDict(locale).tab]].map(([k, text]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
               className={`rounded-full px-4 py-1.5 text-sm font-600 transition-colors ${tab === k ? "bg-brand-700 text-white" : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"}`}>
               {text}
@@ -860,6 +865,10 @@ function Stock({ slug, items, movements, canManage, canAdjust, canEditSerials, b
         // WHICH UNITS, from the other end: a lot number and when it stops
         // being usable, plus the state of every serial.
         <BatchesPanel slug={slug} locale={locale} />
+      ) : tab === "counts" ? (
+        // WHAT IS ON THE SHELVES, against the books — and the adjustments a
+        // count posts. Its own fetch and route, like the tabs around it.
+        <StockCountsPanel slug={slug} locale={locale} />
       ) : tab === "value" ? (
         // WHAT IT IS ALL WORTH. Its own fetch and its own route — the method is
         // the studio's accounting policy rather than a view option, so the

@@ -3,7 +3,7 @@ import { setupFor as setupOf } from "@/modules/finance/setup";
 import { requirePermission } from "@/platform/access";
 import { financeContext } from "@/modules/finance/finance";
 import {
-  ledgerAccounts, listJournal, trialBalanceFrom, postEntry, reverseEntry,
+  ledgerAccounts, listJournal, trialBalanceFrom, postEntry, reverseEntry, stockOnBooks,
 } from "@/modules/finance/ledger";
 import { postDocument } from "@/modules/finance/posting";
 
@@ -50,12 +50,18 @@ export const GET = route({ ...spec, body: false }, async (f) => {
   const journal = await listJournal(f);
   if (refused(journal)) return journal;
   const entries = journal.entries;
+  // STOCK ON THE BOOKS, as of a day the reader picks (today by default): what
+  // the stock is worth beside what the Inventory account says. Null for a
+  // studio with no Inventory — there is no stock to put on any books.
+  const asked = new URL(f.request.url).searchParams.get("stockAsOf") || "";
+  const stock = await stockOnBooks(f, asked, { accounts: chart, entries });
 
   return {
     ok: true,
     accounts: chart,
     journal: entries,
     trialBalance: trialBalanceFrom(chart, entries, f.studio.currency),
+    stock: "error" in stock ? null : stock,
     ...setupOf(f),
     canPost: !requirePermission(f.access, "finance.ledger.post"),
     canReverse: !requirePermission(f.access, "finance.ledger.reverse"),

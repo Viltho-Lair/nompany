@@ -28,7 +28,10 @@ export const POST = route(spec, async (inv) => {
 
   const result = await createOrder(inv, inv.body);
   if (refused(result)) return result;
-  return { status: 201, body: { ok: true, order: result.order } };
+  // `skipped` — RFQ lines that named no registered item and are not on the
+  // order — rides along so the screen can say so rather than let a shorter
+  // order read as the whole award.
+  return { status: 201, body: { ok: true, order: result.order, ...("skipped" in result ? { skipped: result.skipped } : {}) } };
 });
 
 // Editing an order, or receiving goods against it. Receiving is a PUT with

@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { procurementDict } from "@/shared/studio/procurement";
+import { batchesDict } from "@/shared/studio/batches";
 import ScreenSkeleton from "@/components/studio2/ScreenSkeleton";
 import useLiveUpdates from "@/components/studio2/useLiveUpdates";
 import { panel, h2, sub, btn, btnGhost, Empty, Dialog, microLabel, fmtDate } from "@/components/studio2/ui";
@@ -28,7 +29,13 @@ type Tr = ReturnType<typeof procurementDict>;
 type ReceivingBody = Exclude<Awaited<ReturnType<typeof listReceiving>>, { error: string }> & { ok?: boolean; error?: string };
 type ReceivingRow = ReceivingBody["orders"][number];
 // One line of the booking-in dialog: what the server says is due, and what is typed.
-type BookingLine = { itemId: string; description: string; outstandingQty: number; qty: string; rejected: string };
+type BookingLine = {
+  itemId: string; description: string; outstandingQty: number; qty: string; rejected: string;
+  /** Where the accepted units go — all optional (receiveOrder). */
+  lot: string; expiresOn: string; binId: string;
+};
+/** A bin as the picker offers it — GET /inventory/bins. */
+type BinChoice = { id: string; code: string; name: string; locationName: string };
 type Booking = { order: ReceivingRow; supplierRef: string; receivedAt: string; notes: string; lines: BookingLine[] };
 
 function refusal(tr: Tr, token: string) {
@@ -73,8 +80,12 @@ function Figure({ value, fallback }: { value: number | null | undefined; fallbac
 // render, so the screen paints with its rows; absent, it fetches on mount as before.
 export default function StudioReceiving({ slug, initial }: { slug: string; initial?: ReceivingBody }) {
   const money = useMoney();
-  const tr = procurementDict(useStudioLocale());
+  const locale = useStudioLocale();
+  const tr = procurementDict(locale);
   const [data, setData] = useState<ReceivingBody | null>(initial ?? null);
+  // THE BINS, read the first time a booking opens — most visits to this screen
+  // never book anything in, and a studio with no bins gets an empty picker.
+  const [bins, setBins] = useState<BinChoice[] | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -123,10 +134,32 @@ export default function StudioReceiving({ slug, initial }: { slug: string; initi
     });
     const out = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) { setError(refusal(tr, out.error || "failed")); return false; }
+    if (!res.ok) {
+      // A LOT THE BATCH REGISTER REFUSES is worded by that register, so the
+      // same lot reads the same here as on the Batches tab.
+      const lot = booking?.lines.find((l) => l.itemId === out.itemId)?.lot || "";
+      setError(out.error === "batch" && Array.isArray(out.problems)
+        ? batchesDict(locale).problem(String(out.problems[0]), lot)
+        : out.error === "bin" ? tr.refuseBinUnknown
+          : refusal(tr, out.error || "failed"));
+      return false;
+    }
     await reload();
     return true;
-  }, [slug, reload, tr]);
+  }, [slug, reload, tr, locale, booking]);
+
+  useEffect(() => {
+    if (!booking || bins) return;
+    let live = true;
+    (async () => {
+      const res = await fetch(`/api/studios/${slug}/inventory/bins`, { cache: "no-store" });
+      const out = await res.json().catch(() => ({}));
+      // A READER WHO MAY NOT SEE BINS gets none to pick from, not an error —
+      // the receipt books in unbinned exactly as before.
+      if (live) setBins(res.ok && Array.isArray(out.bins) ? out.bins : []);
+    })();
+    return () => { live = false; };
+  }, [booking, bins, slug]);
 
   if (error && !data) return <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p>;
   if (!data) return <ScreenSkeleton loadingLabel={tr.loadingReceiving} />;
@@ -198,6 +231,7 @@ export default function StudioReceiving({ slug, initial }: { slug: string; initi
                           outstandingQty: l.outstandingQty,
                           qty: "",
                           rejected: "",
+                          lot: "", expiresOn: "", binId: "",
                         })),
                       })}>{tr.bookIn}</button>
                   )}
@@ -288,7 +322,7 @@ export default function StudioReceiving({ slug, initial }: { slug: string; initi
 
             {booking.lines.map((l, i) => {
               // ONE SETTER, not a copy of the same splice per column.
-              const set = (field: "qty" | "rejected") => (v: string) => {
+              const set = (field: "qty" | "rejected" | "lot" | "expiresOn" | "binId") => (v: string) => {
                 const next = booking.lines.slice();
                 next[i] = { ...l, [field]: v };
                 setBooking({ ...booking, lines: next });
@@ -305,6 +339,18 @@ export default function StudioReceiving({ slug, initial }: { slug: string; initi
                   </p>
                   <Field type="number" label={tr.acceptedQty} value={l.qty} onChange={set("qty")} />
                   <Field type="number" label={tr.rejectedQty} value={l.rejected} onChange={set("rejected")} />
+                  {/* WHERE THE ACCEPTED UNITS GO. Optional, all three: a
+                      studio that tracks neither lots nor shelves books in
+                      exactly as before. */}
+                  <span className="hidden sm:block" />
+                  <Field label={tr.lotLabel} hint={tr.lotHint} value={l.lot} onChange={set("lot")} />
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Field type="date" label={tr.expiresLabel} value={l.expiresOn} onChange={set("expiresOn")} />
+                    <Field label={tr.binLabel} as="select" value={l.binId} onChange={set("binId")}
+                      options={[{ value: "", label: tr.noBin }, ...(bins || []).map((b) => ({
+                        value: b.id, label: [b.code, b.name, b.locationName].filter(Boolean).join(" · "),
+                      }))]} />
+                  </div>
                 </div>
               );
             })}
@@ -325,7 +371,10 @@ export default function StudioReceiving({ slug, initial }: { slug: string; initi
                     // on to choose receiving over editing.
                     receive: booking.lines
                       .filter((l) => Number(l.qty) || Number(l.rejected))
-                      .map((l) => ({ itemId: l.itemId, qty: l.qty, rejected: l.rejected })),
+                      .map((l) => ({
+                        itemId: l.itemId, qty: l.qty, rejected: l.rejected,
+                        lot: l.lot, expiresOn: l.expiresOn, binId: l.binId,
+                      })),
                   });
                   if (done) setBooking(null);
                 }}>{tr.save}</button>
