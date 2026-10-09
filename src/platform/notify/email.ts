@@ -15,7 +15,7 @@ import { log } from "@/platform/http/observability";
 //   • RESEND_API_KEY   — required to actually send. When absent, sends are
 //                        skipped (logged as a no-op) so local dev still works.
 //   • RESEND_FROM      — default "From" address, e.g.
-//                        "nompany <no-reply@sittaerp.com>".
+//                        "Sitta <no-reply@sittaerp.com>".
 //                        Falls back to Resend's shared testing sender, which can
 //                        only deliver to the Resend account owner's own address.
 //   • RESEND_REPLY_TO  — optional default Reply-To for every message.
