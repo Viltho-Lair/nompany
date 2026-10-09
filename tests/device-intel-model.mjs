@@ -20,15 +20,15 @@ const ok = (what, cond, detail = "") => {
 // is in every page; without the host check anybody could run it on a page of
 // their own and bring the event here.
 const now = Date.parse("2026-09-19T10:00:00Z");
-const good = { identification: { visitor_id: "v1" }, timestamp: now - 30_000, url: "https://nompany.com/en/login" };
-const host = "nompany.com";
+const good = { identification: { visitor_id: "v1" }, timestamp: now - 30_000, url: "https://sittaerp.com/en/login" };
+const host = "sittaerp.com";
 
 ok("a fresh event on this site is believed", judgeEvent(good, { now, host }).ok === true);
 ok("…and names its visitor", judgeEvent(good, { now, host }).visitorId === "v1");
 ok("an event from another site is refused",
   judgeEvent({ ...good, url: "https://evil.example/login" }, { now, host }).reason === "other-site");
 ok("a look-alike host is refused, not prefix-matched",
-  judgeEvent({ ...good, url: "https://nompany.com.evil.example/" }, { now, host }).reason === "other-site");
+  judgeEvent({ ...good, url: "https://sittaerp.com.evil.example/" }, { now, host }).reason === "other-site");
 ok("an event older than the window is stale",
   judgeEvent({ ...good, timestamp: now - (DEVICE_EVENT_MAX_AGE_SEC * 1000 + 1) }, { now, host }).reason === "stale");
 ok("an event at the edge of the window still counts",

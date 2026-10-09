@@ -2,7 +2,7 @@
   SCOPED PLANNER DESIGN SYSTEM.
 
   Every rule here is confined to `.planner-root` so the planner's tokens and
-  utilities are self-contained and cannot collide with nompany's `--geex-*` /
+  utilities are self-contained and cannot collide with Sitta's `--geex-*` /
   `--p-*` / `--doc-*` systems. The whole planner renders inside
   `<div className="planner-root">`.
 
@@ -11,15 +11,15 @@
   1. Defines the planner palette twice. Once under the LITERAL shadcn names
      (`--primary`, `--foreground`, `--border`, `--radius`, …) that a handful of
      arbitrary `hsl(var(--x))` values could read; and once by RE-POINTING
-     nompany's `--doc-*` channel triples, because nompany's tailwind.config maps
+     Sitta's `--doc-*` channel triples, because Sitta's tailwind.config maps
      the shadcn utility classes (`bg-primary`, `text-muted-foreground`,
      `border-border`, and every opacity variant) to `rgb(var(--doc-*) /
      <alpha>)`. Setting `--doc-*` on the planner element makes those utilities
      render planner colours — opacity variants included — without touching
-     nompany's config. Custom properties inherit, so the value set on
+     Sitta's config. Custom properties inherit, so the value set on
      `.planner-root` wins over the `:root` value for everything inside.
 
-  2. Reproduces the radius scale the planner keys off `--radius` (nompany uses
+  2. Reproduces the radius scale the planner keys off `--radius` (Sitta uses
      Tailwind's default radii), the two scroll utilities and the grid-cell MUI
      input styling that lived in the source app's globals.css.
 
@@ -30,12 +30,12 @@
      bar StudioPlanner draws around it — reads as the planner's own light app.
 
   4. Sets the planner's system font stack + 14px base, mirroring the source
-     app's `body` rule, so the type reads exactly as the original (not nompany's
+     app's `body` rule, so the type reads exactly as the original (not Sitta's
      Saira / IBM Plex display faces).
 
   NOTE ON MUI: per the port rules the source app's MUI ThemeProvider/createTheme
   is dropped (no second Emotion cache/theme), so the DatePicker / TextField
-  controls adopt nompany's MUI theme rather than the app's tuned one. Everything
+  controls adopt Sitta's MUI theme rather than the app's tuned one. Everything
   Tailwind-drawn is preserved exactly.
 */
 
@@ -101,7 +101,7 @@
 /*
   Light-only by design. The source planner has no dark theme; re-declaring the
   same light values under `.dark` keeps the port design-identical inside
-  nompany's dark shell instead of inventing colours the original never had.
+  Sitta's dark shell instead of inventing colours the original never had.
 */
 .dark .planner-root {
   --doc-background: 255 255 255;

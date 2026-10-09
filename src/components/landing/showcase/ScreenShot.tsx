@@ -57,7 +57,7 @@ export function ScreenShot({
       {chrome && (
         <div className="flex items-center gap-3 border-b border-line px-4 py-2.5">
           <span className="lh-ref truncate text-[11.5px] text-fg-dim">
-            nompany.com/qimam<span className="text-fg-muted">{path}</span>
+            sittaerp.com/qimam<span className="text-fg-muted">{path}</span>
           </span>
         </div>
       )}

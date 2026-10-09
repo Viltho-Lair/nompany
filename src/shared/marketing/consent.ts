@@ -29,7 +29,7 @@ import { defaultLocale, type Locale } from "@/shared/locale";
 export const GA_MEASUREMENT_ID = "G-STL6EY8SEM";
 
 /** Hosts that report. Anything else renders no banner and loads nothing. */
-export const ANALYTICS_HOSTS = ["nompany.com", "www.nompany.com"] as const;
+export const ANALYTICS_HOSTS = ["sittaerp.com", "www.sittaerp.com"] as const;
 
 /**
  * Locale-relative pages Google Analytics may run on — EXACTLY the pages §9 of

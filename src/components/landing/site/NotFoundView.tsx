@@ -23,10 +23,10 @@ export function NotFoundView({ locale, nf, dir }: { locale: string; nf: ReturnTy
         className="pointer-events-none absolute inset-0 -z-10"
         style={{ background: "radial-gradient(55% 60% at 50% 35%, rgba(139,124,255,0.22), rgba(139,124,255,0) 70%)" }}
       />
-      <Link href={home} className="flex items-center gap-2.5" aria-label="nompany">
+      <Link href={home} className="flex items-center gap-2.5" aria-label="Sitta">
         <LogoMark size={28} />
         <span className="text-[15px] font-semibold tracking-[-0.02em]" dir="ltr">
-          nompany
+          Sitta
         </span>
       </Link>
       <p className="mt-14 text-[7rem] font-medium leading-none tracking-[-0.06em] text-transparent sm:text-[10rem]" style={{ WebkitTextStroke: "1px rgba(201,194,255,0.55)" }} dir="ltr">

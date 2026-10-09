@@ -33,7 +33,7 @@ import crypto from "node:crypto";
 import { encryptField, decryptField } from "./fieldCrypto";
 import { hashToken } from "./passwords";
 
-const ISSUER = "nompany";
+const ISSUER = "Sitta";
 
 // The window either side of now that a code is accepted in. One step is 30
 // seconds, so ±1 tolerates about a minute of clock drift between the phone and

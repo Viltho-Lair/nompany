@@ -191,11 +191,11 @@ export function LegalPage({ meta, sections, copy, crossLink, lang = "en" }: {
               <h2 className="text-[1.35rem] font-medium tracking-[-0.025em] rtl:tracking-normal">{copy.contactTitle}</h2>
               <p className="mt-3 max-w-[52ch] text-[15px] leading-relaxed text-[#9a9aa8]">{copy.contactLead}</p>
               <a
-                href="mailto:info@nompany.com"
+                href="mailto:info@sittaerp.com"
                 dir="ltr"
                 className="mt-6 inline-flex h-10 items-center rounded-full bg-white/[0.05] px-4 text-[14px] font-medium text-[#ececf1] ring-1 ring-inset ring-white/10 transition-colors duration-200 hover:bg-white/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7cff]"
               >
-                info@nompany.com
+                info@sittaerp.com
               </a>
             </div>
           </div>

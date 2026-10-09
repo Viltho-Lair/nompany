@@ -339,8 +339,8 @@ console.log("\n== the entity, described once");
 
 const CO = await import("@/shared/marketing/company");
 
-ok("the Latin brand is lowercase", CO.BRAND === "nompany");
-ok("the Arabic brand is settled", CO.BRAND_AR === "نومباني");
+ok("the Latin brand is Sitta", CO.BRAND === "Sitta");
+ok("the Arabic brand is settled", CO.BRAND_AR === "ستة");
 
 for (const locale of ["en", "ar"]) {
   const c = CO.companyCopy(locale);
@@ -956,7 +956,7 @@ console.log("\n== an unfilled package is not a price list");
 // THE DEFECT: the catalogue minted a package called "Free" so a new studio
 // has a plan to be pointed at — no price, no user range, nothing included — and
 // it was minted PUBLIC. `buildPricing` filters on `isPublic`, so that
-// bookkeeping row WAS the public price list: www.nompany.com/api/pricing served
+// bookkeeping row WAS the public price list: www.sittaerp.com/api/pricing served
 // exactly one card reading 0 users, 0 monthly, 0 yearly, and the page rendered
 // "Free · 0 USD · for up to 0 users". Found 22/09/2026 by reading the live site.
 const seeded = { usersLabel: "", usersLabelAr: "", includes: [], includesAr: [],
@@ -1042,7 +1042,7 @@ console.log("\n== security.txt has not expired");
 // renewal is a one-line edit nobody would otherwise remember a year from now.
 const secTxt = readFileSync("public/.well-known/security.txt", "utf8");
 const expires = Date.parse((secTxt.match(/^Expires:\s*(\S+)/m) || [])[1] || "");
-ok("security.txt names a contact", /^Contact:\s*mailto:\S+@nompany\.com/m.test(secTxt));
+ok("security.txt names a contact", /^Contact:\s*mailto:\S+@sittaerp\.com/m.test(secTxt));
 ok("...and its Expires is still in the future", Number.isFinite(expires) && expires > Date.now(),
   (secTxt.match(/^Expires:.*$/m) || ["no Expires line"])[0]);
 

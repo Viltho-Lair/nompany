@@ -17,8 +17,8 @@
 
 const LOCALE = new URL(self.location.href).searchParams.get("locale") === "ar" ? "ar" : "en";
 const WORDS = {
-  en: { fallback: "New notification", unread: (n) => `${n} unread in nompany` },
-  ar: { fallback: "إشعار جديد", unread: (n) => `${n} غير مقروء في nompany` },
+  en: { fallback: "New notification", unread: (n) => `${n} unread in Sitta` },
+  ar: { fallback: "إشعار جديد", unread: (n) => `${n} غير مقروء في ستة` },
 }[LOCALE];
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -46,7 +46,7 @@ self.addEventListener("push", (event) => {
     await self.registration.showNotification(title, {
       body: n ? n.body : "",
       // ONE PER NOTICE: the same notice pushed twice replaces itself.
-      tag: n ? `nompany-${n.id}` : "nompany",
+      tag: n ? `nompany-${n.id}` : "Sitta",
       icon: "/brand/logo-icon.png",
       badge: "/brand/logo-icon.png",
       lang: LOCALE,

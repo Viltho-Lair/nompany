@@ -26,7 +26,7 @@ const {
 // redirect-uri assertion below prove nothing. `x-forwarded-host` is what
 // oauth.ts's origin() prefers anyway, and it's the header Vercel sets in
 // production, so it's the one worth asserting against.
-const req = (origin = "https://nompany.com") =>
+const req = (origin = "https://sittaerp.com") =>
   new Request(`${origin}/x`, {
     headers: {
       "x-forwarded-host": origin.replace(/^https?:\/\//, ""),
@@ -73,7 +73,7 @@ console.log("\ncalendar providers");
       JSON.stringify(["microsoft"]));
 
   ok("the redirect uri is the one registered with the provider",
-    calendarRedirectUri(req(), "google") === "https://nompany.com/api/auth/calendar/callback/google",
+    calendarRedirectUri(req(), "google") === "https://sittaerp.com/api/auth/calendar/callback/google",
     calendarRedirectUri(req(), "google"));
 
   const url = calendarAuthorizeUrl({ provider: "microsoft", request: req(), state: "st8" });
@@ -86,7 +86,7 @@ console.log("\ncalendar providers");
 
 console.log("\nsafeReturnPath — the open-redirect guard");
 {
-  const SITE = "https://nompany.com";
+  const SITE = "https://sittaerp.com";
 
   // GENUINELY OFF-SITE ONCE A REAL URL PARSER RESOLVES THEM. The three
   // control-character rows are what `?next=/%0A/evil.example` (and the tab /

@@ -90,14 +90,14 @@ function Sidebar({ active, collapsed, onToggle, onPick, drawer = false }: {
         {/* THE MARK, THEN THE WORDS. `LogoMark` in components/landing draws it
             everywhere else and cannot be used here: it imports motion/react,
             which is confined to the landing folder. */}
-        <Link href={`${BASE}/pulse`} onClick={onPick} className="flex min-w-0 items-center gap-2.5" aria-label="nompany super admin">
+        <Link href={`${BASE}/pulse`} onClick={onPick} className="flex min-w-0 items-center gap-2.5" aria-label="Sitta super admin">
           <Image
-            src="/brand/logo-icon.png" alt="nompany" width={30} height={30} priority
+            src="/brand/logo-icon.png" alt="Sitta" width={30} height={30} priority
             className="h-[30px] w-[30px] shrink-0 object-contain"
           />
           {collapsed ? null : (
             <span className="min-w-0 leading-tight">
-              <span className="block truncate font-display text-[15px] font-800 tracking-tight">nompany</span>
+              <span className="block truncate font-display text-[15px] font-800 tracking-tight">Sitta</span>
               <span className="block truncate text-[11px] text-[var(--ad-muted-foreground)]">Super admin console</span>
             </span>
           )}

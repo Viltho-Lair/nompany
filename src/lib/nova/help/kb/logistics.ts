@@ -148,8 +148,8 @@ export const logistics: HelpModule = {
       id: "logistics.dashboard", topic: "dept.logistics", kind: "about", open: "logistics",
       q: { en: "What does the Logistics page show?", ar: "ماذا تعرض صفحة الخدمات اللوجستية؟" },
       a: {
-        en: "Under the cards for each part, the Registers panel counts the deliveries, trips and vehicles you may open, how many are still open, and how many are past a date. A delivery is past its date when its Promised day has gone, and a vehicle when its Insurance ends or Inspection ends day has gone; trips carry no deadline. The records furthest behind are listed by name with how many days late they are. Below that is the landed cost of every purchase order. Today's date is taken from nompany's server clock, so around midnight it can be a day out from your studio's time zone.",
-        ar: "تحت بطاقات الأجزاء، تعدّ لوحة «السجلات» التسليمات والرحلات والمركبات التي يحق لك فتحها، وكم منها ما زال مفتوحًا، وكم تجاوز تاريخه. ويتجاوز التسليم تاريخه حين يمضي يوم «الموعد المتفق عليه»، وتتجاوزه المركبة حين يمضي يوم «نهاية التأمين» أو «نهاية الفحص الدوري»؛ ولا موعد نهائي للرحلات. وتُسرد السجلات الأكثر تأخرًا بأسمائها مع عدد أيام التأخير. وتحت ذلك التكلفة حتى الوصول لكل أمر شراء. ويؤخذ تاريخ اليوم من ساعة خادم nompany، فقد يختلف يومًا عن المنطقة الزمنية للاستوديو قرب منتصف الليل.",
+        en: "Under the cards for each part, the Registers panel counts the deliveries, trips and vehicles you may open, how many are still open, and how many are past a date. A delivery is past its date when its Promised day has gone, and a vehicle when its Insurance ends or Inspection ends day has gone; trips carry no deadline. The records furthest behind are listed by name with how many days late they are. Below that is the landed cost of every purchase order. Today's date is taken from Sitta's server clock, so around midnight it can be a day out from your studio's time zone.",
+        ar: "تحت بطاقات الأجزاء، تعدّ لوحة «السجلات» التسليمات والرحلات والمركبات التي يحق لك فتحها، وكم منها ما زال مفتوحًا، وكم تجاوز تاريخه. ويتجاوز التسليم تاريخه حين يمضي يوم «الموعد المتفق عليه»، وتتجاوزه المركبة حين يمضي يوم «نهاية التأمين» أو «نهاية الفحص الدوري»؛ ولا موعد نهائي للرحلات. وتُسرد السجلات الأكثر تأخرًا بأسمائها مع عدد أيام التأخير. وتحت ذلك التكلفة حتى الوصول لكل أمر شراء. ويؤخذ تاريخ اليوم من ساعة خادم ستة، فقد يختلف يومًا عن المنطقة الزمنية للاستوديو قرب منتصف الليل.",
       },
       keywords: ["logistics dashboard", "overdue", "past its date", "registers", "لوحة اللوجستيات", "متأخر", "تجاوز تاريخه", "السجلات"],
       related: ["logistics.deliveries-overdue", "logistics.fleet-expiry", "logistics.page-refused"],
@@ -492,8 +492,8 @@ export const logistics: HelpModule = {
       id: "logistics-shipments.carrier-page", topic: "dept.logistics-shipments", kind: "howto", open: "logistics-shipments",
       q: { en: "How do I open the airline's own tracking page for a waybill?", ar: "كيف أفتح صفحة التتبع لدى شركة الطيران لبوليصة ما؟" },
       a: {
-        en: "Press Carrier on the shipment's row, and the airline's tracking page opens in a new tab with the waybill already filled in. The button appears only when the airline is in your registry with a tracking link. What that page says is not copied back into nompany; record it as a milestone if you want it on the timeline.",
-        ar: "اضغط «الناقل» في صف الشحنة، فتُفتح صفحة التتبع لدى شركة الطيران في تبويب جديد والبوليصة معبأة مسبقًا. ولا يظهر الزر إلا إذا كانت الشركة في السجل ولها رابط تتبع. وما تقوله تلك الصفحة لا يُنسخ إلى nompany؛ فسجّله محطة إن أردته في المسار الزمني.",
+        en: "Press Carrier on the shipment's row, and the airline's tracking page opens in a new tab with the waybill already filled in. The button appears only when the airline is in your registry with a tracking link. What that page says is not copied back into Sitta; record it as a milestone if you want it on the timeline.",
+        ar: "اضغط «الناقل» في صف الشحنة، فتُفتح صفحة التتبع لدى شركة الطيران في تبويب جديد والبوليصة معبأة مسبقًا. ولا يظهر الزر إلا إذا كانت الشركة في السجل ولها رابط تتبع. وما تقوله تلك الصفحة لا يُنسخ إلى ستة؛ فسجّله محطة إن أردته في المسار الزمني.",
       },
       steps: {
         en: [
@@ -602,7 +602,7 @@ export const logistics: HelpModule = {
     },
     {
       id: "logistics-shipments.live-tracking", topic: "dept.logistics-shipments", kind: "troubleshoot", open: "logistics-shipments",
-      q: { en: "Does nompany fetch milestones from the airline by itself?", ar: "هل يجلب nompany المحطات من شركة الطيران تلقائيًّا؟" },
+      q: { en: "Does Sitta fetch milestones from the airline by itself?", ar: "هل يجلب ستة المحطات من شركة الطيران تلقائيًّا؟" },
       a: {
         en: "Not yet. Every milestone is recorded by a person; nothing asks the airline or a cargo tracking service. The Carrier button opens the airline's own page so you can read the latest scan and record it.",
         ar: "ليس بعد. تُسجَّل كل محطة بيد شخص؛ ولا شيء يسأل شركة الطيران أو خدمة تتبع الشحن. ويفتح زر «الناقل» صفحة الشركة نفسها لتقرأ آخر مسح وتسجله.",
@@ -915,8 +915,8 @@ export const logistics: HelpModule = {
       id: "logistics.registers-custom", topic: "dept.logistics.registers", kind: "troubleshoot", open: "logistics",
       q: { en: "Can I add my own fields or statuses to a register?", ar: "هل أستطيع إضافة حقول أو حالات خاصة بي إلى سجل؟" },
       a: {
-        en: "Not yet. The three registers are nompany's own, and a studio cannot change their fields, statuses or moves. Use the Notes field on a delivery for anything else worth keeping.",
-        ar: "ليس بعد. السجلات الثلاثة من nompany نفسه، ولا يستطيع الاستوديو تغيير حقولها أو حالاتها أو نقلاتها. واستخدم حقل «ملاحظات» في التسليم لأي شيء آخر يستحق الحفظ.",
+        en: "Not yet. The three registers are Sitta's own, and a studio cannot change their fields, statuses or moves. Use the Notes field on a delivery for anything else worth keeping.",
+        ar: "ليس بعد. السجلات الثلاثة من ستة نفسه، ولا يستطيع الاستوديو تغيير حقولها أو حالاتها أو نقلاتها. واستخدم حقل «ملاحظات» في التسليم لأي شيء آخر يستحق الحفظ.",
       },
       keywords: ["custom fields", "add field", "own statuses", "حقول مخصصة", "إضافة حقل", "حالات خاصة"],
       related: ["logistics.registers-how"],

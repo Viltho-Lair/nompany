@@ -363,7 +363,7 @@ export default function StudioSettings({ slug, locale = "en", initial: given }: 
           {canManage && <Icon name="chevronRight" className="ms-auto h-5 w-5 shrink-0 text-slate-300 rtl:-scale-x-100 dark:text-slate-600" />}
         </button>
 
-        {/* BEING NAMED ON nompany.com IS THIS STUDIO'S DECISION TO MAKE.
+        {/* BEING NAMED ON sittaerp.com IS THIS STUDIO'S DECISION TO MAKE.
             A switch here and nothing else: we cannot give this on a customer's
             behalf, and nothing we do elsewhere implies it. Turning it off takes
             the company off the public site on the next read — the feed derives

@@ -11,7 +11,7 @@ export const metadata = { title: "Blog" };
 export default function BlogPage() {
   return (
     <>
-      <PageHeader title="Blog" description="Posts on nompany.com/blog. A post is in one language and shows on the site within a minute of publishing." />
+      <PageHeader title="Blog" description="Posts on sittaerp.com/blog. A post is in one language and shows on the site within a minute of publishing." />
       <BlogEditor />
     </>
   );

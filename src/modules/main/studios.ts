@@ -4,7 +4,7 @@
 //    (Free) package. Studios on any other package are uncapped — see
 //    FREE_STUDIO_LIMIT below for why the count is that shape.
 //  • slug is UNIQUE (ix:slug claim) and is BOTH the public address
-//    (nompany.com/<slug>) and the tenant handle.
+//    (sittaerp.com/<slug>) and the tenant handle.
 //  • OWNERSHIP IS DERIVED, NOT INDEXED. There was an ix:owner:<UserID> claim
 //    here, a SET NX that made a second create fail at this layer. It went when
 //    the cap stopped being "zero or one" and started depending on each owned
@@ -492,7 +492,7 @@ export async function createStudio(
     await notifySuper({
       type: NOTIFY.system,
       title: "New studio registered",
-      body: `${cleanName} — nompany.com/${cleanSlug}`,
+      body: `${cleanName} — sittaerp.com/${cleanSlug}`,
       href: `/super/studios`,
       tone: "success",
     });

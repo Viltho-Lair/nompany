@@ -287,9 +287,9 @@ ok("two periods are two of the line, priced each", fig.lines[0].quantity === 2 &
 ok("invoice numbers are per kind and per year", I.documentNumber("nmp", "invoice", 2026, 7) === "NMP-2026-00007"
   && I.documentNumber("NMP", "credit-note", 2026, 1) === "NMP-CN-2026-00001");
 ok("a prefix can't smuggle characters onto the paper", I.documentNumber("N/M P", "invoice", 2026, 1) === "NMP-2026-00001");
-ok("no invoice is issued without nompany's name, address and tax number",
-  I.sellerProblem({ name: "nompany", address: "Amman", taxNumber: "" }) === "seller-incomplete"
-  && I.sellerProblem({ name: "nompany", address: "Amman", taxNumber: "123" }) === "");
+ok("no invoice is issued without Sitta's name, address and tax number",
+  I.sellerProblem({ name: "Sitta", address: "Amman", taxNumber: "" }) === "seller-incomplete"
+  && I.sellerProblem({ name: "Sitta", address: "Amman", taxNumber: "123" }) === "");
 
 console.log("\n== a refund: a credit note never returns more than was paid");
 

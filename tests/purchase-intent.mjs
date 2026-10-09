@@ -63,7 +63,7 @@ const loose = I.sealIntent({ ...small, categoryId: "../../etc" }, NOW);
 ok("a signed payload is re-checked field by field", I.openIntent(loose, NOW)?.categoryId === "");
 
 console.log("\n== the cookie is read from a request");
-const req = (cookie) => new Request("https://www.nompany.com/en/account", { headers: { cookie } });
+const req = (cookie) => new Request("https://www.sittaerp.com/en/account", { headers: { cookie } });
 ok("found among other cookies",
   JSON.stringify(I.intentFromRequest(req(`nc_sid=abc; ${I.INTENT_COOKIE}=${sealed}; lang=ar`), NOW)) === JSON.stringify(small));
 ok("absent is null", I.intentFromRequest(req("nc_sid=abc"), NOW) === null);

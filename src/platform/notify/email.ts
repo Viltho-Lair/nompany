@@ -15,7 +15,7 @@ import { log } from "@/platform/http/observability";
 //   • RESEND_API_KEY   — required to actually send. When absent, sends are
 //                        skipped (logged as a no-op) so local dev still works.
 //   • RESEND_FROM      — default "From" address, e.g.
-//                        "nompany <no-reply@nompany.com>".
+//                        "nompany <no-reply@sittaerp.com>".
 //                        Falls back to Resend's shared testing sender, which can
 //                        only deliver to the Resend account owner's own address.
 //   • RESEND_REPLY_TO  — optional default Reply-To for every message.
@@ -51,7 +51,7 @@ function isRetryable(status: number) {
 // Resend's shared sandbox sender. Works with any API key WITHOUT verifying a
 // domain, but only delivers to the email that owns the Resend account — good
 // enough to smoke-test the integration before a domain is set up.
-const DEFAULT_FROM = "nompany <onboarding@resend.dev>";
+const DEFAULT_FROM = "Sitta <onboarding@resend.dev>";
 
 export function getApiKey() {
   return process.env.RESEND_API_KEY || "";

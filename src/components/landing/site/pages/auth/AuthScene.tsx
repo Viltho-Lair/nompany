@@ -110,7 +110,7 @@ export function AuthScene({ locale = "en", title, subtitle, aside, children }: {
             className="mx-auto mb-9 flex w-fit items-center gap-2.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#8b7cff] focus-visible:ring-offset-4 focus-visible:ring-offset-[#07070a]"
           >
             <LogoMark size={30} priority />
-            <span className="text-[17px] font-semibold tracking-[-0.02em]">nompany</span>
+            <span className="text-[17px] font-semibold tracking-[-0.02em]">Sitta</span>
           </Link>
           <h1 className="text-[2rem] font-medium leading-[1.1] tracking-[-0.035em] sm:text-[2.4rem] rtl:leading-[1.3] rtl:tracking-normal">
             {title}

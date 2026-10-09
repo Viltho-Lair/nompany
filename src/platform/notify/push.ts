@@ -71,7 +71,7 @@ export function vapidJwt(audience: string, key: Vapid, now = Date.now()): string
   const claims = b64url(Buffer.from(JSON.stringify({
     aud: audience,
     exp: Math.floor(now / 1000) + 12 * 3600,
-    sub: `mailto:${process.env.PUSH_CONTACT || "support@nompany.com"}`,
+    sub: `mailto:${process.env.PUSH_CONTACT || "support@sittaerp.com"}`,
   })));
   const signature = crypto.sign("sha256", Buffer.from(`${header}.${claims}`), { key: key.privateKey, dsaEncoding: "ieee-p1363" });
   return `${header}.${claims}.${b64url(signature)}`;

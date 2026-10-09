@@ -71,7 +71,7 @@ const fin = readFileSync("src/modules/finance/finance.ts", "utf8");
 ok("THE INVOICE LIST COUNTS IT OWED, and a payment may cover it",
   fin.includes("settled.expected - credited + debited") && fin.includes("const owed = roundMoney(Math.max(0, totals.total - credited + debited - totals.paid)"));
 
-console.log("\n== where nompany submits (Saudi Arabia)");
+console.log("\n== where Sitta submits (Saudi Arabia)");
 const seller = { name: "شركة", vatNumber: "399999999900003", crn: "1010010000",
   address: { street: "S", building: "2322", additional: "", district: "D", city: "Riyadh", postal: "23333" } };
 const view = E.creditNoteView({ id: "d1", reference: "DN-0001", invoiceId: "i1", invoiceReference: "INV-0008", amount: 57.5, reason: "Price agreed higher", status: "Issued", issueDate: "2026-10-04" },

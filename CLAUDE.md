@@ -25,6 +25,12 @@ change orders and sales orders stay FILED under the four old rows (`engineering-
 `crm-sales-quotations`, `engineering-docs-live`, `engineering-docs-settings`), now filed-only;
 **do not delete them**, and do not rename `crmSales.quotations` or `engineeringDocs.rfq`.)
 
+**THE PRODUCT IS CALLED SITTA — ستة IN ARABIC — AT `www.sittaerp.com` (the owner, 09/10/2026).**
+"nompany" survives only as the INTERNAL name: the repo, env vars (`NOMPANY_*`), key-derivation
+labels, the `nompany.tenant_id` setting, headers, storage keys, identifiers and these notes. None
+of those may be renamed — each is live data or a live session. Anything a person or a crawler
+can read says Sitta/ستة; the decision ledger row in `docs/progress.md` lists what was kept.
+
 **A SETTING SEVERAL SECTIONS CAN USE IS THE STUDIO'S — the owner, 22/09/2026:** *"timezones
 must not be set through a section settings it must be globally in the studio, in studio
 settings, something general which can be used by multiple sections must not be in a section

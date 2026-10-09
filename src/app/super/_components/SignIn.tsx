@@ -88,8 +88,8 @@ export default function SignIn() {
   return (
     <AuthShell
       title={needsCode ? "Two-step verification" : "Welcome back"}
-      sub={needsCode ? "Enter the code from your authenticator app." : "Sign in to the nompany platform console."}
-      footer="Authorised nompany staff only."
+      sub={needsCode ? "Enter the code from your authenticator app." : "Sign in to the Sitta platform console."}
+      footer="Authorised Sitta staff only."
     >
       <form onSubmit={onSubmit} noValidate>
         <div className="flex flex-col gap-5">
@@ -110,7 +110,7 @@ export default function SignIn() {
               autoComplete="username"
               autoFocus
               className={inputClass}
-              placeholder="you@nompany.com"
+              placeholder="you@sittaerp.com"
             />
           </Field>
           <Field label="Password">

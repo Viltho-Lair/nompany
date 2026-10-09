@@ -29,7 +29,7 @@ import {
   NOMPANY PERSISTENCE SEAM.
 
   The original app persisted the whole store through zustand's `persist`
-  middleware into localStorage. In nompany a plan is one Redis-backed JSON
+  middleware into localStorage. In Sitta a plan is one Redis-backed JSON
   document per plan, so the middleware is gone and the store is a plain
   `create(fn)`. EVERY action, selector and helper below is byte-for-byte the
   original; only three things change at the seam:

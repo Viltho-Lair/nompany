@@ -31,7 +31,7 @@ const ok = (label, cond, extra = "") => {
 
 const call = (method, origin) =>
   apiCors(
-    new Request("https://www.nompany.com/api/identity/login", {
+    new Request("https://www.sittaerp.com/api/identity/login", {
       method,
       headers: origin ? { origin } : {},
     }),

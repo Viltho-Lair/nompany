@@ -21,7 +21,7 @@ export const NOMPANY = "nompany";
 // admin's address, but the studio is talking to NOMPANY, not to a named person —
 // naming the individual would turn "who handled this" into an expectation that
 // the same person is there next time.
-export const SUPPORT_LABEL = "nompany Support";
+export const SUPPORT_LABEL = "Sitta Support";
 
 export const MAX_MESSAGE_CHARS = 4000;
 

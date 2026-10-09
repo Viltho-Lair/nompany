@@ -91,15 +91,15 @@ ok("a straight run either way is refused", pinProblem("1234") === "weak" && pinP
 ok("idle timeouts are a fixed list, off included", isIdleChoice(0) && isIdleChoice(15) && !isIdleChoice(7) && !isIdleChoice(10_000));
 
 // ---- passkeys ------------------------------------------------------------------
-// THE RELYING PARTY: a passkey made on www.nompany.com must also work on
-// nompany.com, where studios live — so the domain drops "www." — while the
+// THE RELYING PARTY: a passkey made on www.sittaerp.com must also work on
+// sittaerp.com, where studios live — so the domain drops "www." — while the
 // origin a signature is checked against stays exactly the page's own.
 const { relyingParty } = await import("@/platform/auth/passkeys");
 const rp = (url, host, proto) => relyingParty(new Request(url, { headers: { host, ...(proto ? { "x-forwarded-proto": proto } : {}) } }));
-let party = rp("https://www.nompany.com/en/login", "www.nompany.com", "https");
-ok("the passkey domain drops www", party.rpID === "nompany.com" && party.origin === "https://www.nompany.com", JSON.stringify(party));
-party = rp("https://nompany.com/acme/main", "nompany.com", "https");
-ok("…and the studio's own address is the same domain", party.rpID === "nompany.com");
+let party = rp("https://www.sittaerp.com/en/login", "www.sittaerp.com", "https");
+ok("the passkey domain drops www", party.rpID === "sittaerp.com" && party.origin === "https://www.sittaerp.com", JSON.stringify(party));
+party = rp("https://sittaerp.com/acme/main", "sittaerp.com", "https");
+ok("…and the studio's own address is the same domain", party.rpID === "sittaerp.com");
 party = rp("http://localhost:3010/en/login", "localhost:3010");
 ok("the sandbox is its own relying party, port kept in the origin only",
   party.rpID === "localhost" && party.origin === "http://localhost:3010", JSON.stringify(party));

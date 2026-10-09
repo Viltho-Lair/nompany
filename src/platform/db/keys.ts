@@ -1533,7 +1533,7 @@ export const SECTION_COLLECTIONS = {
 };
 
 // ---- studio slug rules -----------------------------------------------------
-// The slug IS the studio's address (nompany.com/<slug>) and its tenant handle.
+// The slug IS the studio's address (sittaerp.com/<slug>) and its tenant handle.
 // EVERY SEGMENT THE PUBLIC SITE OWNS OR INTENDS TO OWN IS IN HERE, and this
 // list had drifted badly. `platform`, `security`, `privacy` and `customers`
 // were all takeable — but the dangerous ones were `projects`, `services`,

@@ -94,7 +94,7 @@ async function readToday(day: string): Promise<TodayDoc> {
 
    ATTRIBUTION IS THE PART A MODEL IS WORST AT. Quotations are confidently
    misattributed more often than they are invented, and this one is printed under
-   nompany's name in somebody else's workplace. The instruction to choose a
+   Sitta's name in somebody else's workplace. The instruction to choose a
    different quotation rather than guess an author is the cheap half of the fix;
    the honest half is that these are still not verified, which is why the console
    shows what was generated and lets a person overwrite it. */

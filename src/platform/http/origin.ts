@@ -9,7 +9,7 @@
 //
 // WHAT IT CATCHES. Session cookies are sent by the browser on cross-site form
 // posts and fetches, which is the whole CSRF problem: attacker.example can make
-// your browser POST to nompany.com carrying your cookie. A browser attaches an
+// your browser POST to sittaerp.com carrying your cookie. A browser attaches an
 // `Origin` header to exactly those requests, so a mismatch against `Host` is
 // somebody else's page acting as you.
 //

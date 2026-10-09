@@ -39,7 +39,7 @@ const REFUSAL: Record<string, string> = {
   "bad-amount": "Enter an amount above nought.",
   "over-refund": "That is more than is left to refund on this invoice.",
   "unknown-invoice": "That invoice isn't on this studio.",
-  "seller-incomplete": "The payment was recorded, but no invoice was issued: nompany's name, address and tax number are missing in Payments.",
+  "seller-incomplete": "The payment was recorded, but no invoice was issued: Sitta's name, address and tax number are missing in Payments.",
   complimentary: "This studio is complimentary. Take that off before recording a payment.",
 };
 
@@ -171,7 +171,7 @@ export default function BillingClaimsPanel({ studioId, data, packages = [], tier
                         <SelectMenu className="ad-select" value={form.tierId} aria-label="Tier" onChange={(v) => set({ tierId: v })}
                           options={[{ value: "", label: "Tier: keep current" }, ...tiers.map((t) => ({ value: t.id, label: t.name }))]} />
                       </div>
-                      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.issueInvoice !== false} onChange={(e) => set({ issueInvoice: e.target.checked })} /> Issue the invoice now, with nompany&apos;s details from Payments</label>
+                      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.issueInvoice !== false} onChange={(e) => set({ issueInvoice: e.target.checked })} /> Issue the invoice now, with Sitta&apos;s details from Payments</label>
                       <div className="flex gap-2">
                         <Button size="sm" disabled={busy} onClick={() => act("confirm-transfer", { claimId: c.id, ...form, periods: Number(form.periods), amount: Number(form.amount) })}>Confirm — the money arrived</Button>
                         <Button size="sm" variant="ghost" onClick={() => setOpen("")}>Cancel</Button>

@@ -1,10 +1,20 @@
 "use client";
 import { motion } from "motion/react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { BRAND, BRAND_AR } from "@/shared/marketing/company";
 import { CELL_IN, Cta, ScrollWords, useInViewReveal } from "@/components/landing/site/primitives";
 import { PageHero } from "../../PageHero";
 
 type Block = { heading: string; body: string };
+
+/** Where the brand intro stops: the lockup is whole by here and the fade has not begun. */
+const HOLD = 0.97;
+
+const noSubscribe = () => () => {};
+const playsAlphaWebm = () => {
+  const ua = navigator.userAgent;
+  return !(/Safari\//.test(ua) && !/Chrome\/|Chromium\/|Edg\/|Android/.test(ua));
+};
 
 /**
  * ABOUT, in the new design. Every word arrives as props from the server page
@@ -38,6 +48,42 @@ export function AboutBody({ title, lead, what, fit, where, why, contactHeading, 
  */
 function Wordmark() {
   const reveal = useInViewReveal(0.16, CELL_IN, 0.2);
+  const video = useRef<HTMLVideoElement>(null);
+  // Safari decodes WebM but drops its alpha channel, so the transparent intro
+  // would arrive as a black box on the dark page. It gets the type instead —
+  // the same lockup, drawn rather than animated. Decided after mount: the
+  // server cannot know the browser, and the type is the safe first paint.
+  const animated = useSyncExternalStore(noSubscribe, playsAlphaWebm, () => false);
+  // Plays once, when it is first on screen, and HOLDS ON THE LOCKUP. Not on the
+  // last frame: the file fades to nothing in its final instant, so letting it
+  // end leaves an empty box where the name was. Under reduced motion it goes
+  // straight to the hold.
+  useEffect(() => {
+    const v = video.current;
+    if (!animated || !v) return;
+    const holdAt = () => v.duration * HOLD;
+    const onTime = () => { if (v.currentTime >= holdAt()) { v.pause(); v.currentTime = holdAt(); } };
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const settle = () => { v.currentTime = holdAt(); };
+      if (v.readyState >= 1) settle(); else v.addEventListener("loadedmetadata", settle, { once: true });
+      return;
+    }
+    v.addEventListener("timeupdate", onTime);
+    const io = new IntersectionObserver(([e]) => {
+      if (e?.isIntersecting) { void v.play().catch(() => {}); io.disconnect(); }
+    }, { threshold: 0.4 });
+    io.observe(v);
+    return () => { io.disconnect(); v.removeEventListener("timeupdate", onTime); };
+  }, [animated]);
+
+  if (animated) {
+    return (
+      <div aria-hidden="true" className="-my-10 mt-6 max-w-[960px] md:-my-24 md:mt-4">
+        {/* The ٦ unfolding into the six-facet mark, settling as Sitta / ستة. */}
+        <video ref={video} src="/brand/sitta-intro-white.webm" muted playsInline preload="auto" className="aspect-video w-full" />
+      </div>
+    );
+  }
   return (
     <motion.div
       {...reveal}

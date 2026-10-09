@@ -37,17 +37,17 @@ type AboutStrings = {
 };
 
 const en: AboutStrings = {
-  title: "About nompany",
+  title: "About Sitta",
   lead: "A small company building one system for the work a company actually does.",
   whatHeading: "What we make",
   whatBody:
-    "nompany is an ERP: one place for sales and quotations, tendering, projects, engineering documents, procurement, inventory, manufacturing, field service, logistics, assets and maintenance, quality and safety, people, finance, marketing, a point of sale and reporting — with a single data model underneath, so what one team enters the next one already has. It is built for small and medium companies across the region, in Arabic and English, and the first 3 months are free for teams of one to four.",
+    "Sitta is an ERP: one place for sales and quotations, tendering, projects, engineering documents, procurement, inventory, manufacturing, field service, logistics, assets and maintenance, quality and safety, people, finance, marketing, a point of sale and reporting — with a single data model underneath, so what one team enters the next one already has. It is built for small and medium companies across the region, in Arabic and English, and the first 3 months are free for teams of one to four.",
   fitHeading: "How it fits your company",
   fitBody:
     "You choose which departments you run when you set up, and your field of work fills in the first answers — a contractor starts differently from a clinic or a shop, and anything left off can be switched on later. Your org chart and the roles in it start from your own trade rather than a generic list, every right can be narrowed to a single action, and approvals follow the limits you set. Each person works in the language they choose, Arabic or English, fully right-to-left or left-to-right.",
   whereHeading: "Where we are",
   whereBody:
-    "nompany is being set up in Amman, Jordan, and serves companies across the region. Our registered address will be published here once incorporation completes. The product ships in Arabic and English with genuine right-to-left throughout, and prices are shown in the currency you choose rather than in one country's.",
+    "Sitta is being set up in Amman, Jordan, and serves companies across the region. Our registered address will be published here once incorporation completes. The product ships in Arabic and English with genuine right-to-left throughout, and prices are shown in the currency you choose rather than in one country's.",
   whyHeading: "Why we are building it",
   whyBody:
     "Most companies of this size run a different tool for each department and spend a day a week reconciling them — and the reconciling is invisible work that never makes anything. The interesting problems are the joins: what a tender costs against what the project spent, what was ordered against what arrived, what was promised against what was invoiced. None of those can be answered by software that only holds one side.",
@@ -57,17 +57,17 @@ const en: AboutStrings = {
 
 // HAND-WRITTEN, NO DIACRITICS.
 const ar: AboutStrings = {
-  title: "عن نومباني",
+  title: "عن ستة",
   lead: "شركة صغيرة تبني نظاما واحدا للعمل الذي تقوم به الشركات فعلا.",
   whatHeading: "ما الذي نصنعه",
   whatBody:
-    "نومباني نظام تخطيط موارد: مكان واحد للمبيعات وعروض الأسعار والمناقصات والمشاريع والوثائق الهندسية والمشتريات والمخزون والتصنيع والخدمة الميدانية والخدمات اللوجستية والأصول والصيانة والجودة والسلامة والموارد البشرية والمالية والتسويق ونقاط البيع والتقارير، بنموذج بيانات واحد تحته، فما يدخله فريق يجده الفريق التالي جاهزا. مبني للشركات الصغيرة والمتوسطة في المنطقة، بالعربية والإنجليزية، وأول 3 أشهر مجانا للفرق من واحد إلى أربعة.",
+    "ستة نظام تخطيط موارد: مكان واحد للمبيعات وعروض الأسعار والمناقصات والمشاريع والوثائق الهندسية والمشتريات والمخزون والتصنيع والخدمة الميدانية والخدمات اللوجستية والأصول والصيانة والجودة والسلامة والموارد البشرية والمالية والتسويق ونقاط البيع والتقارير، بنموذج بيانات واحد تحته، فما يدخله فريق يجده الفريق التالي جاهزا. مبني للشركات الصغيرة والمتوسطة في المنطقة، بالعربية والإنجليزية، وأول 3 أشهر مجانا للفرق من واحد إلى أربعة.",
   fitHeading: "كيف يناسب شركتك",
   fitBody:
     "تختار الأقسام التي تعمل بها عند الإعداد، ومجال عملك يملأ الإجابات الأولى — فالمقاول يبدأ بشكل مختلف عن العيادة أو المتجر، وما تركته يمكن تفعيله لاحقا. وهيكلك التنظيمي والأدوار فيه تبدأ من مجالك لا من قائمة عامة، وكل صلاحية يمكن حصرها في إجراء واحد، والاعتمادات تتبع الحدود التي تضعها. وكل شخص يعمل باللغة التي يختارها، العربية أو الإنجليزية، من اليمين إلى اليسار أو العكس بالكامل.",
   whereHeading: "أين نحن",
   whereBody:
-    "يجري تأسيس nompany في عمان، الأردن، وهي تخدم الشركات في أنحاء المنطقة. سننشر عنواننا المسجل هنا حين يكتمل التسجيل. المنتج يصدر بالعربية والإنجليزية بدعم حقيقي للكتابة من اليمين إلى اليسار، والأسعار تظهر بالعملة التي تختارها لا بعملة بلد بعينه.",
+    "يجري تأسيس ستة في عمان، الأردن، وهي تخدم الشركات في أنحاء المنطقة. سننشر عنواننا المسجل هنا حين يكتمل التسجيل. المنتج يصدر بالعربية والإنجليزية بدعم حقيقي للكتابة من اليمين إلى اليسار، والأسعار تظهر بالعملة التي تختارها لا بعملة بلد بعينه.",
   whyHeading: "لماذا نبنيه",
   whyBody:
     "أغلب الشركات بهذا الحجم تشغل أداة مختلفة لكل قسم، وتقضي يوما في الأسبوع في المطابقة بينها — والمطابقة عمل غير مرئي لا ينتج شيئا. والمهم هو ما بين الأقسام: كم كلفت المناقصة مقابل ما أنفقه المشروع، وما طلب مقابل ما وصل، وما وعد به مقابل ما فوتر. ولا يجيب عن أي منها برنامج لا يرى إلا طرفا واحدا.",

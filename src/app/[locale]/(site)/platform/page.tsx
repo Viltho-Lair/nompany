@@ -51,7 +51,7 @@ export default async function PlatformPage({ params }: { params: Promise<{ local
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      name: "nompany",
+      name: "Sitta",
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       // EVERY LIVE DEPARTMENT, from the same derived list the page renders. A featureList

@@ -32,7 +32,7 @@ ok("Jordan gives no end of service to the SSC-covered", JO.endOfService === null
 ok("Saudi Arabia: 21 days, 30 after five years", SA.leave.Annual.days === 21 && SA.leave.Annual.daysAfter === 30);
 ok("the UAE scheme covers nobody by default (Emiratis only)", AE.socialSecurity.coversEveryone === false);
 ok("the UAE counts leave in calendar days", AE.workingDays === false);
-ok("no preset for a country nompany has not researched", presetFor("EG") === null && presetFor("") === null);
+ok("no preset for a country Sitta has not researched", presetFor("EG") === null && presetFor("") === null);
 ok("every preset passes the check it will be saved through",
   [JO, SA, AE].every((p) => S.statutoryProblems(p).length === 0));
 

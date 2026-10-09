@@ -53,7 +53,7 @@ export function isLocale(value: unknown): value is Locale {
  *
  * The public site carries its locale in the address — /en/…, /ar/… — and the
  * proxy lifts it onto `x-locale`. A studio cannot: its address IS its slug,
- * `nompany.com/<slug>/…`, and putting a locale in front of that would give
+ * `sittaerp.com/<slug>/…`, and putting a locale in front of that would give
  * every tenant two addresses and break every link anybody has ever shared.
  *
  * So it is a setting on the studio record — the language the company is set up

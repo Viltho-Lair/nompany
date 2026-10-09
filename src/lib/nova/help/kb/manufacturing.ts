@@ -231,8 +231,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.settings", topic: "dept.manufacturing", kind: "settings", open: "manufacturing",
       q: { en: "Where are Manufacturing's settings?", ar: "أين إعدادات التصنيع؟" },
       a: {
-        en: "Manufacturing has no settings screen of its own. What behaves like a setting lives on the records: a station's capacity per day on the station, a component's unit on its Inventory item, and what a product is made of on its bill. The registers' fields, options and statuses are set by nompany and are the same in every studio. Manufacturing does not read Master data locations or categories, the studio's currency or its time zone.",
-        ar: "ليس للتصنيع شاشة إعدادات خاصة به. وما يعمل عمل الإعداد موجود في السجلات نفسها: الطاقة اليومية للمحطة في المحطة، ووحدة المكون في صنفه في المخزون، ومكونات المنتج في قائمته. أما حقول السجلات وخياراتها وحالاتها فيحددها nompany، وهي واحدة في كل استوديو. ولا يقرأ التصنيع مواقع البيانات الأساسية أو تصنيفاتها، ولا عملة الاستوديو ولا منطقته الزمنية.",
+        en: "Manufacturing has no settings screen of its own. What behaves like a setting lives on the records: a station's capacity per day on the station, a component's unit on its Inventory item, and what a product is made of on its bill. The registers' fields, options and statuses are set by Sitta and are the same in every studio. Manufacturing does not read Master data locations or categories, the studio's currency or its time zone.",
+        ar: "ليس للتصنيع شاشة إعدادات خاصة به. وما يعمل عمل الإعداد موجود في السجلات نفسها: الطاقة اليومية للمحطة في المحطة، ووحدة المكون في صنفه في المخزون، ومكونات المنتج في قائمته. أما حقول السجلات وخياراتها وحالاتها فيحددها ستة، وهي واحدة في كل استوديو. ولا يقرأ التصنيع مواقع البيانات الأساسية أو تصنيفاتها، ولا عملة الاستوديو ولا منطقته الزمنية.",
       },
       keywords: ["manufacturing settings", "configuration", "options", "capacity", "units", "إعدادات التصنيع", "تهيئة", "خيارات", "الطاقة", "الوحدات"],
       related: ["manufacturing.station-capacity", "manufacturing.units"],
@@ -261,8 +261,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.no-registers", topic: "dept.manufacturing", kind: "troubleshoot", open: "manufacturing",
       q: { en: "Why does my studio have Manufacturing but none of its registers?", ar: "لماذا يوجد التصنيع في الاستوديو دون أي من سجلاته؟" },
       a: {
-        en: "The four registers are added to a studio when it is created. A studio created before they existed does not have them, and they do not arrive by switching anything on, so Work orders, Bills of materials, Work stations and Production batches are missing from the sidebar and the Access screen, and planning has nothing to read. Contact nompany support to have them added. If they are there but you cannot see them, it is a right, not a missing register.",
-        ar: "تُضاف السجلات الأربعة إلى الاستوديو عند إنشائه. فالاستوديو الذي أُنشئ قبل وجودها لا يملكها، ولا تصل بتفعيل أي شيء، فتغيب أوامر العمل وقوائم المواد ومحطات العمل ودفعات الإنتاج عن الشريط الجانبي وعن شاشة الصلاحيات، ولا يجد التخطيط ما يقرؤه. تواصل مع دعم nompany لإضافتها. وإن كانت موجودة لكنك لا تراها، فالأمر صلاحية وليس سجلًا مفقودًا.",
+        en: "The four registers are added to a studio when it is created. A studio created before they existed does not have them, and they do not arrive by switching anything on, so Work orders, Bills of materials, Work stations and Production batches are missing from the sidebar and the Access screen, and planning has nothing to read. Contact Sitta support to have them added. If they are there but you cannot see them, it is a right, not a missing register.",
+        ar: "تُضاف السجلات الأربعة إلى الاستوديو عند إنشائه. فالاستوديو الذي أُنشئ قبل وجودها لا يملكها، ولا تصل بتفعيل أي شيء، فتغيب أوامر العمل وقوائم المواد ومحطات العمل ودفعات الإنتاج عن الشريط الجانبي وعن شاشة الصلاحيات، ولا يجد التخطيط ما يقرؤه. تواصل مع دعم ستة لإضافتها. وإن كانت موجودة لكنك لا تراها، فالأمر صلاحية وليس سجلًا مفقودًا.",
       },
       keywords: ["no registers", "missing work orders", "older studio", "empty manufacturing", "لا توجد سجلات", "أوامر العمل مفقودة", "استوديو قديم", "التصنيع فارغ"],
       related: ["manufacturing.missing-section"],
@@ -301,8 +301,8 @@ export const manufacturing: HelpModule = {
       id: "manufacturing.own-fields", topic: "dept.manufacturing", kind: "troubleshoot", open: "manufacturing",
       q: { en: "Can I add fields or statuses to a Manufacturing register?", ar: "هل أستطيع إضافة حقول أو حالات إلى سجل في التصنيع؟" },
       a: {
-        en: "Not yet. The four registers are nompany's own, and a studio cannot change their fields, options or statuses, or add a register of its own. Use the Notes field on each record for anything the form has no place for.",
-        ar: "ليس بعد. السجلات الأربعة من nompany، ولا يستطيع الاستوديو تغيير حقولها أو خياراتها أو حالاتها، ولا إضافة سجل خاص به. استخدم حقل «ملاحظات» في كل سجل لما لا مكان له في النموذج.",
+        en: "Not yet. The four registers are Sitta's own, and a studio cannot change their fields, options or statuses, or add a register of its own. Use the Notes field on each record for anything the form has no place for.",
+        ar: "ليس بعد. السجلات الأربعة من ستة، ولا يستطيع الاستوديو تغيير حقولها أو خياراتها أو حالاتها، ولا إضافة سجل خاص به. استخدم حقل «ملاحظات» في كل سجل لما لا مكان له في النموذج.",
       },
       keywords: ["custom field", "add status", "customise register", "حقل مخصص", "إضافة حالة", "تخصيص السجل"],
       related: ["manufacturing.not-yet"],

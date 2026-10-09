@@ -5,7 +5,7 @@
 // the other global registries.
 //
 // (Studios have no public site of their own. The `website` section and the
-// /c/<slug> profile it powered were removed on 2026-08-12 — nompany.com hosts
+// /c/<slug> profile it powered were removed on 2026-08-12 — sittaerp.com hosts
 // only the platform's own marketing site.)
 
 import { readArr, editArr, editJSON, getJSON } from "@/platform/db/store";

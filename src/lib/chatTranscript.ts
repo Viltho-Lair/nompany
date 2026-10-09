@@ -97,7 +97,7 @@ export async function downloadTranscript(chat: Pick<ChatRoom, "id" | "studioName
 
   const facts = [
     ["Studio", chat.studioName || "—"],
-    ["Address", chat.studioSlug ? `nompany.com/${chat.studioSlug}` : "—"],
+    ["Address", chat.studioSlug ? `sittaerp.com/${chat.studioSlug}` : "—"],
     ["Opened by", chat.userName || "—"],
     ["Handled by", chat.handledBy || "Not answered"],
     ["Chat ID", chat.id || "—"],

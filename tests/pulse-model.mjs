@@ -93,9 +93,9 @@ ok("nobody here is a real zero", P.activeNow([], now) === 0);
 console.log("\n== no email reaches the wall");
 
 // A wall is a screen in a room, and the room has visitors in it.
-ok("a handle is masked", P.maskHandle("abdullah@nompany.com").startsWith("ab"));
-ok("...and carries no domain", !P.maskHandle("abdullah@nompany.com").includes("@"));
-ok("...and no full name", !P.maskHandle("abdullah@nompany.com").includes("dullah"));
+ok("a handle is masked", P.maskHandle("abdullah@sittaerp.com").startsWith("ab"));
+ok("...and carries no domain", !P.maskHandle("abdullah@sittaerp.com").includes("@"));
+ok("...and no full name", !P.maskHandle("abdullah@sittaerp.com").includes("dullah"));
 ok("a short handle still masks", P.maskHandle("a@b.com") === "someone" || !P.maskHandle("a@b.com").includes("@"));
 ok("nothing at all is somebody", P.maskHandle("") === "someone");
 

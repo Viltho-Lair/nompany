@@ -347,7 +347,7 @@ function StudioDialog({ studio, packages, tiers, onClose, onSaved, onSubscriptio
             </div>
           </div>
 
-          {/* FEATURING IS NOT PUBLISHING. A studio appears on nompany.com only
+          {/* FEATURING IS NOT PUBLISHING. A studio appears on sittaerp.com only
               when it has ALSO agreed, in its own settings — so this switch makes
               a studio eligible and nothing more. The line below says which half
               is missing, because the alternative is somebody flipping this,

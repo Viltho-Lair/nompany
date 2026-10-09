@@ -41,7 +41,7 @@ export const GET = route({ auth: "super", name: "super/site-analytics/export" },
   // sheet with three blocks, which is what somebody comparing this spring with
   // last spring actually wants — rather than four downloads to reconcile by hand.
   const csv = [
-    `nompany website traffic — ${label}`,
+    `Sitta website traffic — ${label}`,
     "",
     "date,sessions,page views",
     ...rows.map((r) => `${r.day},${r.sessions},${r.pageViews}`),

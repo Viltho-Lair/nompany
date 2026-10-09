@@ -41,7 +41,7 @@ export function Logo() {
   return (
     <span className="inline-flex items-center gap-2.5">
       <Image src="/brand/logo-icon.png" alt="" width={34} height={34} priority className="h-[34px] w-[34px] object-contain" />
-      <span className="text-[1.2rem] font-medium tracking-[-0.03em] text-[#ececf1]">nompany</span>
+      <span className="text-[1.2rem] font-medium tracking-[-0.03em] text-[#ececf1]">Sitta</span>
     </span>
   );
 }

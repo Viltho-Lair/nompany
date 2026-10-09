@@ -12,7 +12,7 @@ export const general: HelpModule = {
   topics: [
     // ---- Getting started ----
     { id: "start.basics", parent: "start", order: 1,
-      label: { en: "nompany and your studio", ar: "nompany واستوديوك" },
+      label: { en: "Sitta and your studio", ar: "ستة واستوديوك" },
       blurb: { en: "What a studio is, sections, and switching them on or off", ar: "ما هو الاستوديو، والأقسام، وتشغيلها أو إيقافها" } },
     { id: "start.navigating", parent: "start", order: 2,
       label: { en: "Finding your way around", ar: "التنقل في النظام" },
@@ -25,7 +25,7 @@ export const general: HelpModule = {
       blurb: { en: "Currency, time zone, places, people and roles", ar: "العملة والمنطقة الزمنية والمواقع والأشخاص والأدوار" } },
     { id: "start.help", parent: "start", order: 5,
       label: { en: "Nova and support", ar: "Nova والدعم" },
-      blurb: { en: "What Nova can do, and how to reach a person at nompany", ar: "ما يمكن أن تفعله Nova، وكيف تصل إلى شخص في nompany" } },
+      blurb: { en: "What Nova can do, and how to reach a person at Sitta", ar: "ما يمكن أن تفعله Nova، وكيف تصل إلى شخص في ستة" } },
 
     // ---- Studio settings & access ----
     { id: "admin.people", parent: "admin", order: 1, sectionKey: "administration-members",
@@ -76,10 +76,10 @@ export const general: HelpModule = {
     // =====================================================================
     {
       id: "start.what-is-nompany", topic: "start.basics", kind: "about", common: true,
-      q: { en: "What is nompany?", ar: "ما هو nompany؟" },
+      q: { en: "What is Sitta?", ar: "ما هو ستة؟" },
       a: {
-        en: "nompany is an ERP: one system where a company runs its sales, quotations, projects, purchasing, stock, people, finance and more. Each company works in its own studio, and each part of the business is a section in the sidebar. You only see the sections your studio has switched on and your role allows you to open.",
-        ar: "nompany نظام لتخطيط موارد المؤسسات: نظام واحد تدير فيه الشركة مبيعاتها وعروض أسعارها ومشاريعها ومشترياتها ومخزونها وموظفيها وماليتها وغير ذلك. تعمل كل شركة في استوديو خاص بها، وكل جزء من العمل قسم في الشريط الجانبي. لا ترى إلا الأقسام المفعّلة في استوديوك والتي يسمح لك دورك بفتحها.",
+        en: "Sitta is an ERP: one system where a company runs its sales, quotations, projects, purchasing, stock, people, finance and more. Each company works in its own studio, and each part of the business is a section in the sidebar. You only see the sections your studio has switched on and your role allows you to open.",
+        ar: "ستة نظام لتخطيط موارد المؤسسات: نظام واحد تدير فيه الشركة مبيعاتها وعروض أسعارها ومشاريعها ومشترياتها ومخزونها وموظفيها وماليتها وغير ذلك. تعمل كل شركة في استوديو خاص بها، وكل جزء من العمل قسم في الشريط الجانبي. لا ترى إلا الأقسام المفعّلة في استوديوك والتي يسمح لك دورك بفتحها.",
       },
       keywords: ["ERP", "system", "platform", "overview", "نظام", "منصة", "نظرة عامة", "تخطيط موارد"],
       related: ["start.what-is-a-studio", "start.sidebar"],
@@ -88,8 +88,8 @@ export const general: HelpModule = {
       id: "start.what-is-a-studio", topic: "start.basics", kind: "about",
       q: { en: "What is a studio?", ar: "ما هو الاستوديو؟" },
       a: {
-        en: "A studio is your company's workspace in nompany, at its own address: nompany.com followed by the company code. Everything your company records lives inside it, and only its members can see any of it. One person can belong to several studios, and each studio keeps its own name, role and profile for them.",
-        ar: "الاستوديو هو مساحة عمل شركتك في nompany، وله عنوانه الخاص: nompany.com متبوعا برمز الشركة. كل ما تسجله شركتك موجود داخله، ولا يرى أي شيء منه إلا أعضاؤه. يمكن للشخص الواحد أن ينتمي إلى عدة استوديوهات، ويحتفظ كل استوديو باسمه ودوره وملفه الخاص به.",
+        en: "A studio is your company's workspace in Sitta, at its own address: sittaerp.com followed by the company code. Everything your company records lives inside it, and only its members can see any of it. One person can belong to several studios, and each studio keeps its own name, role and profile for them.",
+        ar: "الاستوديو هو مساحة عمل شركتك في ستة، وله عنوانه الخاص: sittaerp.com متبوعا برمز الشركة. كل ما تسجله شركتك موجود داخله، ولا يرى أي شيء منه إلا أعضاؤه. يمكن للشخص الواحد أن ينتمي إلى عدة استوديوهات، ويحتفظ كل استوديو باسمه ودوره وملفه الخاص به.",
       },
       keywords: ["studio", "workspace", "company", "tenant", "استوديو", "مساحة عمل", "شركة", "المستأجر"],
       related: ["start.company-code", "account.studios.switch"],
@@ -153,8 +153,8 @@ export const general: HelpModule = {
       id: "start.field-of-work", topic: "start.basics", kind: "about",
       q: { en: "What does the field of work change?", ar: "ما الذي يغيّره مجال العمل؟" },
       a: {
-        en: "The field of work tells nompany what your company does. It suggests which sections you start with, offers the departments and pre-built roles your trade usually has, and picks the deal flow. Changing it later switches nothing off by itself: the Sections panel offers a checklist instead, and nothing changes until you press Apply.",
-        ar: "يخبر مجال العمل nompany بما تفعله شركتك. فهو يقترح الأقسام التي تبدأ بها، ويعرض الإدارات والأدوار الجاهزة المعتادة في مجالك، ويختار مسار الصفقات. تغييره لاحقا لا يوقف شيئا بنفسه: إذ تعرض لوحة الأقسام قائمة اختيار بدلا من ذلك، ولا يتغير شيء حتى تضغط تطبيق.",
+        en: "The field of work tells Sitta what your company does. It suggests which sections you start with, offers the departments and pre-built roles your trade usually has, and picks the deal flow. Changing it later switches nothing off by itself: the Sections panel offers a checklist instead, and nothing changes until you press Apply.",
+        ar: "يخبر مجال العمل ستة بما تفعله شركتك. فهو يقترح الأقسام التي تبدأ بها، ويعرض الإدارات والأدوار الجاهزة المعتادة في مجالك، ويختار مسار الصفقات. تغييره لاحقا لا يوقف شيئا بنفسه: إذ تعرض لوحة الأقسام قائمة اختيار بدلا من ذلك، ولا يتغير شيء حتى تضغط تطبيق.",
       },
       keywords: ["field of work", "industry", "trade", "business type", "مجال العمل", "الصناعة", "النشاط", "نوع العمل"],
       related: ["admin.settings.field-of-work", "start.switch-sections"],
@@ -288,8 +288,8 @@ export const general: HelpModule = {
       open: "administration-members",
       q: { en: "How do I invite people to my studio?", ar: "كيف أدعو أشخاصا إلى استوديوي؟" },
       a: {
-        en: "Share your company code; there are no invitation links or tokens to pass around. Each person creates a nompany account, enters the code on their account page, and you approve their request on the People screen, choosing their role as you do. Your package decides how many members the studio may have.",
-        ar: "شارك رمز شركتك؛ فلا توجد روابط دعوة أو رموز وصول لتمريرها. ينشئ كل شخص حسابا في nompany، ويدخل الرمز في صفحة حسابه، ثم توافق أنت على طلبه في شاشة الأشخاص وتختار دوره في الوقت نفسه. تحدد باقتك عدد الأعضاء المسموح به في الاستوديو.",
+        en: "Share your company code; there are no invitation links or tokens to pass around. Each person creates a Sitta account, enters the code on their account page, and you approve their request on the People screen, choosing their role as you do. Your package decides how many members the studio may have.",
+        ar: "شارك رمز شركتك؛ فلا توجد روابط دعوة أو رموز وصول لتمريرها. ينشئ كل شخص حسابا في ستة، ويدخل الرمز في صفحة حسابه، ثم توافق أنت على طلبه في شاشة الأشخاص وتختار دوره في الوقت نفسه. تحدد باقتك عدد الأعضاء المسموح به في الاستوديو.",
       },
       steps: {
         en: ["Open Settings, then People.", "Under Invite people, copy the company code.", "Send it to the people you want in the studio.", "When their requests appear under Requests to join, approve each one and pick a role."],
@@ -317,8 +317,8 @@ export const general: HelpModule = {
       id: "start.join-pending", topic: "start.people", kind: "troubleshoot",
       q: { en: "I asked to join a studio and nothing happened", ar: "طلبت الانضمام إلى استوديو ولم يحدث شيء" },
       a: {
-        en: "Your request is waiting for someone in that studio to approve it; nompany does not approve it for them. Let a colleague who manages people know you have asked. If the page says no studio uses that code, check the spelling with them, since a code can also change when the owner renames the studio's link.",
-        ar: "طلبك ينتظر موافقة أحد أعضاء ذلك الاستوديو؛ ولا توافق nompany نيابة عنهم. أخبر زميلا مسؤولا عن الأشخاص بأنك قدمت الطلب. وإذا قالت الصفحة إنه لا يوجد استوديو بهذا الرمز فتحقق من كتابته معهم، لأن الرمز قد يتغير عندما يغيّر المالك رابط الاستوديو.",
+        en: "Your request is waiting for someone in that studio to approve it; Sitta does not approve it for them. Let a colleague who manages people know you have asked. If the page says no studio uses that code, check the spelling with them, since a code can also change when the owner renames the studio's link.",
+        ar: "طلبك ينتظر موافقة أحد أعضاء ذلك الاستوديو؛ ولا توافق ستة نيابة عنهم. أخبر زميلا مسؤولا عن الأشخاص بأنك قدمت الطلب. وإذا قالت الصفحة إنه لا يوجد استوديو بهذا الرمز فتحقق من كتابته معهم، لأن الرمز قد يتغير عندما يغيّر المالك رابط الاستوديو.",
       },
       keywords: ["pending", "waiting", "request", "not approved", "معلق", "انتظار", "طلب", "لم تتم الموافقة"],
       related: ["start.join-studio", "start.company-code"],
@@ -327,8 +327,8 @@ export const general: HelpModule = {
       id: "start.company-code", topic: "start.people", kind: "about",
       q: { en: "What is the company code?", ar: "ما هو رمز الشركة؟" },
       a: {
-        en: "The company code is your studio's address on nompany.com, and it is what people type to ask to join. Knowing it lets someone ask, never enter: every request still needs approval. Only the owner can change it, and a change takes effect at midnight, after which the old link stops working.",
-        ar: "رمز الشركة هو عنوان استوديوك على nompany.com، وهو ما يكتبه الناس لطلب الانضمام. معرفة الرمز تتيح للشخص أن يطلب فقط لا أن يدخل: فكل طلب يحتاج موافقة. لا يغيّره إلا المالك، ويسري التغيير عند منتصف الليل، وبعدها يتوقف الرابط القديم عن العمل.",
+        en: "The company code is your studio's address on sittaerp.com, and it is what people type to ask to join. Knowing it lets someone ask, never enter: every request still needs approval. Only the owner can change it, and a change takes effect at midnight, after which the old link stops working.",
+        ar: "رمز الشركة هو عنوان استوديوك على sittaerp.com، وهو ما يكتبه الناس لطلب الانضمام. معرفة الرمز تتيح للشخص أن يطلب فقط لا أن يدخل: فكل طلب يحتاج موافقة. لا يغيّره إلا المالك، ويسري التغيير عند منتصف الليل، وبعدها يتوقف الرابط القديم عن العمل.",
       },
       keywords: ["company code", "slug", "studio link", "address", "رمز الشركة", "رابط الاستوديو", "العنوان", "المعرّف"],
       related: ["start.invite-people", "account.studios.rename"],
@@ -406,8 +406,8 @@ export const general: HelpModule = {
       id: "start.new-member-sees-nothing", topic: "start.first-steps", kind: "about",
       q: { en: "Why does a new member see an empty studio?", ar: "لماذا يرى العضو الجديد استوديو فارغا؟" },
       a: {
-        en: "Access in nompany is denied by default: a person with no role, or a role with no rights, can open nothing. Give them a role on the People screen, and make sure that role has the rights they need on the Access screen. Main itself is a granted page too, so tick it for the roles that should have a home page.",
-        ar: "الوصول في nompany مرفوض افتراضيا: الشخص الذي لا دور له، أو له دور بلا صلاحيات، لا يستطيع فتح شيء. امنحه دورا من شاشة الأشخاص، وتأكد من أن لهذا الدور الصلاحيات التي يحتاجها في شاشة الصلاحيات. والرئيسية نفسها صفحة تحتاج صلاحية، فحددها للأدوار التي ينبغي أن تكون لها صفحة رئيسية.",
+        en: "Access in Sitta is denied by default: a person with no role, or a role with no rights, can open nothing. Give them a role on the People screen, and make sure that role has the rights they need on the Access screen. Main itself is a granted page too, so tick it for the roles that should have a home page.",
+        ar: "الوصول في ستة مرفوض افتراضيا: الشخص الذي لا دور له، أو له دور بلا صلاحيات، لا يستطيع فتح شيء. امنحه دورا من شاشة الأشخاص، وتأكد من أن لهذا الدور الصلاحيات التي يحتاجها في شاشة الصلاحيات. والرئيسية نفسها صفحة تحتاج صلاحية، فحددها للأدوار التي ينبغي أن تكون لها صفحة رئيسية.",
       },
       keywords: ["empty", "no access", "new member", "nothing shared", "فارغ", "لا وصول", "عضو جديد", "لم يُشارك شيء"],
       related: ["admin.people.change-role", "trouble.nothing-shared"],
@@ -420,8 +420,8 @@ export const general: HelpModule = {
       id: "start.nova-what", topic: "start.help", kind: "about", common: true,
       q: { en: "What can Nova do?", ar: "ماذا تستطيع Nova أن تفعل؟" },
       a: {
-        en: "Nova is nompany's assistant. This help desk answers questions about how the product works, whether you click through the topics or type. When your package includes Nova's chat, she can also read the studio's records you are allowed to see, such as invoices, projects, stock or your approvals, and carry out a few actions after you confirm them. She never sees or does more than your own rights allow.",
-        ar: "Nova هي مساعدة nompany. يجيب مكتب المساعدة هذا عن الأسئلة حول طريقة عمل المنتج، سواء تصفحت المواضيع أو كتبت سؤالك. وحين تشمل باقتك محادثة Nova، يمكنها أيضا قراءة سجلات الاستوديو المسموح لك برؤيتها، مثل الفواتير أو المشاريع أو المخزون أو موافقاتك، وتنفيذ بعض الإجراءات بعد تأكيدك. ولا ترى ولا تفعل أكثر مما تسمح به صلاحياتك.",
+        en: "Nova is Sitta's assistant. This help desk answers questions about how the product works, whether you click through the topics or type. When your package includes Nova's chat, she can also read the studio's records you are allowed to see, such as invoices, projects, stock or your approvals, and carry out a few actions after you confirm them. She never sees or does more than your own rights allow.",
+        ar: "Nova هي مساعدة ستة. يجيب مكتب المساعدة هذا عن الأسئلة حول طريقة عمل المنتج، سواء تصفحت المواضيع أو كتبت سؤالك. وحين تشمل باقتك محادثة Nova، يمكنها أيضا قراءة سجلات الاستوديو المسموح لك برؤيتها، مثل الفواتير أو المشاريع أو المخزون أو موافقاتك، وتنفيذ بعض الإجراءات بعد تأكيدك. ولا ترى ولا تفعل أكثر مما تسمح به صلاحياتك.",
       },
       keywords: ["Nova", "assistant", "AI", "chatbot", "help", "مساعد", "ذكاء اصطناعي", "مساعدة", "روبوت محادثة"],
       related: ["start.nova-cannot", "start.nova-key", "start.live-chat"],
@@ -440,8 +440,8 @@ export const general: HelpModule = {
       id: "start.nova-key", topic: "start.help", kind: "about",
       q: { en: "Do I need to set anything up to use Nova?", ar: "هل أحتاج إلى إعداد أي شيء لاستخدام Nova؟" },
       a: {
-        en: "No. Nova runs on an AI service that nompany connects once for everybody, so there is no key or account for you to add. Whether your studio has Nova at all depends on its package. If Nova says she is not set up, that is on nompany's side, and sending the question to support is the quickest fix.",
-        ar: "لا. تعمل Nova على خدمة ذكاء اصطناعي تربطها nompany مرة واحدة للجميع، فلا يوجد مفتاح أو حساب عليك إضافته. ويعتمد توفر Nova في استوديوك على باقته. وإذا قالت Nova إنها غير مهيأة فالأمر من جهة nompany، وإرسال السؤال إلى الدعم هو أسرع حل.",
+        en: "No. Nova runs on an AI service that Sitta connects once for everybody, so there is no key or account for you to add. Whether your studio has Nova at all depends on its package. If Nova says she is not set up, that is on Sitta's side, and sending the question to support is the quickest fix.",
+        ar: "لا. تعمل Nova على خدمة ذكاء اصطناعي تربطها ستة مرة واحدة للجميع، فلا يوجد مفتاح أو حساب عليك إضافته. ويعتمد توفر Nova في استوديوك على باقته. وإذا قالت Nova إنها غير مهيأة فالأمر من جهة ستة، وإرسال السؤال إلى الدعم هو أسرع حل.",
       },
       keywords: ["API key", "AI key", "Nova setup", "configure Nova", "مفتاح", "إعداد Nova", "مفتاح الذكاء الاصطناعي"],
       related: ["trouble.nova-unavailable", "start.nova-what"],
@@ -449,10 +449,10 @@ export const general: HelpModule = {
 
     {
       id: "start.live-chat", topic: "start.help", kind: "about",
-      q: { en: "How do I talk to a person at nompany?", ar: "كيف أتحدث إلى شخص في nompany؟" },
+      q: { en: "How do I talk to a person at Sitta?", ar: "كيف أتحدث إلى شخص في ستة؟" },
       a: {
-        en: "Where your package includes it, the support chat in the studio connects you with someone from nompany; you can start describing the problem while you wait for them to join. Nova answers straight away from what she knows, while the support chat is a real person. The support chat stays open even when a studio is closed for an unpaid invoice.",
-        ar: "حين تشمله باقتك، يوصلك الدعم عبر المحادثة داخل الاستوديو بشخص من nompany؛ ويمكنك البدء في وصف المشكلة أثناء انتظار انضمامه. تجيب Nova فورا مما تعرفه، أما محادثة الدعم فيرد عليها شخص حقيقي. وتبقى محادثة الدعم متاحة حتى عندما يكون الاستوديو مغلقا بسبب فاتورة غير مدفوعة.",
+        en: "Where your package includes it, the support chat in the studio connects you with someone from Sitta; you can start describing the problem while you wait for them to join. Nova answers straight away from what she knows, while the support chat is a real person. The support chat stays open even when a studio is closed for an unpaid invoice.",
+        ar: "حين تشمله باقتك، يوصلك الدعم عبر المحادثة داخل الاستوديو بشخص من ستة؛ ويمكنك البدء في وصف المشكلة أثناء انتظار انضمامه. تجيب Nova فورا مما تعرفه، أما محادثة الدعم فيرد عليها شخص حقيقي. وتبقى محادثة الدعم متاحة حتى عندما يكون الاستوديو مغلقا بسبب فاتورة غير مدفوعة.",
       },
       keywords: ["support", "live chat", "contact", "human", "customer service", "الدعم", "محادثة مباشرة", "تواصل", "خدمة العملاء"],
       related: ["start.nova-what"],
@@ -502,8 +502,8 @@ export const general: HelpModule = {
       open: "administration-members",
       q: { en: "How do I remove someone from the studio?", ar: "كيف أزيل شخصا من الاستوديو؟" },
       a: {
-        en: "On People, use Remove beside the person. They lose access to this studio at once, and their seat is freed; their nompany account and any other studios they belong to are untouched. The owner cannot be removed.",
-        ar: "في شاشة الأشخاص استخدم إزالة بجانب الشخص. يفقد وصوله إلى هذا الاستوديو فورا ويتحرر مقعده؛ ولا يتأثر حسابه في nompany ولا الاستوديوهات الأخرى التي ينتمي إليها. لا يمكن إزالة المالك.",
+        en: "On People, use Remove beside the person. They lose access to this studio at once, and their seat is freed; their Sitta account and any other studios they belong to are untouched. The owner cannot be removed.",
+        ar: "في شاشة الأشخاص استخدم إزالة بجانب الشخص. يفقد وصوله إلى هذا الاستوديو فورا ويتحرر مقعده؛ ولا يتأثر حسابه في ستة ولا الاستوديوهات الأخرى التي ينتمي إليها. لا يمكن إزالة المالك.",
       },
       steps: {
         en: ["Open Settings, then People.", "Find the person.", "Click Remove and confirm."],
@@ -612,8 +612,8 @@ export const general: HelpModule = {
       open: "hr",
       q: { en: "How do I add a pre-built role?", ar: "كيف أضيف دورا جاهزا؟" },
       a: {
-        en: "nompany has a catalogue of job titles for each field of work. In Human Resources, under Roles, choose Add pre-built roles under a department and pick from the jobs that department usually has. Each arrives with a copy of suitable access inside that department's own sections, which you can then adjust in Access. The catalogue needs the studio's field of work and the department's code to know which jobs to offer.",
-        ar: "لدى nompany دليل للمسميات الوظيفية لكل مجال عمل. في الموارد البشرية، تحت الأدوار، اختر إضافة أدوار جاهزة تحت إحدى الإدارات واختر من الوظائف المعتادة فيها. يصل كل دور بنسخة من صلاحيات مناسبة داخل أقسام تلك الإدارة، ويمكنك تعديلها بعد ذلك من الصلاحيات. ويحتاج الدليل إلى مجال عمل الاستوديو ورمز الإدارة ليعرف الوظائف التي يعرضها.",
+        en: "Sitta has a catalogue of job titles for each field of work. In Human Resources, under Roles, choose Add pre-built roles under a department and pick from the jobs that department usually has. Each arrives with a copy of suitable access inside that department's own sections, which you can then adjust in Access. The catalogue needs the studio's field of work and the department's code to know which jobs to offer.",
+        ar: "لدى ستة دليل للمسميات الوظيفية لكل مجال عمل. في الموارد البشرية، تحت الأدوار، اختر إضافة أدوار جاهزة تحت إحدى الإدارات واختر من الوظائف المعتادة فيها. يصل كل دور بنسخة من صلاحيات مناسبة داخل أقسام تلك الإدارة، ويمكنك تعديلها بعد ذلك من الصلاحيات. ويحتاج الدليل إلى مجال عمل الاستوديو ورمز الإدارة ليعرف الوظائف التي يعرضها.",
       },
       steps: {
         en: ["Set the field of work in Studio settings, and give the department a code in Master data.", "Open Human Resources, then Roles.", "Under the department, choose Add pre-built roles.", "Search, tick the jobs you want, and add them."],
@@ -634,7 +634,7 @@ export const general: HelpModule = {
     },
     {
       id: "admin.access.new-features", topic: "admin.access", kind: "about",
-      q: { en: "When nompany adds a feature, do my roles get it?", ar: "عندما تضيف nompany ميزة جديدة، هل تحصل عليها أدواري؟" },
+      q: { en: "When Sitta adds a feature, do my roles get it?", ar: "عندما تضيف ستة ميزة جديدة، هل تحصل عليها أدواري؟" },
       a: {
         en: "Sometimes. When a new right follows naturally from one a role already holds, every role holding the old right gains the new one by itself. A right with nothing to follow is not given to anyone automatically; an Admin decides who gets it in Access. A right you deliberately removed from a role stays removed.",
         ar: "أحيانا. حين تنبثق صلاحية جديدة طبيعيا من صلاحية يملكها الدور أصلا، يحصل كل دور يملك الصلاحية القديمة على الجديدة تلقائيا. أما الصلاحية التي لا تتبع صلاحية سابقة فلا تُمنح لأحد تلقائيا؛ بل يقرر المسؤول من يحصل عليها في شاشة الصلاحيات. والصلاحية التي أزلتها عمدا من دور تبقى مزالة.",
@@ -755,8 +755,8 @@ export const general: HelpModule = {
       open: "administration-master",
       q: { en: "Can I change the wording of notifications?", ar: "هل يمكنني تغيير صياغة الإشعارات؟" },
       a: {
-        en: "Yes, on the Notices tab of Master data, per type and per language. The screen shows the placeholders you may use, such as the person's name, and a title cannot be left blank. Anything you have not changed keeps nompany's own wording, including later improvements to it.",
-        ar: "نعم، من تبويب الإشعارات في البيانات الأساسية، لكل نوع ولكل لغة. تعرض الشاشة العناصر النائبة التي يمكنك استخدامها، مثل اسم الشخص، ولا يمكن ترك العنوان فارغا. وكل ما لم تغيّره يحتفظ بصياغة nompany نفسها، بما في ذلك تحسيناتها اللاحقة.",
+        en: "Yes, on the Notices tab of Master data, per type and per language. The screen shows the placeholders you may use, such as the person's name, and a title cannot be left blank. Anything you have not changed keeps Sitta's own wording, including later improvements to it.",
+        ar: "نعم، من تبويب الإشعارات في البيانات الأساسية، لكل نوع ولكل لغة. تعرض الشاشة العناصر النائبة التي يمكنك استخدامها، مثل اسم الشخص، ولا يمكن ترك العنوان فارغا. وكل ما لم تغيّره يحتفظ بصياغة ستة نفسها، بما في ذلك تحسيناتها اللاحقة.",
       },
       keywords: ["notification text", "wording", "template", "message", "نص الإشعار", "الصياغة", "قالب", "رسالة"],
       related: ["start.notifications"],
@@ -857,8 +857,8 @@ export const general: HelpModule = {
       open: "administration-settings",
       q: { en: "How do I add our company logo?", ar: "كيف أضيف شعار شركتنا؟" },
       a: {
-        en: "Upload it in Studio settings under Studio logo. It replaces the nompany mark at the top of the studio and on the studio's card in every member's account. JPG, PNG or WebP files up to 2 MB are accepted.",
-        ar: "ارفعه من إعدادات الاستوديو تحت شعار الاستوديو. يحل محل علامة nompany في أعلى الاستوديو وعلى بطاقته في حساب كل عضو. تُقبل ملفات JPG أو PNG أو WebP حتى 2 ميغابايت.",
+        en: "Upload it in Studio settings under Studio logo. It replaces the Sitta mark at the top of the studio and on the studio's card in every member's account. JPG, PNG or WebP files up to 2 MB are accepted.",
+        ar: "ارفعه من إعدادات الاستوديو تحت شعار الاستوديو. يحل محل علامة ستة في أعلى الاستوديو وعلى بطاقته في حساب كل عضو. تُقبل ملفات JPG أو PNG أو WebP حتى 2 ميغابايت.",
       },
       steps: {
         en: ["Open Settings, then Studio settings.", "Under Studio logo, click Change.", "Choose the image file."],
@@ -895,10 +895,10 @@ export const general: HelpModule = {
     },
     {
       id: "admin.settings.showcase", topic: "admin.settings", kind: "settings",
-      q: { en: "What is Appear on nompany's website?", ar: "ما خيار الظهور على موقع nompany؟" },
+      q: { en: "What is Appear on Sitta's website?", ar: "ما خيار الظهور على موقع ستة؟" },
       a: {
-        en: "It lets nompany name your company and show your logo on nompany.com as a customer. Nothing else is shared: no numbers, no people and no link into the studio. Agreeing does not publish anything straight away, since nompany gets in touch first, and turning it off removes you from the site on the next page load.",
-        ar: "يسمح لـ nompany بذكر اسم شركتك وعرض شعارها على nompany.com كأحد العملاء. ولا يُشارك أي شيء آخر: لا أرقام ولا أشخاص ولا رابط إلى الاستوديو. الموافقة لا تنشر شيئا فورا، إذ تتواصل nompany معك أولا، وإيقافه يزيلك من الموقع عند تحميل الصفحة التالي.",
+        en: "It lets Sitta name your company and show your logo on sittaerp.com as a customer. Nothing else is shared: no numbers, no people and no link into the studio. Agreeing does not publish anything straight away, since Sitta gets in touch first, and turning it off removes you from the site on the next page load.",
+        ar: "يسمح لـ ستة بذكر اسم شركتك وعرض شعارها على sittaerp.com كأحد العملاء. ولا يُشارك أي شيء آخر: لا أرقام ولا أشخاص ولا رابط إلى الاستوديو. الموافقة لا تنشر شيئا فورا، إذ تتواصل ستة معك أولا، وإيقافه يزيلك من الموقع عند تحميل الصفحة التالي.",
       },
       keywords: ["showcase", "website", "customer logo", "publicity", "عرض", "الموقع الإلكتروني", "شعار العميل", "الإعلان"],
       related: ["admin.settings.about"],
@@ -976,8 +976,8 @@ export const general: HelpModule = {
       id: "admin.approvals.not-configured", topic: "admin.approvals.settings", kind: "troubleshoot",
       q: { en: "Requesting approval says nobody is set up to approve it", ar: "طلب الموافقة يقول إنه لا يوجد من يوافق عليه" },
       a: {
-        en: "That type of approval has no steps with anyone on them, so nompany refuses the request rather than filing one that would wait for ever. Someone with the right to edit approval settings, usually the owner or an Admin, needs to add at least one step naming who approves it. Then ask again.",
-        ar: "لا توجد لهذا النوع من الموافقات خطوات فيها أي شخص، لذا ترفض nompany الطلب بدلا من تسجيل طلب سينتظر إلى الأبد. يجب على شخص لديه صلاحية تعديل إعدادات الموافقات، وعادة المالك أو المسؤول، إضافة خطوة واحدة على الأقل تحدد من يوافق عليه. ثم اطلب مجددا.",
+        en: "That type of approval has no steps with anyone on them, so Sitta refuses the request rather than filing one that would wait for ever. Someone with the right to edit approval settings, usually the owner or an Admin, needs to add at least one step naming who approves it. Then ask again.",
+        ar: "لا توجد لهذا النوع من الموافقات خطوات فيها أي شخص، لذا ترفض ستة الطلب بدلا من تسجيل طلب سينتظر إلى الأبد. يجب على شخص لديه صلاحية تعديل إعدادات الموافقات، وعادة المالك أو المسؤول، إضافة خطوة واحدة على الأقل تحدد من يوافق عليه. ثم اطلب مجددا.",
       },
       keywords: ["not configured", "no approver", "cannot request", "refused", "غير مهيأ", "لا يوجد موافق", "لا يمكن الطلب", "مرفوض"],
       related: ["admin.approvals.settings"],
@@ -1058,8 +1058,8 @@ export const general: HelpModule = {
       id: "account.password.forgot", topic: "account.profile", kind: "howto",
       q: { en: "I forgot my password", ar: "نسيت كلمة المرور" },
       a: {
-        en: "Use the forgotten password link on the sign-in page. Enter your email and nompany sends a 6-digit code, which expires in 1 hour; use it to set a new password. For safety, you are then signed out everywhere and sign in again with the new password.",
-        ar: "استخدم رابط نسيان كلمة المرور في صفحة تسجيل الدخول. أدخل بريدك فترسل nompany رمزا من 6 أرقام تنتهي صلاحيته خلال ساعة؛ استخدمه لضبط كلمة مرور جديدة. وللأمان يُسجَّل خروجك بعد ذلك من كل مكان وتدخل مجددا بكلمة المرور الجديدة.",
+        en: "Use the forgotten password link on the sign-in page. Enter your email and Sitta sends a 6-digit code, which expires in 1 hour; use it to set a new password. For safety, you are then signed out everywhere and sign in again with the new password.",
+        ar: "استخدم رابط نسيان كلمة المرور في صفحة تسجيل الدخول. أدخل بريدك فترسل ستة رمزا من 6 أرقام تنتهي صلاحيته خلال ساعة؛ استخدمه لضبط كلمة مرور جديدة. وللأمان يُسجَّل خروجك بعد ذلك من كل مكان وتدخل مجددا بكلمة المرور الجديدة.",
       },
       steps: {
         en: ["On the sign-in page, choose to reset your password.", "Enter your email and click Send code.", "Type the 6-digit code from the email.", "Set your new password and sign in."],
@@ -1256,8 +1256,8 @@ export const general: HelpModule = {
       id: "account.plan.packages", topic: "account.plan", kind: "about",
       q: { en: "What does my package include?", ar: "ماذا تشمل باقتي؟" },
       a: {
-        en: "A studio's package, and its tier, decide how many members it may have and which extras it gets, such as Nova, the support chat, some dashboard widgets and parts of Point of Sale. Packages are priced by region in your region's currency. Standard is free for up to four people for its first three months; larger teams need a paid package, and Large is set up with nompany's team.",
-        ar: "تحدد باقة الاستوديو ومستواها عدد الأعضاء المسموح به والإضافات التي يحصل عليها، مثل Nova ومحادثة الدعم وبعض عناصر لوحات المعلومات وأجزاء من نقاط البيع. تُسعَّر الباقات حسب المنطقة وبعملتها. الباقة القياسية مجانية لما يصل إلى أربعة أشخاص في أشهرها الثلاثة الأولى؛ وتحتاج الفرق الأكبر إلى باقة مدفوعة، وتُعدّ الباقة الكبيرة مع فريق nompany.",
+        en: "A studio's package, and its tier, decide how many members it may have and which extras it gets, such as Nova, the support chat, some dashboard widgets and parts of Point of Sale. Packages are priced by region in your region's currency. Standard is free for up to four people for its first three months; larger teams need a paid package, and Large is set up with Sitta's team.",
+        ar: "تحدد باقة الاستوديو ومستواها عدد الأعضاء المسموح به والإضافات التي يحصل عليها، مثل Nova ومحادثة الدعم وبعض عناصر لوحات المعلومات وأجزاء من نقاط البيع. تُسعَّر الباقات حسب المنطقة وبعملتها. الباقة القياسية مجانية لما يصل إلى أربعة أشخاص في أشهرها الثلاثة الأولى؛ وتحتاج الفرق الأكبر إلى باقة مدفوعة، وتُعدّ الباقة الكبيرة مع فريق ستة.",
       },
       keywords: ["package", "plan", "tier", "pricing", "subscription", "الباقة", "الخطة", "المستوى", "الأسعار", "الاشتراك"],
       related: ["account.plan.upgrade", "account.plan.change-keeps-data"],
@@ -1276,12 +1276,12 @@ export const general: HelpModule = {
       id: "account.plan.upgrade", topic: "account.plan", kind: "howto",
       q: { en: "How do I upgrade my package?", ar: "كيف أرقّي باقتي؟" },
       a: {
-        en: "The owner clicks Upgrade in the studio header or on the studio's card on the account page, where the package offers it. Pick a package, size, tier and monthly or yearly billing; the price shows in your region's currency with tax. This sends a request rather than charging you: you then pay by bank transfer, and the studio moves onto the new package once nompany confirms the payment.",
-        ar: "يضغط المالك زر الترقية في الشريط العلوي للاستوديو أو على بطاقة الاستوديو في صفحة الحساب حين تتيحه الباقة. اختر الباقة والحجم والمستوى والفوترة الشهرية أو السنوية؛ ويظهر السعر بعملة منطقتك شاملا الضريبة. هذا يرسل طلبا ولا يخصم منك شيئا: ثم تدفع بالتحويل البنكي، وينتقل الاستوديو إلى الباقة الجديدة بعد أن تؤكد nompany الدفعة.",
+        en: "The owner clicks Upgrade in the studio header or on the studio's card on the account page, where the package offers it. Pick a package, size, tier and monthly or yearly billing; the price shows in your region's currency with tax. This sends a request rather than charging you: you then pay by bank transfer, and the studio moves onto the new package once Sitta confirms the payment.",
+        ar: "يضغط المالك زر الترقية في الشريط العلوي للاستوديو أو على بطاقة الاستوديو في صفحة الحساب حين تتيحه الباقة. اختر الباقة والحجم والمستوى والفوترة الشهرية أو السنوية؛ ويظهر السعر بعملة منطقتك شاملا الضريبة. هذا يرسل طلبا ولا يخصم منك شيئا: ثم تدفع بالتحويل البنكي، وينتقل الاستوديو إلى الباقة الجديدة بعد أن تؤكد ستة الدفعة.",
       },
       steps: {
-        en: ["Click Upgrade in the studio header.", "Choose the package, size, tier and billing period.", "Send the request.", "Pay using the bank transfer details shown, then tell nompany you have sent it."],
-        ar: ["اضغط ترقية في الشريط العلوي للاستوديو.", "اختر الباقة والحجم والمستوى وفترة الفوترة.", "أرسل الطلب.", "ادفع باستخدام بيانات التحويل البنكي المعروضة، ثم أخبر nompany بأنك أرسلته."],
+        en: ["Click Upgrade in the studio header.", "Choose the package, size, tier and billing period.", "Send the request.", "Pay using the bank transfer details shown, then tell Sitta you have sent it."],
+        ar: ["اضغط ترقية في الشريط العلوي للاستوديو.", "اختر الباقة والحجم والمستوى وفترة الفوترة.", "أرسل الطلب.", "ادفع باستخدام بيانات التحويل البنكي المعروضة، ثم أخبر ستة بأنك أرسلته."],
       },
       keywords: ["upgrade", "change plan", "buy", "more users", "ترقية", "تغيير الباقة", "شراء", "مستخدمون أكثر"],
       related: ["account.plan.bank-transfer", "account.plan.packages"],
@@ -1290,12 +1290,12 @@ export const general: HelpModule = {
       id: "account.plan.bank-transfer", topic: "account.plan", kind: "howto",
       q: { en: "How do I pay by bank transfer?", ar: "كيف أدفع بالتحويل البنكي؟" },
       a: {
-        en: "Open Billing on your account page, or the upgrade dialog once a package is requested. It shows the amount, the bank accounts for your currency and a transfer reference to quote. After sending the money, click I've sent the transfer and fill in the amount, currency, date and the bank's reference. A person at nompany checks and confirms it, and while your claim is open a closed studio is reopened for a short time.",
-        ar: "افتح الفوترة في صفحة حسابك، أو نافذة الترقية بعد طلب باقة. تعرض المبلغ والحسابات البنكية لعملتك ومرجع تحويل تذكره. بعد إرسال المال اضغط أرسلت التحويل واملأ المبلغ والعملة والتاريخ ومرجع البنك. يتحقق شخص في nompany منه ويؤكده، وخلال فترة بقاء مطالبتك مفتوحة يُعاد فتح الاستوديو المغلق لمدة قصيرة.",
+        en: "Open Billing on your account page, or the upgrade dialog once a package is requested. It shows the amount, the bank accounts for your currency and a transfer reference to quote. After sending the money, click I've sent the transfer and fill in the amount, currency, date and the bank's reference. A person at Sitta checks and confirms it, and while your claim is open a closed studio is reopened for a short time.",
+        ar: "افتح الفوترة في صفحة حسابك، أو نافذة الترقية بعد طلب باقة. تعرض المبلغ والحسابات البنكية لعملتك ومرجع تحويل تذكره. بعد إرسال المال اضغط أرسلت التحويل واملأ المبلغ والعملة والتاريخ ومرجع البنك. يتحقق شخص في ستة منه ويؤكده، وخلال فترة بقاء مطالبتك مفتوحة يُعاد فتح الاستوديو المغلق لمدة قصيرة.",
       },
       steps: {
-        en: ["Open your account page, then Billing.", "Note the amount, the account for your currency and the transfer reference.", "Make the transfer from your bank, quoting the reference.", "Click I've sent the transfer and fill in its details.", "Wait for nompany to confirm; you can withdraw the claim until it is answered."],
-        ar: ["افتح صفحة حسابك ثم الفوترة.", "دوّن المبلغ والحساب الخاص بعملتك ومرجع التحويل.", "نفّذ التحويل من بنكك مع ذكر المرجع.", "اضغط أرسلت التحويل واملأ بياناته.", "انتظر تأكيد nompany؛ ويمكنك سحب المطالبة إلى أن يُرد عليها."],
+        en: ["Open your account page, then Billing.", "Note the amount, the account for your currency and the transfer reference.", "Make the transfer from your bank, quoting the reference.", "Click I've sent the transfer and fill in its details.", "Wait for Sitta to confirm; you can withdraw the claim until it is answered."],
+        ar: ["افتح صفحة حسابك ثم الفوترة.", "دوّن المبلغ والحساب الخاص بعملتك ومرجع التحويل.", "نفّذ التحويل من بنكك مع ذكر المرجع.", "اضغط أرسلت التحويل واملأ بياناته.", "انتظر تأكيد ستة؛ ويمكنك سحب المطالبة إلى أن يُرد عليها."],
       },
       keywords: ["bank transfer", "wire", "pay", "payment", "IBAN", "billing", "تحويل بنكي", "دفع", "حوالة", "الفوترة"],
       related: ["account.plan.card", "account.plan.unpaid"],
@@ -1418,8 +1418,8 @@ export const general: HelpModule = {
       id: "trouble.nova-unavailable", topic: "trouble", kind: "troubleshoot", common: true,
       q: { en: "Nova says she isn't available or isn't set up", ar: "تقول Nova إنها غير متاحة أو غير مهيأة" },
       a: {
-        en: "There are two different messages. \"Not in your plan\" means your studio's package does not include Nova's answers about your data; the studio owner can ask about upgrading. \"Not set up\" means the AI service behind Nova is not connected on nompany's side, which is nothing you can fix in your studio; send it to support. These help topics keep working while Nova's data answers are unavailable.",
-        ar: "هناك رسالتان مختلفتان. \"غير مشمولة في باقتك\" تعني أن باقة استوديوك لا تشمل إجابات Nova عن بياناتك، ويمكن لمالك الاستوديو الاستفسار عن الترقية. و\"غير مهيأة\" تعني أن خدمة الذكاء الاصطناعي التي تعمل عليها Nova غير مربوطة من جهة nompany، وليس بإمكانك إصلاح ذلك من استوديوك، فأرسل الأمر إلى الدعم. وتبقى مواضيع المساعدة هذه تعمل ما دامت إجابات Nova عن البيانات غير متاحة.",
+        en: "There are two different messages. \"Not in your plan\" means your studio's package does not include Nova's answers about your data; the studio owner can ask about upgrading. \"Not set up\" means the AI service behind Nova is not connected on Sitta's side, which is nothing you can fix in your studio; send it to support. These help topics keep working while Nova's data answers are unavailable.",
+        ar: "هناك رسالتان مختلفتان. \"غير مشمولة في باقتك\" تعني أن باقة استوديوك لا تشمل إجابات Nova عن بياناتك، ويمكن لمالك الاستوديو الاستفسار عن الترقية. و\"غير مهيأة\" تعني أن خدمة الذكاء الاصطناعي التي تعمل عليها Nova غير مربوطة من جهة ستة، وليس بإمكانك إصلاح ذلك من استوديوك، فأرسل الأمر إلى الدعم. وتبقى مواضيع المساعدة هذه تعمل ما دامت إجابات Nova عن البيانات غير متاحة.",
       },
       keywords: ["Nova not working", "not in plan", "not set up", "unavailable", "Nova لا تعمل", "غير مشمولة في الباقة", "غير مهيأة"],
       related: ["start.nova-key", "account.plan.upgrade"],
@@ -1429,8 +1429,8 @@ export const general: HelpModule = {
       id: "trouble.not-live", topic: "trouble", kind: "troubleshoot",
       q: { en: "The page isn't updating when others make changes", ar: "الصفحة لا تتحدث عندما يجري الآخرون تغييرات" },
       a: {
-        en: "If a banner says you are not receiving live updates, the connection dropped and nompany is reconnecting; this usually fixes itself within seconds. If it does not, check your internet connection and reload the page. Reloading also brings you everything that changed while you were disconnected.",
-        ar: "إذا ظهر شريط يقول إنك لا تتلقى التحديثات المباشرة، فقد انقطع الاتصال وتعيد nompany الاتصال؛ وعادة يُصلح ذلك نفسه خلال ثوان. وإن لم يحدث فتحقق من اتصالك بالإنترنت وأعد تحميل الصفحة. وإعادة التحميل تجلب لك أيضا كل ما تغيّر أثناء انقطاعك.",
+        en: "If a banner says you are not receiving live updates, the connection dropped and Sitta is reconnecting; this usually fixes itself within seconds. If it does not, check your internet connection and reload the page. Reloading also brings you everything that changed while you were disconnected.",
+        ar: "إذا ظهر شريط يقول إنك لا تتلقى التحديثات المباشرة، فقد انقطع الاتصال وتعيد ستة الاتصال؛ وعادة يُصلح ذلك نفسه خلال ثوان. وإن لم يحدث فتحقق من اتصالك بالإنترنت وأعد تحميل الصفحة. وإعادة التحميل تجلب لك أيضا كل ما تغيّر أثناء انقطاعك.",
       },
       keywords: ["not updating", "live updates", "stale", "reconnecting", "لا تتحدث", "التحديثات المباشرة", "قديمة", "إعادة الاتصال"],
       related: ["start.live-updates"],
@@ -1489,8 +1489,8 @@ export const general: HelpModule = {
       id: "trouble.email-not-received", topic: "trouble", kind: "troubleshoot", common: true,
       q: { en: "I didn't receive the email or code", ar: "لم يصلني البريد الإلكتروني أو الرمز" },
       a: {
-        en: "Check your spam or junk folder and make sure the address is spelled correctly. Codes expire after 1 hour, so use Send the code again if it is late, waiting a moment between requests. Studio notifications are never emailed; they appear in the bell only. If codes still do not arrive, contact nompany support.",
-        ar: "تحقق من مجلد البريد العشوائي أو غير المرغوب، وتأكد من كتابة العنوان بشكل صحيح. تنتهي صلاحية الرموز بعد ساعة، لذا استخدم إرسال الرمز مجددا إن تأخر، مع الانتظار قليلا بين الطلبات. ولا تُرسل إشعارات الاستوديو بالبريد أبدا؛ بل تظهر في الجرس فقط. وإن استمر عدم وصول الرموز فتواصل مع دعم nompany.",
+        en: "Check your spam or junk folder and make sure the address is spelled correctly. Codes expire after 1 hour, so use Send the code again if it is late, waiting a moment between requests. Studio notifications are never emailed; they appear in the bell only. If codes still do not arrive, contact Sitta support.",
+        ar: "تحقق من مجلد البريد العشوائي أو غير المرغوب، وتأكد من كتابة العنوان بشكل صحيح. تنتهي صلاحية الرموز بعد ساعة، لذا استخدم إرسال الرمز مجددا إن تأخر، مع الانتظار قليلا بين الطلبات. ولا تُرسل إشعارات الاستوديو بالبريد أبدا؛ بل تظهر في الجرس فقط. وإن استمر عدم وصول الرموز فتواصل مع دعم ستة.",
       },
       keywords: ["email not received", "no code", "spam", "verification email", "لم يصل البريد", "لا يوجد رمز", "البريد العشوائي", "بريد التحقق"],
       related: ["start.notifications-email", "account.password.forgot"],

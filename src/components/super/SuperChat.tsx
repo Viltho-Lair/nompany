@@ -243,7 +243,7 @@ export default function SuperChat() {
                     <span className="ms-2 font-400 text-[var(--ad-muted-foreground)]">{room.userName}</span>
                   </p>
                   <p className="truncate text-xs text-[var(--ad-muted-foreground)]">
-                    {room.studioSlug ? `nompany.com/${room.studioSlug} · ` : ""}
+                    {room.studioSlug ? `sittaerp.com/${room.studioSlug} · ` : ""}
                     <Num>{room.id}</Num>
                   </p>
                 </div>

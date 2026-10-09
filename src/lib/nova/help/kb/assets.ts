@@ -97,7 +97,7 @@ export const assets: HelpModule = {
     },
     {
       id: "assets.life", topic: "dept.assets", kind: "about", open: "assets",
-      q: { en: "What is the life of a machine in nompany?", ar: "ما دورة حياة المعدة في nompany؟" },
+      q: { en: "What is the life of a machine in Sitta?", ar: "ما دورة حياة المعدة في ستة؟" },
       a: {
         en: "A machine is registered once and then several departments read the same record. The steps below follow one machine from the day it arrives to the day it leaves; not every machine needs every step.",
         ar: "تُسجَّل المعدة مرة واحدة، ثم تقرأ أقسام عدة السجل نفسه. وتتبع الخطوات أدناه معدة واحدة من يوم وصولها إلى يوم خروجها؛ ولا تحتاج كل معدة إلى كل خطوة.",
@@ -622,8 +622,8 @@ export const assets: HelpModule = {
       id: "assets.equipment-category-missing", topic: "dept.assets.equipment", kind: "troubleshoot", open: "assets",
       q: { en: "Can I add my own category, field or status to the register?", ar: "هل يمكنني إضافة فئة أو حقل أو حالة خاصة بي إلى السجل؟" },
       a: {
-        en: "Not yet. The equipment register is one of the registers nompany ships, and a studio cannot edit its fields, its category list or its statuses. Choose Other for a kind that is not listed, and put anything else you need to keep, such as a model or a capacity, in the name or the asset tag.",
-        ar: "ليس بعد. فسجل المعدات من السجلات التي يأتي بها nompany، ولا يستطيع الاستوديو تعديل حقوله ولا قائمة فئاته ولا حالاته. اختر «أخرى» للنوع غير المدرج، وضع ما تحتاج حفظه غير ذلك، كالطراز أو السعة، في الاسم أو رقم الأصل.",
+        en: "Not yet. The equipment register is one of the registers Sitta ships, and a studio cannot edit its fields, its category list or its statuses. Choose Other for a kind that is not listed, and put anything else you need to keep, such as a model or a capacity, in the name or the asset tag.",
+        ar: "ليس بعد. فسجل المعدات من السجلات التي يأتي بها ستة، ولا يستطيع الاستوديو تعديل حقوله ولا قائمة فئاته ولا حالاته. اختر «أخرى» للنوع غير المدرج، وضع ما تحتاج حفظه غير ذلك، كالطراز أو السعة، في الاسم أو رقم الأصل.",
       },
       keywords: ["custom field", "own category", "add status", "model", "حقل مخصص", "فئة خاصة", "إضافة حالة", "الطراز"],
       related: ["assets.equipment-category", "assets.not-available"],
@@ -674,8 +674,8 @@ export const assets: HelpModule = {
       id: "assets.calibration-reminders", topic: "dept.assets.calibration", kind: "about", open: "assets",
       q: { en: "When are calibration reminders sent, and to whom?", ar: "متى تُرسل تذكيرات المعايرة، ولمن؟" },
       a: {
-        en: "Once a day, early in the morning UTC, nompany looks at every certificate that is Valid or Due and has a Next due date. When that date is exactly 30, 14, 7, 3 or 1 days away, or is today, everybody who holds the Calibration edit right is told, in one notice per day naming the first instrument and how many more. The notice links to the Calibration register. Nothing is sent after the due date has passed, and nothing for a certificate that is Expired or Withdrawn.",
-        ar: "مرة واحدة في اليوم، في الصباح الباكر بتوقيت UTC، ينظر nompany في كل شهادة «سارية» أو «مستحقة» لها «استحقاق تالٍ». وحين يكون ذلك التاريخ بعد 30 أو 14 أو 7 أو 3 أيام أو يوم واحد بالضبط، أو يكون اليوم، يُبلَّغ كل من يملك صلاحية تعديل المعايرة، في إشعار واحد يوميًّا يسمّي أول جهاز وعدد الباقي. ويفتح الإشعار سجل المعايرة. ولا يُرسل شيء بعد مرور تاريخ الاستحقاق، ولا شيء عن شهادة «منتهية» أو «مسحوب».",
+        en: "Once a day, early in the morning UTC, Sitta looks at every certificate that is Valid or Due and has a Next due date. When that date is exactly 30, 14, 7, 3 or 1 days away, or is today, everybody who holds the Calibration edit right is told, in one notice per day naming the first instrument and how many more. The notice links to the Calibration register. Nothing is sent after the due date has passed, and nothing for a certificate that is Expired or Withdrawn.",
+        ar: "مرة واحدة في اليوم، في الصباح الباكر بتوقيت UTC، ينظر ستة في كل شهادة «سارية» أو «مستحقة» لها «استحقاق تالٍ». وحين يكون ذلك التاريخ بعد 30 أو 14 أو 7 أو 3 أيام أو يوم واحد بالضبط، أو يكون اليوم، يُبلَّغ كل من يملك صلاحية تعديل المعايرة، في إشعار واحد يوميًّا يسمّي أول جهاز وعدد الباقي. ويفتح الإشعار سجل المعايرة. ولا يُرسل شيء بعد مرور تاريخ الاستحقاق، ولا شيء عن شهادة «منتهية» أو «مسحوب».",
       },
       keywords: ["reminder", "calibration due notice", "30 days", "who is told", "تذكير", "إشعار استحقاق المعايرة", "30 يوما", "من يبلغ"],
       related: ["assets.calibration-no-reminder", "assets.timezone"],
@@ -784,8 +784,8 @@ export const assets: HelpModule = {
       id: "assets.calibration-mark-due", topic: "dept.assets.calibration", kind: "howto", open: "assets",
       q: { en: "How do I mark a certificate as due or expired?", ar: "كيف أجعل الشهادة مستحقة أو منتهية؟" },
       a: {
-        en: "nompany does not do this by date, so somebody moves the status by hand. Due is useful as soon as the recalibration is booked; Expired says the instrument must not be relied on.",
-        ar: "لا يقوم nompany بذلك بحسب التاريخ، فينقل أحدهم الحالة يدويًّا. و«مستحقة» مفيدة بمجرد حجز إعادة المعايرة؛ و«منتهية» تقول إن الجهاز يجب ألا يُعتمد عليه.",
+        en: "Sitta does not do this by date, so somebody moves the status by hand. Due is useful as soon as the recalibration is booked; Expired says the instrument must not be relied on.",
+        ar: "لا يقوم ستة بذلك بحسب التاريخ، فينقل أحدهم الحالة يدويًّا. و«مستحقة» مفيدة بمجرد حجز إعادة المعايرة؛ و«منتهية» تقول إن الجهاز يجب ألا يُعتمد عليه.",
       },
       steps: {
         en: [
@@ -912,10 +912,10 @@ export const assets: HelpModule = {
     },
     {
       id: "assets.calibration-not-yet", topic: "dept.assets.calibration", kind: "troubleshoot", open: "assets",
-      q: { en: "Can nompany attach the certificate file or work out the next due date?", ar: "هل يمكن لـ nompany إرفاق ملف الشهادة أو حساب الاستحقاق التالي؟" },
+      q: { en: "Can Sitta attach the certificate file or work out the next due date?", ar: "هل يمكن لـ ستة إرفاق ملف الشهادة أو حساب الاستحقاق التالي؟" },
       a: {
-        en: "Not yet. The certificate is recorded as a number, and no file can be attached to the record. There is no calibration interval to work the next date out from, so Next due is typed each time. A status does not change by itself when a date passes, and a lapsed certificate does not stop the instrument being used anywhere else in nompany.",
-        ar: "ليس بعد. تُسجَّل الشهادة رقمًا، ولا يمكن إرفاق ملف بالسجل. ولا توجد فترة معايرة يُحسب منها التاريخ التالي، فيُكتب «الاستحقاق التالي» في كل مرة. ولا تتغير الحالة بنفسها حين يمر تاريخ، ولا تمنع الشهادة المنقضية استخدام الجهاز في أي مكان آخر في nompany.",
+        en: "Not yet. The certificate is recorded as a number, and no file can be attached to the record. There is no calibration interval to work the next date out from, so Next due is typed each time. A status does not change by itself when a date passes, and a lapsed certificate does not stop the instrument being used anywhere else in Sitta.",
+        ar: "ليس بعد. تُسجَّل الشهادة رقمًا، ولا يمكن إرفاق ملف بالسجل. ولا توجد فترة معايرة يُحسب منها التاريخ التالي، فيُكتب «الاستحقاق التالي» في كل مرة. ولا تتغير الحالة بنفسها حين يمر تاريخ، ولا تمنع الشهادة المنقضية استخدام الجهاز في أي مكان آخر في ستة.",
       },
       keywords: ["attach certificate", "upload file", "interval", "automatic status", "إرفاق الشهادة", "رفع ملف", "فترة المعايرة", "حالة تلقائية"],
       related: ["assets.not-available"],

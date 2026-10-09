@@ -216,7 +216,7 @@ export async function claimTransfer(studio: Studio, userId: string, body: Record
   if (out.fresh) {
     await tellNompany(
       "Payment claimed",
-      `${String(studio.name || "")} (nompany.com/${String(studio.slug || "")}) says they sent ${money(input.amount, input.currency)} by bank transfer on ${input.sentOn.split("-").reverse().join("/")}. Check the bank and confirm or reject it.`,
+      `${String(studio.name || "")} (sittaerp.com/${String(studio.slug || "")}) says they sent ${money(input.amount, input.currency)} by bank transfer on ${input.sentOn.split("-").reverse().join("/")}. Check the bank and confirm or reject it.`,
     );
   }
   return { ok: true, claim: out.claim ? openClaim(out.claim) : null };
@@ -256,7 +256,7 @@ export async function requestRefund(studio: Studio, userId: string, body: Record
   });
   if (out.error) return { error: out.error };
   if (out.fresh) {
-    await tellNompany("Refund requested", `${String(studio.name || "")} (nompany.com/${String(studio.slug || "")}) asked for a refund of invoice ${invoiceNo}.`);
+    await tellNompany("Refund requested", `${String(studio.name || "")} (sittaerp.com/${String(studio.slug || "")}) asked for a refund of invoice ${invoiceNo}.`);
   }
   return { ok: true, claim: out.claim ? openClaim(out.claim) : null };
 }
@@ -343,7 +343,7 @@ async function describe(event: Extract<BillingEvent, { type: "paid" }>, studio: 
     : null;
   const tier = tiers.find((t) => t.id === (event.tierId || studio.tierId));
   const name = [
-    String(pkg?.name || "nompany"),
+    String(pkg?.name || "Sitta"),
     band ? String(band.label || `${band.minEmployees}–${band.maxEmployees}`) : "",
   ].filter(Boolean).join(" · ") + (tier ? ` + ${String(tier.name)}` : "");
   const day = (d: string) => d.split("-").reverse().join("/");

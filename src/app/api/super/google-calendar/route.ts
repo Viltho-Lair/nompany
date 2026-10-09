@@ -30,7 +30,7 @@ export const GET = route(spec, async ({ request }) => {
   // THE CONSOLE'S OWN CALLBACK PATH, and a DIFFERENT ONE from the account
   // flow's (calendarProviders.ts) — an operator who registers the account
   // redirect URI here would be refused the same way as one who registers
-  // nompany.com's URI while the site serves on www. Computed from THIS
+  // sittaerp.com's URI while the site serves on www. Computed from THIS
   // request, not hardcoded, for the same reason.
   const redirectUri = consoleCalendarRedirectUri(request);
   const connection = await getConnection();

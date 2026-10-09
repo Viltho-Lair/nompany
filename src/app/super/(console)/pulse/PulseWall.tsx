@@ -271,10 +271,10 @@ export default function PulseWall({ initial, initialLive }: { initial: Pulse; in
       {/* ---- header ---------------------------------------------------- */}
       <header style={{ gridArea: "top" }} className="flex flex-wrap items-center gap-x-5 gap-y-2">
         {/* A PULSE, NOT THE COMPANY LOGO — the owner's instruction, 10/09/2026.
-            The header above already carries the nompany mark; a second one here
+            The header above already carries the Sitta mark; a second one here
             said the same thing twice. The trace is drawn in the logo's own ramp
             (cyan → amber → red, the colours Broadcast's default band uses), so
-            it is still nompany's without being its logo. */}
+            it is still Sitta's without being its logo. */}
         <Link href="/super/dashboard" className="flex items-center gap-2.5" aria-label="Back to the console">
           <PulseMark />
           <span className="text-base font-800 tracking-tight">Pulse</span>

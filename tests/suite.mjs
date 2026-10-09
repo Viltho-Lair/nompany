@@ -4669,7 +4669,7 @@ console.log("== password hashes get stronger over time, and old ones keep workin
 // ============================================================================
 console.log("== a studio's language is the tenant's, and it is a real setting");
 // THERE IS NOWHERE IN THE URL TO PUT IT. A studio's address IS its slug —
-// nompany.com/<slug>/… — so unlike the public site there is no /ar/ segment to
+// sittaerp.com/<slug>/… — so unlike the public site there is no /ar/ segment to
 // read a locale from, and the root layout never touches the database, so it
 // cannot resolve one either. The language is a field on the studio record,
 // read by studioLocale and declared as lang/dir on the shell.

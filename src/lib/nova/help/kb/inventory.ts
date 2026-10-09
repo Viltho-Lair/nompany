@@ -1194,8 +1194,8 @@ export const inventory: HelpModule = {
       id: "inventory.stocktake-missing", topic: "dept.inventory.stocktakes", kind: "troubleshoot",
       q: { en: "Why can't I find Stocktakes under Inventory?", ar: "لماذا لا أجد «جرد المخزون» تحت المخزون؟" },
       a: {
-        en: "Stocktakes appears only to somebody holding its view right, and only while Inventory is switched on. The register is set up when a studio is created, so a studio created before it existed may not have it; ask nompany support to add it. The rights are Stocktakes under Inventory & Warehouse on the Access screen, separate from the Stock rights.",
-        ar: "لا يظهر «جرد المخزون» إلا لمن يملك صلاحية عرضه، وما دام المخزون مفعّلًا. ويُنشأ السجل عند إنشاء الاستوديو، لذا قد لا يكون موجودًا في استوديو أُنشئ قبل وجوده؛ فاطلب من دعم nompany إضافته. وصلاحياته هي «جرد المخزون» تحت المخزون والمستودعات في شاشة الصلاحيات، منفصلة عن صلاحيات المخزون.",
+        en: "Stocktakes appears only to somebody holding its view right, and only while Inventory is switched on. The register is set up when a studio is created, so a studio created before it existed may not have it; ask Sitta support to add it. The rights are Stocktakes under Inventory & Warehouse on the Access screen, separate from the Stock rights.",
+        ar: "لا يظهر «جرد المخزون» إلا لمن يملك صلاحية عرضه، وما دام المخزون مفعّلًا. ويُنشأ السجل عند إنشاء الاستوديو، لذا قد لا يكون موجودًا في استوديو أُنشئ قبل وجوده؛ فاطلب من دعم ستة إضافته. وصلاحياته هي «جرد المخزون» تحت المخزون والمستودعات في شاشة الصلاحيات، منفصلة عن صلاحيات المخزون.",
       },
       keywords: ["stocktakes missing", "no stocktake register", "cannot find", "جرد مفقود", "لا يوجد سجل جرد", "لا أجد"],
       related: ["inventory.rights"],

@@ -1375,7 +1375,7 @@ html.studio-chrome .bar-scroll::-webkit-scrollbar {
    The editor at /quality-documents was built against shadcn's semantic names.
    They are registered as Tailwind colours in tailwind.config.js and given their
    values here, from the studio's own palette — so the ported components render
-   in nompany's colours without a single className being rewritten.
+   in Sitta's colours without a single className being rewritten.
 
    Channel triples rather than hex, so `bg-card/60` and `ring-ring/50` still
    compile. Light first, dark below.

@@ -44,7 +44,7 @@ export function renderCard() {
               boxShadow: "0 0 24px 6px rgba(139,124,255,0.6)",
             }}
           />
-          <div style={{ display: "flex", fontSize: "32px", fontWeight: 600, letterSpacing: "-0.5px" }}>nompany</div>
+          <div style={{ display: "flex", fontSize: "32px", fontWeight: 600, letterSpacing: "-0.5px" }}>Sitta</div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "26px" }}>

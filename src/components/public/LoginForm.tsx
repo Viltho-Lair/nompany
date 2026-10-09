@@ -326,7 +326,7 @@ export default function LoginForm({ locale, dict, providers = [] }: { locale: st
         </button>
 
         <p className={`pt-1 text-center ${HINT}`}>
-          {t.noAccount || "New to nompany?"}{" "}
+          {t.noAccount || "New to Sitta?"}{" "}
           <Link href={`/${locale}/signup`} className={LINK}>
             {t.signupLink || "Create an account"}
           </Link>

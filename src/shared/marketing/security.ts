@@ -135,7 +135,7 @@ const en: SecurityStrings = {
         },
         {
           title: "Our own console requires a second factor",
-          body: "The administrative console nompany's staff use is behind its own authenticator-app sign-in, separate from the product's, and sees where each account is signed in so a shared login can be noticed.",
+          body: "The administrative console Sitta's staff use is behind its own authenticator-app sign-in, separate from the product's, and sees where each account is signed in so a shared login can be noticed.",
           source: "src/platform/auth/superMfa.ts, sessionPolicy.ts — sharingSignals",
         },
       ],
@@ -257,7 +257,7 @@ const ar: SecurityStrings = {
         },
         {
           title: "لوحة تحكمنا تتطلب عاملا ثانيا",
-          body: "لوحة الإدارة التي يستخدمها فريق nompany محمية بتطبيق مصادقة خاص بها، منفصل عن تسجيل الدخول إلى المنتج، وترى أين سجل كل حساب دخوله حتى يمكن ملاحظة الحساب المشترك.",
+          body: "لوحة الإدارة التي يستخدمها فريق ستة محمية بتطبيق مصادقة خاص بها، منفصل عن تسجيل الدخول إلى المنتج، وترى أين سجل كل حساب دخوله حتى يمكن ملاحظة الحساب المشترك.",
           source: "src/platform/auth/superMfa.ts",
         },
       ],

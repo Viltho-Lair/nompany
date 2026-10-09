@@ -747,8 +747,8 @@ export const procurement: HelpModule = {
       id: "procurement-rfq.ask", topic: "dept.procurement-rfq", kind: "howto", open: "procurement-rfq", common: true,
       q: { en: "How do I ask suppliers for quotes?", ar: "كيف أطلب عروض أسعار من الموردين؟" },
       a: {
-        en: "Draw up the request, send it to the suppliers yourself, since no email leaves nompany, and then press Mark as sent. Until it is sent it can be edited or deleted; after that the lines are frozen so every supplier prices the same list. Sending and editing need the right to edit supplier quotes.",
-        ar: "جهّز الطلب وأرسله إلى الموردين بنفسك، إذ لا يرسل nompany أي بريد، ثم اضغط «تعليم كمرسل». وإلى أن يُرسل يمكن تعديله أو حذفه؛ وبعد ذلك تتجمد البنود ليسعّر كل الموردين القائمة نفسها. ويحتاج الإرسال والتعديل إلى صلاحية تعديل عروض الموردين.",
+        en: "Draw up the request, send it to the suppliers yourself, since no email leaves Sitta, and then press Mark as sent. Until it is sent it can be edited or deleted; after that the lines are frozen so every supplier prices the same list. Sending and editing need the right to edit supplier quotes.",
+        ar: "جهّز الطلب وأرسله إلى الموردين بنفسك، إذ لا يرسل ستة أي بريد، ثم اضغط «تعليم كمرسل». وإلى أن يُرسل يمكن تعديله أو حذفه؛ وبعد ذلك تتجمد البنود ليسعّر كل الموردين القائمة نفسها. ويحتاج الإرسال والتعديل إلى صلاحية تعديل عروض الموردين.",
       },
       steps: {
         en: [
@@ -958,7 +958,7 @@ export const procurement: HelpModule = {
     // ═════════════════════════ SUBCONTRACTS ═════════════════════════
     {
       id: "procurement-subcontracts.about", topic: "dept.procurement-subcontracts", kind: "about", open: "procurement-subcontracts", common: true,
-      q: { en: "What is a subcontract in nompany?", ar: "ما هو عقد الباطن في nompany؟" },
+      q: { en: "What is a subcontract in Sitta?", ar: "ما هو عقد الباطن في ستة؟" },
       a: {
         en: "A subcontract is an agreed value for a package of work, given to a subcontractor from the supplier register and, if you choose, a project and one of its cost codes. Unlike a purchase order, which buys goods counted in when they arrive, a subcontract buys work valued period by period through payment certificates. Retention is withheld from each certificate, back-charges are deducted, and the rest is what the subcontractor is owed. Each subcontract is numbered SC.",
         ar: "عقد الباطن قيمة متفق عليها لحزمة أعمال، تُسند إلى مقاول باطن من سجل الموردين، ويمكن ربطها بمشروع وبأحد رموز تكلفته. وخلافًا لأمر الشراء الذي يشتري بضائع تُعدّ عند وصولها، يشتري عقد الباطن أعمالًا تُقيَّم فترة بعد فترة عبر شهادات الدفع. وتُحتجز نسبة من كل شهادة، وتُخصم المستقطعات، والباقي هو المستحق لمقاول الباطن. ويُرقَّم كل عقد باطن بالبادئة SC.",

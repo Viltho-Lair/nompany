@@ -10,7 +10,7 @@ export const metadata = { title: "Careers" };
 export default function CareersPage() {
   return (
     <>
-      <PageHeader title="Careers" description="Openings on nompany.com/careers, and everybody who applied." />
+      <PageHeader title="Careers" description="Openings on sittaerp.com/careers, and everybody who applied." />
       <CareersConsole />
     </>
   );

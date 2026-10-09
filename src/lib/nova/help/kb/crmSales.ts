@@ -232,8 +232,8 @@ export const crmSales: HelpModule = {
       id: "crm-sales.not-yet", topic: "dept.crm-sales", kind: "troubleshoot", open: "crm-sales",
       q: { en: "What can CRM & Sales not do yet?", ar: "ما الذي لا يستطيع قسم المبيعات وعلاقات العملاء فعله بعد؟" },
       a: {
-        en: "nompany does not email quotations or anything else to a customer, and there is no import of customers or deals from a spreadsheet. Leads are assigned by hand only, lost reasons are free text and cannot be corrected, and no screen records a new contract. A sales order does not reserve stock, raise an invoice or open a project, a variation is not numbered and cannot be deleted, and a customer's page does not show what they owe. Each part of this chapter says what is missing in its own area.",
-        ar: "لا يرسل nompany عروض الأسعار أو أي شيء آخر إلى العميل بالبريد الإلكتروني، ولا يوجد استيراد للعملاء أو الصفقات من جدول بيانات. ويُسند العملاء المحتملون يدويًّا فقط، وأسباب الخسارة نص حر لا يمكن تصحيحه، ولا توجد شاشة لتسجيل عقد جديد. ولا يحجز أمر البيع مخزونًا ولا يصدر فاتورة ولا يفتح مشروعًا، والتغيير على العقد غير مرقّم ولا يمكن حذفه، ولا تعرض صفحة العميل ما عليه من مستحقات. ويذكر كل جزء من هذا الفصل ما ينقص في مجاله.",
+        en: "Sitta does not email quotations or anything else to a customer, and there is no import of customers or deals from a spreadsheet. Leads are assigned by hand only, lost reasons are free text and cannot be corrected, and no screen records a new contract. A sales order does not reserve stock, raise an invoice or open a project, a variation is not numbered and cannot be deleted, and a customer's page does not show what they owe. Each part of this chapter says what is missing in its own area.",
+        ar: "لا يرسل ستة عروض الأسعار أو أي شيء آخر إلى العميل بالبريد الإلكتروني، ولا يوجد استيراد للعملاء أو الصفقات من جدول بيانات. ويُسند العملاء المحتملون يدويًّا فقط، وأسباب الخسارة نص حر لا يمكن تصحيحه، ولا توجد شاشة لتسجيل عقد جديد. ولا يحجز أمر البيع مخزونًا ولا يصدر فاتورة ولا يفتح مشروعًا، والتغيير على العقد غير مرقّم ولا يمكن حذفه، ولا تعرض صفحة العميل ما عليه من مستحقات. ويذكر كل جزء من هذا الفصل ما ينقص في مجاله.",
       },
       keywords: ["not available", "limitations", "missing features", "roadmap", "غير متوفر", "القيود", "ميزات ناقصة", "ما لا يمكن"],
       related: ["crm-sales-orders.not-yet", "crm-sales-contracts.new-contract", "crm-sales-clients.receivables"],
@@ -751,8 +751,8 @@ export const crmSales: HelpModule = {
       id: "crm-sales-tickets.print-quotation", topic: "dept.crm-sales-tickets", kind: "howto", open: "crm-sales-tickets",
       q: { en: "How do I print a quotation from a ticket?", ar: "كيف أطبع عرض سعر من التذكرة؟" },
       a: {
-        en: "Print produces the quotation on the studio's own quotation layout. Sending it to the customer is up to you, because nompany does not email documents.",
-        ar: "يُخرج زر «طباعة» عرض السعر على قالب عرض السعر الخاص بالاستوديو. وإرساله إلى العميل متروك لك، لأن nompany لا يرسل المستندات بالبريد الإلكتروني.",
+        en: "Print produces the quotation on the studio's own quotation layout. Sending it to the customer is up to you, because Sitta does not email documents.",
+        ar: "يُخرج زر «طباعة» عرض السعر على قالب عرض السعر الخاص بالاستوديو. وإرساله إلى العميل متروك لك، لأن ستة لا يرسل المستندات بالبريد الإلكتروني.",
       },
       steps: {
         en: ["Open the ticket", "Click the quotation under Quotations", "Press Print"],
@@ -1792,8 +1792,8 @@ export const crmSales: HelpModule = {
       id: "crm-sales-orders.print", topic: "dept.crm-sales-orders", kind: "troubleshoot", open: "crm-sales-orders",
       q: { en: "Can I print a sales order or send it to the customer?", ar: "هل يمكنني طباعة أمر البيع أو إرساله إلى العميل؟" },
       a: {
-        en: "Not yet. Printing on the studio's own layout is available on quotations and invoices, not on sales orders, and nompany does not email documents to customers.",
-        ar: "ليس بعد. فالطباعة على قالب الاستوديو متاحة لعروض الأسعار والفواتير، لا لأوامر البيع، ولا يرسل nompany المستندات إلى العملاء بالبريد الإلكتروني.",
+        en: "Not yet. Printing on the studio's own layout is available on quotations and invoices, not on sales orders, and Sitta does not email documents to customers.",
+        ar: "ليس بعد. فالطباعة على قالب الاستوديو متاحة لعروض الأسعار والفواتير، لا لأوامر البيع، ولا يرسل ستة المستندات إلى العملاء بالبريد الإلكتروني.",
       },
       keywords: ["print order", "pdf", "send order", "طباعة الأمر", "إرسال الأمر", "ملف"],
       related: ["crm-sales-orders.not-yet"],

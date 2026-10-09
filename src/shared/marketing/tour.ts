@@ -47,8 +47,8 @@ type TourStrings = {
 };
 
 const en: TourStrings = {
-  sampleNote: "Real nompany screens, filled with an invented company's sample data.",
-  heroAlt: "The nompany sales pipeline: deals in each stage with their value, weighted value and days in stage.",
+  sampleNote: "Real Sitta screens, filled with an invented company's sample data.",
+  heroAlt: "The Sitta sales pipeline: deals in each stage with their value, weighted value and days in stage.",
   tourEyebrow: "The product, as it is",
   tourTitle: "Screens you can open today",
   tourLead: "Nothing below is a mock-up. Each picture is a screen of the product, photographed from a sample company that runs on it.",
@@ -95,8 +95,8 @@ const en: TourStrings = {
 };
 
 const ar: TourStrings = {
-  sampleNote: "شاشات حقيقية من نومباني، معبأة ببيانات تجريبية لشركة وهمية.",
-  heroAlt: "مسار الصفقات في نومباني: الصفقات في كل مرحلة مع قيمتها وقيمتها المرجحة وعدد أيامها في المرحلة.",
+  sampleNote: "شاشات حقيقية من ستة، معبأة ببيانات تجريبية لشركة وهمية.",
+  heroAlt: "مسار الصفقات في ستة: الصفقات في كل مرحلة مع قيمتها وقيمتها المرجحة وعدد أيامها في المرحلة.",
   tourEyebrow: "المنتج كما هو",
   tourTitle: "شاشات يمكنك فتحها اليوم",
   tourLead: "لا شيء أدناه تصميم تخيلي. كل صورة شاشة من المنتج، ملتقطة من شركة تجريبية تعمل عليه.",

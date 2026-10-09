@@ -11,7 +11,7 @@ export default function PaymentsPage() {
   return (
     <>
       <PageHeader title="Payments"
-        description="How customers pay nompany, and what goes on nompany's invoices." />
+        description="How customers pay Sitta, and what goes on Sitta's invoices." />
       <PaymentSettingsScreen />
     </>
   );

@@ -69,8 +69,8 @@ export const hr: HelpModule = {
       id: "hr.where-people-come-from", topic: "dept.hr", kind: "about", open: "administration-members",
       q: { en: "Where do employees come from?", ar: "من أين يأتي الموظفون؟" },
       a: {
-        en: "An employee in nompany is a member of the studio: the same person who signs in, holds roles and is named on approvals. Somebody joins by asking with the studio's code or accepting an invitation, and is approved on the People screen under Settings. From that moment they appear in Employees, Lifecycle, Time & attendance, Leave and Payroll, and HR fills in the rest. There is no separate staff list, so a person who has not joined the studio cannot be given a contract or a pay record.",
-        ar: "الموظف في nompany هو عضو في الاستوديو: الشخص نفسه الذي يسجل الدخول ويحمل الأدوار ويُسمّى في الموافقات. ينضم الشخص بطلب الانضمام برمز الاستوديو أو بقبول دعوة، ثم يُعتمد في شاشة الأشخاص ضمن الإعدادات. ومن تلك اللحظة يظهر في الموظفين ودورة الخدمة والوقت والحضور والإجازات والرواتب، ويستكمل قسم الموارد البشرية بقية بياناته. ولا توجد قائمة موظفين منفصلة، لذا لا يمكن منح عقد أو سجل راتب لشخص لم ينضم إلى الاستوديو.",
+        en: "An employee in Sitta is a member of the studio: the same person who signs in, holds roles and is named on approvals. Somebody joins by asking with the studio's code or accepting an invitation, and is approved on the People screen under Settings. From that moment they appear in Employees, Lifecycle, Time & attendance, Leave and Payroll, and HR fills in the rest. There is no separate staff list, so a person who has not joined the studio cannot be given a contract or a pay record.",
+        ar: "الموظف في ستة هو عضو في الاستوديو: الشخص نفسه الذي يسجل الدخول ويحمل الأدوار ويُسمّى في الموافقات. ينضم الشخص بطلب الانضمام برمز الاستوديو أو بقبول دعوة، ثم يُعتمد في شاشة الأشخاص ضمن الإعدادات. ومن تلك اللحظة يظهر في الموظفين ودورة الخدمة والوقت والحضور والإجازات والرواتب، ويستكمل قسم الموارد البشرية بقية بياناته. ولا توجد قائمة موظفين منفصلة، لذا لا يمكن منح عقد أو سجل راتب لشخص لم ينضم إلى الاستوديو.",
       },
       keywords: ["new hire", "join", "invite", "staff list", "موظف جديد", "انضمام", "دعوة", "قائمة الموظفين"],
       related: ["start.approve-join", "start.invite-people", "hr-employees.add-fields"],
@@ -378,8 +378,8 @@ export const hr: HelpModule = {
       id: "hr-employees.library", topic: "dept.hr-employees", kind: "howto", open: "hr-employees",
       q: { en: "How do I add pre-built roles to a department?", ar: "كيف أضيف أدواراً جاهزة إلى قسم؟" },
       a: {
-        en: "nompany carries a catalogue of job titles for each field of work, and each department on the Roles tab offers the ones that belong to it. A pre-built role is added with access shaped for that job inside the department's own sections, which you can then adjust on the Access screen. Titles the department already has are shown ticked and cannot be added twice.",
-        ar: "يحتوي nompany على دليل للمسميات الوظيفية لكل مجال عمل، ويعرض كل قسم في تبويب الأدوار المسميات التي تخصه. ويُضاف الدور الجاهز بصلاحيات مصممة لتلك الوظيفة ضمن أقسام النظام الخاصة بالقسم، ويمكنك تعديلها لاحقاً من شاشة الصلاحيات. وتظهر المسميات الموجودة في القسم محددة مسبقاً ولا يمكن إضافتها مرتين.",
+        en: "Sitta carries a catalogue of job titles for each field of work, and each department on the Roles tab offers the ones that belong to it. A pre-built role is added with access shaped for that job inside the department's own sections, which you can then adjust on the Access screen. Titles the department already has are shown ticked and cannot be added twice.",
+        ar: "يحتوي ستة على دليل للمسميات الوظيفية لكل مجال عمل، ويعرض كل قسم في تبويب الأدوار المسميات التي تخصه. ويُضاف الدور الجاهز بصلاحيات مصممة لتلك الوظيفة ضمن أقسام النظام الخاصة بالقسم، ويمكنك تعديلها لاحقاً من شاشة الصلاحيات. وتظهر المسميات الموجودة في القسم محددة مسبقاً ولا يمكن إضافتها مرتين.",
       },
       steps: {
         en: ["Open Employees and go to the Roles tab", "Find the department and choose Add pre-built roles", "Search the list and select the titles you want", "Choose Add", "Review their rights on the Access screen"],
@@ -606,8 +606,8 @@ export const hr: HelpModule = {
       id: "hr-lifecycle.settlement", topic: "dept.hr-lifecycle", kind: "about", open: "hr-lifecycle",
       q: { en: "How is the final settlement (end of service) calculated?", ar: "كيف تُحسب التسوية النهائية (مكافأة نهاية الخدمة)؟" },
       a: {
-        en: "The settlement adds the end-of-service award from your studio's rule, reduced for a resignation where the rule says so, then unused annual leave at a day's pay, which is a thirtieth of the monthly wage, and any notice not served, then takes off the deductions you type. Notice not served is paid to somebody dismissed without notice and owed by somebody who resigned and left early; retirement, death and the end of a contract are not treated as resignations. It is recalculated as you change the date and frozen on the exit, so later pay changes do not alter it. nompany does not pay it: no bill or payroll run is created from it, so record the payment yourself.",
-        ar: "تجمع التسوية مكافأة نهاية الخدمة وفق قاعدة الاستوديو، مخفَّضة عند الاستقالة إن نصت القاعدة على ذلك، ثم الإجازة السنوية غير المستخدمة بأجر اليوم وهو جزء من ثلاثين من الأجر الشهري، وأي إشعار غير مقضي، ثم تخصم ما تدخله من استقطاعات. ويُدفع بدل الإشعار لمن أُنهيت خدمته دون إشعار، ويكون مستحقاً على من استقال وغادر مبكراً؛ ولا يُعامل التقاعد أو الوفاة أو انتهاء العقد كاستقالة. وتُحسب من جديد كلما غيّرت التاريخ وتُجمَّد عند تسجيل انتهاء الخدمة، فلا تتأثر بتغييرات الأجر اللاحقة. ولا يصرفها nompany: فلا تُنشأ منها فاتورة أو دورة رواتب، لذا سجّل الدفعة بنفسك.",
+        en: "The settlement adds the end-of-service award from your studio's rule, reduced for a resignation where the rule says so, then unused annual leave at a day's pay, which is a thirtieth of the monthly wage, and any notice not served, then takes off the deductions you type. Notice not served is paid to somebody dismissed without notice and owed by somebody who resigned and left early; retirement, death and the end of a contract are not treated as resignations. It is recalculated as you change the date and frozen on the exit, so later pay changes do not alter it. Sitta does not pay it: no bill or payroll run is created from it, so record the payment yourself.",
+        ar: "تجمع التسوية مكافأة نهاية الخدمة وفق قاعدة الاستوديو، مخفَّضة عند الاستقالة إن نصت القاعدة على ذلك، ثم الإجازة السنوية غير المستخدمة بأجر اليوم وهو جزء من ثلاثين من الأجر الشهري، وأي إشعار غير مقضي، ثم تخصم ما تدخله من استقطاعات. ويُدفع بدل الإشعار لمن أُنهيت خدمته دون إشعار، ويكون مستحقاً على من استقال وغادر مبكراً؛ ولا يُعامل التقاعد أو الوفاة أو انتهاء العقد كاستقالة. وتُحسب من جديد كلما غيّرت التاريخ وتُجمَّد عند تسجيل انتهاء الخدمة، فلا تتأثر بتغييرات الأجر اللاحقة. ولا يصرفها ستة: فلا تُنشأ منها فاتورة أو دورة رواتب، لذا سجّل الدفعة بنفسك.",
       },
       keywords: ["end of service", "gratuity", "settlement", "EOSB", "final settlement", "مكافأة نهاية الخدمة", "تسوية نهائية", "مستحقات", "المستحقات النهائية"],
       related: ["hr-lifecycle.exit", "hr-lifecycle.pay-settlement", "hr-payroll.statutory"],
@@ -686,8 +686,8 @@ export const hr: HelpModule = {
       id: "hr-lifecycle.exit-fields", topic: "dept.hr-lifecycle", kind: "fields", open: "hr-lifecycle",
       q: { en: "What do I need to record an exit?", ar: "ما الذي أحتاجه لتسجيل انتهاء الخدمة؟" },
       a: {
-        en: "The last working day is required and starts as today; the final settlement is worked out from it and from the reason, so check both before saving. Deductions are typed as one amount, for example an advance still owed, because nompany does not track loans. Without the right to see pay the deductions box is greyed out and no settlement is shown, but the exit can still be recorded.",
-        ar: "آخر يوم عمل إلزامي ويبدأ بتاريخ اليوم؛ وتُحسب التسوية النهائية منه ومن السبب، فراجعهما قبل الحفظ. وتُدخل الاستقطاعات مبلغاً واحداً، كسلفة ما زالت مستحقة، لأن nompany لا يتابع القروض. وبدون صلاحية رؤية الرواتب يظهر حقل الاستقطاعات معطلاً ولا تُعرض التسوية، لكن يمكن تسجيل انتهاء الخدمة.",
+        en: "The last working day is required and starts as today; the final settlement is worked out from it and from the reason, so check both before saving. Deductions are typed as one amount, for example an advance still owed, because Sitta does not track loans. Without the right to see pay the deductions box is greyed out and no settlement is shown, but the exit can still be recorded.",
+        ar: "آخر يوم عمل إلزامي ويبدأ بتاريخ اليوم؛ وتُحسب التسوية النهائية منه ومن السبب، فراجعهما قبل الحفظ. وتُدخل الاستقطاعات مبلغاً واحداً، كسلفة ما زالت مستحقة، لأن ستة لا يتابع القروض. وبدون صلاحية رؤية الرواتب يظهر حقل الاستقطاعات معطلاً ولا تُعرض التسوية، لكن يمكن تسجيل انتهاء الخدمة.",
       },
       fields: {
         en: ["Last working day (required)", "Reason: Resigned, Terminated, Contract ended, Redundancy, Retired or Death in service", "Deductions, as one amount, if you may see pay", "Note"],
@@ -842,8 +842,8 @@ export const hr: HelpModule = {
       id: "hr-lifecycle.pay-settlement", topic: "dept.hr-lifecycle", kind: "howto", open: "hr-lifecycle",
       q: { en: "How do I pay the final settlement?", ar: "كيف أصرف التسوية النهائية؟" },
       a: {
-        en: "nompany calculates the settlement and freezes it on the exit, but does not pay it: no bill, payroll run or ledger entry comes out of it. Take the total from the exit in the person's history and pay it the way your studio pays anything else, recording the payment in Finance. Their last month's salary is still paid by the payroll run for that month.",
-        ar: "يحسب nompany التسوية ويجمدها عند تسجيل انتهاء الخدمة لكنه لا يصرفها: فلا تُنشأ منها فاتورة أو دورة رواتب أو قيد. خذ الإجمالي من خطوة انتهاء الخدمة في سجل الشخص واصرفه كما يصرف الاستوديو أي مبلغ آخر، مع تسجيل الدفعة في المالية. أما راتب شهره الأخير فتصرفه دورة الرواتب لذلك الشهر.",
+        en: "Sitta calculates the settlement and freezes it on the exit, but does not pay it: no bill, payroll run or ledger entry comes out of it. Take the total from the exit in the person's history and pay it the way your studio pays anything else, recording the payment in Finance. Their last month's salary is still paid by the payroll run for that month.",
+        ar: "يحسب ستة التسوية ويجمدها عند تسجيل انتهاء الخدمة لكنه لا يصرفها: فلا تُنشأ منها فاتورة أو دورة رواتب أو قيد. خذ الإجمالي من خطوة انتهاء الخدمة في سجل الشخص واصرفه كما يصرف الاستوديو أي مبلغ آخر، مع تسجيل الدفعة في المالية. أما راتب شهره الأخير فتصرفه دورة الرواتب لذلك الشهر.",
       },
       steps: {
         en: ["Open Lifecycle & contracts and choose the person", "Under History, read the settlement total on the exit", "Pay it through your bank", "Record the payment in Finance"],
@@ -856,8 +856,8 @@ export const hr: HelpModule = {
       id: "hr-lifecycle.country-setting", topic: "dept.hr-lifecycle", kind: "settings", open: "administration-settings",
       q: { en: "Where do probation, notice and contract kinds come from?", ar: "من أين تأتي فترة التجربة ومدة الإشعار وأنواع العقود؟" },
       a: {
-        en: "From the studio's country, which only the owner sets in Studio settings. nompany carries the rules for Jordan, Saudi Arabia and the United Arab Emirates, each dated, so a contract is judged by the rule in force on its own start date. Any other country, or none, gets the product's own defaults: three months' probation up to six, thirty days' notice, and every kind of contract. The source of the rule is printed under each contract.",
-        ar: "من بلد الاستوديو، ولا يحدده إلا المالك في إعدادات الاستوديو. ويحمل nompany قواعد الأردن والمملكة العربية السعودية والإمارات العربية المتحدة، ولكل منها تاريخ سريان، فيُحكم على العقد بالقاعدة السارية في تاريخ بدايته. وأي بلد آخر، أو عدم تحديد بلد، يأخذ القيم الافتراضية للنظام: ثلاثة أشهر تجربة بحد أقصى ستة، وثلاثون يوماً إشعاراً، وكل أنواع العقود. ويُطبع مصدر القاعدة تحت كل عقد.",
+        en: "From the studio's country, which only the owner sets in Studio settings. Sitta carries the rules for Jordan, Saudi Arabia and the United Arab Emirates, each dated, so a contract is judged by the rule in force on its own start date. Any other country, or none, gets the product's own defaults: three months' probation up to six, thirty days' notice, and every kind of contract. The source of the rule is printed under each contract.",
+        ar: "من بلد الاستوديو، ولا يحدده إلا المالك في إعدادات الاستوديو. ويحمل ستة قواعد الأردن والمملكة العربية السعودية والإمارات العربية المتحدة، ولكل منها تاريخ سريان، فيُحكم على العقد بالقاعدة السارية في تاريخ بدايته. وأي بلد آخر، أو عدم تحديد بلد، يأخذ القيم الافتراضية للنظام: ثلاثة أشهر تجربة بحد أقصى ستة، وثلاثون يوماً إشعاراً، وكل أنواع العقود. ويُطبع مصدر القاعدة تحت كل عقد.",
       },
       keywords: ["country rules", "labour law", "probation length", "notice length", "قواعد البلد", "نظام العمل", "مدة التجربة", "مدة الإشعار"],
       related: ["hr-lifecycle.country-rules", "hr-lifecycle.eos-setting"],
@@ -906,8 +906,8 @@ export const hr: HelpModule = {
       id: "hr-lifecycle.no-contract", topic: "dept.hr-lifecycle", kind: "troubleshoot", open: "hr-lifecycle",
       q: { en: "What does No contract on file mean?", ar: "ماذا تعني عبارة لا يوجد عقد مسجل؟" },
       a: {
-        en: "Nobody has recorded this person's contract, so their employment has no terms in nompany: no probation, no notice period and nothing a settlement can read. They are still employed, paid and given leave as normal. Choose New contract on their record to fix it.",
-        ar: "لم يسجل أحد عقد هذا الشخص، فلا شروط لخدمته في nompany: لا فترة تجربة ولا مدة إشعار ولا أساس لحساب التسوية. لكنه ما زال على رأس العمل ويتقاضى راتبه ويحصل على إجازاته كالمعتاد. اختر عقد جديد في سجله لمعالجة ذلك.",
+        en: "Nobody has recorded this person's contract, so their employment has no terms in Sitta: no probation, no notice period and nothing a settlement can read. They are still employed, paid and given leave as normal. Choose New contract on their record to fix it.",
+        ar: "لم يسجل أحد عقد هذا الشخص، فلا شروط لخدمته في ستة: لا فترة تجربة ولا مدة إشعار ولا أساس لحساب التسوية. لكنه ما زال على رأس العمل ويتقاضى راتبه ويحصل على إجازاته كالمعتاد. اختر عقد جديد في سجله لمعالجة ذلك.",
       },
       keywords: ["no contract", "missing contract", "no terms", "لا يوجد عقد", "عقد مفقود", "بلا شروط"],
       related: ["hr-lifecycle.new-contract"],
@@ -994,7 +994,7 @@ export const hr: HelpModule = {
     },
     {
       id: "hr-lifecycle.not-yet", topic: "dept.hr-lifecycle", kind: "troubleshoot", open: "hr-lifecycle",
-      q: { en: "Can nompany print offer letters or run onboarding checklists?", ar: "هل يمكن لـ nompany طباعة خطابات العرض أو إدارة قوائم مهام التعيين؟" },
+      q: { en: "Can Sitta print offer letters or run onboarding checklists?", ar: "هل يمكن لـ ستة طباعة خطابات العرض أو إدارة قوائم مهام التعيين؟" },
       a: {
         en: "Not yet. Lifecycle stores the terms and computes the figures but prints no contract, offer letter, confirmation or warning letter, or settlement statement. There is no approval on contracts or exits, no onboarding task list or leaving clearance, and no recruitment. A contract holds one notice figure, the settlement reads no loans, and only Jordan, Saudi Arabia and the UAE have country rules.",
         ar: "ليس بعد. تحفظ دورة الخدمة الشروط وتحسب الأرقام لكنها لا تطبع عقداً أو خطاب عرض أو خطاب تثبيت أو إنذار أو بيان تسوية. ولا توجد موافقة على العقود أو إنهاء الخدمة، ولا قائمة مهام للتعيين أو إخلاء طرف عند المغادرة، ولا توظيف. ويحمل العقد رقماً واحداً لمدة الإشعار، ولا تقرأ التسوية أي قروض، ولا توجد قواعد بلد إلا للأردن والسعودية والإمارات.",
@@ -1006,7 +1006,7 @@ export const hr: HelpModule = {
     // ═════════════════════════ TIME & ATTENDANCE ═════════════════════════
     {
       id: "hr-time.about", topic: "dept.hr-time", kind: "about", common: true, open: "hr-time",
-      q: { en: "How does attendance work in nompany?", ar: "كيف يعمل الحضور في nompany؟" },
+      q: { en: "How does attendance work in Sitta?", ar: "كيف يعمل الحضور في ستة؟" },
       a: {
         en: "Attendance is a daily sheet: one record per person per day, with a status of In, Remote, Absent, On leave or Holiday and the hours beside it. A supervisor marks the whole team for a day in one go, and marking the same day again corrects it rather than adding a second record. A day nobody marked is shown as Not marked, never as an absence, so a gap in the paperwork never reads as somebody missing work. The screen opens on today's date as the server sees it, not your device's clock, and below the sheet it totals the month so far for each person.",
         ar: "الحضور كشف يومي: سجل واحد لكل شخص في كل يوم، بحالة حاضر أو عن بعد أو غائب أو في إجازة أو عطلة، مع عدد الساعات بجانبها. ويسجل المشرف الفريق كله ليوم واحد دفعة واحدة، وإعادة تسجيل اليوم نفسه تصححه ولا تضيف سجلاً ثانياً. واليوم الذي لم يُسجَّل يظهر بعبارة لم يسجل وليس غياباً، حتى لا يُفسَّر نقص التسجيل على أنه تغيب عن العمل. وتُفتح الشاشة على تاريخ اليوم كما يراه الخادم لا ساعة جهازك، وتحت الكشف ملخص للشهر حتى الآن لكل شخص.",
@@ -1466,7 +1466,7 @@ export const hr: HelpModule = {
     // ═════════════════════════ PAYROLL ═════════════════════════
     {
       id: "hr-payroll.about", topic: "dept.hr-payroll", kind: "about", common: true, open: "hr-payroll",
-      q: { en: "How does payroll work in nompany?", ar: "كيف تعمل الرواتب في nompany؟" },
+      q: { en: "How does payroll work in Sitta?", ar: "كيف تعمل الرواتب في ستة؟" },
       a: {
         en: "Each person has a pay record: a monthly basic plus any allowances and deductions that recur every month, and the bank account they are paid into. Once a month you prepare a run, which copies everybody's pay record and freezes it, so a rise next month never rewrites this month's payslip. The run is approved on the Approvals page, after which it offers a bank file, and you mark it paid once the money has gone. It moves from Draft to Approved to Paid and never backwards. Approved unpaid leave is taken off the basic, a part month of employment is pro-rated, and where the studio has a social security scheme the employee's share is deducted for you.",
         ar: "لكل شخص سجل راتب: راتب أساسي شهري مع أي بدلات واستقطاعات تتكرر كل شهر، والحساب البنكي الذي يُصرف إليه. ومرة كل شهر تجهز دورة رواتب تأخذ نسخة من سجل راتب كل شخص وتجمدها، فلا تعيد زيادة الشهر القادم كتابة قسيمة هذا الشهر. وتُعتمد الدورة من صفحة الموافقات، فتتيح بعدها ملف البنك، وتعلّمها كمدفوعة بعد تحويل المبالغ. وتنتقل من مسودة إلى معتمدة إلى مدفوعة دون رجوع أبداً. وتُخصم الإجازة غير المدفوعة المعتمدة من الأساسي، ويُحتسب الشهر الجزئي بالتناسب، وحيث يكون للاستوديو نظام ضمان اجتماعي تُخصم حصة الموظف تلقائياً.",

@@ -92,7 +92,7 @@ function sanitiseHistory(raw: unknown): NeutralMessage[] {
 
 function novaSystem(studioName: string, alias: string, toolCount: number, currency: string): string {
   return [
-    `You are Nova, the assistant inside the ${studioName} workspace on nompany, an ERP.`,
+    `You are Nova, the assistant inside the ${studioName} workspace on Sitta, an ERP.`,
     `You are helping ${alias}.`,
     "",
     "Rules:",

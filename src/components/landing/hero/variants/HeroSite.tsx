@@ -116,7 +116,7 @@ export function HeroSite() {
         <div className="relative lg:col-span-5" style={{ perspective: 1800 }}>
           <div {...windowIn} className="lg:w-[150%]">
             <motion.div style={reduce ? undefined : { transform: windowTransform }} className="will-change-transform ltr:origin-left rtl:origin-right">
-              <GlassWindow url="nompany.com/qimam/crm-sales-pipeline">
+              <GlassWindow url="sittaerp.com/qimam/crm-sales-pipeline">
                 <Shot name="pipeline" alt={tour.heroAlt} priority sizes="(min-width: 1024px) 60vw, 100vw" />
               </GlassWindow>
             </motion.div>

@@ -378,8 +378,8 @@ export default function UsersTable({ rows }: { rows: UserRow[] }) {
       <CardHead
         title="All Users"
         sub={flaggedCount
-          ? `Every identity that can sign in to nompany · ${flaggedCount} flagged for sharing`
-          : "Every identity that can sign in to nompany"}
+          ? `Every identity that can sign in to Sitta · ${flaggedCount} flagged for sharing`
+          : "Every identity that can sign in to Sitta"}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative">

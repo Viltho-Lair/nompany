@@ -388,7 +388,7 @@ export default async function StudioPage({ params }: StudioPageProps) {
   return withRequest("studio-page", () => renderStudio(params));
 }
 
-// THE STUDIO. Served at the tenant's own address — www.nompany.com/<slug> — via
+// THE STUDIO. Served at the tenant's own address — www.sittaerp.com/<slug> — via
 // the proxy rewrite; this internal folder name never appears in the browser.
 //
 // Tenancy is SLUG-DRIVEN: the URL names the tenant (x-studio-slug, set by the

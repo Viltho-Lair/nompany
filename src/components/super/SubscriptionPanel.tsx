@@ -136,7 +136,7 @@ export default function SubscriptionPanel({ studioId, onChanged, packages = [], 
       <div className="flex flex-wrap items-center gap-3">
         <Badge tone={st.tone}>{st.label}</Badge>
         <span className={muted}>
-          {s.kind === "comp" ? "Given by nompany — never lapses."
+          {s.kind === "comp" ? "Given by Sitta — never lapses."
             : data.status === "trial" ? `Standard's free period ends ${fmtDay(s.paidUntil)}; the studio closes that day unless a paid package is paid for.`
             : data.status === "active" ? `Paid until ${fmtDay(s.paidUntil)}.`
             : data.status === "due" ? `Due since ${fmtDay(data.dates.dueOn)}. Closes ${fmtDay(data.dates.closesOn)}.`

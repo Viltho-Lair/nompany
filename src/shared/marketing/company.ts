@@ -44,8 +44,8 @@ import { defaultLocale, type Locale } from "@/shared/locale";
 // anywhere and whose pricing page carries a currency PICKER. A schema field gets
 // audited; a sentence in the middle of a paragraph does not.
 
-/** The Latin brand string. Lowercase, everywhere. `Nompany` appears nowhere. */
-export const BRAND = "nompany";
+/** The Latin brand string — Sitta (renamed from nompany 09/10/2026, with the move to sittaerp.com). */
+export const BRAND = "Sitta";
 
 /**
  * The Arabic-script brand name (spec §12.1).
@@ -54,7 +54,7 @@ export const BRAND = "nompany";
  * typing the brand phonetically previously matched nothing, and this is
  * irreversible in practice once it is on a directory listing.
  */
-export const BRAND_AR = "نومباني";
+export const BRAND_AR = "ستة";
 
 type CompanyStrings = {
   /** One sentence, reused verbatim everywhere the entity is described. */
@@ -70,7 +70,7 @@ type CompanyStrings = {
    proves the departments, and this says why they are worth having together. */
 const en: CompanyStrings = {
   description:
-    "nompany is an ERP for small and medium companies across the region — every department on one data model, in Arabic and English, so work moves from one team to the next without anybody typing it out again.",
+    "Sitta is an ERP for small and medium companies across the region — every department on one data model, in Arabic and English, so work moves from one team to the next without anybody typing it out again.",
 };
 
 // HAND-WRITTEN, NO DIACRITICS, and not a transliteration of the English: the
@@ -79,7 +79,7 @@ const en: CompanyStrings = {
 // here, because a searcher typing the brand phonetically matches none of them.
 const ar: CompanyStrings = {
   description:
-    "نومباني نظام تخطيط موارد للشركات الصغيرة والمتوسطة في المنطقة — كل الأقسام على نموذج بيانات واحد، بالعربية والإنجليزية، فينتقل العمل من فريق إلى آخر دون أن يعيد أحد كتابته.",
+    "ستة نظام تخطيط موارد للشركات الصغيرة والمتوسطة في المنطقة — كل الأقسام على نموذج بيانات واحد، بالعربية والإنجليزية، فينتقل العمل من فريق إلى آخر دون أن يعيد أحد كتابته.",
 };
 
 const company = { en, ar };

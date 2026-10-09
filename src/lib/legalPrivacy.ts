@@ -45,28 +45,28 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: "about",
     title: "1. About this Policy",
     blocks: [
-      { type: "p", text: 'This Privacy Policy explains how nompany, the provider of the nompany ERP platform ("nompany", "we", "us", "our"), handles personal data. It is the Privacy Policy referred to in Section 1 of the Terms and Conditions of Service (the "Terms"), and forms part of the Agreement described there.' },
-      { type: "p", lead: "Two different roles, and the difference matters.", text: "For the business records a customer organisation puts into the Service — its own clients, employees, projects, invoices and so on — that organisation is the Controller and nompany is only the Processor, acting on its instructions. Those records are governed by Section 9 of the Terms and by the Data Processing Agreement, not by this Policy. This Policy covers the data nompany handles in its own right: the account you sign in with, the data you authorise us to read from a third-party service such as Google, and the operational records that keep the platform running and secure." },
-      { type: "p", lead: "If you are an employee of a customer organisation", text: "and want to know what that organisation holds about you inside nompany, ask that organisation. It decides what to store and how long to keep it; we cannot answer for it." },
+      { type: "p", text: 'This Privacy Policy explains how Sitta, the provider of the Sitta ERP platform ("Sitta", "we", "us", "our"), handles personal data. It is the Privacy Policy referred to in Section 1 of the Terms and Conditions of Service (the "Terms"), and forms part of the Agreement described there.' },
+      { type: "p", lead: "Two different roles, and the difference matters.", text: "For the business records a customer organisation puts into the Service — its own clients, employees, projects, invoices and so on — that organisation is the Controller and Sitta is only the Processor, acting on its instructions. Those records are governed by Section 9 of the Terms and by the Data Processing Agreement, not by this Policy. This Policy covers the data Sitta handles in its own right: the account you sign in with, the data you authorise us to read from a third-party service such as Google, and the operational records that keep the platform running and secure." },
+      { type: "p", lead: "If you are an employee of a customer organisation", text: "and want to know what that organisation holds about you inside Sitta, ask that organisation. It decides what to store and how long to keep it; we cannot answer for it." },
     ],
   },
   {
     id: "what-we-collect",
-    title: "2. What nompany collects",
+    title: "2. What Sitta collects",
     blocks: [
       { type: "table", head: ["Category", "What it is", "Where it comes from"], rows: [
         ["Account data", "Your name, email address, password hash (never the password itself), preferred language, and the studios you are a member of", "You, at registration — or your identity provider, if you signed in with Google or Microsoft"],
         ["Authentication and security data", "Session records, device records, one-time codes, sign-in attempts, and the audit trail of security-relevant actions", "Generated as you use the Service"],
-        ["Connected-service data", "Data you explicitly authorise nompany to read from a third-party account — today, a Google or Microsoft calendar", "The provider, on your authorisation, and only while that authorisation stands (see Section 4)"],
-        ["Billing data", "Subscription, plan, invoice and transaction records; the card brand and last four digits", "You and the Payment Processor. The full card number is never seen or stored by nompany — it is held by the PCI-DSS-compliant Payment Processor"],
+        ["Connected-service data", "Data you explicitly authorise Sitta to read from a third-party account — today, a Google or Microsoft calendar", "The provider, on your authorisation, and only while that authorisation stands (see Section 4)"],
+        ["Billing data", "Subscription, plan, invoice and transaction records; the card brand and last four digits", "You and the Payment Processor. The full card number is never seen or stored by Sitta — it is held by the PCI-DSS-compliant Payment Processor"],
         ["Usage and diagnostic data", "Request identifiers, timestamps, error records and performance measurements", "Generated as you use the Service"],
       ] },
-      { type: "p", lead: "Not collected.", text: "nompany does not buy personal data from data brokers, does not build advertising profiles, and does not operate third-party advertising or cross-site tracking on its product surfaces." },
+      { type: "p", lead: "Not collected.", text: "Sitta does not buy personal data from data brokers, does not build advertising profiles, and does not operate third-party advertising or cross-site tracking on its product surfaces." },
     ],
   },
   {
     id: "how-we-use",
-    title: "3. How nompany uses it, and on what basis",
+    title: "3. How Sitta uses it, and on what basis",
     blocks: [
       { type: "table", head: ["Purpose", "Data used", "Lawful basis"], rows: [
         ["Providing the Service — authenticating you, showing you your studios, running the modules you subscribed to", "Account, authentication, connected-service data", "Performance of a contract"],
@@ -75,14 +75,14 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
         ["Support and correspondence", "Account data and what you tell us", "Performance of a contract, and legitimate interests"],
         ["Diagnosing faults and improving reliability", "Usage and diagnostic data", "Legitimate interests (a working, reliable service)"],
       ] },
-      { type: "p", lead: "No automated decisions.", text: "nompany does not make decisions producing legal or similarly significant effects about you by automated means alone, and does not profile you for advertising." },
+      { type: "p", lead: "No automated decisions.", text: "Sitta does not make decisions producing legal or similarly significant effects about you by automated means alone, and does not profile you for advertising." },
     ],
   },
   {
     id: "google-user-data",
     title: "4. Google user data (Google API Services)",
     blocks: [
-      { type: "p", text: "This section is nompany's disclosure for data obtained through Google APIs, and is reproduced as Annex B of the Terms. It applies only where you choose to sign in to nompany with a Google Account or to connect a Google Calendar from Account → Calendars. If you do neither, nompany receives no Google user data about you." },
+      { type: "p", text: "This section is Sitta's disclosure for data obtained through Google APIs, and is reproduced as Annex B of the Terms. It applies only where you choose to sign in to Sitta with a Google Account or to connect a Google Calendar from Account → Calendars. If you do neither, Sitta receives no Google user data about you." },
       ...GOOGLE_DATA_BLOCKS,
     ],
   },
@@ -90,15 +90,15 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: "sharing",
     title: "5. Who it is shared with",
     blocks: [
-      { type: "p", text: "nompany does not sell personal data, does not rent or trade it, and does not disclose it to third parties for their own purposes. It is disclosed only to:" },
+      { type: "p", text: "Sitta does not sell personal data, does not rent or trade it, and does not disclose it to third parties for their own purposes. It is disclosed only to:" },
       { type: "ul", items: [
-        "Sub-processors that host and operate the Service — the hosting and database provider, the file-storage provider, the transactional-email provider, and the Payment Processor — each acting solely on nompany's instructions under written terms no less protective than the Data Processing Agreement. Section 9 of the Terms governs how they are engaged and how you are notified of a change.",
+        "Sub-processors that host and operate the Service — the hosting and database provider, the file-storage provider, the transactional-email provider, and the Payment Processor — each acting solely on Sitta's instructions under written terms no less protective than the Data Processing Agreement. Section 9 of the Terms governs how they are engaged and how you are notified of a change.",
         "Other members of a studio you belong to, to the extent the Service is designed to show them — your name and role, and, only if you have opted that studio in to calendar sharing, when you are busy (see Section 4).",
         "Google, as the provider of Google Analytics — only for visits to the public marketing pages by somebody who accepted analytics there (Section 9). Never data from inside the Service.",
         "A competent authority, where disclosure is required by law. Where it is lawful to do so, we will notify you first.",
         "An acquirer, in a merger, acquisition or sale of assets, subject to this Policy continuing to apply.",
       ] },
-      { type: "p", lead: "International transfers.", text: "Where personal data is transferred across borders, including outside the EEA or the UK, nompany implements a lawful transfer mechanism — Standard Contractual Clauses, the UK International Data Transfer Agreement or Addendum, or an equivalent safeguard — as set out in Section 9 of the Terms." },
+      { type: "p", lead: "International transfers.", text: "Where personal data is transferred across borders, including outside the EEA or the UK, Sitta implements a lawful transfer mechanism — Standard Contractual Clauses, the UK International Data Transfer Agreement or Addendum, or an equivalent safeguard — as set out in Section 9 of the Terms." },
     ],
   },
   {
@@ -106,7 +106,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     title: "6. How it is protected",
     blocks: [
       { type: "p", text: "Encryption in transit (TLS) and at rest; field-level AES-256-GCM encryption for the most sensitive values, including national and passport identifiers and every stored OAuth token; passwords stored only as bcrypt hashes and never in a recoverable form; role-based, least-privilege access; rate limiting on credential endpoints; one-time-code verification and multi-factor authentication where offered; request-level logging and monitoring; and regular backups. Section 9 of the Terms states these measures in full and is the operative text." },
-      { type: "p", lead: "If something goes wrong.", text: "nompany will notify an affected customer organisation without undue delay, and in any event within 72 hours of becoming aware of a confirmed personal-data breach affecting its data, with the information it needs to meet its own notification obligations." },
+      { type: "p", lead: "If something goes wrong.", text: "Sitta will notify an affected customer organisation without undue delay, and in any event within 72 hours of becoming aware of a confirmed personal-data breach affecting its data, with the information it needs to meet its own notification obligations." },
     ],
   },
   {
@@ -122,7 +122,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     title: "8. Your rights",
     blocks: [
       { type: "p", text: "Subject to the conditions in applicable data protection law, you have the right to request access to your personal data; to have inaccurate data corrected; to have data erased; to have processing restricted; to receive your data in a portable, machine-readable format; to object to processing carried out on the basis of legitimate interests; and, where processing relies on consent, to withdraw that consent at any time without affecting the lawfulness of what came before." },
-      { type: "p", lead: "Where to send a request.", text: "Write to info@nompany.com. If your request concerns business records held inside a customer organisation's studio, nompany is the Processor rather than the Controller, so we will direct the request to that organisation and assist it in answering you — we are not permitted to answer on its behalf." },
+      { type: "p", lead: "Where to send a request.", text: "Write to info@sittaerp.com. If your request concerns business records held inside a customer organisation's studio, Sitta is the Processor rather than the Controller, so we will direct the request to that organisation and assist it in answering you — we are not permitted to answer on its behalf." },
       { type: "p", lead: "Complaints.", text: "You may lodge a complaint with the supervisory authority in your country of residence, place of work, or the place of the alleged infringement. We would prefer the chance to resolve it first." },
     ],
   },
@@ -130,10 +130,10 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     id: "cookies",
     title: "9. Cookies and similar technologies",
     blocks: [
-      { type: "p", text: "Inside the product — the sign-in pages, your account and every studio — nompany sets only the cookies the product needs to work: no advertising, analytics or product-telemetry cookies, and no third-party cross-site tracking. On the public marketing pages alone (the home, platform, pricing, security, about, contact, customers, careers and blog pages), and only if you choose Accept in the banner shown there, we use Google Analytics to count visits and see which pages are read. Nothing is loaded and no request is made to Google before you accept or if you decline; Google's advertising features and signals are switched off; and you can withdraw at any time from the Cookie settings link in the footer, which also deletes the Google Analytics cookies." },
+      { type: "p", text: "Inside the product — the sign-in pages, your account and every studio — Sitta sets only the cookies the product needs to work: no advertising, analytics or product-telemetry cookies, and no third-party cross-site tracking. On the public marketing pages alone (the home, platform, pricing, security, about, contact, customers, careers and blog pages), and only if you choose Accept in the banner shown there, we use Google Analytics to count visits and see which pages are read. Nothing is loaded and no request is made to Google before you accept or if you decline; Google's advertising features and signals are switched off; and you can withdraw at any time from the Cookie settings link in the footer, which also deletes the Google Analytics cookies." },
       { type: "table", head: ["Cookie", "What it does", "Lifetime"], rows: [
         ["nc_sid", "Keeps you signed in. Holds a session reference, never your password", "The session"],
-        ["nc_super", "The same, for the nompany operations console", "The session"],
+        ["nc_super", "The same, for the Sitta operations console", "The session"],
         ["nc_otp", "Carries a sign-in through the one-time-code step", "Minutes"],
         ["nc_pend", "Holds a sign-in between your password and your second step (a code or an authenticator)", "Minutes"],
         // "Or you sign out of it" was not true and was the misleading half:
@@ -155,7 +155,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     title: "10. Changes and contact",
     blocks: [
       { type: "p", lead: "Changes.", text: "We may update this Policy. The version and dates at the top of this page always say which text you are reading. For a material change we will give at least thirty (30) days' notice by email or in-app notice, on the same terms as Section 17 of the Terms." },
-      { type: "p", lead: "Contact.", text: "Privacy and data-protection enquiries, including requests to delete data obtained through Google APIs, go to info@nompany.com." },
+      { type: "p", lead: "Contact.", text: "Privacy and data-protection enquiries, including requests to delete data obtained through Google APIs, go to info@sittaerp.com." },
     ],
   },
 ];

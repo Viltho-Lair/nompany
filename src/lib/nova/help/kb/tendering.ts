@@ -410,8 +410,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.bid-value", topic: "dept.tendering-register", kind: "about", open: "tendering-register",
       q: { en: "Which figure is the bid: the estimated value or the bill?", ar: "أي الرقمين هو العطاء: القيمة التقديرية أم الجدول؟" },
       a: {
-        en: "The bill, whenever the tender has one. The estimated value is what somebody guessed the day the tender was noticed, and it is what the register shows; the bill's total is what the work was priced at, and it is what the approval is asked for and what a handed-over project opens at. A tender with no bill lines at all is valued at its estimated value, because plenty of tenders are priced outside nompany. The Bid review says which of the two it is using, since on screen they are the same kind of number.",
-        ar: "الجدول، متى كان للمناقصة جدول. فالقيمة التقديرية هي ما خمّنه أحد يوم لوحظت المناقصة، وهي ما يعرضه السجل؛ أما إجمالي الجدول فهو ما سُعِّر به العمل، وهو ما يُطلب الاعتماد عليه وما يُفتح به المشروع المسلَّم. والمناقصة التي لا بنود لها أصلًا تُقيَّم بقيمتها التقديرية، لأن كثيرًا من المناقصات يُسعَّر خارج nompany. وتذكر مراجعة العرض أي الرقمين تستخدم، إذ يبدوان على الشاشة رقمًا من النوع نفسه.",
+        en: "The bill, whenever the tender has one. The estimated value is what somebody guessed the day the tender was noticed, and it is what the register shows; the bill's total is what the work was priced at, and it is what the approval is asked for and what a handed-over project opens at. A tender with no bill lines at all is valued at its estimated value, because plenty of tenders are priced outside Sitta. The Bid review says which of the two it is using, since on screen they are the same kind of number.",
+        ar: "الجدول، متى كان للمناقصة جدول. فالقيمة التقديرية هي ما خمّنه أحد يوم لوحظت المناقصة، وهي ما يعرضه السجل؛ أما إجمالي الجدول فهو ما سُعِّر به العمل، وهو ما يُطلب الاعتماد عليه وما يُفتح به المشروع المسلَّم. والمناقصة التي لا بنود لها أصلًا تُقيَّم بقيمتها التقديرية، لأن كثيرًا من المناقصات يُسعَّر خارج ستة. وتذكر مراجعة العرض أي الرقمين تستخدم، إذ يبدوان على الشاشة رقمًا من النوع نفسه.",
       },
       keywords: ["bid value", "estimated value", "bill total", "which figure", "قيمة العرض", "القيمة التقديرية", "إجمالي الجدول", "أي رقم"],
       related: ["tendering-register.bid-review-about", "tendering-register.handover-about"],
@@ -430,8 +430,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.bill-behind", topic: "dept.tendering-register", kind: "about", open: "tendering-register",
       q: { en: "What does The bill was priced before some of this arrived mean?", ar: "ماذا تعني «جرى تسعير الجدول قبل وصول بعض هذا»؟" },
       a: {
-        en: "It means a document was added, or an answer recorded, after the last time a priced line changed, so the bill may not reflect it. The warning names each one with the time it arrived and says when the bill was last priced. It is measured from when the document was added to nompany, not the date the issuer printed on it, because the question is whether the estimator had it in front of them. Documents you submitted and replaced revisions are never counted, and a bill with nothing priced yet shows no warning.",
-        ar: "يعني أن مستندًا أُضيف أو ردًّا سُجِّل بعد آخر مرة تغيّر فيها بند مسعَّر، فربما لا يعكسه الجدول. ويسمّي التحذير كل واحد منها مع وقت وصوله، ويذكر متى سُعِّر الجدول آخر مرة. ويُقاس من وقت إضافة المستند إلى nompany، لا من التاريخ الذي طبعته عليه الجهة الطارحة، لأن السؤال هو هل كان أمام المقدِّر. ولا تُحسب المستندات التي قدمتها أنت ولا المراجعات المستبدلة، والجدول الذي لم يُسعَّر فيه شيء لا يظهر عليه تحذير.",
+        en: "It means a document was added, or an answer recorded, after the last time a priced line changed, so the bill may not reflect it. The warning names each one with the time it arrived and says when the bill was last priced. It is measured from when the document was added to Sitta, not the date the issuer printed on it, because the question is whether the estimator had it in front of them. Documents you submitted and replaced revisions are never counted, and a bill with nothing priced yet shows no warning.",
+        ar: "يعني أن مستندًا أُضيف أو ردًّا سُجِّل بعد آخر مرة تغيّر فيها بند مسعَّر، فربما لا يعكسه الجدول. ويسمّي التحذير كل واحد منها مع وقت وصوله، ويذكر متى سُعِّر الجدول آخر مرة. ويُقاس من وقت إضافة المستند إلى ستة، لا من التاريخ الذي طبعته عليه الجهة الطارحة، لأن السؤال هو هل كان أمام المقدِّر. ولا تُحسب المستندات التي قدمتها أنت ولا المراجعات المستبدلة، والجدول الذي لم يُسعَّر فيه شيء لا يظهر عليه تحذير.",
       },
       keywords: ["bill is behind", "priced before", "stale pricing", "addendum warning", "الجدول متأخر", "سعر قبل", "تحذير الملحق", "آخر تسعير"],
       related: ["tendering-register.pack-about", "tendering-register.price-line"],
@@ -440,8 +440,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.open-questions", topic: "dept.tendering-register", kind: "about", open: "tendering-register",
       q: { en: "Why does it say the bid went in with questions unanswered?", ar: "لماذا يقول إن العطاء قُدِّم وأسئلة بلا رد؟" },
       a: {
-        en: "Because the tender was submitted while some of your questions still had no answer, which means those points were priced on assumptions. It is a note, not a refusal: issuers often never answer, and nompany still records the submission. The note stays on the tender, whatever became of it, until the questions are answered or removed.",
-        ar: "لأن المناقصة قُدِّمت وبعض أسئلتك ما زالت بلا رد، أي أن تلك النقاط سُعِّرت على افتراضات. وهي ملاحظة لا رفض: فالجهات الطارحة كثيرًا لا ترد أبدًا، ويسجل nompany التقديم مع ذلك. وتبقى الملاحظة على المناقصة مهما كان مآلها، إلى أن يُجاب عن الأسئلة أو تُحذف.",
+        en: "Because the tender was submitted while some of your questions still had no answer, which means those points were priced on assumptions. It is a note, not a refusal: issuers often never answer, and Sitta still records the submission. The note stays on the tender, whatever became of it, until the questions are answered or removed.",
+        ar: "لأن المناقصة قُدِّمت وبعض أسئلتك ما زالت بلا رد، أي أن تلك النقاط سُعِّرت على افتراضات. وهي ملاحظة لا رفض: فالجهات الطارحة كثيرًا لا ترد أبدًا، ويسجل ستة التقديم مع ذلك. وتبقى الملاحظة على المناقصة مهما كان مآلها، إلى أن يُجاب عن الأسئلة أو تُحذف.",
       },
       keywords: ["questions unanswered", "open questions", "assumptions", "أسئلة بلا رد", "أسئلة مفتوحة", "افتراضات"],
       related: ["tendering-register.record-answer", "tendering-register.pack-about"],
@@ -595,8 +595,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.import-fields", topic: "dept.tendering-register", kind: "fields", open: "tendering-register",
       q: { en: "What does Import lines need from my spreadsheet?", ar: "ماذا تحتاج «استيراد بنود» من جدول البيانات؟" },
       a: {
-        en: "Copy the bill's rows out of Excel and paste them, or attach a CSV file separated by commas or semicolons. The columns are guessed from the header row, in English or Arabic, and you can change any of them before importing. A row with a description and no quantity, unit or rate is taken as a heading and names the lines beneath it. An Amount column is ignored, because nompany works it out, and at most 2,000 lines can be imported at a time.",
-        ar: "انسخ صفوف الجدول من Excel والصقها، أو أرفق ملف CSV مفصولًا بفواصل أو بفواصل منقوطة. وتُخمَّن الأعمدة من صف العناوين، بالعربية أو الإنجليزية، ويمكنك تغيير أي منها قبل الاستيراد. والصف الذي فيه وصف بلا كمية أو وحدة أو سعر يُعدّ عنوانًا ويسمّي البنود التي تحته. ويُتجاهل عمود القيمة لأن nompany يحسبه، ولا يُستورد أكثر من 2,000 بند في المرة الواحدة.",
+        en: "Copy the bill's rows out of Excel and paste them, or attach a CSV file separated by commas or semicolons. The columns are guessed from the header row, in English or Arabic, and you can change any of them before importing. A row with a description and no quantity, unit or rate is taken as a heading and names the lines beneath it. An Amount column is ignored, because Sitta works it out, and at most 2,000 lines can be imported at a time.",
+        ar: "انسخ صفوف الجدول من Excel والصقها، أو أرفق ملف CSV مفصولًا بفواصل أو بفواصل منقوطة. وتُخمَّن الأعمدة من صف العناوين، بالعربية أو الإنجليزية، ويمكنك تغيير أي منها قبل الاستيراد. والصف الذي فيه وصف بلا كمية أو وحدة أو سعر يُعدّ عنوانًا ويسمّي البنود التي تحته. ويُتجاهل عمود القيمة لأن ستة يحسبه، ولا يُستورد أكثر من 2,000 بند في المرة الواحدة.",
       },
       fields: {
         en: [
@@ -716,8 +716,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.answer-fields", topic: "dept.tendering-register", kind: "fields", open: "tendering-register",
       q: { en: "What does Record the answer ask?", ar: "ماذا تطلب نافذة «تسجيل الرد»؟" },
       a: {
-        en: "Nothing is required: the time of the answer is stamped by nompany when you save, not typed. Whether the answer changes the price is your judgement, because nothing can read an answer and tell whether it moves the bid. Saving an empty answer takes the answer and its time away and leaves the question outstanding again.",
-        ar: "لا شيء مطلوب: فوقت الرد يسجله nompany عند الحفظ، ولا يُكتب. وهل يغيّر الرد السعر أمر تقدّره أنت، لأن لا شيء يستطيع قراءة رد والحكم هل يحرّك العطاء. وحفظ رد فارغ يزيل الرد ووقته ويعيد السؤال مفتوحًا.",
+        en: "Nothing is required: the time of the answer is stamped by Sitta when you save, not typed. Whether the answer changes the price is your judgement, because nothing can read an answer and tell whether it moves the bid. Saving an empty answer takes the answer and its time away and leaves the question outstanding again.",
+        ar: "لا شيء مطلوب: فوقت الرد يسجله ستة عند الحفظ، ولا يُكتب. وهل يغيّر الرد السعر أمر تقدّره أنت، لأن لا شيء يستطيع قراءة رد والحكم هل يحرّك العطاء. وحفظ رد فارغ يزيل الرد ووقته ويعيد السؤال مفتوحًا.",
       },
       fields: {
         en: [
@@ -1224,8 +1224,8 @@ export const tendering: HelpModule = {
       id: "tendering-register.import-skipped", topic: "dept.tendering-register", kind: "troubleshoot", open: "tendering-register",
       q: { en: "Why were some rows skipped in my import?", ar: "لماذا تُركت بعض الصفوف في الاستيراد؟" },
       a: {
-        en: "A row is skipped, and named by its line, when it has no description, or when its quantity or rate is not a number; nompany never reads such a value as nought, because a silently unpriced line is how a bill is bid below cost. Numbers written as 1,234.50, 1.234,50, 12,5 or in Arabic-Indic digits are all read correctly. If the import itself is refused, the bill may have been handed over, or you sent more than 2,000 lines.",
-        ar: "يُترك الصف، ويُسمّى برقم سطره، حين لا يكون له وصف، أو حين لا تكون كميته أو سعره رقمًا؛ ولا يقرأ nompany مثل هذه القيمة صفرًا أبدًا، لأن البند غير المسعّر بصمت هو الطريقة التي يُقدَّم بها الجدول بأقل من كلفته. وتُقرأ الأرقام المكتوبة مثل 1,234.50 أو 1.234,50 أو 12,5 أو بالأرقام العربية الهندية كلها بشكل صحيح. وإن رُفض الاستيراد نفسه، فربما سُلِّم الجدول، أو أرسلت أكثر من 2,000 بند.",
+        en: "A row is skipped, and named by its line, when it has no description, or when its quantity or rate is not a number; Sitta never reads such a value as nought, because a silently unpriced line is how a bill is bid below cost. Numbers written as 1,234.50, 1.234,50, 12,5 or in Arabic-Indic digits are all read correctly. If the import itself is refused, the bill may have been handed over, or you sent more than 2,000 lines.",
+        ar: "يُترك الصف، ويُسمّى برقم سطره، حين لا يكون له وصف، أو حين لا تكون كميته أو سعره رقمًا؛ ولا يقرأ ستة مثل هذه القيمة صفرًا أبدًا، لأن البند غير المسعّر بصمت هو الطريقة التي يُقدَّم بها الجدول بأقل من كلفته. وتُقرأ الأرقام المكتوبة مثل 1,234.50 أو 1.234,50 أو 12,5 أو بالأرقام العربية الهندية كلها بشكل صحيح. وإن رُفض الاستيراد نفسه، فربما سُلِّم الجدول، أو أرسلت أكثر من 2,000 بند.",
       },
       keywords: ["rows skipped", "import failed", "not a number", "too many lines", "صفوف متروكة", "فشل الاستيراد", "ليس رقما", "بنود كثيرة"],
       related: ["tendering-register.import-fields", "tendering-register.xlsx"],

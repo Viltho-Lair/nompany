@@ -437,7 +437,7 @@ function EInvoicing({ data, slug, locale, onDone }: { data: TaxView; slug: strin
                       : "rounded-lg bg-brand-600 px-2 py-1 text-xs font-600 text-white"} onClick={() => download(q)}>{tr.einvDownload}</button>
                   )}
                   {/* RECORDING AN ANSWER is for a studio that submits itself; where
-                      nompany submits, ZATCA's own answer is what is kept. */}
+                      Sitta submits, ZATCA's own answer is what is kept. */}
                   {e.canAct && !submits && recording !== q.id && (
                     <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-600 text-slate-700 dark:border-white/15 dark:text-slate-200"
                       onClick={() => { setProblem(""); setRecording(q.id); }}>{tr.einvRecord}</button>

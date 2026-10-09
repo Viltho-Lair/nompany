@@ -14,7 +14,7 @@ export const metadata = {
     default: "Super Admin",
     template: "%s · Super Admin",
   },
-  description: "nompany platform administration console.",
+  description: "Sitta platform administration console.",
   robots: { index: false, follow: false },
 };
 

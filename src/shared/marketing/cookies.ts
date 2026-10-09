@@ -40,7 +40,7 @@ type CookieStrings = {
 
 const en: CookieStrings = {
   title: "Cookie policy",
-  lead: "Which cookies nompany sets, why, and for how long. Two kinds only: the ones the site needs to work, and analytics you can refuse.",
+  lead: "Which cookies Sitta sets, why, and for how long. Two kinds only: the ones the site needs to work, and analytics you can refuse.",
   updated: "Last updated 27/09/2026",
   whatTitle: "What cookies are",
   whatBody:
@@ -57,7 +57,7 @@ const en: CookieStrings = {
   categoryName: { necessary: "Necessary", analytics: "Analytics" },
   rows: [
     { name: "nc_sid", purpose: "Keeps you signed in. Holds a session reference, never your password.", lifetime: "8 hours", category: "necessary" },
-    { name: "nc_super", purpose: "The same, for nompany's own operations console.", lifetime: "12 hours", category: "necessary" },
+    { name: "nc_super", purpose: "The same, for Sitta's own operations console.", lifetime: "12 hours", category: "necessary" },
     { name: "nc_otp", purpose: "Carries a sign-in through the one-time-code step.", lifetime: "10 minutes", category: "necessary" },
     { name: "nc_pend", purpose: "Holds a sign-in between your password and your second step.", lifetime: "10 minutes", category: "necessary" },
     { name: "nc_dev", purpose: "Recognises a device you asked us to remember, so you are not asked for a code on it. Set only if you tick the box.", lifetime: "30 days, or until you revoke the device", category: "necessary" },
@@ -75,13 +75,13 @@ const en: CookieStrings = {
   browserBody:
     "Your browser can also block or delete cookies. Blocking the necessary ones will stop you from signing in.",
   contactTitle: "Questions",
-  contactBody: "Write to info@nompany.com. How we handle personal data in general is in the privacy policy.",
+  contactBody: "Write to info@sittaerp.com. How we handle personal data in general is in the privacy policy.",
 };
 
 // HAND-WRITTEN, NO DIACRITICS. Cookie names are code and stay Latin.
 const ar: CookieStrings = {
   title: "سياسة ملفات تعريف الارتباط",
-  lead: "ما ملفات تعريف الارتباط التي تضعها نومباني، ولماذا، وإلى متى. نوعان فقط: ما يحتاجه الموقع ليعمل، والتحليلات التي يمكنك رفضها.",
+  lead: "ما ملفات تعريف الارتباط التي تضعها ستة، ولماذا، وإلى متى. نوعان فقط: ما يحتاجه الموقع ليعمل، والتحليلات التي يمكنك رفضها.",
   updated: "آخر تحديث 27/09/2026",
   whatTitle: "ما هي ملفات تعريف الارتباط",
   whatBody:
@@ -92,13 +92,13 @@ const ar: CookieStrings = {
     "تبقيك مسجلا الدخول، وتحمي تسجيل الدخول من التزوير، وتتذكر لغتك والمظهر داخل المنتج واختيارك بشأن ملفات تعريف الارتباط. لا يعمل الموقع دونها، لذلك هي مفعلة دائما ولا تحتاج إلى موافقة. لا يستخدم أي منها للإعلانات ولا يشارك مع أحد.",
   analyticsTitle: "التحليلات، فقط إن وافقت",
   analyticsBody:
-    "على صفحات الرئيسية والمنصة والأسعار والأمان وعن نومباني والتواصل والعملاء والوظائف والمدونة، وفقط بعد أن تختار القبول، نستخدم Google Analytics لإحصاء الزيارات ومعرفة الصفحات الأكثر قراءة. قبل أن توافق، أو إن رفضت، لا يحمل شيء ولا يرسل أي طلب إلى Google. ميزات Google الإعلانية وإشاراتها معطلة. لا تعمل التحليلات أبدا داخل المنتج: لا في صفحات تسجيل الدخول ولا في حسابك ولا في أي استوديو.",
+    "على صفحات الرئيسية والمنصة والأسعار والأمان وعن ستة والتواصل والعملاء والوظائف والمدونة، وفقط بعد أن تختار القبول، نستخدم Google Analytics لإحصاء الزيارات ومعرفة الصفحات الأكثر قراءة. قبل أن توافق، أو إن رفضت، لا يحمل شيء ولا يرسل أي طلب إلى Google. ميزات Google الإعلانية وإشاراتها معطلة. لا تعمل التحليلات أبدا داخل المنتج: لا في صفحات تسجيل الدخول ولا في حسابك ولا في أي استوديو.",
   tableTitle: "كل ملف، واحدا واحدا",
   head: { name: "الملف", purpose: "ما يفعله", lifetime: "مدته", category: "النوع" },
   categoryName: { necessary: "ضروري", analytics: "تحليلات" },
   rows: [
     { name: "nc_sid", purpose: "يبقيك مسجلا الدخول. يحمل مرجع الجلسة، لا كلمة مرورك أبدا.", lifetime: "8 ساعات", category: "necessary" },
-    { name: "nc_super", purpose: "الأمر نفسه، لوحة تشغيل نومباني الخاصة.", lifetime: "12 ساعة", category: "necessary" },
+    { name: "nc_super", purpose: "الأمر نفسه، لوحة تشغيل ستة الخاصة.", lifetime: "12 ساعة", category: "necessary" },
     { name: "nc_otp", purpose: "ينقل تسجيل الدخول عبر خطوة الرمز لمرة واحدة.", lifetime: "10 دقائق", category: "necessary" },
     { name: "nc_pend", purpose: "يحفظ تسجيل الدخول بين كلمة المرور والخطوة الثانية.", lifetime: "10 دقائق", category: "necessary" },
     { name: "nc_dev", purpose: "يتعرف على جهاز طلبت منا تذكره، فلا يطلب منك رمز عليه. يوضع فقط إن اخترت ذلك.", lifetime: "30 يوما، أو حتى تلغي الجهاز", category: "necessary" },
@@ -114,7 +114,7 @@ const ar: CookieStrings = {
   manageButton: "افتح إعدادات ملفات تعريف الارتباط",
   browserBody: "يمكن لمتصفحك أيضا حظر ملفات تعريف الارتباط أو حذفها. حظر الضرورية منها سيمنعك من تسجيل الدخول.",
   contactTitle: "أسئلة",
-  contactBody: "اكتب إلى info@nompany.com. طريقة تعاملنا مع البيانات الشخصية عموما مذكورة في سياسة الخصوصية.",
+  contactBody: "اكتب إلى info@sittaerp.com. طريقة تعاملنا مع البيانات الشخصية عموما مذكورة في سياسة الخصوصية.",
 };
 
 const cookies = { en, ar };

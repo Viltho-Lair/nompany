@@ -18,7 +18,7 @@ import { ShaderField } from "./ShaderField";
 import { Cta } from "./primitives";
 import type { MotionValue } from "motion/react";
 
-const WORD = "nompany";
+const WORD = "Sitta";
 
 /**
  * THE FOOTER IS UNDER THE PAGE, NOT AFTER IT. It is fixed, and its parent
@@ -102,7 +102,7 @@ export function CurtainFooter() {
                 </Cta>
               </div>
             </div>
-            <nav aria-label="nompany" className="grid grid-cols-2 gap-8 text-[14px] lg:col-span-4 lg:col-start-9">
+            <nav aria-label="Sitta" className="grid grid-cols-2 gap-8 text-[14px] lg:col-span-4 lg:col-start-9">
               {groups.map((col, c) => (
                 <ul key={c} className="space-y-3">
                   {col.map((l) => (
@@ -131,7 +131,7 @@ export function CurtainFooter() {
                     {consentCopy(locale).settings}
                   </button>
                 ) : null}
-                <span dir="ltr">© {new Date().getFullYear()} nompany</span>
+                <span dir="ltr">© {new Date().getFullYear()} Sitta</span>
               </div>
             </div>
           </div>

@@ -252,8 +252,8 @@ export const fieldService: HelpModule = {
       id: "field-service.short-codes", topic: "dept.field-service", kind: "troubleshoot", open: "field-service-schedule",
       q: { en: "Why did a refusal on the Dispatch or My round tab show a short English word?", ar: "لماذا ظهر رفض في تبويب التوزيع أو جولتي بكلمة إنجليزية قصيرة؟" },
       a: {
-        en: "They should not any more: the Dispatch and My round tabs, the Schedule screen and the Permits register now say every refusal as a sentence in your language, naming what to do. A missing title, a right your role lacks, a job or permit somebody else moved first, a start that cannot be signed yet, a cancelled job, a signature missing its name or its mark, and a time that could not be read each have their own sentence. If a bare code still appears, it is one nompany has no sentence for yet; the matching answer in this chapter explains it.",
-        ar: "لم يعد يُفترض أن يحدث ذلك: فتبويبا «التوزيع» و«جولتي» وشاشة الجدول وسجل التصاريح تقول الآن كل رفض بجملة بلغتك تذكر ما يجب فعله. فلكلٍّ من العنوان الناقص، والصلاحية التي يفتقدها دورك، والمهمة أو التصريح الذي حرّكه شخص آخر أولًا، والمهمة التي لا يمكن توقيعها بعد، والمهمة الملغاة، والتوقيع الناقص الاسم أو الرسم، والوقت الذي تعذرت قراءته، جملته الخاصة. وإن ظهر رمز مجرد فهو رمز لا جملة له في nompany بعد، والجواب المقابل في هذا الفصل يشرحه.",
+        en: "They should not any more: the Dispatch and My round tabs, the Schedule screen and the Permits register now say every refusal as a sentence in your language, naming what to do. A missing title, a right your role lacks, a job or permit somebody else moved first, a start that cannot be signed yet, a cancelled job, a signature missing its name or its mark, and a time that could not be read each have their own sentence. If a bare code still appears, it is one Sitta has no sentence for yet; the matching answer in this chapter explains it.",
+        ar: "لم يعد يُفترض أن يحدث ذلك: فتبويبا «التوزيع» و«جولتي» وشاشة الجدول وسجل التصاريح تقول الآن كل رفض بجملة بلغتك تذكر ما يجب فعله. فلكلٍّ من العنوان الناقص، والصلاحية التي يفتقدها دورك، والمهمة أو التصريح الذي حرّكه شخص آخر أولًا، والمهمة التي لا يمكن توقيعها بعد، والمهمة الملغاة، والتوقيع الناقص الاسم أو الرسم، والوقت الذي تعذرت قراءته، جملته الخاصة. وإن ظهر رمز مجرد فهو رمز لا جملة له في ستة بعد، والجواب المقابل في هذا الفصل يشرحه.",
       },
       keywords: ["error code", "forbidden", "transition", "not-started", "رمز الخطأ", "رسالة إنجليزية", "رفض", "خطأ"],
       related: ["field-service-schedule.job-refused", "field-service-schedule.cant-sign", "field-service-schedule.move-refused"],
@@ -761,8 +761,8 @@ export const fieldService: HelpModule = {
       id: "field-service-schedule.signature-fields", topic: "dept.field-service.round", kind: "fields", open: "field-service-schedule",
       q: { en: "What does a customer's signature need?", ar: "ما الذي يحتاجه توقيع العميل؟" },
       a: {
-        en: "Both the name and the drawn mark are required, and neither stands in for the other: a squiggle does not say who signed, and a typed name is not a signature. The mark is drawn with a finger in the box and saved privately to the studio. Who captured it and when are recorded by nompany, never typed.",
-        ar: "الاسم والتوقيع المرسوم كلاهما إلزامي، ولا يحل أحدهما محل الآخر: فالخربشة لا تقول من وقّع، والاسم المكتوب ليس توقيعًا. ويُرسم التوقيع بالإصبع في المربع ويُحفظ خاصًّا بالاستوديو. أما من التقطه ومتى فيسجلهما nompany ولا يُكتبان.",
+        en: "Both the name and the drawn mark are required, and neither stands in for the other: a squiggle does not say who signed, and a typed name is not a signature. The mark is drawn with a finger in the box and saved privately to the studio. Who captured it and when are recorded by Sitta, never typed.",
+        ar: "الاسم والتوقيع المرسوم كلاهما إلزامي، ولا يحل أحدهما محل الآخر: فالخربشة لا تقول من وقّع، والاسم المكتوب ليس توقيعًا. ويُرسم التوقيع بالإصبع في المربع ويُحفظ خاصًّا بالاستوديو. أما من التقطه ومتى فيسجلهما ستة ولا يُكتبان.",
       },
       fields: {
         en: [
@@ -925,8 +925,8 @@ export const fieldService: HelpModule = {
       id: "field-service-tracking.no-map", topic: "dept.field-service-tracking", kind: "troubleshoot", open: "field-service-tracking",
       q: { en: "Why is there no map on Tracking?", ar: "لماذا لا تظهر خريطة في التتبع؟" },
       a: {
-        en: "If no map is configured for nompany, the screen says No map configured, and if the map fails to load it shows the error; either way the list of reported positions below still works. A map is set up by nompany, not in your studio's settings. If the list is empty, nobody is sharing right now.",
-        ar: "إذا لم تكن الخريطة مهيأة في nompany تقول الشاشة «لم تضبط خريطة»، وإذا تعذر تحميلها تعرض الخطأ، وفي الحالتين تبقى قائمة المواقع المبلغ عنها أسفلها تعمل. والخريطة يهيئها nompany لا إعدادات الاستوديو. وإذا كانت القائمة فارغة فلا أحد يشارك موقعه الآن.",
+        en: "If no map is configured for Sitta, the screen says No map configured, and if the map fails to load it shows the error; either way the list of reported positions below still works. A map is set up by Sitta, not in your studio's settings. If the list is empty, nobody is sharing right now.",
+        ar: "إذا لم تكن الخريطة مهيأة في ستة تقول الشاشة «لم تضبط خريطة»، وإذا تعذر تحميلها تعرض الخطأ، وفي الحالتين تبقى قائمة المواقع المبلغ عنها أسفلها تعمل. والخريطة يهيئها ستة لا إعدادات الاستوديو. وإذا كانت القائمة فارغة فلا أحد يشارك موقعه الآن.",
       },
       keywords: ["no map", "map not loading", "nobody sharing", "لا توجد خريطة", "الخريطة لا تعمل", "لا أحد يشارك"],
     },

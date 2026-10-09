@@ -138,7 +138,7 @@ export default async function ProfilePanel() {
                 </div>
                 <div className="sm:col-span-2">
                   <label className="ad-label" htmlFor="p-bio">Bio</label>
-                  <textarea id="p-bio" className="ad-textarea" rows={3} defaultValue="Founder and platform owner at nompany." />
+                  <textarea id="p-bio" className="ad-textarea" rows={3} defaultValue="Founder and platform owner at Sitta." />
                 </div>
               </div>
               <div className="mt-6 flex justify-end gap-2 border-t pt-5" style={{ borderColor: "var(--ad-border)" }}>

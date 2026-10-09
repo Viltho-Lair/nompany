@@ -6,7 +6,7 @@ import { RETIRED_PATHS } from "@/shared/marketing/routes";
 
 // SLUG-DRIVEN ROUTING.
 //
-// A studio's address IS its slug: www.nompany.com/<slug>. Anything at the root
+// A studio's address IS its slug: www.sittaerp.com/<slug>. Anything at the root
 // that isn't a locale, an asset, or a platform path is treated as a studio slug
 // and REWRITTEN (never redirected) onto the internal studio route, with the slug
 // passed along in `x-studio-slug`. The browser only ever shows /<slug>/….
@@ -100,7 +100,7 @@ const LOGIN_PATH = `/${defaultLocale}/login`;
 
 // Root paths that belong to the platform and can never be a studio slug.
 // "c" served the public company profile (/c/<slug>) until that feature was
-// removed on 2026-08-12 — studios have no public site under nompany.com. It
+// removed on 2026-08-12 — studios have no public site under sittaerp.com. It
 // stays reserved here (and in RESERVED_SLUGS) so the prefix can never be
 // claimed as a studio slug, which would resurrect the collision it prevented.
 // "f" is a studio's public forms, /f/<slug>/<code> (19/09/2026).

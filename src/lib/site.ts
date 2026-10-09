@@ -8,13 +8,13 @@
 // public marketing URL is the locale root itself.
 
 export const CONTACT = {
-  email: "info@nompany.com",
+  email: "info@sittaerp.com",
   // WHERE AN ENQUIRY ACTUALLY LANDS. Both are live aliases onto a mailbox a
   // person reads; the contact form picks between them by the team size it was
   // given, because ten people or more is a conversation about an invoice and
   // below that is somebody using a free tier.
-  sales: "sales@nompany.com",
-  support: "support@nompany.com",
+  sales: "sales@sittaerp.com",
+  support: "support@sittaerp.com",
   phone: "+966 53 068 8184",
 
   // THERE IS NO ADDRESS, AND STATING ONE WAS A FALSE CLAIM.
@@ -35,6 +35,6 @@ export const CONTACT = {
 
 // Short description used for structured data (JSON-LD).
 export const SITE_DESCRIPTION: Record<string, string> = {
-  en: "nompany is a modular ERP that lets any company run its entire operation from one platform — Sales, Projects, Inventory, HR, Finance and more — priced by team size, with every department included.",
-  ar: "nompany نظام تخطيط موارد مرن يتيح لأي شركة إدارة عملياتها بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية وغيرها — بسعر يحدده حجم الفريق، وكل الأقسام مشمولة.",
+  en: "Sitta is a modular ERP that lets any company run its entire operation from one platform — Sales, Projects, Inventory, HR, Finance and more — priced by team size, with every department included.",
+  ar: "ستة نظام تخطيط موارد مرن يتيح لأي شركة إدارة عملياتها بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية وغيرها — بسعر يحدده حجم الفريق، وكل الأقسام مشمولة.",
 };

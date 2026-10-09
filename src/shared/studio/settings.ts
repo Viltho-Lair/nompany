@@ -225,8 +225,8 @@ const en: Strings = {
   title: "Studio settings",
   intro: (name) => `How ${name} appears to everyone working in it.`,
   adminOnly: " Only an admin can change these.",
-  showcase: "Appear on nompany's website",
-  showcaseLead: "We may name your company and show your logo on nompany.com as a customer. Nothing else is shared — no numbers, no people, no link into this studio. Turn it off whenever you like and you come off the site on the next page load.",
+  showcase: "Appear on Sitta's website",
+  showcaseLead: "We may name your company and show your logo on sittaerp.com as a customer. Nothing else is shared — no numbers, no people, no link into this studio. Turn it off whenever you like and you come off the site on the next page load.",
   showcaseOn: "Yes, you may name us",
   showcaseOff: "No",
   showcaseSince: (date) => `Agreed ${date}`,
@@ -237,7 +237,7 @@ const en: Strings = {
 
   logo: "Studio logo",
   logoSet: "Shown at the top of this studio, and on its card in every member's account",
-  logoDefault: "Using the nompany mark — the default for a new studio",
+  logoDefault: "Using the Sitta mark — the default for a new studio",
 
   country: "Country",
   city: "City",
@@ -271,7 +271,7 @@ const en: Strings = {
     carryOver: "carry-over must be a number, or empty for none",
   })[field] || field}.`,
   presetFill: (country) => `Fill from ${country}'s law`,
-  presetNone: (country) => `nompany has no preset for ${country}. Enter the figures from its law yourself.`,
+  presetNone: (country) => `Sitta has no preset for ${country}. Enter the figures from its law yourself.`,
   presetNoCountry: "Set the studio's country above to fill these from its law.",
   presetNote: "Figures for 2026. They fill the form and save nothing — check them, then save.",
   presetFilled: "Filled from the preset. Check every figure, then save; nothing is used until you do.",
@@ -385,7 +385,7 @@ const en: Strings = {
   actionsAdminOnly: " Only an admin can change this.",
   actionsLoadFailed: "We couldn't load your industry.",
   kpiHeading: "KPI targets",
-  kpiLead: "Your own targets for the measures nompany offers. Leave one blank to not measure it. A deal flow can have its own number. Changing a target never re-judges work that started before the change.",
+  kpiLead: "Your own targets for the measures Sitta offers. Leave one blank to not measure it. A deal flow can have its own number. Changing a target never re-judges work that started before the change.",
   kpiNone: "Nothing to measure yet: none of the kinds of work these measures cover is switched on.",
   kpiLoadFailed: "We couldn't load your KPI targets.",
   kpiOff: "Not measured",
@@ -436,7 +436,7 @@ const en: Strings = {
   saveHours: "Save hours",
 
   logoLead:
-    "Stands at the top of this studio in place of the nompany mark, and on the studio's card in the account of everyone who works in it.",
+    "Stands at the top of this studio in place of the Sitta mark, and on the studio's card in the account of everyone who works in it.",
   pickImage: "Choose an image file.",
   imageTooBig: "Images must be 2 MB or smaller.",
   uploadFailed: "We couldn't upload that logo.",
@@ -454,8 +454,8 @@ const ar: Strings = {
   title: "إعدادات الاستوديو",
   intro: (name) => `كيف يظهر ${name} لكل من يعمل فيه.`,
   adminOnly: " لا يمكن تغييرها إلا لمسؤول.",
-  showcase: "الظهور على موقع نومباني",
-  showcaseLead: "قد نذكر اسم شركتكم ونعرض شعاركم على nompany.com كعميل. ولا يشارك شيء غير ذلك — لا أرقام ولا أشخاص ولا رابط إلى مساحة العمل هذه. أوقفوه متى شئتم وتختفون من الموقع عند أول تحميل للصفحة.",
+  showcase: "الظهور على موقع ستة",
+  showcaseLead: "قد نذكر اسم شركتكم ونعرض شعاركم على sittaerp.com كعميل. ولا يشارك شيء غير ذلك — لا أرقام ولا أشخاص ولا رابط إلى مساحة العمل هذه. أوقفوه متى شئتم وتختفون من الموقع عند أول تحميل للصفحة.",
   showcaseOn: "نعم، يمكنكم ذكرنا",
   showcaseOff: "لا",
   showcaseSince: (date) => `تمت الموافقة ${date}`,
@@ -464,7 +464,7 @@ const ar: Strings = {
 
   logo: "شعار الاستوديو",
   logoSet: "يظهر أعلى هذا الاستوديو، وعلى بطاقته في حساب كل عضو",
-  logoDefault: "يستخدم شعار nompany — الافتراضي لأي استوديو جديد",
+  logoDefault: "يستخدم شعار ستة — الافتراضي لأي استوديو جديد",
 
   country: "الدولة",
   city: "المدينة",
@@ -498,7 +498,7 @@ const ar: Strings = {
     carryOver: "يجب ان يكون الترحيل رقما، او فارغا لعدم الترحيل",
   })[field] || field}.`,
   presetFill: (country) => `تعبئة من قانون ${country}`,
-  presetNone: (country) => `لا توجد في نومباني قيم جاهزة لـ ${country}. ادخل الارقام من قانونها بنفسك.`,
+  presetNone: (country) => `لا توجد في ستة قيم جاهزة لـ ${country}. ادخل الارقام من قانونها بنفسك.`,
   presetNoCountry: "حدد دولة الاستوديو في الاعلى لتعبئة هذه القيم من قانونها.",
   presetNote: "ارقام عام 2026. تعبئ النموذج ولا تحفظ شيئا — راجعها ثم احفظ.",
   presetFilled: "تمت التعبئة من القيم الجاهزة. راجع كل رقم ثم احفظ؛ لا يستخدم شيء قبل الحفظ.",
@@ -615,7 +615,7 @@ const ar: Strings = {
   actionsAdminOnly: " لا يمكن تغيير هذا إلا لمسؤول.",
   actionsLoadFailed: "تعذّر تحميل مجال العمل.",
   kpiHeading: "أهداف مؤشرات الأداء",
-  kpiLead: "أهدافك الخاصة للمقاييس التي يوفرها nompany. اترك المقياس فارغًا كي لا يُقاس. ويمكن أن يكون لمسار الصفقة رقمه الخاص. وتغيير الهدف لا يعيد تقييم عمل بدأ قبل التغيير.",
+  kpiLead: "أهدافك الخاصة للمقاييس التي يوفرها ستة. اترك المقياس فارغًا كي لا يُقاس. ويمكن أن يكون لمسار الصفقة رقمه الخاص. وتغيير الهدف لا يعيد تقييم عمل بدأ قبل التغيير.",
   kpiNone: "لا شيء لقياسه بعد: لا يوجد قسم مفعّل من أنواع العمل التي تغطيها هذه المقاييس.",
   kpiLoadFailed: "تعذّر تحميل أهداف مؤشرات الأداء.",
   kpiOff: "غير مُقاس",
@@ -666,7 +666,7 @@ const ar: Strings = {
   saveHours: "حفظ الساعات",
 
   logoLead:
-    "يقف أعلى هذا الاستوديو بدلا من شعار nompany، وعلى بطاقة الاستوديو في حساب كل من يعمل فيه.",
+    "يقف أعلى هذا الاستوديو بدلا من شعار ستة، وعلى بطاقة الاستوديو في حساب كل من يعمل فيه.",
   pickImage: "اختر ملف صورة.",
   imageTooBig: "يجب ألا تتجاوز الصور 2 ميجابايت.",
   uploadFailed: "تعذر رفع ذلك الشعار.",

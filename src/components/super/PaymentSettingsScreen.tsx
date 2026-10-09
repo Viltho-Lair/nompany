@@ -100,7 +100,7 @@ export default function PaymentSettingsScreen() {
         <Card className="h-full">
           <CardHead title="When a customer says they paid" sub="The bell always rings. An email goes too when an address is set." />
           <CardBody className="grid gap-3 sm:grid-cols-2">
-            <Field label="Email nompany at" hint="Payment claims and refund requests are emailed here."><input className="ad-input" type="email" value={s.notifyEmail} onChange={(e) => { setS((x) => x && ({ ...x, notifyEmail: e.target.value })); setMsg(""); }} /></Field>
+            <Field label="Email Sitta at" hint="Payment claims and refund requests are emailed here."><input className="ad-input" type="email" value={s.notifyEmail} onChange={(e) => { setS((x) => x && ({ ...x, notifyEmail: e.target.value })); setMsg(""); }} /></Field>
             <Field label="Hold the unpaid ladder for (hours)" hint="While a claim is waiting, the studio keeps working for this long from when the owner told us, even if it would close or shut down. 0 holds nothing; at most 168.">
               <input className="ad-input" type="number" min="0" max="168" value={s.claimHoldHours} onChange={(e) => { setS((x) => x && ({ ...x, claimHoldHours: e.target.value })); setMsg(""); }} />
             </Field>
@@ -121,7 +121,7 @@ export default function PaymentSettingsScreen() {
           )}
         />
         <CardBody className="space-y-4">
-          {bt.accounts.length === 0 && <p className="text-sm text-[var(--ad-muted-foreground)]">No account yet. Customers are told to contact nompany until one is added.</p>}
+          {bt.accounts.length === 0 && <p className="text-sm text-[var(--ad-muted-foreground)]">No account yet. Customers are told to contact Sitta until one is added.</p>}
           {bt.accounts.map((a, i) => (
             <fieldset key={a.id || `new-${i}`} className="rounded-md border p-3" style={{ borderColor: "var(--ad-border)" }}>
               <legend className="px-1 text-xs font-600">{a.label || `Account ${i + 1}`}</legend>
@@ -147,7 +147,7 @@ export default function PaymentSettingsScreen() {
       </Card>
 
       <Card>
-        <CardHead title="nompany on its invoices" sub="Printed on every invoice and credit note issued from now on; each one keeps the details it was issued with." action={sellerIncomplete ? <Badge tone="warning">Name, address and tax number are needed to issue invoices</Badge> : null} />
+        <CardHead title="Sitta on its invoices" sub="Printed on every invoice and credit note issued from now on; each one keeps the details it was issued with." action={sellerIncomplete ? <Badge tone="warning">Name, address and tax number are needed to issue invoices</Badge> : null} />
         <CardBody className="grid gap-3 sm:grid-cols-2">
           <Field label="Legal name"><input className="ad-input" value={s.seller.name} onChange={(e) => seller({ name: e.target.value })} /></Field>
           <Field label="Legal name (Arabic)"><input className="ad-input" dir="rtl" value={s.seller.nameAr} onChange={(e) => seller({ nameAr: e.target.value })} /></Field>

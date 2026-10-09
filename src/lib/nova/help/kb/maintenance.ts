@@ -140,8 +140,8 @@ export const maintenance: HelpModule = {
       id: "maintenance.raised-by-itself", topic: "dept.maintenance", kind: "about", open: "maintenance-plans",
       q: { en: "What raises work orders by itself?", ar: "ما الذي ينشئ أوامر العمل من تلقاء نفسه؟" },
       a: {
-        en: "Four things raise work orders on their own, on a run nompany makes every morning: a calendar plan when its date comes round, a meter plan when a machine's reading reaches its next service, a condition point when a measurement falls outside its limits, and a service contract when one of its planned visits falls due. A meter or condition reading raises its work the moment it is saved rather than waiting for the morning. A plan never has more than one open work order, so a plan that has fallen behind waits and its next order arrives already late, and a contract raises at most one visit a day. Nothing is raised twice for the same occurrence, however often the run happens. The people named on the plan or contract are told when its work is raised.",
-        ar: "أربعة أشياء تنشئ أوامر العمل بنفسها، في تشغيل يجريه nompany كل صباح: خطة التقويم حين يحل تاريخها، وخطة العداد حين تبلغ قراءة الآلة موعد الخدمة التالية، ونقطة القياس حين يخرج القياس عن حدوده، وعقد الخدمة حين تستحق إحدى زياراته المخططة. وقراءة العداد أو القياس تنشئ عملها لحظة حفظها بدل أن تنتظر الصباح. ولا يكون للخطة أكثر من أمر عمل مفتوح واحد، فالخطة المتأخرة تنتظر ويصل أمرها التالي متأخرًا أصلًا، ولا ينشئ العقد أكثر من زيارة واحدة في اليوم. ولا يُنشأ شيء مرتين للموعد نفسه مهما تكرر التشغيل. ويُبلَّغ الأشخاص المسمَّون في الخطة أو العقد حين يُنشأ عملها.",
+        en: "Four things raise work orders on their own, on a run Sitta makes every morning: a calendar plan when its date comes round, a meter plan when a machine's reading reaches its next service, a condition point when a measurement falls outside its limits, and a service contract when one of its planned visits falls due. A meter or condition reading raises its work the moment it is saved rather than waiting for the morning. A plan never has more than one open work order, so a plan that has fallen behind waits and its next order arrives already late, and a contract raises at most one visit a day. Nothing is raised twice for the same occurrence, however often the run happens. The people named on the plan or contract are told when its work is raised.",
+        ar: "أربعة أشياء تنشئ أوامر العمل بنفسها، في تشغيل يجريه ستة كل صباح: خطة التقويم حين يحل تاريخها، وخطة العداد حين تبلغ قراءة الآلة موعد الخدمة التالية، ونقطة القياس حين يخرج القياس عن حدوده، وعقد الخدمة حين تستحق إحدى زياراته المخططة. وقراءة العداد أو القياس تنشئ عملها لحظة حفظها بدل أن تنتظر الصباح. ولا يكون للخطة أكثر من أمر عمل مفتوح واحد، فالخطة المتأخرة تنتظر ويصل أمرها التالي متأخرًا أصلًا، ولا ينشئ العقد أكثر من زيارة واحدة في اليوم. ولا يُنشأ شيء مرتين للموعد نفسه مهما تكرر التشغيل. ويُبلَّغ الأشخاص المسمَّون في الخطة أو العقد حين يُنشأ عملها.",
       },
       keywords: ["automatic work orders", "raised by itself", "daily run", "schedule", "مهام تلقائية", "ينشأ تلقائيا", "التشغيل اليومي", "جدولة"],
       related: ["maintenance-plans.triggers", "maintenance-plans.one-open", "maintenance-contracts.visits"],
@@ -207,7 +207,7 @@ export const maintenance: HelpModule = {
         en: [
           "In Assets & Equipment, add your machines to the equipment register, each with the date it was acquired so its figures start from when you had it",
           "In Master data, add your places under Locations, with a map pin where you want work shown on the map",
-          "In Master data, under Categories, check the failure problems, causes and remedies, and add your own beside the ones nompany ships",
+          "In Master data, under Categories, check the failure problems, causes and remedies, and add your own beside the ones Sitta ships",
           "In Inventory, register the spare parts you keep, with a unit cost, so parts issued to work carry a cost",
           "On the Access screen, decide who reports faults, who raises and judges work, who works it, who plans and who keeps contracts, and give their roles those rights",
           "In Preventive plans, set up the services that come round on a date, a meter or a measurement, and in Service contracts the maintenance you sell",
@@ -216,7 +216,7 @@ export const maintenance: HelpModule = {
         ar: [
           "في الأصول والمعدات، أضف آلاتك إلى سجل المعدات، مع تاريخ اقتناء كل منها لتبدأ أرقامها من يوم امتلكتها",
           "في البيانات الأساسية، أضف أماكنك في «المواقع»، مع دبوس على الخريطة حيث تريد أن يظهر العمل على الخريطة",
-          "في البيانات الأساسية، في «التصنيفات»، راجع مشكلات الأعطال وأسبابها ومعالجاتها، وأضف قيمك بجانب ما يأتي مع nompany",
+          "في البيانات الأساسية، في «التصنيفات»، راجع مشكلات الأعطال وأسبابها ومعالجاتها، وأضف قيمك بجانب ما يأتي مع ستة",
           "في المخزون، سجّل قطع الغيار التي تحتفظ بها مع تكلفة الوحدة، لتحمل القطع المصروفة للعمل تكلفتها",
           "في شاشة الصلاحيات، حدد من يبلغ عن الأعطال، ومن ينشئ العمل ويحكم على البلاغات، ومن ينفذه، ومن يخطط، ومن يمسك العقود، وامنح أدوارهم هذه الصلاحيات",
           "في الخطط الوقائية، أعدّ الخدمات التي تحل بتاريخ أو بعداد أو بقياس، وفي عقود الخدمة الصيانة التي تبيعها",
@@ -240,8 +240,8 @@ export const maintenance: HelpModule = {
       id: "maintenance.failure-codes", topic: "dept.maintenance", kind: "settings", open: "administration-master",
       q: { en: "Where are the failure codes set?", ar: "أين تُضبط رموز الأعطال؟" },
       a: {
-        en: "The Problem, Cause and Remedy lists you choose from when completing corrective work are the studio's own, on the Categories tab of Master data as Failure problems, Failure causes and Failure remedies. nompany ships a general set, and your company adds its own beside them. Removing a value you added only stops it being offered; work orders that carry it keep it. A code must come from these lists, so nothing typed any other way is accepted.",
-        ar: "قوائم المشكلة والسبب والمعالجة التي تختار منها عند إنجاز العمل التصحيحي هي قوائم الاستوديو نفسه، في تبويب «التصنيفات» في البيانات الأساسية باسم مشكلات الأعطال وأسباب الأعطال ومعالجات الأعطال. ويأتي nompany بمجموعة عامة، وتضيف شركتك قيمها بجانبها. وحذف قيمة أضفتها يوقف عرضها فقط؛ وتحتفظ بها أوامر العمل التي تحملها. ولا بد أن يأتي الرمز من هذه القوائم، فلا يُقبل شيء يُكتب بطريقة أخرى.",
+        en: "The Problem, Cause and Remedy lists you choose from when completing corrective work are the studio's own, on the Categories tab of Master data as Failure problems, Failure causes and Failure remedies. Sitta ships a general set, and your company adds its own beside them. Removing a value you added only stops it being offered; work orders that carry it keep it. A code must come from these lists, so nothing typed any other way is accepted.",
+        ar: "قوائم المشكلة والسبب والمعالجة التي تختار منها عند إنجاز العمل التصحيحي هي قوائم الاستوديو نفسه، في تبويب «التصنيفات» في البيانات الأساسية باسم مشكلات الأعطال وأسباب الأعطال ومعالجات الأعطال. ويأتي ستة بمجموعة عامة، وتضيف شركتك قيمها بجانبها. وحذف قيمة أضفتها يوقف عرضها فقط؛ وتحتفظ بها أوامر العمل التي تحملها. ولا بد أن يأتي الرمز من هذه القوائم، فلا يُقبل شيء يُكتب بطريقة أخرى.",
       },
       keywords: ["failure codes", "problem", "cause", "remedy", "categories", "رموز الأعطال", "المشكلة", "السبب", "المعالجة", "التصنيفات"],
       related: ["maintenance-orders.failure-codes", "admin.master.tags-categories"],
@@ -1798,8 +1798,8 @@ export const maintenance: HelpModule = {
       id: "maintenance-contracts.not-filed", topic: "dept.maintenance-contracts", kind: "troubleshoot", open: "maintenance-contracts",
       q: { en: "Why does it say this studio has nowhere to file a contract?", ar: "لماذا يقول إنه لا يوجد في الحساب مكان لحفظ العقود؟" },
       a: {
-        en: "Service contracts are kept where Projects used to keep them, and a studio missing that place cannot file one, so the screen says so instead of offering a form that would be refused. It should not happen in a studio set up normally. Ask an Admin to contact nompany.",
-        ar: "تُحفظ عقود الخدمة حيث كانت المشاريع تحفظها، والاستوديو الذي ينقصه ذلك المكان لا يستطيع حفظ عقد، فتقول الشاشة ذلك بدل أن تعرض نموذجًا سيُرفض. ولا يُفترض أن يحدث هذا في استوديو أُعدّ بالطريقة المعتادة. اطلب من المسؤول التواصل مع nompany.",
+        en: "Service contracts are kept where Projects used to keep them, and a studio missing that place cannot file one, so the screen says so instead of offering a form that would be refused. It should not happen in a studio set up normally. Ask an Admin to contact Sitta.",
+        ar: "تُحفظ عقود الخدمة حيث كانت المشاريع تحفظها، والاستوديو الذي ينقصه ذلك المكان لا يستطيع حفظ عقد، فتقول الشاشة ذلك بدل أن تعرض نموذجًا سيُرفض. ولا يُفترض أن يحدث هذا في استوديو أُعدّ بالطريقة المعتادة. اطلب من المسؤول التواصل مع ستة.",
       },
       keywords: ["nowhere to file", "cannot add contract", "no new contract button", "لا مكان لحفظ العقود", "لا أستطيع إضافة عقد", "لا يظهر زر عقد جديد"],
       related: ["maintenance-contracts.projects-sla"],

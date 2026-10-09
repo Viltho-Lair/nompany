@@ -259,7 +259,7 @@ export default function StudioChat({ enabled, slug, studioName, userName, unlimi
   const spent = exhausted && !open && !room;
   const allowanceHint = unlimited
     ? tr.chatNompany
-    : `Chat with nompany · ${remaining} of ${allowed} left this month`;
+    : `Chat with Sitta · ${remaining} of ${allowed} left this month`;
 
   const status = room?.status || "";
   const done = status === ENDED || status === GONE;

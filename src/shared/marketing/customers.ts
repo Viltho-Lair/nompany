@@ -25,11 +25,11 @@ type CustomersStrings = {
 };
 
 const en: CustomersStrings = {
-  title: "Companies running on nompany",
+  title: "Companies running on Sitta",
   lead: "Every company on this page asked to be here. None of them were added by us.",
   emptyHeading: "Nobody is named here yet",
   emptyBody:
-    "This page lists only the companies that have given their permission, and none has yet. It is not a count of who uses the product — a company can run its whole business on nompany and never appear here, which is the arrangement most of them prefer.",
+    "This page lists only the companies that have given their permission, and none has yet. It is not a count of who uses the product — a company can run its whole business on Sitta and never appear here, which is the arrangement most of them prefer.",
   consentNote:
     "A company is listed only after it turns the setting on itself, and it disappears from this page the moment it turns it off. We never add one.",
   ctaHeading: "Start free",
@@ -38,11 +38,11 @@ const en: CustomersStrings = {
 
 // HAND-WRITTEN, NO DIACRITICS.
 const ar: CustomersStrings = {
-  title: "شركات تعمل على نومباني",
+  title: "شركات تعمل على ستة",
   lead: "كل شركة على هذه الصفحة طلبت أن تكون هنا. لم نضف أيا منها من عندنا.",
   emptyHeading: "لا شركة مذكورة هنا بعد",
   emptyBody:
-    "تعرض هذه الصفحة الشركات التي منحت إذنها فقط، ولم تفعل أي منها بعد. وهذا ليس عدا لمن يستخدم المنتج — فقد تدير شركة أعمالها كلها على نومباني ولا تظهر هنا أبدا، وهو ما تفضله أكثرها.",
+    "تعرض هذه الصفحة الشركات التي منحت إذنها فقط، ولم تفعل أي منها بعد. وهذا ليس عدا لمن يستخدم المنتج — فقد تدير شركة أعمالها كلها على ستة ولا تظهر هنا أبدا، وهو ما تفضله أكثرها.",
   consentNote:
     "لا تدرج الشركة إلا بعد أن تفعل الإعداد بنفسها، وتختفي من هذه الصفحة لحظة إيقافه. ولا نضيف أحدا نحن.",
   ctaHeading: "ابدأ مجانا",

@@ -230,7 +230,7 @@ export default function AccountHome({ locale, chrome, setup, intent = null, open
           <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-900/[0.04] p-[3px] dark:bg-white/5">
             <Image src="/brand/logo-icon.png" alt="" width={36} height={36} className="h-full w-full object-contain" priority />
           </span>
-          <span className="text-base font-600 tracking-[-0.02em] sm:text-[17px]">{chrome?.brand || "nompany"}</span>
+          <span className="text-base font-600 tracking-[-0.02em] sm:text-[17px]">{chrome?.brand || "Sitta"}</span>
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-3">
@@ -411,7 +411,7 @@ function StudioCard({ studio, compact = false }: { studio: StudioSummary; compac
       <span className="mt-2 block truncate text-center text-sm font-600 text-slate-900 dark:text-white">{studio.name}</span>
       {/* The address is useful when browsing every studio, but in the overview
           strip it is a third line of text competing with the tile itself. */}
-      {!compact && <span className="block truncate text-center font-mono text-[11px] text-slate-400">nompany.com/{studio.slug}</span>}
+      {!compact && <span className="block truncate text-center font-mono text-[11px] text-slate-400">sittaerp.com/{studio.slug}</span>}
     </a>
   );
 }
@@ -573,7 +573,7 @@ function StudioRow({ studio, onSaved }: { studio: StudioSummary; onSaved?: () =>
             about to change, and the old link will stop working. */}
         {!msg && !err && addressChanging && (
           <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
-            Saving changes the address to nompany.com/{slug.trim().toLowerCase()} straight away. The old link will stop working.
+            Saving changes the address to sittaerp.com/{slug.trim().toLowerCase()} straight away. The old link will stop working.
           </p>
         )}
       </div>

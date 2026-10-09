@@ -6,7 +6,7 @@
 // here rather than hand-rolling HTML at the call site.
 
 const BRAND = {
-  name: "nompany",
+  name: "Sitta",
   color: "#2563eb", // nompany royal blue — header bar / buttons
   muted: "#6b7280",
   text: "#111827",
@@ -86,7 +86,7 @@ function detailRow(label: string, value: unknown): string {
 // @returns {{ subject: string, html: string, text: string }}
 export function loginNotificationEmail({ name, userId, time, ip, userAgent }: { name?: string; userId?: string; time?: string; ip?: string; userAgent?: string } = {}) {
   const greetingName = name || userId || "there";
-  const subject = "New sign-in to your nompany account";
+  const subject = "New sign-in to your Sitta account";
 
   const details = [
     detailRow("Account", userId),
@@ -138,18 +138,18 @@ function ctaButton(label: string, url: string | undefined): string {
 // in 24 hours (a fresh one can be requested from the account page).
 export function verifyEmailEmail({ name, url }: { name?: string; url?: string } = {}) {
   const greetingName = name || "there";
-  const subject = "Confirm your nompany email";
+  const subject = "Confirm your Sitta email";
   const bodyHtml = `
     <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Confirm your email</h1>
     <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
-      Hi ${esc(greetingName)}, welcome to nompany. Confirm this email address to unlock your Studio workspace.
+      Hi ${esc(greetingName)}, welcome to Sitta. Confirm this email address to unlock your Studio workspace.
     </p>
     ${ctaButton("Confirm email", url)}
     <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
-      This link expires in 24 hours. If it lapses, you can request a new one from your account page. If you didn't create a nompany account, you can ignore this message.
+      This link expires in 24 hours. If it lapses, you can request a new one from your account page. If you didn't create a Sitta account, you can ignore this message.
     </p>`;
-  const text = `Confirm your nompany email\n\nHi ${greetingName}, welcome to nompany.\nConfirm your email to unlock your Studio workspace: ${url}\n\nThis link expires in 24 hours. If you didn't create an account, ignore this message.`;
-  return { subject, html: layout({ title: subject, bodyHtml, preheader: "Confirm your nompany email address." }), text };
+  const text = `Confirm your Sitta email\n\nHi ${greetingName}, welcome to Sitta.\nConfirm your email to unlock your Studio workspace: ${url}\n\nThis link expires in 24 hours. If you didn't create an account, ignore this message.`;
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: "Confirm your Sitta email address." }), text };
 }
 
 // A large, selectable one-time code block.
@@ -165,24 +165,24 @@ function codeBlock(code: string | undefined) {
 // own unique code tied to their email), not a link. See [[nompany-db-restructure]].
 export function verificationCodeEmail({ name, code }: { name?: string; code?: string } = {}) {
   const greetingName = name || "there";
-  const subject = "Your nompany verification code";
+  const subject = "Your Sitta verification code";
   const bodyHtml = `
     <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Confirm your email</h1>
     <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
-      Hi ${esc(greetingName)}, welcome to nompany. Enter this code to confirm your email address.
+      Hi ${esc(greetingName)}, welcome to Sitta. Enter this code to confirm your email address.
     </p>
     ${codeBlock(code)}
     <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
-      This code expires in 24 hours. If you didn't create a nompany account, you can ignore this message.
+      This code expires in 24 hours. If you didn't create a Sitta account, you can ignore this message.
     </p>`;
-  const text = `Your nompany verification code\n\nHi ${greetingName},\nEnter this code to confirm your email: ${code}\n\nIt expires in 24 hours. If you didn't create an account, ignore this message.`;
+  const text = `Your Sitta verification code\n\nHi ${greetingName},\nEnter this code to confirm your email: ${code}\n\nIt expires in 24 hours. If you didn't create an account, ignore this message.`;
   return { subject, html: layout({ title: subject, bodyHtml, preheader: `Your code is ${code}` }), text };
 }
 
 // Password reset — also a typed code (same model as verification).
 export function passwordResetCodeEmail({ name, code }: { name?: string; code?: string } = {}) {
   const greetingName = name || "there";
-  const subject = "Your nompany password reset code";
+  const subject = "Your Sitta password reset code";
   const bodyHtml = `
     <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Reset your password</h1>
     <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
@@ -192,7 +192,7 @@ export function passwordResetCodeEmail({ name, code }: { name?: string; code?: s
     <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
       This code expires in 1 hour. If you didn't request a reset, you can safely ignore this message — your password stays unchanged.
     </p>`;
-  const text = `Your nompany password reset code\n\nHi ${greetingName},\nEnter this code to set a new password: ${code}\n\nIt expires in 1 hour. If you didn't request it, ignore this message.`;
+  const text = `Your Sitta password reset code\n\nHi ${greetingName},\nEnter this code to set a new password: ${code}\n\nIt expires in 1 hour. If you didn't request it, ignore this message.`;
   return { subject, html: layout({ title: subject, bodyHtml, preheader: `Your reset code is ${code}` }), text };
 }
 
@@ -202,14 +202,14 @@ export function passwordResetCodeEmail({ name, code }: { name?: string; code?: s
 // person reading this may be the one whose password somebody else has.
 export function sharingWarningEmail({ name }: { name?: string } = {}) {
   const greetingName = name || "there";
-  const subject = "Your nompany account looks like it is being shared";
+  const subject = "Your Sitta account looks like it is being shared";
   const bodyHtml = `
     <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">One account, one person</h1>
     <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
       Hi ${esc(greetingName)}, your account has been signed in on many devices recently, and its sessions keep signing each other out. That usually means more than one person is using it.
     </p>
     <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
-      Each nompany seat is for one person, and our terms do not allow shared or generic logins. Everyone who needs access should have their own account, with their own sign-in.
+      Each Sitta seat is for one person, and our terms do not allow shared or generic logins. Everyone who needs access should have their own account, with their own sign-in.
     </p>
     <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
       If this was not you, change your password and use "Sign out everywhere" on your account's Security page. An account that keeps being shared may be suspended.
@@ -219,10 +219,10 @@ export function sharingWarningEmail({ name }: { name?: string } = {}) {
 Hi ${greetingName},
 Your account has been signed in on many devices recently, and its sessions keep signing each other out. That usually means more than one person is using it.
 
-Each nompany seat is for one person, and our terms do not allow shared or generic logins. Everyone who needs access should have their own account.
+Each Sitta seat is for one person, and our terms do not allow shared or generic logins. Everyone who needs access should have their own account.
 
 If this was not you, change your password and use "Sign out everywhere" on your account's Security page. An account that keeps being shared may be suspended.`;
-  return { subject, html: layout({ title: subject, bodyHtml, preheader: "Each nompany seat is for one person." }), text };
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: "Each Sitta seat is for one person." }), text };
 }
 
 // A SECURITY RESET BY NOMPANY (18/09/2026). Sent every time the console resets
@@ -236,11 +236,11 @@ const RESET_WHAT: Record<string, string> = {
 export function securityResetEmail({ name, what }: { name?: string; what?: string } = {}) {
   const greetingName = name || "there";
   const part = RESET_WHAT[String(what)] || "sign-in security";
-  const subject = "Part of your nompany sign-in was reset";
+  const subject = "Part of your Sitta sign-in was reset";
   const bodyHtml = `
     <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Your ${esc(part)} was reset</h1>
     <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
-      Hi ${esc(greetingName)}, nompany support reset your ${esc(part)}. You can set it up again on your account's Security page.
+      Hi ${esc(greetingName)}, Sitta support reset your ${esc(part)}. You can set it up again on your account's Security page.
     </p>
     <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
       If you did not ask for this, change your password and use "Sign out everywhere" on the Security page, then contact us.
@@ -248,47 +248,47 @@ export function securityResetEmail({ name, what }: { name?: string; what?: strin
   const text = `Your ${part} was reset
 
 Hi ${greetingName},
-nompany support reset your ${part}. You can set it up again on your account's Security page.
+Sitta support reset your ${part}. You can set it up again on your account's Security page.
 
 If you did not ask for this, change your password and use "Sign out everywhere" on the Security page, then contact us.`;
-  return { subject, html: layout({ title: subject, bodyHtml, preheader: `Your ${part} was reset by nompany support.` }), text };
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: `Your ${part} was reset by Sitta support.` }), text };
 }
 
 // Studio invitation — a manager invited this address to join their studio.
 // Names the person who invited them (and their email) per the studio's request.
 export function studioInviteEmail({ companyName, url, invitedByName, invitedByEmail }: { companyName?: string; url?: string; invitedByName?: string; invitedByEmail?: string } = {}) {
-  const studio = companyName || "a nompany studio";
+  const studio = companyName || "a Sitta studio";
   const inviter = invitedByName || "A studio manager";
-  const subject = `You're invited to join ${studio} on nompany`;
+  const subject = `You're invited to join ${studio} on Sitta`;
   const bodyHtml = `
     <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Join ${esc(studio)}</h1>
     <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
       <strong>${esc(inviter)}</strong>${invitedByEmail ? ` (${esc(invitedByEmail)})` : ""} has invited you to join
-      <strong>${esc(studio)}</strong>'s Studio on nompany. Click below to confirm and become a member.
+      <strong>${esc(studio)}</strong>'s Studio on Sitta. Click below to confirm and become a member.
     </p>
     ${ctaButton("Approve & join", url)}
     <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
       This invitation link expires in 7 days. If you weren't expecting it, you can ignore this message.
     </p>`;
-  const text = `You're invited to join ${studio} on nompany\n\n${inviter}${invitedByEmail ? ` (${invitedByEmail})` : ""} invited you to join ${studio}'s Studio.\nApprove & join: ${url}\n\nThis link expires in 7 days. If you weren't expecting it, ignore this message.`;
+  const text = `You're invited to join ${studio} on Sitta\n\n${inviter}${invitedByEmail ? ` (${invitedByEmail})` : ""} invited you to join ${studio}'s Studio.\nApprove & join: ${url}\n\nThis link expires in 7 days. If you weren't expecting it, ignore this message.`;
   return { subject, html: layout({ title: subject, bodyHtml, preheader: `${inviter} invited you to ${studio}.` }), text };
 }
 
 // Password-reset message.
 export function passwordResetEmail({ name, url }: { name?: string; url?: string } = {}) {
   const greetingName = name || "there";
-  const subject = "Reset your nompany password";
+  const subject = "Reset your Sitta password";
   const bodyHtml = `
     <h1 style="margin:0 0 12px;font-size:20px;color:${BRAND.text};">Reset your password</h1>
     <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:${BRAND.text};">
-      Hi ${esc(greetingName)}, we received a request to reset your nompany password. This link expires in 1 hour.
+      Hi ${esc(greetingName)}, we received a request to reset your Sitta password. This link expires in 1 hour.
     </p>
     ${ctaButton("Reset password", url)}
     <p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND.muted};">
       If you didn't request this, you can safely ignore this email — your password won't change.
     </p>`;
-  const text = `Reset your nompany password\n\nHi ${greetingName}, reset your password (expires in 1 hour): ${url}\n\nIf you didn't request this, ignore this email.`;
-  return { subject, html: layout({ title: subject, bodyHtml, preheader: "Reset your nompany password." }), text };
+  const text = `Reset your Sitta password\n\nHi ${greetingName}, reset your password (expires in 1 hour): ${url}\n\nIf you didn't request this, ignore this email.`;
+  return { subject, html: layout({ title: subject, bodyHtml, preheader: "Reset your Sitta password." }), text };
 }
 
 // A STUDIO'S SUBSCRIPTION IS ABOUT TO SHUT DOWN, OR TO BE DELETED — the

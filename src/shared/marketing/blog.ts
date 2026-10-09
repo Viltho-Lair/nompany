@@ -23,7 +23,7 @@ type BlogStrings = {
 
 const en: BlogStrings = {
   title: "Blog",
-  lead: "News from nompany, what we have added to the product, and the events we have taken part in.",
+  lead: "News from Sitta, what we have added to the product, and the events we have taken part in.",
   all: "All",
   categories: { news: "News", product: "Product", events: "Events" },
   empty: "Nothing here yet. The first post is on its way.",
@@ -41,7 +41,7 @@ const en: BlogStrings = {
 // eleven and up (singular accusative).
 const ar: BlogStrings = {
   title: "المدونة",
-  lead: "أخبار نومباني، وما أضفناه إلى المنتج، والفعاليات التي شاركنا فيها.",
+  lead: "أخبار ستة، وما أضفناه إلى المنتج، والفعاليات التي شاركنا فيها.",
   all: "الكل",
   categories: { news: "أخبار", product: "المنتج", events: "فعاليات" },
   empty: "لا شيء هنا بعد. أول تدوينة في الطريق.",

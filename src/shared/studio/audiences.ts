@@ -94,7 +94,7 @@ const en: Strings = {
   recorded: (state) => `Added to the ledger — this address is now: ${state}.`,
   recordedNoChange: "A later entry already covers this address, so what you added did not change where it stands. It is kept as part of the history.",
   appendOnly: "The ledger is added to and never edited: a withdrawal is a new entry, so what was true last year can still be proven.",
-  notSending: "nompany sends no email or messages itself. This records what you are allowed to do with your own tools.",
+  notSending: "Sitta sends no email or messages itself. This records what you are allowed to do with your own tools.",
   loading: "Reading the consent ledger…",
   failed: "The ledger could not be loaded.",
   refuse: {
@@ -148,7 +148,7 @@ const ar: Strings = {
   recorded: (state) => `تمت الإضافة إلى السجل — حالة هذا العنوان الآن: ${state}.`,
   recordedNoChange: "يوجد قيد أحدث لهذا العنوان، فما أضفتموه لم يغيّر حالته الحالية، وقد حُفظ ضمن السجل.",
   appendOnly: "السجل يُضاف إليه ولا يُعدّل: سحب الموافقة قيد جديد، فيبقى ما كان صحيحاً في الماضي قابلاً للإثبات.",
-  notSending: "لا ترسل nompany بريداً أو رسائل بنفسها. هذا سجل لما يحق لكم فعله بأدواتكم.",
+  notSending: "لا ترسل ستة بريداً أو رسائل بنفسها. هذا سجل لما يحق لكم فعله بأدواتكم.",
   loading: "جارٍ قراءة سجل الموافقات…",
   failed: "تعذر تحميل السجل.",
   refuse: {

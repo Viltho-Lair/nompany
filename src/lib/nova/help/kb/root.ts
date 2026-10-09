@@ -10,7 +10,7 @@ export const root: HelpModule = {
       label: { en: "What can I help with?", ar: "كيف يمكنني المساعدة؟" } },
     { id: "start", parent: "root", order: 1,
       label: { en: "Getting started", ar: "البداية" },
-      blurb: { en: "What nompany is, finding your way around, first steps", ar: "ما هو nompany، والتنقل فيه، والخطوات الأولى" } },
+      blurb: { en: "What Sitta is, finding your way around, first steps", ar: "ما هو ستة، والتنقل فيه، والخطوات الأولى" } },
     { id: "departments", parent: "root", order: 2,
       label: { en: "Departments", ar: "الأقسام" },
       blurb: { en: "What each section does and how to use it", ar: "ما يفعله كل قسم وكيف تستخدمه" } },

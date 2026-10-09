@@ -190,8 +190,8 @@ export const finance: HelpModule = {
       id: "finance.not-yet", topic: "dept.finance", kind: "troubleshoot", open: "finance",
       q: { en: "What can Finance not do yet?", ar: "ما الذي لا تستطيع المالية فعله بعد؟" },
       a: {
-        en: "nompany does not email invoices, reminders or statements of account; you print or copy them and send them yourself. There is no live bank feed and no OFX or MT940 import, only CSV statements; a payment run produces no bank payment file; and depreciation, schedules, leases and allocations are run by someone each month rather than automatically. Invoices are in the studio's own currency only, and a supplier bill in another currency cannot be entered on screen. Tax returns are recorded, not submitted to any authority, and e-invoice files are prepared for you to submit yourself. Each part of this chapter says what is missing in its own area.",
-        ar: "لا يرسل nompany الفواتير أو التذكيرات أو كشوف الحساب بالبريد الإلكتروني؛ بل تطبعها أو تنسخها وترسلها بنفسك. ولا يوجد ربط مباشر مع البنك ولا استيراد بصيغة OFX أو MT940، بل كشوف CSV فقط؛ ولا تُنشئ دفعة السداد ملف دفع بنكي؛ ويشغّل أحدهم الإهلاك والجداول وعقود الإيجار والتوزيعات كل شهر بدلاً من تشغيلها تلقائياً. والفواتير بعملة الاستوديو فقط، ولا يمكن إدخال فاتورة مورد بعملة أخرى من الشاشة. والإقرارات الضريبية تُسجَّل ولا تُقدَّم إلى أي هيئة، وملفات الفوترة الإلكترونية تُعدّ لتقدمها بنفسك. ويذكر كل جزء من هذا الفصل ما ينقص في مجاله.",
+        en: "Sitta does not email invoices, reminders or statements of account; you print or copy them and send them yourself. There is no live bank feed and no OFX or MT940 import, only CSV statements; a payment run produces no bank payment file; and depreciation, schedules, leases and allocations are run by someone each month rather than automatically. Invoices are in the studio's own currency only, and a supplier bill in another currency cannot be entered on screen. Tax returns are recorded, not submitted to any authority, and e-invoice files are prepared for you to submit yourself. Each part of this chapter says what is missing in its own area.",
+        ar: "لا يرسل ستة الفواتير أو التذكيرات أو كشوف الحساب بالبريد الإلكتروني؛ بل تطبعها أو تنسخها وترسلها بنفسك. ولا يوجد ربط مباشر مع البنك ولا استيراد بصيغة OFX أو MT940، بل كشوف CSV فقط؛ ولا تُنشئ دفعة السداد ملف دفع بنكي؛ ويشغّل أحدهم الإهلاك والجداول وعقود الإيجار والتوزيعات كل شهر بدلاً من تشغيلها تلقائياً. والفواتير بعملة الاستوديو فقط، ولا يمكن إدخال فاتورة مورد بعملة أخرى من الشاشة. والإقرارات الضريبية تُسجَّل ولا تُقدَّم إلى أي هيئة، وملفات الفوترة الإلكترونية تُعدّ لتقدمها بنفسك. ويذكر كل جزء من هذا الفصل ما ينقص في مجاله.",
       },
       keywords: ["not available", "limitations", "missing features", "roadmap", "غير متوفر", "القيود", "ميزات ناقصة", "ما لا يمكن"],
       related: ["finance-receivables.email", "finance-cash.bank-feed", "finance-payables.foreign-bill"],
@@ -354,12 +354,12 @@ export const finance: HelpModule = {
       id: "finance-ledger.opening-balances", topic: "dept.finance-ledger", kind: "howto", open: "finance-ledger",
       q: { en: "How do I enter opening balances from my previous books?", ar: "كيف أُدخل الأرصدة الافتتاحية من دفاتري السابقة؟" },
       a: {
-        en: "There is no import for opening balances; they go in as a manual journal entry dated the day your books in nompany begin. Your accountant decides which account takes each balance; nompany only requires the entry to balance. Assets you already owned can instead be registered in Fixed assets as owned before these books began, which posts them against equity for you.",
-        ar: "لا يوجد استيراد للأرصدة الافتتاحية؛ بل تُدخل بقيد يومية يدوي بتاريخ اليوم الذي تبدأ فيه دفاترك في nompany. ويحدد محاسبك الحساب الذي يأخذ كل رصيد؛ ولا يشترط nompany إلا أن يكون القيد متوازناً. ويمكن بدلاً من ذلك تسجيل الأصول التي كنت تملكها في الأصول الثابتة على أنها مملوكة قبل بدء هذه الدفاتر، فتُرحَّل مقابل حقوق الملكية تلقائياً.",
+        en: "There is no import for opening balances; they go in as a manual journal entry dated the day your books in Sitta begin. Your accountant decides which account takes each balance; Sitta only requires the entry to balance. Assets you already owned can instead be registered in Fixed assets as owned before these books began, which posts them against equity for you.",
+        ar: "لا يوجد استيراد للأرصدة الافتتاحية؛ بل تُدخل بقيد يومية يدوي بتاريخ اليوم الذي تبدأ فيه دفاترك في ستة. ويحدد محاسبك الحساب الذي يأخذ كل رصيد؛ ولا يشترط ستة إلا أن يكون القيد متوازناً. ويمكن بدلاً من ذلك تسجيل الأصول التي كنت تملكها في الأصول الثابتة على أنها مملوكة قبل بدء هذه الدفاتر، فتُرحَّل مقابل حقوق الملكية تلقائياً.",
       },
       steps: {
-        en: ["Open General Ledger and go to the Journal tab", "Choose New entry and date it the day your nompany books begin", "Add a line for each balance, on the debit or credit side", "Post once it balances, then check the trial balance"],
-        ar: ["افتح دفتر الأستاذ العام وانتقل إلى تبويب القيود", "اختر قيد جديد وأرّخه بيوم بدء دفاترك في nompany", "أضف سطراً لكل رصيد في الجانب المدين أو الدائن", "رحّله عندما يتوازن ثم راجع ميزان المراجعة"],
+        en: ["Open General Ledger and go to the Journal tab", "Choose New entry and date it the day your Sitta books begin", "Add a line for each balance, on the debit or credit side", "Post once it balances, then check the trial balance"],
+        ar: ["افتح دفتر الأستاذ العام وانتقل إلى تبويب القيود", "اختر قيد جديد وأرّخه بيوم بدء دفاترك في ستة", "أضف سطراً لكل رصيد في الجانب المدين أو الدائن", "رحّله عندما يتوازن ثم راجع ميزان المراجعة"],
       },
       keywords: ["opening balance", "migration", "previous system", "starting balances", "رصيد افتتاحي", "ترحيل البيانات", "النظام السابق", "أرصدة البداية"],
       related: ["finance-ledger.manual-entry", "finance-assets.funding"],
@@ -677,8 +677,8 @@ export const finance: HelpModule = {
       id: "finance-receivables.print", topic: "dept.finance-receivables", kind: "howto", open: "finance-receivables",
       q: { en: "How do I print an invoice or save it as a PDF?", ar: "كيف أطبع فاتورة أو أحفظها بصيغة PDF؟" },
       a: {
-        en: "Every invoice row has a Print button, for anyone who can see the invoice. A draft prints with a DRAFT stamp, which is useful for checking the layout before you send it. Print from your browser, or choose to save as PDF in the browser's print dialog. nompany does not email invoices, so you send the printed or saved copy yourself.",
-        ar: "يحتوي كل صف فاتورة على زر طباعة، متاح لكل من يستطيع رؤية الفاتورة. وتُطبع المسودة بختم مسودة، وهذا مفيد لمراجعة التنسيق قبل إرسالها. اطبع من متصفحك، أو اختر الحفظ بصيغة PDF من نافذة الطباعة في المتصفح. ولا يرسل nompany الفواتير بالبريد الإلكتروني، لذا ترسل النسخة المطبوعة أو المحفوظة بنفسك.",
+        en: "Every invoice row has a Print button, for anyone who can see the invoice. A draft prints with a DRAFT stamp, which is useful for checking the layout before you send it. Print from your browser, or choose to save as PDF in the browser's print dialog. Sitta does not email invoices, so you send the printed or saved copy yourself.",
+        ar: "يحتوي كل صف فاتورة على زر طباعة، متاح لكل من يستطيع رؤية الفاتورة. وتُطبع المسودة بختم مسودة، وهذا مفيد لمراجعة التنسيق قبل إرسالها. اطبع من متصفحك، أو اختر الحفظ بصيغة PDF من نافذة الطباعة في المتصفح. ولا يرسل ستة الفواتير بالبريد الإلكتروني، لذا ترسل النسخة المطبوعة أو المحفوظة بنفسك.",
       },
       steps: {
         en: ["Open the Invoices tab", "Choose Print on the invoice's row", "Print it, or save it as PDF from the print dialog"],
@@ -747,8 +747,8 @@ export const finance: HelpModule = {
       id: "finance-receivables.reminders", topic: "dept.finance-receivables", kind: "howto", open: "finance-receivables",
       q: { en: "How do I chase overdue invoices?", ar: "كيف أتابع الفواتير المتأخرة؟" },
       a: {
-        en: "The Reminders tab lists every overdue invoice, how late it is, what has been sent so far and the reminder now due: by default a first reminder at 1 day late, a second at 15 and a final notice at 30. nompany does not send the reminder; it gives you the letter to copy. Recording the reminders as sent is what moves each invoice on to its next level.",
-        ar: "يعرض تبويب التذكيرات كل فاتورة متأخرة ومدة تأخرها وما أُرسل حتى الآن والتذكير المستحق الآن: افتراضياً تذكير أول بعد يوم واحد من التأخر، وثانٍ بعد 15 يوماً، وإشعار نهائي بعد 30 يوماً. ولا يرسل nompany التذكير؛ بل يعطيك نص الخطاب لتنسخه. وتسجيل التذكيرات كمُرسلة هو ما ينقل كل فاتورة إلى مستواها التالي.",
+        en: "The Reminders tab lists every overdue invoice, how late it is, what has been sent so far and the reminder now due: by default a first reminder at 1 day late, a second at 15 and a final notice at 30. Sitta does not send the reminder; it gives you the letter to copy. Recording the reminders as sent is what moves each invoice on to its next level.",
+        ar: "يعرض تبويب التذكيرات كل فاتورة متأخرة ومدة تأخرها وما أُرسل حتى الآن والتذكير المستحق الآن: افتراضياً تذكير أول بعد يوم واحد من التأخر، وثانٍ بعد 15 يوماً، وإشعار نهائي بعد 30 يوماً. ولا يرسل ستة التذكير؛ بل يعطيك نص الخطاب لتنسخه. وتسجيل التذكيرات كمُرسلة هو ما ينقل كل فاتورة إلى مستواها التالي.",
       },
       steps: {
         en: ["Open Receivables and go to the Reminders tab", "Review the overdue invoices and the reminder due on each", "Copy the letter and send it yourself", "Tick the invoices you chased and record the reminders as sent"],
@@ -829,10 +829,10 @@ export const finance: HelpModule = {
     },
     {
       id: "finance-receivables.email", topic: "dept.finance-receivables", kind: "troubleshoot", open: "finance-receivables",
-      q: { en: "Can nompany email invoices, reminders or statements to my customers?", ar: "هل يستطيع nompany إرسال الفواتير أو التذكيرات أو كشوف الحساب إلى عملائي بالبريد الإلكتروني؟" },
+      q: { en: "Can Sitta email invoices, reminders or statements to my customers?", ar: "هل يستطيع ستة إرسال الفواتير أو التذكيرات أو كشوف الحساب إلى عملائي بالبريد الإلكتروني؟" },
       a: {
-        en: "Not yet. nompany does not send invoices, reminders or statements of account, and there is no automatic reminder run or late-payment interest. Print the invoice, or copy the reminder letter from the Reminders tab, and send it yourself; then record the reminder as sent.",
-        ar: "ليس بعد. لا يرسل nompany الفواتير أو التذكيرات أو كشوف الحساب، ولا يوجد تشغيل تلقائي للتذكيرات ولا فوائد على التأخر. اطبع الفاتورة أو انسخ خطاب التذكير من تبويب التذكيرات وأرسله بنفسك؛ ثم سجّل التذكير كمُرسل.",
+        en: "Not yet. Sitta does not send invoices, reminders or statements of account, and there is no automatic reminder run or late-payment interest. Print the invoice, or copy the reminder letter from the Reminders tab, and send it yourself; then record the reminder as sent.",
+        ar: "ليس بعد. لا يرسل ستة الفواتير أو التذكيرات أو كشوف الحساب، ولا يوجد تشغيل تلقائي للتذكيرات ولا فوائد على التأخر. اطبع الفاتورة أو انسخ خطاب التذكير من تبويب التذكيرات وأرسله بنفسك؛ ثم سجّل التذكير كمُرسل.",
       },
       keywords: ["email invoice", "send to customer", "statement of account", "automatic reminders", "إرسال الفاتورة بالبريد", "إرسال للعميل", "كشف حساب", "تذكيرات تلقائية"],
       related: ["finance-receivables.print", "finance-receivables.reminders"],
@@ -1204,8 +1204,8 @@ export const finance: HelpModule = {
       id: "finance-payables.bank-file", topic: "dept.finance-payables", kind: "troubleshoot", open: "finance-payables",
       q: { en: "Can the payment run send the payments to my bank?", ar: "هل يمكن لدفعة السداد إرسال الدفعات إلى بنكي؟" },
       a: {
-        en: "No. The run records the payments in nompany and posts them; it does not produce a bank payment file or instruct your bank. Make the transfers in your bank, then compare the two in bank reconciliation. A run cannot be scheduled, approved as one document or used to pay part of a bill yet.",
-        ar: "لا. تسجل دفعة السداد الدفعات في nompany وترحّلها؛ لكنها لا تُنشئ ملف دفع بنكي ولا ترسل تعليمات إلى بنكك. أجرِ التحويلات في بنكك، ثم قارن بين الاثنين في التسوية البنكية. ولا يمكن بعد جدولة دفعة السداد أو اعتمادها كمستند واحد أو استخدامها لدفع جزء من فاتورة.",
+        en: "No. The run records the payments in Sitta and posts them; it does not produce a bank payment file or instruct your bank. Make the transfers in your bank, then compare the two in bank reconciliation. A run cannot be scheduled, approved as one document or used to pay part of a bill yet.",
+        ar: "لا. تسجل دفعة السداد الدفعات في ستة وترحّلها؛ لكنها لا تُنشئ ملف دفع بنكي ولا ترسل تعليمات إلى بنكك. أجرِ التحويلات في بنكك، ثم قارن بين الاثنين في التسوية البنكية. ولا يمكن بعد جدولة دفعة السداد أو اعتمادها كمستند واحد أو استخدامها لدفع جزء من فاتورة.",
       },
       keywords: ["bank file", "payment file", "bank transfer", "WPS", "ملف بنكي", "ملف الدفع", "تحويل بنكي", "إرسال للبنك"],
       related: ["finance-payables.payment-run", "finance-cash.reconcile"],
@@ -1389,8 +1389,8 @@ export const finance: HelpModule = {
       id: "finance-cash.reconcile", topic: "dept.finance-cash", kind: "howto", common: true, open: "finance-cash",
       q: { en: "How do I reconcile my bank statement?", ar: "كيف أجري التسوية البنكية؟" },
       a: {
-        en: "Reconciliation compares what the bank says with what the books say, one money account at a time. nompany suggests pairs but never matches on its own; you confirm each one. Amounts must match exactly, while dates may differ by up to a week. Lines on the statement but not in the books need a posting, and lines in the books but not on the statement are usually just waiting to clear.",
-        ar: "تقارن التسوية ما يقوله البنك بما تقوله الدفاتر، لحساب نقدي واحد في كل مرة. يقترح nompany أزواجاً لكنه لا يطابق من تلقاء نفسه أبداً؛ فأنت من يؤكد كل زوج. ويجب أن تتطابق المبالغ تماماً، بينما يمكن أن تختلف التواريخ حتى أسبوع. والبنود الواردة في الكشف دون الدفاتر تحتاج إلى ترحيل، والبنود الواردة في الدفاتر دون الكشف غالباً ما تنتظر التحصيل فقط.",
+        en: "Reconciliation compares what the bank says with what the books say, one money account at a time. Sitta suggests pairs but never matches on its own; you confirm each one. Amounts must match exactly, while dates may differ by up to a week. Lines on the statement but not in the books need a posting, and lines in the books but not on the statement are usually just waiting to clear.",
+        ar: "تقارن التسوية ما يقوله البنك بما تقوله الدفاتر، لحساب نقدي واحد في كل مرة. يقترح ستة أزواجاً لكنه لا يطابق من تلقاء نفسه أبداً؛ فأنت من يؤكد كل زوج. ويجب أن تتطابق المبالغ تماماً، بينما يمكن أن تختلف التواريخ حتى أسبوع. والبنود الواردة في الكشف دون الدفاتر تحتاج إلى ترحيل، والبنود الواردة في الدفاتر دون الكشف غالباً ما تنتظر التحصيل فقط.",
       },
       steps: {
         en: ["Open Cash & Bank and go to Reconcile", "Choose the money account", "Import the bank's CSV, or paste the lines", "Confirm the suggested matches", "Post the unrecorded lines, with a bank rule or by hand in the ledger, then match them"],
@@ -1477,7 +1477,7 @@ export const finance: HelpModule = {
     },
     {
       id: "finance-cash.match-refused", topic: "dept.finance-cash", kind: "troubleshoot", open: "finance-cash",
-      q: { en: "Why won't nompany match this statement line?", ar: "لماذا لا يطابق nompany بند الكشف هذا؟" },
+      q: { en: "Why won't Sitta match this statement line?", ar: "لماذا لا يطابق ستة بند الكشف هذا؟" },
       a: {
         en: "The two amounts differ, so they are two events rather than a match; or the posting is already matched to another line, or the line is already matched. A rule refuses a line the books may already hold, and asks you to match it instead. Each line is matched only against postings on its own money account.",
         ar: "المبلغان مختلفان، فهما حدثان منفصلان وليسا مطابقة؛ أو أن القيد مطابق مسبقاً لبند آخر، أو أن البند نفسه مطابق مسبقاً. وترفض القاعدة البند الذي قد يكون موجوداً في الدفاتر، وتطلب منك مطابقته بدلاً من ذلك. ولا يُطابق كل بند إلا بقيود حسابه النقدي نفسه.",
@@ -1507,7 +1507,7 @@ export const finance: HelpModule = {
     },
     {
       id: "finance-cash.bank-feed", topic: "dept.finance-cash", kind: "troubleshoot", open: "finance-cash",
-      q: { en: "Can nompany connect to my bank, or import OFX or MT940?", ar: "هل يمكن ربط nompany ببنكي، أو استيراد ملفات OFX أو MT940؟" },
+      q: { en: "Can Sitta connect to my bank, or import OFX or MT940?", ar: "هل يمكن ربط ستة ببنكي، أو استيراد ملفات OFX أو MT940؟" },
       a: {
         en: "Not yet. There is no live bank feed, and statements are imported as CSV only, not OFX, MT940 or CAMT. Export a CSV from your online banking and import it on the Reconcile tab; overlapping exports are fine, because lines already imported are skipped.",
         ar: "ليس بعد. لا يوجد ربط مباشر مع البنك، وتُستورد الكشوف بصيغة CSV فقط، لا OFX ولا MT940 ولا CAMT. صدّر ملف CSV من خدماتك المصرفية الإلكترونية واستورده في تبويب التسوية؛ ولا بأس بتداخل الملفات، لأن البنود المستوردة مسبقاً تُتجاهل.",
@@ -1734,8 +1734,8 @@ export const finance: HelpModule = {
       id: "finance-tax.about", topic: "dept.finance-tax", kind: "about", common: true, open: "finance-tax",
       q: { en: "What does the Tax screen do?", ar: "ماذا تقدم شاشة الضرائب؟" },
       a: {
-        en: "Tax brings together what the studio charges and withholds. For a studio with a VAT rate it shows the VAT return for any period you choose, lets you record filing and paying it, and lists the returns already filed. It lists withheld tax to claim from clients and to certify for suppliers, and for a studio whose country requires it, the e-invoicing queue. A Saudi studio also gets a zakat worksheet for each fiscal year. nompany describes what it computes and never submits anything to an authority; it gives no tax advice, so check figures with your accountant.",
-        ar: "تجمع شاشة الضرائب ما يفرضه الاستوديو من ضريبة وما يستقطعه. فللاستوديو الذي حدد نسبة ضريبة تعرض إقرار ضريبة القيمة المضافة لأي فترة تختارها، وتتيح تسجيل تقديمه وسداده، وتعرض الإقرارات المقدمة. وتعرض الضريبة المستقطعة المطلوب استردادها من العملاء والمطلوب إصدار شهاداتها للموردين، وقائمة الفوترة الإلكترونية للاستوديو الذي يُلزمه بلده بها. ويحصل الاستوديو في السعودية أيضاً على ورقة عمل للزكاة لكل سنة مالية. ويوضح nompany ما يحسبه ولا يقدم أي شيء إلى أي هيئة؛ ولا يقدم استشارات ضريبية، لذا راجع الأرقام مع محاسبك.",
+        en: "Tax brings together what the studio charges and withholds. For a studio with a VAT rate it shows the VAT return for any period you choose, lets you record filing and paying it, and lists the returns already filed. It lists withheld tax to claim from clients and to certify for suppliers, and for a studio whose country requires it, the e-invoicing queue. A Saudi studio also gets a zakat worksheet for each fiscal year. Sitta describes what it computes and never submits anything to an authority; it gives no tax advice, so check figures with your accountant.",
+        ar: "تجمع شاشة الضرائب ما يفرضه الاستوديو من ضريبة وما يستقطعه. فللاستوديو الذي حدد نسبة ضريبة تعرض إقرار ضريبة القيمة المضافة لأي فترة تختارها، وتتيح تسجيل تقديمه وسداده، وتعرض الإقرارات المقدمة. وتعرض الضريبة المستقطعة المطلوب استردادها من العملاء والمطلوب إصدار شهاداتها للموردين، وقائمة الفوترة الإلكترونية للاستوديو الذي يُلزمه بلده بها. ويحصل الاستوديو في السعودية أيضاً على ورقة عمل للزكاة لكل سنة مالية. ويوضح ستة ما يحسبه ولا يقدم أي شيء إلى أي هيئة؛ ولا يقدم استشارات ضريبية، لذا راجع الأرقام مع محاسبك.",
       },
       keywords: ["tax", "VAT", "zakat", "withholding", "e-invoicing", "ضريبة", "ضريبة القيمة المضافة", "زكاة", "استقطاع", "فوترة إلكترونية"],
       related: ["finance-tax.file-return", "finance-tax.vat-rate", "finance-tax.return-figures"],
@@ -1744,8 +1744,8 @@ export const finance: HelpModule = {
       id: "finance-tax.return-figures", topic: "dept.finance-tax", kind: "about", open: "finance-tax",
       q: { en: "How is the VAT return worked out?", ar: "كيف يُحسب إقرار ضريبة القيمة المضافة؟" },
       a: {
-        en: "The return reads the documents by their own dates: VAT charged on invoices, less VAT given back on credit notes, less VAT paid on bills. Drafts, cancelled documents and disputed bills are left out, and zero-rated and exempt amounts are shown apart. Documents in another currency are listed separately and not included, because a return is filed at the authority's rate for each date, which nompany does not hold. The result is payable when positive and reclaimable when negative.",
-        ar: "يقرأ الإقرار المستندات بتواريخها: الضريبة المفروضة على الفواتير، ناقصاً الضريبة المردودة في الإشعارات الدائنة، ناقصاً الضريبة المدفوعة على فواتير الموردين. وتُستبعد المسودات والمستندات الملغاة وفواتير الموردين المتنازع عليها، وتُعرض المبالغ الصفرية والمعفاة منفصلة. وتُدرج المستندات بعملة أخرى منفصلة ولا تدخل في الإقرار، لأن الإقرار يُقدَّم بسعر الهيئة لكل تاريخ، وهو ما لا يحتفظ به nompany. وتكون النتيجة مستحقة الدفع إن كانت موجبة وقابلة للاسترداد إن كانت سالبة.",
+        en: "The return reads the documents by their own dates: VAT charged on invoices, less VAT given back on credit notes, less VAT paid on bills. Drafts, cancelled documents and disputed bills are left out, and zero-rated and exempt amounts are shown apart. Documents in another currency are listed separately and not included, because a return is filed at the authority's rate for each date, which Sitta does not hold. The result is payable when positive and reclaimable when negative.",
+        ar: "يقرأ الإقرار المستندات بتواريخها: الضريبة المفروضة على الفواتير، ناقصاً الضريبة المردودة في الإشعارات الدائنة، ناقصاً الضريبة المدفوعة على فواتير الموردين. وتُستبعد المسودات والمستندات الملغاة وفواتير الموردين المتنازع عليها، وتُعرض المبالغ الصفرية والمعفاة منفصلة. وتُدرج المستندات بعملة أخرى منفصلة ولا تدخل في الإقرار، لأن الإقرار يُقدَّم بسعر الهيئة لكل تاريخ، وهو ما لا يحتفظ به ستة. وتكون النتيجة مستحقة الدفع إن كانت موجبة وقابلة للاسترداد إن كانت سالبة.",
       },
       keywords: ["VAT return", "output tax", "input tax", "payable", "reclaimable", "إقرار الضريبة", "ضريبة المخرجات", "ضريبة المدخلات", "مستحقة الدفع", "قابلة للاسترداد"],
       related: ["finance-tax.file-return", "finance-tax.ledger-differs"],
@@ -1762,7 +1762,7 @@ export const finance: HelpModule = {
     },
     {
       id: "finance-tax.zakat", topic: "dept.finance-tax", kind: "about", open: "finance-tax",
-      q: { en: "Does nompany calculate zakat?", ar: "هل يحسب nompany الزكاة؟" },
+      q: { en: "Does Sitta calculate zakat?", ar: "هل يحسب ستة الزكاة؟" },
       a: {
         en: "For a studio whose country levies zakat, which today is Saudi Arabia only, the Tax screen has a zakat worksheet for each fiscal year. The ledger supplies equity, net fixed assets and the year's profit, and your accountant adds what the chart cannot classify as named adjustments. You save the year, provision it, which posts the zakat expense and liability, and then record the payment. It is a worksheet, not a filing in ZATCA's format.",
         ar: "للاستوديو الذي يفرض بلده الزكاة، وهو حالياً المملكة العربية السعودية فقط، تضم شاشة الضرائب ورقة عمل للزكاة لكل سنة مالية. ويوفر دفتر الأستاذ حقوق الملكية وصافي الأصول الثابتة وربح السنة، ويضيف محاسبك ما لا يستطيع الدليل تصنيفه كتعديلات مسماة. تحفظ السنة ثم تكوّن المخصص، فيُرحَّل مصروف الزكاة والتزامها، ثم تسجل السداد. وهي ورقة عمل وليست إقراراً بصيغة هيئة الزكاة والضريبة والجمارك.",
@@ -1774,7 +1774,7 @@ export const finance: HelpModule = {
     // FileReturn) and fileTaxReturn in src/modules/finance/taxFiling.ts (no Zod schema).
     {
       id: "finance-tax.file-fields", topic: "dept.finance-tax", kind: "fields", open: "finance-tax",
-      q: { en: "What do I need to file a VAT return in nompany?", ar: "ما الذي أحتاجه لتقديم إقرار ضريبي في nompany؟" },
+      q: { en: "What do I need to file a VAT return in Sitta?", ar: "ما الذي أحتاجه لتقديم إقرار ضريبي في ستة؟" },
       a: {
         en: "Choose the period at the top of the Tax screen, then use File this return beneath the figures. A period that overlaps a return already filed is not offered again, and each period can be filed once. Filing needs the right to file and settle tax returns.",
         ar: "اختر الفترة أعلى شاشة الضرائب، ثم استخدم تقديم هذا الإقرار أسفل الأرقام. ولا تُعرض مرة أخرى فترة تتداخل مع إقرار مقدم، ولا يُقدَّم إقرار الفترة إلا مرة واحدة. ويتطلب التقديم صلاحية تقديم الإقرارات الضريبية وتسويتها.",
@@ -1822,8 +1822,8 @@ export const finance: HelpModule = {
       id: "finance-tax.file-return", topic: "dept.finance-tax", kind: "howto", common: true, open: "finance-tax",
       q: { en: "How do I file and pay my VAT return?", ar: "كيف أقدّم إقرار ضريبة القيمة المضافة وأسدده؟" },
       a: {
-        en: "Filing in nompany records the return you submitted to your tax authority; it does not submit it for you. Filing keeps a snapshot of the period's figures with the authority's reference, and posts the settlement into VAT Due, dated the period's last day. Before you file, the screen shows the ledger's figure beside the documents' figure and says when they differ. Paying is recorded afterwards from Filed returns.",
-        ar: "تقديم الإقرار في nompany يسجل الإقرار الذي قدمته لهيئة الضرائب؛ ولا يقدمه نيابة عنك. ويحفظ التقديم لقطة من أرقام الفترة مع مرجع الهيئة، ويرحّل التسوية إلى حساب ضريبة القيمة المضافة المستحقة بتاريخ آخر يوم في الفترة. وقبل التقديم تعرض الشاشة رقم الدفاتر بجانب رقم المستندات وتنبهك إذا اختلفا. ويُسجل السداد بعد ذلك من الإقرارات المقدمة.",
+        en: "Filing in Sitta records the return you submitted to your tax authority; it does not submit it for you. Filing keeps a snapshot of the period's figures with the authority's reference, and posts the settlement into VAT Due, dated the period's last day. Before you file, the screen shows the ledger's figure beside the documents' figure and says when they differ. Paying is recorded afterwards from Filed returns.",
+        ar: "تقديم الإقرار في ستة يسجل الإقرار الذي قدمته لهيئة الضرائب؛ ولا يقدمه نيابة عنك. ويحفظ التقديم لقطة من أرقام الفترة مع مرجع الهيئة، ويرحّل التسوية إلى حساب ضريبة القيمة المضافة المستحقة بتاريخ آخر يوم في الفترة. وقبل التقديم تعرض الشاشة رقم الدفاتر بجانب رقم المستندات وتنبهك إذا اختلفا. ويُسجل السداد بعد ذلك من الإقرارات المقدمة.",
       },
       steps: {
         en: ["Open Tax and choose the period's From and To dates", "Review VAT on sales, credit notes, VAT on purchases and the result", "Submit the return to your authority yourself", "Under File this return, enter the authority's reference and choose File return", "When you pay, record the payment under Filed returns"],
@@ -1876,10 +1876,10 @@ export const finance: HelpModule = {
     },
     {
       id: "finance-tax.einvoicing", topic: "dept.finance-tax", kind: "howto", open: "finance-tax",
-      q: { en: "How does e-invoicing work? Does nompany submit invoices to ZATCA or JoFotara?", ar: "كيف تعمل الفوترة الإلكترونية؟ وهل يرسل nompany الفواتير إلى فاتورة أو جو فوترة؟" },
+      q: { en: "How does e-invoicing work? Does Sitta submit invoices to ZATCA or JoFotara?", ar: "كيف تعمل الفوترة الإلكترونية؟ وهل يرسل ستة الفواتير إلى فاتورة أو جو فوترة؟" },
       a: {
-        en: "It depends on the country. For Saudi Arabia nompany submits: connect to ZATCA once on the Tax screen with a one-time password from the Fatoora portal, and from then on nompany signs each invoice and reports it to ZATCA, either as each invoice is issued or once a day at midnight Riyadh time, as you choose. ZATCA's answer shows on each invoice, and Submit to Fatoora sends one at once. Only ZATCA's developer portal is open for now, so what is reported there is a test. For Jordan (JoFotara) nompany prepares each issued invoice's official file; you download it, submit it through JoFotara yourself, and record the answer. Submitting, preparing and recording need the right to edit receivables; connecting to ZATCA needs the right to edit Finance settings. For other countries that require e-invoicing, nompany does not prepare files yet.",
-        ar: "يعتمد ذلك على الدولة. في المملكة العربية السعودية يرسل nompany الفواتير: اربط مع الهيئة مرة واحدة من شاشة الضرائب برمز تحقق من بوابة فاتورة، وبعدها يوقّع nompany كل فاتورة ويبلغ عنها الهيئة، إما عند إصدار كل فاتورة أو مرة يوميا عند منتصف الليل بتوقيت الرياض، حسب اختيارك. يظهر رد الهيئة على كل فاتورة، وزر الإرسال إلى فاتورة يرسل الفاتورة فورا. بوابة المطورين وحدها متاحة حاليا، فما يبلغ عنه فيها تجريبي. أما الأردن (جو فوترة) فيُعد nompany الملف الرسمي لكل فاتورة صادرة؛ فتنزّله وتقدمه عبر جو فوترة بنفسك ثم تسجل الرد. ويتطلب الإرسال والإعداد والتسجيل صلاحية تعديل الذمم المدينة، والربط مع الهيئة صلاحية تعديل إعدادات المالية. أما البلدان الأخرى التي تُلزم بالفوترة الإلكترونية فلا يُعد nompany ملفاتها بعد.",
+        en: "It depends on the country. For Saudi Arabia Sitta submits: connect to ZATCA once on the Tax screen with a one-time password from the Fatoora portal, and from then on Sitta signs each invoice and reports it to ZATCA, either as each invoice is issued or once a day at midnight Riyadh time, as you choose. ZATCA's answer shows on each invoice, and Submit to Fatoora sends one at once. Only ZATCA's developer portal is open for now, so what is reported there is a test. For Jordan (JoFotara) Sitta prepares each issued invoice's official file; you download it, submit it through JoFotara yourself, and record the answer. Submitting, preparing and recording need the right to edit receivables; connecting to ZATCA needs the right to edit Finance settings. For other countries that require e-invoicing, Sitta does not prepare files yet.",
+        ar: "يعتمد ذلك على الدولة. في المملكة العربية السعودية يرسل ستة الفواتير: اربط مع الهيئة مرة واحدة من شاشة الضرائب برمز تحقق من بوابة فاتورة، وبعدها يوقّع ستة كل فاتورة ويبلغ عنها الهيئة، إما عند إصدار كل فاتورة أو مرة يوميا عند منتصف الليل بتوقيت الرياض، حسب اختيارك. يظهر رد الهيئة على كل فاتورة، وزر الإرسال إلى فاتورة يرسل الفاتورة فورا. بوابة المطورين وحدها متاحة حاليا، فما يبلغ عنه فيها تجريبي. أما الأردن (جو فوترة) فيُعد ستة الملف الرسمي لكل فاتورة صادرة؛ فتنزّله وتقدمه عبر جو فوترة بنفسك ثم تسجل الرد. ويتطلب الإرسال والإعداد والتسجيل صلاحية تعديل الذمم المدينة، والربط مع الهيئة صلاحية تعديل إعدادات المالية. أما البلدان الأخرى التي تُلزم بالفوترة الإلكترونية فلا يُعد ستة ملفاتها بعد.",
       },
       steps: {
         en: ["Fill in the official values the files need in Studio settings", "Open Tax and find E-invoicing", "Saudi Arabia: generate a one-time password on the Fatoora portal, enter it under Connection to ZATCA and choose Connect", "Choose when invoices are reported: as each is issued, or once a day", "Jordan: choose Download file for each invoice, submit it through JoFotara, then Record answer"],
@@ -1922,8 +1922,8 @@ export const finance: HelpModule = {
       id: "finance-tax.no-return", topic: "dept.finance-tax", kind: "troubleshoot", open: "finance-tax",
       q: { en: "Why is there no VAT field on my invoices, or no tax return?", ar: "لماذا لا يظهر حقل الضريبة في فواتيري أو لا يوجد إقرار ضريبي؟" },
       a: {
-        en: "Your studio has no VAT rate set, which nompany reads as not registered. Set the rate in Studio settings, which needs the right to edit studio settings, and the VAT fields and the return appear. Withheld tax and e-invoicing are still shown without a VAT rate. Expenses carry no VAT, so they are never in the return.",
-        ar: "لم تُحدد نسبة ضريبة القيمة المضافة للاستوديو، ويعتبر nompany ذلك عدم تسجيل. حدد النسبة من إعدادات الاستوديو، ويتطلب ذلك صلاحية تعديل إعدادات الاستوديو، فتظهر حقول الضريبة والإقرار. وتبقى الضريبة المستقطعة والفوترة الإلكترونية ظاهرة دون نسبة ضريبة. ولا تحمل المصروفات ضريبة، لذا لا تدخل في الإقرار أبداً.",
+        en: "Your studio has no VAT rate set, which Sitta reads as not registered. Set the rate in Studio settings, which needs the right to edit studio settings, and the VAT fields and the return appear. Withheld tax and e-invoicing are still shown without a VAT rate. Expenses carry no VAT, so they are never in the return.",
+        ar: "لم تُحدد نسبة ضريبة القيمة المضافة للاستوديو، ويعتبر ستة ذلك عدم تسجيل. حدد النسبة من إعدادات الاستوديو، ويتطلب ذلك صلاحية تعديل إعدادات الاستوديو، فتظهر حقول الضريبة والإقرار. وتبقى الضريبة المستقطعة والفوترة الإلكترونية ظاهرة دون نسبة ضريبة. ولا تحمل المصروفات ضريبة، لذا لا تدخل في الإقرار أبداً.",
       },
       keywords: ["no VAT", "missing tax", "tax return missing", "VAT field", "لا توجد ضريبة", "حقل الضريبة", "الإقرار مفقود", "لا يظهر الإقرار"],
       related: ["finance-tax.vat-rate"],
@@ -1960,10 +1960,10 @@ export const finance: HelpModule = {
     },
     {
       id: "finance-tax.einvoice-refused", topic: "dept.finance-tax", kind: "troubleshoot", open: "finance-tax",
-      q: { en: "Why can't nompany prepare the e-invoice file for this invoice?", ar: "لماذا لا يستطيع nompany إعداد ملف الفاتورة الإلكترونية لهذه الفاتورة؟" },
+      q: { en: "Why can't Sitta prepare the e-invoice file for this invoice?", ar: "لماذا لا يستطيع ستة إعداد ملف الفاتورة الإلكترونية لهذه الفاتورة؟" },
       a: {
-        en: "Most often an official value is missing or in the wrong form in Studio settings, and the message names which one. A Saudi file is prepared only for invoices in riyals, only as a simplified invoice because invoices do not yet record the buyer's VAT number and address, and not for invoices with zero-rated or exempt lines. A prepared file does not notice a later edit to its invoice, and nompany does not prepare files for countries other than Saudi Arabia and Jordan yet.",
-        ar: "غالباً ما تكون إحدى القيم الرسمية ناقصة أو بصيغة خاطئة في إعدادات الاستوديو، وتذكر الرسالة أيها. ولا يُعد الملف السعودي إلا للفواتير بالريال، وكفاتورة مبسطة فقط لأن الفواتير لا تسجل بعد الرقم الضريبي للمشتري وعنوانه، ولا يُعد للفواتير التي فيها أسطر صفرية أو معفاة. والملف المُعد لا يلاحظ أي تعديل لاحق على فاتورته، ولا يُعد nompany ملفات لبلدان غير السعودية والأردن بعد.",
+        en: "Most often an official value is missing or in the wrong form in Studio settings, and the message names which one. A Saudi file is prepared only for invoices in riyals, only as a simplified invoice because invoices do not yet record the buyer's VAT number and address, and not for invoices with zero-rated or exempt lines. A prepared file does not notice a later edit to its invoice, and Sitta does not prepare files for countries other than Saudi Arabia and Jordan yet.",
+        ar: "غالباً ما تكون إحدى القيم الرسمية ناقصة أو بصيغة خاطئة في إعدادات الاستوديو، وتذكر الرسالة أيها. ولا يُعد الملف السعودي إلا للفواتير بالريال، وكفاتورة مبسطة فقط لأن الفواتير لا تسجل بعد الرقم الضريبي للمشتري وعنوانه، ولا يُعد للفواتير التي فيها أسطر صفرية أو معفاة. والملف المُعد لا يلاحظ أي تعديل لاحق على فاتورته، ولا يُعد ستة ملفات لبلدان غير السعودية والأردن بعد.",
       },
       keywords: ["e-invoice refused", "cannot prepare", "B2B invoice", "buyer VAT number", "رفض الفاتورة الإلكترونية", "لا يمكن الإعداد", "فاتورة ضريبية بين المنشآت", "الرقم الضريبي للمشتري"],
       related: ["finance-tax.official-values", "finance-tax.einvoicing"],
@@ -2142,7 +2142,7 @@ export const finance: HelpModule = {
     // ═════════════════════════ BUDGETS ═════════════════════════
     {
       id: "finance-budgets.about", topic: "dept.finance-budgets", kind: "about", common: true, open: "finance-budgets",
-      q: { en: "How do budgets work in nompany?", ar: "كيف تعمل الموازنات في nompany؟" },
+      q: { en: "How do budgets work in Sitta?", ar: "كيف تعمل الموازنات في ستة؟" },
       a: {
         en: "A budget is twelve months from a month you name, set account by account for income and expenses. It can cover the whole studio or one project, deal, cost code or department. The actual side uses the same arithmetic as the profit and loss, so the budget and the reports never disagree. Variance is shown to the end of the current month, with worse-than-planned lines in red and spending nobody budgeted listed separately.",
         ar: "الموازنة اثنا عشر شهراً تبدأ من شهر تحدده، وتُعد حساباً بحساب للإيرادات والمصروفات. ويمكن أن تغطي الاستوديو كله أو مشروعاً أو صفقة أو رمز تكلفة أو قسماً واحداً. ويستخدم الجانب الفعلي حساب قائمة الأرباح والخسائر نفسه، فلا تختلف الموازنة عن التقارير أبداً. ويُعرض الانحراف حتى نهاية الشهر الحالي، مع البنود الأسوأ من المخطط باللون الأحمر والإنفاق غير المدرج في الموازنة بشكل منفصل.",

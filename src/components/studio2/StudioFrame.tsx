@@ -787,7 +787,7 @@ export default function StudioFrame({
             {studio.name}
           </span>
           <span className="truncate font-mono text-[10px] font-500 tracking-tight text-slate-400 dark:text-slate-500">
-            nompany.com/{studio.slug}
+            sittaerp.com/{studio.slug}
           </span>
           {/* What this studio is on. Free and Standard until the console says
               otherwise, so the tags are never absent — a studio always has a

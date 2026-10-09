@@ -83,7 +83,7 @@ export const POST = route({ ...spec, body: true }, async (c) => {
   await notifySuper({
     type: NOTIFY.system,
     title: "Upgrade requested",
-    body: `${String(studio.name || "")} (nompany.com/${String(studio.slug || "")}) asked for ${String(pkg?.name || quote.packageId)}, ${quote.cycle}: ${quote.total} ${quote.currency} with tax.`,
+    body: `${String(studio.name || "")} (sittaerp.com/${String(studio.slug || "")}) asked for ${String(pkg?.name || quote.packageId)}, ${quote.cycle}: ${quote.total} ${quote.currency} with tax.`,
     href: "/super/studios",
     tone: "info",
   });

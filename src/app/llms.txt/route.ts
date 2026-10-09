@@ -6,7 +6,7 @@ import lastmod from "../sitemap-lastmod.json";
 /* /llms.txt — THE SITE, DESCRIBED FOR AI SEARCH (llmstxt.org).
    ------------------------------------------------------------------
    It 404'd, and an external scanner read the 404 page's HTML as the file and
-   called it "too thin to cite". What an assistant quoting nompany should read is
+   called it "too thin to cite". What an assistant quoting Sitta should read is
    the same thing the site says, so this file WRITES NOTHING OF ITS OWN: the
    sentence is `company.ts`'s, the departments are the list the platform page
    renders, and every link and its line are the page's own <title> and meta

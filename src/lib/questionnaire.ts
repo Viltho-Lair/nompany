@@ -78,7 +78,7 @@ export const INTENTS = ["create", "join"];
 export const QUESTION_PAGES = [
   {
     id: "qpg_reg_goal",
-    title: "What brings you to nompany?",
+    title: "What brings you to Sitta?",
     lead: "This just shapes what we show you next — you can do both later.",
     hint: "No wrong answer here — you can create a studio and join others later.",
     questions: [

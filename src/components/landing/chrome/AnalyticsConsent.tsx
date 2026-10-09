@@ -37,7 +37,7 @@ const onAnalyticsHost = () => (ANALYTICS_HOSTS as readonly string[]).includes(lo
    which an inline tag cannot wait for.
 
    TWO CATEGORIES, NOT THREE. Strictly necessary (always on) and
-   Analytics. There is no Marketing switch because nompany sets no
+   Analytics. There is no Marketing switch because Sitta sets no
    marketing or advertising cookies; a toggle for a category that does
    not exist would imply tracking that is not there.
 
@@ -70,7 +70,7 @@ function writeConsent(value: string) {
 }
 
 // WITHDRAWING HAS TO REMOVE WHAT ACCEPTING WROTE. Google's cookies are set on
-// the registrable domain (`.nompany.com`), so both spellings are cleared.
+// the registrable domain (`.sittaerp.com`), so both spellings are cleared.
 function clearGoogleCookies() {
   try {
     for (const part of document.cookie.split("; ")) {

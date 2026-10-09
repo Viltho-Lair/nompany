@@ -1,9 +1,9 @@
 export default function manifest() {
   return {
-    name: "nompany — modular ERP for companies",
-    short_name: "nompany",
+    name: "Sitta — modular ERP for companies",
+    short_name: "Sitta",
     description:
-      "nompany is a modular ERP that runs a company's whole operation from one platform — Sales, Projects, Inventory, HR, Finance and more — priced by team size, with every department included.",
+      "Sitta is a modular ERP that runs a company's whole operation from one platform — Sales, Projects, Inventory, HR, Finance and more — priced by team size, with every department included.",
     start_url: "/en",
     display: "standalone",
     background_color: "#ffffff",

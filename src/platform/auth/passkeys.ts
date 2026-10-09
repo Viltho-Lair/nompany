@@ -16,7 +16,7 @@
 // spent on first use, so a signed response cannot be replayed.
 //
 // THE RELYING PARTY IS THE SITE'S OWN DOMAIN, without "www." — a passkey made
-// on www.nompany.com then works on nompany.com too, which is where studios
+// on www.sittaerp.com then works on sittaerp.com too, which is where studios
 // live. PASSKEY_RP_ID overrides it where a deployment needs another answer.
 
 import {
@@ -88,7 +88,7 @@ export async function beginRegistration(userId: string, request: Request) {
   if (existing.length >= MAX_PASSKEYS) return { error: "passkey-limit" as const };
   const { rpID } = relyingParty(request);
   const options = await generateRegistrationOptions({
-    rpName: "nompany",
+    rpName: "Sitta",
     rpID,
     userName: user.email,
     userDisplayName: profile?.fullName || user.email,

@@ -6,7 +6,7 @@ import { publicCached } from "./publicSettings";
 
 /* THE HOME PAGE'S READS, ONCE A MINUTE INSTEAD OF ONCE A VISIT.
    ------------------------------------------------------------------
-   Every hit on nompany.com/en or /ar paid six Postgres round trips through the
+   Every hit on sittaerp.com/en or /ar paid six Postgres round trips through the
    Cloud Run gateway before it could render: the package catalogue, the catalogue
    settings, the exchange snapshot, the WHOLE studio registry (for the featured
    band) and the platform figures. None of it changes per visitor, and all of it

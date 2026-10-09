@@ -153,7 +153,7 @@ function Openings({ jobs, onEdit }: { jobs: Job[] | null; onEdit: (id: string) =
     <Card>
       <CardHead
         title="Openings"
-        sub="Open positions show on nompany.com/careers in English and Arabic. A closed one leaves the site and stops taking applications."
+        sub="Open positions show on sittaerp.com/careers in English and Arabic. A closed one leaves the site and stops taking applications."
         action={
           <Button onClick={() => onEdit("new")}>
             <Icon name="plus" className="h-4 w-4" /> New opening

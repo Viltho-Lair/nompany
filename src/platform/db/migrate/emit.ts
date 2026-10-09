@@ -122,7 +122,7 @@ export interface EmitMeta {
 // The whole file, chunk by chunk. Header, then per table: DDL, then INSERTs.
 export function* emitSql(tables: Map<string, Row[]>, meta: EmitMeta): Generator<string> {
   yield (
-    `-- nompany database export — ${meta.scope}\n` +
+    `-- Sitta database export — ${meta.scope}\n` +
     `-- Generated ${meta.generatedAt}. Ids preserved verbatim; schema inferred.\n` +
     `-- Authoritative DDL: docs/database-migration-mssql.md §2.\n` +
     "SET NOCOUNT ON;\nSET XACT_ABORT ON;\nGO\n\n"

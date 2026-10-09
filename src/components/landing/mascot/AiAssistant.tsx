@@ -6,7 +6,7 @@ import { motion, useInView, useReducedMotion, useSpring, useTransform, } from "m
 import { usePointer } from "../providers/PointerProvider";
 import { useElementCenter } from "@/components/landing/lib/useElementCenter";
 /* ==================================================================
-   TECHNIQUE 8 — Character animation: "Nova", the Nompany assistant
+   TECHNIQUE 8 — Character animation: "Nova", the Sitta assistant
    Three independent motion layers stacked on one character:
      1. Idle:   a slow float (y) + breathing (scaleY) loop.
      2. Attend: head/body lean toward the cursor.

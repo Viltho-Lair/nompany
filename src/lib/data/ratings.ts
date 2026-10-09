@@ -29,7 +29,7 @@ export async function setRating(userId: string, stars: unknown) {
 
   await emitPlatform({
     type: PLATFORM.ratingLeft,
-    title: `nompany rated ${value}/5`,
+    title: `Sitta rated ${value}/5`,
     body: "Someone answered the rating prompt.",
     refId: String(userId),
   });
@@ -40,7 +40,7 @@ export async function setRating(userId: string, stars: unknown) {
     await notifySuper({
       type: NOTIFY.system,
       title: `Low rating: ${value}/5`,
-      body: "Someone rated nompany poorly.",
+      body: "Someone rated Sitta poorly.",
       tone: "danger",
     });
   }

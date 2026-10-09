@@ -17,7 +17,7 @@ export default function ChatPage() {
     <>
       <PageHeader
         title="Chat"
-        description="Conversations studios start with nompany from inside their studio."
+        description="Conversations studios start with Sitta from inside their studio."
       />
       <SuperChat />
     </>

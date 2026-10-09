@@ -173,7 +173,7 @@ export function SiteNav() {
             <span className="size-7" />
           )}
           <span className="text-[15px] font-semibold tracking-[-0.02em]" dir="ltr">
-            nompany
+            Sitta
           </span>
         </Link>
 

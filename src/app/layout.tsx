@@ -12,7 +12,7 @@ import { isMarketingPath } from "@/shared/marketing/routes";
 // nompany is a fixed product brand (not tenant-configurable), so the tab-title
 // suffix ("%s · nompany"), applicationName, authors/creator/publisher and the
 // OpenGraph site name are constant across the marketing site.
-const BRAND = "nompany";
+const BRAND = "Sitta";
 
 export async function generateMetadata() {
   return {
@@ -22,7 +22,7 @@ export async function generateMetadata() {
       template: `%s · ${BRAND}`,
     },
     description:
-      "nompany is a modular ERP that lets any company run its entire operation from a single platform — Sales, Projects, Inventory, HR, Finance and more — turning on only the departments it needs and paying only for what it uses.",
+      "Sitta is a modular ERP that lets any company run its entire operation from a single platform — Sales, Projects, Inventory, HR, Finance and more — turning on only the departments it needs and paying only for what it uses.",
     applicationName: BRAND,
     authors: [{ name: BRAND }],
     creator: BRAND,
@@ -133,7 +133,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             IT USED TO CARRY A STUDIO RTL BRANCH TOO, reading a `studio-dir`
             key out of localStorage. Nothing ever wrote that key, and its guard
             — `pathname.indexOf('/studio') === 0` — could never be true anyway:
-            the proxy REWRITES nompany.com/<slug>/… onto the internal /studio
+            the proxy REWRITES sittaerp.com/<slug>/… onto the internal /studio
             folder without changing the address bar, so the browser never sees
             that path. Dead twice over, and a second mechanism for something a
             studio's own record now decides. */}

@@ -13,8 +13,8 @@ import { LIVE_DEPARTMENT_KEYS } from "@/shared/marketing/departments";
 const departmentCount = () => LIVE_DEPARTMENT_KEYS.length;
 
 // Canonical site origin, and the "www." is load-bearing rather than cosmetic.
-// The site SERVES on www.nompany.com; the apex 308-redirects to it. This
-// fallback said `https://nompany.com`, so every canonical, og:url, hreflang
+// The site SERVES on www.sittaerp.com; the apex 308-redirects to it. This
+// fallback said `https://sittaerp.com`, so every canonical, og:url, hreflang
 // alternate and sitemap entry named a URL that redirects — search engines were
 // being pointed one hop away from the page they were reading, and Google's
 // OAuth verification checks the privacy-policy URL against the domain it is
@@ -28,7 +28,7 @@ const departmentCount = () => LIVE_DEPARTMENT_KEYS.length;
 // anyway: it is what preview builds and local development use, and a default
 // that disagrees with production is a default nobody can trust.
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || "https://www.nompany.com"
+  process.env.NEXT_PUBLIC_SITE_URL || "https://www.sittaerp.com"
 ).replace(/\/$/, "");
 
 // OpenGraph locale codes for each app locale.
@@ -43,12 +43,12 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
     en: {
       title: "Run your company's whole operation from one platform",
       description:
-        "nompany is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and more. Free for the first 3 months for teams of one to four; paid plans from five people up.",
+        "Sitta is a modular ERP that runs a company's entire operation from one platform — Sales, Projects, Inventory, HR, Finance and more. Free for the first 3 months for teams of one to four; paid plans from five people up.",
     },
     ar: {
       title: "أدر عمليات شركتك بالكامل من منصة واحدة",
       description:
-        "nompany نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية وغيرها. مجاني لأول 3 أشهر للفرق من واحد إلى أربعة، وخطط مدفوعة من خمسة أفراد فأكثر.",
+        "ستة نظام تخطيط موارد مرن يدير عمليات الشركة بالكامل من منصة واحدة — المبيعات والمشاريع والمخزون والموارد البشرية والمالية وغيرها. مجاني لأول 3 أشهر للفرق من واحد إلى أربعة، وخطط مدفوعة من خمسة أفراد فأكثر.",
     },
   },
   "/platform": {
@@ -122,19 +122,19 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
   },
   "/about": {
     en: {
-      title: "About nompany",
+      title: "About Sitta",
       description:
         "A small company building one ERP for small and medium companies across the region — every department, from sales and projects to manufacturing, HR and finance, on one data model, in Arabic and English.",
     },
     ar: {
-      title: "عن نومباني",
+      title: "عن ستة",
       description:
         "شركة صغيرة تبني نظام تخطيط موارد للشركات الصغيرة والمتوسطة في المنطقة — كل الأقسام، من المبيعات والمشاريع إلى التصنيع والموارد البشرية والمالية، على نموذج بيانات واحد، بالعربية والإنجليزية.",
     },
   },
   "/customers": {
     en: {
-      title: "Companies running on nompany",
+      title: "Companies running on Sitta",
       // NO NUMBER IN THIS DESCRIPTION, deliberately. "Trusted by N companies" is
       // the first thing that would go here and the first thing that would become
       // false: the page lists only those who gave permission, which is never the
@@ -143,7 +143,7 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
         "The companies that asked to be named here. Every one turned the setting on itself, and none was added by us.",
     },
     ar: {
-      title: "شركات تعمل على نومباني",
+      title: "شركات تعمل على ستة",
       description:
         "الشركات التي طلبت أن تذكر هنا. كل واحدة فعلت الإعداد بنفسها، ولم نضف أيا منها من عندنا.",
     },
@@ -151,58 +151,58 @@ export const PAGES: Record<string, Record<string, PageCopy> | undefined> = {
   "/cookies": {
     en: {
       title: "Cookie policy",
-      description: "Which cookies nompany sets, why, and for how long: the ones the site needs, and analytics you can refuse.",
+      description: "Which cookies Sitta sets, why, and for how long: the ones the site needs, and analytics you can refuse.",
     },
     ar: {
       title: "سياسة ملفات تعريف الارتباط",
-      description: "ما ملفات تعريف الارتباط التي تضعها نومباني، ولماذا، وإلى متى: ما يحتاجه الموقع، والتحليلات التي يمكنك رفضها.",
+      description: "ما ملفات تعريف الارتباط التي تضعها ستة، ولماذا، وإلى متى: ما يحتاجه الموقع، والتحليلات التي يمكنك رفضها.",
     },
   },
   "/blog": {
     en: {
       title: "Blog",
       description:
-        "News from nompany, what we have added to the product, and the events we have taken part in.",
+        "News from Sitta, what we have added to the product, and the events we have taken part in.",
     },
     ar: {
       title: "المدونة",
-      description: "أخبار نومباني، وما أضفناه إلى المنتج، والفعاليات التي شاركنا فيها.",
+      description: "أخبار ستة، وما أضفناه إلى المنتج، والفعاليات التي شاركنا فيها.",
     },
   },
   "/careers": {
     en: {
       title: "Careers",
       description:
-        "Join nompany and help build the platform companies run on. View our current openings.",
+        "Join Sitta and help build the platform companies run on. View our current openings.",
     },
     ar: {
       title: "الوظائف",
       description:
-        "انضم إلى nompany وساهم في بناء المنصة التي تدير الشركات أعمالها عليها. اطلع على الوظائف الشاغرة.",
+        "انضم إلى ستة وساهم في بناء المنصة التي تدير الشركات أعمالها عليها. اطلع على الوظائف الشاغرة.",
     },
   },
   "/terms": {
     en: {
       title: "Terms & Conditions",
       description:
-        "The terms governing use of the nompany ERP platform — subscriptions, payments and refunds, GDPR and EMEA data protection, and data retention.",
+        "The terms governing use of the Sitta ERP platform — subscriptions, payments and refunds, GDPR and EMEA data protection, and data retention.",
     },
     ar: {
       title: "الشروط والأحكام",
       description:
-        "الشروط التي تحكم استخدام منصة nompany لتخطيط موارد المؤسسات — الاشتراكات والمدفوعات والاستردادات وحماية البيانات وفق اللائحة الأوروبية (GDPR) وأنظمة منطقة EMEA والاحتفاظ بالبيانات.",
+        "الشروط التي تحكم استخدام منصة ستة لتخطيط موارد المؤسسات — الاشتراكات والمدفوعات والاستردادات وحماية البيانات وفق اللائحة الأوروبية (GDPR) وأنظمة منطقة EMEA والاحتفاظ بالبيانات.",
     },
   },
   "/privacy": {
     en: {
       title: "Privacy Policy",
       description:
-        "How nompany handles personal data — what is collected and why, who it is shared with, how it is protected, how long it is kept, and the disclosure for data obtained through Google APIs.",
+        "How Sitta handles personal data — what is collected and why, who it is shared with, how it is protected, how long it is kept, and the disclosure for data obtained through Google APIs.",
     },
     ar: {
       title: "سياسة الخصوصية",
       description:
-        "كيف تتعامل nompany مع البيانات الشخصية — ما الذي يجمع ولماذا، ومع من يشارك، وكيف يحمى، ومدة الاحتفاظ به، والإفصاح الخاص بالبيانات المتحصل عليها عبر واجهات Google.",
+        "كيف تتعامل ستة مع البيانات الشخصية — ما الذي يجمع ولماذا، ومع من يشارك، وكيف يحمى، ومدة الاحتفاظ به، والإفصاح الخاص بالبيانات المتحصل عليها عبر واجهات Google.",
     },
   },
 };
@@ -249,7 +249,7 @@ export const OG_IMAGE_SIZE = { width: 1200, height: 630 };
 // the file convention contributed from the parent segment, image included.
 // Naming the image here is what survives that merge.
 export function shareImagesFor(locale: string) {
-  const alt = "nompany — run the whole company on one system";
+  const alt = "Sitta — run the whole company on one system";
   return {
     og: [{ url: urlFor(locale, "/opengraph-image"), ...OG_IMAGE_SIZE, alt, type: "image/png" }],
     twitter: [{ url: urlFor(locale, "/twitter-image"), ...OG_IMAGE_SIZE, alt }],
@@ -274,7 +274,7 @@ export function buildMetadata({ locale, path = "" }: { locale: string; path?: st
     openGraph: {
       type: "website",
       url: canonical,
-      siteName: "nompany",
+      siteName: "Sitta",
       title,
       description,
       locale: OG_LOCALE[locale] || OG_LOCALE.en,
@@ -299,13 +299,13 @@ function sameAs() {
 }
 
 export function organizationLd(settings?: unknown, locale: string = defaultLocale) {
-  const name = "nompany";
+  const name = "Sitta";
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${SITE_URL}/#organization`,
     name,
-    legalName: "nompany",
+    legalName: "Sitta",
     url: SITE_URL,
     logo: `${SITE_URL}/brand/logo-full.png`,
     description: SITE_DESCRIPTION[locale] || SITE_DESCRIPTION.en,
@@ -330,7 +330,7 @@ export function websiteLd(settings?: unknown, locale: string = defaultLocale) {
     "@type": "WebSite",
     "@id": `${SITE_URL}/#website`,
     url: SITE_URL,
-    name: "nompany",
+    name: "Sitta",
     inLanguage: locale,
     publisher: { "@id": `${SITE_URL}/#organization` },
   };
@@ -342,7 +342,7 @@ export function websiteLd(settings?: unknown, locale: string = defaultLocale) {
 // time somebody reads this, delete it: a helper nobody calls is a claim waiting
 // to be re-added by accident.
 export function localBusinessLd(settings?: unknown, locale: string = defaultLocale) {
-  const name = "nompany";
+  const name = "Sitta";
   return {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
@@ -438,7 +438,7 @@ export function softwareApplicationLd(
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "nompany",
+    name: "Sitta",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     offers,
@@ -498,7 +498,7 @@ export function jobPostingLd(job: Record<string, string>, settings: unknown, loc
     employmentType,
     hiringOrganization: {
       "@type": "Organization",
-      name: "nompany",
+      name: "Sitta",
       sameAs: SITE_URL,
       logo: `${SITE_URL}/brand/logo-full.png`,
     },
@@ -540,10 +540,10 @@ export function blogPostingLd(post: {
     datePublished: post.publishedAt,
     dateModified: post.updatedAt || post.publishedAt,
     image: post.cover ? `${SITE_URL}${post.cover}` : `${SITE_URL}/brand/logo-full.png`,
-    author: { "@type": "Organization", name: "nompany", url: SITE_URL },
+    author: { "@type": "Organization", name: "Sitta", url: SITE_URL },
     publisher: {
       "@type": "Organization",
-      name: "nompany",
+      name: "Sitta",
       logo: { "@type": "ImageObject", url: `${SITE_URL}/brand/logo-full.png` },
     },
   };
