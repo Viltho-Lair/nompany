@@ -257,7 +257,7 @@ export default function QuestionnaireFlow({
         <header className="grid shrink-0 grid-cols-2 items-start gap-4 px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr]">
           <a href={`/${locale}`} className="flex items-center gap-2.5 justify-self-start">
             <LogoMark size={34} />
-            <Wordmark className="hidden text-lg sm:block" />
+            <Wordmark locale={locale} className="hidden text-lg sm:block" />
           </a>
 
           {/* On narrow screens the title drops below the logo row rather than

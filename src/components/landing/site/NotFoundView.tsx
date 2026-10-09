@@ -1,6 +1,7 @@
 import Link from "next/link";
 import BackButton from "@/components/public/BackButton";
 import { LogoMark } from "@/components/landing/Logo";
+import { brandFor } from "@/shared/marketing/company";
 import type { getDict } from "@/shared/i18n";
 
 // THE 404, IN THE SITE'S DESIGN (27/09/2026) — one view for both not-found
@@ -23,10 +24,10 @@ export function NotFoundView({ locale, nf, dir }: { locale: string; nf: ReturnTy
         className="pointer-events-none absolute inset-0 -z-10"
         style={{ background: "radial-gradient(55% 60% at 50% 35%, rgba(139,124,255,0.22), rgba(139,124,255,0) 70%)" }}
       />
-      <Link href={home} className="flex items-center gap-2.5" aria-label="Sitta">
+      <Link href={home} className="flex items-center gap-2.5" aria-label={brandFor(locale)}>
         <LogoMark size={28} />
-        <span className="text-[15px] font-semibold tracking-[-0.02em]" dir="ltr">
-          Sitta
+        <span className="text-[15px] font-semibold tracking-[-0.02em] rtl:tracking-normal">
+          {brandFor(locale)}
         </span>
       </Link>
       <p className="mt-14 text-[7rem] font-medium leading-none tracking-[-0.06em] text-transparent sm:text-[10rem]" style={{ WebkitTextStroke: "1px rgba(201,194,255,0.55)" }} dir="ltr">

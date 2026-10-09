@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { motion } from "motion/react";
 import { EASE_OUT_EXPO } from "@/components/landing/lib/motion";
+import { brandFor } from "@/shared/marketing/company";
 /**
  * The company logo — the nompany hexagon mark (`public/brand/logo-icon.png`).
  * `animated` reveals it with a scale/fade instead of showing it instantly; a
@@ -23,16 +24,12 @@ export function LogoMark({ size = 32, animated = false, priority = false, }) {
       {mark}
     </motion.span>);
 }
-// ONE BRAND STRING: `nompany`, lowercase, everywhere.
-//
-// THE WORDMARK ITSELF SPELLED IT WITH A CAPITAL, which made this the most
-// visible instance of the defect on the whole site: it renders in the header
-// and the footer of every marketing page, so the brand appeared capitalised
-// twice on each one while the metadata, the schema and the copy all wrote it
-// lowercase. A brand spelled two ways on one page is one an engine has to
-// guess about, and the guess is not ours to influence afterwards.
-export function Wordmark({ className = "" }) {
-    return (<span className={`font-display text-[1.05rem] font-semibold tracking-tight ${className}`}>
-      Sitta
+// ONE BRAND STRING PER SCRIPT: Sitta on an English page, ستة on an Arabic one
+// (brandFor, company.ts). It used to be lowercase `nompany`, and a capitalised
+// copy here was the most visible spelling defect on the site — the header and
+// footer of every page — which is why it comes from company.ts, not a literal.
+export function Wordmark({ className = "", locale = "en" }: { className?: string; locale?: string }) {
+    return (<span className={`font-display text-[1.05rem] font-semibold tracking-tight rtl:tracking-normal ${className}`}>
+      {brandFor(locale)}
     </span>);
 }

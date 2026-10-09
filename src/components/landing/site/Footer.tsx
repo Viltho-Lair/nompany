@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion, useInView, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from "motion/react";
 import { reopenAnalyticsConsent } from "@/components/landing/chrome/AnalyticsConsent";
 import { getDict } from "@/shared/i18n";
-import { companyCopy } from "@/shared/marketing/company";
+import { BRAND, BRAND_AR, brandFor, companyCopy } from "@/shared/marketing/company";
 import { ANALYTICS_HOSTS, consentCopy } from "@/shared/marketing/consent";
 import { chromeCopy } from "@/shared/marketing/chrome";
 import { heroCopy } from "@/shared/marketing/hero";
@@ -18,7 +18,6 @@ import { ShaderField } from "./ShaderField";
 import { Cta } from "./primitives";
 import type { MotionValue } from "motion/react";
 
-const WORD = "Sitta";
 
 /**
  * THE FOOTER IS UNDER THE PAGE, NOT AFTER IT. It is fixed, and its parent
@@ -32,7 +31,7 @@ const WORD = "Sitta";
  * here because withdrawing consent must be as easy as giving it.
  */
 export function CurtainFooter() {
-  const { locale } = useSite();
+  const { locale, rtl } = useSite();
   const nav = getDict(locale).nav;
   const home = homeCopy(locale);
   const chrome = chromeCopy(locale);
@@ -102,7 +101,7 @@ export function CurtainFooter() {
                 </Cta>
               </div>
             </div>
-            <nav aria-label="Sitta" className="grid grid-cols-2 gap-8 text-[14px] lg:col-span-4 lg:col-start-9">
+            <nav aria-label={brandFor(locale)} className="grid grid-cols-2 gap-8 text-[14px] lg:col-span-4 lg:col-start-9">
               {groups.map((col, c) => (
                 <ul key={c} className="space-y-3">
                   {col.map((l) => (
@@ -118,11 +117,20 @@ export function CurtainFooter() {
           </div>
 
           <div>
-            <p aria-label={WORD} dir="ltr" className="flex select-none justify-center text-[24vw] font-semibold leading-[0.8] tracking-[-0.07em] lg:text-[21vw]">
-              {WORD.split("").map((ch, k) => (
-                <Letter key={k} ch={ch} mouseX={mouseX} still={reduce} />
-              ))}
-            </p>
+            {/* Arabic is ONE glyph run, never split: its letters join, and a
+                letter set in its own span loses the shape it takes beside its
+                neighbours. So the rising letters are the Latin wordmark's. */}
+            {rtl ? (
+              <p aria-label={BRAND_AR} className="flex select-none justify-center text-[30vw] font-semibold leading-[0.9] lg:text-[24vw]" style={{ fontFamily: "var(--f-readex)" }}>
+                {BRAND_AR}
+              </p>
+            ) : (
+              <p aria-label={BRAND} dir="ltr" className="flex select-none justify-center text-[24vw] font-semibold leading-[0.8] tracking-[-0.07em] lg:text-[21vw]">
+                {BRAND.split("").map((ch, k) => (
+                  <Letter key={k} ch={ch} mouseX={mouseX} still={reduce} />
+                ))}
+              </p>
+            )}
             <div className="mt-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-3 text-[12px] text-white/40">
               <p className="max-w-[60ch] leading-relaxed">{companyCopy(locale).description}</p>
               <div className="flex items-center gap-5">
@@ -131,7 +139,7 @@ export function CurtainFooter() {
                     {consentCopy(locale).settings}
                   </button>
                 ) : null}
-                <span dir="ltr">© {new Date().getFullYear()} Sitta</span>
+                <span>© {new Date().getFullYear()} {brandFor(locale)}</span>
               </div>
             </div>
           </div>

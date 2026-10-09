@@ -22,6 +22,7 @@ import { LANGUAGE_NAMES, LANGUAGE_SHORT, locales } from "@/shared/locale";
 import { blogCopy } from "@/shared/marketing/blog";
 import { industriesCopy } from "@/shared/marketing/industries";
 import { chromeCopy } from "@/shared/marketing/chrome";
+import { brandFor } from "@/shared/marketing/company";
 import { useSite } from "./locale";
 import { Cta, EASE, SPRING } from "./primitives";
 
@@ -172,8 +173,8 @@ export function SiteNav() {
           ) : (
             <span className="size-7" />
           )}
-          <span className="text-[15px] font-semibold tracking-[-0.02em]" dir="ltr">
-            Sitta
+          <span className="text-[15px] font-semibold tracking-[-0.02em] rtl:tracking-normal">
+            {brandFor(locale)}
           </span>
         </Link>
 

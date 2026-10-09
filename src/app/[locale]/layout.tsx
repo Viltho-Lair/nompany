@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import SiteTracker from "@/components/SiteTracker";
 import { dirFor, isLocale, locales } from "@/shared/i18n";
 import { AccountLocaleProvider } from "@/components/public/locale";
+import { brandFor } from "@/shared/marketing/company";
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 export function generateStaticParams() {
@@ -13,6 +15,14 @@ export function generateStaticParams() {
 // header and footer until 06/10/2026; it reads nothing now, and the pages under
 // it still read theirs per request.)
 export const dynamic = "force-dynamic";
+
+// THE TAB TITLE NAMES THE BRAND IN THE PAGE'S SCRIPT. The root layout's
+// template is the English one and cannot know the locale (it reads no
+// request); this segment can, so an Arabic page reads "… · ستة".
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  return { title: { template: `%s · ${brandFor(locale)}`, default: brandFor(locale) } };
+}
 
 export default async function LocaleLayout({ children, params }: { children: ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await params;

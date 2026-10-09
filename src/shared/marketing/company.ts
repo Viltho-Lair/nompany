@@ -56,6 +56,11 @@ export const BRAND = "Sitta";
  */
 export const BRAND_AR = "ستة";
 
+/** The brand in the reader's own script: Sitta on an English page, ستة on an Arabic one. */
+export function brandFor(locale: string): string {
+  return locale === "ar" ? BRAND_AR : BRAND;
+}
+
 type CompanyStrings = {
   /** One sentence, reused verbatim everywhere the entity is described. */
   description: string;
