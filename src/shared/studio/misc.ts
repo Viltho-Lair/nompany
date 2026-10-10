@@ -133,6 +133,8 @@ type Strings = CommonStrings & {
   starting: string;
   status: string;
   studioAssistant: string;
+  novaIntroAlt: string;
+  skipIntro: string;
   studioNoApprovals: string;
   studioNoApprovals2: string;
   approvalNotConfigured: string;
@@ -313,6 +315,8 @@ const en: Strings = {
   starting: "Starting…",
   status: "Status",
   studioAssistant: "Your studio assistant",
+  novaIntroAlt: "The Sitta logo turning into Nova",
+  skipIntro: "Skip",
   studioNoApprovals: "This studio has no Approvals section to send the approval to.",
   studioNoApprovals2: "This studio has no Approvals section to send the PO to.",
   approvalNotConfigured: "Nobody is named to approve this yet — an Admin sets that up in Approval settings.",
@@ -486,6 +490,8 @@ const ar: Strings = {
   starting: "جار البدء…",
   status: "الحالة",
   studioAssistant: "مساعد الاستوديو الخاص بك",
+  novaIntroAlt: "شعار ستة يتحول إلى نوفا",
+  skipIntro: "تخطي",
   studioNoApprovals: "لا يوجد قسم موافقات في هذا الاستوديو لإرسال الاعتماد إليه.",
   studioNoApprovals2: "لا يوجد قسم موافقات في هذا الاستوديو لإرسال أمر الشراء إليه.",
   approvalNotConfigured: "لم يُسمَّ أحد لاعتماد هذا بعد — يعدّ ذلك المسؤول في إعدادات الموافقات.",

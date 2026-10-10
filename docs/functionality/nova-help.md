@@ -13,6 +13,16 @@ Opening Nova shows two blocks above the usual data examples:
   and its sub-sections), *Studio settings & access*, *Your account & plan*, and *Something
   isn't working*.
 
+**The first time Nova opens in a browser**, a short intro plays above those blocks: the Sitta
+logo builds, bursts apart, and its six facets rebuild into Nova's head, followed by the name
+(about seven seconds, `components/studio2/nova/NovaIntro.tsx`, drawn by `nova/introFrames.ts`).
+It does not block anything. The help and the examples sit right below it, typing a question
+replaces it, and **Skip** ends it. It is remembered (`nompany:nova-intro-seen` in the
+browser's storage) only once it finishes or is skipped, so closing the panel mid-way plays it
+again next time. With reduced motion on, or no storage, it never plays.
+`scripts/nova-intro-video.mjs` records the same file as `public/brand/nova-intro.mp4`,
+`nova-intro-alpha.webm` (transparent) and `nova-intro.gif`.
+
 Clicking a topic adds a card to the transcript. It lists that topic's questions, main ones
 first, followed by its sub-topics and a "Back to…" link. Clicking a question shows its answer
 card: the answer, a *Have this ready* list when the question is about a form, numbered
@@ -162,6 +172,11 @@ phrasing both name them. Run `node tests/help-model.mjs`. It fails if:
 
 ## Not built yet
 
+- **Nova does not hear anything.** The intro's head has listening, thinking and speaking looks
+  already drawn: the visor glows, the eyes widen, rings come off the antenna, and the smile
+  becomes a level meter. Nothing reaches them, because the product has no microphone or voice
+  input. The intro only ever plays them as a quiet idle.
+- **The intro is per browser, not per person.** A new device or cleared storage plays it again.
 - **It is gated on Nova.** A studio whose package does not include Nova has neither the
   launcher nor the help desk, and so no guided help at all.
 - **Answers are not permission-aware.** A person without the right to a department still sees

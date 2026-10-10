@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import nextDynamic from "next/dynamic";
 import { useInbox } from "@/components/notifications/InboxProvider";
 import { useStudioLocale } from "@/components/studio2/locale";
 import { miscDict } from "@/shared/studio/misc";
@@ -30,6 +31,25 @@ const examplesFor = (tr: ReturnType<typeof miscDict>) => [
   tr.exTaskBoard,
 ];
 
+// THE INTRO plays once per browser: the first time the panel opens, the Sitta
+// logo becomes Nova's head above the help (nova/NovaIntro). It is a client
+// boundary of its own, so the canvas code is fetched only when it is about to
+// play. Reduced motion counts as already seen. It is remembered only when it
+// FINISHES or is skipped: writing the key as it starts would end it on the next
+// render, because the store is read on every render.
+const NovaIntro = nextDynamic(() => import("@/components/studio2/nova/NovaIntro"));
+const INTRO_KEY = "nompany:nova-intro-seen";
+const INTRO_EVENT = "nompany:nova-intro-seen";
+const subscribeIntro = (fn: () => void) => { window.addEventListener(INTRO_EVENT, fn); return () => window.removeEventListener(INTRO_EVENT, fn); };
+const introSeen = () => {
+  try { return window.localStorage.getItem(INTRO_KEY) === "1" || Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches); }
+  catch { return true; /* no storage: it would play on every open, so don't play it */ }
+};
+function markIntroSeen() {
+  try { window.localStorage.setItem(INTRO_KEY, "1"); } catch { /* nothing to remember it in */ }
+  window.dispatchEvent(new Event(INTRO_EVENT));
+}
+
 // OPEN IS THE SHELL'S — see the note in StudioChat. The two chats share one
 // corner and one slot, so StudioFrame decides which is showing.
 export default function NovaLauncher({ slug, enabled = false, besideChat = false, open = false, onOpenChange, view = "" }: {
@@ -55,6 +75,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
   const panelRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
+  const seenIntro = useSyncExternalStore(subscribeIntro, introSeen, () => true);
 
   // THE HELP DESK (26/09/2026). A typed question is tried against the help
   // knowledge base FIRST, and only goes to the model when help cannot take it
@@ -273,6 +294,7 @@ export default function NovaLauncher({ slug, enabled = false, besideChat = false
             <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
               {messages.length === 0 && (
                 <div className="space-y-3">
+                  {!seenIntro && <NovaIntro label={tr.novaIntroAlt} skipLabel={tr.skipIntro} onDone={markIntroSeen} />}
                   {attention > 0 && (
                     <button type="button" onClick={() => send(tr.whatNeedsMyAttention)}
                       className="w-full rounded-xl bg-brand-50 px-3 py-2 text-start text-sm text-brand-700 transition-colors hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-200">

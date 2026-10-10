@@ -10,7 +10,7 @@ import { useElementCenter } from "@/components/landing/lib/useElementCenter";
    Three independent motion layers stacked on one character:
      1. Idle:   a slow float (y) + breathing (scaleY) loop.
      2. Attend: head/body lean toward the cursor.
-     3. Gaze:   pupils track the cursor, clamped inside the sclera.
+     3. Gaze:   the eyes track the cursor, clamped inside the visor.
    IT DOES NOT BLINK. There was an eyelid here — a body-coloured rect
    scaling down over each eye every 4.2 seconds — and at any size below
    the hero's it reads as a flicker rather than a blink: two dark discs
@@ -120,20 +120,17 @@ export function AiAssistant({ size = 280 }) {
 
             {/* Skull */}
             <rect x="58" y="62" width="124" height="98" rx="34" fill="url(#nova-body)" stroke="var(--color-line)" strokeWidth="1.5"/>
-            {/* Visor */}
-            <rect x="72" y="82" width="96" height="58" rx="26" fill="url(#nova-visor)" opacity="0.16"/>
-            <rect x="72" y="82" width="96" height="58" rx="26" fill="none" stroke="url(#nova-visor)" strokeWidth="1.4" opacity="0.7"/>
+            {/* Visor — DARK, with the gradient as its rim: the look the studio's
+                NovaHead and the logo-to-Nova intro end on (the owner's choice,
+                11/10/2026). It was an 18% tint of the gradient. */}
+            <rect x="72" y="82" width="96" height="58" rx="26" fill="#161b3f" stroke="url(#nova-visor)" strokeWidth="2"/>
 
-            {/* ---- Eyes ---- */}
+            {/* ---- Eyes: cyan capsules that follow the cursor ---- */}
             <g>
-              {[98, 142].map((eyeX) => (<g key={eyeX}>
-                  <ellipse cx={eyeX} cy="111" rx="13" ry="14" fill="#060912"/>
-                  {/* Pupil: follows the cursor */}
-                  <motion.g style={still ? undefined : { x: pupilX, y: pupilY }}>
-                    <circle cx={eyeX} cy="111" r="7" fill="var(--color-cyan)"/>
-                    <circle cx={eyeX - 2.4} cy="108.4" r="2.2" fill="#ffffff" opacity="0.9"/>
-                  </motion.g>
-                </g>))}
+              {[98, 142].map((eyeX) => (<motion.g key={eyeX} style={still ? undefined : { x: pupilX, y: pupilY }}>
+                  <rect x={eyeX - 7} y="102" width="14" height="18" rx="7" fill="var(--color-cyan)"/>
+                  <circle cx={eyeX - 2.4} cy="107.8" r="2" fill="#ffffff" opacity="0.9"/>
+                </motion.g>))}
             </g>
 
             {/* Smile */}
