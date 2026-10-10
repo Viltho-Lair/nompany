@@ -209,8 +209,17 @@ export async function seedDemo() {
     await (await import("@/lib/data/catalog")).plantStartingPackage();
     // Through the account screen's own door, so country, city and currency
     // are set the way a real owner's are.
+    // AN INDUSTRY FROM THE CURRENT LIST, as the create screen asks for. A
+    // trade with no industry is "still on the old list", and the studio then
+    // draws a "Choose your industry" banner above every screen — which landed
+    // in all 52 marketing screenshots the first time they were retaken after
+    // the list changed. The specialism is the one the product itself offers
+    // for this trade, so the setup is exactly what the trade alone gives.
+    const { readIndustries } = await import("@/lib/data/industries");
+    const { suggestedIndustry } = await import("@/shared/industryPick");
+    const industry = suggestedIndustry(await readIndustries(), DEMO.field);
     const created = must(await createStudioForUser(person.lina.user, {
-      name: DEMO.name, slug: DEMO.slug, fieldOfWork: DEMO.field,
+      name: DEMO.name, slug: DEMO.slug, fieldOfWork: DEMO.field, industry,
       company: { country: DEMO.country, city: DEMO.city, erps: ["None — We do not use an ERP system"] },
     }), "studio");
     for (const p of PEOPLE.slice(1)) {
