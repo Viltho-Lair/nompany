@@ -1,4 +1,4 @@
-# nompany ERP — Terms & Conditions of Service
+# Sitta ERP — Terms & Conditions of Service
 
 **Version:** 1.1
 **Effective date:** 07/08/2026
@@ -10,9 +10,9 @@
 
 ## 1. Introduction and acceptance
 
-1.1 These Terms and Conditions of Service (the **"Terms"**) form a binding legal agreement between **nompany** (‹registered legal-entity details to be confirmed on incorporation›), the provider of the nompany ERP platform (**"nompany"**, **"we"**, **"us"**, **"our"**), and the organisation or individual that registers for, accesses, or uses that platform (the **"Customer"**, **"you"**, **"your"**).
+1.1 These Terms and Conditions of Service (the **"Terms"**) form a binding legal agreement between **Sitta** (‹registered legal-entity details to be confirmed on incorporation›), the provider of the Sitta ERP platform (**"Sitta"**, **"we"**, **"us"**, **"our"**), and the organisation or individual that registers for, accesses, or uses that platform (the **"Customer"**, **"you"**, **"your"**).
 
-1.2 The **"Service"** means the nompany modular enterprise resource planning (ERP) software-as-a-service platform, including its web application, APIs, associated modules (such as Sales, Projects, Inventory, HR/Employees, Finance, Operations and Logistics), documentation, and support, made available on a subscription basis.
+1.2 The **"Service"** means the Sitta modular enterprise resource planning (ERP) software-as-a-service platform, including its web application, APIs, associated modules (such as Sales, Projects, Inventory, HR/Employees, Finance, Operations and Logistics), documentation, and support, made available on a subscription basis.
 
 1.3 By creating an account, clicking "I accept", signing an Order Form, or otherwise accessing or using the Service, you confirm that you have read, understood, and agree to be bound by these Terms. If you do not agree, you must not access or use the Service.
 
@@ -30,8 +30,8 @@
 - **"Applicable Data Protection Law"** — all data protection and privacy laws applicable to the Processing of Personal Data under the Agreement, including the EU General Data Protection Regulation (Regulation (EU) 2016/679, **"EU GDPR"**), the UK GDPR and the Data Protection Act 2018, and any other applicable data protection laws in the EMEA region.
 - **"Order Form"** — the ordering document or online checkout specifying the subscribed modules, plan tier, number of seats/Authorised Users, term, and fees.
 - **"Subscription Term"** — the period for which the Customer has paid for or committed to the Service, as set out in the Order Form.
-- **"Sub-processor"** — a third party engaged by nompany to Process Customer Personal Data.
-- **"Payment Processor"** — a third-party payment-services provider engaged by nompany to process payment transactions.
+- **"Sub-processor"** — a third party engaged by Sitta to Process Customer Personal Data.
+- **"Payment Processor"** — a third-party payment-services provider engaged by Sitta to process payment transactions.
 
 ---
 
@@ -41,7 +41,7 @@
 
 3.2 You must provide accurate, current, and complete registration information and keep it up to date. We may refuse registration or cancel an account at our discretion where information is false, or where use would breach these Terms or applicable law.
 
-3.3 **Account security.** You are responsible for safeguarding credentials and for all activity under your account and those of your Authorised Users. You must enable available security controls (including multi-factor authentication where offered), keep credentials confidential, and notify us without undue delay at ‹security@nompany.com› of any suspected unauthorised access or security incident affecting your account.
+3.3 **Account security.** You are responsible for safeguarding credentials and for all activity under your account and those of your Authorised Users. You must enable available security controls (including multi-factor authentication where offered), keep credentials confidential, and notify us without undue delay at ‹security@sittaerp.com› of any suspected unauthorised access or security incident affecting your account.
 
 3.4 Each set of login credentials is personal to a single Authorised User and must not be shared. You are responsible for ensuring your Authorised Users comply with these Terms.
 
@@ -49,7 +49,7 @@
 
 ## 4. Subscriptions, licences, and modules
 
-4.1 **Licence grant.** Subject to the Agreement and payment of applicable fees, nompany grants the Customer a non-exclusive, non-transferable, non-sublicensable, revocable right to access and use the Service and subscribed modules during the Subscription Term, solely for the Customer's internal business operations.
+4.1 **Licence grant.** Subject to the Agreement and payment of applicable fees, Sitta grants the Customer a non-exclusive, non-transferable, non-sublicensable, revocable right to access and use the Service and subscribed modules during the Subscription Term, solely for the Customer's internal business operations.
 
 4.2 **Modular subscriptions.** The Service is modular. You may subscribe to and de-subscribe from individual modules subject to the applicable plan and fees. Enabling a module may make additional terms or configuration requirements applicable, which will be presented at activation.
 
@@ -69,9 +69,9 @@
 
 5.3 **Billing cycle and renewals.** Paid subscriptions are billed in advance on a monthly or annual basis as selected, and renew automatically for successive periods equal to the initial Subscription Term unless cancelled. You may disable auto-renewal or cancel at any time from your account settings or by written notice at least **thirty (30) days** before the next renewal date. Any usage-based or overage charges are billed in arrears.
 
-5.4 **Payment methods and Payment Processor.** Online payments are handled by a third-party Payment Processor. By providing a payment method you authorise us and our Payment Processor to charge the applicable fees, including recurring charges on renewal. nompany does **not** store your full card number (PAN); card data is captured and held directly by the PCI-DSS-compliant Payment Processor, and nompany retains only a payment token, card brand, expiry, and the last four digits for billing and fraud-prevention purposes. You are responsible for keeping payment details current.
+5.4 **Payment methods and Payment Processor.** Online payments are handled by a third-party Payment Processor. By providing a payment method you authorise us and our Payment Processor to charge the applicable fees, including recurring charges on renewal. Sitta does **not** store your full card number (PAN); card data is captured and held directly by the PCI-DSS-compliant Payment Processor, and Sitta retains only a payment token, card brand, expiry, and the last four digits for billing and fraud-prevention purposes. You are responsible for keeping payment details current.
 
-5.5 **Taxes.** Fees are exclusive of taxes unless stated. You are responsible for all applicable taxes, duties, and levies, including any applicable value added tax (VAT), goods and services tax (GST), or sales tax at the prevailing rate in your jurisdiction, except taxes on nompany's net income. Where a reverse-charge, exemption, or zero-rating applies, you must provide a valid tax registration number; otherwise the applicable tax will be added.
+5.5 **Taxes.** Fees are exclusive of taxes unless stated. You are responsible for all applicable taxes, duties, and levies, including any applicable value added tax (VAT), goods and services tax (GST), or sales tax at the prevailing rate in your jurisdiction, except taxes on Sitta's net income. Where a reverse-charge, exemption, or zero-rating applies, you must provide a valid tax registration number; otherwise the applicable tax will be added.
 
 5.6 **Discounts, promotions, and credits.** From time to time we may offer discounts, promotional pricing, trial extensions, or account credits. Unless stated otherwise: (a) a promotion applies to the initial term only and pricing reverts to the then-current standard rate on renewal; (b) promotions cannot be combined, are non-transferable, have no cash value, and are limited to one per customer; (c) account credits are applied to future invoices, are non-refundable, and are not redeemable for cash; and (d) we may modify or withdraw any offer prospectively at any time. Annual (yearly) billing is offered at a discount to the equivalent monthly rate, as shown at checkout.
 
@@ -79,7 +79,7 @@
 
 5.8 **Refunds and cancellation.** Except where required by mandatory law or expressly stated in an Order Form, fees already paid are **non-refundable**, and cancelling a subscription does not entitle you to a refund or credit for the remainder of a paid period; your paid access continues until the end of the current term. Partial months are not pro-rated. Downgrades take effect at the next renewal. The free tier can be cancelled at any time. Nothing in this clause limits any non-excludable statutory right you may have.
 
-5.9 **Chargebacks and payment disputes.** If you believe a charge is incorrect, contact us at ‹billing@nompany.com› within **sixty (60) days** of the invoice date so we can investigate in good faith. Initiating a chargeback or payment reversal without first contacting us may result in suspension. Where a chargeback is later found to be unwarranted, the disputed amount together with any Payment Processor fees remains payable.
+5.9 **Chargebacks and payment disputes.** If you believe a charge is incorrect, contact us at ‹billing@sittaerp.com› within **sixty (60) days** of the invoice date so we can investigate in good faith. Initiating a chargeback or payment reversal without first contacting us may result in suspension. Where a chargeback is later found to be unwarranted, the disputed amount together with any Payment Processor fees remains payable.
 
 5.10 **Price changes.** We may change standard fees effective from your next renewal, with at least **thirty (30) days'** prior notice. Continued use after the change takes effect constitutes acceptance; if you do not agree, you may cancel before the change applies.
 
@@ -97,11 +97,11 @@
 
 ## 7. Intellectual property
 
-7.1 **nompany IP.** nompany and its licensors retain all right, title, and interest in and to the Service, including all software, APIs, documentation, look and feel, and all improvements and derivatives. No rights are granted except the limited licence in Section 4.
+7.1 **Sitta IP.** Sitta and its licensors retain all right, title, and interest in and to the Service, including all software, APIs, documentation, look and feel, and all improvements and derivatives. No rights are granted except the limited licence in Section 4.
 
-7.2 **Customer Data.** As between the parties, the Customer retains all right, title, and interest in Customer Data. You grant nompany a worldwide, non-exclusive licence to host, copy, transmit, display, and Process Customer Data solely to provide, secure, and support the Service and as instructed under the DPA.
+7.2 **Customer Data.** As between the parties, the Customer retains all right, title, and interest in Customer Data. You grant Sitta a worldwide, non-exclusive licence to host, copy, transmit, display, and Process Customer Data solely to provide, secure, and support the Service and as instructed under the DPA.
 
-7.3 **Feedback.** If you provide suggestions or feedback, you grant nompany a perpetual, irrevocable, royalty-free licence to use it without restriction. We will not identify you as the source without consent.
+7.3 **Feedback.** If you provide suggestions or feedback, you grant Sitta a perpetual, irrevocable, royalty-free licence to use it without restriction. We will not identify you as the source without consent.
 
 7.4 **Aggregated/anonymised data.** We may generate and use aggregated or anonymised data (that does not identify you, any individual, or your Customer Data) to operate, improve, and benchmark the Service, provided such data cannot reasonably be re-identified.
 
@@ -130,29 +130,29 @@
 
 ## 9. Data protection and privacy (EMEA)
 
-9.1 **Roles.** For Customer Data that is Personal Data, the Customer is the **Controller** and nompany acts as **Processor** (or, where the Customer is itself a processor, as sub-processor). Each party will comply with its obligations under Applicable Data Protection Law.
+9.1 **Roles.** For Customer Data that is Personal Data, the Customer is the **Controller** and Sitta acts as **Processor** (or, where the Customer is itself a processor, as sub-processor). Each party will comply with its obligations under Applicable Data Protection Law.
 
-9.2 **Processing under the DPA.** nompany will Process Personal Data only: (a) to provide, secure, and support the Service; (b) on the Customer's documented instructions (including as set out in the Agreement); and (c) as required by law, in which case we will notify you unless legally prohibited. The Data Processing Agreement (Annex A) governs these obligations and prevails over any conflicting term on data protection.
+9.2 **Processing under the DPA.** Sitta will Process Personal Data only: (a) to provide, secure, and support the Service; (b) on the Customer's documented instructions (including as set out in the Agreement); and (c) as required by law, in which case we will notify you unless legally prohibited. The Data Processing Agreement (Annex A) governs these obligations and prevails over any conflicting term on data protection.
 
-9.3 **Security measures.** nompany implements appropriate technical and organisational measures designed to protect Personal Data, including: encryption of data in transit (TLS) and at rest; role-based access controls and least-privilege administration; field-level encryption for sensitive identifiers (such as national ID and passport numbers); network segmentation; logging and monitoring; secure development practices; and regular backups. A summary is available on request.
+9.3 **Security measures.** Sitta implements appropriate technical and organisational measures designed to protect Personal Data, including: encryption of data in transit (TLS) and at rest; role-based access controls and least-privilege administration; field-level encryption for sensitive identifiers (such as national ID and passport numbers); network segmentation; logging and monitoring; secure development practices; and regular backups. A summary is available on request.
 
-9.4 **Sub-processors.** You authorise nompany to engage Sub-processors (including its Payment Processor and hosting provider) to Process Personal Data, provided each is bound by data-protection obligations no less protective than those in the DPA. We maintain a current list of Sub-processors and will give notice of intended changes, allowing you a reasonable opportunity to object on legitimate data-protection grounds.
+9.4 **Sub-processors.** You authorise Sitta to engage Sub-processors (including its Payment Processor and hosting provider) to Process Personal Data, provided each is bound by data-protection obligations no less protective than those in the DPA. We maintain a current list of Sub-processors and will give notice of intended changes, allowing you a reasonable opportunity to object on legitimate data-protection grounds.
 
 9.5 **International transfers.** Where Personal Data is transferred across borders (including outside the EEA or the UK), we will implement a lawful transfer mechanism — such as the European Commission's Standard Contractual Clauses and the UK International Data Transfer Agreement/Addendum — together with any supplementary measures required, and equivalent safeguards under any other applicable EMEA data protection law.
 
-9.6 **Data subject rights.** Taking into account the nature of Processing, nompany will provide reasonable assistance (including appropriate technical measures in the Service) to help the Customer respond to Data Subject requests to exercise rights of access, rectification, erasure, restriction, portability, and objection.
+9.6 **Data subject rights.** Taking into account the nature of Processing, Sitta will provide reasonable assistance (including appropriate technical measures in the Service) to help the Customer respond to Data Subject requests to exercise rights of access, rectification, erasure, restriction, portability, and objection.
 
-9.7 **Personal data breach.** nompany will notify the Customer without undue delay, and in any event within **72 hours** of becoming aware, of any confirmed Personal Data breach affecting Customer Personal Data, and will provide information reasonably necessary for the Customer to meet its own notification obligations to Supervisory Authorities and Data Subjects.
+9.7 **Personal data breach.** Sitta will notify the Customer without undue delay, and in any event within **72 hours** of becoming aware, of any confirmed Personal Data breach affecting Customer Personal Data, and will provide information reasonably necessary for the Customer to meet its own notification obligations to Supervisory Authorities and Data Subjects.
 
-9.8 **Audits.** On reasonable prior written notice and no more than once per year (unless required by a Supervisory Authority or following a breach), nompany will make available information necessary to demonstrate compliance with the DPA, and will allow for and contribute to audits, subject to appropriate confidentiality and security safeguards.
+9.8 **Audits.** On reasonable prior written notice and no more than once per year (unless required by a Supervisory Authority or following a breach), Sitta will make available information necessary to demonstrate compliance with the DPA, and will allow for and contribute to audits, subject to appropriate confidentiality and security safeguards.
 
-9.9 **Records and privacy contact.** Data-protection enquiries may be directed to our privacy contact at ‹privacy@nompany.com›. Where required, we maintain records of Processing activities.
+9.9 **Records and privacy contact.** Data-protection enquiries may be directed to our privacy contact at ‹privacy@sittaerp.com›. Where required, we maintain records of Processing activities.
 
 ---
 
 ## 10. Data retention and deletion
 
-10.1 **Principle.** nompany retains Customer Data only for as long as necessary to provide the Service, comply with legal obligations, resolve disputes, and enforce agreements — consistent with the storage-limitation and data-minimisation principles of Applicable Data Protection Law.
+10.1 **Principle.** Sitta retains Customer Data only for as long as necessary to provide the Service, comply with legal obligations, resolve disputes, and enforce agreements — consistent with the storage-limitation and data-minimisation principles of Applicable Data Protection Law.
 
 10.2 **Customer control.** You control the primary retention of your business records within the Service through configuration, module retention settings, and manual deletion. Where you delete a record, it is removed from the active Service and flagged for deletion from backups in the ordinary backup-expiry cycle.
 
@@ -166,7 +166,7 @@
 | Encrypted backups / disaster-recovery snapshots | Rolling 35 days, then automatic expiry | Backup cycle |
 | Invoices, billing and tax records | 10 years | Legal / tax obligation |
 | Payment transaction metadata (token, card brand, last 4 digits, authorisation records) | Subscription Term + up to 24 months | Fraud-prevention / accounting |
-| Full card number (PAN) | Not stored by nompany — held by the PCI-DSS Payment Processor | N/A |
+| Full card number (PAN) | Not stored by Sitta — held by the PCI-DSS Payment Processor | N/A |
 | Authentication & security logs (audit trail) | 12 months (longer if required for a security investigation) | Security / compliance |
 | Support tickets & correspondence | 24 months from ticket closure | Service records |
 | Marketing / consent records (where applicable) | Until consent withdrawn, plus the minimum period required by law | Consent lifecycle |
@@ -174,7 +174,7 @@
 
 10.4 **Legal holds.** Where retention is required by law, regulatory obligation, or an active legal claim ("legal hold"), the affected data may be retained beyond the periods above until the obligation or claim is resolved, after which standard deletion resumes.
 
-10.5 **Deletion on termination.** Following the export window in Section 12, nompany will delete or irreversibly anonymise Customer Personal Data in active systems and, on written request, certify deletion — except for copies (a) in routine backups pending scheduled expiry, or (b) required to be retained by law (such as billing and tax records), which remain protected by the confidentiality and security terms of the Agreement until deleted.
+10.5 **Deletion on termination.** Following the export window in Section 12, Sitta will delete or irreversibly anonymise Customer Personal Data in active systems and, on written request, certify deletion — except for copies (a) in routine backups pending scheduled expiry, or (b) required to be retained by law (such as billing and tax records), which remain protected by the confidentiality and security terms of the Agreement until deleted.
 
 10.6 **Backups.** Backups exist for resilience and disaster recovery, not for selective per-record restoration, and expire automatically on the cycle in the table above. Data marked for deletion is not restored from backups except in a genuine disaster-recovery scenario, after which it is re-deleted.
 
@@ -206,9 +206,9 @@
 
 13.1 **Mutual.** Each party warrants it has authority to enter into the Agreement.
 
-13.2 **nompany warranty.** nompany warrants that the Service will perform materially in accordance with its documentation during the Subscription Term, and that it will provide the Service with reasonable skill and care.
+13.2 **Sitta warranty.** Sitta warrants that the Service will perform materially in accordance with its documentation during the Subscription Term, and that it will provide the Service with reasonable skill and care.
 
-13.3 **Disclaimer.** Except as expressly stated and to the maximum extent permitted by law, the Service is provided **"as is"** and **"as available"**, and nompany disclaims all other warranties, express or implied, including merchantability, fitness for a particular purpose, and non-infringement. We do not warrant that the Service will be uninterrupted, error-free, or that it will meet requirements not agreed in writing. Nothing in these Terms excludes liability or rights that cannot be excluded under mandatory law.
+13.3 **Disclaimer.** Except as expressly stated and to the maximum extent permitted by law, the Service is provided **"as is"** and **"as available"**, and Sitta disclaims all other warranties, express or implied, including merchantability, fitness for a particular purpose, and non-infringement. We do not warrant that the Service will be uninterrupted, error-free, or that it will meet requirements not agreed in writing. Nothing in these Terms excludes liability or rights that cannot be excluded under mandatory law.
 
 ---
 
@@ -226,17 +226,17 @@
 
 ## 15. Indemnification
 
-15.1 **By nompany.** nompany will defend the Customer against third-party claims that the Service, as provided and used in accordance with the Agreement, infringes that third party's intellectual property rights, and will indemnify against damages finally awarded, subject to the Customer promptly notifying us, granting control of the defence, and providing reasonable cooperation. This does not apply to claims arising from Customer Data, unauthorised use, or combination with non-nompany products.
+15.1 **By Sitta.** Sitta will defend the Customer against third-party claims that the Service, as provided and used in accordance with the Agreement, infringes that third party's intellectual property rights, and will indemnify against damages finally awarded, subject to the Customer promptly notifying us, granting control of the defence, and providing reasonable cooperation. This does not apply to claims arising from Customer Data, unauthorised use, or combination with non-Sitta products.
 
-15.2 **By the Customer.** The Customer will defend and indemnify nompany against third-party claims arising from Customer Data or the Customer's breach of Sections 4 (Restrictions), 6 (Acceptable Use), or its data-protection representations.
+15.2 **By the Customer.** The Customer will defend and indemnify Sitta against third-party claims arising from Customer Data or the Customer's breach of Sections 4 (Restrictions), 6 (Acceptable Use), or its data-protection representations.
 
 ---
 
 ## 16. Third-party services and integrations
 
-16.1 The Service may interoperate with third-party services (such as payment, email, mapping, or storage providers). Your use of those services is governed by their own terms, and nompany is not responsible for third-party services. Enabling an integration authorises the exchange of relevant Customer Data necessary for the integration to function.
+16.1 The Service may interoperate with third-party services (such as payment, email, mapping, or storage providers). Your use of those services is governed by their own terms, and Sitta is not responsible for third-party services. Enabling an integration authorises the exchange of relevant Customer Data necessary for the integration to function.
 
-16.2 **Google APIs.** Where an integration obtains data through Google APIs — signing in with a Google Account, or connecting a Google Calendar — Annex B sets out what nompany accesses, how it is used, stored, protected, shared, retained and deleted, and prevails over this Section to the extent of any conflict.
+16.2 **Google APIs.** Where an integration obtains data through Google APIs — signing in with a Google Account, or connecting a Google Calendar — Annex B sets out what Sitta accesses, how it is used, stored, protected, shared, retained and deleted, and prevails over this Section to the extent of any conflict.
 
 ---
 
@@ -256,9 +256,9 @@ Neither party is liable for failure or delay in performance (other than payment 
 
 ## 19. Governing law and dispute resolution
 
-19.1 **Governing law.** The governing law of the Agreement, and the courts having jurisdiction over it, will be those of nompany's jurisdiction of establishment, and will be confirmed in these Terms once the company's incorporation is finalised. Until then, the parties will act in good faith. Regardless of the governing law ultimately specified, nompany applies data-protection standards consistent with the EU GDPR and UK GDPR to all Customers (see Section 9).
+19.1 **Governing law.** The governing law of the Agreement, and the courts having jurisdiction over it, will be those of Sitta's jurisdiction of establishment, and will be confirmed in these Terms once the company's incorporation is finalised. Until then, the parties will act in good faith. Regardless of the governing law ultimately specified, Sitta applies data-protection standards consistent with the EU GDPR and UK GDPR to all Customers (see Section 9).
 
-19.2 **Jurisdiction.** Once confirmed under clause 19.1, the competent courts of nompany's jurisdiction of establishment will have exclusive jurisdiction, except that either party may seek injunctive relief before any court of competent jurisdiction to protect its intellectual property or Confidential Information.
+19.2 **Jurisdiction.** Once confirmed under clause 19.1, the competent courts of Sitta's jurisdiction of establishment will have exclusive jurisdiction, except that either party may seek injunctive relief before any court of competent jurisdiction to protect its intellectual property or Confidential Information.
 
 19.3 **Escalation.** Before commencing proceedings, the parties will attempt in good faith to resolve disputes through senior-management escalation within **thirty (30) days**.
 
@@ -272,7 +272,7 @@ Neither party is liable for failure or delay in performance (other than payment 
 
 20.2 **Assignment.** You may not assign the Agreement without our prior written consent (not unreasonably withheld). We may assign to an affiliate or in connection with a merger, acquisition, or sale of assets, on notice.
 
-20.3 **Notices.** Notices must be in writing and sent to the contact details on the Order Form or account, and to nompany at info@nompany.com. Notices are deemed received on delivery (email: on confirmed transmission during business hours).
+20.3 **Notices.** Notices must be in writing and sent to the contact details on the Order Form or account, and to Sitta at info@sittaerp.com. Notices are deemed received on delivery (email: on confirmed transmission during business hours).
 
 20.4 **Severability.** If any provision is held unenforceable, it will be modified to the minimum extent necessary, and the remaining provisions continue in effect.
 
@@ -290,13 +290,13 @@ Neither party is liable for failure or delay in performance (other than payment 
 
 | Item | Detail |
 |------|--------|
-| **Subject matter** | Provision of the nompany ERP Service |
+| **Subject matter** | Provision of the Sitta ERP Service |
 | **Duration** | The Subscription Term plus applicable retention/deletion periods (Section 10) |
 | **Nature and purpose** | Hosting, processing, and support of Customer Data to deliver ERP functionality |
 | **Types of Personal Data** | Contact details; employment/HR data; identifiers (e.g., national ID, passport — encrypted); financial, payment and operational records; usage/log data |
 | **Categories of Data Subjects** | The Customer's employees, contractors, customers, suppliers, and other business contacts |
 | **Controller** | The Customer |
-| **Processor** | nompany |
+| **Processor** | Sitta |
 | **Sub-processors** | Per the published Sub-processor list (Section 9.4), including the hosting provider and Payment Processor |
 | **International transfers** | Safeguarded per Section 9.5 (SCCs / UK IDTA / equivalent) |
 | **Security measures** | Per Section 9.3 |
@@ -306,63 +306,63 @@ Neither party is liable for failure or delay in performance (other than payment 
 
 ## Annex B — Google user data (Google API Services)
 
-This Annex is nompany's disclosure for data obtained through Google APIs, and is reproduced as section 4 of the Privacy Policy. It applies in addition to Sections 9, 10 and 16, and only where you choose to sign in to nompany with a Google Account or to connect a Google Calendar from Account → Calendars. If you do neither, nompany receives no Google user data about you.
+This Annex is Sitta's disclosure for data obtained through Google APIs, and is reproduced as section 4 of the Privacy Policy. It applies in addition to Sections 9, 10 and 16, and only where you choose to sign in to Sitta with a Google Account or to connect a Google Calendar from Account → Calendars. If you do neither, Sitta receives no Google user data about you.
 
-### What Google user data nompany accesses
+### What Google user data Sitta accesses
 
-nompany requests the narrowest scope that makes each feature work, and accesses nothing beyond it:
+Sitta requests the narrowest scope that makes each feature work, and accesses nothing beyond it:
 
 | Feature | Google scope requested | Data accessed |
 |---------|------------------------|---------------|
 | Sign in with Google | `openid`, `email`, `profile` | Your Google account identifier, email address, name, and profile picture URL |
 | Connected calendar | `https://www.googleapis.com/auth/calendar.readonly` | The calendars on your account (identifier and name); for the date range being displayed, each event's identifier, title, start and end time, all-day flag, location, colour, and Google Calendar link; and free/busy periods (start and end times only) |
 
-**Read-only, and nothing else.** The calendar scope is read-only: nompany cannot and does not create, modify, or delete any event, calendar, or setting in your Google Account. It does not read event descriptions, attendees, organisers, or attachments, and it does not access Gmail, Drive, Contacts, or any other Google service — no scope granting access to those is ever requested.
+**Read-only, and nothing else.** The calendar scope is read-only: Sitta cannot and does not create, modify, or delete any event, calendar, or setting in your Google Account. It does not read event descriptions, attendees, organisers, or attachments, and it does not access Gmail, Drive, Contacts, or any other Google service — no scope granting access to those is ever requested.
 
-### How nompany uses it
+### How Sitta uses it
 
-- Sign-in data is used solely to create and authenticate your nompany account and to identify you within it.
-- Calendar data is used solely to show you your own upcoming events inside your nompany account.
+- Sign-in data is used solely to create and authenticate your Sitta account and to identify you within it.
+- Calendar data is used solely to show you your own upcoming events inside your Sitta account.
 - Where — and only where — you have explicitly opted a particular studio in to calendar sharing, colleagues who are members of that same studio can see **when** you are busy: start and end times only. They are never shown a title, location, attendee, organiser, or link. Sharing is off until you turn it on, and is granted per studio rather than once for all of them.
 
-**What it is never used for.** nompany does not use Google user data for advertising of any kind (including personalised, interest-based, or retargeted advertising); does not sell it; does not transfer it to data brokers or information resellers; does not use it to determine creditworthiness or for lending purposes; and does not use it to develop, improve, or train generalised or non-personalised artificial-intelligence or machine-learning models. It is not used to build a profile of you for any purpose other than the features described above.
+**What it is never used for.** Sitta does not use Google user data for advertising of any kind (including personalised, interest-based, or retargeted advertising); does not sell it; does not transfer it to data brokers or information resellers; does not use it to determine creditworthiness or for lending purposes; and does not use it to develop, improve, or train generalised or non-personalised artificial-intelligence or machine-learning models. It is not used to build a profile of you for any purpose other than the features described above.
 
-### What nompany stores, and what it does not
+### What Sitta stores, and what it does not
 
-**No calendar content is stored.** No event, title, time, location, link, or busy period is ever written to nompany's database. Calendar content is fetched from Google for the request that displays it and is discarded with that response.
+**No calendar content is stored.** No event, title, time, location, link, or busy period is ever written to Sitta's database. Calendar content is fetched from Google for the request that displays it and is discarded with that response.
 
-**What is stored.** For a connected calendar, nompany stores only the email address of the connected Google account, the identifiers of the calendars you selected, the date you connected, and the OAuth refresh and access tokens. Both tokens are encrypted with AES-256-GCM before they are written and are decrypted only in memory, for the duration of a request; no token is ever returned in an API response, written to a log line, or placed in a URL. For sign-in, your email address and name are stored on your nompany account record, as they would be for any other sign-in method.
+**What is stored.** For a connected calendar, Sitta stores only the email address of the connected Google account, the identifiers of the calendars you selected, the date you connected, and the OAuth refresh and access tokens. Both tokens are encrypted with AES-256-GCM before they are written and are decrypted only in memory, for the duration of a request; no token is ever returned in an API response, written to a log line, or placed in a URL. For sign-in, your email address and name are stored on your Sitta account record, as they would be for any other sign-in method.
 
-### How nompany protects it
+### How Sitta protects it
 
 All traffic to and from Google APIs is encrypted in transit with TLS, and stored tokens are encrypted at rest as described above. Access to production systems is role-based, least-privilege, and logged. These measures are in addition to the technical and organisational measures described in Section 9.
 
 ### Who it is shared with
 
-nompany does not sell, rent, or trade Google user data, and does not share it with any third party for that third party's own purposes. It is disclosed only to (a) the infrastructure Sub-processors that host and operate the Service, which act solely on nompany's instructions under the terms of Section 9 of the Terms, and (b) a competent authority where disclosure is required by law, in which case we will notify you unless legally prohibited. Within the Service, calendar data is shown only to you and — where you have opted a studio in — as busy start and end times to members of that studio, as described above.
+Sitta does not sell, rent, or trade Google user data, and does not share it with any third party for that third party's own purposes. It is disclosed only to (a) the infrastructure Sub-processors that host and operate the Service, which act solely on Sitta's instructions under the terms of Section 9 of the Terms, and (b) a competent authority where disclosure is required by law, in which case we will notify you unless legally prohibited. Within the Service, calendar data is shown only to you and — where you have opted a studio in — as busy start and end times to members of that studio, as described above.
 
 ### Retention, revocation, and deletion
 
 - Because no calendar content is stored, there is no stored calendar content to retain or delete.
-- Stored tokens are retained only for as long as the connection exists, and are deleted when you disconnect, when you revoke access at Google, or when your nompany account is deleted.
-- Disconnecting inside nompany (Account → Calendars → Disconnect) revokes the grant with Google first and then deletes nompany's stored copy — it does not merely forget a grant that would otherwise remain live.
-- You may revoke nompany's access at any time, independently of nompany, at <https://myaccount.google.com/permissions>. The connection stops working immediately, and nompany deletes its stored record the next time it attempts to use the revoked grant.
-- To request deletion of Google user data, or to ask a question about it, write to info@nompany.com.
+- Stored tokens are retained only for as long as the connection exists, and are deleted when you disconnect, when you revoke access at Google, or when your Sitta account is deleted.
+- Disconnecting inside Sitta (Account → Calendars → Disconnect) revokes the grant with Google first and then deletes Sitta's stored copy — it does not merely forget a grant that would otherwise remain live.
+- You may revoke Sitta's access at any time, independently of Sitta, at <https://myaccount.google.com/permissions>. The connection stops working immediately, and Sitta deletes its stored record the next time it attempts to use the revoked grant.
+- To request deletion of Google user data, or to ask a question about it, write to info@sittaerp.com.
 
 ### Limited Use
 
-nompany's use and transfer of information received from Google APIs to any other app adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including the Limited Use requirements.
+Sitta's use and transfer of information received from Google APIs to any other app adheres to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy), including the Limited Use requirements.
 
 ---
 
 ## Contact
 
-**nompany**
-General & legal: info@nompany.com
-Billing enquiries: ‹billing@nompany.com›
-Privacy: ‹privacy@nompany.com›
-Security incidents: ‹security@nompany.com›
+**Sitta**
+General & legal: info@sittaerp.com
+Billing enquiries: ‹billing@sittaerp.com›
+Privacy: ‹privacy@sittaerp.com›
+Security incidents: ‹security@sittaerp.com›
 
 ---
 
-*© 2026 nompany. All rights reserved.*
+*© 2026 Sitta. All rights reserved.*
