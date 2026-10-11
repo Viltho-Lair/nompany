@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { motion, useInView, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from "motion/react";
 import { reopenAnalyticsConsent } from "@/components/landing/chrome/AnalyticsConsent";
 import { getDict } from "@/shared/i18n";
-import { BRAND, BRAND_AR, brandFor, companyCopy } from "@/shared/marketing/company";
+import { BRAND, BRAND_AR_LOCKUP, brandFor, companyCopy } from "@/shared/marketing/company";
 import { ANALYTICS_HOSTS, consentCopy } from "@/shared/marketing/consent";
 import { chromeCopy } from "@/shared/marketing/chrome";
 import { heroCopy } from "@/shared/marketing/hero";
@@ -117,20 +118,39 @@ export function CurtainFooter() {
           </div>
 
           <div>
-            {/* Arabic is ONE glyph run, never split: its letters join, and a
-                letter set in its own span loses the shape it takes beside its
-                neighbours. So the rising letters are the Latin wordmark's. */}
-            {rtl ? (
-              <p aria-label={BRAND_AR} className="flex select-none justify-center text-[30vw] font-semibold leading-[0.9] lg:text-[24vw]" style={{ fontFamily: "var(--f-readex)" }}>
-                {BRAND_AR}
-              </p>
-            ) : (
-              <p aria-label={BRAND} dir="ltr" className="flex select-none justify-center text-[24vw] font-semibold leading-[0.8] tracking-[-0.07em] lg:text-[21vw]">
-                {BRAND.split("").map((ch, k) => (
-                  <Letter key={k} ch={ch} mouseX={mouseX} still={reduce} />
-                ))}
-              </p>
-            )}
+            {/* THE LOCKUP: the mark, Sitta and ستّة in one row (the owner,
+                11/10/2026). It follows the page's direction, so the reader's own
+                script sits beside the mark on either side. Everything in it rises
+                toward the cursor. The Latin rises letter by letter. Arabic rises as
+                ONE glyph run and is never split: its letters join, and a letter
+                set in its own span loses the shape it takes beside its
+                neighbours. The mark keeps its colour, because a faded hexagon
+                reads as a disabled one. */}
+            {(() => {
+              const latin = (
+                <span key="latin" dir="ltr" className="flex tracking-[-0.07em]">
+                  {BRAND.split("").map((ch, k) => (
+                    <Rise key={k} mouseX={mouseX} still={reduce}>{ch}</Rise>
+                  ))}
+                </span>
+              );
+              const arabic = (
+                <Rise key="arabic" mouseX={mouseX} still={reduce} dir="rtl" className="leading-[1.1]" style={{ fontFamily: "var(--f-readex)" }}>
+                  {BRAND_AR_LOCKUP}
+                </Rise>
+              );
+              return (
+                <p
+                  aria-label={rtl ? `${BRAND_AR_LOCKUP} ${BRAND}` : `${BRAND} ${BRAND_AR_LOCKUP}`}
+                  className="flex select-none items-baseline justify-center gap-[0.2em] text-[17vw] font-semibold leading-[0.8] lg:text-[12vw]"
+                >
+                  <Rise mouseX={mouseX} still={reduce} floor={1} className="relative h-[0.74em] w-[0.64em]">
+                    <Image src="/brand/logo-icon.png" alt="" fill sizes="14vw" className="object-contain" />
+                  </Rise>
+                  {rtl ? [arabic, latin] : [latin, arabic]}
+                </p>
+              );
+            })()}
             <div className="mt-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-3 text-[12px] text-white/40">
               <p className="max-w-[60ch] leading-relaxed">{companyCopy(locale).description}</p>
               <div className="flex items-center gap-5">
@@ -149,7 +169,13 @@ export function CurtainFooter() {
   );
 }
 
-function Letter({ ch, mouseX, still }: { ch: string; mouseX: MotionValue<number>; still: boolean | null }) {
+// One piece of the lockup that rises toward the cursor: a Latin letter, the
+// Arabic word, or the mark. `floor` is how visible it is with the cursor far
+// away; the letters ghost at 0.18 and the mark stays solid.
+function Rise({ children, mouseX, still, floor = 0.18, className = "", dir, style }: {
+  children: React.ReactNode; mouseX: MotionValue<number>; still: boolean | null;
+  floor?: number; className?: string; dir?: "rtl" | "ltr"; style?: React.CSSProperties;
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   const center = useRef(0);
   const width = useRef(1);
@@ -172,11 +198,11 @@ function Letter({ ch, mouseX, still }: { ch: string; mouseX: MotionValue<number>
     useTransform(near, (v) => -v * 0.32 * width.current),
     { stiffness: 260, damping: 20, mass: 0.6 },
   );
-  const opacity = useTransform(near, (v) => 0.18 + v * 0.82);
+  const opacity = useTransform(near, (v) => floor + v * (1 - floor));
 
   return (
-    <motion.span ref={ref} aria-hidden="true" style={still ? { opacity: 0.2 } : { y, opacity }} className="inline-block text-[#ececf1]">
-      {ch}
+    <motion.span ref={ref} aria-hidden="true" dir={dir} style={still ? { ...style, opacity: Math.max(floor, 0.2) } : { ...style, y, opacity }} className={`inline-block text-[#ececf1] ${className}`}>
+      {children}
     </motion.span>
   );
 }

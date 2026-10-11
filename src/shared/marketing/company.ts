@@ -56,6 +56,15 @@ export const BRAND = "Sitta";
  */
 export const BRAND_AR = "ستة";
 
+/**
+ * The Arabic name WITH ITS SHADDA, for the lockup only (the site footer, the
+ * owner, 11/10/2026). Unvowelled, ستة could be read as "sitah"; the shadda says
+ * "sitta", which is the point of setting it beside the Latin name. It is not
+ * BRAND_AR's replacement: running text, titles and metadata keep the plain
+ * spelling above, because that is what people type and what search matches.
+ */
+export const BRAND_AR_LOCKUP = "ستّة";
+
 /** The brand in the reader's own script: Sitta on an English page, ستة on an Arabic one. */
 export function brandFor(locale: string): string {
   return locale === "ar" ? BRAND_AR : BRAND;
