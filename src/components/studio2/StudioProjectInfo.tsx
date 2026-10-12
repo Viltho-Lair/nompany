@@ -71,7 +71,12 @@ export type ProjectClient = ProjectsBody["clients"][number];
 // EVERY UPSTREAM RECORD IS A KEY, NOT A COPY — the row carries ticketId, rfqId
 // and quotationId, and the lineage section follows them.
 
-const card = `${panel} min-h-0`;
+// SHRINK-0, NOT MIN-H-0. The board's sidebar is a scrolling flex COLUMN, and
+// `min-h-0` let the column squeeze each box below its own content instead of
+// scrolling. A panel does not clip, so each box drew over the one below it: the
+// client's email under the Project box, and the "Create project plan" button
+// under What was sold (the owner's screenshot, 12/10/2026).
+const card = `${panel} shrink-0`;
 
 // ---- data ------------------------------------------------------------------
 // The board and the legacy profile both need the projects payload plus the two
@@ -178,7 +183,7 @@ export function WhatWasSoldSection({ slug, projectId, hasSheet, lineCount }: {
           className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200/70 px-4 py-3 text-sm transition-colors hover:border-brand-500 hover:bg-slate-50 dark:border-white/10 dark:hover:border-brand-500/40 dark:hover:bg-white/5">
           <span className="font-600 text-slate-900 dark:text-white">{tr.openQuotationViewer}</span>
           <span className="text-xs text-slate-500 dark:text-slate-400">
-            {lineCount} {lineCount === 1 ? "line" : "lines"} · installation and programming are yours to mark
+            {tr.soldLines(lineCount)}
           </span>
           <Icon name="chevronRight" className="ms-auto h-4 w-4 shrink-0 text-slate-300 rtl:-scale-x-100" />
         </Link>
@@ -199,25 +204,44 @@ export function ClientSection({ client, clientName }: { client: ProjectClient | 
   const hasContact = contact.name || contact.phone || contact.email;
   return (
     <section className={card}>
-      <div className="flex flex-col items-center text-center">
-        <span className="inline-flex h-24 w-32 items-center justify-center overflow-hidden rounded-geex border border-slate-200/70 bg-white p-2 dark:border-white/10 dark:bg-white/5">
+      {/* A HEADER, NOT A POSTER. The logo was a 128×96 tile above a centred name,
+          which took a third of the sidebar before a single fact. It sits beside
+          the name now, at the size the Sales list draws it. */}
+      <div className="flex items-center gap-3">
+        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200/70 bg-white p-1 dark:border-white/10 dark:bg-white/5">
           {client?.logo
             /* eslint-disable-next-line @next/next/no-img-element */
             ? <img src={client.logo} alt="" className="h-full w-full object-contain" />
-            : <span className="font-display text-2xl font-800 text-brand-700 dark:text-brand-300">
+            : <span className="font-display text-base font-800 text-brand-700 dark:text-brand-300">
                 {(name || "?").slice(0, 2).toUpperCase()}
               </span>}
         </span>
-        <p className="mt-2 font-600 text-slate-900 dark:text-white">{name || "—"}</p>
+        <div className="min-w-0">
+          <p className="text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{tr.client}</p>
+          <p className="truncate font-600 text-slate-900 dark:text-white">{name || "—"}</p>
+        </div>
       </div>
       {hasContact && (
-        <dl className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-white/10">
-          <Field label={tr.contactPerson} value={contact.name} />
-          <Field label={tr.number} value={contact.phone} />
-          <Field label={tr.email} value={contact.email} />
+        <dl className="mt-4 space-y-2.5 border-t border-slate-100 pt-4 dark:border-white/10">
+          <Row label={tr.contactPerson} value={contact.name} />
+          <Row label={tr.number} value={contact.phone ? <a href={`tel:${contact.phone}`} dir="ltr" className="hover:text-brand-600">{contact.phone}</a> : ""} />
+          <Row label={tr.email} value={contact.email ? <a href={`mailto:${contact.email}`} className="hover:text-brand-600">{contact.email}</a> : ""} />
         </dl>
       )}
     </section>
+  );
+}
+
+// A label beside its value, for the short facts of the client box: three
+// stacked label-over-value pairs were the tallest part of the sidebar.
+function Row({ label, value }: { label: ReactNode; value: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className="shrink-0 text-xs font-600 uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="min-w-0 truncate text-end text-sm text-slate-800 dark:text-slate-100">
+        {value || <span className="text-slate-400">—</span>}
+      </dd>
+    </div>
   );
 }
 

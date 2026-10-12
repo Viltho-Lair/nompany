@@ -319,6 +319,7 @@ type Strings = CommonStrings & {
   nothingHidden: string;
   nothingStockAllocate: string;
   nothingToShowQuotationLines: string;
+  soldLines: (n: number) => string;
   number: string;
   oneRecordWrittenPer: string;
   onlyApprovedQuotationsCan: string;
@@ -794,6 +795,7 @@ const en: Strings = {
   nothingAllocated: "Nothing allocated",
   nothingHidden: "Nothing is hidden.",
   nothingStockAllocate: "Nothing in stock to allocate.",
+  soldLines: (n) => `${n} ${n === 1 ? "line" : "lines"} · installation and programming are yours to mark`,
   nothingToShowQuotationLines: "Nothing to show yet — the quotation's lines appear here once a project is opened from an approved quotation.",
   number: "Number",
   oneRecordWrittenPer: "One record is written per person selected.",
@@ -1272,6 +1274,7 @@ const ar: Strings = {
   nothingAllocated: "لم يخصص شيء",
   nothingHidden: "لا شيء مخفي.",
   nothingStockAllocate: "لا شيء في المخزون لتخصيصه.",
+  soldLines: (n) => `عدد البنود: ${n} · التركيب والبرمجة تحددهما أنت`,
   nothingToShowQuotationLines: "لا شيء لعرضه بعد — تظهر بنود عرض السعر هنا متى فتح مشروع من عرض سعر معتمد.",
   number: "الرقم",
   oneRecordWrittenPer: "يكتب سجل واحد لكل شخص محدد.",
