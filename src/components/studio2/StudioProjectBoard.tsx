@@ -141,7 +141,7 @@ export default function StudioProjectBoard({ slug, projectId }: { slug: string; 
         {/* Right sidebar — the project's information (end side; RTL-aware). Wide
             enough that the Project box's two-column fields and the client box are
             not squeezed; on a narrow viewport it drops away entirely. */}
-        <aside className="hidden w-[380px] shrink-0 flex-col gap-4 overflow-y-auto border-s border-slate-200/70 bg-[var(--geex-page)] p-4 dark:border-white/10 lg:flex xl:w-[420px]">
+        <aside className="hidden w-[380px] shrink-0 flex-col gap-3 overflow-y-auto border-s border-slate-200/70 bg-[var(--geex-page)] p-3 dark:border-white/10 lg:flex xl:w-[420px]">
           {infoError && !data ? (
             <p className="text-sm text-rose-600 dark:text-rose-300">{infoError}</p>
           ) : !data ? (
@@ -150,15 +150,15 @@ export default function StudioProjectBoard({ slug, projectId }: { slug: string; 
             <p className="text-sm text-slate-500">{tr.projectNoLongerExists}</p>
           ) : (
             <>
-              <ClientSection client={client} clientName={project.clientName} />
+              <ClientSection client={client} clientName={project.clientName} dense />
               {/* Clicking this creates the project's plan (carrying a copy of
                   the project's facts) the first time and opens it every time
                   after — the schedule opens full-screen in the planner,
                   reachable without an Operations grant because it rides the
                   project's own. */}
-              <ProjectSection project={project} people={people}
+              <ProjectSection project={project} people={people} dense
                 action={<ProjectPlanButton slug={slug} projectId={projectId} canEdit={board.canEdit} />} />
-              <WhatWasSoldSection slug={slug} projectId={projectId} hasSheet={hasSheet} lineCount={lineCount} />
+              <WhatWasSoldSection slug={slug} projectId={projectId} hasSheet={hasSheet} lineCount={lineCount} dense />
             </>
           )}
         </aside>

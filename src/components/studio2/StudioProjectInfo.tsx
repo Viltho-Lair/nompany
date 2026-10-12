@@ -77,6 +77,12 @@ export type ProjectClient = ProjectsBody["clients"][number];
 // client's email under the Project box, and the "Create project plan" button
 // under What was sold (the owner's screenshot, 12/10/2026).
 const card = `${panel} shrink-0`;
+// THE BOARD'S SIDEBAR IS NARROW, so its boxes are DENSE: 16px of padding rather
+// than the panel's 24, a smaller title, and every fact on one row, label at the
+// start and value at the end, so the three boxes line up with one another. The
+// Overview tab keeps the roomy layout, because its Project box is wide.
+const denseCard = "shrink-0 rounded-geex border border-slate-200/70 bg-[var(--geex-surface)] p-4 dark:border-white/10";
+const denseH2 = "font-display text-base font-800 text-[var(--geex-ink)]";
 
 // ---- data ------------------------------------------------------------------
 // The board and the legacy profile both need the projects payload plus the two
@@ -128,12 +134,41 @@ export function deriveProject(data: ProjectsBody | null | undefined, projectId: 
 // `action` is the decision this box leads to — the project plan button, handed
 // in by the board rather than imported here, so the information module stays
 // clear of the plans API. It reads facts first and the thing to do last.
-export function ProjectSection({ project, people, action = null }: {
+export function ProjectSection({ project, people, action = null, dense = false }: {
   project: ProjectRow;
   people: Record<string, string>;
   action?: ReactNode;
+  dense?: boolean;
 }) {
   const tr = projectsDict(useStudioLocale());
+  // `receivedDate` is stamped at create (openProject) but is not declared on ProjectSchema.
+  const received = (project as ProjectRow & { receivedDate?: string }).receivedDate;
+  if (dense) return (
+    <section className={denseCard}>
+      {/* The stage rides in the header: it is the fact read first. */}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className={denseH2}>{tr.project}</h2>
+        <StatusPill kind="project" status={project.stage} />
+      </div>
+      <dl className="mt-3 space-y-2 border-t border-slate-100 pt-3 dark:border-white/10">
+        <Row label={tr.number} value={project.number
+          ? <span className="font-mono">{project.number}</span>
+          : <span className="text-amber-700 dark:text-amber-300">{tr.notIssuedYet}</span>} />
+        <Row label={tr.handler} value={people[project.managerCollaboratorId] || tr.unassigned2} />
+        <Row label={tr.progress} value={<span className="font-mono">{`${project.progress ?? 0}%`}</span>} />
+        <Row label={tr.received} value={fmtDate(received)} />
+        <Row label={tr.start} value={fmtDate(project.startDate)} />
+        <Row label={tr.end} value={fmtDate(project.endDate)} />
+        <Row label={tr.site} value={project.location} />
+      </dl>
+      {project.notes && (
+        <p className="mt-3 whitespace-pre-wrap border-t border-slate-100 pt-3 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
+          {project.notes}
+        </p>
+      )}
+      {action && <div className="mt-3 border-t border-slate-100 pt-3 dark:border-white/10">{action}</div>}
+    </section>
+  );
   return (
     <section className={card}>
       <h2 className={h2}>{tr.project}</h2>
@@ -149,8 +184,7 @@ export function ProjectSection({ project, people, action = null }: {
             instead — it was on the left rail that this box absorbed, and it
             would otherwise have gone with it. */}
         <Field label={tr.progress} value={`${project.progress ?? 0}%`} mono />
-        {/* `receivedDate` is stamped at create (openProject) but is not declared on ProjectSchema. */}
-        <Field label={tr.received} value={fmtDate((project as ProjectRow & { receivedDate?: string }).receivedDate)} />
+        <Field label={tr.received} value={fmtDate(received)} />
         <Field label={tr.start} value={fmtDate(project.startDate)} />
         <Field label={tr.end} value={fmtDate(project.endDate)} />
         <Field label={tr.site} value={project.location} />
@@ -167,25 +201,28 @@ export function ProjectSection({ project, people, action = null }: {
   );
 }
 
-export function WhatWasSoldSection({ slug, projectId, hasSheet, lineCount }: {
-  slug: string; projectId: string; hasSheet: boolean; lineCount: number;
+export function WhatWasSoldSection({ slug, projectId, hasSheet, lineCount, dense = false }: {
+  slug: string; projectId: string; hasSheet: boolean; lineCount: number; dense?: boolean;
 }) {
   const tr = projectsDict(useStudioLocale());
   return (
-    <section className={card}>
-      <h2 className={h2}>{tr.whatSold}</h2>
+    <section className={dense ? denseCard : card}>
+      <h2 className={dense ? denseH2 : h2}>{tr.whatSold}</h2>
       {!hasSheet ? (
         <p className={sub}>
           {tr.nothingToShowQuotationLines}
         </p>
       ) : (
         <Link href={`/${slug}/projects-list/${projectId}/quotation`}
-          className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200/70 px-4 py-3 text-sm transition-colors hover:border-brand-500 hover:bg-slate-50 dark:border-white/10 dark:hover:border-brand-500/40 dark:hover:bg-white/5">
-          <span className="font-600 text-slate-900 dark:text-white">{tr.openQuotationViewer}</span>
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            {tr.soldLines(lineCount)}
+          className={`mt-3 flex items-center gap-3 rounded-xl border border-slate-200/70 text-sm transition-colors hover:border-brand-500 hover:bg-slate-50 dark:border-white/10 dark:hover:border-brand-500/40 dark:hover:bg-white/5 ${dense ? "px-3 py-2.5" : "px-4 py-3"}`}>
+          {/* The title over its count, and the arrow centred beside BOTH. With
+              flex-wrap the count dropped to its own line and left the arrow
+              alone in the corner. */}
+          <span className="min-w-0 flex-1">
+            <span className="block font-600 text-slate-900 dark:text-white">{tr.openQuotationViewer}</span>
+            <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">{tr.soldLines(lineCount)}</span>
           </span>
-          <Icon name="chevronRight" className="ms-auto h-4 w-4 shrink-0 text-slate-300 rtl:-scale-x-100" />
+          <Icon name="chevronRight" className="h-4 w-4 shrink-0 text-slate-400 rtl:-scale-x-100" />
         </Link>
       )}
     </section>
@@ -197,13 +234,13 @@ export function WhatWasSoldSection({ slug, projectId, hasSheet, lineCount }: {
 // primary contact. The client is read from Sales through the projects payload,
 // so this is one reading of that record, not a second copy. Falls back to the
 // project's own clientName when the viewer has no Sales grant to read the rest.
-export function ClientSection({ client, clientName }: { client: ProjectClient | null; clientName?: string }) {
+export function ClientSection({ client, clientName, dense = false }: { client: ProjectClient | null; clientName?: string; dense?: boolean }) {
   const tr = projectsDict(useStudioLocale());
   const name = client?.name || clientName || "";
   const contact = (client?.contacts || [])[0] || {};
   const hasContact = contact.name || contact.phone || contact.email;
   return (
-    <section className={card}>
+    <section className={dense ? denseCard : card}>
       {/* A HEADER, NOT A POSTER. The logo was a 128×96 tile above a centred name,
           which took a third of the sidebar before a single fact. It sits beside
           the name now, at the size the Sales list draws it. */}
@@ -222,7 +259,7 @@ export function ClientSection({ client, clientName }: { client: ProjectClient | 
         </div>
       </div>
       {hasContact && (
-        <dl className="mt-4 space-y-2.5 border-t border-slate-100 pt-4 dark:border-white/10">
+        <dl className={`space-y-2 border-t border-slate-100 dark:border-white/10 ${dense ? "mt-3 pt-3" : "mt-4 pt-4"}`}>
           <Row label={tr.contactPerson} value={contact.name} />
           <Row label={tr.number} value={contact.phone ? <a href={`tel:${contact.phone}`} dir="ltr" className="hover:text-brand-600">{contact.phone}</a> : ""} />
           <Row label={tr.email} value={contact.email ? <a href={`mailto:${contact.email}`} className="hover:text-brand-600">{contact.email}</a> : ""} />
@@ -232,8 +269,9 @@ export function ClientSection({ client, clientName }: { client: ProjectClient | 
   );
 }
 
-// A label beside its value, for the short facts of the client box: three
-// stacked label-over-value pairs were the tallest part of the sidebar.
+// A label beside its value, on one row: the client box's contact, and every
+// fact of a dense Project box. Stacked label-over-value pairs were most of the
+// height of the board's sidebar, and most of that height was dashes.
 function Row({ label, value }: { label: ReactNode; value: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
