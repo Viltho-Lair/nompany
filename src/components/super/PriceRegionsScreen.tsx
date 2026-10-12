@@ -5,7 +5,7 @@ import { Card, CardHead, CardBody, Table, Button, Badge, Skeleton } from "@/app/
 import { useReload } from "@/components/studio2/useReload";
 import SelectMenu from "@/components/fields/SelectMenu";
 import { CURRENCY_OPTIONS } from "@/shared/currencies";
-import { HOME_COUNTRY, priceKey, regionalPrice, totalFor } from "@/shared/priceRegions";
+import { HOME_COUNTRY, priceKey, regionalPrice } from "@/shared/priceRegions";
 import type { PriceRegion } from "@/shared/priceRegions";
 
 /** What `/api/super/price-regions` answers: the regions, and only what a price is worked out from. */
@@ -61,10 +61,10 @@ function priceRows(packages: PricedPackage[], tiers: RegionsData["tiers"]): Pric
   for (const p of packages) {
     if (p.type === "compound" && p.categories.length) {
       for (const c of p.categories) {
-        rows.push({ kind: "package", key: priceKey.band(p.id, c.id), item: p.name, part: c.label || `${c.maxEmployees} employees`, base: c.costPerEmployee, max: c.maxEmployees, unit: "per employee", isPublic: p.isPublic });
+        rows.push({ kind: "package", key: priceKey.band(p.id, c.id), item: p.name, part: c.label || `${c.maxEmployees} employees`, base: c.costPerEmployee, max: c.maxEmployees, unit: "per seat", isPublic: p.isPublic });
       }
     } else {
-      rows.push({ kind: "package", key: priceKey.package(p.id), item: p.name, part: "", base: p.costPerEmployee, max: p.maxEmployees, unit: "per employee", isPublic: p.isPublic });
+      rows.push({ kind: "package", key: priceKey.package(p.id), item: p.name, part: "", base: p.costPerEmployee, max: p.maxEmployees, unit: "per seat", isPublic: p.isPublic });
     }
   }
   for (const t of tiers) rows.push({ kind: "tier", key: priceKey.tier(t.id), item: t.name, part: "", base: t.cost, max: 0, unit: "per month", isPublic: t.isPublic });
@@ -269,7 +269,7 @@ function PriceTable({ region, data, onSave }: { region: PriceRegion; data: Regio
   const [typed, setTyped] = useState<Record<string, number | string>>(() => Object.fromEntries(rows.map((r) => [r.key, region.prices[r.key] ?? ""])));
   const [busy, setBusy] = useState(false);
   // PACKAGES AND TIERS ON TWO TABS, not one table (the owner, 23/09/2026). They
-  // are priced differently — per employee against per month — and one list
+  // are priced differently — per seat against per month — and one list
   // mixing them read as a single price sheet. What is typed on either tab is
   // kept while you switch, and one Save sends both.
   const [tab, setTab] = useState("package");
@@ -332,7 +332,7 @@ function PriceTable({ region, data, onSave }: { region: PriceRegion; data: Regio
         {shown.length === 0 ? (
           <p className={`p-5 ${muted}`}>{tab === "tier" ? "No tiers yet — add them on the Tiers screen first." : "No packages yet — add them on the Packages screen first."}</p>
         ) : (
-          <Table className="mt-4" head={["Item", data.baseCurrency ? `Base (${data.baseCurrency})` : "Base", `Suggested (${region.currency})`, `Price (${region.currency})`, tab === "tier" ? "Per month" : "Monthly total", ""]}>
+          <Table className="mt-4" head={["Item", data.baseCurrency ? `Base (${data.baseCurrency})` : "Base", `Suggested (${region.currency})`, `Price (${region.currency})`, tab === "tier" ? "Per month" : "Per seat, per month", ""]}>
             {shown.map((r) => {
               const s = suggestion(r);
               const value = typed[r.key];
@@ -352,7 +352,11 @@ function PriceTable({ region, data, onSave }: { region: PriceRegion; data: Regio
                       placeholder={s ? String(s.amount) : "Required"} value={value}
                       onChange={(e) => setTyped((t) => ({ ...t, [r.key]: e.target.value }))} />
                   </td>
-                  <td className="num">{effective === null ? "—" : r.max > 0 ? totalFor(effective, r.max, region.currency) : effective}</td>
+                  {/* A SEAT IS WHAT IS SOLD (12/10/2026): an owner buys the seats
+                      they need and each band prices its own, so this column is
+                      the rate a seat costs. It showed the band's top times the
+                      rate, a price nobody pays any more. */}
+                  <td className="num">{effective === null ? "—" : r.kind === "tier" ? effective : `${effective} / seat`}</td>
                   <td>{value !== "" ? <Badge tone="success">Fixed</Badge> : s ? <Badge tone="warning">Suggestion</Badge> : <Badge tone="danger">No price</Badge>}</td>
                 </tr>
               );

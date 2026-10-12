@@ -60,7 +60,7 @@ currency and do not move; suggestions re-derive from the new base.
   Rest of world (USD, default). Every level is 100 and no price is fixed. Planting
   happens only when the list has never existed, never into one somebody emptied.
 - **The console's Regional pricing screen** (`/super/regions`) edits regions and each
-  region's price table: base, suggestion, the fixed price, the monthly total and whether
+  region's price table: base, suggestion, the fixed price, the price per seat a month (a tier: per month; it showed a band's top × its rate until 12/10/2026) and whether
   it is fixed. "Fix all suggestions" copies every suggestion into its box, to be saved
   as fixed prices.
 
