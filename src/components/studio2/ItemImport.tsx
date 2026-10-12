@@ -136,8 +136,18 @@ export default function ItemImport({ slug, items, vendors, units, categories = [
     const added = plan.newCategories.find((x) => x.id === id);
     return added ? `${added.name} (${tr.newCategory})` : "";
   };
-  // Asked of the file against the register as STORED, like the suppliers
-  // below, so the offer stays on screen whether or not it is taken.
+  // WHAT THE OPTION WOULD ADD, planned with it on whether or not it is ticked,
+  // so its label counts the categories that would really be added — not names
+  // on refused rows, nor ones the register could never take — and stays on
+  // screen when it is unticked.
+  const categoryOffer = useMemo(
+    () => (canCreateCategories
+      ? planItemImport(read.rows, env, { update, createVendors, createCategories: true }).newCategories
+      : []),
+    [read.rows, env, update, createVendors, canCreateCategories],
+  );
+  // Asked of the file against the register as STORED, for the person who may
+  // not add them: those items come in unfiled, and the dialog says why.
   const missingCategories = useMemo(() => {
     const out = new Map<string, string>();
     for (const r of read.rows) {
@@ -417,13 +427,13 @@ export default function ItemImport({ slug, items, vendors, units, categories = [
                 </span>
               </label>
             )}
-            {missingCategories.length > 0 && canCreateCategories && (
+            {categoryOffer.length > 0 && (
               <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
                 <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={createCategories}
                   onChange={(e) => setCreateCategories(e.target.checked)} />
-                <span>{tr.optCategories(missingCategories.length)}
+                <span>{tr.optCategories(categoryOffer.length)}
                   <span className="block text-xs text-slate-500 dark:text-slate-400">
-                    {tr.optCategoriesHint(createCategories ? shortList(plan.newCategories.map((c) => c.path), 6) : shortList(missingCategories, 6))}
+                    {tr.optCategoriesHint(shortList(categoryOffer.map((c) => c.path), 6))}
                   </span>
                 </span>
               </label>

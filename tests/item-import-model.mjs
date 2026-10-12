@@ -368,6 +368,8 @@ for (const locale of ["en", "ar"]) {
     && sweets.create[0].categoryId === sweets.newCategories[0].id && sweets.create[0].categoryId.startsWith(I.NEW_CATEGORY));
   ok("...with no warning, because it is no longer unknown", sweets.unknownCategories.length === 0 && sweets.warnings.length === 0);
   ok("without the option nothing is planned", one({ name: "A", category: "Sweets" }, {}, e).newCategories.length === 0);
+  ok("one unknown name written in two cases is named once",
+    plan([{ line: 2, name: "A", category: "Sweets" }, { line: 3, name: "B", category: "sweets" }], {}, e).unknownCategories.join() === "Sweets");
   const twice = plan([{ line: 2, name: "A", category: "Sweets" }, { line: 3, name: "B", category: "sweets" }], add, e);
   ok("two rows naming one new category add it once and share it",
     twice.newCategories.length === 1 && twice.create[0].categoryId === twice.create[1].categoryId);

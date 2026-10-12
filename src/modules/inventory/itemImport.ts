@@ -466,7 +466,9 @@ export function planItemImport(rows: readonly ItemImportRow[], env: ImportEnv, o
   const warnings: ImportWarning[] = [];
   const newVendors = new Map<string, { name: string; types: Set<string> }>();
   const unknownUnits = new Set<string>();
-  const unknownCategories = new Set<string>();
+  // Keyed without regard to case, as a category is matched: "Sweets" and
+  // "sweets" are one name the studio lacks, not two.
+  const unknownCategories = new Map<string, string>();
   // THE REGISTER AS IT WILL BE: what is stored, plus what this file adds, so a
   // second row naming a new category files under the one the first row added.
   const categories: CategoryNode[] = [...(env.categories || [])];
@@ -604,7 +606,7 @@ export function planItemImport(rows: readonly ItemImportRow[], env: ImportEnv, o
       }
     }
     if (resolved === null) {
-      unknownCategories.add(writtenCategory);
+      if (!unknownCategories.has(writtenCategory.toLowerCase())) unknownCategories.set(writtenCategory.toLowerCase(), writtenCategory);
       warnings.push({ line, kind: "category-unknown", detail: writtenCategory });
     }
     const categoryId = resolved || "";
@@ -651,7 +653,7 @@ export function planItemImport(rows: readonly ItemImportRow[], env: ImportEnv, o
     create, update, refused, warnings, likelySwap,
     newVendors: [...newVendors.values()].map((v) => ({ name: v.name, itemTypes: [...v.types] })),
     unknownUnits: [...unknownUnits],
-    unknownCategories: [...unknownCategories],
+    unknownCategories: [...unknownCategories.values()],
     // Parents before their children, so they can be written in this order.
     newCategories,
     // ITEMS FILED UNDER A CATEGORY THAT HAS SUBCATEGORIES: each may carry a
