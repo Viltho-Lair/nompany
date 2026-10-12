@@ -16,6 +16,14 @@ import {
 import { Check, X } from 'lucide-react';
 import { cn } from '@/components/planner/lib/utils';
 
+/* ------------------------------ portal theme ----------------------------- */
+// Every portal below renders into <body>, outside `.planner-root`, so without
+// this it would miss the planner's tokens and its dark palette (planner.css).
+// `display: contents` adds no box, so Radix's positioning is untouched.
+function PortalTheme({ children }: { children: React.ReactNode }) {
+  return <div className="planner-root planner-theme contents">{children}</div>;
+}
+
 /* ---------------------------------- Card --------------------------------- */
 
 export const Card = React.forwardRef<
@@ -134,7 +142,7 @@ export const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
 >(({ className, sideOffset = 6, ...props }, ref) => (
-  <TooltipPrimitive.Portal>
+  <TooltipPrimitive.Portal><PortalTheme>
     <TooltipPrimitive.Content
       ref={ref}
       sideOffset={sideOffset}
@@ -144,7 +152,7 @@ export const TooltipContent = React.forwardRef<
       )}
       {...props}
     />
-  </TooltipPrimitive.Portal>
+  </PortalTheme></TooltipPrimitive.Portal>
 ));
 TooltipContent.displayName = 'TooltipContent';
 
@@ -176,7 +184,7 @@ export const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
 >(({ className, align = 'start', sideOffset = 6, ...props }, ref) => (
-  <PopoverPrimitive.Portal>
+  <PopoverPrimitive.Portal><PortalTheme>
     <PopoverPrimitive.Content
       ref={ref}
       align={align}
@@ -187,7 +195,7 @@ export const PopoverContent = React.forwardRef<
       )}
       {...props}
     />
-  </PopoverPrimitive.Portal>
+  </PortalTheme></PopoverPrimitive.Portal>
 ));
 PopoverContent.displayName = 'PopoverContent';
 
@@ -202,7 +210,7 @@ export const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
 >(({ className, sideOffset = 6, align = 'start', ...props }, ref) => (
-  <DropdownMenuPrimitive.Portal>
+  <DropdownMenuPrimitive.Portal><PortalTheme>
     <DropdownMenuPrimitive.Content
       ref={ref}
       align={align}
@@ -213,7 +221,7 @@ export const DropdownMenuContent = React.forwardRef<
       )}
       {...props}
     />
-  </DropdownMenuPrimitive.Portal>
+  </PortalTheme></DropdownMenuPrimitive.Portal>
 ));
 DropdownMenuContent.displayName = 'DropdownMenuContent';
 
@@ -318,7 +326,7 @@ export const DialogContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => {
   const tr = plannerDict(useStudioLocale());
   return (
-  <DialogPrimitive.Portal>
+  <DialogPrimitive.Portal><PortalTheme>
     <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-slate-900/30 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=open]:fade-in-0" />
     <DialogPrimitive.Content
       ref={ref}
@@ -338,7 +346,7 @@ export const DialogContent = React.forwardRef<
         <span className="sr-only">{tr.close2}</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
-  </DialogPrimitive.Portal>
+  </PortalTheme></DialogPrimitive.Portal>
   );
 });
 DialogContent.displayName = 'DialogContent';

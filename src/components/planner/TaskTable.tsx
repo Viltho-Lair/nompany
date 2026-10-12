@@ -496,7 +496,7 @@ function RowMenu({ task }: { task: ComputedTask }) {
           // is untouched and no containing block is created. Same wrapper, same
           // reason, as the studio Dialog and kanban's PortalScope. Gate A asserts
           // every portal to document.body declares its own dir.
-          <div lang={locale} dir={dirFor(locale)} className="contents">
+          <div lang={locale} dir={dirFor(locale)} className="contents planner-root planner-theme">
             <div
               ref={menuRef}
               role="menu"

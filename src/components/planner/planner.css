@@ -23,11 +23,24 @@
      Tailwind's default radii), the two scroll utilities and the grid-cell MUI
      input styling that lived in the source app's globals.css.
 
-  3. Pins the planner to its LIGHT design in BOTH themes. The source app is
-     light-only (no next-themes, no dark palette); a faithful port keeps that
-     exact look, so `.dark .planner-root` re-declares the same light values
-     rather than inventing a dark theme. The whole surface — including the back
-     bar StudioPlanner draws around it — reads as the planner's own light app.
+  3. Follows the studio's theme (the owner, 12/10/2026). It used to pin the
+     planner LIGHT in both themes, because the source app had no dark palette
+     and the port kept its exact look. On a dark studio that was a white
+     screen in the middle of a charcoal product. The light design is
+     unchanged; dark is the studio's own charcoal (--p-charcoal*), applied two
+     ways, at the end of this file:
+       - the tokens above get dark values under `.dark .planner-root`;
+       - the planner's LITERAL colour classes (`bg-white`, `text-slate-500`,
+         `hover:bg-slate-100`, … the port wrote ~400 of them) are remapped
+         under `.dark .planner-theme`, so no component carries a `dark:` twin
+         for each one.
+     `planner-theme` wraps the whole full-screen planner (StudioPlanner, back
+     bar included) and every portal the planner opens into <body>: the row
+     menu, tooltips, popovers, dropdowns and dialogs. Those render outside
+     `.planner-root`, so without the wrapper they would stay white.
+     tests/planner-theme.mjs fails on a colour class that has no dark rule
+     here, because a missed one is a white patch nothing else reports.
+     The print sheet (PlanPrint) is outside both and stays light: it is paper.
 
   4. Sets the planner's system font stack + 14px base, mirroring the source
      app's `body` rule, so the type reads exactly as the original (not Sitta's
@@ -98,29 +111,49 @@
   color: hsl(var(--foreground));
 }
 
-/*
-  Light-only by design. The source planner has no dark theme; re-declaring the
-  same light values under `.dark` keeps the port design-identical inside
-  Sitta's dark shell instead of inventing colours the original never had.
-*/
+/* Dark tokens: the studio's charcoal (--p-charcoal #111117 as the card). */
 .dark .planner-root {
-  --doc-background: 255 255 255;
-  --doc-foreground: 32 37 50;
-  --doc-card: 255 255 255;
-  --doc-card-foreground: 32 37 50;
-  --doc-popover: 255 255 255;
-  --doc-popover-foreground: 32 37 50;
-  --doc-primary: 69 115 210;
+  --background: 240 15% 8%;
+  --foreground: 228 18% 93%;
+  --card: 240 15% 8%;
+  --card-foreground: 228 18% 93%;
+  --popover: 240 14% 10%;
+  --popover-foreground: 228 18% 93%;
+  --primary: 220 70% 62%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 12% 12%;
+  --secondary-foreground: 228 15% 86%;
+  --muted: 240 12% 12%;
+  --muted-foreground: 226 8% 60%;
+  --accent: 240 12% 14%;
+  --accent-foreground: 228 15% 88%;
+  --destructive: 0 79% 68%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 11% 17%;
+  --input: 240 10% 21%;
+  --ring: 220 70% 62%;
+  --grid-line: 240 10% 14%;
+  --grid-line-strong: 240 9% 20%;
+  --weekend: 240 14% 10%;
+  --today: 220 70% 62%;
+
+  --doc-background: 17 17 23;
+  --doc-foreground: 232 234 241;
+  --doc-card: 17 17 23;
+  --doc-card-foreground: 232 234 241;
+  --doc-popover: 22 22 29;
+  --doc-popover-foreground: 232 234 241;
+  --doc-primary: 91 134 224;
   --doc-primary-foreground: 255 255 255;
-  --doc-secondary: 243 244 246;
-  --doc-secondary-foreground: 40 46 62;
-  --doc-muted: 243 244 246;
-  --doc-muted-foreground: 107 114 128;
+  --doc-secondary: 28 28 36;
+  --doc-secondary-foreground: 214 217 226;
+  --doc-muted: 28 28 36;
+  --doc-muted-foreground: 143 148 163;
   --doc-destructive: 238 109 109;
   --doc-destructive-foreground: 255 255 255;
-  --doc-border: 229 231 235;
-  --doc-input: 220 223 228;
-  --doc-ring: 69 115 210;
+  --doc-border: 38 38 48;
+  --doc-input: 44 44 55;
+  --doc-ring: 91 134 224;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -188,3 +221,95 @@
   border-color: rgb(69 115 210);
   border-width: 1px;
 }
+
+.dark .planner-root .grid-cell-input:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgb(52 52 63);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                     dark: the planner's literal classes                    */
+/* -------------------------------------------------------------------------- */
+/*
+  One rule per colour class the planner writes, so its light design stays
+  byte-for-byte what it was and dark is a palette swap. Unlayered, so these win
+  over Tailwind's utilities (which sit in @layer tw-utilities); a state variant
+  (hover:, focus:, data-[state=…]:) is one class deeper, so it still beats its
+  element's resting colour. Surfaces step up from the studio's card #111117;
+  text steps down from near-white. Tints (amber/rose/blue/emerald/sky -50)
+  become their hue at low alpha, and their -600/-700/-800 text becomes the
+  light end of the same hue, which is how the rest of the studio does it.
+
+  Deliberately NOT remapped, because they already read on charcoal: text-white,
+  bg-emerald-500, bg-rose-400, bg-rose-500, border-blue-500, fill-amber-400,
+  text-amber-400, text-amber-500, bg-slate-500/70. tests/planner-theme.mjs
+  holds that list too.
+*/
+
+/* surfaces */
+.dark .planner-theme .bg-white { background-color: #111117; }
+.dark .planner-theme .bg-white\/85 { background-color: rgb(17 17 23 / 0.85); }
+.dark .planner-theme .bg-white\/80 { background-color: rgb(17 17 23 / 0.8); }
+.dark .planner-theme .bg-white\/70 { background-color: rgb(17 17 23 / 0.7); }
+.dark .planner-theme .bg-\[\#F9FAFB\] { background-color: #0c0c11; }
+.dark .planner-theme .bg-slate-50 { background-color: #16161d; }
+.dark .planner-theme .bg-slate-50\/50 { background-color: rgb(22 22 29 / 0.5); }
+.dark .planner-theme .bg-slate-50\/40 { background-color: rgb(22 22 29 / 0.4); }
+.dark .planner-theme .bg-slate-100 { background-color: #1c1c24; }
+.dark .planner-theme .bg-slate-100\/70 { background-color: rgb(28 28 36 / 0.7); }
+.dark .planner-theme .bg-slate-200 { background-color: #262630; }
+.dark .planner-theme .bg-slate-300 { background-color: #32323d; }
+.dark .planner-theme .bg-slate-400\/70 { background-color: rgb(90 94 110 / 0.7); }
+.dark .planner-theme .bg-slate-900 { background-color: #2a2a35; }
+.dark .planner-theme .bg-slate-900\/30 { background-color: rgb(0 0 0 / 0.55); }
+.dark .planner-theme .hover\:bg-white:hover { background-color: #1c1c24; }
+.dark .planner-theme .hover\:bg-slate-50:hover { background-color: #1c1c24; }
+.dark .planner-theme .hover\:bg-slate-50\/80:hover { background-color: rgb(28 28 36 / 0.8); }
+.dark .planner-theme .hover\:bg-slate-100:hover { background-color: #22222b; }
+.dark .planner-theme .focus\:bg-slate-100:focus { background-color: #22222b; }
+.dark .planner-theme .hover\:bg-slate-200:hover { background-color: #2c2c37; }
+.dark .planner-theme .data-\[state\=unchecked\]\:bg-slate-300[data-state="unchecked"] { background-color: #3a3a46; }
+
+/* lines */
+.dark .planner-theme .border-slate-100 { border-color: #1c1c24; }
+.dark .planner-theme .border-slate-200 { border-color: #262630; }
+.dark .planner-theme .border-slate-300 { border-color: #34343f; }
+.dark .planner-theme .hover\:border-slate-200:hover { border-color: #2e2e39; }
+.dark .planner-theme .ring-white { --tw-ring-color: #111117; }
+
+/* text */
+.dark .planner-theme .text-slate-900 { color: #f1f2f6; }
+.dark .planner-theme .text-slate-800 { color: #e2e4ea; }
+.dark .planner-theme .text-slate-700 { color: #cdd0d9; }
+.dark .planner-theme .text-slate-600 { color: #b0b4c0; }
+.dark .planner-theme .text-slate-500 { color: #8f94a3; }
+.dark .planner-theme .text-slate-400 { color: #6f7484; }
+.dark .planner-theme .text-slate-300 { color: #4b4f5c; }
+.dark .planner-theme .hover\:text-slate-900:hover { color: #ffffff; }
+.dark .planner-theme .hover\:text-slate-800:hover { color: #f1f2f6; }
+.dark .planner-theme .hover\:text-slate-700:hover { color: #e2e4ea; }
+.dark .planner-theme .hover\:text-slate-600:hover { color: #cdd0d9; }
+.dark .planner-theme .placeholder\:text-slate-400::placeholder { color: #6f7484; }
+.dark .planner-theme .fill-slate-700 { fill: #cdd0d9; }
+
+/* tints */
+.dark .planner-theme .bg-amber-50 { background-color: rgb(245 158 11 / 0.12); }
+.dark .planner-theme .border-amber-200 { border-color: rgb(245 158 11 / 0.3); }
+.dark .planner-theme .text-amber-600 { color: #f59e0b; }
+.dark .planner-theme .text-amber-700 { color: #fbbf24; }
+.dark .planner-theme .text-amber-800 { color: #fcd34d; }
+.dark .planner-theme .bg-rose-50 { background-color: rgb(244 63 94 / 0.12); }
+.dark .planner-theme .hover\:bg-rose-50:hover { background-color: rgb(244 63 94 / 0.18); }
+.dark .planner-theme .focus\:bg-rose-50:focus { background-color: rgb(244 63 94 / 0.18); }
+.dark .planner-theme .border-rose-200 { border-color: rgb(244 63 94 / 0.3); }
+.dark .planner-theme .text-rose-600 { color: #fb7185; }
+.dark .planner-theme .hover\:text-rose-600:hover { color: #fb7185; }
+.dark .planner-theme .text-rose-700 { color: #fda4af; }
+.dark .planner-theme .bg-blue-50 { background-color: rgb(69 115 210 / 0.16); }
+.dark .planner-theme .bg-blue-50\/60 { background-color: rgb(69 115 210 / 0.12); }
+.dark .planner-theme .bg-blue-50\/50 { background-color: rgb(69 115 210 / 0.1); }
+.dark .planner-theme .text-blue-700 { color: #9bb8f3; }
+.dark .planner-theme .bg-emerald-50 { background-color: rgb(16 185 129 / 0.12); }
+.dark .planner-theme .text-emerald-600 { color: #34d399; }
+.dark .planner-theme .text-emerald-700 { color: #6ee7b7; }
+.dark .planner-theme .bg-sky-50 { background-color: rgb(14 165 233 / 0.12); }
+.dark .planner-theme .text-sky-700 { color: #7dd3fc; }

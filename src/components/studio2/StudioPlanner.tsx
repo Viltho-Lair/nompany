@@ -170,76 +170,81 @@ export default function StudioPlanner({ planApiBase, slug, backHref, backLabel, 
   }, [state.loading, state.canEdit, planApiBase]);
 
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-white">
-      {/* ---- back bar: nompany chrome around the ported app ---- */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
-        <Link
-          href={backHref}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-        >
-          <span aria-hidden="true" className="rtl:-scale-x-100">
-            ←
-          </span>
-          {backLabel}
-        </Link>
-
-        <div className="min-w-0">
-          <p className="truncate text-[15px] font-semibold text-slate-900">
-            {planName || tr.untitledPlan2}
-          </p>
-        </div>
-
-        <span className="ms-auto flex items-center gap-2">
-          {!state.loading && !state.canEdit && (
-            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500">
-              {tr.viewOnly}
+    // `planner-theme` carries the studio's dark mode into the planner
+    // (planner.css). A wrapper of its own, with no box, because its rules
+    // match the planner's classes BELOW it, and this div paints bg-white itself.
+    <div className="planner-theme contents">
+      <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-white">
+        {/* ---- back bar: nompany chrome around the ported app ---- */}
+        <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5">
+          <Link
+            href={backHref}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-200 px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            <span aria-hidden="true" className="rtl:-scale-x-100">
+              ←
             </span>
-          )}
-          {/* WHO CHANGED WHAT, for anybody who may open the plan — reading the
-              record of a change is not a second power over it, and the panel
-              fetches only when it is opened. */}
-          {!state.loading && !state.error && (
-            <button type="button" onClick={() => setHistoryOpen((v) => !v)}
-              aria-expanded={historyOpen}
-              className="inline-flex h-9 items-center rounded-full border border-slate-200 px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50">
-              {tr.history}
-            </button>
-          )}
-        </span>
-      </header>
+            {backLabel}
+          </Link>
 
-      {/* A plain reason the plan is not saving. Read-only comes first — an edit a
-          viewer makes would apply on screen and then vanish on reload, so it is
-          better to say up front that nothing here is being kept. */}
-      {!state.loading && !state.error && !state.canEdit && (
-        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-800">
-          {tr.viewOnlyAccessPlan}
-        </div>
-      )}
-      {!state.loading && state.canEdit && saveFailed && (
-        <div className="shrink-0 border-b border-rose-200 bg-rose-50 px-4 py-2 text-center text-xs font-semibold text-rose-700">
-          {tr.lastChangeNotSaved}
-        </div>
-      )}
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-semibold text-slate-900">
+              {planName || tr.untitledPlan2}
+            </p>
+          </div>
 
-      {/* ---- the ported planner, inside its scoped design-system root ---- */}
-      {/* Positioned, so the history panel sits OVER the planner rather than
-          squeezing the Gantt into a narrower column while it is open. */}
-      <div className="relative min-h-0 flex-1">
-        {historyOpen && <PlanHistory planApiBase={planApiBase} onClose={() => setHistoryOpen(false)} />}
-        <div className="planner-root h-full">
-          {state.loading ? (
-            // The brand mark, as every full-page wait is (ScreenSkeleton).
-            <ScreenSkeleton />
-          ) : state.error ? (
-            <div className="grid h-full place-items-center p-8">
-              <p className="max-w-sm text-center text-sm text-rose-600">
-                {tr.planCouldNotLoad}
-              </p>
-            </div>
-          ) : (
-            <PlannerShell readOnly={!state.canEdit} studioSlug={slug} printHref={printHref} />
-          )}
+          <span className="ms-auto flex items-center gap-2">
+            {!state.loading && !state.canEdit && (
+              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500">
+                {tr.viewOnly}
+              </span>
+            )}
+            {/* WHO CHANGED WHAT, for anybody who may open the plan — reading the
+                record of a change is not a second power over it, and the panel
+                fetches only when it is opened. */}
+            {!state.loading && !state.error && (
+              <button type="button" onClick={() => setHistoryOpen((v) => !v)}
+                aria-expanded={historyOpen}
+                className="inline-flex h-9 items-center rounded-full border border-slate-200 px-3.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50">
+                {tr.history}
+              </button>
+            )}
+          </span>
+        </header>
+
+        {/* A plain reason the plan is not saving. Read-only comes first — an edit a
+            viewer makes would apply on screen and then vanish on reload, so it is
+            better to say up front that nothing here is being kept. */}
+        {!state.loading && !state.error && !state.canEdit && (
+          <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-800">
+            {tr.viewOnlyAccessPlan}
+          </div>
+        )}
+        {!state.loading && state.canEdit && saveFailed && (
+          <div className="shrink-0 border-b border-rose-200 bg-rose-50 px-4 py-2 text-center text-xs font-semibold text-rose-700">
+            {tr.lastChangeNotSaved}
+          </div>
+        )}
+
+        {/* ---- the ported planner, inside its scoped design-system root ---- */}
+        {/* Positioned, so the history panel sits OVER the planner rather than
+            squeezing the Gantt into a narrower column while it is open. */}
+        <div className="relative min-h-0 flex-1">
+          {historyOpen && <PlanHistory planApiBase={planApiBase} onClose={() => setHistoryOpen(false)} />}
+          <div className="planner-root h-full">
+            {state.loading ? (
+              // The brand mark, as every full-page wait is (ScreenSkeleton).
+              <ScreenSkeleton />
+            ) : state.error ? (
+              <div className="grid h-full place-items-center p-8">
+                <p className="max-w-sm text-center text-sm text-rose-600">
+                  {tr.planCouldNotLoad}
+                </p>
+              </div>
+            ) : (
+              <PlannerShell readOnly={!state.canEdit} studioSlug={slug} printHref={printHref} />
+            )}
+          </div>
         </div>
       </div>
     </div>
