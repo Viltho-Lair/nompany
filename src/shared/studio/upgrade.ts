@@ -6,6 +6,9 @@ import { defaultLocale } from "../locale";
 //
 // Package, band and tier NAMES are not here: they are the catalogue's, typed in
 // /super, and shown as stored.
+//
+// THE OWNER CHOOSES A SEAT COUNT (12/10/2026), so the band pills became a seat
+// field, and the price is shown band by band.
 
 type Strings = {
   button: string;
@@ -13,14 +16,17 @@ type Strings = {
   lead: string;
   current: (pkg: string) => string;
   noPackages: string;
-  band: string;
+  seatsLabel: string;
+  seatsHint: (min: number, max: number, members: number) => string;
+  seatLine: (label: string, n: number) => string;
+  tierLine: string;
+  refusal: Record<string, string>;
   tier: string;
   monthly: string;
   yearly: string;
   perMonth: string;
   perYear: string;
   seats: (n: number) => string;
-  unlimitedSeats: string;
   subtotal: string;
   tax: (pct: number) => string;
   total: string;
@@ -41,21 +47,30 @@ type Strings = {
 const en: Strings = {
   button: "Upgrade",
   title: (studio) => `Upgrade ${studio}`,
-  lead: "Choose the package to pay for. You pay by bank transfer; the package applies as soon as the payment arrives.",
+  lead: "Choose the package and how many people need access. You pay for those seats only, by bank transfer; the plan applies as soon as the payment arrives.",
   current: (pkg) => `Now on ${pkg}.`,
   noPackages: "No packages are on sale in your region yet. Contact Sitta to upgrade.",
-  band: "Team size",
+  seatsLabel: "Seats",
+  seatsHint: (min, max, members) => `${max ? `${min} to ${max} seats` : `${min} seats or more`}. You have ${members} ${members === 1 ? "person" : "people"} in the studio now. You can add seats later, or lower them from the next renewal.`,
+  seatLine: (label, n) => `Seats ${label} · ${n}`,
+  tierLine: "Tier",
+  refusal: {
+    "below-minimum": "That is fewer seats than this package sells.",
+    "above-maximum": "That is more seats than this package sells. Contact Sitta for a larger plan.",
+    "fewer-than-members": "You have more people in the studio than that. Remove people first, or choose more seats.",
+    "claim-open": "You told us about a transfer we haven't checked yet. Wait for our answer before changing the plan.",
+    "renewal-open": "Your renewal is waiting to be paid. Pay it first; you can change seats from your billing page.",
+  },
   tier: "Tier",
   monthly: "Monthly",
   yearly: "Yearly",
   perMonth: "per month",
   perYear: "per year",
-  seats: (n) => `Up to ${n} people`,
-  unlimitedSeats: "No limit on people",
+  seats: (n) => `${n} ${n === 1 ? "seat" : "seats"}`,
   subtotal: "Price",
   tax: (pct) => `Sales tax (${pct}%)`,
   total: "Total",
-  send: "Request this upgrade",
+  send: "Request this plan",
   sending: "Sending…",
   pending: (when) => `You asked for this on ${when}.`,
   pendingNote: "The package applies as soon as your payment arrives.",
@@ -71,21 +86,30 @@ const en: Strings = {
 const ar: Strings = {
   button: "ترقية",
   title: (studio) => `ترقية ${studio}`,
-  lead: "اختر الباقة التي تريد الدفع مقابلها. يتم الدفع بحوالة بنكية، وتُطبق الباقة فور وصول الدفعة.",
+  lead: "اختر الباقة وعدد الأشخاص الذين يحتاجون إلى الدخول. تدفع مقابل هذه المقاعد فقط، بحوالة بنكية، وتُطبق الخطة فور وصول الدفعة.",
   current: (pkg) => `الباقة الحالية: ${pkg}.`,
   noPackages: "لا توجد باقات معروضة في منطقتك بعد. تواصل مع ستة للترقية.",
-  band: "حجم الفريق",
+  seatsLabel: "المقاعد",
+  seatsHint: (min, max, members) => `${max ? `من ${min} إلى ${max} مقعدًا` : `${min} مقعدًا أو أكثر`}. لديك الآن ${members} ${members === 1 ? "شخص" : "أشخاص"} في الاستوديو. يمكنك إضافة مقاعد لاحقًا، أو تقليلها ابتداءً من التجديد التالي.`,
+  seatLine: (label, n) => `المقاعد ${label} · ${n}`,
+  tierLine: "المستوى",
+  refusal: {
+    "below-minimum": "هذا أقل من عدد المقاعد الذي تبيعه هذه الباقة.",
+    "above-maximum": "هذا أكثر من عدد المقاعد الذي تبيعه هذه الباقة. تواصل مع ستة لخطة أكبر.",
+    "fewer-than-members": "لديك أشخاص في الاستوديو أكثر من هذا العدد. أزل بعضهم أولًا، أو اختر مقاعد أكثر.",
+    "claim-open": "أخبرتنا بحوالة لم نتحقق منها بعد. انتظر ردنا قبل تغيير الخطة.",
+    "renewal-open": "تجديدك بانتظار الدفع. ادفعه أولًا، ويمكنك تغيير المقاعد من صفحة الفوترة.",
+  },
   tier: "المستوى",
   monthly: "شهري",
   yearly: "سنوي",
   perMonth: "شهريا",
   perYear: "سنويا",
-  seats: (n) => `حتى ${n} أشخاص`,
-  unlimitedSeats: "عدد غير محدود من الأشخاص",
+  seats: (n) => `${n} ${n === 1 ? "مقعد" : "مقاعد"}`,
   subtotal: "السعر",
   tax: (pct) => `ضريبة المبيعات (${pct}%)`,
   total: "الإجمالي",
-  send: "اطلب هذه الترقية",
+  send: "اطلب هذه الخطة",
   sending: "جار الإرسال…",
   pending: (when) => `طلبت هذه الترقية في ${when}.`,
   pendingNote: "تُطبق الباقة فور وصول دفعتك.",

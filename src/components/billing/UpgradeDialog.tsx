@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useReload } from "@/components/studio2/useReload";
 import { fmtCurrencyAmount } from "@/lib/pricing";
-import { quoteUpgrade } from "@/shared/upgradeQuote";
+import { quoteSeats, seatsOffered } from "@/shared/upgradeQuote";
 import { upgradeDict } from "@/shared/studio/upgrade";
 import { dirFor } from "@/shared/locale";
 import TransferPanel from "./TransferPanel";
@@ -13,12 +13,13 @@ import type { OwnerBillingView } from "@/lib/data/customerBilling";
 // WHAT `GET /upgrade` ANSWERS, as this dialog reads it. The price list's own
 // type leaves a card's fields `unknown` because it is checked against stored
 // rows; over the wire they are the JSON shapes below.
-type Band = { id: string; label?: string; minEmployees?: number; maxEmployees?: number };
-type UpgradeCard = { id: string; type?: string; name?: string; nameAr?: string; categories?: Band[] };
+type Band = { id: string; label?: string; minEmployees?: number; maxEmployees?: number; perEmployee?: number };
+type UpgradeCard = { id: string; type?: string; name?: string; nameAr?: string; minEmployees?: number; maxEmployees?: number; perEmployee?: number; categories?: Band[] };
 type UpgradeData = {
   current: { packageId: string; tierId: string };
   requested: Partial<UpgradeChoice> | null;
   request: (UpgradeChoice & { total: number; requestedAt?: string }) | null;
+  members: number;
   list: Omit<PriceList, "cards" | "tiers"> & { cards: UpgradeCard[]; tiers: { id: string; name?: string }[] };
 };
 
@@ -27,9 +28,10 @@ type UpgradeData = {
 // owner, 24/09/2026).
 //
 // IT ASKS, IT DOES NOT CHARGE. There is no checkout yet: the owner picks a
-// package, a band, a tier and a cycle, sees the price in their region's
-// currency with tax, and sends the request. nompany takes the payment and
-// records it against that package, which is what moves the studio.
+// package, HOW MANY SEATS (12/10/2026 — never fewer than the people already
+// in the studio), a tier and a cycle, sees the price band by band in their
+// region's currency with tax, and sends the request. nompany takes the payment
+// and records it against that plan, which is what moves the studio.
 //
 // ONCE ASKED, IT SAYS HOW TO PAY (26/09/2026): the bank details from /super →
 // Payments and "I've sent the transfer" (components/billing/TransferPanel), the
@@ -88,8 +90,10 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
     const asked = d.request || d.requested;
     const pick = cards.find((c) => c.id === asked?.packageId) || cards[0];
     if (!pick) return;
-    const bands = pick.categories || [];
-    const band = bands.find((b) => b.id === (asked?.categoryId || "")) || bands[0];
+    // THE SEATS START AT WHAT THEY ASKED FOR, else at the people already in the
+    // studio — never below what the package sells.
+    const { min } = seatsOffered(pick);
+    const seats = Math.max(Number(asked?.seats) || 0, d.members || 0, min);
     // BASIC IS THE DEFAULT TIER, not "no tier" (the owner, 24/09/2026: "Basic is
     // No Tier, there is no need for No Tier as the Basic is the default"). The
     // tier named Basic, else the first one; a request already made keeps its own.
@@ -97,7 +101,7 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
     const basic = tiers.find((t) => String(t.name || "").trim().toLowerCase() === "basic") || tiers[0];
     setChoice({
       packageId: pick.id,
-      categoryId: pick.type === "compound" ? band?.id || "" : "",
+      seats,
       tierId: d.request?.tierId || basic?.id || "",
       cycle: asked?.cycle === "yearly" ? "yearly" : "monthly",
     });
@@ -112,7 +116,8 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
 
   const cards = useMemo(() => data?.list?.cards || [], [data]);
   const card = cards.find((c) => c.id === choice?.packageId) || null;
-  const quoted = data && choice ? quoteUpgrade(data.list, choice) : null;
+  const quoted = data && choice ? quoteSeats(data.list, choice) : null;
+  const range = seatsOffered(card);
   // A price that can be shown, or null — the refusal is kept apart because the
   // send button needs to know there was one.
   const quote = quoted && !("error" in quoted) ? quoted : null;
@@ -125,7 +130,11 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(choice),
     });
     setBusy(false);
-    if (!res.ok) { setError(t.failed); return; }
+    if (!res.ok) {
+      const out = await res.json().catch(() => ({}));
+      setError(t.refusal[String(out?.error || "")] || t.failed);
+      return;
+    }
     setEditing(false);
     await load();
   }
@@ -193,25 +202,20 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
             <div className="flex flex-wrap gap-2">
               {cards.map((c) => (
                 <button key={c.id} type="button" className={pill(c.id === choice?.packageId)}
-                  onClick={() => setChoice((ch) => ch && ({ ...ch, packageId: c.id, categoryId: c.type === "compound" ? c.categories?.[0]?.id || "" : "" }))}>
+                  onClick={() => setChoice((ch) => ch && ({ ...ch, packageId: c.id, seats: Math.max(ch.seats, seatsOffered(c).min) }))}>
                   {name(c)}
                 </button>
               ))}
             </div>
 
-            {card?.type === "compound" && (
-              <div>
-                <p className="mb-2 text-xs font-600 uppercase tracking-wide text-slate-500">{t.band}</p>
-                <div className="flex flex-wrap gap-2">
-                  {(card.categories || []).map((b) => (
-                    <button key={b.id} type="button" className={pill(b.id === choice?.categoryId)}
-                      onClick={() => setChoice((ch) => ch && ({ ...ch, categoryId: b.id }))}>
-                      {b.label || `${b.minEmployees}–${b.maxEmployees}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <label className="block">
+              <span className="mb-2 block text-xs font-600 uppercase tracking-wide text-slate-500">{t.seatsLabel}</span>
+              <input type="number" inputMode="numeric" dir="ltr" min={Math.max(range.min, data.members || 0)} max={range.max || undefined} step={1}
+                className="w-32 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm tabular-nums outline-none focus:border-brand-500 dark:border-white/15 dark:bg-white/5"
+                value={choice?.seats || ""}
+                onChange={(e) => { const v = Math.trunc(Number(e.target.value) || 0); setChoice((ch) => ch && ({ ...ch, seats: v })); }} />
+              <span className="mt-1.5 block text-xs text-slate-500 dark:text-slate-400">{t.seatsHint(range.min, range.max, data.members || 0)}</span>
+            </label>
 
             {(data.list.tiers || []).length > 0 && (
               <div>
@@ -237,14 +241,25 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
 
             {quote && (
               <dl className="space-y-1 rounded-xl bg-slate-50 p-4 text-sm dark:bg-white/5">
-                <div className="flex justify-between"><dt className="text-slate-500">{quote.seats > 0 ? t.seats(quote.seats) : t.unlimitedSeats}</dt></div>
+                <div className="flex justify-between"><dt className="text-slate-500">{t.seats(quote.seats)}</dt></div>
+                {quote.lines.map((l) => (
+                  <div key={l.bandId || l.label} className="flex justify-between text-slate-600 dark:text-slate-300">
+                    <dt>{t.seatLine(l.label, l.seats)}</dt><dd className="tabular-nums">{money(l.periodAmount)}</dd>
+                  </div>
+                ))}
+                {quote.tierAmount > 0 && (
+                  <div className="flex justify-between text-slate-600 dark:text-slate-300"><dt>{t.tierLine}</dt><dd className="tabular-nums">{money(quote.tierAmount)}</dd></div>
+                )}
                 <div className="flex justify-between"><dt>{t.subtotal}</dt><dd className="tabular-nums">{money(quote.amount)} {quote.cycle === "yearly" ? t.perYear : t.perMonth}</dd></div>
                 <div className="flex justify-between"><dt>{t.tax(quote.taxPercent)}</dt><dd className="tabular-nums">{money(quote.tax)}</dd></div>
                 <div className="flex justify-between font-700"><dt>{t.total}</dt><dd className="tabular-nums">{money(quote.total)}</dd></div>
               </dl>
             )}
 
-            <button type="button" onClick={send} disabled={busy || !quote}
+            {quoted && "error" in quoted && choice && choice.seats > 0 && <p className="text-sm text-rose-600" role="alert">{t.refusal[quoted.error] || t.failed}</p>}
+            {quote && quote.seats < (data.members || 0) && <p className="text-sm text-rose-600" role="alert">{t.refusal["fewer-than-members"]}</p>}
+
+            <button type="button" onClick={send} disabled={busy || !quote || quote.seats < (data.members || 0)}
               className="w-full rounded-full bg-brand-600 px-5 py-2.5 font-display text-sm font-700 text-white hover:bg-brand-700 disabled:opacity-60">
               {busy ? t.sending : t.send}
             </button>

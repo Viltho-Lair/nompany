@@ -86,6 +86,27 @@ type Strings = {
   saved: string;
   // the studio's banner
   checking: string;
+  // seats (12/10/2026)
+  seatsTitle: string;
+  seatsUsed: (used: number, seats: number) => string;
+  seatsNextOn: (n: number, on: string) => string;
+  seatsField: string;
+  seatsAddNote: string;
+  seatsReduceNote: (on: string) => string;
+  seatsApply: string;
+  seatsAdded: (amount: string) => string;
+  seatsReduced: (on: string) => string;
+  unbilledTitle: string;
+  unbilledLine: (before: number, after: number, from: string, to: string) => string;
+  nextRenewal: (on: string, amount: string, seats: number) => string;
+  perSeat: (label: string, rate: string) => string;
+  noSeatPlan: string;
+  // the payment request (12/10/2026)
+  requestTitle: { renewal: string; purchase: string };
+  requestIssued: (on: string) => string;
+  requestSubtotal: string;
+  requestTax: (pct: number) => string;
+  requestTotal: string;
 };
 
 const en: Strings = {
@@ -150,6 +171,14 @@ const en: Strings = {
     "already-refunded": "This invoice has already been refunded.",
     "unknown-invoice": "That invoice isn't on this studio.",
     answered: "Sitta has already answered this.",
+    "no-seat-plan": "This studio isn't on a seat plan yet. Choose one with the Upgrade button.",
+    "studio-closed": "The studio is closed until it's paid. Pay first, then change seats.",
+    "package-not-on-sale": "Your package isn't sold any more. Contact Sitta to change seats.",
+    "below-minimum": "That is fewer seats than your package sells.",
+    "above-maximum": "That is more seats than your package sells. Contact Sitta for a larger plan.",
+    "fewer-than-members": "You have more people in the studio than that. Remove people first.",
+    "no-change": "That's the number you already have.",
+    "not-more-seats": "That isn't more seats than you have.",
   },
   claimsTitle: "Payments and requests",
   claimKind: { transfer: "Bank transfer", refund: (no) => `Refund of ${no}` },
@@ -177,6 +206,25 @@ const en: Strings = {
   save: "Save",
   saved: "Saved.",
   checking: "We're checking your transfer. Everything keeps working while we do; we'll email you once it's matched.",
+  seatsTitle: "Seats",
+  seatsUsed: (used, seats) => `${used} of ${seats} seats used`,
+  seatsNextOn: (n, on) => `From ${on} you'll have ${n} seats.`,
+  seatsField: "Seats",
+  seatsAddNote: "Seats you add work at once. The days left in this period are added to your next renewal.",
+  seatsReduceNote: (on) => `Fewer seats start on ${on}, your next renewal. Nothing is refunded.`,
+  seatsApply: "Save",
+  seatsAdded: (amount) => `Added. ${amount} for the rest of this period goes on your next renewal.`,
+  seatsReduced: (on) => `Done. The new number starts on ${on}.`,
+  unbilledTitle: "Added this period, billed at the next renewal",
+  unbilledLine: (before, after, from, to) => `${before} → ${after} seats, ${from} to ${to}`,
+  nextRenewal: (on, amount, seats) => `Next renewal on ${on}: ${seats} seats, ${amount} before tax, as things stand.`,
+  perSeat: (label, rate) => `${label}: ${rate} per seat a month`,
+  noSeatPlan: "Choose a plan with the Upgrade button to pick how many seats you need. You pay for those seats only.",
+  requestTitle: { renewal: "Your renewal", purchase: "Your plan" },
+  requestIssued: (on) => `Issued ${on}`,
+  requestSubtotal: "Before tax",
+  requestTax: (pct) => `Sales tax (${pct}%)`,
+  requestTotal: "Total to pay",
 };
 
 const ar: Strings = {
@@ -241,6 +289,14 @@ const ar: Strings = {
     "already-refunded": "تم استرداد هذه الفاتورة من قبل.",
     "unknown-invoice": "هذه الفاتورة ليست لهذه المنشأة.",
     answered: "أجابت ستة عن هذا من قبل.",
+    "no-seat-plan": "هذه المنشأة ليست على خطة مقاعد بعد. اختر خطة من زر الترقية.",
+    "studio-closed": "المنشأة مغلقة حتى يتم الدفع. ادفع أولًا، ثم غيّر المقاعد.",
+    "package-not-on-sale": "باقتك لم تعد معروضة للبيع. تواصل مع ستة لتغيير المقاعد.",
+    "below-minimum": "هذا أقل من عدد المقاعد الذي تبيعه باقتك.",
+    "above-maximum": "هذا أكثر من عدد المقاعد الذي تبيعه باقتك. تواصل مع ستة لخطة أكبر.",
+    "fewer-than-members": "لديك أشخاص في المنشأة أكثر من هذا العدد. أزل بعضهم أولًا.",
+    "no-change": "هذا هو العدد الذي لديك بالفعل.",
+    "not-more-seats": "هذا ليس أكثر من عدد مقاعدك الحالي.",
   },
   claimsTitle: "الدفعات والطلبات",
   claimKind: { transfer: "حوالة بنكية", refund: (no) => `استرداد ${no}` },
@@ -268,6 +324,25 @@ const ar: Strings = {
   save: "حفظ",
   saved: "تم الحفظ.",
   checking: "نراجع حوالتك الآن. يبقى كل شيء يعمل أثناء المراجعة، وسنراسلك فور مطابقتها.",
+  seatsTitle: "المقاعد",
+  seatsUsed: (used, seats) => `${used} من ${seats} مقاعد مستخدمة`,
+  seatsNextOn: (n, on) => `ابتداءً من ${on} سيكون لديك ${n} مقاعد.`,
+  seatsField: "المقاعد",
+  seatsAddNote: "المقاعد التي تضيفها تعمل فورًا. تُضاف الأيام المتبقية من هذه الفترة إلى تجديدك التالي.",
+  seatsReduceNote: (on) => `يبدأ العدد الأقل في ${on}، موعد تجديدك التالي. لا يُسترد أي مبلغ.`,
+  seatsApply: "حفظ",
+  seatsAdded: (amount) => `تمت الإضافة. يُضاف ${amount} عن بقية هذه الفترة إلى تجديدك التالي.`,
+  seatsReduced: (on) => `تم. يبدأ العدد الجديد في ${on}.`,
+  unbilledTitle: "أُضيفت في هذه الفترة، وتُفوتر في التجديد التالي",
+  unbilledLine: (before, after, from, to) => `${before} ← ${after} مقاعد، من ${from} إلى ${to}`,
+  nextRenewal: (on, amount, seats) => `التجديد التالي في ${on}: ${seats} مقاعد، ${amount} قبل الضريبة، حسب الوضع الحالي.`,
+  perSeat: (label, rate) => `${label}: ${rate} لكل مقعد شهريًا`,
+  noSeatPlan: "اختر خطة من زر الترقية لتحدد عدد المقاعد التي تحتاجها. تدفع مقابل هذه المقاعد فقط.",
+  requestTitle: { renewal: "تجديدك", purchase: "خطتك" },
+  requestIssued: (on) => `صدر في ${on}`,
+  requestSubtotal: "قبل الضريبة",
+  requestTax: (pct) => `ضريبة المبيعات (${pct}%)`,
+  requestTotal: "الإجمالي المستحق",
 };
 
 export function billingDict(locale: string): Strings {

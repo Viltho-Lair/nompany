@@ -131,30 +131,33 @@ ok("billing days are Amman's", S.billingDay("2026-09-23T22:30:00Z") === "2026-09
 console.log("\n== what an upgrade costs, and what paying for it buys");
 
 const Q = await import("@/shared/upgradeQuote");
+// THE OWNER CHOOSES A SEAT COUNT (12/10/2026) — the quote prices exactly the
+// seats asked for, band by band. tests/seat-billing-model.mjs covers the bands;
+// this block keeps what the upgrade door itself promises.
 const list = {
-  currency: "JOD", taxPercent: 16,
+  currency: "JOD", taxPercent: 16, yearlyDiscountPct: 0,
   cards: [
     { id: "pkg_std", type: "free", monthly: 0, maxEmployees: 4 },
     { id: "pkg_small", type: "compound", categories: [
-      { id: "c1", label: "5–9", maxEmployees: 9, monthly: 30, yearly: 25 },
-      { id: "c2", label: "10–24", maxEmployees: 24, monthly: 70, yearly: 60 },
+      { id: "c1", label: "5–9", minEmployees: 5, maxEmployees: 9, perEmployee: 6 },
+      { id: "c2", label: "10–24", minEmployees: 10, maxEmployees: 24, perEmployee: 5 },
     ] },
     { id: "pkg_large", type: "premium", monthly: 5, maxEmployees: 0 },
   ],
   tiers: [{ id: "tir_adv", monthly: 10, yearly: 8 }],
 };
-const q = (choice) => Q.quoteUpgrade(list, { packageId: "", categoryId: "", tierId: "", cycle: "monthly", ...choice });
+const q = (choice) => Q.quoteSeats(list, { packageId: "", seats: 0, tierId: "", cycle: "monthly", ...choice });
 ok("only priced, self-serve packages are offered — not the free one, not invoiced-on-headcount",
   Q.upgradablePackages(list).map((c) => c.id).join(",") === "pkg_small");
-const monthly = q({ packageId: "pkg_small", categoryId: "c2" });
-ok("a band's monthly price, its seats and 16% tax", monthly.amount === 70 && monthly.seats === 24 && monthly.tax === 11.2 && monthly.total === 81.2, JSON.stringify(monthly));
-// THE PRICE LIST'S `yearly` IS PER MONTH, BILLED YEARLY — a year is twelve of it.
-const yearly = q({ packageId: "pkg_small", categoryId: "c2", cycle: "yearly" });
-ok("A YEAR IS TWELVE OF THE YEARLY FIGURE, not the figure alone", yearly.amount === 720, String(yearly.amount));
-ok("a tier adds its own price for the same period", q({ packageId: "pkg_small", categoryId: "c1", tierId: "tir_adv" }).amount === 40);
-ok("a band that does not exist is refused", q({ packageId: "pkg_small", categoryId: "gone" }).error === "unknown-band");
-ok("the free package cannot be 'upgraded' to", q({ packageId: "pkg_std" }).error === "unknown-package");
-ok("dinars keep three decimals", q({ packageId: "pkg_small", categoryId: "c1", cycle: "monthly" }).tax === 4.8);
+const monthly = q({ packageId: "pkg_small", seats: 12 });
+ok("TWELVE SEATS ARE PAID FOR, NOT THE BAND'S TWENTY-FOUR: 9 × 6 + 3 × 5, and 16% tax", monthly.amount === 69 && monthly.seats === 12 && monthly.tax === 11.04 && monthly.total === 80.04, JSON.stringify(monthly));
+const yearly = q({ packageId: "pkg_small", seats: 12, cycle: "yearly" });
+ok("A YEAR IS TWELVE MONTHS", yearly.amount === 828, String(yearly.amount));
+ok("a tier adds its own price for the same period", q({ packageId: "pkg_small", seats: 5, tierId: "tir_adv" }).amount === 40);
+ok("...and a yearly tier is twelve of its billed-yearly figure", q({ packageId: "pkg_small", seats: 5, tierId: "tir_adv", cycle: "yearly" }).tierAmount === 96);
+ok("more seats than the package sells is refused", q({ packageId: "pkg_small", seats: 25 }).error === "above-maximum");
+ok("the free package cannot be 'upgraded' to", q({ packageId: "pkg_std", seats: 3 }).error === "unknown-package");
+ok("dinars keep three decimals", q({ packageId: "pkg_small", seats: 5, cycle: "monthly" }).tax === 4.8);
 
 // A YEARLY UPGRADE RECORDED AS ONE PERIOD MUST BUY A YEAR, whatever period the
 // studio was on before.

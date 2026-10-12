@@ -5,6 +5,7 @@ import { getUserById } from "@/platform/auth/users";
 import { sendEmail } from "@/platform/notify/email";
 import { subscriptionWarningEmail } from "@/platform/notify/emailTemplates";
 import { markNoticesSent, subscriptionDocs } from "@/lib/data/subscriptions";
+import { issueRenewals } from "@/lib/data/seatBilling";
 import { billingDay, noticesDue } from "@/shared/subscription";
 import { studioLocale } from "@/shared/locale";
 import { SITE_URL } from "@/lib/seo";
@@ -26,7 +27,33 @@ export const dynamic = "force-dynamic";
 //
 // IN THE STUDIO'S LANGUAGE, to the OWNER'S address: the owner is the one who
 // can pay, and the one the Terms name.
+//
+// RENEWALS ARE ISSUED HERE FIRST (12/10/2026): on the day a seat plan's period
+// starts, its payment request — the new period's seats and the seats added
+// during the last one (lib/data/seatBilling). BEHIND `RENEWAL_REQUESTS=on`:
+// without it the run only REPORTS what it would issue, because this is the
+// first thing that bills customers by itself and the owner reads the report
+// before it runs on real studios. Same shape as UNPAID_DELETIONS.
 async function run() {
+  const renewals = await issueRenewals(process.env.RENEWAL_REQUESTS === "on");
+  if (renewals.problems.length) {
+    await notifySuper({
+      type: NOTIFY.system,
+      title: `${renewals.problems.length} renewal${renewals.problems.length === 1 ? "" : "s"} could not be priced`,
+      body: renewals.problems.slice(0, 10).join(" · "),
+      href: "/super/studios",
+      tone: "danger",
+    });
+  }
+  if (renewals.live && renewals.issued.length) {
+    await notifySuper({
+      type: NOTIFY.system,
+      title: `${renewals.issued.length} renewal request${renewals.issued.length === 1 ? "" : "s"} issued`,
+      body: renewals.issued.slice(0, 10).map((r) => `${r.studio}: ${r.seats} seats, ${r.total} ${r.currency}`).join(" · "),
+      href: "/super/studios",
+      tone: "info",
+    });
+  }
   const today = billingDay();
   const studios = await readArr<Record<string, unknown>>(REG.studios);
   const docs = await subscriptionDocs(studios.map((s) => String(s.id)));
@@ -81,7 +108,7 @@ async function run() {
       tone: "danger",
     });
   }
-  return Response.json({ ok: true, today, sent, failed, failures });
+  return Response.json({ ok: true, today, sent, failed, failures, renewals });
 }
 
 export const GET = cronJob("subscription-notices", run);

@@ -41,6 +41,7 @@ import {
   creditFigures, creditedAgainst, documentNumber, invoiceFigures, sellerProblem, PAYMENT_MEANS,
   type InvoiceParty, type NompanyInvoice,
 } from "@/shared/nompanyInvoice";
+import { openRequest, type PaymentRequest } from "@/shared/paymentRequests";
 
 type Studio = Record<string, unknown> & { id: string };
 const text = (v: unknown, max = 200) => String(v ?? "").trim().slice(0, max);
@@ -54,6 +55,16 @@ const docKey = (studioId: string) => BILLING.subscription(studioId);
 
 export type BillingProfile = { name: string; address: string; country: string; taxNumber: string; email: string };
 const EMPTY_PROFILE: BillingProfile = { name: "", address: "", country: "", taxNumber: "", email: "" };
+
+/** A payment request read as the plan a claim locks — the shape the upgrade request has always had. */
+function asPlan(r: PaymentRequest | null): (ClaimedPlan & { requestedAt: string; kind: PaymentRequest["kind"] }) | null {
+  if (!r) return null;
+  return {
+    packageId: r.packageId, categoryId: r.categoryId, tierId: r.tierId, cycle: r.cycle, seats: r.seats,
+    amount: r.subtotal, taxPercent: r.taxPercent, tax: r.tax, total: r.total, currency: r.currency,
+    requestId: r.id, priceCountry: r.priceCountry, requestedAt: r.issuedAt, kind: r.kind,
+  };
+}
 
 /** A claim with its sealed half opened — for the console and the studio's owner only. */
 /** A claim as the console reads it — its private half opened, and still telling a transfer from a refund. */
@@ -98,7 +109,10 @@ export async function ownerBillingView(studio: Studio) {
   const [doc, settings] = await Promise.all([getSubscription(studio.id), getPaymentSettings()]);
   const today = billingDay();
   const { status, access, holdUntil } = await effectiveAccess(doc, today);
-  const request = (studio.upgradeRequest || null) as (ClaimedPlan & { requestedAt?: string }) | null;
+  // WHAT THE OWNER IS ASKED TO PAY: the open payment request (12/10/2026) —
+  // a renewal, or the plan they chose — and only failing that the older
+  // upgrade request on the studio, which predates requests.
+  const request = asPlan(openRequest(doc.requests)) || (studio.upgradeRequest || null) as (ClaimedPlan & { requestedAt?: string }) | null;
   const { packages, tiers } = await planNames();
   const lastPaid = [...doc.history].reverse().find((h) => h.type === "paid");
   const currency = request?.currency || String(lastPaid?.detail?.currency || "");
@@ -112,6 +126,8 @@ export async function ownerBillingView(studio: Studio) {
       tierName: String(tiers.find((t) => t.id === studio.tierId)?.name || ""),
     },
     request: request ? { ...request, packageName: String(packages.find((p) => p.id === request.packageId)?.name || "") } : null,
+    // The open request in full — its lines and the period it pays for.
+    paymentRequest: openRequest(doc.requests),
     reference: transferReference(String(studio.slug || ""), String(request?.requestedAt || "")),
     pay: paymentOptionsFor(settings, currency),
     holdHours: settings.claimHoldHours,
@@ -152,7 +168,7 @@ async function ownerEmail(studio: Studio) {
 }
 
 /** Tells nompany, by the bell and — where an address is set — by email. */
-async function tellNompany(title: string, body: string, tone: "info" | "warning" = "warning") {
+export async function tellNompany(title: string, body: string, tone: "info" | "warning" = "warning") {
   await notifySuper({ type: NOTIFY.system, title, body, href: "/super/studios", tone });
   const { notifyEmail } = await getPaymentSettings();
   if (!notifyEmail) return;
@@ -161,7 +177,7 @@ async function tellNompany(title: string, body: string, tone: "info" | "warning"
 }
 
 /** Tells the owner, in the studio's language. */
-async function tellOwner(studio: Studio, subject: { en: string; ar: string }, lines: { en: string[]; ar: string[] }) {
+export async function tellOwner(studio: Studio, subject: { en: string; ar: string }, lines: { en: string[]; ar: string[] }) {
   const to = await ownerEmail(studio);
   if (!to) return;
   const locale = studioLocale(studio);
@@ -190,14 +206,17 @@ export async function claimTransfer(studio: Studio, userId: string, body: Record
   const problem = transferProblem(input, today);
   if (problem) return { error: problem };
 
-  const req = studio.upgradeRequest as ClaimedPlan | null | undefined;
+  const current = await getSubscription(studio.id);
+  const fromRequest = asPlan(openRequest(current.requests));
+  const req = (fromRequest || studio.upgradeRequest) as ClaimedPlan | null | undefined;
   const plan: ClaimedPlan | null = req?.packageId ? {
     packageId: req.packageId, categoryId: req.categoryId || "", tierId: req.tierId || "", cycle: req.cycle === "yearly" ? "yearly" : "monthly",
     seats: Number(req.seats) || 0, amount: Number(req.amount) || 0, taxPercent: Number(req.taxPercent) || 0,
     tax: Number(req.tax) || 0, total: Number(req.total) || 0, currency: String(req.currency || ""),
+    ...(req.requestId ? { requestId: String(req.requestId) } : {}),
+    ...(req.priceCountry ? { priceCountry: String(req.priceCountry) } : {}),
   } : null;
 
-  await getSubscription(studio.id);
   const at = new Date().toISOString();
   const out = await editJSON<SubscriptionDoc, { claim?: TransferClaim; error?: string; fresh?: boolean }>(docKey(studio.id), (cur) => {
     if (!cur?.subscription) return { result: { error: "notfound" } };
@@ -376,7 +395,15 @@ async function issueInvoice(studio: Studio, eventId: string, by: string, claimId
   // locked one; otherwise the rate nompany charges (Jordan's, 23/09/2026).
   const claim = (doc.claims || []).find((c) => c.id === claimId) as TransferClaim | undefined;
   const taxPercent = claim?.plan?.taxPercent ?? 16;
-  const figures = invoiceFigures({ total, currency, taxPercent, description: await describe(event, studio, periodFrom, periodTo), periods: event.periods });
+  // THE REQUEST'S LINES WHEN WHAT ARRIVED IS WHAT WAS ASKED (12/10/2026): the
+  // seats band by band, the tier, the seats added during the last period. A
+  // different amount — a bank fee, a part payment — keeps the one line saying
+  // what was paid, because lines that do not add up to the total are worse
+  // than one line that does.
+  const request = (doc.requests || []).find((r) => r.id === (event.requestId || claim?.plan?.requestId));
+  const figures = request && request.currency === currency && Math.abs(request.total - total) < 1e-9
+    ? { lines: request.lines, subtotal: request.subtotal, taxPercent: request.taxPercent, tax: request.tax, total: request.total }
+    : invoiceFigures({ total, currency, taxPercent, description: await describe(event, studio, periodFrom, periodTo), periods: event.periods });
 
   const profile = unseal(doc.billingProfile, { ...EMPTY_PROFILE });
   const buyer: InvoiceParty = {
@@ -426,9 +453,27 @@ export async function confirmTransfer(studioId: string, claimId: string, by: str
   if (claim.status !== "pending" && claim.status !== "confirmed") return { error: "answered" };
 
   const eventId = `claim:${claimId}`;
-  const event = await parsePaidEvent(eventId, body);
-  if ("error" in event) return event;
-  const out = await recordEvent(studioId, event, `super:${by}`);
+  // THE REQUEST IT PAYS FILLS WHAT THE CONSOLE LEFT OUT (12/10/2026) — the
+  // package, seats, tier and cycle the owner chose — so confirming a transfer
+  // cannot move a studio onto a plan nobody asked for. What the console typed
+  // still wins: it says what actually arrived.
+  const request = (doc.requests || []).find((r) => r.id === claim.plan?.requestId) || null;
+  // A BLANK FIELD IS "NOT TYPED", not "none": the console's form sends every
+  // field, and spreading an empty Seats over the request's would move the
+  // studio onto the package with no seats bought.
+  const typed = Object.fromEntries(Object.entries(body).filter(([, v]) => v !== "" && v !== null && v !== undefined));
+  const filled = request ? {
+    packageId: request.packageId, categoryId: request.categoryId, tierId: request.tierId,
+    seats: request.seats, period: request.cycle, ...typed,
+  } : body;
+  const parsed = await parsePaidEvent(eventId, filled);
+  if ("error" in parsed) return parsed;
+  const event: BillingEvent = request && parsed.type === "paid"
+    ? { ...parsed, requestId: request.id, ...(request.priceCountry ? { priceCountry: request.priceCountry } : {}) }
+    : parsed;
+  const out = await recordEvent(studioId, event, `super:${by}`, request ? (cur) => ({
+    requests: (cur.requests || []).map((r) => (r.id === request.id ? { ...r, status: "paid" as const, eventId } : r)),
+  }) : undefined);
   if (out.problem) return { error: out.problem };
   await applyPaidPlan(studioId, out.changed, event);
 

@@ -27,6 +27,9 @@ export type ClaimStatus = "pending" | "confirmed" | "rejected" | "refunded" | "d
 export type ClaimedPlan = {
   packageId: string; categoryId: string; tierId: string; cycle: "monthly" | "yearly";
   seats: number; amount: number; taxPercent: number; tax: number; total: number; currency: string;
+  /** The payment request it pays (shared/paymentRequests, 12/10/2026); absent on older claims. */
+  requestId?: string;
+  priceCountry?: string;
 };
 
 export type Answer = {

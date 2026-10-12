@@ -22,6 +22,7 @@ import {
 } from "@/shared/subscription";
 import { claimHoldUntil, heldAccess, openTransfer, type Claim } from "@/shared/billingClaims";
 import type { NompanyInvoice } from "@/shared/nompanyInvoice";
+import type { PaymentRequest } from "@/shared/paymentRequests";
 
 export type HistoryEntry = {
   id: string;
@@ -60,6 +61,8 @@ export type SubscriptionDoc = {
   claims?: Claim[];
   documents?: NompanyInvoice[];
   billingProfile?: string;
+  /** What the customer has been asked to pay (shared/paymentRequests, 12/10/2026). */
+  requests?: PaymentRequest[];
 };
 type Doc = SubscriptionDoc;
 
@@ -145,8 +148,14 @@ export async function effectiveAccess(doc: Doc, today = billingDay()) {
  * ONE EVENT, APPLIED AND RECORDED TOGETHER. An event whose id was already
  * applied changes nothing and adds no line — a webhook delivered twice, or a
  * button pressed twice, is one payment.
+ *
+ * `attach` writes something that belongs to the event IN THE SAME WRITE — a
+ * renewal's payment request beside the event that moves its charges off the
+ * unbilled list (12/10/2026). Two writes would let a crash leave the charges
+ * billed on nothing, or billed twice. It runs only when the event changed
+ * something, so a repeated event attaches nothing either.
  */
-export async function recordEvent(studioId: string, event: BillingEvent, by: string) {
+export async function recordEvent(studioId: string, event: BillingEvent, by: string, attach?: (doc: Doc) => Partial<Doc>) {
   await getSubscription(studioId);
   const at = new Date().toISOString(); // outside the closure: editJSON re-runs it per CAS round.
   const today = billingDay(at);
@@ -163,7 +172,8 @@ export async function recordEvent(studioId: string, event: BillingEvent, by: str
       // and the billing profile beside it (26/09/2026). This wrote the two
       // fields it knew and dropped the rest, which cost nothing while they were
       // the only two.
-      return { next: { ...doc, subscription: out.sub, history: [...doc.history, entry] }, result: { subscription: out.sub, changed: true, problem: "" } };
+      const extra = attach ? attach(doc) : {};
+      return { next: { ...doc, ...extra, subscription: out.sub, history: [...doc.history, entry] }, result: { subscription: out.sub, changed: true, problem: "" } };
     },
   );
 }

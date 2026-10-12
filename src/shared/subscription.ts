@@ -67,10 +67,39 @@ export type Subscription = {
   seats: number;
   /** "" or the day it stops (YYYY-MM-DD). Set by a cancellation; cleared by resuming or paying. */
   cancelAt: string;
+  /**
+   * SEATS FROM THE NEXT RENEWAL (12/10/2026) — a reduction the owner asked for,
+   * which waits for the period they paid for to end. 0 or absent: no change.
+   */
+  seatsNext?: number;
+  /**
+   * SEATS ADDED PART-WAY THROUGH A PERIOD AND NOT BILLED YET (12/10/2026). Each
+   * becomes a line on the next renewal's payment request, and leaves this list
+   * in the same write that puts it there.
+   */
+  accrued?: SeatCharge[];
+  /**
+   * The country the plan was priced in (the region's, shared/priceRegions), so
+   * the renewal job — which has no visitor to ask — prices the same region.
+   */
+  priceCountry?: string;
   /** The last event ids applied, so one delivered twice is applied once. */
   seenEventIds: string[];
   createdAt: string;
   updatedAt: string;
+};
+
+/** Seats added mid-period: what they cost for the days left, locked the day they were added. */
+export type SeatCharge = {
+  id: string;
+  at: string;
+  /** The days it covers: from the day added to the end of that period (the first day not covered). */
+  from: string;
+  to: string;
+  seatsBefore: number;
+  seatsAfter: number;
+  amount: number;
+  currency: string;
 };
 
 export type SubscriptionStatus =
@@ -214,7 +243,7 @@ export type BillingEvent = { id: string } & (
    * which the studio moves to once this is applied: a package applies to the
    * studio it was paid for, once paid.
    */
-  | { type: "paid"; periods: number; amount?: number; currency?: string; method?: string; reference?: string; packageId?: string; categoryId?: string; tierId?: string; seats?: number; period?: BillingPeriod }
+  | { type: "paid"; periods: number; amount?: number; currency?: string; method?: string; reference?: string; packageId?: string; categoryId?: string; tierId?: string; seats?: number; period?: BillingPeriod; requestId?: string; priceCountry?: string }
   /** A payment that was counted came back — a bounced transfer, a chargeback. */
   | { type: "reversed"; periods: number; reason?: string }
   /**
@@ -231,6 +260,21 @@ export type BillingEvent = { id: string } & (
   | { type: "cancel" }
   | { type: "resume" }
   | { type: "plan-changed"; seats?: number; period?: BillingPeriod }
+  /**
+   * THE OWNER ADDED SEATS (12/10/2026). The limit rises at once; what the days
+   * left cost is carried as `charge` and billed on the next renewal. A smaller
+   * count scheduled for the renewal is given up — the owner has just said they
+   * need more, not fewer.
+   */
+  | { type: "seats-added"; seats: number; charge?: SeatCharge }
+  /** THE OWNER ASKED FOR FEWER SEATS — from the next renewal, never before it. */
+  | { type: "seats-reduced"; seats: number }
+  /**
+   * A RENEWAL'S PAYMENT REQUEST WAS ISSUED. The new period's seats take effect
+   * (a scheduled reduction lands here), and the charges it billed leave the
+   * unbilled list.
+   */
+  | { type: "renewal-requested"; requestId: string; seats: number; chargeIds: string[] }
 );
 
 const SEEN_KEEP = 200;
@@ -278,6 +322,7 @@ export function applyEvent(
       const anchorDay = restart ? dayOf(today) : sub.anchorDay;
       next = { ...next, kind: "paid", period, anchorDay, paidUntil: addMonths(start, periods * months, anchorDay), cancelAt: "" };
       if (event.seats !== undefined) next.seats = Math.max(0, Math.trunc(Number(event.seats) || 0));
+      if (event.priceCountry) next.priceCountry = String(event.priceCountry).slice(0, 2).toUpperCase();
       break;
     }
     case "reversed": {
@@ -319,6 +364,28 @@ export function applyEvent(
       if (event.seats !== undefined) next.seats = Math.max(0, Math.trunc(Number(event.seats) || 0));
       if (event.period && BILLING_PERIODS.includes(event.period)) next.period = event.period;
       break;
+    case "seats-added": {
+      const seats = Math.trunc(Number(event.seats) || 0);
+      if (!(seats > sub.seats)) return refuse("not-more-seats");
+      const charge = event.charge && Number(event.charge.amount) > 0 ? event.charge : null;
+      next = { ...next, seats, seatsNext: 0, accrued: charge ? [...(sub.accrued || []), charge] : sub.accrued || [] };
+      break;
+    }
+    case "seats-reduced": {
+      const seats = Math.trunc(Number(event.seats) || 0);
+      if (!(seats >= 1)) return refuse("bad-seats");
+      if (seats > sub.seats) return refuse("not-fewer-seats");
+      // Asking for the count it already has takes back a reduction asked earlier.
+      next = { ...next, seatsNext: seats === sub.seats ? 0 : seats };
+      break;
+    }
+    case "renewal-requested": {
+      const seats = Math.trunc(Number(event.seats) || 0);
+      if (!(seats >= 1)) return refuse("bad-seats");
+      const billed = new Set(event.chargeIds || []);
+      next = { ...next, seats, seatsNext: 0, accrued: (sub.accrued || []).filter((c) => !billed.has(c.id)) };
+      break;
+    }
     default:
       return refuse("unknown-event");
   }

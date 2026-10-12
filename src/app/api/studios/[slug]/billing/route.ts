@@ -2,6 +2,8 @@ import { route } from "@/platform/http/route";
 import {
   claimTransfer, ownerBillingView, requestRefund, saveBillingProfile, withdrawClaim,
 } from "@/lib/data/customerBilling";
+import { changeSeats, seatView } from "@/lib/data/seatBilling";
+import { getSubscription } from "@/lib/data/subscriptions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +16,11 @@ export const dynamic = "force-dynamic";
 // OWNER ONLY, and OPEN WHATEVER THE SUBSCRIPTION SAYS (shared/subscription's
 // ALWAYS_OPEN): a closed or shut-down studio's owner is exactly the one who
 // needs to pay and say so. API keys are refused — this is a person's page.
+//
+// SEATS ARE CHANGED HERE TOO (12/10/2026), by the owner and nobody else: more
+// at once, billed on the next renewal; fewer from the renewal. The change
+// itself refuses a studio that is not open (lib/data/seatBilling), so being on
+// the always-open list does not let a closed studio buy credit.
 const spec = { auth: "studio", name: "studio/billing", keys: false } as const;
 
 type Owned = {
@@ -25,8 +32,11 @@ type Owned = {
 const ownerOnly = (c: Owned) => (c.collaborator?.role === "owner" ? null : { error: "owner-only" });
 
 export const GET = route(spec, async (c) => {
-  const ctx = c as unknown as Owned;
-  return ownerOnly(ctx) || ownerBillingView(ctx.studio);
+  const ctx = c as unknown as Owned & { request: Request };
+  const refusal = ownerOnly(ctx);
+  if (refusal) return refusal;
+  const [view, doc] = await Promise.all([ownerBillingView(ctx.studio), getSubscription(ctx.studio.id)]);
+  return { ...view, seats: await seatView(ctx.studio, doc, ctx.request.headers.get("x-vercel-ip-country")) };
 });
 
 
@@ -47,6 +57,7 @@ export const POST = route({ ...spec, body: true }, async (c) => {
       return "error" in out ? out : { status: 201, body: out };
     }
     case "save-profile": return saveBillingProfile(studio.id, body);
+    case "change-seats": return changeSeats(studio, body);
     default: return { error: "unknown-action" };
   }
 });

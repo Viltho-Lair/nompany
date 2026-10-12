@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 import { useLandingLocale } from "@/components/landing/locale";
 import { landingDict } from "@/shared/landing";
 import { fmtCurrencyAmount } from "@/lib/pricing";
+import { roundMoney } from "@/shared/money";
 import { Forward } from "@/components/landing/site/Chrome";
 import { CELL_IN, Cta, EASE, RISE_SMALL, SPRING, useInViewReveal } from "@/components/landing/site/primitives";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
@@ -68,6 +69,7 @@ const copyFor = (tr: Tr) => ({
   freePrice: tr.pvFreePrice,
   freeNote: tr.pvFreeNote,
   perMaxUsers: tr.pvPerMaxUsers,
+  perSeat: tr.pvPerSeat,
   employees: tr.pvEmployees,
   billedYearly: tr.pvBilledYearly,
   invoicedMonthly: tr.pvInvoicedMonthly,
@@ -140,6 +142,8 @@ export function PricingBoard({ initial = null, locale = "en" }: { initial?: Pric
       features: ((ar && c.includesAr?.length) ? c.includesAr : c.includes) || [],
       durationMonths: c.durationMonths,
       maxEmployees: c.maxEmployees,
+      minEmployees: c.minEmployees,
+      perSeat: Number(c.perEmployee) || 0,
       monthly: c.monthly,
       yearly: c.yearly,
       // Only a compound package switches bands; the label is what /super wrote.
@@ -151,6 +155,7 @@ export function PricingBoard({ initial = null, locale = "en" }: { initial?: Pric
             upTo: cat.maxEmployees,
             monthly: cat.monthly,
             yearly: cat.yearly,
+            perSeat: Number(cat.perEmployee) || 0,
           }))
         : null,
       // The button says what the type means it should.
@@ -283,6 +288,13 @@ export function PricingBoard({ initial = null, locale = "en" }: { initial?: Pric
             // chosen category; free and premium show no number at all.
             const bandMax = planBand ? planBand.upTo : plan.maxEmployees || 0;
             const bandTotal = planBand ? (yearly ? planBand.yearly : planBand.monthly) : (yearly ? plan.yearly : plan.monthly);
+            // A SEAT IS WHAT IS SOLD (12/10/2026): the owner buys the number
+            // they need, priced band by band, so the card shows the band's rate
+            // per seat — not the band's top times it, which was a price nobody
+            // pays any more. Billed yearly, the yearly discount comes off it.
+            const rate = planBand ? planBand.perSeat : plan.perSeat;
+            const seatRate = rate > 0 ? roundMoney(yearly ? rate - rate * (discountPct / 100) : rate, currency) : 0;
+            const seatRange = planBand ? planBand.label : `${plan.minEmployees || 1}${plan.maxEmployees ? `–${plan.maxEmployees}` : "+"}`;
 
             return (
               <PlanCard key={plan.key} i={i} popular={plan.popular}>
@@ -307,7 +319,7 @@ export function PricingBoard({ initial = null, locale = "en" }: { initial?: Pric
                         <span className="text-[1.6rem] leading-none">{COPY.invoicedMonthly}</span>
                       ) : (
                         <>
-                          <span className="text-[2.5rem] leading-none">{money(bandTotal)}</span>
+                          <span className="text-[2.5rem] leading-none">{money(seatRate || bandTotal)}</span>
                           {/* EVERY CURRENCY, ONE TREATMENT. SAR used to be drawn
                               as a glyph while the other 165 showed their letters;
                               `components/Riyal` is deleted rather than left unused. */}
@@ -322,7 +334,9 @@ export function PricingBoard({ initial = null, locale = "en" }: { initial?: Pric
                       ? COPY.freeNote(Number(plan.durationMonths) || 0)
                       : plan.invoicedMonthly
                         ? COPY.invoicedNote
-                        : COPY.perMaxUsers.replace("{n}", String(bandMax))}
+                        : seatRate
+                          ? COPY.perSeat.replace("{range}", seatRange)
+                          : COPY.perMaxUsers.replace("{n}", String(bandMax))}
                   </p>
                 </div>
 

@@ -122,10 +122,10 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
   default is filled in on read, so the Packages screen shows the real state. The dialog
   has no "No tier": **Basic is the default tier**. Both open one dialog
   (`components/billing/UpgradeDialog`), loaded only when opened.
-  - The owner picks a package, band, tier and monthly or yearly, priced in their region's
-    currency with tax by the same rule the server uses (`shared/upgradeQuote`). A year is
-    twelve of the price list's per-month "billed yearly" figure. Standard, and packages
-    invoiced on headcount, can't be picked.
+  - The owner picks a package, **a seat count** (since 12/10/2026; it was a band), a tier
+    and monthly or yearly, priced in their region's currency with tax by the same rule the
+    server uses (`shared/upgradeQuote`'s `quoteSeats`, band by band — "Seats the owner buys"
+    below). Standard, and packages invoiced on headcount, can't be picked.
   - The dialog opens on the package picked at signup (`studio.requestedPlan`, set by
     studio creation); older studios open on the first package on sale.
   - **It's a request, not a payment.** `POST /api/studios/<slug>/upgrade` (owner only)
@@ -192,6 +192,61 @@ names no Duration of its own. The old `graceMonths` setting is gone: the ladder 
   shows the ladder's dates and can record a payment (with the package and tier it's for),
   reverse one, set seats and period, extend a free period, switch complimentary on or off,
   and cancel or resume, with the history underneath.
+
+## Seats the owner buys (12/10/2026)
+
+The owner: the system runs by itself; an owner chooses how many users they need and pays
+for those, not for a package's whole band. Then: "payment request, seats billed on next
+renewal". The code is `shared/seatPricing`, `shared/paymentRequests` and
+`lib/data/seatBilling`.
+
+- **A seat count is priced band by band** (`priceSeats`). Each band prices only its own
+  seats: 25 seats on 1–20 at 38 and 21–50 at 34 is 20 × 38 + 5 × 34. Pricing every seat
+  at the last band's rate would make 21 seats cheaper than 20. A band's minimum is how few
+  can be bought, not seats that cost nothing. A gap between two bands belongs to the band
+  above it. A year is twelve months with the yearly discount taken off, band by band.
+- **Buying a plan** (the upgrade dialog, `POST /upgrade`): a package, a seat count (never
+  fewer than the studio's members), a tier and a cycle. It is stored as a **purchase**
+  payment request with the quote locked, mirrored on the studio as `upgradeRequest` for the
+  console. One open request at a time: a new choice voids an open purchase request; it is
+  refused while a renewal is unpaid (`renewal-open`) or a transfer claim is waiting
+  (`claim-open`).
+- **A studio is on a seat plan** when it is `paid` and has seats bought. Complimentary
+  studios, Standard's free months and studios on a package's old fixed size are not, and
+  their limits are unchanged.
+- **Adding seats** (`/account → Billing → Seats`, action `change-seats`, owner only, the
+  studio fully open): the limit rises at once. What the days left in the period cost is
+  recorded on the subscription as a charge (`seats-added`, in `accrued`): the period's price
+  with the new count less its price with the old, times the days left over the period's
+  days, locked that day. It is **billed on the next renewal**, never on its own. Adding
+  seats gives up a reduction asked for earlier.
+- **Reducing seats** (`seats-reduced`) is stored as `seatsNext` and starts at the next
+  renewal. Nothing is refunded. Refused below the studio's members (`fewer-than-members`).
+- **The renewal** (`issueRenewals`, run first by `cron/subscription-notices`): on the day a
+  seat plan's period starts (its `paidUntil`), one **renewal** request per period
+  (`renewal:<day>`). Its seats are the scheduled count, or the members if there are more;
+  its lines are each band, the tier, and each unbilled charge in the same currency. The
+  event `renewal-requested` sets the new seats and takes the billed charges off the list,
+  in the same write as the request. The owner is emailed in the studio's language. That
+  day is day 0 of the ladder, exactly as before.
+  - **Only with `RENEWAL_REQUESTS=on`.** Without it the job reports what it would issue
+    (in its JSON answer) and writes nothing.
+  - It prices from the region the plan was bought in (`priceCountry` on the subscription,
+    set by the payment), because the job has no visitor to ask.
+  - A renewal that cannot be priced (the package no longer sold, a seat count outside it)
+    is not issued and is reported to `/super`.
+- **A request is not a tax invoice.** In Jordan sales tax is owed from the day an invoice
+  is issued; a request is what the customer is asked to pay. The invoice is still issued
+  when the transfer is confirmed.
+- **Confirming a transfer against a request**: the claim locks the open request
+  (`plan.requestId`). The console's confirmation fills package, band, seats, tier and cycle
+  from it unless typed otherwise, marks it `paid`, and stores the region on the
+  subscription. **The invoice copies the request's lines** when what arrived is exactly its
+  total in its currency; any other amount gets the single line, as before.
+- **The owner's billing page** shows the seats used and bought, a scheduled reduction, each
+  band's rate per seat, the unbilled charges, what the next renewal will ask as things
+  stand, and the open request line by line.
+- **The pricing page** shows each band's rate per seat, not the band's top times it.
 
 ## Paying by bank transfer (26/09/2026)
 
@@ -277,6 +332,18 @@ stays a way to pay after online payment ships.
   - Payments and documents recorded before this keep the currency they were stored in.
 
 ## Not built yet
+
+- **`RENEWAL_REQUESTS` is not set anywhere.** Renewal requests are reported and never
+  issued until the owner switches it on.
+- **Request lines are in English**, like the invoice's own line. The screens around them
+  are in both languages.
+- **A seat plan for a studio already paid on a package's fixed size** has no door: such a
+  studio keeps its band until it buys a seat plan, and the Upgrade button shows only where
+  its package's switch allows.
+- **Seats removed by nompany** in `/super` (the Seats field) are a plain override and
+  record no charge.
+- **The request has no printable page of its own**; its lines are on the billing page and
+  on the invoice issued against it.
 
 - **Checkout (step 5)**: card, Apple Pay and Google Pay, webhook confirmation. On hold by
   the owner's decision until customers arrive.

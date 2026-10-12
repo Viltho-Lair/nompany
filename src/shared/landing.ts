@@ -76,6 +76,7 @@ type Strings = {
   pvMostPopular: string;
   pvNoPackages: string;
   pvPerMaxUsers: string;
+  pvPerSeat: string;
   pvTitle: string;
   pvYearly: string;
   /** The yearly badge. `{n}` is the discount percentage; drawn only when there IS one. */
@@ -168,6 +169,7 @@ const en: Strings = {
   pvMostPopular: "Most popular",
   pvNoPackages: "No packages are published yet.",
   pvPerMaxUsers: "for up to {n} users / month",
+  pvPerSeat: "per seat / month · {range} seats",
   pvTitle: "Pricing that scales with your team",
   pvYearly: "Yearly",
   pvSave: (n) => `Save ${n}%`,
@@ -258,6 +260,7 @@ const ar: Strings = {
   pvMostPopular: "الأكثر اختيارا",
   pvNoPackages: "لم تنشر أي باقات بعد.",
   pvPerMaxUsers: "حتى {n} مستخدما / شهريا",
+  pvPerSeat: "لكل مقعد / شهريا · {range} مقعدا",
   pvTitle: "أسعار تنمو مع فريقك",
   pvYearly: "سنوي",
   pvSave: (n) => `وفر ${n}%`,

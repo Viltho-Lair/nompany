@@ -8,9 +8,10 @@ import TransferPanel from "./TransferPanel";
 import type { InputHTMLAttributes } from "react";
 import type { OwnerBillingView } from "@/lib/data/customerBilling";
 import type { BillingProfile } from "@/lib/data/customerBilling";
+import type { SeatView } from "@/lib/data/seatBilling";
 
 type Words = ReturnType<typeof billingDict>;
-type View = OwnerBillingView;
+type View = OwnerBillingView & { seats: SeatView };
 
 // THE OWNER'S BILLING PAGE — /account → Billing (the owner, 26/09/2026: "they
 // will still need to check their financial information"). On the account page
@@ -18,9 +19,11 @@ type View = OwnerBillingView;
 // nompany, not the studio's own Finance, and because a shut-down studio cannot
 // be opened at all — the account page always can.
 //
-// One studio at a time: its subscription, how to pay, the transfers told to
-// nompany and their answers, invoices and credit notes (each one a printable
-// page), refund requests, and the billing details printed on invoices.
+// One studio at a time: its subscription, its SEATS (12/10/2026 — the owner
+// changes them here: more at once and billed on the next renewal, fewer from
+// the renewal), what it is asked to pay and how, the transfers told to nompany
+// and their answers, invoices and credit notes (each one a printable page),
+// refund requests, and the billing details printed on invoices.
 
 const newId = () => (globalThis.crypto?.randomUUID?.() || `rf_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`);
 const dmy = (d: unknown) => (/^\d{4}-\d{2}-\d{2}/.test(String(d || "")) ? String(d).slice(0, 10).split("-").reverse().join("/") : "");
@@ -89,6 +92,8 @@ export default function BillingCenter({ owned = [], locale = "en", initialSlug =
       {!data ? <p className="text-sm text-slate-500">{error || t.loading}</p> : (
         <>
           <Status data={data} t={t} />
+          <Seats key={slug} slug={slug} data={data} t={t} onChanged={load} />
+          {data.paymentRequest && <RequestCard data={data} t={t} />}
           <section className={CARD}>
             <h2 className={H2}>{t.payTitle}</h2>
             <TransferPanel key={slug} slug={slug} data={data} locale={locale} onChanged={load} />
@@ -116,6 +121,95 @@ function Status({ data, t }: { data: View; t: Words }) {
       {data.plan.packageName && <p className="text-sm text-slate-600 dark:text-slate-300">{t.onPlan(`${data.plan.packageName}${data.plan.tierName ? ` + ${data.plan.tierName}` : ""}`)}</p>}
       {lines.map((l) => <p key={l} className="text-sm text-slate-600 dark:text-slate-300">{l}</p>)}
       {data.holdUntil && <p className="mt-2 text-sm text-sky-800 dark:text-sky-200">{t.held(when(data.holdUntil))}</p>}
+    </section>
+  );
+}
+
+function Seats({ slug, data, t, onChanged }: { slug: string; data: View; t: Words; onChanged: () => Promise<unknown> }) {
+  const v = data.seats;
+  const [want, setWant] = useState(v.seatsNext || v.seats);
+  const [changeId, setChangeId] = useState(newId);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [error, setError] = useState("");
+  const money = (n: unknown, c?: string) => `${fmtCurrencyAmount(Number(n) || 0, c || "USD")} ${c || ""}`;
+  if (!v.onPlan) {
+    return (
+      <section className={CARD}>
+        <h2 className={H2}>{t.seatsTitle}</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-300">{t.noSeatPlan}</p>
+      </section>
+    );
+  }
+  const renewsOn = dmy(data.subscription.paidUntil);
+  async function save() {
+    setBusy(true); setError(""); setMsg("");
+    const res = await fetch(`/api/studios/${slug}/billing`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "change-seats", seats: want, changeId }),
+    });
+    const out = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(t.refusal[out.error] || t.failed); return; }
+    setChangeId(newId());
+    setMsg(out.charge ? t.seatsAdded(money(out.charge.amount, out.charge.currency)) : t.seatsReduced(renewsOn));
+    await onChanged();
+  }
+  return (
+    <section className={CARD}>
+      <h2 className={H2}>{t.seatsTitle}</h2>
+      <p className="font-600">{t.seatsUsed(v.members, v.seats)}</p>
+      {v.seatsNext > 0 && <p className="text-sm text-slate-600 dark:text-slate-300">{t.seatsNextOn(v.seatsNext, renewsOn)}</p>}
+      {v.perSeat.length > 0 && (
+        <ul className="mt-2 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+          {v.perSeat.map((b) => <li key={b.label}>{t.perSeat(b.label, money(b.rate, v.currency))}</li>)}
+        </ul>
+      )}
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <label className="block"><span className="mb-1 block text-xs font-600 uppercase tracking-wide text-slate-500">{t.seatsField}</span>
+          <input type="number" inputMode="numeric" dir="ltr" className={`${INPUT} w-28 tabular-nums`} step={1}
+            min={Math.max(v.range?.min || 1, v.members)} max={v.range?.max || undefined}
+            value={want || ""} onChange={(e) => { setWant(Math.trunc(Number(e.target.value) || 0)); setMsg(""); setError(""); }} /></label>
+        <button type="button" className={BTN} disabled={busy || want === (v.seatsNext || v.seats)} onClick={save}>{busy ? t.sending : t.seatsApply}</button>
+      </div>
+      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{want > v.seats ? t.seatsAddNote : want < v.seats ? t.seatsReduceNote(renewsOn) : ""}</p>
+      {msg && <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{msg}</p>}
+      {error && <p className="mt-2 text-sm text-rose-600" role="alert">{error}</p>}
+
+      {v.accrued.length > 0 && (
+        <div className="mt-4 border-t border-slate-100 pt-3 dark:border-white/10">
+          <p className="mb-1 text-xs font-600 uppercase tracking-wide text-slate-500">{t.unbilledTitle}</p>
+          <ul className="space-y-1 text-sm">
+            {v.accrued.map((c) => (
+              <li key={c.id} className="flex justify-between gap-3">
+                <span>{t.unbilledLine(c.seatsBefore, c.seatsAfter, dmy(c.from), dmy(c.to))}</span>
+                <span className="tabular-nums" dir="ltr">{money(c.amount, c.currency)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {v.next && <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{t.nextRenewal(dmy(v.next.on), money(v.next.amount, v.next.currency), v.next.seats)}</p>}
+    </section>
+  );
+}
+
+function RequestCard({ data, t }: { data: View; t: Words }) {
+  const r = data.paymentRequest;
+  if (!r) return null;
+  const money = (n: unknown) => `${fmtCurrencyAmount(Number(n) || 0, r.currency)} ${r.currency}`;
+  return (
+    <section className={CARD}>
+      <h2 className={H2}>{t.requestTitle[r.kind]}</h2>
+      <p className="mb-3 text-xs text-slate-500">{t.requestIssued(dmy(r.issuedOn))}</p>
+      <dl className="space-y-1 text-sm">
+        {r.lines.map((l, i) => (
+          <div key={i} className="flex justify-between gap-3"><dt className="text-slate-600 dark:text-slate-300">{l.description}</dt><dd className="tabular-nums" dir="ltr">{money(l.amount)}</dd></div>
+        ))}
+        <div className="flex justify-between gap-3 border-t border-slate-100 pt-1 dark:border-white/10"><dt>{t.requestSubtotal}</dt><dd className="tabular-nums" dir="ltr">{money(r.subtotal)}</dd></div>
+        <div className="flex justify-between gap-3"><dt>{t.requestTax(r.taxPercent)}</dt><dd className="tabular-nums" dir="ltr">{money(r.tax)}</dd></div>
+        <div className="flex justify-between gap-3 font-700"><dt>{t.requestTotal}</dt><dd className="tabular-nums" dir="ltr">{money(r.total)}</dd></div>
+      </dl>
     </section>
   );
 }
