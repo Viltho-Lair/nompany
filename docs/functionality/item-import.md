@@ -52,7 +52,8 @@ the way this import reads it, in the reader's language (Arabic sheets run right 
 - **Lists**: the studio's own units, suppliers and item categories. The Unit column is a
   dropdown of them that refuses anything else, because the import refuses anything else; the
   Supplier column offers them and only warns, because the import can add new suppliers; the
-  Category column offers them and only warns, because an unknown category does not refuse the row.
+  Category column offers them and only warns, because an unknown category does not refuse the row
+  (and may be added by the import).
 
 **SKU, Model Number and Barcode are formatted as Text before anybody types in them.** That is
 the one thing a CSV cannot say and the reason the template is a workbook: typed into a CSV
@@ -80,9 +81,25 @@ The item type is Odoo's *category*, and "All / Saleable / Cables" means "Cables"
 **"Category" is the studio's own category, not the item type (2026-10-02).** A column headed
 Category (or الفئة) is matched against the studio's Item categories (Master data), by name in
 either language, or by a path for a category inside another ("Box with Slice / Slice"). A
-match files the item under it. **A category the studio does not have is a warning, not a
-refusal**: the item is imported with no category and the dialog names what did not match. A
-name two subcategories share is not guessed. Odoo's "Product Category" and `categ_id` still
+match files the item under it. A name two subcategories share is not guessed.
+
+**A category the studio does not have is ADDED, for whoever may add one (2026-10-12, the
+owner).** The dialog offers "Add the N categories this file names that are not in your Item
+categories", **ticked by default** for a person holding `administration.master.create` — the
+right adding a category in Master data asks, so the import is no way round it. A path adds
+every level the register lacks, under the deepest level it has ("Box with Slice / Half" adds
+Half under the existing Box with Slice; "Cakes / Sliced / Thin" adds all three, nested), with
+the names spelled as the file spelled them. Every row naming the same new category files under
+the one category. The plan gives each a placeholder id (`new-category:N`); the server mints the
+real ids and writes the whole set in one write, before the items (`createCategoryTree`,
+`modules/administration/itemCategories`). A category a re-sent batch already added is found, not
+added twice.
+
+**What is still a warning, not a refusal**: the option off, a person without the right (the
+dialog says which right), a name two subcategories share (adding a top-level one would quietly
+change what that name means), a path deeper than the register's four levels, and more than 200
+new categories in one batch. Those items are imported with no category and the dialog names what
+did not match. Odoo's "Product Category" and `categ_id` still
 fill the item type. Until this date "Category" filled the item type too, so no imported item
 was ever filed under a category.
 
@@ -128,6 +145,9 @@ server against what is stored by then. **Nothing is coerced:**
 - **A supplier the studio does not have** refuses the row unless the person ticks "Add the
   N suppliers this file names". Those are created before the items and tagged with the
   import. Nothing is created silently.
+- **A category the studio does not have** is added when the person leaves "Add the N
+  categories" ticked (see Category above); otherwise the item comes in unfiled. A row refused
+  for anything else adds no category.
 
 **A likely swap of Cost and Sales price has to be confirmed.** Both are numbers, so no type
 check can see it, and swapped, every item is quoted at cost. When at least five rows are
@@ -170,7 +190,7 @@ the whole register: a 300-line price list was 300 reloads of 1,200 items, queued
 the import and exhausting the connection pool (seen as 500s on the sandbox). `updateMany`
 and `removeMany` announce once.
 
-After the run: counts added, updated, suppliers added, and **Download the rows that weren't
+After the run: counts added, updated, suppliers added, categories added, and **Download the rows that weren't
 imported**, a CSV of those rows exactly as they were in the file plus a Reason column,
 with a BOM so Excel opens Arabic correctly. Fix them and import that file.
 
@@ -184,7 +204,8 @@ or sits on an order or delivery note (the test `removeItem` applies to one item)
 whole undo is refused (409) and names up to five of them. Half an undo would leave part of
 a file and no way to tell which part. Suppliers the import added are removed too, unless
 something else still names them or the person may not delete suppliers; the answer says
-how many stayed. **Items the import updated are not restored**: nothing recorded what they
+how many stayed. **Categories the import added stay**: they are the studio's reference data,
+and an offer or a hand-typed subcategory price may already name them. **Items the import updated are not restored**: nothing recorded what they
 held before, and the confirmation says so.
 
 ## Deleting many items at once (2026-09-18)
@@ -201,20 +222,23 @@ holds each. `{ id }` alone keeps its old answers (`in-use`, `notfound`). Asks
 ## Rights
 
 Importing asks `inventory.items.create`. With Update on, also `inventory.items.edit`. Adding
-suppliers, also `procurement.suppliers.create`. Undo asks `inventory.items.delete`, and
+suppliers, also `procurement.suppliers.create`. Adding categories, also
+`administration.master.create` (the Inventory read says `canCreateCategories`). Undo asks `inventory.items.delete`, and
 removing its suppliers `procurement.suppliers.delete`. No new permission key: importing is
 creating.
 
 ## What it stores
 
 Ordinary item rows, the same fields in the same order as `createItem` writes, plus
-`importId` and `importLine`. Suppliers it adds carry `importId`. No file is kept.
+`importId` and `importLine`. Suppliers it adds carry `importId`. Categories it adds are ordinary
+Item category rows and carry nothing of the import. No file is kept.
 
 ## Not built yet
 
 - **No column for a subcategory's price or quantity.** They are typed on the item, one item at a time.
-- **A category the file names is never added to the register.** Suppliers can be added while
-  importing; categories cannot.
+- **An added category has no Arabic name.** It is added as the file wrote it; the Arabic name is
+  typed in Master data afterwards.
+- **Undo does not remove the categories an import added.**
 - **The template's lists are a snapshot.** A unit, supplier or category added after it was downloaded
   is not in its dropdowns; download it again. Currency has no dropdown.
 - **No template for updating prices only.** The full template works for that (leave the

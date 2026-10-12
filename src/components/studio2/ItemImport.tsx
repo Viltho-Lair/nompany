@@ -13,6 +13,7 @@ import {
   guessItemMapping, looksLikeItemHeader, itemRows, planItemImport, refusedRowsCsv, itemTemplate, templateGuide,
   categoryPathNames,
 } from "@/modules/inventory/itemImport";
+import { resolveCategory } from "@/modules/inventory/categoryPrices";
 import type {
   ExistingItem, ImportRefusal, ItemField, ItemMapping,
 } from "@/modules/inventory/itemImport";
@@ -23,9 +24,9 @@ type Tr = ReturnType<typeof itemImportDict>;
 // An item already registered, as the import reads it — and when it landed, for the history.
 type KnownItem = ExistingItem & { createdAt?: string };
 // The running count of an import, kept in this browser so a stopped one can be continued.
-type Tally = { importId: string; next: number; created: number; updated: number; vendorsCreated: number; refused: ImportRefusal[] };
-type Saved = Tally & { key: string; update?: boolean; createVendors?: boolean };
-type Options = { update: boolean; createVendors: boolean };
+type Tally = { importId: string; next: number; created: number; updated: number; vendorsCreated: number; categoriesCreated?: number; refused: ImportRefusal[] };
+type Saved = Tally & { key: string; update?: boolean; createVendors?: boolean; createCategories?: boolean };
+type Options = { update: boolean; createVendors: boolean; createCategories: boolean };
 
 // IMPORTING REGISTERED ITEMS — a materials list from Odoo or a spreadsheet.
 // Loaded only when somebody opens it (StudioInventory), so the reader, the
@@ -71,12 +72,14 @@ function download(name: string, body: string | Uint8Array, type = "text/csv;char
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export default function ItemImport({ slug, items, vendors, units, categories = [], studioCurrency, onChanged, onBusy, onClose }: {
+export default function ItemImport({ slug, items, vendors, units, categories = [], canCreateCategories = false, studioCurrency, onChanged, onBusy, onClose }: {
   slug: string;
   items: KnownItem[];
   vendors: { name: string }[];
   units: string[];
   categories?: CategoryNode[];
+  /** Whether this person may add Item categories — the import asks the same right. */
+  canCreateCategories?: boolean;
   studioCurrency: string;
   onChanged?: () => void;
   onBusy?: (busy: boolean) => void;
@@ -94,6 +97,10 @@ export default function ItemImport({ slug, items, vendors, units, categories = [
   const [override, setOverride] = useState<{ header: boolean; mapping: ItemMapping } | null>(null);
   const [update, setUpdate] = useState(false);
   const [createVendors, setCreateVendors] = useState(false);
+  // ON BY DEFAULT for whoever may add categories (the owner, 12/10/2026): a
+  // file that already files its goods means those categories. Off, and not
+  // offered, for anybody else — the server would refuse the whole batch.
+  const [createCategories, setCreateCategories] = useState(canCreateCategories);
   const [swapOk, setSwapOk] = useState(false);
   const [showRefused, setShowRefused] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -119,14 +126,27 @@ export default function ItemImport({ slug, items, vendors, units, categories = [
   const env = useMemo(() => ({
     units, studioCurrency, vendorNames: vendors.map((v) => v.name), items, categories,
   }), [units, studioCurrency, vendors, items, categories]);
+  const plan = useMemo(
+    () => planItemImport(read.rows, env, { update, createVendors, createCategories: createCategories && canCreateCategories }),
+    [read.rows, env, update, createVendors, createCategories, canCreateCategories],
+  );
   const categoryName = (id: string) => {
     const c = categories.find((x) => x.id === id);
-    return c ? (locale === "ar" && c.nameAr ? c.nameAr : c.name) : "";
+    if (c) return locale === "ar" && c.nameAr ? c.nameAr : c.name;
+    const added = plan.newCategories.find((x) => x.id === id);
+    return added ? `${added.name} (${tr.newCategory})` : "";
   };
-  const plan = useMemo(
-    () => planItemImport(read.rows, env, { update, createVendors }),
-    [read.rows, env, update, createVendors],
-  );
+  // Asked of the file against the register as STORED, like the suppliers
+  // below, so the offer stays on screen whether or not it is taken.
+  const missingCategories = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const r of read.rows) {
+      const name = String(r.category || "").trim();
+      if (name && resolveCategory(name, categories) === null) out.set(name.toLowerCase(), name);
+    }
+    return [...out.values()];
+  }, [read.rows, categories]);
+  const shortList = (names: readonly string[], n: number) => names.slice(0, n).join(", ") + (names.length > n ? "…" : "");
   // Asked of the file directly rather than of the plan, so the offer to add
   // them does not vanish the moment it is taken.
   const missingVendors = useMemo(() => {
@@ -184,15 +204,15 @@ export default function ItemImport({ slug, items, vendors, units, categories = [
 
   // The options travel as ARGUMENTS: a resumed import sets them from what was
   // saved, and state set in the same tick would not be read back until later.
-  async function start(from: Tally | null, opts: Options = { update, createVendors }) {
+  async function start(from: Tally | null, opts: Options = { update, createVendors, createCategories: createCategories && canCreateCategories }) {
     const all = read.rows;
     const key = fileKey(slug, fileName, all.length);
-    const tally = from || { importId: "", next: 0, created: 0, updated: 0, vendorsCreated: 0, refused: [] };
+    const tally = from || { importId: "", next: 0, created: 0, updated: 0, vendorsCreated: 0, categoriesCreated: 0, refused: [] };
     setPhase("running"); setRun({ ...tally, total: all.length }); setResumeTaken(true);
     let state = tally;
     for (let at = state.next; at < all.length; at += IMPORT_BATCH) {
       // The import route's answer to one batch (importItems), or null when it refused.
-      let out: { importId: string; created?: number; updated?: number; vendorsCreated?: number; refused?: ImportRefusal[] } | null = null;
+      let out: { importId: string; created?: number; updated?: number; vendorsCreated?: number; categoriesCreated?: number; refused?: ImportRefusal[] } | null = null;
       try {
         const res = await fetch(`/api/studios/${slug}/inventory/items/import`, {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -214,6 +234,7 @@ export default function ItemImport({ slug, items, vendors, units, categories = [
         created: state.created + (out.created || 0),
         updated: state.updated + (out.updated || 0),
         vendorsCreated: state.vendorsCreated + (out.vendorsCreated || 0),
+        categoriesCreated: (state.categoriesCreated || 0) + (out.categoriesCreated || 0),
         refused: [...state.refused, ...(out.refused || [])],
       };
       writeResume({ ...state, key, ...opts });
@@ -227,8 +248,8 @@ export default function ItemImport({ slug, items, vendors, units, categories = [
   function continueSaved() {
     const from = resume;
     if (!from) return; // the button is only drawn while there is one
-    const opts = { update: !!from.update, createVendors: !!from.createVendors };
-    setUpdate(opts.update); setCreateVendors(opts.createVendors);
+    const opts = { update: !!from.update, createVendors: !!from.createVendors, createCategories: !!from.createCategories && canCreateCategories };
+    setUpdate(opts.update); setCreateVendors(opts.createVendors); setCreateCategories(opts.createCategories);
     start(from, opts);
   }
 
@@ -263,6 +284,7 @@ export default function ItemImport({ slug, items, vendors, units, categories = [
           <li>{tr.created(run.created)}</li>
           {run.updated > 0 && <li>{tr.updated(run.updated)}</li>}
           {run.vendorsCreated > 0 && <li>{tr.vendorsCreated(run.vendorsCreated)}</li>}
+          {(run.categoriesCreated || 0) > 0 && <li>{tr.categoriesCreated(run.categoriesCreated || 0)}</li>}
           {refusedAll.length > 0 && <li className="text-amber-700 dark:text-amber-300">{tr.notImported(refusedAll.length)}</li>}
         </ul>
         {phase === "running" && <p className="text-xs text-slate-500 dark:text-slate-400">{tr.keepOpen}</p>}
@@ -395,6 +417,20 @@ export default function ItemImport({ slug, items, vendors, units, categories = [
                 </span>
               </label>
             )}
+            {missingCategories.length > 0 && canCreateCategories && (
+              <label className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-200">
+                <input type="checkbox" className="mt-0.5 h-4 w-4 accent-brand-600" checked={createCategories}
+                  onChange={(e) => setCreateCategories(e.target.checked)} />
+                <span>{tr.optCategories(missingCategories.length)}
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">
+                    {tr.optCategoriesHint(createCategories ? shortList(plan.newCategories.map((c) => c.path), 6) : shortList(missingCategories, 6))}
+                  </span>
+                </span>
+              </label>
+            )}
+            {missingCategories.length > 0 && !canCreateCategories && (
+              <p className="text-xs text-amber-700 dark:text-amber-300">{tr.categoriesNoRight(missingCategories.length, shortList(missingCategories, 6))}</p>
+            )}
           </div>
 
           <ul className="space-y-0.5 text-sm">
@@ -409,7 +445,7 @@ export default function ItemImport({ slug, items, vendors, units, categories = [
             {plan.unknownUnits.length > 0 && (
               <li className="text-xs text-amber-700 dark:text-amber-300">{tr.unknownUnits(plan.unknownUnits.slice(0, 8).join(", "))}</li>
             )}
-            {plan.unknownCategories.length > 0 && (
+            {plan.unknownCategories.length > 0 && canCreateCategories && (
               <li className="text-xs text-amber-700 dark:text-amber-300">
                 {tr.unknownCategories(plan.unknownCategories.slice(0, 8).join(", ") + (plan.unknownCategories.length > 8 ? "…" : ""))}
               </li>

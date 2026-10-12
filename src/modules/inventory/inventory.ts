@@ -74,12 +74,12 @@ import { roundMoney, roundSum } from "@/shared/money";
 import { taxCategoryField } from "@/shared/taxProfile";
 import { barcodeProblems, cleanBarcode, type Barcoded } from "./barcodes";
 import {
-  ITEM_FIELDS, IMPORT_BATCH, planItemImport, type ImportRefusal, type ItemField, type ItemImportRow,
+  ITEM_FIELDS, IMPORT_BATCH, NEW_CATEGORY, planItemImport, type ImportRefusal, type ItemField, type ItemImportRow,
 } from "./itemImport";
 import { cleanCategoryPrices, cleanCategoryQuantities, piecesPerItem } from "./categoryPrices";
 import { writeOffReport, isWriteOff, periodDays, customDays, WRITE_OFF_PERIODS, type WriteOffPeriod } from "./writeOffs";
 import { splitOf, adjustSplit, ADJUST_CAUSES, ADJUST_PARTS, type AdjustPart } from "./sealedLoose";
-import { listItemCategories } from "@/modules/administration/itemCategories";
+import { listItemCategories, createCategoryTree } from "@/modules/administration/itemCategories";
 
 // "TODAY" IS THE STUDIO'S, NOT THE SERVER'S (shared/timezone, the owner,
 // 22/09/2026). The server runs on UTC, so a receipt booked at 01:00 in Riyadh
@@ -753,11 +753,18 @@ export async function importItems(ctx: InventoryContext, body: Record<string, un
   // Importing IS creating — the same right, not a new one (see importVendors).
   const denied = requirePermission(ctx.access, "inventory.items.create");
   if (denied) return denied;
-  const opts = { update: body?.update === true, createVendors: body?.createVendors === true };
+  const opts = {
+    update: body?.update === true,
+    createVendors: body?.createVendors === true,
+    // No Master data section, nowhere to add a category: the option is moot.
+    createCategories: body?.createCategories === true && !!ctx.masterSection,
+  };
   // Each option asks the right its act needs, so the import is never a way
-  // round a grid that withholds editing items or adding suppliers.
+  // round a grid that withholds editing items, adding suppliers or adding
+  // categories.
   if (opts.update) { const d = requirePermission(ctx.access, "inventory.items.edit"); if (d) return d; }
   if (opts.createVendors) { const d = requirePermission(ctx.access, "procurement.suppliers.create"); if (d) return d; }
+  if (opts.createCategories) { const d = requirePermission(ctx.access, "administration.master.create"); if (d) return d; }
 
   const list = Array.isArray(body?.rows) ? body.rows : [];
   if (!list.length) return { error: "empty" };
@@ -814,6 +821,20 @@ export async function importItems(ctx: InventoryContext, body: Record<string, un
   }
   const vendorIdOf = new Map(vendors.map((v) => [v.name.trim().toLowerCase(), v.id]));
   const vendorOf = (name: string) => (name ? vendorIdOf.get(name.toLowerCase()) || "" : "");
+
+  // CATEGORIES THE FILE NAMES AND THE REGISTER LACKS, added before the items
+  // that file under them. The plan's placeholder ids become real ones here; a
+  // placeholder that maps to nothing files its item nowhere rather than on a
+  // shelf nobody chose.
+  let categoriesCreated = 0;
+  let categoryIdOf = (id: string) => id;
+  if (plan.newCategories.length && ctx.masterSection) {
+    const out = await createCategoryTree({ studio, section: ctx.masterSection, access: ctx.access }, plan.newCategories);
+    if ("error" in out) return out;
+    categoriesCreated = out.count;
+    categoryIdOf = (id: string) => (id.startsWith(NEW_CATEGORY) ? out.ids.get(id) || "" : id);
+  }
+  for (const p of [...plan.create, ...plan.update]) p.categoryId = categoryIdOf(p.categoryId);
 
   // A blank SKU gets the next free ITM-number off the studio's tally (./sku),
   // stepped past every SKU this batch names as well as every one already
@@ -890,6 +911,7 @@ export async function importItems(ctx: InventoryContext, body: Record<string, un
     created: created.length,
     updated,
     vendorsCreated,
+    categoriesCreated,
     // Lines a previous attempt at this same batch already wrote.
     already: rows.length - fresh.length,
     refused: [...early, ...plan.refused],

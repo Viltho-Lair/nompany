@@ -90,7 +90,7 @@ type InventoryBody = {
   canManage: boolean; canViewDashboard: boolean;
   canManageStock: boolean; canManageVendors: boolean; canManageItems: boolean;
   canManageSheets: boolean; canManageAwb: boolean;
-  canCreateStock: boolean; canEditItems: boolean; canSeeStockAlerts: boolean;
+  canCreateStock: boolean; canEditItems: boolean; canSeeStockAlerts: boolean; canCreateCategories?: boolean;
   asOf: string; nav: Nav; currency: string; manage: Record<string, boolean>;
   vendors: InvVendor[]; items: InvItem[]; movements: InvMovement[];
   orders: Awaited<ReturnType<typeof listOrders>>; projects: OpenProject[];
@@ -207,7 +207,7 @@ export default function StudioInventory({ slug, view = "inventory", initial }: {
   // `canWriteInventoryColumns`, which projects/route.ts derives per column
   // owner — so the coarse flag here answers a question nobody asks any more.
   const {
-    canManageStock, canManageItems, canManageAwb, canCreateStock, canEditItems, asOf,
+    canManageStock, canManageItems, canManageAwb, canCreateStock, canEditItems, canCreateCategories = false, asOf,
     vendors, items, movements, orders, projects, shipments, airlines, summary, vocabulary, nav, categories = [],
     currency: studioCurrency = "",
   } = data;
@@ -221,7 +221,7 @@ export default function StudioInventory({ slug, view = "inventory", initial }: {
   const wrap = (children: ReactNode) => <div className="space-y-6">{banner}{children}</div>;
 
   if (view === "inventory-items") {
-    return wrap(<Items slug={slug} items={items} vendors={vendors} units={vocabulary.units} categories={categories}
+    return wrap(<Items slug={slug} items={items} vendors={vendors} units={vocabulary.units} categories={categories} canCreateCategories={canCreateCategories}
       studioCurrency={studioCurrency} canManage={canManageItems} busy={busy} send={send} reload={load} />);
   }
   if (view === "inventory-stock") {
@@ -319,8 +319,8 @@ function message(out: SendAnswer, tr: Tr, view = "") {
 }
 
 // ---- registered items (the catalogue) --------------------------------------
-function Items({ slug, items, vendors, units, categories = [], studioCurrency, canManage, busy, send, reload }: {
-  slug: string; items: InvItem[]; vendors: InvVendor[]; units: string[]; categories?: ItemCategory[];
+function Items({ slug, items, vendors, units, categories = [], canCreateCategories = false, studioCurrency, canManage, busy, send, reload }: {
+  slug: string; items: InvItem[]; vendors: InvVendor[]; units: string[]; categories?: ItemCategory[]; canCreateCategories?: boolean;
   studioCurrency: string; canManage: boolean; busy: boolean; send: Send; reload: () => void;
 }) {
   const money = useMoney();
@@ -389,7 +389,7 @@ function Items({ slug, items, vendors, units, categories = [], studioCurrency, c
         // CLOSING IS REFUSED WHILE A BATCH IS IN FLIGHT — Escape and the
         // backdrop included. Nothing would be lost, but the count would be.
         <Dialog title={tr.importItems} onClose={() => { if (!importBusy) setImporting(false); }} width="max-w-[960px]">
-          <ItemImport slug={slug} items={items} vendors={vendors} units={units} categories={categories} studioCurrency={studioCurrency}
+          <ItemImport slug={slug} items={items} vendors={vendors} units={units} categories={categories} canCreateCategories={canCreateCategories} studioCurrency={studioCurrency}
             onChanged={reload} onBusy={setImportBusy} onClose={() => setImporting(false)} />
         </Dialog>
       )}

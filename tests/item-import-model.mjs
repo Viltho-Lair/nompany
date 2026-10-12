@@ -355,6 +355,41 @@ for (const locale of ["en", "ar"]) {
   // A price with no quantity says what to charge and not what leaves the shelf.
   ok("a subcategory with a price and no quantity is not sold as such",
     C.sellingSizes({ categoryId: "box", categoryPrices: { slice: 1200 } }, tree).length === 0);
+
+  // ---- a file that brings its own categories (createCategories) ----------------
+  // THE DEFECT: a file already filing its goods under categories the studio had
+  // not typed in imported every item unfiled, so the categories had to be keyed
+  // in by hand and every item re-filed one form at a time.
+  console.log("\n== a file's own categories are added when asked");
+  const add = { createCategories: true };
+  const sweets = one({ name: "A", category: "Sweets" }, add, e);
+  ok("a category the studio lacks is planned, and the item filed under it",
+    sweets.newCategories.length === 1 && sweets.newCategories[0].name === "Sweets" && sweets.newCategories[0].parentId === ""
+    && sweets.create[0].categoryId === sweets.newCategories[0].id && sweets.create[0].categoryId.startsWith(I.NEW_CATEGORY));
+  ok("...with no warning, because it is no longer unknown", sweets.unknownCategories.length === 0 && sweets.warnings.length === 0);
+  ok("without the option nothing is planned", one({ name: "A", category: "Sweets" }, {}, e).newCategories.length === 0);
+  const twice = plan([{ line: 2, name: "A", category: "Sweets" }, { line: 3, name: "B", category: "sweets" }], add, e);
+  ok("two rows naming one new category add it once and share it",
+    twice.newCategories.length === 1 && twice.create[0].categoryId === twice.create[1].categoryId);
+  const under = one({ name: "A", category: "Box with Slice / Half" }, add, e);
+  ok("a path adds only the level the register lacks, under the one it has",
+    under.newCategories.length === 1 && under.newCategories[0].parentId === "box" && under.newCategories[0].path === "Box with Slice / Half");
+  ok("...and the existing parent now counts as having subcategories", one({ name: "A", category: "Box with Slice" }, add, e).toPrice === 1);
+  const deep = one({ name: "A", category: "Cakes / Sliced / Thin" }, add, e);
+  ok("a new path adds every level, parents first",
+    deep.newCategories.map((c) => c.name).join() === "Cakes,Sliced,Thin"
+    && deep.newCategories[1].parentId === deep.newCategories[0].id && deep.newCategories[2].parentId === deep.newCategories[1].id
+    && deep.create[0].categoryId === deep.newCategories[2].id);
+  const ambiguous = one({ name: "A", category: "Slice" }, add, e);
+  ok("a name two subcategories share is still not guessed, and not added either",
+    ambiguous.newCategories.length === 0 && ambiguous.create[0].categoryId === "" && ambiguous.unknownCategories[0] === "Slice");
+  const tooDeep = one({ name: "A", category: "L1 / L2 / L3 / L4 / L5" }, add, e);
+  ok("a path deeper than the register allows adds nothing and imports the item unfiled",
+    tooDeep.newCategories.length === 0 && tooDeep.create[0].categoryId === "");
+  const refusedRow = one({ name: "A", category: "Sweets", unit: "furlong" }, add, e);
+  ok("a row refused for something else adds no category", refusedRow.newCategories.length === 0 && refusedRow.refused.length === 1);
+  ok("the missing part of a path is spelled as the file spelled it",
+    JSON.stringify(C.missingCategoryPath("box with slice / Thin Slice", cats)) === JSON.stringify({ parentId: "box", names: ["Thin Slice"] }));
 }
 
 // ---- sealed boxes and loose pieces (modules/inventory/sealedLoose) ------------

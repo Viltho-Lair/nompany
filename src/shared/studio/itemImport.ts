@@ -36,6 +36,9 @@ type Strings = {
   optUpdateHint: string;
   optVendors: (n: number) => string;
   optVendorsHint: (names: string) => string;
+  optCategories: (n: number) => string;
+  optCategoriesHint: (names: string) => string;
+  categoriesNoRight: (n: number, names: string) => string;
   willCreate: (n: number) => string;
   willUpdate: (n: number) => string;
   willSkip: (n: number) => string;
@@ -67,6 +70,8 @@ type Strings = {
   created: (n: number) => string;
   updated: (n: number) => string;
   vendorsCreated: (n: number) => string;
+  categoriesCreated: (n: number) => string;
+  newCategory: string;
   notImported: (n: number) => string;
   downloadRefused: string;
   close: string;
@@ -90,6 +95,8 @@ const arVendors = (n: number) => arCount(n, "مورد واحد", "موردان",
 const items = (n: number) => `${n} ${n === 1 ? "item" : "items"}`;
 const rows = (n: number) => `${n} ${n === 1 ? "row" : "rows"}`;
 const suppliers = (n: number) => `${n} ${n === 1 ? "supplier" : "suppliers"}`;
+const categories = (n: number) => `${n} ${n === 1 ? "category" : "categories"}`;
+const arCategories = (n: number) => arCount(n, "فئة واحدة", "فئتان", "فئات", "فئة");
 
 const en: Strings = {
   button: "Import items",
@@ -115,7 +122,7 @@ const en: Strings = {
       unit: { what: (c) => `One of your units: ${c.units}. Blank means the first of them.`, example: "pcs" },
       vendor: { what: () => "The supplier's name as it is on your Suppliers list. A supplier not on the list can be added while importing.", example: "Gulf AV Supply" },
       itemType: { what: () => "The kind of item, in your own words. \"All / Saleable / Cables\" is read as \"Cables\".", example: "Cables" },
-      category: { what: () => "One of your Item categories (Master data), by its name. A category inside another may be written as a path: \"Box / Piece\". One you do not have leaves the item without a category. When the category has subcategories, each can be given its own price on the item afterwards.", example: "" },
+      category: { what: () => "One of your Item categories (Master data), by its name. A category inside another may be written as a path: \"Box / Piece\". One you do not have can be added while importing; otherwise the item is left without a category. When the category has subcategories, each can be given its own price on the item afterwards.", example: "" },
       modelNumber: { what: () => "The manufacturer's model or part number.", example: "C6-305" },
       barcode: { what: () => "EAN, UPC or your own code. It must not belong to another item.", example: "6291000000017" },
       unitCost: { what: (c) => `What one unit costs you, in the Currency column's money (${c.currency || "your studio's currency"} when that is blank). A number only.`, example: "180" },
@@ -163,6 +170,9 @@ const en: Strings = {
   optUpdateHint: "Only the columns in the file are changed. Blank cells leave the item as it is.",
   optVendors: (n) => `Add the ${suppliers(n)} this file names that are not on your list`,
   optVendorsHint: (names) => `Not on your list: ${names}`,
+  optCategories: (n) => `Add the ${categories(n)} this file names that are not in your Item categories`,
+  optCategoriesHint: (names) => `Will be added: ${names}. A path such as "Box / Piece" adds each level it is missing. Undoing the import leaves them in place.`,
+  categoriesNoRight: (n, names) => `${categories(n)} in this file ${n === 1 ? "is" : "are"} not in your Item categories (${names}). Adding categories needs the Master data create right, so those items are imported without a category.`,
   willCreate: (n) => `${items(n)} to add`,
   willUpdate: (n) => `${items(n)} to update`,
   willSkip: (n) => `${items(n)} already registered — skipped`,
@@ -203,6 +213,8 @@ const en: Strings = {
   created: (n) => `${items(n)} added`,
   updated: (n) => `${items(n)} updated`,
   vendorsCreated: (n) => `${suppliers(n)} added`,
+  categoriesCreated: (n) => `${categories(n)} added`,
+  newCategory: "new",
   notImported: (n) => `${rows(n)} not imported`,
   downloadRefused: "Download the rows that weren't imported",
   close: "Close",
@@ -241,7 +253,7 @@ const ar: Strings = {
       unit: { what: (c) => `إحدى وحداتك: ${c.units}. الفارغ يعني أولها.`, example: "pcs" },
       vendor: { what: () => "اسم المورد كما هو في قائمة الموردين. يمكن إضافة مورد غير موجود أثناء الاستيراد.", example: "Gulf AV Supply" },
       itemType: { what: () => "نوع الصنف بكلماتك. \"All / Saleable / Cables\" تُقرأ \"Cables\".", example: "كابلات" },
-      category: { what: () => "إحدى فئات الأصناف لديك (البيانات الرئيسية) باسمها. الفئة التي بداخل أخرى تُكتب كمسار: \"صندوق / قطعة\". الفئة غير الموجودة تترك الصنف بلا فئة. وإذا كانت للفئة فئات فرعية فيمكن إعطاء كل منها سعرًا على الصنف لاحقًا.", example: "" },
+      category: { what: () => "إحدى فئات الأصناف لديك (البيانات الرئيسية) باسمها. الفئة التي بداخل أخرى تُكتب كمسار: \"صندوق / قطعة\". يمكن إضافة الفئة غير الموجودة أثناء الاستيراد، وإلا يبقى الصنف بلا فئة. وإذا كانت للفئة فئات فرعية فيمكن إعطاء كل منها سعرًا على الصنف لاحقًا.", example: "" },
       modelNumber: { what: () => "رقم الموديل أو القطعة من المصنّع.", example: "C6-305" },
       barcode: { what: () => "EAN أو UPC أو رمزك الخاص، ولا يجوز أن يكون لصنف آخر.", example: "6291000000017" },
       unitCost: { what: (c) => `تكلفة الوحدة عليك بعملة عمود العملة (${c.currency || "عملة الاستوديو"} إن كان فارغًا). رقم فقط.`, example: "180" },
@@ -289,6 +301,9 @@ const ar: Strings = {
   optUpdateHint: "تتغير الأعمدة الموجودة في الملف فقط، والخلايا الفارغة تترك الصنف كما هو.",
   optVendors: (n) => `إضافة ${arVendors(n)} يذكرهم الملف وليسوا في قائمتك`,
   optVendorsHint: (names) => `ليسوا في قائمتك: ${names}`,
+  optCategories: (n) => `إضافة ${arCategories(n)} يذكرها الملف وليست ضمن فئات الأصناف لديك`,
+  optCategoriesHint: (names) => `ستُضاف: ${names}. المسار مثل "صندوق / قطعة" يضيف كل مستوى ناقص منه. التراجع عن الاستيراد يُبقيها كما هي.`,
+  categoriesNoRight: (n, names) => `${arCategories(n)} في هذا الملف ليست ضمن فئات الأصناف لديك (${names}). إضافة الفئات تتطلب صلاحية الإنشاء في البيانات الرئيسية، لذا تُستورد هذه الأصناف بلا فئة.`,
   willCreate: (n) => `${arItems(n)} للإضافة`,
   willUpdate: (n) => `${arItems(n)} للتحديث`,
   willSkip: (n) => `${arItems(n)} مسجلة مسبقًا — ستُتجاوز`,
@@ -329,6 +344,8 @@ const ar: Strings = {
   created: (n) => `أُضيف ${arItems(n)}`,
   updated: (n) => `حُدِّث ${arItems(n)}`,
   vendorsCreated: (n) => `أُضيف ${arVendors(n)}`,
+  categoriesCreated: (n) => `أُضيفت ${arCategories(n)}`,
+  newCategory: "جديدة",
   notImported: (n) => `${arRows(n)} لم تُستورد`,
   downloadRefused: "تنزيل الصفوف التي لم تُستورد",
   close: "إغلاق",

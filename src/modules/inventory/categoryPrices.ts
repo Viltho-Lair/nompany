@@ -126,6 +126,36 @@ export function resolveCategory(written: unknown, categories: readonly CategoryN
   return parent;
 }
 
+/**
+ * WHAT A FILE'S CATEGORY NEEDS ADDED before it resolves: the deepest part of
+ * the path the register already has, and the names beneath it that it lacks,
+ * top first, as the file spelled them. Null when nothing should be added —
+ * a blank, a category that already resolves, or a single name the register
+ * holds more than once below the top (adding a top-level one would quietly
+ * make it mean something else). Depth is the caller's to judge.
+ */
+export function missingCategoryPath(
+  written: unknown,
+  categories: readonly CategoryNode[],
+): { parentId: string; names: string[] } | null {
+  const text = String(written ?? "").trim();
+  const names = text.split(/\s*(?:\/|>|›)\s*/).map((p) => p.trim()).filter(Boolean);
+  if (!names.length || resolveCategory(text, categories) !== null) return null;
+  const ids = new Set(categories.map((c) => c.id));
+  const parentOf = (c: CategoryNode) => (c.parentId && ids.has(c.parentId) ? c.parentId : "");
+
+  if (names.length === 1) {
+    return categories.some((c) => named(c, fold(names[0]))) ? null : { parentId: "", names };
+  }
+  let parent = "";
+  for (let i = 0; i < names.length; i += 1) {
+    const hit = categories.find((c) => parentOf(c) === parent && named(c, fold(names[i])));
+    if (!hit) return { parentId: parent, names: names.slice(i) };
+    parent = hit.id;
+  }
+  return null;
+}
+
 // ---- selling by subcategory, and what each sale takes off stock ---------------
 //
 // STOCK IS COUNTED IN PIECES — the owner, 02/10/2026. An item whose category

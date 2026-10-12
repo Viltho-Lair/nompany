@@ -31,6 +31,7 @@
 
 import { requirePermission } from "@/platform/access";
 import { repo } from "@/platform/db/repo";
+import { ID } from "@/platform/db/keys";
 import { depthOf, wouldCycle, MAX_DEPARTMENT_DEPTH } from "@/shared/departments/tree";
 import type { MasterContext } from "./types";
 
@@ -141,6 +142,44 @@ export async function createItemCategories(ctx: MasterContext, names: readonly u
   if (!made.length) return { categories: [], count: 0 };
   const categories = await Categories.createMany({ studio: ctx.studio, section: ctx.section }, made);
   return { categories, count: categories.length };
+}
+
+/**
+ * A NESTED SET AT ONCE, for an item import that brings its own categories
+ * (modules/inventory/itemImport, `createCategories`). Each draft names its
+ * parent by a stored id or by an earlier draft's placeholder id; parents come
+ * first. Real ids are minted here so a parent and its child go in ONE write.
+ *
+ * Returns placeholder → real id. A draft the register now refuses — its name
+ * taken under that parent since the plan was read, say — maps to the category
+ * already there when one matches, and to nothing otherwise, so its items land
+ * unfiled rather than on a guessed shelf.
+ */
+export async function createCategoryTree(
+  ctx: Pick<MasterContext, "studio" | "section" | "access">,
+  drafts: readonly { id: string; name: string; parentId: string }[],
+): Promise<{ ids: Map<string, string>; count: number } | { error: string; status?: number }> {
+  const denied = requirePermission(ctx.access, "administration.master.create");
+  if (denied) return denied;
+  const ids = new Map<string, string>();
+  if (!drafts.length) return { ids, count: 0 };
+  const taken: ItemCategory[] = [...await listItemCategories(ctx)];
+  const at = new Date().toISOString();
+  const made: ItemCategory[] = [];
+  for (const d of drafts.slice(0, 200)) {
+    const parentId = ids.get(d.parentId) ?? (taken.some((c) => c.id === d.parentId) ? d.parentId : "");
+    if (d.parentId && !parentId) continue; // its parent was not added, so neither is it
+    const name = str(d.name);
+    const same = taken.find((c) => (c.parentId || "") === parentId && c.name.trim().toLowerCase() === name.toLowerCase());
+    if (same) { ids.set(d.id, same.id); continue; }
+    if (categoryProblem(taken, { name, parentId })) continue;
+    const row = { id: ID.row("itemCategories"), name, nameAr: "", ...(parentId ? { parentId } : {}), createdAt: at };
+    made.push(row);
+    taken.push(row);
+    ids.set(d.id, row.id);
+  }
+  if (made.length) await Categories.createMany({ studio: ctx.studio, section: ctx.section }, made);
+  return { ids, count: made.length };
 }
 
 /** Rename or re-nest. The id does not move, so nothing carrying it changes. */

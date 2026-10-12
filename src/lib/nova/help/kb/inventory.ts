@@ -447,7 +447,9 @@ export const inventory: HelpModule = {
       related: ["inventory-items.add", "inventory-items.refused", "inventory-items.categories"],
     },
     // Checked against src/components/studio2/ItemImport.tsx (the column matching
-    // step: one select per field, and the Update and Add suppliers options) and
+    // step: one select per field, and the Update, Add suppliers and Add
+    // categories options — the last ticked by default for whoever holds
+    // administration.master.create, and absent for anybody else) and
     // ITEM_FIELDS / ITEM_ALIASES in src/modules/inventory/itemImport.ts (only
     // Name is required for a new item, TEMPLATE_REQUIRED); the words are
     // itemImportDict's `fields` in src/shared/studio/itemImport.ts; the row
@@ -457,8 +459,8 @@ export const inventory: HelpModule = {
       id: "inventory-items.import-mapping", topic: "dept.inventory-items", kind: "fields", open: "inventory-items",
       q: { en: "Which columns can an item import read?", ar: "ما الأعمدة التي يقرؤها استيراد الأصناف؟" },
       a: {
-        en: "After you attach the file, each item field gets a list of the file's columns, and a column already named like the field, including Odoo's and Arabic headings, is matched for you. Only Name is needed for a new item; any other column may be left as Not in the file. Two options follow the columns.",
-        ar: "بعد إرفاق الملف، يحصل كل حقل من حقول الصنف على قائمة بأعمدة الملف، ويُطابَق تلقائيًّا العمود الذي يحمل اسم الحقل، ومنها عناوين Odoo والعناوين العربية. ولا يلزم إلا الاسم للصنف الجديد؛ ويمكن ترك أي عمود آخر على «غير موجود في الملف». ويلي الأعمدةَ خياران.",
+        en: "After you attach the file, each item field gets a list of the file's columns, and a column already named like the field, including Odoo's and Arabic headings, is matched for you. Only Name is needed for a new item; any other column may be left as Not in the file. Options follow the columns.",
+        ar: "بعد إرفاق الملف، يحصل كل حقل من حقول الصنف على قائمة بأعمدة الملف، ويُطابَق تلقائيًّا العمود الذي يحمل اسم الحقل، ومنها عناوين Odoo والعناوين العربية. ولا يلزم إلا الاسم للصنف الجديد؛ ويمكن ترك أي عمود آخر على «غير موجود في الملف». وتلي الأعمدةَ خيارات.",
       },
       fields: {
         en: [
@@ -467,11 +469,13 @@ export const inventory: HelpModule = {
           "Unit: must be one of your units; blank means the first",
           "Supplier: as named on your Suppliers list",
           "Item type, Model number and Barcode",
+          "Category: one of your Item categories by name, or a path such as Box / Piece",
           "Cost, Sales price and Currency: numbers only, and a known currency code",
           "Shipping charges and Customs charges: required when the currency is foreign",
           "Reorder level, Delivery (weeks) or Lead time (days), and Notes",
           "Update items whose SKU is already registered: only the columns in the file change",
           "Add the suppliers this file names that are not on your list",
+          "Add the categories this file names that are not in your Item categories: ticked by default when you may add categories in Master data",
         ],
         ar: [
           "رمز الصنف: حتى 40 حرفًا؛ ويطابق صنفًا موجودًا عند التحديث",
@@ -479,11 +483,13 @@ export const inventory: HelpModule = {
           "الوحدة: يجب أن تكون إحدى وحداتك؛ والفارغ يعني أولها",
           "المورد: كما هو مسمى في قائمة الموردين",
           "نوع الصنف ورقم الموديل والباركود",
+          "الفئة: إحدى فئات الأصناف لديك باسمها، أو مسار مثل صندوق / قطعة",
           "التكلفة وسعر البيع والعملة: أرقام فقط، ورمز عملة معروف",
           "رسوم الشحن ورسوم الجمارك: مطلوبة إذا كانت العملة أجنبية",
           "حد إعادة الطلب، والتوريد (بالأسابيع) أو مدة التوريد (بالأيام)، والملاحظات",
           "تحديث الأصناف المسجلة برمز موجود: تتغير الأعمدة الموجودة في الملف فقط",
           "إضافة الموردين الذين يذكرهم الملف وليسوا في قائمتك",
+          "إضافة الفئات التي يذكرها الملف وليست ضمن فئات الأصناف لديك: محدد افتراضيًّا إن كان لك أن تضيف فئات في البيانات الرئيسية",
         ],
       },
       keywords: ["import columns", "column mapping", "match columns", "Odoo", "مطابقة الأعمدة", "أعمدة الاستيراد", "استيراد"],

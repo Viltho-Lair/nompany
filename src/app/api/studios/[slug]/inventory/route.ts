@@ -71,6 +71,9 @@ export const GET = route(
     // but not edit items was offered a Save on serials the PUT then refused.
     canCreateStock: can(g.access, "inventory.stock.create"),
     canEditItems: can(g.access, "inventory.items.edit"),
+    // Whether an item import may add the categories its file names — the
+    // right adding one in Master data asks, so the import is no way round it.
+    canCreateCategories: !!g.masterSection && can(g.access, "administration.master.create"),
     // THE STUDIO'S "TODAY", read once here so the dashboard's weeks and months
     // end on the studio's date rather than the reader's laptop's (shared/timezone).
     asOf: dayIn(new Date(), studioTimezone(g.studio as { timezone?: unknown })),

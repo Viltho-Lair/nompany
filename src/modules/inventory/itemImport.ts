@@ -29,13 +29,22 @@
 // type: that is the supplier's line, and Odoo's "Product Category" still fills
 // it. A category the studio does not have is a WARNING, never a refusal — the
 // item is imported unfiled, and the dialog names what did not match.
+//
+// UNLESS THE PERSON ASKS FOR THE CATEGORY TO BE ADDED (12/10/2026, the owner:
+// a file that already files its goods should bring its categories with it).
+// `createCategories` adds what the file names and the register lacks — a path
+// adds every level it is missing — exactly as `createVendors` adds suppliers,
+// and asks the right adding one by hand asks (`administration.master.create`).
+// The plan gives each new category a PLACEHOLDER id (`NEW_CATEGORY`), which
+// the server swaps for the real one in the same request.
 
 import { fold } from "@/shared/csv";
 import { parseNumber } from "@/modules/tendering/boqImport";
 import { isKnownCurrency } from "@/shared/currencies";
 import { barcodeProblems, cleanBarcode } from "./barcodes";
 import { columnName, type XlsxSheet, type XlsxValidation } from "@/shared/xlsxWrite";
-import { resolveCategory, subcategoriesOf, type CategoryNode } from "./categoryPrices";
+import { resolveCategory, missingCategoryPath, subcategoriesOf, type CategoryNode } from "./categoryPrices";
+import { depthOf, MAX_DEPARTMENT_DEPTH } from "@/shared/departments/tree";
 
 export const ITEM_FIELDS = [
   "sku", "name", "unit", "vendor", "itemType", "category", "modelNumber", "barcode",
@@ -129,14 +138,20 @@ export type TemplateEnv = {
 /** Every category as the path a file may write it by, sorted. */
 export function categoryPathNames(categories: readonly CategoryNode[]): string[] {
   const byId = new Map(categories.map((c) => [c.id, c]));
-  const pathOf = (c: CategoryNode): string => {
-    const names: string[] = [];
-    const seen = new Set<string>();
-    let cursor: CategoryNode | undefined = c;
-    while (cursor && !seen.has(cursor.id)) { seen.add(cursor.id); names.unshift(cursor.name); cursor = byId.get(cursor.parentId || ""); }
-    return names.join(" / ");
-  };
-  return categories.map(pathOf).sort((a, b) => a.localeCompare(b));
+  return categories.map((c) => pathIn(byId, c.id)).sort((a, b) => a.localeCompare(b));
+}
+
+/** One category written as its path ("Box with Slice / Slice"), or "" for an id the register lacks. */
+export function categoryPath(categories: readonly CategoryNode[], id: string): string {
+  return pathIn(new Map(categories.map((c) => [c.id, c])), id);
+}
+
+function pathIn(byId: ReadonlyMap<string, CategoryNode>, id: string): string {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  let cursor = byId.get(id);
+  while (cursor && !seen.has(cursor.id)) { seen.add(cursor.id); names.unshift(cursor.name); cursor = byId.get(cursor.parentId || ""); }
+  return names.join(" / ");
 }
 
 /** Rows the template prepares: its dropdowns reach this far. */
@@ -355,7 +370,18 @@ export type ImportOptions = {
   update: boolean;
   /** Add a supplier the file names and the studio does not have. */
   createVendors: boolean;
+  /** Add an Item category the file names and the studio does not have. */
+  createCategories?: boolean;
 };
+
+/** A category the import will add. `id` is a placeholder until the server writes it. */
+export type PlannedCategory = { id: string; name: string; parentId: string; path: string };
+
+/** The prefix of a placeholder category id — never a stored id. */
+export const NEW_CATEGORY = "new-category:";
+
+/** The most categories one plan adds; past it, a name is a warning as before. */
+export const MAX_NEW_CATEGORIES = 200;
 
 // Common ways a spreadsheet writes the units every studio starts with. Mapped
 // only onto a unit the studio actually offers — never invented.
@@ -441,8 +467,12 @@ export function planItemImport(rows: readonly ItemImportRow[], env: ImportEnv, o
   const newVendors = new Map<string, { name: string; types: Set<string> }>();
   const unknownUnits = new Set<string>();
   const unknownCategories = new Set<string>();
-  const categories = env.categories || [];
-  // Asked once per category, not once per row.
+  // THE REGISTER AS IT WILL BE: what is stored, plus what this file adds, so a
+  // second row naming a new category files under the one the first row added.
+  const categories: CategoryNode[] = [...(env.categories || [])];
+  const newCategories: PlannedCategory[] = [];
+  // Asked once per category, not once per row — and asked again once a new
+  // category may have given an existing one children.
   const hasSubs = new Map<string, boolean>();
   const subsUnder = (id: string) => {
     if (!hasSubs.has(id)) hasSubs.set(id, subcategoriesOf(categories, id).length > 0);
@@ -553,7 +583,26 @@ export function planItemImport(rows: readonly ItemImportRow[], env: ImportEnv, o
     // FILED WHEN THE STUDIO HAS THE CATEGORY, imported unfiled when it does
     // not — and said, so nobody finds out from an offer that matched nothing.
     const writtenCategory = String(row.category ?? "").trim();
-    const resolved = resolveCategory(writtenCategory, categories);
+    let resolved = resolveCategory(writtenCategory, categories);
+    if (resolved === null && opts.createCategories) {
+      const missing = missingCategoryPath(writtenCategory, categories);
+      // The register's own limits: four levels, and a name of eighty characters.
+      const fits = missing
+        && (missing.parentId ? depthOf(categories, missing.parentId) : 0) + missing.names.length <= MAX_DEPARTMENT_DEPTH
+        && newCategories.length + missing.names.length <= MAX_NEW_CATEGORIES;
+      if (missing && fits) {
+        let parentId = missing.parentId;
+        for (const name of missing.names) {
+          const id = `${NEW_CATEGORY}${newCategories.length + 1}`;
+          const node = { id, name: name.slice(0, 80), ...(parentId ? { parentId } : {}) };
+          categories.push(node);
+          newCategories.push({ id, name: node.name, parentId, path: categoryPath(categories, id) });
+          parentId = id;
+        }
+        hasSubs.clear();
+        resolved = parentId;
+      }
+    }
     if (resolved === null) {
       unknownCategories.add(writtenCategory);
       warnings.push({ line, kind: "category-unknown", detail: writtenCategory });
@@ -603,6 +652,8 @@ export function planItemImport(rows: readonly ItemImportRow[], env: ImportEnv, o
     newVendors: [...newVendors.values()].map((v) => ({ name: v.name, itemTypes: [...v.types] })),
     unknownUnits: [...unknownUnits],
     unknownCategories: [...unknownCategories],
+    // Parents before their children, so they can be written in this order.
+    newCategories,
     // ITEMS FILED UNDER A CATEGORY THAT HAS SUBCATEGORIES: each may carry a
     // price per subcategory, typed on the item afterwards (./categoryPrices).
     // The file brings the category's own price only.
