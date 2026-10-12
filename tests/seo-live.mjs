@@ -96,6 +96,13 @@ for (const locale of LOCALES) {
     // `Nompany` in the wordmark, twice on every page.
     ok(`  brand spelled one way`, !/Nompany/.test(html));
 
+    // NO ADDRESS ON THE OLD DOMAIN. After the move to sittaerp.com (09/10/2026)
+    // the live pages still named www.nompany.com in every canonical, hreflang,
+    // og:image, JSON-LD @id and sitemap entry — a domain that no longer
+    // resolves — because NEXT_PUBLIC_SITE_URL on Vercel overrode the code's
+    // default. The code was right; only a check of the ANSWER could see it.
+    ok(`  names no nompany.com address`, !/nompany\.com/i.test(html), String(count(html, /nompany\.com/gi)));
+
     // NO CLAIM THE PRODUCT CANNOT SUPPORT. Each of these was on the live page.
     for (const claim of ["180+", "99.99", "SSO/SCIM", "3.2M", "agentic workflows", "38 days"]) {
       ok(`  does not claim "${claim}"`, !html.includes(claim));
@@ -124,7 +131,10 @@ console.log("\n== redirects say what they mean");
   ok("/ → 308 (permanent, not 307)", root.status === 308, String(root.status));
   ok("...to the locale root", /\/en\/?$/.test(root.location), root.location);
 
-  for (const [from, to] of [["/features", "/en/platform"], ["/gallery", "/en"], ["/c/anything", "/en"]]) {
+  // `/gallery` is NOT here: it stopped redirecting so a studio may take the
+  // name (shared/marketing/routes.ts says why), and asserting a 308 for it
+  // reported that deliberate choice as a defect on every run since.
+  for (const [from, to] of [["/features", "/en/platform"], ["/c/anything", "/en"]]) {
     const r = await get(from, "manual");
     ok(`${from} → 308`, r.status === 308, String(r.status));
     ok(`  → ${to}`, r.location.endsWith(to), r.location);
