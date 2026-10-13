@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fmtCurrencyAmount } from "@/lib/pricing";
 import { billingDict } from "@/shared/studio/billing";
+import { lastDayOf } from "@/shared/seatPricing";
 import SelectMenu from "@/components/fields/SelectMenu";
 import TransferPanel from "./TransferPanel";
 import type { InputHTMLAttributes } from "react";
@@ -162,7 +163,7 @@ function Seats({ slug, data, t, onChanged }: { slug: string; data: View; t: Word
       {v.seatsNext > 0 && <p className="text-sm text-slate-600 dark:text-slate-300">{t.seatsNextOn(v.seatsNext, renewsOn)}</p>}
       {v.perSeat.length > 0 && (
         <ul className="mt-2 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
-          {v.perSeat.map((b) => <li key={b.label}>{t.perSeat(b.label, money(b.rate, v.currency))}</li>)}
+          {v.perSeat.map((b) => <li key={b.label}>{t.perSeat(`${b.label} (${b.max ? `${b.min}–${b.max}` : `${b.min}+`})`, money(b.rate, v.currency))}</li>)}
         </ul>
       )}
       <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -182,7 +183,7 @@ function Seats({ slug, data, t, onChanged }: { slug: string; data: View; t: Word
           <ul className="space-y-1 text-sm">
             {v.accrued.map((c) => (
               <li key={c.id} className="flex justify-between gap-3">
-                <span>{t.unbilledLine(c.seatsBefore, c.seatsAfter, dmy(c.from), dmy(c.to))}</span>
+                <span>{t.unbilledLine(c.seatsBefore, c.seatsAfter, dmy(c.from), dmy(lastDayOf(c.to)))}</span>
                 <span className="tabular-nums" dir="ltr">{money(c.amount, c.currency)}</span>
               </li>
             ))}

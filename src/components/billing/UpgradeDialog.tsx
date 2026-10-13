@@ -182,6 +182,7 @@ export default function UpgradeDialog({ slug, studioName, locale = "en", onClose
             <p>{t.pending(day(pending.requestedAt))}</p>
             <p className="font-600">
               {name(cards.find((c) => c.id === pending.packageId)) || pending.packageId}
+              {Number(pending.seats) > 0 && <>{" · "}{t.seats(Number(pending.seats))}</>}
               {" · "}{pending.cycle === "yearly" ? t.yearly : t.monthly}
               {" · "}{money(pending.total)}
             </p>

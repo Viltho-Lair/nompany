@@ -156,6 +156,7 @@ export function PricingBoard({ initial = null, locale = "en" }: { initial?: Pric
             monthly: cat.monthly,
             yearly: cat.yearly,
             perSeat: Number(cat.perEmployee) || 0,
+            from: Number(cat.minEmployees) || 1,
           }))
         : null,
       // The button says what the type means it should.
@@ -294,7 +295,11 @@ export function PricingBoard({ initial = null, locale = "en" }: { initial?: Pric
             // pays any more. Billed yearly, the yearly discount comes off it.
             const rate = planBand ? planBand.perSeat : plan.perSeat;
             const seatRate = rate > 0 ? roundMoney(yearly ? rate - rate * (discountPct / 100) : rate, currency) : 0;
-            const seatRange = planBand ? planBand.label : `${plan.minEmployees || 1}${plan.maxEmployees ? `–${plan.maxEmployees}` : "+"}`;
+            // The RANGE, never the band's name: a name typed in /super ("Std. Plus")
+            // says nothing about how many seats it prices.
+            const lo = planBand ? planBand.from : plan.minEmployees || 1;
+            const hi = planBand ? planBand.upTo : plan.maxEmployees;
+            const seatRange = hi ? `${lo}–${hi}` : `${lo}+`;
 
             return (
               <PlanCard key={plan.key} i={i} popular={plan.popular}>

@@ -71,22 +71,28 @@ export async function seatView(studio: Studio, doc: SubscriptionDoc, visitorCoun
   const sub = doc.subscription;
   const members = (await listCollaborators(studio.id)).length;
   const base = { members, seats: sub.seats, seatsNext: sub.seatsNext || 0, onPlan: onSeatPlan(doc), accrued: sub.accrued || [] };
-  if (!base.onPlan) return { ...base, next: null, range: null, perSeat: [] as { label: string; rate: number }[], currency: "" };
+  if (!base.onPlan) return { ...base, next: null, range: null, perSeat: [] as { label: string; min: number; max: number; rate: number }[], currency: "" };
   const list = await priceListFor(sub.priceCountry || visitorCountry);
   const card = list.cards.find((c) => String(c.id) === String(studio.packageId || ""));
   const bands = seatBands(card);
   const seats = Math.max(base.seatsNext || sub.seats, members);
   const quote = quoteSeats(list, { packageId: String(studio.packageId || ""), seats, tierId: String(studio.tierId || ""), cycle: sub.period });
   const charges = (sub.accrued || []).filter((c) => c.currency === list.currency);
+  // WHILE A RENEWAL WAITS TO BE PAID, THE NEXT ONE IS THE PERIOD AFTER IT —
+  // the sandbox showed "next renewal on 13/10" beside the 13/10 request
+  // already on the page.
+  const waiting = openRequest(doc.requests);
   const next = "error" in quote ? null : {
-    on: sub.paidUntil, seats, currency: quote.currency,
+    on: waiting?.kind === "renewal" ? waiting.periodTo : sub.paidUntil, seats, currency: quote.currency,
     amount: roundMoney(quote.amount + charges.reduce((s, c) => s + c.amount, 0), quote.currency),
     taxPercent: quote.taxPercent,
   };
   return {
     ...base, next, currency: list.currency,
     range: bands.length ? { min: bands[0].min, max: bands.some((b) => b.max === 0) ? 0 : bands[bands.length - 1].max } : null,
-    perSeat: bands.map((b) => ({ label: b.label, rate: b.rate })),
+    // The range beside the name: a band is named in /super ("Std. Plus"), and
+    // the name alone does not tell an owner which of their seats it prices.
+    perSeat: bands.map((b) => ({ label: b.label, min: b.min, max: b.max, rate: b.rate })),
   };
 }
 
